@@ -1,0 +1,791 @@
+import { Head } from '@inertiajs/react';
+import { BookOpen, Edit3, FileText, FlaskConical, Globe, Link2, Rocket, Settings, Users } from 'lucide-react';
+
+import { DocsCodeBlock } from '@/components/docs/docs-code-block';
+import { DocsSection } from '@/components/docs/docs-section';
+import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem, type UserRole } from '@/types';
+
+interface DocsProps {
+    userRole: UserRole;
+}
+
+interface DocSection {
+    id: string;
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    minRole: UserRole;
+    content: React.ReactNode;
+}
+
+export default function Docs({ userRole }: DocsProps) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Documentation',
+            href: '/docs',
+        },
+    ];
+
+    // Define all documentation sections with role requirements
+    const allSections: DocSection[] = [
+        {
+            id: 'quick-start',
+            title: 'Quick Start Guide',
+            icon: Rocket,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>Welcome to ERNIE</h3>
+                    <p>
+                        ERNIE is a DataCite v4.5+ metadata editor for research data curation at GFZ Helmholtz Centre. This guide will help you get
+                        started with the platform.
+                    </p>
+
+                    <h4>Login & Navigation</h4>
+                    <p>
+                        After logging in at <code>/login</code>, you will be automatically redirected to the Dashboard. The Dashboard is your central
+                        hub for uploading XML files and managing your curation workflow.
+                    </p>
+
+                    <h4>Your Role: {userRole}</h4>
+                    <p>
+                        Your current role determines which features and actions are available to you. This documentation shows only the sections
+                        relevant to your role.
+                    </p>
+                </>
+            ),
+        },
+        {
+            id: 'curation-workflow',
+            title: 'Curation Workflow',
+            icon: Edit3,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>Complete Curation Process</h3>
+                    <p>Follow these steps to curate research data metadata from upload to saving in the database:</p>
+
+                    <WorkflowSteps>
+                        <WorkflowSteps.Step number={1} title="Login">
+                            <p>
+                                Navigate to <code>/login</code> and authenticate with your credentials. You will be automatically redirected to the
+                                Dashboard.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={2} title="Upload XML File">
+                            <p>
+                                In the Dashboard, use the <strong>dropzone</strong> to upload the XML file you received via email from ELMO (the
+                                metadata editor for researchers).
+                            </p>
+                            <p className="mt-2 text-sm">
+                                <strong>Accepted formats:</strong> DataCite XML v4.x or ELMO's DataCite 4.6 + ISO envelope format.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={3} title="Review in Editor">
+                            <p>
+                                After successful upload, you will be automatically redirected to the <strong>Data Editor</strong> (
+                                <code>/editor</code>) with the metadata pre-populated from the XML file.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={4} title="Curate & Enrich">
+                            <p>Review the submitted metadata carefully. Correct any errors and enrich the data with additional metadata as needed:</p>
+                            <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
+                                <li>Validate author/contributor information (ORCID, ROR affiliations)</li>
+                                <li>Add controlled keywords (GCMD Science Keywords, MSL)</li>
+                                <li>Complete spatial-temporal coverage (Google Maps integration available)</li>
+                                <li>Add funding references and related identifiers</li>
+                                <li>Ensure mandatory fields are complete</li>
+                            </ul>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={5} title="Save to Database">
+                            <p>
+                                Once you have reviewed and enriched the metadata, click the <strong>"Save to database"</strong> button to persist the
+                                curated dataset.
+                            </p>
+                        </WorkflowSteps.Step>
+                    </WorkflowSteps>
+
+                    <WorkflowSuccess>
+                        <strong>Success!</strong> Your curated dataset is now saved and available under <code>/resources</code> for further
+                        processing.
+                    </WorkflowSuccess>
+
+                    <h4>Next Steps</h4>
+                    <p>
+                        After saving, you can view the dataset under <code>/resources</code>, edit it again if needed, create a landing page, and
+                        eventually register a DOI.
+                    </p>
+
+                    <h4>Exporting Metadata</h4>
+                    <p>
+                        From the <code>/resources</code> page, you can export any dataset's metadata as a DataCite JSON file by clicking the{' '}
+                        <strong>JSON export button</strong> (JSON file icon). All exports are automatically validated against the official DataCite
+                        Metadata Schema 4.6 to ensure compliance before download.
+                    </p>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                        <p className="text-sm text-amber-900 dark:text-amber-100">
+                            <strong>Validation Errors:</strong> If the exported metadata contains schema violations, an error modal will display each
+                            issue with its JSON path and description. This helps you identify which fields need correction before the data can be
+                            submitted to DataCite.
+                        </p>
+                    </div>
+                </>
+            ),
+        },
+        {
+            id: 'landing-pages',
+            title: 'Landing Pages',
+            icon: Globe,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>Creating and Managing Landing Pages</h3>
+                    <p>
+                        Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before you can
+                        register a DOI.
+                    </p>
+
+                    <WorkflowSteps>
+                        <WorkflowSteps.Step number={1} title="Navigate to Resources">
+                            <p>
+                                Go to <code>/resources</code> and find the dataset you want to create a landing page for.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={2} title="Create Landing Page">
+                            <p>
+                                Click the <strong>landing page icon button</strong> for your dataset. This will generate a draft landing page with all
+                                metadata from your curated resource.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={3} title="Preview Landing Page">
+                            <p>
+                                Use the <strong>Preview</strong> feature to review how the landing page will look before publishing.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={4} title="Create Preview URL (Optional)">
+                            <p>
+                                If you need to share the landing page with authors or peer reviewers before publication, generate a{' '}
+                                <strong>preview URL</strong>. This allows external users to view the landing page without it being publicly
+                                accessible.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={5} title="Publish Landing Page">
+                            <p>
+                                When ready to publish, change the landing page status to <strong>"Public"</strong>. Only after this step will the{' '}
+                                <strong>DOI registration icon button</strong> appear under <code>/resources</code>.
+                            </p>
+                        </WorkflowSteps.Step>
+                    </WorkflowSteps>
+
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                        <p className="text-sm text-amber-900 dark:text-amber-100">
+                            <strong>Important:</strong> The landing page must be set to "Public" before you can register a DOI. This ensures that the
+                            DOI resolves to an accessible landing page.
+                        </p>
+                    </div>
+
+                    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
+                        <p className="text-sm text-red-900 dark:text-red-100">
+                            <strong>DOI Persistence:</strong> Once a landing page is published, it cannot be unpublished or deleted. This is because
+                            DOIs are persistent identifiers that must always resolve to a valid landing page. You can still update the template, FTP
+                            download URL, and other metadata after publication.
+                        </p>
+                    </div>
+                </>
+            ),
+        },
+        {
+            id: 'doi-registration',
+            title: 'DOI Registration',
+            icon: Link2,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>Registering DOIs for Datasets</h3>
+                    <p>Once your dataset has a published landing page, you can register a Digital Object Identifier (DOI) through DataCite.</p>
+
+                    <h4>DOI Duplicate Detection</h4>
+                    <p>
+                        When entering a DOI in the curation form, the system automatically validates it against the database. If the DOI already
+                        exists:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>
+                            An <strong>interactive modal</strong> appears showing the conflicting resource with a clickable link
+                        </li>
+                        <li>
+                            The system suggests the <strong>next available DOI</strong> based on the entered pattern
+                        </li>
+                        <li>
+                            One-click <strong>copy functionality</strong> allows you to quickly use the suggested DOI
+                        </li>
+                        <li>
+                            The <strong>last assigned DOI</strong> in the system is displayed for reference
+                        </li>
+                    </ul>
+
+                    <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong>Tip:</strong> The DOI validation happens automatically when you leave the DOI field (on blur). This prevents
+                            accidental DOI conflicts and streamlines the metadata curation workflow.
+                        </p>
+                    </div>
+
+                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                        <p className="text-sm text-amber-900 dark:text-amber-100">
+                            <strong>Note:</strong> Once a resource is saved with a DOI, the DOI field becomes read-only to prevent accidental changes.
+                            <strong>Administrators</strong> can still edit DOIs when needed (e.g., to correct typos), but should exercise caution when
+                            modifying registered DOIs.
+                        </p>
+                    </div>
+
+                    <h4>Prerequisites</h4>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>
+                            Dataset must be saved to the database (<code>/resources</code>)
+                        </li>
+                        <li>
+                            Landing page must be created and set to <strong>"Public"</strong> status
+                        </li>
+                        <li>All mandatory metadata fields must be complete</li>
+                    </ul>
+
+                    <h4>Registration Process</h4>
+                    <WorkflowSteps>
+                        <WorkflowSteps.Step number={1} title="Navigate to Resources">
+                            <p>
+                                Go to <code>/resources</code> and locate the dataset with a public landing page.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={2} title="Click DOI Registration Button">
+                            <p>
+                                The <strong>DOI registration icon button</strong> will be visible only for datasets with public landing pages. Click
+                                this button to open the DOI registration modal.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={3} title="Select DOI Prefix">
+                            <p>
+                                Choose the appropriate DOI prefix for your dataset. Available prefixes depend on your institution and repository
+                                configuration.
+                            </p>
+                            {userRole === 'beginner' && (
+                                <p className="mt-2 rounded-md bg-blue-50 p-2 text-sm text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                                    <strong>Note for Beginners:</strong> You can only register DOIs in <strong>test mode</strong>. Test DOIs are for
+                                    practice and will not be publicly resolvable.
+                                </p>
+                            )}
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={4} title="Confirm Registration">
+                            <p>
+                                Review the metadata and click <strong>"Register DOI"</strong>. The system will submit the metadata to DataCite and
+                                assign a permanent DOI.
+                            </p>
+                        </WorkflowSteps.Step>
+                    </WorkflowSteps>
+
+                    <WorkflowSuccess>
+                        <strong>Success!</strong> Your dataset is now published with a registered DOI. The landing page is publicly accessible via the
+                        DOI URL.
+                    </WorkflowSuccess>
+
+                    <h4>Test vs Production DOIs</h4>
+                    <div className="space-y-2">
+                        <div className="rounded-lg border bg-card p-4">
+                            <h5 className="font-semibold">Test Mode (api.test.datacite.org)</h5>
+                            <p className="text-sm text-muted-foreground">
+                                Test prefixes: 10.83279, 10.83186, 10.83114
+                                <br />
+                                Use for practice and training. DOIs are not publicly resolvable.
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-4">
+                            <h5 className="font-semibold">Production Mode (api.datacite.org)</h5>
+                            <p className="text-sm text-muted-foreground">
+                                Production prefixes: 10.5880, 10.26026, 10.14470
+                                <br />
+                                For real publications. DOIs are permanent and publicly resolvable.
+                                <br />
+                                {userRole === 'beginner' && (
+                                    <span className="text-amber-600 dark:text-amber-400">
+                                        <strong>Restricted:</strong> Beginners cannot register production DOIs.
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+
+                    <h4>Updating DOI Metadata</h4>
+                    <p>
+                        After registration, you can update the DOI metadata if you make changes to the dataset. The system will synchronize the latest
+                        metadata with DataCite via the REST API v2.
+                    </p>
+                </>
+            ),
+        },
+        {
+            id: 'igsn-registration',
+            title: 'IGSN Registration',
+            icon: FlaskConical,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>Registering Physical Samples (IGSNs)</h3>
+                    <p>
+                        IGSN (International Generic Sample Number) is a unique identifier for physical samples in research. ERNIE supports bulk import
+                        of IGSN metadata via CSV files.
+                    </p>
+
+                    <h4>CSV File Format</h4>
+                    <p>
+                        IGSN data must be provided in a <strong>pipe-delimited CSV file</strong> (using <code>|</code> as separator). The file should
+                        contain headers in the first row and data rows starting from the second row.
+                    </p>
+                    <p className="mt-2">Required columns include:</p>
+                    <ul className="list-inside list-disc space-y-1 text-sm">
+                        <li>
+                            <code>igsn</code> - The unique IGSN identifier
+                        </li>
+                        <li>
+                            <code>name</code> - Sample name
+                        </li>
+                        <li>
+                            <code>title</code> - Full title for the sample record
+                        </li>
+                        <li>
+                            <code>sample_type</code> - Type of sample (e.g., Borehole, Core)
+                        </li>
+                        <li>
+                            <code>material</code> - Material type (e.g., Sediment, Rock)
+                        </li>
+                        <li>
+                            <code>collection_start_date</code> / <code>collection_end_date</code> - Collection date range
+                        </li>
+                        <li>
+                            <code>latitude</code> / <code>longitude</code> - Geographic coordinates
+                        </li>
+                        <li>
+                            <code>collector</code> - Name of the person who collected the sample
+                        </li>
+                    </ul>
+
+                    <h4>Upload Process</h4>
+                    <WorkflowSteps>
+                        <WorkflowSteps.Step number={1} title="Prepare CSV File">
+                            <p>
+                                Ensure your CSV file follows the pipe-delimited format with all required columns. The file will typically be provided
+                                by your project's data management team.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={2} title="Navigate to Dashboard">
+                            <p>
+                                Go to the <strong>Dashboard</strong> (<code>/dashboard</code>) where you will find the unified dropzone for file
+                                uploads.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={3} title="Upload CSV File">
+                            <p>
+                                Drag and drop your CSV file onto the dropzone, or click to select a file from your computer. The system automatically
+                                detects the file type (XML for datasets, CSV for IGSNs).
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={4} title="Review Upload Results">
+                            <p>
+                                After successful upload, a confirmation message will appear showing the number of IGSNs imported. You will be
+                                automatically redirected to the IGSN list page.
+                            </p>
+                        </WorkflowSteps.Step>
+                    </WorkflowSteps>
+
+                    <WorkflowSuccess>
+                        <strong>Success!</strong> Your IGSN data has been imported and is now available in the IGSN list.
+                    </WorkflowSuccess>
+
+                    <h4>Viewing Uploaded IGSNs</h4>
+                    <p>
+                        All uploaded IGSNs can be viewed on the dedicated <strong>IGSN List</strong> page at <code>/igsns</code>. This page displays:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>IGSN identifier</li>
+                        <li>Title</li>
+                        <li>Sample Type and Material</li>
+                        <li>Collection Date (start and end dates)</li>
+                        <li>Upload Status</li>
+                    </ul>
+                    <p className="mt-2">
+                        You can sort the table by clicking on column headers. The IGSN identifier links to the IGSN resolver for registered samples.
+                    </p>
+
+                    <h4>Map View</h4>
+                    <p>
+                        The <strong>IGSNs Map</strong> page at <code>/igsns-map</code> provides a geographic visualization of all physical samples
+                        that have coordinate data. The interactive map displays:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>Markers for each IGSN with geographic coordinates</li>
+                        <li>Automatic viewport adjustment to show all samples</li>
+                        <li>Clickable markers with popup information (title, creator, publication year)</li>
+                    </ul>
+                    <p className="mt-2">
+                        Access the map view via the sidebar under <strong>IGSN Curation → IGSNs Map</strong>.
+                    </p>
+
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong>Note:</strong> IGSN records are managed separately from regular datasets. They appear only on the{' '}
+                            <code>/igsns</code> page, not on the general <code>/resources</code> page.
+                        </p>
+                    </div>
+
+                    <h4>Exporting IGSN Metadata</h4>
+                    <p>
+                        Each IGSN row includes a <strong>JSON export button</strong> (JSON file icon) that allows you to download the complete
+                        metadata in DataCite JSON format. This export is useful for:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>Archiving metadata locally</li>
+                        <li>Manual submission to DataCite</li>
+                        <li>Integration with other systems</li>
+                    </ul>
+
+                    <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
+                        <p className="text-sm text-green-900 dark:text-green-100">
+                            <strong>Automatic Validation:</strong> All JSON exports are validated against the official DataCite Metadata Schema 4.6
+                            before download. If any validation errors are detected, a detailed error modal will display each issue with its JSON path,
+                            helping you identify and fix problems before submission.
+                        </p>
+                    </div>
+                </>
+            ),
+        },
+        {
+            id: 'user-management',
+            title: 'User Management',
+            icon: Users,
+            minRole: 'group_leader',
+            content: (
+                <>
+                    <h3>Managing Users</h3>
+                    <p>
+                        As a <strong>{userRole}</strong>, you have permission to manage users in the system. ERNIE uses a closed application model
+                        where users are created by administrators or group leaders.
+                    </p>
+
+                    <h4>Creating New Users</h4>
+                    <p>
+                        Navigate to <code>/users</code> and click the <strong>"Create User"</strong> button. Enter the new user's name and email
+                        address. The system will:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>
+                            Create the account with the <strong>Beginner</strong> role
+                        </li>
+                        <li>
+                            Send a personalized <strong>welcome email</strong> from ERNIE
+                        </li>
+                        <li>The email contains a secure link (valid for 72 hours) to set their password</li>
+                    </ul>
+
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong>Link Expired?</strong> If the welcome link expires, users can request a new one directly from the expired welcome
+                            page by entering their email address.
+                        </p>
+                    </div>
+
+                    <h4>First User (Command Line)</h4>
+                    <p>The first user must be created via the terminal:</p>
+
+                    <DocsCodeBlock code="php artisan add-user <name> <email> <password>" />
+
+                    <p className="text-sm text-muted-foreground">
+                        The first user automatically becomes an <strong>admin</strong>.
+                    </p>
+
+                    <h4>User Roles & Permissions</h4>
+                    <div className="space-y-2">
+                        <div className="rounded-lg border bg-card p-3">
+                            <h5 className="text-sm font-semibold">Admin</h5>
+                            <p className="text-sm text-muted-foreground">Full system access, manage all users, register production DOIs</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3">
+                            <h5 className="text-sm font-semibold">Group Leader</h5>
+                            <p className="text-sm text-muted-foreground">
+                                Manage curator/beginner users, register production DOIs, full curation access
+                            </p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3">
+                            <h5 className="text-sm font-semibold">Curator</h5>
+                            <p className="text-sm text-muted-foreground">Standard curation features, test DOI registration only</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3">
+                            <h5 className="text-sm font-semibold">Beginner</h5>
+                            <p className="text-sm text-muted-foreground">Limited curation, test DOI only (forced), no user management</p>
+                        </div>
+                    </div>
+
+                    <h4>User Management Interface</h4>
+                    <p>
+                        Navigate to <code>/users</code> to view and manage existing users. You can:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>Change user roles (within your permission level)</li>
+                        <li>Activate/deactivate user accounts</li>
+                        <li>Send password reset links</li>
+                    </ul>
+
+                    {userRole === 'group_leader' && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Group Leader Restrictions:</strong> You cannot promote users to <strong>group_leader</strong> or{' '}
+                                <strong>admin</strong> roles. Only admins can create other group leaders or admins.
+                            </p>
+                        </div>
+                    )}
+
+                    <h4>System Protection</h4>
+                    <ul className="list-inside list-disc space-y-1 text-sm">
+                        <li>
+                            <strong>User ID 1:</strong> Cannot be modified, deactivated, or deleted (system-critical)
+                        </li>
+                        <li>
+                            <strong>Self-modification:</strong> Users cannot change their own role, deactivate themselves, or reset their own password
+                        </li>
+                    </ul>
+                </>
+            ),
+        },
+        {
+            id: 'system-administration',
+            title: 'System Administration',
+            icon: Settings,
+            minRole: 'admin',
+            content: (
+                <>
+                    <h3>System Administration</h3>
+                    <p>
+                        As an <strong>admin</strong>, you have access to system-level configuration and maintenance commands.
+                    </p>
+
+                    <h4>External Service Synchronization</h4>
+
+                    <h5 className="mt-4">Update SPDX Licenses</h5>
+                    <p>Fetch the latest license identifiers and names from the SPDX License List:</p>
+                    <DocsCodeBlock code="php artisan spdx:sync-licenses" />
+                    <p className="text-sm text-muted-foreground">Run monthly to keep the license database current.</p>
+
+                    <h5 className="mt-4">Manage GCMD Thesauri</h5>
+                    <p>
+                        GCMD (Global Change Master Directory) thesauri can now be managed directly from the{' '}
+                        <a href="/settings" className="text-primary hover:underline">
+                            Editor Settings
+                        </a>{' '}
+                        page via the <strong>Thesauri</strong> card. This provides:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Enable/Disable:</strong> Toggle individual thesauri (Science Keywords, Platforms, Instruments) for ERNIE and/or
+                            ELMO independently
+                        </li>
+                        <li>
+                            <strong>Check for Updates:</strong> Compare local concept counts with NASA's remote API
+                        </li>
+                        <li>
+                            <strong>Trigger Updates:</strong> Download the latest vocabulary data with one click
+                        </li>
+                    </ul>
+                    <p className="text-sm text-muted-foreground">
+                        When a thesaurus is disabled for ERNIE, its tab is automatically hidden in the Controlled Keywords field of the curation form.
+                    </p>
+
+                    <h5 className="mt-4">Update GCMD Vocabularies (CLI)</h5>
+                    <p>Alternatively, fetch controlled vocabularies via command line:</p>
+                    <DocsCodeBlock code="php artisan get-gcmd-science-keywords" />
+                    <DocsCodeBlock code="php artisan get-gcmd-platforms" />
+                    <DocsCodeBlock code="php artisan get-gcmd-instruments" />
+                    <p className="text-sm text-muted-foreground">
+                        These commands download the latest hierarchical JSON files from NASA KMS API. Recommended to run monthly.
+                    </p>
+
+                    <h5 className="mt-4">Update ROR Organizations</h5>
+                    <p>
+                        The ROR (Research Organization Registry) affiliations are synced automatically via the <code>GetRorIds</code> command.
+                        Configure the schedule in <code>app/Console/Kernel.php</code>.
+                    </p>
+
+                    <h5 className="mt-4">Update MSL Keywords</h5>
+                    <p>Materials Science keywords from TIB can be updated via:</p>
+                    <DocsCodeBlock code="php artisan get-msl-keywords" />
+
+                    <h4>DataCite Configuration</h4>
+                    <p>
+                        Configure DataCite API credentials in your <code>.env</code> file:
+                    </p>
+                    <DocsCodeBlock
+                        code={`# Test Mode
+DATACITE_TEST_MODE=true
+DATACITE_TEST_USERNAME=your_test_username
+DATACITE_TEST_PASSWORD=your_test_password
+DATACITE_TEST_ENDPOINT=https://api.test.datacite.org
+
+# Production Mode
+DATACITE_PRODUCTION_USERNAME=your_production_username
+DATACITE_PRODUCTION_PASSWORD=your_production_password
+DATACITE_PRODUCTION_ENDPOINT=https://api.datacite.org`}
+                        language="bash"
+                    />
+
+                    <h4>Queue Workers</h4>
+                    <p>ERNIE uses database-backed queues for background jobs (ORCID validation, ROR sync). Ensure the queue worker is running:</p>
+                    <DocsCodeBlock code="php artisan queue:listen" />
+                    <p className="text-sm text-muted-foreground">
+                        This is automatically started with <code>composer run dev</code>.
+                    </p>
+
+                    <h4>Google Maps API</h4>
+                    <p>For the spatial coverage editor with Google Maps integration, set your API key:</p>
+                    <DocsCodeBlock code="GM_API_KEY=your_google_maps_api_key" language="bash" />
+                </>
+            ),
+        },
+        {
+            id: 'api-documentation',
+            title: 'API Documentation',
+            icon: FileText,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>REST API</h3>
+                    <p>ERNIE provides a comprehensive REST API for integrating with external systems. The API follows OpenAPI 3.1 specifications.</p>
+
+                    <h4>Interactive API Documentation</h4>
+                    <p>Explore the full API documentation with interactive Swagger UI:</p>
+                    <p className="my-4">
+                        <a
+                            href="/api/v1/doc"
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <BookOpen className="size-4" />
+                            View API Documentation
+                        </a>
+                    </p>
+
+                    <h4>Key API Endpoints</h4>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>
+                            <code>/api/v1/resource-types</code> – Resource type definitions
+                        </li>
+                        <li>
+                            <code>/api/v1/licenses</code> – License information
+                        </li>
+                        <li>
+                            <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
+                        </li>
+                        <li>
+                            <code>/api/v1/orcid/search</code> – ORCID researcher search
+                        </li>
+                        <li>
+                            <code>/api/v1/gcmd/*</code> – NASA GCMD controlled vocabularies
+                        </li>
+                    </ul>
+
+                    <h4>ELMO Integration</h4>
+                    <p>
+                        The <code>/elmo</code> endpoints are protected by API key authentication. Include the <code>X-API-Key</code> header in your
+                        requests.
+                    </p>
+
+                    <DocsCodeBlock
+                        code={`curl -H "X-API-Key: your_api_key" \\
+  https://your-domain.com/elmo/endpoint`}
+                        language="bash"
+                    />
+                </>
+            ),
+        },
+    ];
+
+    // Filter sections based on user role hierarchy
+    const roleHierarchy: Record<UserRole, number> = {
+        beginner: 1,
+        curator: 2,
+        group_leader: 3,
+        admin: 4,
+    };
+
+    // Use beginner level (1) as safe fallback to ensure basic documentation is always visible
+    const userRoleLevel = roleHierarchy[userRole] ?? 1;
+    const visibleSections = allSections.filter((section) => roleHierarchy[section.minRole] <= userRoleLevel);
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const offset = 80;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.scrollY - offset;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth',
+            });
+        }
+    };
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Documentation" />
+            <div className="mx-auto max-w-5xl space-y-8 p-6">
+                {/* Table of Contents */}
+                <div className="rounded-lg border bg-card p-6">
+                    <h1 className="mb-4 text-3xl font-bold">Documentation</h1>
+                    <p className="mb-6 text-muted-foreground">
+                        Welcome to the ERNIE documentation. Your role: <strong className="text-foreground">{userRole}</strong>
+                    </p>
+
+                    <div className="space-y-2">
+                        <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Quick Navigation</h2>
+                        <nav className="grid gap-2 sm:grid-cols-2">
+                            {visibleSections.map(({ id, title, icon: Icon }) => (
+                                <button
+                                    key={id}
+                                    onClick={() => scrollToSection(id)}
+                                    className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3 text-left transition-colors hover:border-primary hover:bg-muted"
+                                >
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                                        <Icon className="size-4 text-primary" />
+                                    </div>
+                                    <span className="font-medium">{title}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                </div>
+
+                {/* Content Sections */}
+                <div className="space-y-12">
+                    {visibleSections.map(({ id, title, icon, content }) => (
+                        <DocsSection key={id} id={id} title={title} icon={icon}>
+                            {content}
+                        </DocsSection>
+                    ))}
+                </div>
+            </div>
+        </AppLayout>
+    );
+}
