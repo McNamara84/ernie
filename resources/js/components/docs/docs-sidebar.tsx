@@ -21,6 +21,7 @@ interface DocsSidebarProps {
 export function DocsSidebar({ items, activeId, onSectionClick, className }: DocsSidebarProps) {
     return (
         <nav
+            data-testid="docs-sidebar"
             className={cn('sticky top-20 hidden h-[calc(100vh-6rem)] w-64 shrink-0 overflow-y-auto lg:block', className)}
             aria-label="Documentation navigation"
         >
