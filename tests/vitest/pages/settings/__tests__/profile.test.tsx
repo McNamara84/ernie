@@ -44,7 +44,7 @@ vi.mock('@/routes/verification', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
-    default: { update: { form: () => ({}) } },
+    default: { update: { patch: () => ({}) } },
 }));
 
 describe('Profile settings page', () => {

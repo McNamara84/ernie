@@ -35,7 +35,7 @@ vi.mock('@inertiajs/react', () => inertiaMock);
 vi.mock('@/actions/App/Http/Controllers/Auth/NewPasswordController', () => ({
     default: {
         store: {
-            form: () => ({}),
+            post: () => ({}),
         },
     },
 }));

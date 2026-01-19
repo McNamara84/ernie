@@ -24,7 +24,7 @@ vi.mock('@/layouts/auth-layout', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/WelcomeController', () => ({
     default: {
         store: {
-            form: vi.fn(() => ({ method: 'post', action: '/welcome' })),
+            post: vi.fn(() => ({ method: 'post', action: '/welcome' })),
         },
     },
 }));

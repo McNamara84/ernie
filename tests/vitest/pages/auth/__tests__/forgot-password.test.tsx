@@ -33,7 +33,7 @@ vi.mock('@inertiajs/react', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/PasswordResetLinkController', () => ({
     default: {
         store: {
-            form: () => ({}),
+            post: () => ({}),
         },
     },
 }));

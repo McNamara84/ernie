@@ -19,7 +19,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 </div>
             )}
 
-            <Form {...EmailVerificationNotificationController.store.form()} className="space-y-6 text-center">
+            <Form {...EmailVerificationNotificationController.store.post()} className="space-y-6 text-center">
                 {({ processing }) => (
                     <>
                         <Button disabled={processing} variant="secondary">

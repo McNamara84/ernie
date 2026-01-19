@@ -81,6 +81,12 @@ vi.mock('lucide-react', () => ({
     Settings: () => <svg />,
     FileText: () => <svg />,
 }));
+vi.mock('@/routes', () => ({
+    dashboard: () => '/dashboard',
+    settings: () => ({ url: '/settings' }),
+    changelog: () => ({ url: '/changelog' }),
+    docs: () => ({ url: '/docs' }),
+}));
 describe('AppHeader', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({

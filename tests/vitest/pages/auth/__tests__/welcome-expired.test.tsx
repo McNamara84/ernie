@@ -20,7 +20,7 @@ vi.mock('@inertiajs/react', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/WelcomeController', () => ({
     default: {
         resend: {
-            form: () => ({ action: '/welcome/resend', method: 'post' }),
+            post: () => ({ action: '/welcome/resend', method: 'post' }),
         },
     },
 }));

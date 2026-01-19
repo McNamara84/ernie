@@ -37,7 +37,7 @@ vi.mock('@/components/ui/button', () => ({ Button: ({ children, ...props }: Reac
 vi.mock('@/components/ui/input', () => ({ Input: (props: React.ComponentProps<'input'>) => <input {...props} /> }));
 vi.mock('@/components/ui/label', () => ({ Label: ({ children, ...props }: React.ComponentProps<'label'>) => <label {...props}>{children}</label> }));
 vi.mock('@/routes/password', () => ({ edit: () => ({ url: '/settings/password' }) }));
-vi.mock('@/actions/App/Http/Controllers/Settings/PasswordController', () => ({ default: { update: { form: () => ({}) } } }));
+vi.mock('@/actions/App/Http/Controllers/Settings/PasswordController', () => ({ default: { update: { put: () => ({}) } } }));
 
 import Password from '@/pages/settings/password';
 

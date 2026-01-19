@@ -32,7 +32,7 @@ vi.mock('@inertiajs/react', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/EmailVerificationNotificationController', () => ({
     default: {
         store: {
-            form: () => ({}),
+            post: () => ({}),
         },
     },
 }));

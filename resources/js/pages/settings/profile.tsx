@@ -33,7 +33,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                     <HeadingSmall title="Profile information" description="Update your name and email address" />
 
                     <Form
-                        {...ProfileController.update.form()}
+                        {...ProfileController.update.patch()}
                         options={{
                             preserveScroll: true,
                         }}

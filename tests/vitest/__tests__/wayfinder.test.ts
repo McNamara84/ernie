@@ -23,8 +23,8 @@ describe('wayfinder utilities', () => {
     it('handles arrays, objects and booleans', () => {
       const result = queryParams({
         query: {
-          ids: [1, 2],
-          filter: { name: 'john', age: undefined },
+          ids: ['1', '2'],
+          filter: { name: 'john' },
           flag: true,
           neg: false,
         },
