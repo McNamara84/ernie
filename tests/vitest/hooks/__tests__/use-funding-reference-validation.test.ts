@@ -4,17 +4,32 @@ import { describe, expect, it } from 'vitest';
 import type { FundingReferenceEntry } from '@/components/curation/fields/funding-reference/types';
 import { useFundingReferenceValidation, validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 
+/**
+ * Helper to create a FundingReferenceEntry with all required fields
+ */
+const createFundingEntry = (overrides: Partial<FundingReferenceEntry> = {}): FundingReferenceEntry => ({
+    id: `funding-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    funderName: '',
+    funderIdentifier: '',
+    funderIdentifierType: null,
+    awardNumber: '',
+    awardUri: '',
+    awardTitle: '',
+    isExpanded: false,
+    ...overrides,
+});
+
 describe('use-funding-reference-validation', () => {
     describe('useFundingReferenceValidation', () => {
         it('should return valid for complete funding reference', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: 'National Science Foundation',
                 funderIdentifier: '10.13039/100000001',
                 funderIdentifierType: 'Crossref Funder ID',
                 awardNumber: 'ABC-123',
                 awardUri: 'https://nsf.gov/award/abc-123',
                 awardTitle: 'Research Grant',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -23,9 +38,9 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return valid when only required funderName is provided', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: 'Deutsche Forschungsgemeinschaft',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -34,10 +49,10 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return invalid when funderName is missing', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: '',
                 awardNumber: 'ABC-123',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -46,9 +61,9 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return invalid when funderName is whitespace only', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: '   ',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -57,7 +72,7 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return invalid when funderName is undefined', () => {
-            const funding: FundingReferenceEntry = {} as FundingReferenceEntry;
+            const funding = createFundingEntry(); // funderName defaults to ''
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -66,10 +81,10 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return valid when awardUri is empty (optional field)', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: 'Test Funder',
                 awardUri: '',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -78,10 +93,10 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return invalid when awardUri is not a valid URL', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: 'Test Funder',
                 awardUri: 'not-a-valid-url',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -90,10 +105,10 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return valid when awardUri is a valid https URL', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: 'Test Funder',
                 awardUri: 'https://example.com/award/123',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -102,10 +117,10 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return valid when awardUri is a valid http URL', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: 'Test Funder',
                 awardUri: 'http://example.com/award/123',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -113,10 +128,10 @@ describe('use-funding-reference-validation', () => {
         });
 
         it('should return multiple errors when both funderName and awardUri are invalid', () => {
-            const funding: FundingReferenceEntry = {
+            const funding = createFundingEntry({
                 funderName: '',
                 awardUri: 'invalid-url',
-            };
+            });
 
             const { result } = renderHook(() => useFundingReferenceValidation(funding));
 
@@ -133,9 +148,9 @@ describe('use-funding-reference-validation', () => {
 
         it('should return true when all references are valid', () => {
             const references: FundingReferenceEntry[] = [
-                { funderName: 'Funder A', awardNumber: '123' },
-                { funderName: 'Funder B', awardUri: 'https://example.com' },
-                { funderName: 'Funder C' },
+                createFundingEntry({ funderName: 'Funder A', awardNumber: '123' }),
+                createFundingEntry({ funderName: 'Funder B', awardUri: 'https://example.com' }),
+                createFundingEntry({ funderName: 'Funder C' }),
             ];
 
             expect(validateAllFundingReferences(references)).toBe(true);
@@ -143,8 +158,8 @@ describe('use-funding-reference-validation', () => {
 
         it('should return false when one reference has empty funderName', () => {
             const references: FundingReferenceEntry[] = [
-                { funderName: 'Valid Funder' },
-                { funderName: '' },
+                createFundingEntry({ funderName: 'Valid Funder' }),
+                createFundingEntry({ funderName: '' }),
             ];
 
             expect(validateAllFundingReferences(references)).toBe(false);
@@ -152,8 +167,8 @@ describe('use-funding-reference-validation', () => {
 
         it('should return false when one reference has invalid awardUri', () => {
             const references: FundingReferenceEntry[] = [
-                { funderName: 'Valid Funder', awardUri: 'https://valid.com' },
-                { funderName: 'Another Funder', awardUri: 'not-a-url' },
+                createFundingEntry({ funderName: 'Valid Funder', awardUri: 'https://valid.com' }),
+                createFundingEntry({ funderName: 'Another Funder', awardUri: 'not-a-url' }),
             ];
 
             expect(validateAllFundingReferences(references)).toBe(false);
@@ -161,7 +176,7 @@ describe('use-funding-reference-validation', () => {
 
         it('should return true when awardUri is empty (optional)', () => {
             const references: FundingReferenceEntry[] = [
-                { funderName: 'Funder', awardUri: '' },
+                createFundingEntry({ funderName: 'Funder', awardUri: '' }),
             ];
 
             expect(validateAllFundingReferences(references)).toBe(true);
@@ -169,7 +184,7 @@ describe('use-funding-reference-validation', () => {
 
         it('should return false when funderName is whitespace only', () => {
             const references: FundingReferenceEntry[] = [
-                { funderName: '   ' },
+                createFundingEntry({ funderName: '   ' }),
             ];
 
             expect(validateAllFundingReferences(references)).toBe(false);
