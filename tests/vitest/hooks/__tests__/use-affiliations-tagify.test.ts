@@ -19,8 +19,8 @@ describe('useAffiliationsTagify', () => {
 
     it('returns tagify settings with whitelist from suggestions', () => {
         const suggestions = [
-            { value: 'GFZ Potsdam', rorId: 'https://ror.org/04z8jg394', searchTerms: 'German Research Centre' },
-            { value: 'MIT', rorId: 'https://ror.org/042nb2s44', searchTerms: 'Massachusetts Institute' },
+            { value: 'GFZ Potsdam', rorId: 'https://ror.org/04z8jg394', searchTerms: ['German Research Centre'] },
+            { value: 'MIT', rorId: 'https://ror.org/042nb2s44', searchTerms: ['Massachusetts Institute'] },
         ];
 
         const { result } = renderHook(() =>

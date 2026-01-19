@@ -38,7 +38,7 @@ describe('Editor integration', () => {
     });
 
     it('sets the document title', () => {
-        render(<Editor maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(document.title).toBe('Editor');
     });
 });

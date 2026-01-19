@@ -29,12 +29,12 @@ describe('FundingReferenceItem', () => {
         {
             rorId: 'https://ror.org/02e2c7k09',
             prefLabel: 'Deutsche Forschungsgemeinschaft',
-            otherLabel: 'DFG',
+            otherLabel: ['DFG'],
         },
         {
             rorId: 'https://ror.org/04xjs7w58',
             prefLabel: 'Helmholtz-Zentrum Potsdam',
-            otherLabel: 'GFZ',
+            otherLabel: ['GFZ'],
         },
     ];
 

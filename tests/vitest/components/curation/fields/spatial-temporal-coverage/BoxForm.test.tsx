@@ -64,7 +64,7 @@ vi.mock('@/components/curation/fields/spatial-temporal-coverage/CoordinateInputs
 describe('BoxForm', () => {
     const defaultEntry: SpatialTemporalCoverageEntry = {
         id: '1',
-        geoType: 'Box',
+        type: 'box',
         description: 'Test bounding box',
         latMin: '51.0000',
         lonMin: '12.0000',
@@ -72,7 +72,9 @@ describe('BoxForm', () => {
         lonMax: '14.0000',
         startDate: '',
         endDate: '',
-        polygon: [],
+        startTime: '',
+        endTime: '',
+        timezone: 'UTC',
     };
 
     const defaultProps = {

@@ -89,8 +89,8 @@ if (typeof window !== 'undefined') {
 }
 
 describe('OldDatasets page', () => {
-    let observeSpy: ReturnType<typeof vi.fn>;
-    let disconnectSpy: ReturnType<typeof vi.fn>;
+    let observeSpy: ReturnType<typeof vi.fn<(target: Element) => void>>;
+    let disconnectSpy: ReturnType<typeof vi.fn<() => void>>;
     let consoleInfoSpy: MockInstance;
     let consoleGroupCollapsedSpy: MockInstance;
     let consoleGroupEndSpy: MockInstance;
@@ -99,8 +99,8 @@ describe('OldDatasets page', () => {
         mockedAxios.get.mockReset();
         routerGetSpy.mockReset();
 
-        observeSpy = vi.fn();
-        disconnectSpy = vi.fn();
+        observeSpy = vi.fn<(target: Element) => void>();
+        disconnectSpy = vi.fn<() => void>();
         intersectionObserverHandlers.observe = (target: Element) => observeSpy(target);
         intersectionObserverHandlers.disconnect = () => disconnectSpy();
         intersectionObserverHandlers.unobserve = () => {};

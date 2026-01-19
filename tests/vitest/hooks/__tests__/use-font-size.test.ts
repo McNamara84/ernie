@@ -24,7 +24,7 @@ describe('use-font-size', () => {
         // Default mock
         mocks.usePage.mockReturnValue({
             props: {
-                fontSizePreference: 'normal',
+                fontSizePreference: 'regular',
             },
         });
     });
@@ -41,7 +41,7 @@ describe('use-font-size', () => {
 
         it('removes font-large class when fontSize is normal', () => {
             document.documentElement.classList.add('font-large');
-            initializeFontSize('normal');
+            initializeFontSize('regular');
             expect(document.documentElement.classList.contains('font-large')).toBe(false);
         });
 
@@ -53,7 +53,7 @@ describe('use-font-size', () => {
 
         it('handles toggle correctly - removes class when present', () => {
             document.documentElement.classList.add('font-large');
-            initializeFontSize('normal');
+            initializeFontSize('regular');
             expect(document.documentElement.classList.contains('font-large')).toBe(false);
         });
     });
@@ -62,13 +62,13 @@ describe('use-font-size', () => {
         it('returns initial fontSize from page props', () => {
             mocks.usePage.mockReturnValue({
                 props: {
-                    fontSizePreference: 'normal',
+                    fontSizePreference: 'regular',
                 },
             });
 
             const { result } = renderHook(() => useFontSize());
 
-            expect(result.current.fontSize).toBe('normal');
+            expect(result.current.fontSize).toBe('regular');
         });
 
         it('returns large fontSize when preference is large', () => {
@@ -108,10 +108,10 @@ describe('use-font-size', () => {
 
             const { result } = renderHook(() => useFontSize());
             act(() => {
-                result.current.updateFontSize('normal');
+                result.current.updateFontSize('regular');
             });
 
-            expect(result.current.fontSize).toBe('normal');
+            expect(result.current.fontSize).toBe('regular');
         });
 
         it('updateFontSize adds font-large class to document when size is large', () => {
@@ -129,7 +129,7 @@ describe('use-font-size', () => {
 
             const { result } = renderHook(() => useFontSize());
             act(() => {
-                result.current.updateFontSize('normal');
+                result.current.updateFontSize('regular');
             });
 
             expect(document.documentElement.classList.contains('font-large')).toBe(false);
@@ -153,12 +153,12 @@ describe('use-font-size', () => {
             const { result } = renderHook(() => useFontSize());
 
             act(() => {
-                result.current.updateFontSize('normal');
+                result.current.updateFontSize('regular');
             });
 
             expect(mocks.routerPut).toHaveBeenCalledWith(
                 '/settings/font-size',
-                { font_size_preference: 'normal' },
+                { font_size_preference: 'regular' },
                 { preserveState: true, preserveScroll: true },
             );
         });

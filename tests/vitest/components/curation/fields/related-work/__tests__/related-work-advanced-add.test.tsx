@@ -8,7 +8,7 @@ import RelatedWorkAdvancedAdd from '@/components/curation/fields/related-work/re
 vi.mock('@/hooks/use-identifier-validation', () => ({
     useIdentifierValidation: vi.fn(() => ({
         status: 'idle',
-        metadata: null,
+        metadata: undefined,
     })),
 }));
 
@@ -36,7 +36,7 @@ describe('RelatedWorkAdvancedAdd', () => {
         vi.clearAllMocks();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'idle',
-            metadata: null,
+            metadata: undefined,
         });
     });
 
@@ -120,7 +120,7 @@ describe('RelatedWorkAdvancedAdd', () => {
     it('shows validation error when status is invalid', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'invalid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkAdvancedAdd {...defaultProps} identifier="invalid-doi" />);
@@ -131,7 +131,7 @@ describe('RelatedWorkAdvancedAdd', () => {
     it('shows warning message when status is warning', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'warning',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkAdvancedAdd {...defaultProps} identifier="10.5880/test" />);
@@ -153,7 +153,7 @@ describe('RelatedWorkAdvancedAdd', () => {
     it('shows loading spinner when validating', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'validating',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkAdvancedAdd {...defaultProps} identifier="10.5880/test" />);
@@ -166,7 +166,7 @@ describe('RelatedWorkAdvancedAdd', () => {
     it('disables add button when validating', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'validating',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkAdvancedAdd {...defaultProps} identifier="10.5880/test" />);
@@ -186,7 +186,7 @@ describe('RelatedWorkAdvancedAdd', () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkAdvancedAdd {...defaultProps} identifier="10.5880/test.2024.001" />);
@@ -201,7 +201,7 @@ describe('RelatedWorkAdvancedAdd', () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'invalid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkAdvancedAdd {...defaultProps} identifier="invalid" />);

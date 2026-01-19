@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -792,7 +792,7 @@ describe('DataCiteForm', () => {
     });
 
     it('renders badges for affiliations that include recognised ROR IDs', async () => {
-        const useRorAffiliationsMock = useRorAffiliations as unknown as vi.Mock;
+        const useRorAffiliationsMock = useRorAffiliations as unknown as Mock;
         useRorAffiliationsMock.mockReturnValue({
             suggestions: [
                 {

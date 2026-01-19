@@ -185,9 +185,10 @@ describe('AddUserDialog', () => {
     describe('submission callbacks', () => {
         it('closes dialog and resets form on success', async () => {
             const user = userEvent.setup();
-            vi.mocked(router.post).mockImplementation((url, data, options: Record<string, unknown>) => {
-                const onSuccess = options?.onSuccess as (page: { props: { flash?: Record<string, string> } }) => void;
-                const onFinish = options?.onFinish as () => void;
+            vi.mocked(router.post).mockImplementation((_url, _data, options) => {
+                const opts = options as Record<string, unknown> | undefined;
+                const onSuccess = opts?.onSuccess as ((page: { props: { flash?: Record<string, string> } }) => void) | undefined;
+                const onFinish = opts?.onFinish as (() => void) | undefined;
                 onSuccess?.({ props: { flash: { success: 'User created' } } });
                 onFinish?.();
             });
@@ -206,9 +207,10 @@ describe('AddUserDialog', () => {
 
         it('displays validation errors on error', async () => {
             const user = userEvent.setup();
-            vi.mocked(router.post).mockImplementation((url, data, options: Record<string, unknown>) => {
-                const onError = options?.onError as (errors: Record<string, string>) => void;
-                const onFinish = options?.onFinish as () => void;
+            vi.mocked(router.post).mockImplementation((_url, _data, options) => {
+                const opts = options as Record<string, unknown> | undefined;
+                const onError = opts?.onError as ((errors: Record<string, string>) => void) | undefined;
+                const onFinish = opts?.onFinish as (() => void) | undefined;
                 onError?.({ email: 'The email has already been taken.' });
                 onFinish?.();
             });
@@ -227,9 +229,10 @@ describe('AddUserDialog', () => {
 
         it('displays name validation error', async () => {
             const user = userEvent.setup();
-            vi.mocked(router.post).mockImplementation((url, data, options: Record<string, unknown>) => {
-                const onError = options?.onError as (errors: Record<string, string>) => void;
-                const onFinish = options?.onFinish as () => void;
+            vi.mocked(router.post).mockImplementation((_url, _data, options) => {
+                const opts = options as Record<string, unknown> | undefined;
+                const onError = opts?.onError as ((errors: Record<string, string>) => void) | undefined;
+                const onFinish = opts?.onFinish as (() => void) | undefined;
                 onError?.({ name: 'The name is too short.' });
                 onFinish?.();
             });

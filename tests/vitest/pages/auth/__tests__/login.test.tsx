@@ -11,11 +11,10 @@ interface MockFormState {
     processing: boolean;
 }
 
+type SubmitMockFn = (data: Record<string, FormDataEntryValue>) => Promise<{ ok: boolean; errors?: Record<string, string> }>;
+
 let initialFormState: MockFormState = { errors: {}, processing: false };
-const submitMock = vi.fn<
-    [Record<string, FormDataEntryValue>],
-    Promise<{ ok: boolean; errors?: Record<string, string> }>
->();
+const submitMock = vi.fn<SubmitMockFn>();
 const originalLocation = window.location;
 
 vi.mock('@inertiajs/react', () => {

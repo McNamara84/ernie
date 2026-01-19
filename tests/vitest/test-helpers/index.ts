@@ -8,22 +8,22 @@
  */
 
 export {
-    // Type utilities
-    type PartialDeep,
-    // User factories
-    createMockUser,
-    createMockAdminUser,
-    // Inertia Page factories
-    createMockPage,
-    createPartialMockPage,
-    // ORCID factories
-    type OrcidSearchResult,
-    createMockOrcidSearchResult,
-    createMockOrcidSearchResponse,
-    // Funding Reference factories
-    type FundingReferenceMock,
-    createMockFundingReference,
+    asDeepMock,
     // Type assertion helpers
     asMock,
-    asDeepMock,
+    createMockAdminUser,
+    createMockFundingReference,
+    createMockOrcidSearchResponse,
+    createMockOrcidSearchResult,
+    // Inertia Page factories
+    createMockPage,
+    // User factories
+    createMockUser,
+    createPartialMockPage,
+    // Funding Reference factories
+    type FundingReferenceMock,
+    // ORCID factories
+    type OrcidSearchResult,
+    // Type utilities
+    type PartialDeep,
 } from './types';

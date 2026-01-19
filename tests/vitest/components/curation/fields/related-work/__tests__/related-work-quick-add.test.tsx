@@ -8,7 +8,7 @@ import RelatedWorkQuickAdd from '@/components/curation/fields/related-work/relat
 vi.mock('@/hooks/use-identifier-validation', () => ({
     useIdentifierValidation: vi.fn(() => ({
         status: 'idle',
-        metadata: null,
+        metadata: undefined,
     })),
 }));
 
@@ -35,7 +35,7 @@ describe('RelatedWorkQuickAdd', () => {
         vi.clearAllMocks();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'idle',
-            metadata: null,
+            metadata: undefined,
         });
     });
 
@@ -108,7 +108,7 @@ describe('RelatedWorkQuickAdd', () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="https://doi.org/10.5880/test.2024.001" />);
@@ -125,7 +125,7 @@ describe('RelatedWorkQuickAdd', () => {
     it('shows validation error when status is invalid', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'invalid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="invalid-doi" />);
@@ -136,7 +136,7 @@ describe('RelatedWorkQuickAdd', () => {
     it('shows warning message when status is warning', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'warning',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
@@ -158,7 +158,7 @@ describe('RelatedWorkQuickAdd', () => {
     it('shows loading spinner when validating', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'validating',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
@@ -186,7 +186,7 @@ describe('RelatedWorkQuickAdd', () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test.2024.001" />);
@@ -201,7 +201,7 @@ describe('RelatedWorkQuickAdd', () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'invalid',
-            metadata: null,
+            metadata: undefined,
         });
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="invalid" />);
