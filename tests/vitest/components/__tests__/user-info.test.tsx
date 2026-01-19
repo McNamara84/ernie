@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { UserInfo } from '@/components/user-info';
 
+import { createMockUser } from '@test-helpers';
+
 vi.mock('@/hooks/use-initials', () => ({
     useInitials: () => () => 'JD',
 }));
@@ -19,7 +21,7 @@ vi.mock('@/components/ui/avatar', () => ({
 }));
 
 describe('UserInfo', () => {
-    const user = { name: 'John Doe', email: 'john@example.com', avatar: '' };
+    const user = createMockUser({ name: 'John Doe', email: 'john@example.com', avatar: '' });
 
     it('shows name, email and initials', () => {
         render(<UserInfo user={user} showEmail />);
