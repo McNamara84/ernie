@@ -8,9 +8,26 @@ import { useEffect, useState } from 'react';
  * @param rootMargin - Margin around the root element (default: '-80px 0px -80% 0px')
  * @returns The ID of the currently active section, or null if none
  *
+ * @remarks
+ * **Important:** The `sectionIds` array should be memoized (e.g., using `useMemo`)
+ * to prevent unnecessary effect re-runs. Since React compares arrays by reference
+ * in dependency arrays, passing a new array on each render will cause the
+ * IntersectionObserver to be recreated unnecessarily.
+ *
  * @example
  * ```tsx
+ * // ✅ Correct: Memoize the sectionIds array
+ * const sectionIds = useMemo(() => ['section-1', 'section-2', 'section-3'], []);
+ * const activeId = useScrollSpy(sectionIds);
+ *
+ * // ❌ Avoid: Creating new array on each render
  * const activeId = useScrollSpy(['section-1', 'section-2', 'section-3']);
+ * ```
+ *
+ * @example
+ * ```tsx
+ * const sectionIds = useMemo(() => ['intro', 'features', 'faq'], []);
+ * const activeId = useScrollSpy(sectionIds);
  *
  * return (
  *   <nav>

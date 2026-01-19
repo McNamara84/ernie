@@ -1,6 +1,6 @@
 import { Database, FlaskConical, Rocket } from 'lucide-react';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 export type DocsTabId = 'getting-started' | 'datasets' | 'physical-samples';

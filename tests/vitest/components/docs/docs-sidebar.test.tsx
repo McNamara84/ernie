@@ -120,11 +120,9 @@ describe('DocsSidebar', () => {
 
             const welcomeButton = screen.getByText('Welcome').closest('button');
             const clickEvent = new MouseEvent('click', { bubbles: true });
-            const preventDefaultSpy = vi.spyOn(clickEvent, 'preventDefault');
 
             welcomeButton?.dispatchEvent(clickEvent);
 
-            // Click handler should prevent default (for anchor-like behavior)
             expect(onSectionClick).toHaveBeenCalled();
         });
     });
