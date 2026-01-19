@@ -117,19 +117,14 @@ export default function IgsnMapPage({ igsns }: IgsnMapPageProps) {
             <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">IGSNs Map</h1>
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-sm text-muted-foreground">
                         {markers.length} location{markers.length !== 1 ? 's' : ''} from {igsns.length} IGSN
                         {igsns.length !== 1 ? 's' : ''}
                     </span>
                 </div>
 
-                <div className="border-sidebar-border bg-sidebar relative flex-1 overflow-hidden rounded-xl border">
-                    <MapContainer
-                        center={[0, 0]}
-                        zoom={2}
-                        className="h-full min-h-[500px] w-full"
-                        scrollWheelZoom={true}
-                    >
+                <div className="relative flex-1 overflow-hidden rounded-xl border border-sidebar-border bg-sidebar">
+                    <MapContainer center={[0, 0]} zoom={2} className="h-full min-h-[500px] w-full" scrollWheelZoom={true}>
                         <TileLayer
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -141,16 +136,16 @@ export default function IgsnMapPage({ igsns }: IgsnMapPageProps) {
                                 <Popup>
                                     <div className="min-w-[200px]">
                                         <h3 className="mb-1 font-semibold">{marker.title}</h3>
-                                        <p className="text-muted-foreground text-sm">
+                                        <p className="text-sm text-muted-foreground">
                                             <strong>Creator:</strong> {marker.creator}
                                         </p>
                                         {marker.publicationYear && (
-                                            <p className="text-muted-foreground text-sm">
+                                            <p className="text-sm text-muted-foreground">
                                                 <strong>Year:</strong> {marker.publicationYear}
                                             </p>
                                         )}
                                         {marker.igsn && (
-                                            <p className="text-muted-foreground mt-1 text-xs">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 <strong>IGSN:</strong> {marker.igsn}
                                             </p>
                                         )}

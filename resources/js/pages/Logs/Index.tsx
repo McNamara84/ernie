@@ -217,7 +217,10 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                            <AlertDialogAction
+                                                onClick={handleClearAll}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            >
                                                 Clear All
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
@@ -232,8 +235,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         <Alert variant="default" className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
                             <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400" />
                             <AlertDescription className="text-amber-800 dark:text-amber-200">
-                                <strong>Security Notice:</strong> Log files may contain sensitive information such as API keys, authentication
-                                tokens, or personal data that was inadvertently logged. Handle with care and avoid sharing log contents.
+                                <strong>Security Notice:</strong> Log files may contain sensitive information such as API keys, authentication tokens,
+                                or personal data that was inadvertently logged. Handle with care and avoid sharing log contents.
                             </AlertDescription>
                         </Alert>
 
@@ -260,7 +263,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
 
                             <div className="flex flex-1 items-center gap-2">
                                 <div className="relative flex-1">
-                                    <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                                    <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                                     <Input
                                         placeholder="Search logs..."
                                         value={search}
@@ -277,7 +280,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
 
                         {/* Log Table */}
                         {logs.length === 0 ? (
-                            <div className="text-muted-foreground flex flex-col items-center justify-center py-12">
+                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                                 <FileX2 className="mb-4 size-12" />
                                 <p className="text-lg font-medium">No log entries found</p>
                                 <p className="text-sm">Try adjusting your filters or check back later</p>
@@ -315,12 +318,12 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                                     <div className="max-w-2xl">
                                                         <p className="truncate font-medium">{log.message}</p>
                                                         {expandedRows.has(log.line_number) && log.context && (
-                                                            <pre className="bg-muted mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded p-2 font-mono text-xs">
+                                                            <pre className="mt-2 max-h-64 overflow-auto rounded bg-muted p-2 font-mono text-xs whitespace-pre-wrap">
                                                                 {log.context}
                                                             </pre>
                                                         )}
                                                         {log.context && !expandedRows.has(log.line_number) && (
-                                                            <p className="text-muted-foreground text-xs">Click to expand stack trace</p>
+                                                            <p className="text-xs text-muted-foreground">Click to expand stack trace</p>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -367,7 +370,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         {/* Pagination */}
                         {pagination.last_page > 1 && (
                             <div className="mt-4 flex items-center justify-between">
-                                <p className="text-muted-foreground text-sm">
+                                <p className="text-sm text-muted-foreground">
                                     Page {pagination.current_page} of {pagination.last_page}
                                 </p>
                                 <div className="flex gap-2">

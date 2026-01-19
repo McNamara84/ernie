@@ -124,14 +124,14 @@ export default function Docs({ userRole }: DocsProps) {
                     <h4>Exporting Metadata</h4>
                     <p>
                         From the <code>/resources</code> page, you can export any dataset's metadata as a DataCite JSON file by clicking the{' '}
-                        <strong>JSON export button</strong> (JSON file icon). All exports are automatically validated against the official
-                        DataCite Metadata Schema 4.6 to ensure compliance before download.
+                        <strong>JSON export button</strong> (JSON file icon). All exports are automatically validated against the official DataCite
+                        Metadata Schema 4.6 to ensure compliance before download.
                     </p>
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                         <p className="text-sm text-amber-900 dark:text-amber-100">
-                            <strong>Validation Errors:</strong> If the exported metadata contains schema violations, an error modal
-                            will display each issue with its JSON path and description. This helps you identify which fields need
-                            correction before the data can be submitted to DataCite.
+                            <strong>Validation Errors:</strong> If the exported metadata contains schema violations, an error modal will display each
+                            issue with its JSON path and description. This helps you identify which fields need correction before the data can be
+                            submitted to DataCite.
                         </p>
                     </div>
                 </>
@@ -196,8 +196,8 @@ export default function Docs({ userRole }: DocsProps) {
                     <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
                         <p className="text-sm text-red-900 dark:text-red-100">
                             <strong>DOI Persistence:</strong> Once a landing page is published, it cannot be unpublished or deleted. This is because
-                            DOIs are persistent identifiers that must always resolve to a valid landing page. You can still update the template,
-                            FTP download URL, and other metadata after publication.
+                            DOIs are persistent identifiers that must always resolve to a valid landing page. You can still update the template, FTP
+                            download URL, and other metadata after publication.
                         </p>
                     </div>
                 </>
@@ -215,8 +215,8 @@ export default function Docs({ userRole }: DocsProps) {
 
                     <h4>DOI Duplicate Detection</h4>
                     <p>
-                        When entering a DOI in the curation form, the system automatically validates it against the database. If the DOI
-                        already exists:
+                        When entering a DOI in the curation form, the system automatically validates it against the database. If the DOI already
+                        exists:
                     </p>
                     <ul className="list-inside list-disc space-y-1">
                         <li>
@@ -243,8 +243,8 @@ export default function Docs({ userRole }: DocsProps) {
                     <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                         <p className="text-sm text-amber-900 dark:text-amber-100">
                             <strong>Note:</strong> Once a resource is saved with a DOI, the DOI field becomes read-only to prevent accidental changes.
-                            <strong>Administrators</strong> can still edit DOIs when needed (e.g., to correct typos), but should exercise caution
-                            when modifying registered DOIs.
+                            <strong>Administrators</strong> can still edit DOIs when needed (e.g., to correct typos), but should exercise caution when
+                            modifying registered DOIs.
                         </p>
                     </div>
 
@@ -343,54 +343,70 @@ export default function Docs({ userRole }: DocsProps) {
                 <>
                     <h3>Registering Physical Samples (IGSNs)</h3>
                     <p>
-                        IGSN (International Generic Sample Number) is a unique identifier for physical samples in research. ERNIE supports
-                        bulk import of IGSN metadata via CSV files.
+                        IGSN (International Generic Sample Number) is a unique identifier for physical samples in research. ERNIE supports bulk import
+                        of IGSN metadata via CSV files.
                     </p>
 
                     <h4>CSV File Format</h4>
                     <p>
-                        IGSN data must be provided in a <strong>pipe-delimited CSV file</strong> (using <code>|</code> as separator).
-                        The file should contain headers in the first row and data rows starting from the second row.
+                        IGSN data must be provided in a <strong>pipe-delimited CSV file</strong> (using <code>|</code> as separator). The file should
+                        contain headers in the first row and data rows starting from the second row.
                     </p>
                     <p className="mt-2">Required columns include:</p>
                     <ul className="list-inside list-disc space-y-1 text-sm">
-                        <li><code>igsn</code> - The unique IGSN identifier</li>
-                        <li><code>name</code> - Sample name</li>
-                        <li><code>title</code> - Full title for the sample record</li>
-                        <li><code>sample_type</code> - Type of sample (e.g., Borehole, Core)</li>
-                        <li><code>material</code> - Material type (e.g., Sediment, Rock)</li>
-                        <li><code>collection_start_date</code> / <code>collection_end_date</code> - Collection date range</li>
-                        <li><code>latitude</code> / <code>longitude</code> - Geographic coordinates</li>
-                        <li><code>collector</code> - Name of the person who collected the sample</li>
+                        <li>
+                            <code>igsn</code> - The unique IGSN identifier
+                        </li>
+                        <li>
+                            <code>name</code> - Sample name
+                        </li>
+                        <li>
+                            <code>title</code> - Full title for the sample record
+                        </li>
+                        <li>
+                            <code>sample_type</code> - Type of sample (e.g., Borehole, Core)
+                        </li>
+                        <li>
+                            <code>material</code> - Material type (e.g., Sediment, Rock)
+                        </li>
+                        <li>
+                            <code>collection_start_date</code> / <code>collection_end_date</code> - Collection date range
+                        </li>
+                        <li>
+                            <code>latitude</code> / <code>longitude</code> - Geographic coordinates
+                        </li>
+                        <li>
+                            <code>collector</code> - Name of the person who collected the sample
+                        </li>
                     </ul>
 
                     <h4>Upload Process</h4>
                     <WorkflowSteps>
                         <WorkflowSteps.Step number={1} title="Prepare CSV File">
                             <p>
-                                Ensure your CSV file follows the pipe-delimited format with all required columns.
-                                The file will typically be provided by your project's data management team.
+                                Ensure your CSV file follows the pipe-delimited format with all required columns. The file will typically be provided
+                                by your project's data management team.
                             </p>
                         </WorkflowSteps.Step>
 
                         <WorkflowSteps.Step number={2} title="Navigate to Dashboard">
                             <p>
-                                Go to the <strong>Dashboard</strong> (<code>/dashboard</code>) where you will find the unified dropzone
-                                for file uploads.
+                                Go to the <strong>Dashboard</strong> (<code>/dashboard</code>) where you will find the unified dropzone for file
+                                uploads.
                             </p>
                         </WorkflowSteps.Step>
 
                         <WorkflowSteps.Step number={3} title="Upload CSV File">
                             <p>
-                                Drag and drop your CSV file onto the dropzone, or click to select a file from your computer.
-                                The system automatically detects the file type (XML for datasets, CSV for IGSNs).
+                                Drag and drop your CSV file onto the dropzone, or click to select a file from your computer. The system automatically
+                                detects the file type (XML for datasets, CSV for IGSNs).
                             </p>
                         </WorkflowSteps.Step>
 
                         <WorkflowSteps.Step number={4} title="Review Upload Results">
                             <p>
-                                After successful upload, a confirmation message will appear showing the number of IGSNs imported.
-                                You will be automatically redirected to the IGSN list page.
+                                After successful upload, a confirmation message will appear showing the number of IGSNs imported. You will be
+                                automatically redirected to the IGSN list page.
                             </p>
                         </WorkflowSteps.Step>
                     </WorkflowSteps>
@@ -401,8 +417,7 @@ export default function Docs({ userRole }: DocsProps) {
 
                     <h4>Viewing Uploaded IGSNs</h4>
                     <p>
-                        All uploaded IGSNs can be viewed on the dedicated <strong>IGSN List</strong> page at <code>/igsns</code>.
-                        This page displays:
+                        All uploaded IGSNs can be viewed on the dedicated <strong>IGSN List</strong> page at <code>/igsns</code>. This page displays:
                     </p>
                     <ul className="list-inside list-disc space-y-1">
                         <li>IGSN identifier</li>
@@ -412,14 +427,13 @@ export default function Docs({ userRole }: DocsProps) {
                         <li>Upload Status</li>
                     </ul>
                     <p className="mt-2">
-                        You can sort the table by clicking on column headers. The IGSN identifier links to the
-                        IGSN resolver for registered samples.
+                        You can sort the table by clicking on column headers. The IGSN identifier links to the IGSN resolver for registered samples.
                     </p>
 
                     <h4>Map View</h4>
                     <p>
-                        The <strong>IGSNs Map</strong> page at <code>/igsns-map</code> provides a geographic visualization of all
-                        physical samples that have coordinate data. The interactive map displays:
+                        The <strong>IGSNs Map</strong> page at <code>/igsns-map</code> provides a geographic visualization of all physical samples
+                        that have coordinate data. The interactive map displays:
                     </p>
                     <ul className="list-inside list-disc space-y-1">
                         <li>Markers for each IGSN with geographic coordinates</li>
@@ -432,15 +446,15 @@ export default function Docs({ userRole }: DocsProps) {
 
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                         <p className="text-sm text-blue-900 dark:text-blue-100">
-                            <strong>Note:</strong> IGSN records are managed separately from regular datasets.
-                            They appear only on the <code>/igsns</code> page, not on the general <code>/resources</code> page.
+                            <strong>Note:</strong> IGSN records are managed separately from regular datasets. They appear only on the{' '}
+                            <code>/igsns</code> page, not on the general <code>/resources</code> page.
                         </p>
                     </div>
 
                     <h4>Exporting IGSN Metadata</h4>
                     <p>
-                        Each IGSN row includes a <strong>JSON export button</strong> (JSON file icon) that allows you to download
-                        the complete metadata in DataCite JSON format. This export is useful for:
+                        Each IGSN row includes a <strong>JSON export button</strong> (JSON file icon) that allows you to download the complete
+                        metadata in DataCite JSON format. This export is useful for:
                     </p>
                     <ul className="list-inside list-disc space-y-1">
                         <li>Archiving metadata locally</li>
@@ -450,10 +464,9 @@ export default function Docs({ userRole }: DocsProps) {
 
                     <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
                         <p className="text-sm text-green-900 dark:text-green-100">
-                            <strong>Automatic Validation:</strong> All JSON exports are validated against the official
-                            DataCite Metadata Schema 4.6 before download. If any validation errors are detected, a detailed
-                            error modal will display each issue with its JSON path, helping you identify and fix problems
-                            before submission.
+                            <strong>Automatic Validation:</strong> All JSON exports are validated against the official DataCite Metadata Schema 4.6
+                            before download. If any validation errors are detected, a detailed error modal will display each issue with its JSON path,
+                            helping you identify and fix problems before submission.
                         </p>
                     </div>
                 </>
@@ -478,15 +491,19 @@ export default function Docs({ userRole }: DocsProps) {
                         address. The system will:
                     </p>
                     <ul className="list-inside list-disc space-y-1">
-                        <li>Create the account with the <strong>Beginner</strong> role</li>
-                        <li>Send a personalized <strong>welcome email</strong> from ERNIE</li>
+                        <li>
+                            Create the account with the <strong>Beginner</strong> role
+                        </li>
+                        <li>
+                            Send a personalized <strong>welcome email</strong> from ERNIE
+                        </li>
                         <li>The email contains a secure link (valid for 72 hours) to set their password</li>
                     </ul>
 
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                         <p className="text-sm text-blue-900 dark:text-blue-100">
-                            <strong>Link Expired?</strong> If the welcome link expires, users can request a new one directly from the expired
-                            welcome page by entering their email address.
+                            <strong>Link Expired?</strong> If the welcome link expires, users can request a new one directly from the expired welcome
+                            page by entering their email address.
                         </p>
                     </div>
 
@@ -581,8 +598,8 @@ export default function Docs({ userRole }: DocsProps) {
                     </p>
                     <ul>
                         <li>
-                            <strong>Enable/Disable:</strong> Toggle individual thesauri (Science Keywords, Platforms, Instruments) for ERNIE
-                            and/or ELMO independently
+                            <strong>Enable/Disable:</strong> Toggle individual thesauri (Science Keywords, Platforms, Instruments) for ERNIE and/or
+                            ELMO independently
                         </li>
                         <li>
                             <strong>Check for Updates:</strong> Compare local concept counts with NASA's remote API
@@ -592,8 +609,7 @@ export default function Docs({ userRole }: DocsProps) {
                         </li>
                     </ul>
                     <p className="text-sm text-muted-foreground">
-                        When a thesaurus is disabled for ERNIE, its tab is automatically hidden in the Controlled Keywords field of the
-                        curation form.
+                        When a thesaurus is disabled for ERNIE, its tab is automatically hidden in the Controlled Keywords field of the curation form.
                     </p>
 
                     <h5 className="mt-4">Update GCMD Vocabularies (CLI)</h5>

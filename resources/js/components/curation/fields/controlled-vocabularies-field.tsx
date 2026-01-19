@@ -241,8 +241,7 @@ export default function ControlledVocabulariesField({
             {/* Show message if no thesauri are enabled */}
             {!hasAnyThesaurus && (
                 <div className="rounded-md border border-muted bg-muted/50 p-4 text-center text-sm text-muted-foreground">
-                    No controlled vocabularies are currently enabled. Contact an administrator to enable GCMD thesauri in the
-                    settings.
+                    No controlled vocabularies are currently enabled. Contact an administrator to enable GCMD thesauri in the settings.
                 </div>
             )}
 
@@ -346,120 +345,118 @@ export default function ControlledVocabulariesField({
                                 size="sm"
                                 className="absolute top-1/2 right-1 h-7 w-7 -translate-y-1/2 transform p-0"
                                 onClick={() => setSearchQuery('')}
-                        aria-label="Clear search"
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
-                )}
-            </div>
+                                aria-label="Clear search"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
 
-            {/* Tabs for vocabulary types */}
-            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
-                <TabsList
-                    className={cn(
-                        'grid w-full',
-                        // Dynamically calculate grid columns based on visible tabs
-                        (() => {
-                            const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab].filter(
-                                Boolean,
-                            ).length;
-                            switch (visibleCount) {
-                                case 1:
-                                    return 'grid-cols-1';
-                                case 2:
-                                    return 'grid-cols-2';
-                                case 3:
-                                    return 'grid-cols-3';
-                                case 4:
-                                    return 'grid-cols-4';
-                                default:
-                                    return 'grid-cols-3';
-                            }
-                        })(),
-                    )}
-                >
-                    {showScienceTab && (
-                        <TabsTrigger value="science" className="relative">
-                            Science Keywords
-                            {hasKeywords('science') && (
-                                <span
-                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                    aria-label="Has keywords"
-                                    title="This vocabulary has selected keywords"
-                                />
+                    {/* Tabs for vocabulary types */}
+                    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
+                        <TabsList
+                            className={cn(
+                                'grid w-full',
+                                // Dynamically calculate grid columns based on visible tabs
+                                (() => {
+                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab].filter(Boolean).length;
+                                    switch (visibleCount) {
+                                        case 1:
+                                            return 'grid-cols-1';
+                                        case 2:
+                                            return 'grid-cols-2';
+                                        case 3:
+                                            return 'grid-cols-3';
+                                        case 4:
+                                            return 'grid-cols-4';
+                                        default:
+                                            return 'grid-cols-3';
+                                    }
+                                })(),
                             )}
-                        </TabsTrigger>
-                    )}
-                    {showPlatformsTab && (
-                        <TabsTrigger value="platforms" className="relative">
-                            Platforms
-                            {hasKeywords('platforms') && (
-                                <span
-                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                    aria-label="Has keywords"
-                                    title="This vocabulary has selected keywords"
-                                />
+                        >
+                            {showScienceTab && (
+                                <TabsTrigger value="science" className="relative">
+                                    Science Keywords
+                                    {hasKeywords('science') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
                             )}
-                        </TabsTrigger>
-                    )}
-                    {showInstrumentsTab && (
-                        <TabsTrigger value="instruments" className="relative">
-                            Instruments
-                            {hasKeywords('instruments') && (
-                                <span
-                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                    aria-label="Has keywords"
-                                    title="This vocabulary has selected keywords"
-                                />
+                            {showPlatformsTab && (
+                                <TabsTrigger value="platforms" className="relative">
+                                    Platforms
+                                    {hasKeywords('platforms') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
                             )}
-                        </TabsTrigger>
-                    )}
-                    {showMslTab && (
-                        <TabsTrigger value="msl" className="relative">
-                            MSL Vocabulary
-                            {hasKeywords('msl') && (
-                                <span
-                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                    aria-label="Has keywords"
-                                    title="This vocabulary has selected keywords"
-                                />
+                            {showInstrumentsTab && (
+                                <TabsTrigger value="instruments" className="relative">
+                                    Instruments
+                                    {hasKeywords('instruments') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
                             )}
-                        </TabsTrigger>
-                    )}
-                </TabsList>
+                            {showMslTab && (
+                                <TabsTrigger value="msl" className="relative">
+                                    MSL Vocabulary
+                                    {hasKeywords('msl') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
+                            )}
+                        </TabsList>
 
-                <TabsContent value={activeTab} className="mt-4 space-y-4">
-                    {/* Tree View */}
-                    {effectiveSearchQuery ? (
-                        <div>
-                            <p className="mb-2 text-xs text-muted-foreground">
-                                {isSearching ? (
-                                    <span className="italic">Searching...</span>
-                                ) : (
-                                    <>
-                                        {filteredKeywords.length} result
-                                        {filteredKeywords.length !== 1 ? 's' : ''} found
-                                    </>
-                                )}
-                            </p>
-                            <GCMDTree
-                                keywords={filteredKeywords}
-                                selectedIds={selectedIdsForCurrentVocabulary}
-                                onToggle={handleToggle}
-                                emptyMessage="No keywords match your search"
-                                searchQuery={effectiveSearchQuery}
-                            />
-                        </div>
-                    ) : (
-                        <GCMDTree
-                            keywords={currentKeywords}
-                            selectedIds={selectedIdsForCurrentVocabulary}
-                            onToggle={handleToggle}
-                            emptyMessage="No keywords available"
-                        />
-                    )}
-                </TabsContent>
-            </Tabs>
+                        <TabsContent value={activeTab} className="mt-4 space-y-4">
+                            {/* Tree View */}
+                            {effectiveSearchQuery ? (
+                                <div>
+                                    <p className="mb-2 text-xs text-muted-foreground">
+                                        {isSearching ? (
+                                            <span className="italic">Searching...</span>
+                                        ) : (
+                                            <>
+                                                {filteredKeywords.length} result
+                                                {filteredKeywords.length !== 1 ? 's' : ''} found
+                                            </>
+                                        )}
+                                    </p>
+                                    <GCMDTree
+                                        keywords={filteredKeywords}
+                                        selectedIds={selectedIdsForCurrentVocabulary}
+                                        onToggle={handleToggle}
+                                        emptyMessage="No keywords match your search"
+                                        searchQuery={effectiveSearchQuery}
+                                    />
+                                </div>
+                            ) : (
+                                <GCMDTree
+                                    keywords={currentKeywords}
+                                    selectedIds={selectedIdsForCurrentVocabulary}
+                                    onToggle={handleToggle}
+                                    emptyMessage="No keywords available"
+                                />
+                            )}
+                        </TabsContent>
+                    </Tabs>
                 </>
             )}
         </div>

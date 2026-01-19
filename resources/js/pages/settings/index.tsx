@@ -63,7 +63,16 @@ interface EditorSettingsProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
-export default function EditorSettings({ resourceTypes, titleTypes, licenses, languages, dateTypes, maxTitles, maxLicenses, thesauri }: EditorSettingsProps) {
+export default function EditorSettings({
+    resourceTypes,
+    titleTypes,
+    licenses,
+    languages,
+    dateTypes,
+    maxTitles,
+    maxLicenses,
+    thesauri,
+}: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,

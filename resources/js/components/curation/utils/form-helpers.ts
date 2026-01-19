@@ -9,12 +9,7 @@ import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/
 import type { AffiliationTag } from '@/types/affiliations';
 
 import type { AuthorEntry, InstitutionAuthorEntry, PersonAuthorEntry } from '../fields/author';
-import type {
-    ContributorEntry,
-    ContributorRoleTag,
-    InstitutionContributorEntry,
-    PersonContributorEntry,
-} from '../fields/contributor';
+import type { ContributorEntry, ContributorRoleTag, InstitutionContributorEntry, PersonContributorEntry } from '../fields/contributor';
 import type { InitialAffiliationInput, InitialAuthor, InitialContributor, SerializedAffiliation } from '../types/datacite-form-types';
 
 // ============================================================================
@@ -123,9 +118,7 @@ export const serializeAffiliations = (entry: AuthorEntry | ContributorEntry): Se
 /**
  * Normalize initial affiliations from backend/XML data to AffiliationTag format.
  */
-export const normaliseInitialAffiliations = (
-    affiliations?: (InitialAffiliationInput | null | undefined)[] | null,
-): AffiliationTag[] => {
+export const normaliseInitialAffiliations = (affiliations?: (InitialAffiliationInput | null | undefined)[] | null): AffiliationTag[] => {
     if (!affiliations || !Array.isArray(affiliations)) {
         return [];
     }
@@ -339,7 +332,7 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
 // Form State Validators
 // ============================================================================
 
-import type { DateEntry,LicenseEntry, TitleEntry } from '../types/datacite-form-types';
+import type { DateEntry, LicenseEntry, TitleEntry } from '../types/datacite-form-types';
 
 /**
  * Check if a new title can be added based on current state.

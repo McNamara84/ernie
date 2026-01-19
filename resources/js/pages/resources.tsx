@@ -19,7 +19,7 @@ import { type ValidationError, ValidationErrorModal } from '@/components/ui/vali
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { editor as editorRoute } from '@/routes';
-import { type BreadcrumbItem, type User as AuthUser } from '@/types';
+import { type BreadcrumbItem,type User as AuthUser } from '@/types';
 import {
     type ResourceFilterOptions,
     type ResourceFilterState,
@@ -652,9 +652,10 @@ function ResourcesPage({
                 }
             }
 
-            const errorMessage = isAxiosError(error) && error.response?.data
-                ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite JSON')
-                : 'Failed to export DataCite JSON';
+            const errorMessage =
+                isAxiosError(error) && error.response?.data
+                    ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite JSON')
+                    : 'Failed to export DataCite JSON';
 
             toast.error(errorMessage);
         } finally {
@@ -733,9 +734,10 @@ function ResourcesPage({
         } catch (error) {
             console.error('Failed to export DataCite XML:', error);
 
-            const errorMessage = isAxiosError(error) && error.response?.data
-                ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite XML')
-                : 'Failed to export DataCite XML';
+            const errorMessage =
+                isAxiosError(error) && error.response?.data
+                    ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite XML')
+                    : 'Failed to export DataCite XML';
 
             toast.error(errorMessage);
         } finally {
@@ -1213,7 +1215,11 @@ function ResourcesPage({
                                                                             }
                                                                             data-testid="datacite-button"
                                                                         >
-                                                                            <DataCiteIcon aria-hidden="true" className="size-4" data-testid="datacite-icon" />
+                                                                            <DataCiteIcon
+                                                                                aria-hidden="true"
+                                                                                className="size-4"
+                                                                                data-testid="datacite-icon"
+                                                                            />
                                                                         </Button>
                                                                     )}
                                                                 </div>

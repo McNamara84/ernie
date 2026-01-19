@@ -97,9 +97,7 @@ export function IgsnCsvUpload() {
     }, []);
 
     const filterCsvFiles = (files: File[]): File[] => {
-        return files.filter(
-            (file) => file.type === 'text/csv' || file.name.endsWith('.csv') || file.name.endsWith('.txt')
-        );
+        return files.filter((file) => file.type === 'text/csv' || file.name.endsWith('.csv') || file.name.endsWith('.txt'));
     };
 
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -142,9 +140,7 @@ export function IgsnCsvUpload() {
                     <FileSpreadsheet className="h-5 w-5" />
                     IGSN CSV Upload
                 </CardTitle>
-                <CardDescription>
-                    Upload a pipe-delimited CSV file containing IGSN sample metadata.
-                </CardDescription>
+                <CardDescription>Upload a pipe-delimited CSV file containing IGSN sample metadata.</CardDescription>
             </CardHeader>
             <CardContent className="flex w-full flex-col items-center gap-4">
                 {/* Upload State: Idle */}
@@ -159,9 +155,7 @@ export function IgsnCsvUpload() {
                         }`}
                     >
                         <Upload className="mb-4 h-10 w-10 text-muted-foreground" />
-                        <p className="mb-4 text-sm text-muted-foreground">
-                            Drag &amp; drop a CSV file here, or click to select
-                        </p>
+                        <p className="mb-4 text-sm text-muted-foreground">Drag &amp; drop a CSV file here, or click to select</p>
                         <input
                             ref={fileInputRef}
                             data-testid="igsn-file-input"
@@ -170,11 +164,7 @@ export function IgsnCsvUpload() {
                             className="hidden"
                             onChange={handleFileSelect}
                         />
-                        <Button
-                            type="button"
-                            data-testid="igsn-upload-button"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
+                        <Button type="button" data-testid="igsn-upload-button" onClick={() => fileInputRef.current?.click()}>
                             Select CSV File
                         </Button>
                     </div>
@@ -184,13 +174,9 @@ export function IgsnCsvUpload() {
                 {uploadState === 'uploading' && (
                     <div className="flex w-full flex-col items-center gap-4 rounded-md border bg-muted/50 p-8">
                         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                        <p className="text-sm font-medium">
-                            Uploading {selectedFile?.name}...
-                        </p>
+                        <p className="text-sm font-medium">Uploading {selectedFile?.name}...</p>
                         <Progress value={uploadProgress} className="w-full max-w-md" />
-                        <p className="text-xs text-muted-foreground">
-                            Processing IGSN data...
-                        </p>
+                        <p className="text-xs text-muted-foreground">Processing IGSN data...</p>
                     </div>
                 )}
 
@@ -199,9 +185,7 @@ export function IgsnCsvUpload() {
                     <div className="flex w-full flex-col gap-4">
                         <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-950/20">
                             <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            <AlertTitle className="text-green-700 dark:text-green-400">
-                                Upload Successful
-                            </AlertTitle>
+                            <AlertTitle className="text-green-700 dark:text-green-400">Upload Successful</AlertTitle>
                             <AlertDescription className="text-green-600 dark:text-green-300">
                                 {result.message || `${result.created} IGSN(s) imported successfully.`}
                             </AlertDescription>
@@ -210,9 +194,7 @@ export function IgsnCsvUpload() {
                         {result.errors && result.errors.length > 0 && (
                             <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
                                 <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                <AlertTitle className="text-yellow-700 dark:text-yellow-400">
-                                    Warnings
-                                </AlertTitle>
+                                <AlertTitle className="text-yellow-700 dark:text-yellow-400">Warnings</AlertTitle>
                                 <AlertDescription>
                                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-yellow-600 dark:text-yellow-300">
                                         {result.errors.map((err, idx) => (
@@ -237,16 +219,12 @@ export function IgsnCsvUpload() {
                         <Alert variant="destructive">
                             <XCircle className="h-4 w-4" />
                             <AlertTitle>Upload Failed</AlertTitle>
-                            <AlertDescription>
-                                {result.message || 'An error occurred during upload.'}
-                            </AlertDescription>
+                            <AlertDescription>{result.message || 'An error occurred during upload.'}</AlertDescription>
                         </Alert>
 
                         {result.errors && result.errors.length > 0 && (
                             <div className="max-h-48 overflow-y-auto rounded-md border bg-destructive/10 p-4">
-                                <p className="mb-2 text-sm font-medium text-destructive">
-                                    Errors ({result.errors.length}):
-                                </p>
+                                <p className="mb-2 text-sm font-medium text-destructive">Errors ({result.errors.length}):</p>
                                 <ul className="list-inside list-disc space-y-1 text-sm text-destructive">
                                     {result.errors.slice(0, 10).map((err, idx) => (
                                         <li key={idx}>
@@ -254,9 +232,7 @@ export function IgsnCsvUpload() {
                                         </li>
                                     ))}
                                     {result.errors.length > 10 && (
-                                        <li className="text-muted-foreground">
-                                            ... and {result.errors.length - 10} more errors
-                                        </li>
+                                        <li className="text-muted-foreground">... and {result.errors.length - 10} more errors</li>
                                     )}
                                 </ul>
                             </div>

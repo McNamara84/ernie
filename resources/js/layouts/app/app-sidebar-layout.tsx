@@ -19,9 +19,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
             <AppSidebar />
             <AppContent variant="sidebar" className="overflow-x-hidden">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
-                <ErrorBoundary>
-                    {children}
-                </ErrorBoundary>
+                <ErrorBoundary>{children}</ErrorBoundary>
                 <AppFooter />
             </AppContent>
             <Toaster position="bottom-right" richColors />

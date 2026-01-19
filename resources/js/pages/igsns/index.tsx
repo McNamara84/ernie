@@ -230,9 +230,10 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                 }
             }
 
-            const errorMessage = isAxiosError(error) && error.response?.data
-                ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite JSON')
-                : 'Failed to export DataCite JSON';
+            const errorMessage =
+                isAxiosError(error) && error.response?.data
+                    ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite JSON')
+                    : 'Failed to export DataCite JSON';
 
             toast.error(errorMessage);
         } finally {
@@ -296,9 +297,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                         <div className="space-y-4">
                             {igsns.length === 0 ? (
                                 <Alert>
-                                    <AlertDescription>
-                                        No IGSNs found. Upload a CSV file from the Dashboard to add physical samples.
-                                    </AlertDescription>
+                                    <AlertDescription>No IGSNs found. Upload a CSV file from the Dashboard to add physical samples.</AlertDescription>
                                 </Alert>
                             ) : (
                                 <div className="rounded-md border">
@@ -306,12 +305,48 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="w-20">Actions</TableHead>
-                                                <SortableHeader label="IGSN" sortKey="igsn" sortState={sortState} onSort={handleSortChange} className="w-48" />
-                                                <SortableHeader label="Title" sortKey="title" sortState={sortState} onSort={handleSortChange} className="min-w-[250px]" />
-                                                <SortableHeader label="Sample Type" sortKey="sample_type" sortState={sortState} onSort={handleSortChange} className="w-36" />
-                                                <SortableHeader label="Material" sortKey="material" sortState={sortState} onSort={handleSortChange} className="w-36" />
-                                                <SortableHeader label="Collection Date" sortKey="collection_date" sortState={sortState} onSort={handleSortChange} className="w-40" />
-                                                <SortableHeader label="Status" sortKey="upload_status" sortState={sortState} onSort={handleSortChange} className="w-28" />
+                                                <SortableHeader
+                                                    label="IGSN"
+                                                    sortKey="igsn"
+                                                    sortState={sortState}
+                                                    onSort={handleSortChange}
+                                                    className="w-48"
+                                                />
+                                                <SortableHeader
+                                                    label="Title"
+                                                    sortKey="title"
+                                                    sortState={sortState}
+                                                    onSort={handleSortChange}
+                                                    className="min-w-[250px]"
+                                                />
+                                                <SortableHeader
+                                                    label="Sample Type"
+                                                    sortKey="sample_type"
+                                                    sortState={sortState}
+                                                    onSort={handleSortChange}
+                                                    className="w-36"
+                                                />
+                                                <SortableHeader
+                                                    label="Material"
+                                                    sortKey="material"
+                                                    sortState={sortState}
+                                                    onSort={handleSortChange}
+                                                    className="w-36"
+                                                />
+                                                <SortableHeader
+                                                    label="Collection Date"
+                                                    sortKey="collection_date"
+                                                    sortState={sortState}
+                                                    onSort={handleSortChange}
+                                                    className="w-40"
+                                                />
+                                                <SortableHeader
+                                                    label="Status"
+                                                    sortKey="upload_status"
+                                                    sortState={sortState}
+                                                    onSort={handleSortChange}
+                                                    className="w-28"
+                                                />
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -358,9 +393,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}
                                                         {igsn.igsn || '-'}
                                                     </TableCell>
-                                                    <TableCell className="max-w-[350px] whitespace-normal break-words">
-                                                        {igsn.title}
-                                                    </TableCell>
+                                                    <TableCell className="max-w-[350px] break-words whitespace-normal">{igsn.title}</TableCell>
                                                     <TableCell>{igsn.sample_type || '-'}</TableCell>
                                                     <TableCell>{igsn.material || '-'}</TableCell>
                                                     <TableCell>
@@ -430,8 +463,8 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                         <AlertDialogTitle>Delete IGSN</AlertDialogTitle>
                         <AlertDialogDescription>
                             Are you sure you want to delete the IGSN{' '}
-                            <span className="font-mono font-semibold">{igsnToDelete?.igsn || igsnToDelete?.title}</span>?
-                            This action cannot be undone.
+                            <span className="font-mono font-semibold">{igsnToDelete?.igsn || igsnToDelete?.title}</span>? This action cannot be
+                            undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

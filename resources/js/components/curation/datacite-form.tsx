@@ -360,48 +360,52 @@ export default function DataCiteForm({
 
     // Check if DOI field should be readonly (already saved with a valid DOI)
     // Admins can always edit the DOI field, even after the resource has been saved
-    const isDoiReadonly = Boolean(
-        initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin
-    );
+    const isDoiReadonly = Boolean(initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin);
 
     // DOI validation rules (format only - duplicate check is done via useDoiValidation hook)
     // Memoized to prevent unnecessary callback recreations
-    const doiValidationRules: ValidationRule[] = useMemo(() => [
-        {
-            validate: (value) => {
-                if (!value || String(value).trim() === '') {
-                    return null; // DOI is optional at this stage
-                }
-                const result = validateDOIFormat(String(value));
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
+    const doiValidationRules: ValidationRule[] = useMemo(
+        () => [
+            {
+                validate: (value) => {
+                    if (!value || String(value).trim() === '') {
+                        return null; // DOI is optional at this stage
+                    }
+                    const result = validateDOIFormat(String(value));
+                    if (!result.isValid) {
+                        return { severity: 'error', message: result.error! };
+                    }
+                    return null;
+                },
             },
-        },
-    ], []);
+        ],
+        [],
+    );
 
     // Handler to use the suggested DOI from the conflict modal
     // Note: The backend already verified this DOI is available, but we still need to
     // trigger format validation so the field shows the correct validation state
-    const handleUseSuggestedDoi = useCallback((suggestedDoi: string) => {
-        setForm((prev) => ({ ...prev, doi: suggestedDoi }));
-        // Trigger format validation to update the field's validation state
-        markFieldTouched('doi');
-        validateField({
-            fieldId: 'doi',
-            value: suggestedDoi,
-            rules: doiValidationRules,
-            // Use functional update pattern to get current form state
-            formData: { doi: suggestedDoi },
-        });
-        // Clear any existing DOI conflict state since this is a verified available DOI
-        resetDoiValidation();
-        // Show success toast to confirm the DOI was accepted
-        toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
-    // Note: 'form' is intentionally excluded - we use functional update for setForm
-    // and only need the new DOI value for validation
-    }, [markFieldTouched, validateField, doiValidationRules, resetDoiValidation]);
+    const handleUseSuggestedDoi = useCallback(
+        (suggestedDoi: string) => {
+            setForm((prev) => ({ ...prev, doi: suggestedDoi }));
+            // Trigger format validation to update the field's validation state
+            markFieldTouched('doi');
+            validateField({
+                fieldId: 'doi',
+                value: suggestedDoi,
+                rules: doiValidationRules,
+                // Use functional update pattern to get current form state
+                formData: { doi: suggestedDoi },
+            });
+            // Clear any existing DOI conflict state since this is a verified available DOI
+            resetDoiValidation();
+            // Show success toast to confirm the DOI was accepted
+            toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+            // Note: 'form' is intentionally excluded - we use functional update for setForm
+            // and only need the new DOI value for validation
+        },
+        [markFieldTouched, validateField, doiValidationRules, resetDoiValidation],
+    );
 
     // Helper to handle field blur: mark as touched AND trigger validation
     const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
@@ -730,7 +734,7 @@ export default function DataCiteForm({
     useEffect(() => {
         // Track if component is still mounted for async operations
         let isMounted = true;
-        
+
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
 
@@ -751,7 +755,7 @@ export default function DataCiteForm({
                 // First timeout: wait for accordion animation
                 mslScrollTimeoutRef.current = setTimeout(() => {
                     if (!isMounted) return;
-                    
+
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
                         setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
@@ -777,7 +781,7 @@ export default function DataCiteForm({
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
         }
-        
+
         // Cleanup: cancel any pending timeouts when effect re-runs or component unmounts
         return () => {
             isMounted = false;
@@ -1775,14 +1779,7 @@ export default function DataCiteForm({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <ValidationAlert
-                ref={errorRef}
-                severity="error"
-                messages={globalErrorMessages}
-                assertive
-                focusable
-                className="p-4"
-            />
+            <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" />
             <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>
@@ -1816,11 +1813,11 @@ export default function DataCiteForm({
                                 touched={getFieldState('doi').touched}
                                 placeholder="10.xxxx/xxxxx"
                                 labelTooltip={
-                                    isDoiReadonly 
-                                        ? "DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI."
+                                    isDoiReadonly
+                                        ? 'DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI.'
                                         : initialResourceId && initialDoi && isAdmin
-                                            ? "As an administrator, you can edit this DOI. Be careful when changing registered DOIs."
-                                            : "Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                          ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
+                                          : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
                                 }
                                 className="md:col-span-3"
                                 readOnly={isDoiReadonly}
@@ -1966,11 +1963,7 @@ export default function DataCiteForm({
                             counter={{ current: authors.length, max: 100 }}
                         />
                         {/* Validation issues notification */}
-                        <ValidationAlert
-                            severity="error"
-                            title="Required fields missing"
-                            messages={authorValidationIssues}
-                        />
+                        <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />
                         {authorRoleNames.length > 0 && (
                             <p id={authorRolesDescriptionId} className="mb-4 text-sm text-muted-foreground" data-testid="author-roles-availability">
                                 {`The available author ${authorRoleNames.length === 1 ? 'role is' : 'roles are'} ${authorRoleSummary}.`}
@@ -2089,13 +2082,7 @@ export default function DataCiteForm({
                                 tooltip="Appears when EPOS/MSL keywords are detected in your dataset."
                                 counter={{ current: mslLaboratories.length, max: 20 }}
                             />
-                            {mslValidationInfo && (
-                                <ValidationAlert
-                                    severity="info"
-                                    title="Recommendation"
-                                    messages={[mslValidationInfo.message]}
-                                />
-                            )}
+                            {mslValidationInfo && <ValidationAlert severity="info" title="Recommendation" messages={[mslValidationInfo.message]} />}
                             <MSLLaboratoriesField selectedLaboratories={mslLaboratories} onChange={setMslLaboratories} />
                         </AccordionContent>
                     </AccordionItem>
@@ -2135,11 +2122,7 @@ export default function DataCiteForm({
                             tooltip="Add dates like collection period, validity, or other relevant temporal information."
                             counter={{ current: dates.length, max: MAX_DATES }}
                         />
-                        <ValidationAlert
-                            severity="error"
-                            title="Date validation issues"
-                            messages={dateValidationIssues}
-                        />
+                        <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />
                         <div className="space-y-4">
                             {dates.length === 0 ? (
                                 <EmptyState

@@ -19,12 +19,7 @@ interface CreativeCommonsIconProps {
  */
 function CCLogo({ className = 'h-5 w-5' }: { className?: string }) {
     return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
                 CC
@@ -38,12 +33,7 @@ function CCLogo({ className = 'h-5 w-5' }: { className?: string }) {
  */
 function ByIcon({ className = 'h-5 w-5' }: { className?: string }) {
     return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <circle cx="12" cy="7" r="3" />
             <path d="M12 11c-3 0-5 2-5 4v2h10v-2c0-2-2-4-5-4z" />
@@ -56,19 +46,9 @@ function ByIcon({ className = 'h-5 w-5' }: { className?: string }) {
  */
 function SaIcon({ className = 'h-5 w-5' }: { className?: string }) {
     return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path
-                d="M12 6c-3.3 0-6 2.7-6 6s2.7 6 6 6c2.5 0 4.6-1.5 5.5-3.6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-            />
+            <path d="M12 6c-3.3 0-6 2.7-6 6s2.7 6 6 6c2.5 0 4.6-1.5 5.5-3.6" fill="none" stroke="currentColor" strokeWidth="2" />
             <path d="M15 11l3-3-3-3" fill="none" stroke="currentColor" strokeWidth="2" />
         </svg>
     );
@@ -79,12 +59,7 @@ function SaIcon({ className = 'h-5 w-5' }: { className?: string }) {
  */
 function NcIcon({ className = 'h-5 w-5' }: { className?: string }) {
     return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
                 $
@@ -99,12 +74,7 @@ function NcIcon({ className = 'h-5 w-5' }: { className?: string }) {
  */
 function NdIcon({ className = 'h-5 w-5' }: { className?: string }) {
     return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <line x1="7" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="2.5" />
             <line x1="7" y1="15" x2="17" y2="15" stroke="currentColor" strokeWidth="2.5" />
@@ -117,12 +87,7 @@ function NdIcon({ className = 'h-5 w-5' }: { className?: string }) {
  */
 function ZeroIcon({ className = 'h-5 w-5' }: { className?: string }) {
     return (
-        <svg
-            className={className}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-        >
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
                 0

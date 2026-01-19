@@ -298,9 +298,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                 <Card className="flex flex-col items-center justify-center">
                     <CardHeader className="items-center text-center">
                         <CardTitle>Upload Files</CardTitle>
-                        <CardDescription>
-                            Upload DataCite XML files from ELMO or IGSN CSV files for sample metadata.
-                        </CardDescription>
+                        <CardDescription>Upload DataCite XML files from ELMO or IGSN CSV files for sample metadata.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
                         <UnifiedDropzone onXmlUpload={onXmlFiles} />

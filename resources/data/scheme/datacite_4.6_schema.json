@@ -7,19 +7,16 @@
     "definitions": {
         "nameType": {
             "type": "string",
-            "enum": [
-                "Organizational",
-                "Personal"
-            ]
+            "enum": ["Organizational", "Personal"]
         },
         "nameIdentifiers": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "nameIdentifier": {"type": "string"},
-                    "nameIdentifierScheme": {"type": "string"},
-                    "schemeUri": {"type": "string", "format": "uri"}
+                    "nameIdentifier": { "type": "string" },
+                    "nameIdentifierScheme": { "type": "string" },
+                    "schemeUri": { "type": "string", "format": "uri" }
                 },
                 "required": ["nameIdentifier", "nameIdentifierScheme"]
             },
@@ -30,10 +27,10 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "affiliationIdentifier": {"type": "string"},
-                    "affiliationIdentifierScheme": {"type": "string"},
-                    "schemeUri": {"type": "string", "format": "uri"}
+                    "name": { "type": "string" },
+                    "affiliationIdentifier": { "type": "string" },
+                    "affiliationIdentifierScheme": { "type": "string" },
+                    "schemeUri": { "type": "string", "format": "uri" }
                 },
                 "required": ["name"]
             },
@@ -41,12 +38,7 @@
         },
         "titleType": {
             "type": "string",
-            "enum": [
-                "AlternativeTitle",
-                "Subtitle",
-                "TranslatedTitle",
-                "Other"
-            ]
+            "enum": ["AlternativeTitle", "Subtitle", "TranslatedTitle", "Other"]
         },
         "contributorType": {
             "type": "string",
@@ -78,14 +70,14 @@
         "date": {
             "type": "string",
             "anyOf": [
-                {"format": "year"},
-                {"format": "yearmonth"},
-                {"format": "date"},
-                {"format": "datetime"},
-                {"format": "year-range"},
-                {"format": "yearmonth-range"},
-                {"format": "date-range"},
-                {"format": "datetime-range"}
+                { "format": "year" },
+                { "format": "yearmonth" },
+                { "format": "date" },
+                { "format": "datetime" },
+                { "format": "year-range" },
+                { "format": "yearmonth-range" },
+                { "format": "date-range" },
+                { "format": "datetime-range" }
             ]
         },
         "dateType": {
@@ -213,20 +205,13 @@
         },
         "descriptionType": {
             "type": "string",
-            "enum": [
-                "Abstract",
-                "Methods",
-                "SeriesInformation",
-                "TableOfContents",
-                "TechnicalInfo",
-                "Other"
-            ]
+            "enum": ["Abstract", "Methods", "SeriesInformation", "TableOfContents", "TechnicalInfo", "Other"]
         },
         "geoLocationPoint": {
             "type": "object",
             "properties": {
-                "pointLongitude": {"$ref": "#/definitions/longitude"},
-                "pointLatitude": {"$ref": "#/definitions/latitude"}
+                "pointLongitude": { "$ref": "#/definitions/longitude" },
+                "pointLatitude": { "$ref": "#/definitions/latitude" }
             },
             "required": ["pointLongitude", "pointLatitude"]
         },
@@ -242,22 +227,11 @@
         },
         "funderIdentifierType": {
             "type": "string",
-            "enum": [
-                "ISNI",
-                "GRID",
-                "Crossref Funder ID",
-                "ROR",
-                "Other"
-            ]
+            "enum": ["ISNI", "GRID", "Crossref Funder ID", "ROR", "Other"]
         },
         "numberType": {
             "type": "string",
-            "enum": [
-                "Article",
-                "Chapter",
-                "Report",
-                "Other"
-            ]
+            "enum": ["Article", "Chapter", "Report", "Other"]
         }
     },
 
@@ -271,18 +245,18 @@
         "types": {
             "type": "object",
             "properties": {
-                "resourceType": {"type": "string"},
-                "resourceTypeGeneral": {"$ref": "#/definitions/resourceTypeGeneral"}
+                "resourceType": { "type": "string" },
+                "resourceTypeGeneral": { "$ref": "#/definitions/resourceTypeGeneral" }
             },
             "required": ["resourceType", "resourceTypeGeneral"]
         },
         "identifiers": {
             "type": "array",
-            "items":{
+            "items": {
                 "type": "object",
                 "properties": {
-                    "identifier": {"type": "string"},
-                    "identifierType": {"type": "string"}
+                    "identifier": { "type": "string" },
+                    "identifierType": { "type": "string" }
                 },
                 "required": ["identifier", "identifierType"]
             },
@@ -294,13 +268,13 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "nameType": {"$ref": "#/definitions/nameType"},
-                    "givenName": {"type": "string"},
-                    "familyName": {"type": "string"},
-                    "nameIdentifiers": {"$ref": "#/definitions/nameIdentifiers"},
-                    "affiliation": {"$ref": "#/definitions/affiliations"},
-                    "lang": {"type": "string"}
+                    "name": { "type": "string" },
+                    "nameType": { "$ref": "#/definitions/nameType" },
+                    "givenName": { "type": "string" },
+                    "familyName": { "type": "string" },
+                    "nameIdentifiers": { "$ref": "#/definitions/nameIdentifiers" },
+                    "affiliation": { "$ref": "#/definitions/affiliations" },
+                    "lang": { "type": "string" }
                 },
                 "required": ["name"]
             },
@@ -312,9 +286,9 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string"},
-                    "titleType": {"$ref": "#/definitions/titleType"},
-                    "lang": {"type": "string"}
+                    "title": { "type": "string" },
+                    "titleType": { "$ref": "#/definitions/titleType" },
+                    "lang": { "type": "string" }
                 },
                 "required": ["title"]
             },
@@ -329,11 +303,11 @@
                 {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "publisherIdentifier": {"type": "string"},
-                        "publisherIdentifierScheme": {"type": "string"},
-                        "schemeUri": {"type": "string", "format": "uri"},
-                        "lang": {"type": "string"}
+                        "name": { "type": "string" },
+                        "publisherIdentifier": { "type": "string" },
+                        "publisherIdentifierScheme": { "type": "string" },
+                        "schemeUri": { "type": "string", "format": "uri" },
+                        "lang": { "type": "string" }
                     },
                     "required": ["name"]
                 }
@@ -348,12 +322,12 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "subject": {"type": "string"},
-                    "subjectScheme": {"type": "string"},
-                    "schemeUri": {"type": "string", "format": "uri"},
-                    "valueUri": {"type": "string", "format": "uri"},
-                    "classificationCode": {"type": "string"},
-                    "lang": {"type": "string"}
+                    "subject": { "type": "string" },
+                    "subjectScheme": { "type": "string" },
+                    "schemeUri": { "type": "string", "format": "uri" },
+                    "valueUri": { "type": "string", "format": "uri" },
+                    "classificationCode": { "type": "string" },
+                    "lang": { "type": "string" }
                 },
                 "required": ["subject"]
             },
@@ -364,14 +338,14 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "contributorType": {"$ref": "#/definitions/contributorType"},
-                    "name": {"type": "string"},
-                    "nameType": {"$ref": "#/definitions/nameType"},
-                    "givenName": {"type": "string"},
-                    "familyName": {"type": "string"},
-                    "nameIdentifiers": {"$ref": "#/definitions/nameIdentifiers"},
-                    "affiliation": {"$ref": "#/definitions/affiliations"},
-                    "lang": {"type": "string"}
+                    "contributorType": { "$ref": "#/definitions/contributorType" },
+                    "name": { "type": "string" },
+                    "nameType": { "$ref": "#/definitions/nameType" },
+                    "givenName": { "type": "string" },
+                    "familyName": { "type": "string" },
+                    "nameIdentifiers": { "$ref": "#/definitions/nameIdentifiers" },
+                    "affiliation": { "$ref": "#/definitions/affiliations" },
+                    "lang": { "type": "string" }
                 },
                 "required": ["contributorType", "name"]
             },
@@ -382,9 +356,9 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "date": {"$ref": "#/definitions/date"},
-                    "dateType": {"$ref": "#/definitions/dateType"},
-                    "dateInformation": {"type": "string"}
+                    "date": { "$ref": "#/definitions/date" },
+                    "dateType": { "$ref": "#/definitions/dateType" },
+                    "dateInformation": { "type": "string" }
                 },
                 "required": ["date", "dateType"]
             },
@@ -399,8 +373,8 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "alternateIdentifier": {"type": "string"},
-                    "alternateIdentifierType": {"type": "string"}
+                    "alternateIdentifier": { "type": "string" },
+                    "alternateIdentifierType": { "type": "string" }
                 },
                 "required": ["alternateIdentifier", "alternateIdentifierType"]
             },
@@ -411,18 +385,18 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "relatedIdentifier": {"type": "string"},
-                    "relatedIdentifierType": {"$ref": "#/definitions/relatedIdentifierType"},
-                    "relationType": {"$ref": "#/definitions/relationType"},
-                    "relatedMetadataScheme": {"type": "string"},
-                    "schemeUri": {"type": "string", "format": "uri"},
-                    "schemeType": {"type": "string"},
-                    "resourceTypeGeneral": {"$ref": "#/definitions/resourceTypeGeneral"}
+                    "relatedIdentifier": { "type": "string" },
+                    "relatedIdentifierType": { "$ref": "#/definitions/relatedIdentifierType" },
+                    "relationType": { "$ref": "#/definitions/relationType" },
+                    "relatedMetadataScheme": { "type": "string" },
+                    "schemeUri": { "type": "string", "format": "uri" },
+                    "schemeType": { "type": "string" },
+                    "resourceTypeGeneral": { "$ref": "#/definitions/resourceTypeGeneral" }
                 },
                 "required": ["relatedIdentifier", "relatedIdentifierType", "relationType"],
                 "if": {
                     "properties": {
-                        "relationType": {"enum": ["HasMetadata", "IsMetadataFor"]}
+                        "relationType": { "enum": ["HasMetadata", "IsMetadataFor"] }
                     }
                 },
                 "else": {
@@ -458,12 +432,12 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "rights": {"type": "string"},
-                    "rightsUri": {"type": "string", "format": "uri"},
-                    "rightsIdentifier": {"type": "string"},
-                    "rightsIdentifierScheme": {"type": "string"},
-                    "schemeUri": {"type": "string", "format": "uri"},
-                    "lang": {"type": "string"}
+                    "rights": { "type": "string" },
+                    "rightsUri": { "type": "string", "format": "uri" },
+                    "rightsIdentifier": { "type": "string" },
+                    "rightsIdentifierScheme": { "type": "string" },
+                    "schemeUri": { "type": "string", "format": "uri" },
+                    "lang": { "type": "string" }
                 }
             },
             "uniqueItems": true
@@ -473,9 +447,9 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "description": {"type": "string"},
-                    "descriptionType": {"$ref": "#/definitions/descriptionType"},
-                    "lang": {"type": "string"}
+                    "description": { "type": "string" },
+                    "descriptionType": { "$ref": "#/definitions/descriptionType" },
+                    "lang": { "type": "string" }
                 },
                 "required": ["description", "descriptionType"]
             },
@@ -486,15 +460,15 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "geoLocationPlace": {"type": "string"},
-                    "geoLocationPoint": {"$ref": "#/definitions/geoLocationPoint"},
+                    "geoLocationPlace": { "type": "string" },
+                    "geoLocationPoint": { "$ref": "#/definitions/geoLocationPoint" },
                     "geoLocationBox": {
                         "type": "object",
                         "properties": {
-                            "westBoundLongitude": {"$ref": "#/definitions/longitude"},
-                            "eastBoundLongitude": {"$ref": "#/definitions/longitude"},
-                            "southBoundLatitude": {"$ref": "#/definitions/latitude"},
-                            "northBoundLatitude": {"$ref": "#/definitions/latitude"}
+                            "westBoundLongitude": { "$ref": "#/definitions/longitude" },
+                            "eastBoundLongitude": { "$ref": "#/definitions/longitude" },
+                            "southBoundLatitude": { "$ref": "#/definitions/latitude" },
+                            "northBoundLatitude": { "$ref": "#/definitions/latitude" }
                         },
                         "required": ["westBoundLongitude", "eastBoundLongitude", "southBoundLatitude", "northBoundLatitude"]
                     },
@@ -505,10 +479,10 @@
                             "properties": {
                                 "polygonPoints": {
                                     "type": "array",
-                                    "items": {"$ref": "#/definitions/geoLocationPoint"},
+                                    "items": { "$ref": "#/definitions/geoLocationPoint" },
                                     "minItems": 4
                                 },
-                                "inPolygonPoint": {"$ref": "#/definitions/geoLocationPoint"}
+                                "inPolygonPoint": { "$ref": "#/definitions/geoLocationPoint" }
                             },
                             "required": ["polygonPoints"]
                         },
@@ -523,12 +497,12 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "funderName": {"type": "string"},
-                    "funderIdentifier": {"type": "string"},
-                    "funderIdentifierType": {"$ref": "#/definitions/funderIdentifierType"},
-                    "awardNumber": {"type": "string"},
-                    "awardUri": {"type": "string", "format": "uri"},
-                    "awardTitle": {"type": "string"}
+                    "funderName": { "type": "string" },
+                    "funderIdentifier": { "type": "string" },
+                    "funderIdentifierType": { "$ref": "#/definitions/funderIdentifierType" },
+                    "awardNumber": { "type": "string" },
+                    "awardUri": { "type": "string", "format": "uri" },
+                    "awardTitle": { "type": "string" }
                 },
                 "required": ["funderName"]
             },
@@ -539,16 +513,16 @@
             "items": {
                 "type": "object",
                 "properties": {
-                    "relatedItemType": {"$ref": "#/definitions/resourceTypeGeneral"},
-                    "relationType": {"$ref": "#/definitions/relationType"},
+                    "relatedItemType": { "$ref": "#/definitions/resourceTypeGeneral" },
+                    "relationType": { "$ref": "#/definitions/relationType" },
                     "relatedItemIdentifier": {
                         "type": "object",
                         "properties": {
-                            "relatedItemIdentifier": {"type": "string"},
-                            "relatedItemIdentifierType": {"$ref": "#/definitions/relatedIdentifierType"},
-                            "relatedMetadataScheme": {"type": "string"},
-                            "schemeUri": {"type": "string", "format": "uri"},
-                            "schemeType": {"type": "string"}
+                            "relatedItemIdentifier": { "type": "string" },
+                            "relatedItemIdentifierType": { "$ref": "#/definitions/relatedIdentifierType" },
+                            "relatedMetadataScheme": { "type": "string" },
+                            "schemeUri": { "type": "string", "format": "uri" },
+                            "schemeType": { "type": "string" }
                         }
                     },
                     "creators": {
@@ -556,10 +530,10 @@
                         "items": {
                             "type": "object",
                             "properties": {
-                                "name": {"type": "string"},
-                                "nameType": {"$ref": "#/definitions/nameType"},
-                                "givenName": {"type": "string"},
-                                "familyName": {"type": "string"}
+                                "name": { "type": "string" },
+                                "nameType": { "$ref": "#/definitions/nameType" },
+                                "givenName": { "type": "string" },
+                                "familyName": { "type": "string" }
                             },
                             "required": ["name"]
                         }
@@ -569,38 +543,38 @@
                         "items": {
                             "type": "object",
                             "properties": {
-                                "title": {"type": "string"},
-                                "titleType": {"$ref": "#/definitions/titleType"},
-                                "lang": {"type": "string"}
+                                "title": { "type": "string" },
+                                "titleType": { "$ref": "#/definitions/titleType" },
+                                "lang": { "type": "string" }
                             },
                             "required": ["title"]
                         },
                         "minItems": 1
                     },
-                    "publicationYear": {"type": "string"},
-                    "volume": {"type": "string"},
-                    "issue": {"type": "string"},
+                    "publicationYear": { "type": "string" },
+                    "volume": { "type": "string" },
+                    "issue": { "type": "string" },
                     "number": {
                         "type": "object",
                         "properties": {
-                            "number": {"type": "string"},
-                            "numberType": {"$ref": "#/definitions/numberType"}
+                            "number": { "type": "string" },
+                            "numberType": { "$ref": "#/definitions/numberType" }
                         }
                     },
-                    "firstPage": {"type": "string"},
-                    "lastPage": {"type": "string"},
-                    "publisher": {"type": "string"},
-                    "edition": {"type": "string"},
+                    "firstPage": { "type": "string" },
+                    "lastPage": { "type": "string" },
+                    "publisher": { "type": "string" },
+                    "edition": { "type": "string" },
                     "contributors": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "contributorType": {"$ref": "#/definitions/contributorType"},
-                                "name": {"type": "string"},
-                                "nameType": {"$ref": "#/definitions/nameType"},
-                                "givenName": {"type": "string"},
-                                "familyName": {"type": "string"}
+                                "contributorType": { "$ref": "#/definitions/contributorType" },
+                                "name": { "type": "string" },
+                                "nameType": { "$ref": "#/definitions/nameType" },
+                                "givenName": { "type": "string" },
+                                "familyName": { "type": "string" }
                             },
                             "required": ["contributorType", "name"]
                         }
@@ -617,19 +591,12 @@
         "container": {
             "type": "object",
             "properties": {
-                "type": {"type": "string"},
-                "title": {"type": "string"},
-                "firstPage": {"type": "string"}
+                "type": { "type": "string" },
+                "title": { "type": "string" },
+                "firstPage": { "type": "string" }
             }
         }
     },
 
-    "required": [
-        "creators",
-        "titles",
-        "publisher",
-        "publicationYear",
-        "types",
-        "schemaVersion"
-    ]
+    "required": ["creators", "titles", "publisher", "publicationYear", "types", "schemaVersion"]
 }

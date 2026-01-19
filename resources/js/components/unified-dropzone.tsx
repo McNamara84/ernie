@@ -140,7 +140,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                 setError(err instanceof Error ? err.message : 'Upload failed');
             }
         },
-        [onXmlUpload]
+        [onXmlUpload],
     );
 
     const handleFile = useCallback(
@@ -156,7 +156,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                 setError('Unsupported file type. Please upload an XML or CSV file.');
             }
         },
-        [uploadXml, uploadCsv]
+        [uploadXml, uploadCsv],
     );
 
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -195,19 +195,17 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                 <Alert variant="destructive" data-testid="dropzone-error-alert">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Upload Error</AlertTitle>
-                    <AlertDescription>
-                        {error || csvResult?.message || 'An error occurred during upload.'}
-                    </AlertDescription>
+                    <AlertDescription>{error || csvResult?.message || 'An error occurred during upload.'}</AlertDescription>
                 </Alert>
 
                 {/* Show CSV-specific errors */}
                 {csvResult?.errors && csvResult.errors.length > 0 && (
-                    <div className="w-full max-h-60 overflow-y-auto rounded-md border p-4">
+                    <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
                         <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
                         <ul className="space-y-1 text-sm">
                             {csvResult.errors.map((err, index) => (
                                 <li key={index} className="flex items-start gap-2">
-                                    <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+                                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                                     <span>
                                         <strong>Row {err.row}</strong> ({err.igsn}): {err.message}
                                     </span>
@@ -230,14 +228,10 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
             <div data-testid="dropzone-uploading-state" className="flex w-full flex-col items-center gap-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>
-                        Uploading {lastUploadType === 'csv' ? 'CSV' : 'XML'} file...
-                    </span>
+                    <span>Uploading {lastUploadType === 'csv' ? 'CSV' : 'XML'} file...</span>
                 </div>
                 <Progress value={uploadProgress} className="w-full max-w-xs" />
-                {selectedFile && (
-                    <p className="text-sm text-muted-foreground">{selectedFile.name}</p>
-                )}
+                {selectedFile && <p className="text-sm text-muted-foreground">{selectedFile.name}</p>}
             </div>
         );
     }
@@ -249,27 +243,23 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                 <Alert data-testid="dropzone-success-alert">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertTitle className="text-green-700">Upload Successful</AlertTitle>
-                    <AlertDescription>
-                        Successfully created {csvResult.created} IGSN resource(s).
-                    </AlertDescription>
+                    <AlertDescription>Successfully created {csvResult.created} IGSN resource(s).</AlertDescription>
                 </Alert>
 
                 {csvResult.errors && csvResult.errors.length > 0 && (
                     <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Some Rows Failed</AlertTitle>
-                        <AlertDescription>
-                            {csvResult.errors.length} row(s) could not be processed.
-                        </AlertDescription>
+                        <AlertDescription>{csvResult.errors.length} row(s) could not be processed.</AlertDescription>
                     </Alert>
                 )}
 
                 {csvResult.errors && csvResult.errors.length > 0 && (
-                    <div className="w-full max-h-60 overflow-y-auto rounded-md border p-4">
+                    <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
                         <ul className="space-y-1 text-sm">
                             {csvResult.errors.map((err, index) => (
                                 <li key={index} className="flex items-start gap-2">
-                                    <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+                                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                                     <span>
                                         <strong>Row {err.row}</strong> ({err.igsn}): {err.message}
                                     </span>
@@ -298,9 +288,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
             }`}
         >
             <Upload className="mb-4 h-10 w-10 text-muted-foreground" />
-            <p className="mb-2 text-sm font-medium text-foreground">
-                Drag &amp; drop files here
-            </p>
+            <p className="mb-2 text-sm font-medium text-foreground">Drag &amp; drop files here</p>
             <p className="mb-4 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                     <FileText className="h-3 w-3" /> XML (DataCite)
@@ -318,11 +306,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                 className="hidden"
                 onChange={handleFileSelect}
             />
-            <Button
-                type="button"
-                data-testid="unified-upload-button"
-                onClick={() => fileInputRef.current?.click()}
-            >
+            <Button type="button" data-testid="unified-upload-button" onClick={() => fileInputRef.current?.click()}>
                 Browse Files
             </Button>
         </div>

@@ -201,7 +201,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1">
                     <h3 className="font-medium">{thesaurus.displayName}</h3>
-                    <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-sm">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         {thesaurus.exists ? (
                             <>
                                 <span className="flex items-center gap-1">
