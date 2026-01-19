@@ -47,7 +47,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -63,7 +63,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: true,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -77,7 +77,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -91,7 +91,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -107,7 +107,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -123,7 +123,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -143,7 +143,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -157,7 +157,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -176,7 +176,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -190,7 +190,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -209,7 +209,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -223,7 +223,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: null,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         // Should not throw
         render(<DefaultGfzTemplate />);
@@ -252,7 +252,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: null,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         // Should not throw
         render(<DefaultGfzTemplate />);
@@ -272,7 +272,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -286,7 +286,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -300,7 +300,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
@@ -314,7 +314,7 @@ describe('DefaultGfzTemplate', () => {
                 landingPage: mockLandingPage,
                 isPreview: false,
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(<DefaultGfzTemplate />);
 
