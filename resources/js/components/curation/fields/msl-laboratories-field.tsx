@@ -1,11 +1,11 @@
-import { AlertCircle, Building2, Info, Search, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlertCircle, Building2, Info, X } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMSLLaboratories } from '@/hooks/use-msl-laboratories';
@@ -34,7 +34,7 @@ function extractRorId(rorUrl: string): string {
  * MSL Vocabularies repository.
  *
  * Features:
- * - Searchable combobox with fuzzy matching
+ * - Searchable combobox with fuzzy matching (using shadcn/ui Combobox)
  * - Card-based display of selected laboratories
  * - ROR badge links to Research Organization Registry
  * - Keyboard navigation support
@@ -43,27 +43,32 @@ function extractRorId(rorUrl: string): string {
  */
 export default function MSLLaboratoriesField({ selectedLaboratories, onChange }: MSLLaboratoriesFieldProps) {
     const { laboratories, isLoading, error, refetch } = useMSLLaboratories();
-    const [searchValue, setSearchValue] = useState('');
 
-    // Filter available laboratories (exclude already selected ones)
-    const availableLaboratories = useMemo(() => {
+    // Convert laboratories to ComboboxOption format
+    const comboboxOptions: ComboboxOption[] = useMemo(() => {
         if (!laboratories) return [];
 
         const selectedIds = new Set(selectedLaboratories.map((lab) => lab.identifier));
-        return laboratories.filter((lab) => !selectedIds.has(lab.identifier));
+        return laboratories
+            .filter((lab) => !selectedIds.has(lab.identifier))
+            .map((lab) => ({
+                value: lab.identifier,
+                label: lab.name,
+                data: {
+                    affiliation_name: lab.affiliation_name,
+                    affiliation_ror: lab.affiliation_ror,
+                    laboratory: lab,
+                },
+            }));
     }, [laboratories, selectedLaboratories]);
 
-    // Filter laboratories based on search
-    const filteredLaboratories = useMemo(() => {
-        if (!searchValue) return availableLaboratories;
+    const handleSelectLaboratory = (value: string | undefined) => {
+        if (!value) return;
 
-        const search = searchValue.toLowerCase();
-        return availableLaboratories.filter((lab) => lab.name.toLowerCase().includes(search) || lab.affiliation_name.toLowerCase().includes(search));
-    }, [availableLaboratories, searchValue]);
-
-    const handleSelectLaboratory = (laboratory: MSLLaboratory) => {
-        onChange([...selectedLaboratories, laboratory]);
-        setSearchValue('');
+        const laboratory = laboratories?.find((lab) => lab.identifier === value);
+        if (laboratory) {
+            onChange([...selectedLaboratories, laboratory]);
+        }
     };
 
     const handleRemoveLaboratory = (identifier: string) => {
@@ -111,54 +116,26 @@ export default function MSLLaboratoriesField({ selectedLaboratories, onChange }:
                     Add Laboratory
                 </Label>
 
-                {/* Search Input */}
-                <div className="relative">
-                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        id="msl-laboratory-search"
-                        type="text"
-                        placeholder="Search for a laboratory (e.g., TecLab, INGV, Utrecht...)"
-                        value={searchValue}
-                        onChange={(e) => setSearchValue(e.target.value)}
-                        disabled={isLoading || !!error}
-                        className="pl-10"
-                        aria-label="Search laboratories"
-                    />
-                </div>
-
-                {/* Dropdown with search results */}
-                {searchValue && filteredLaboratories.length > 0 && (
-                    <Card className="max-h-[400px] overflow-y-auto border shadow-lg">
-                        <div className="p-2">
-                            <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-                                {filteredLaboratories.length} result{filteredLaboratories.length !== 1 ? 's' : ''} found
-                            </p>
-                            <div className="space-y-1">
-                                {filteredLaboratories.map((lab) => (
-                                    <button
-                                        key={lab.identifier}
-                                        type="button"
-                                        onClick={() => handleSelectLaboratory(lab)}
-                                        className="w-full rounded-md p-3 text-left transition-colors hover:bg-accent focus:bg-accent focus:ring-2 focus:ring-ring focus:outline-none"
-                                    >
-                                        <div className="flex flex-col gap-1">
-                                            <span className="font-medium">{lab.name}</span>
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                <Building2 className="h-3 w-3" />
-                                                <span>{lab.affiliation_name}</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                {/* Combobox */}
+                <Combobox
+                    id="msl-laboratory-search"
+                    options={comboboxOptions}
+                    onChange={handleSelectLaboratory}
+                    placeholder="Search for a laboratory (e.g., TecLab, INGV, Utrecht...)"
+                    searchPlaceholder="Type to search..."
+                    emptyMessage="No laboratories found"
+                    disabled={isLoading || !!error}
+                    clearable={false}
+                    renderOption={(option) => (
+                        <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{option.label}</span>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Building2 className="h-3 w-3" />
+                                <span>{(option.data?.affiliation_name as string) || ''}</span>
                             </div>
                         </div>
-                    </Card>
-                )}
-
-                {/* No results message */}
-                {searchValue && filteredLaboratories.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No laboratories found matching &quot;{searchValue}&quot;</p>
-                )}
+                    )}
+                />
             </div>
 
             {/* Loading Skeleton */}

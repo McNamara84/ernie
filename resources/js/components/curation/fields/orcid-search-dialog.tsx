@@ -2,16 +2,16 @@
  * OrcidSearchDialog Component
  *
  * Modal dialog for searching ORCID records by name, institution, or keywords.
- * Allows users to find and select ORCID records without pre-filling name fields.
+ * Uses shadcn/ui Command component for an improved search experience.
  */
 
-import { ExternalLink, Loader2, Search } from 'lucide-react';
-import { useState } from 'react';
+import { ExternalLink, Loader2, Search, User } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
 
 interface OrcidSearchDialogProps {
@@ -25,15 +25,21 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
     const [isSearching, setIsSearching] = useState(false);
     const [results, setResults] = useState<OrcidSearchResult[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
+    // Debounced search function
+    const performSearch = useCallback(async (query: string) => {
+        if (!query.trim() || query.length < 2) {
+            setResults([]);
+            setHasSearched(false);
+            return;
+        }
 
         setIsSearching(true);
         setHasSearched(true);
 
         try {
-            const response = await OrcidService.searchOrcid(searchQuery, 20);
+            const response = await OrcidService.searchOrcid(query, 20);
 
             if (response.success && response.data) {
                 setResults(response.data.results);
@@ -46,7 +52,34 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
         } finally {
             setIsSearching(false);
         }
-    };
+    }, []);
+
+    // Handle search input with debounce
+    const handleSearchChange = useCallback(
+        (value: string) => {
+            setSearchQuery(value);
+
+            // Clear previous timer
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+
+            // Set new debounce timer (300ms)
+            debounceTimerRef.current = setTimeout(() => {
+                performSearch(value);
+            }, 300);
+        },
+        [performSearch],
+    );
+
+    // Cleanup debounce timer on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
 
     const handleSelect = (result: OrcidSearchResult) => {
         onSelect(result);
@@ -57,109 +90,75 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
         setHasSearched(false);
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSearch();
+    const handleOpenChange = (isOpen: boolean) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+            // Reset state when closing
+            setSearchQuery('');
+            setResults([]);
+            setHasSearched(false);
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <Button type="button" variant="ghost" size="icon" className={triggerClassName} aria-label="Search for ORCID">
                     <Search className="h-3 w-3" />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col gap-0 p-0">
+                <DialogHeader className="px-4 pt-4 pb-2">
                     <DialogTitle>Search for ORCID</DialogTitle>
                     <DialogDescription>Search for ORCID records by name, institution, or keywords</DialogDescription>
                 </DialogHeader>
 
-                {/* Search Input */}
-                <div className="space-y-2">
-                    <Label htmlFor="orcid-search-query">Search Query</Label>
-                    <div className="flex gap-2">
-                        <Input
-                            id="orcid-search-query"
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="e.g., John Smith, GFZ, Geosciences..."
-                            className="flex-1"
-                            autoFocus
-                        />
-                        <Button type="button" onClick={handleSearch} disabled={!searchQuery.trim() || isSearching}>
-                            {isSearching ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Searching...
-                                </>
-                            ) : (
-                                <>
-                                    <Search className="mr-2 h-4 w-4" />
-                                    Search
-                                </>
+                <Command className="rounded-none border-0" shouldFilter={false}>
+                    <CommandInput
+                        placeholder="Search by name, institution, keywords..."
+                        value={searchQuery}
+                        onValueChange={handleSearchChange}
+                    />
+                    <CommandList className="max-h-none">
+                        <ScrollArea className="h-[400px]">
+                            {/* Loading state */}
+                            {isSearching && (
+                                <div className="flex items-center justify-center p-8 text-muted-foreground">
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    <span>Searching ORCID database...</span>
+                                </div>
                             )}
-                        </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Tip: Use specific names or institutions for better results</p>
-                </div>
 
-                {/* Results */}
-                <div className="mt-4 flex-1 overflow-y-auto rounded-md border">
-                    {isSearching && (
-                        <div className="flex items-center justify-center p-8 text-muted-foreground">
-                            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                            Searching ORCID database...
-                        </div>
-                    )}
+                            {/* Empty state - no search yet */}
+                            {!isSearching && !hasSearched && (
+                                <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+                                    <Search className="mb-2 h-10 w-10 opacity-50" />
+                                    <p className="text-sm">Start typing to search ORCID records</p>
+                                    <p className="mt-1 text-xs">Tip: Use specific names or institutions for better results</p>
+                                </div>
+                            )}
 
-                    {!isSearching && hasSearched && results.length === 0 && (
-                        <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-                            <Search className="mb-2 h-12 w-12 opacity-50" />
-                            <p className="text-sm">No results found</p>
-                            <p className="mt-1 text-xs">Try a different search query</p>
-                        </div>
-                    )}
+                            {/* Empty state - no results */}
+                            {!isSearching && hasSearched && results.length === 0 && <CommandEmpty>No ORCID records found. Try a different search term.</CommandEmpty>}
 
-                    {!isSearching && !hasSearched && (
-                        <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-                            <Search className="mb-2 h-12 w-12 opacity-50" />
-                            <p className="text-sm">Enter a search query to find ORCID records</p>
-                        </div>
-                    )}
-
-                    {!isSearching && results.length > 0 && (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="sticky top-0 z-10 bg-muted/50">
-                                    <tr className="border-b">
-                                        <th className="p-3 text-left text-sm font-semibold">Last Name</th>
-                                        <th className="p-3 text-left text-sm font-semibold">First Name</th>
-                                        <th className="p-3 text-left text-sm font-semibold">ORCID</th>
-                                        <th className="p-3 text-left text-sm font-semibold">Current Affiliations</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
+                            {/* Results */}
+                            {!isSearching && results.length > 0 && (
+                                <CommandGroup heading={`${results.length} result${results.length !== 1 ? 's' : ''} found`}>
                                     {results.map((result) => (
-                                        <tr
+                                        <CommandItem
                                             key={result.orcid}
-                                            onClick={() => handleSelect(result)}
-                                            className="cursor-pointer transition-colors focus-within:bg-accent hover:bg-accent"
-                                            tabIndex={0}
-                                            onKeyPress={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    handleSelect(result);
-                                                }
-                                            }}
+                                            value={result.orcid}
+                                            onSelect={() => handleSelect(result)}
+                                            className="flex cursor-pointer flex-col items-start gap-1 py-3"
                                         >
-                                            <td className="p-3 align-top text-sm">
-                                                <span className="font-medium">{result.lastName || '-'}</span>
-                                            </td>
-                                            <td className="p-3 align-top text-sm">{result.firstName || '-'}</td>
-                                            <td className="p-3 align-top text-sm">
+                                            <div className="flex w-full items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <User className="h-4 w-4 text-muted-foreground" />
+                                                    <span className="font-medium">
+                                                        {result.lastName || 'Unknown'}
+                                                        {result.firstName && `, ${result.firstName}`}
+                                                    </span>
+                                                </div>
                                                 <div className="flex items-center gap-2">
                                                     <code className="rounded bg-muted px-2 py-0.5 text-xs">{result.orcid}</code>
                                                     <a
@@ -167,40 +166,26 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         onClick={(e) => e.stopPropagation()}
-                                                        className="text-muted-foreground hover:text-foreground"
+                                                        className="text-muted-foreground transition-colors hover:text-foreground"
                                                         aria-label="View on ORCID.org"
                                                     >
                                                         <ExternalLink className="h-3.5 w-3.5" />
                                                     </a>
                                                 </div>
-                                            </td>
-                                            <td className="p-3 align-top text-sm">
-                                                {result.institutions.length > 0 ? (
-                                                    <ul className="space-y-0.5 text-muted-foreground">
-                                                        {result.institutions.map((inst, idx) => (
-                                                            <li key={idx} className="max-w-xs truncate" title={inst}>
-                                                                • {inst}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    <span className="text-muted-foreground italic">No affiliations</span>
-                                                )}
-                                            </td>
-                                        </tr>
+                                            </div>
+                                            {result.institutions.length > 0 && (
+                                                <div className="ml-6 text-xs text-muted-foreground">
+                                                    {result.institutions.slice(0, 2).join(' • ')}
+                                                    {result.institutions.length > 2 && ` (+${result.institutions.length - 2} more)`}
+                                                </div>
+                                            )}
+                                        </CommandItem>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-
-                {/* Results Count */}
-                {results.length > 0 && (
-                    <div className="border-t pt-2 text-xs text-muted-foreground">
-                        Found {results.length} result{results.length !== 1 ? 's' : ''}
-                    </div>
-                )}
+                                </CommandGroup>
+                            )}
+                        </ScrollArea>
+                    </CommandList>
+                </Command>
             </DialogContent>
         </Dialog>
     );
