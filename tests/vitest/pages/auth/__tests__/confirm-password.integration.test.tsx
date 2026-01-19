@@ -13,7 +13,7 @@ vi.mock('@/layouts/auth-layout', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController', () => ({
-  default: { store: { form: () => ({}) } },
+  default: { store: { post: () => ({}) } },
 }));
 
 vi.mock('@/components/input-error', () => ({

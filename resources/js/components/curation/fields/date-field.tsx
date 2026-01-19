@@ -68,13 +68,7 @@ export function DateField({
     }, [dateType, endDate, onEndDateChange]);
 
     return (
-        <div
-            className={cn(
-                'grid gap-4',
-                isDateRange ? 'md:grid-cols-[1fr_1fr_180px_40px]' : 'md:grid-cols-[1fr_180px_40px]',
-                className,
-            )}
-        >
+        <div className={cn('grid gap-4', isDateRange ? 'md:grid-cols-[1fr_1fr_180px_40px]' : 'md:grid-cols-[1fr_180px_40px]', className)}>
             <InputField
                 id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
                 label={isDateRange ? 'Start Date' : 'Date'}

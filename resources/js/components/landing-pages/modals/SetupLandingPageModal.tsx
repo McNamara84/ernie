@@ -197,9 +197,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
         return (
-            template !== currentConfig.template ||
-            ftpUrl !== (currentConfig.ftp_url ?? '') ||
-            isPublished !== (currentConfig.status === 'published')
+            template !== currentConfig.template || ftpUrl !== (currentConfig.ftp_url ?? '') || isPublished !== (currentConfig.status === 'published')
         );
     }, [currentConfig, template, ftpUrl, isPublished]);
 

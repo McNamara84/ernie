@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NavUser } from '@/components/nav-user';
 
-type DropdownProps = { side?: string; [key: string]: unknown };
+type DropdownProps = { side?: string; children?: React.ReactNode; [key: string]: unknown };
 const dropdownCalls: DropdownProps[] = vi.hoisted(() => [] as DropdownProps[]);
 const useSidebarMock = vi.hoisted(() => vi.fn());
 const useIsMobileMock = vi.hoisted(() => vi.fn());

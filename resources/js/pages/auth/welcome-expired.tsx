@@ -23,7 +23,7 @@ export default function WelcomeExpired({ email }: WelcomeExpiredProps) {
                 <AlertDescription>Your welcome link has expired. Don't worry – you can request a new one below.</AlertDescription>
             </Alert>
 
-            <Form {...WelcomeController.resend.form()}>
+            <Form {...WelcomeController.resend.post()}>
                 {({ processing }) => (
                     <div className="grid gap-6">
                         <div className="grid gap-2">

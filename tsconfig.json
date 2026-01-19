@@ -113,7 +113,9 @@
             "@/routes": ["./resources/js/routes.ts"],
             "@/routes/*": ["./resources/js/routes/*"],
             "@data/*": ["./resources/data/*"],
-            "@tests/*": ["./tests/*"]
+            "@tests/*": ["./tests/*"],
+            "@test-helpers": ["./tests/vitest/test-helpers/index.ts"],
+            "@test-helpers/*": ["./tests/vitest/test-helpers/*"]
         },
         "jsx": "react-jsx"
     },

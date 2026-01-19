@@ -12,7 +12,7 @@ vi.mock('@/layouts/auth-layout', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/PasswordResetLinkController', () => ({
-  default: { store: { form: () => ({}) } },
+  default: { store: { post: () => ({}) } },
 }));
 
 vi.mock('@/components/text-link', () => ({

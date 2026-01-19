@@ -22,7 +22,7 @@ describe('Docs integration', () => {
     });
 
     it('sets the document title', () => {
-        render(<Docs />);
+        render(<Docs userRole="curator" />);
         expect(document.title).toBe('Documentation');
     });
 });

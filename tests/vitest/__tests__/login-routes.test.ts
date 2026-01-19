@@ -9,6 +9,5 @@ describe('login routes', () => {
     expectUrlToBe(store.url(), '/login');
     expectUrlToBe(store.url({ query: { ref: 'x' } }), '/login?ref=x');
     expect({...store.post({ query: { token: 'abc' } }), url: normalizeTestUrl(store.post({ query: { token: 'abc' } }).url)}).toEqual({ url: '/login?token=abc', method: 'post' });
-    expect(normalizeTestUrl(store.form.post({ query: { token: 'abc' } }).action)).toBe('/login?token=abc');
   });
 });

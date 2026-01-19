@@ -7,6 +7,9 @@ import type { GCMDKeyword } from '@/types/gcmd';
 const createMockKeyword = (overrides: Partial<GCMDKeyword> = {}): GCMDKeyword => ({
     id: 'test-1',
     text: 'Test Keyword',
+    language: 'en',
+    scheme: 'sciencekeywords',
+    schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
     description: 'A test keyword',
     children: [],
     ...overrides,

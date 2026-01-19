@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { PersonAuthorEntry } from '@/components/curation/fields/author/types';
+import type { PersonContributorEntry } from '@/components/curation/fields/contributor/types';
 import {
     canAddDate,
     canAddLicense,
@@ -143,7 +145,8 @@ describe('normaliseInitialAffiliations', () => {
     });
 
     it('handles name property as fallback for value', () => {
-        const result = normaliseInitialAffiliations([{ name: 'University B' }]);
+        // Testing runtime fallback behavior - the function handles legacy 'name' property
+        const result = normaliseInitialAffiliations([{ name: 'University B' } as { value?: string; rorId?: string | null; name?: string }]);
         expect(result).toEqual([{ value: 'University B', rorId: null }]);
     });
 
@@ -155,15 +158,17 @@ describe('normaliseInitialAffiliations', () => {
     });
 
     it('handles rorid property (lowercase alternative)', () => {
+        // Testing runtime fallback behavior - the function handles legacy 'rorid' (lowercase) property
         const result = normaliseInitialAffiliations([
-            { value: 'University D', rorid: 'https://ror.org/456' },
+            { value: 'University D', rorid: 'https://ror.org/456' } as { value?: string; rorId?: string | null; rorid?: string },
         ]);
         expect(result).toEqual([{ value: 'University D', rorId: 'https://ror.org/456' }]);
     });
 
     it('handles identifier property as rorId fallback', () => {
+        // Testing runtime fallback behavior - the function handles legacy 'identifier' property
         const result = normaliseInitialAffiliations([
-            { value: 'University E', identifier: 'https://ror.org/789' },
+            { value: 'University E', identifier: 'https://ror.org/789' } as { value?: string; rorId?: string | null; identifier?: string },
         ]);
         expect(result).toEqual([{ value: 'University E', rorId: 'https://ror.org/789' }]);
     });
@@ -392,13 +397,15 @@ describe('mapInitialAuthorToEntry', () => {
 
         expect(result).not.toBeNull();
         expect(result?.type).toBe('person');
-        expect(result?.orcid).toBe('0000-0001-2345-6789');
-        expect(result?.firstName).toBe('John');
-        expect(result?.lastName).toBe('Doe');
-        expect(result?.email).toBe('john@example.com');
-        expect(result?.website).toBe('https://example.com');
-        expect(result?.isContact).toBe(true);
-        expect(result?.affiliations).toHaveLength(1);
+        // Type narrowing after confirming type is 'person'
+        const personResult = result as PersonAuthorEntry;
+        expect(personResult.orcid).toBe('0000-0001-2345-6789');
+        expect(personResult.firstName).toBe('John');
+        expect(personResult.lastName).toBe('Doe');
+        expect(personResult.email).toBe('john@example.com');
+        expect(personResult.website).toBe('https://example.com');
+        expect(personResult.isContact).toBe(true);
+        expect(personResult.affiliations).toHaveLength(1);
     });
 
     it('maps institution author correctly', () => {
@@ -424,7 +431,8 @@ describe('mapInitialAuthorToEntry', () => {
         };
 
         const result = mapInitialAuthorToEntry(initial);
-        expect(result?.isContact).toBe(true);
+        const personResult = result as PersonAuthorEntry;
+        expect(personResult.isContact).toBe(true);
     });
 
     it('defaults to person type when type is missing', () => {
@@ -458,11 +466,13 @@ describe('mapInitialContributorToEntry', () => {
 
         expect(result).not.toBeNull();
         expect(result?.type).toBe('person');
-        expect(result?.orcid).toBe('0000-0001-2345-6789');
-        expect(result?.firstName).toBe('Jane');
-        expect(result?.lastName).toBe('Smith');
-        expect(result?.roles).toHaveLength(2);
-        expect(result?.affiliations).toHaveLength(1);
+        // Type narrowing after confirming type is 'person'
+        const personResult = result as PersonContributorEntry;
+        expect(personResult.orcid).toBe('0000-0001-2345-6789');
+        expect(personResult.firstName).toBe('Jane');
+        expect(personResult.lastName).toBe('Smith');
+        expect(personResult.roles).toHaveLength(2);
+        expect(personResult.affiliations).toHaveLength(1);
     });
 
     it('maps institution contributor correctly', () => {

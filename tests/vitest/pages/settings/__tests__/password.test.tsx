@@ -29,7 +29,7 @@ vi.mock('@/routes/password', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Settings/PasswordController', () => ({
-    default: { update: { form: () => ({}) } },
+    default: { update: { put: () => ({}) } },
 }));
 
 describe('Password settings page', () => {

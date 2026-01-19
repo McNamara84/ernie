@@ -48,7 +48,7 @@ vi.mock('@/routes', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController', () => ({
     default: {
         store: {
-            form: () => ({}),
+            post: () => ({}),
         },
     },
 }));

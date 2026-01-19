@@ -105,12 +105,15 @@ describe('useOrcidAutofill', () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
+                    orcid: '0000-0001-2345-6789',
                     firstName: 'Jane',
                     lastName: 'Smith',
+                    creditName: null,
                     emails: ['jane@example.com'],
                     affiliations: [
-                        { type: 'employment', name: 'University of Testing' },
+                        { type: 'employment', name: 'University of Testing', role: null, department: null },
                     ],
+                    verifiedAt: new Date().toISOString(),
                 },
             });
 
@@ -220,10 +223,13 @@ describe('useOrcidAutofill', () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
+                    orcid: '0000-0001-2345-6789',
                     firstName: '',
                     lastName: 'Smith',
+                    creditName: null,
                     emails: [],
                     affiliations: [],
+                    verifiedAt: new Date().toISOString(),
                 },
             });
 
@@ -254,10 +260,13 @@ describe('useOrcidAutofill', () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
+                    orcid: '0000-0001-2345-6789',
                     firstName: 'Jane',
                     lastName: 'Smith',
+                    creditName: null,
                     emails: ['jane@example.com'],
                     affiliations: [],
+                    verifiedAt: new Date().toISOString(),
                 },
             });
 
@@ -288,13 +297,16 @@ describe('useOrcidAutofill', () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
+                    orcid: '0000-0001-2345-6789',
                     firstName: 'Jane',
                     lastName: 'Smith',
+                    creditName: null,
                     emails: [],
                     affiliations: [
-                        { type: 'employment', name: 'New University' },
-                        { type: 'education', name: 'Should be ignored' }, // Only employment is used
+                        { type: 'employment', name: 'New University', role: null, department: null },
+                        { type: 'education', name: 'Should be ignored', role: null, department: null }, // Only employment is used
                     ],
+                    verifiedAt: new Date().toISOString(),
                 },
             });
 
@@ -329,12 +341,15 @@ describe('useOrcidAutofill', () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
+                    orcid: '0000-0001-2345-6789',
                     firstName: 'Jane',
                     lastName: 'Smith',
+                    creditName: null,
                     emails: [],
                     affiliations: [
-                        { type: 'employment', name: 'Same University' },
+                        { type: 'employment', name: 'Same University', role: null, department: null },
                     ],
+                    verifiedAt: new Date().toISOString(),
                 },
             });
 

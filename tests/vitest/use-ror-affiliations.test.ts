@@ -202,9 +202,10 @@ describe('useRorAffiliations', () => {
     });
 
     it('handles abort signal correctly', async () => {
-        let resolveFunc: ((value: unknown) => void) | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let resolveFunc: any = null;
 
-        (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+        vi.mocked(global.fetch).mockImplementation(
             () => new Promise((resolve) => {
                 resolveFunc = resolve;
             })
@@ -216,7 +217,7 @@ describe('useRorAffiliations', () => {
         unmount();
 
         // Resolve the promise to avoid hanging
-        if (resolveFunc) {
+        if (typeof resolveFunc === 'function') {
             resolveFunc({
                 ok: true,
                 status: 200,

@@ -8,20 +8,20 @@ import { cn } from '@/lib/utils';
 
 export interface TagInputItem {
     value: string;
-    rorId?: string | null;
     [key: string]: unknown;
 }
 
-export interface TagInputChangeDetail {
+export interface TagInputChangeDetail<T extends TagInputItem = TagInputItem> {
     raw: string;
-    tags: TagInputItem[];
+    tags: T[];
 }
 
-interface TagInputFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+interface TagInputFieldProps<T extends TagInputItem = TagInputItem>
+    extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
     id: string;
     label: string;
-    value: TagInputItem[];
-    onChange: (detail: TagInputChangeDetail) => void;
+    value: T[];
+    onChange: (detail: TagInputChangeDetail<T>) => void;
     hideLabel?: boolean;
     className?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
@@ -29,7 +29,7 @@ interface TagInputFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
     'data-testid'?: string;
 }
 
-export function TagInputField({
+export function TagInputField<T extends TagInputItem = TagInputItem>({
     id,
     label,
     value,
@@ -43,7 +43,7 @@ export function TagInputField({
     placeholder,
     'data-testid': dataTestId,
     ...inputProps
-}: TagInputFieldProps) {
+}: TagInputFieldProps<T>) {
     const inputRef = useRef<HTMLInputElement | null>(null);
     const tagifyRef = useRef<Tagify<TagData> | null>(null);
     const changeHandlerRef = useRef(onChange);
@@ -106,7 +106,7 @@ export function TagInputField({
             const detail = event.detail as { value?: string; tagify: Tagify<TagData> };
             const rawValue = detail.value ?? '';
 
-            const tags: TagInputItem[] = detail.tagify.value
+            const tags = detail.tagify.value
                 .map((item) => {
                     const trimmedValue = typeof item.value === 'string' ? item.value.trim() : '';
 
@@ -122,9 +122,9 @@ export function TagInputField({
                     return {
                         value: trimmedValue,
                         rorId,
-                    };
+                    } as unknown as T;
                 })
-                .filter((item): item is { value: string; rorId: string | null } => Boolean(item));
+                .filter((item): item is T => Boolean(item));
 
             changeHandlerRef.current({ raw: rawValue, tags });
         };

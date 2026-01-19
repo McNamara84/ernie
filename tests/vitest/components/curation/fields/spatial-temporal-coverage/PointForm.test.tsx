@@ -43,7 +43,7 @@ vi.mock('@/components/curation/fields/spatial-temporal-coverage/CoordinateInputs
 describe('PointForm', () => {
     const defaultEntry: SpatialTemporalCoverageEntry = {
         id: '1',
-        geoType: 'Point',
+        type: 'point',
         description: 'Test point',
         latMin: '52.5200',
         lonMin: '13.4050',
@@ -51,7 +51,9 @@ describe('PointForm', () => {
         lonMax: '',
         startDate: '',
         endDate: '',
-        polygon: [],
+        startTime: '',
+        endTime: '',
+        timezone: 'UTC',
     };
 
     const defaultProps = {

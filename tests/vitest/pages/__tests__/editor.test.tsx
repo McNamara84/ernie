@@ -22,7 +22,7 @@ const languages: Language[] = [
     { id: 1, code: 'en', name: 'English' },
 ];
 
-const renderForm = vi.fn(() => null);
+const renderForm = vi.fn();
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -76,7 +76,7 @@ describe('Editor page', () => {
     });
 
     it('fetches resource types and passes data to DataCiteForm', async () => {
-        render(<Editor maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
                 expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }),
@@ -85,30 +85,30 @@ describe('Editor page', () => {
     });
 
     it('shows loading state before types load', () => {
-        (fetch as unknown as vi.Mock).mockImplementation(
+        vi.mocked(fetch).mockImplementation(
             () => new Promise(() => {}),
         );
-        render(<Editor maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource and title types, licenses, languages, and role options/i,
         );
     });
 
     it('shows loading state when only one type set has loaded', async () => {
-        const unresolved = new Promise<unknown>(() => {});
-        (fetch as unknown as vi.Mock).mockImplementation((url: RequestInfo) =>
+        const unresolved = new Promise<Response>(() => {});
+        vi.mocked(fetch).mockImplementation((url) =>
             url.toString().includes('resource-types')
-                ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) })
+                ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) } as Response)
                 : unresolved,
         );
-        render(<Editor maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource and title types, licenses, languages, and role options/i,
         );
     });
 
     it('passes limits to DataCiteForm', async () => {
-        render(<Editor maxTitles={5} maxLicenses={7} />);
+        render(<Editor maxTitles={5} maxLicenses={7} googleMapsApiKey="test-api-key" />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
                 expect.objectContaining({ maxTitles: 5, maxLicenses: 7 }),
@@ -121,6 +121,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 doi="10.1234/xyz"
             />,
         );
@@ -136,6 +137,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 year="2024"
             />,
         );
@@ -151,6 +153,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 version="2.0"
             />,
         );
@@ -166,6 +169,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 language="de"
             />,
         );
@@ -181,6 +185,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 resourceType="1"
             />,
         );
@@ -200,6 +205,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 titles={titles}
             />,
         );
@@ -216,6 +222,7 @@ describe('Editor page', () => {
             <Editor
                 maxTitles={99}
                 maxLicenses={99}
+                googleMapsApiKey="test-api-key"
                 initialLicenses={initialLicenses}
             />,
         );

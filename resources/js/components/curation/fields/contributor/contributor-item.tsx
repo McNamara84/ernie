@@ -84,20 +84,13 @@ export default function ContributorItem({
     };
 
     // ORCID verification, auto-fill, and suggestions via shared hook
-    const {
-        isVerifying,
-        verificationError,
-        orcidSuggestions,
-        isLoadingSuggestions,
-        showSuggestions,
-        hideSuggestions,
-        handleOrcidSelect,
-    } = useOrcidAutofill({
-        entry: contributor,
-        onEntryChange: onContributorChange,
-        hasUserInteracted,
-        includeEmail: false, // Contributors don't have email field
-    });
+    const { isVerifying, verificationError, orcidSuggestions, isLoadingSuggestions, showSuggestions, hideSuggestions, handleOrcidSelect } =
+        useOrcidAutofill({
+            entry: contributor,
+            onEntryChange: onContributorChange,
+            hasUserInteracted,
+            includeEmail: false, // Contributors don't have email field
+        });
 
     // Handle selecting an ORCID suggestion
     const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {

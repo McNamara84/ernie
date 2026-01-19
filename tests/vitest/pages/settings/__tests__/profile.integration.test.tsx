@@ -44,7 +44,7 @@ vi.mock('@/components/ui/input', () => ({ Input: (props: React.ComponentProps<'i
 vi.mock('@/components/ui/label', () => ({ Label: ({ children, ...props }: React.ComponentProps<'label'>) => <label {...props}>{children}</label> }));
 vi.mock('@/routes/profile', () => ({ edit: () => ({ url: '/settings/profile' }) }));
 vi.mock('@/routes/verification', () => ({ send: () => '/email/verification-notification' }));
-vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({ default: { update: { form: () => ({}) } } }));
+vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({ default: { update: { patch: () => ({}) } } }));
 
 import Profile from '@/pages/settings/profile';
 

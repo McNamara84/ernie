@@ -76,9 +76,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                         <AlertTriangle className="h-12 w-12 text-destructive" />
                     </div>
                     <h2 className="text-xl font-semibold text-foreground">Something went wrong</h2>
-                    <p className="max-w-md text-center text-muted-foreground">
-                        An unexpected error occurred. Please try again or reload the page.
-                    </p>
+                    <p className="max-w-md text-center text-muted-foreground">An unexpected error occurred. Please try again or reload the page.</p>
                     <div className="flex gap-2">
                         <Button onClick={this.handleReset} variant="outline">
                             <RefreshCw className="mr-2 h-4 w-4" />
@@ -146,9 +144,7 @@ export class SectionErrorBoundary extends Component<SectionErrorBoundaryProps, S
             return (
                 <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
                     <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
-                    <span className="text-sm text-destructive">
-                        Failed to load {this.props.sectionName || 'this section'}.
-                    </span>
+                    <span className="text-sm text-destructive">Failed to load {this.props.sectionName || 'this section'}.</span>
                     <Button variant="ghost" size="sm" onClick={this.handleRetry} className="ml-auto h-7 text-xs">
                         Retry
                     </Button>

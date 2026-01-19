@@ -20,18 +20,21 @@ describe('OrcidSearchDialog', () => {
             orcid: '0000-0001-2345-6789',
             firstName: 'John',
             lastName: 'Smith',
+            creditName: null,
             institutions: ['GFZ German Research Centre for Geosciences', 'University of Berlin'],
         },
         {
             orcid: '0000-0002-3456-7890',
             firstName: 'Jane',
             lastName: 'Doe',
+            creditName: null,
             institutions: ['Max Planck Institute'],
         },
         {
             orcid: '0000-0003-4567-8901',
             firstName: 'Test',
             lastName: 'User',
+            creditName: null,
             institutions: [],
         },
     ];
@@ -137,7 +140,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: [], totalResults: 0, itemsPerPage: 20 },
+                data: { results: [], total: 0 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -153,7 +156,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: [], totalResults: 0, itemsPerPage: 20 },
+                data: { results: [], total: 0 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -170,7 +173,7 @@ describe('OrcidSearchDialog', () => {
                 () =>
                     new Promise((resolve) => {
                         // Never resolves to keep loading state
-                        setTimeout(() => resolve({ success: true, data: { results: [], totalResults: 0, itemsPerPage: 20 } }), 10000);
+                        setTimeout(() => resolve({ success: true, data: { results: [], total: 0 } }), 10000);
                     }),
             );
 
@@ -188,7 +191,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: [], totalResults: 0, itemsPerPage: 20 },
+                data: { results: [], total: 0 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -208,7 +211,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: mockSearchResults, totalResults: 3, itemsPerPage: 20 },
+                data: { results: mockSearchResults, total: 3 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -228,7 +231,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: mockSearchResults, totalResults: 3, itemsPerPage: 20 },
+                data: { results: mockSearchResults, total: 3 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -246,7 +249,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: mockSearchResults, totalResults: 3, itemsPerPage: 20 },
+                data: { results: mockSearchResults, total: 3 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -265,7 +268,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: [mockSearchResults[2]], totalResults: 1, itemsPerPage: 20 },
+                data: { results: [mockSearchResults[2]], total: 1 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -285,7 +288,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: mockSearchResults, totalResults: 3, itemsPerPage: 20 },
+                data: { results: mockSearchResults, total: 3 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -307,7 +310,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: mockSearchResults, totalResults: 3, itemsPerPage: 20 },
+                data: { results: mockSearchResults, total: 3 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -331,7 +334,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: mockSearchResults, totalResults: 3, itemsPerPage: 20 },
+                data: { results: mockSearchResults, total: 3 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);
@@ -394,7 +397,7 @@ describe('OrcidSearchDialog', () => {
             const user = userEvent.setup();
             vi.mocked(OrcidService.searchOrcid).mockResolvedValue({
                 success: true,
-                data: { results: [mockSearchResults[0]], totalResults: 1, itemsPerPage: 20 },
+                data: { results: [mockSearchResults[0]], total: 1 },
             });
 
             render(<OrcidSearchDialog onSelect={mockOnSelect} />);

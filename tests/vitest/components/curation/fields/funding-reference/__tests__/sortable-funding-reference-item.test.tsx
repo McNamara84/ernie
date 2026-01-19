@@ -28,7 +28,7 @@ describe('SortableFundingReferenceItem', () => {
         awardNumber: 'DFG-123',
         awardUri: 'https://gepris.dfg.de/123',
         awardTitle: 'Test Research Grant',
-        expanded: true,
+        isExpanded: true,
     };
 
     const defaultProps = {
@@ -94,7 +94,7 @@ describe('SortableFundingReferenceItem', () => {
     it('renders collapsed item when expanded is false', () => {
         const collapsedFunding: FundingReferenceEntry = {
             ...mockFunding,
-            expanded: false,
+            isExpanded: false,
         };
 
         render(

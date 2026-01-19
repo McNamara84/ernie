@@ -41,6 +41,7 @@ export default defineConfig(() => {
                 '@': '/resources/js',
                 '@data': '/resources/data',
                 '@tests': '/tests',
+                '@test-helpers': '/tests/vitest/test-helpers',
             },
         },
         optimizeDeps: {

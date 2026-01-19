@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
+import { createMockUser } from '@test-helpers';
 import { render, screen } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -19,7 +20,7 @@ vi.mock('@/components/ui/avatar', () => ({
 }));
 
 describe('UserInfo', () => {
-    const user = { name: 'John Doe', email: 'john@example.com', avatar: '' };
+    const user = createMockUser({ name: 'John Doe', email: 'john@example.com', avatar: '' });
 
     it('shows name, email and initials', () => {
         render(<UserInfo user={user} showEmail />);

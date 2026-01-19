@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
+import { Book, type LucideProps } from 'lucide-react';
+import { type ComponentType,forwardRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NavFooter } from '@/components/nav-footer';
@@ -18,15 +20,23 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/icon', () => ({
-    Icon: ({ iconNode }: { iconNode: React.ReactNode }) => <span data-testid="icon">{iconNode}</span>,
+    Icon: ({ iconNode: IconComponent }: { iconNode: ComponentType<LucideProps> }) => (
+        <span data-testid="icon"><IconComponent /></span>
+    ),
 }));
+
+// Mock LucideIcon for testing - use forwardRef to match LucideIcon type signature
+const MockIcon = forwardRef<SVGSVGElement, LucideProps>((_props, ref) => (
+    <svg ref={ref} data-testid="mock-icon" />
+));
+MockIcon.displayName = 'MockIcon';
 
 describe('NavFooter', () => {
     it('renders footer items with links and icons', () => {
         render(
             <NavFooter
                 items={[
-                    { title: 'Docs', href: '/docs', icon: <svg data-testid="svg" /> },
+                    { title: 'Docs', href: '/docs', icon: Book },
                     { title: 'GitHub', href: '/github' },
                 ]}
             />,

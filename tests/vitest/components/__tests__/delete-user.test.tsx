@@ -11,7 +11,7 @@ const resetAndClearErrorsMock = vi.fn();
 
 vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
     default: {
-        destroy: { form: () => ({ action: '/delete', method: 'post' }) },
+        destroy: { delete: () => ({ action: '/delete', method: 'post' }) },
     },
 }));
 

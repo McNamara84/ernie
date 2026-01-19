@@ -258,8 +258,8 @@ test.describe('IGSN Workflow', () => {
         // Step 3: Find the row and click the JSON export button
         const row = page.locator('tr').filter({ has: igsnCell }).first();
         
-        // The export button has a FileJson icon and tooltip "Export as DataCite JSON"
-        const exportButton = row.locator('button').filter({ has: page.locator('svg.lucide-file-json') }).first();
+        // The export button has aria-label="Export as DataCite JSON"
+        const exportButton = row.getByRole('button', { name: 'Export as DataCite JSON' });
         await expect(exportButton).toBeVisible();
 
         // Step 4: Set up download listener BEFORE clicking
@@ -335,7 +335,7 @@ test.describe('IGSN Workflow', () => {
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
         const row = page.locator('tr').filter({ has: igsnCell }).first();
-        const exportButton = row.locator('button').filter({ has: page.locator('svg.lucide-file-json') }).first();
+        const exportButton = row.getByRole('button', { name: 'Export as DataCite JSON' });
 
         // Set up listeners for both download (success) and dialog (validation error)
         const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null);

@@ -39,7 +39,7 @@ describe('useRorAffiliations', () => {
             ]),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        vi.mocked(global.fetch).mockResolvedValue(response);
 
         const { result } = renderHook(() => useRorAffiliations());
 
@@ -67,7 +67,7 @@ describe('useRorAffiliations', () => {
     });
 
     it('reports an error when the request fails', async () => {
-        (global.fetch as unknown as vi.Mock).mockResolvedValue({
+        vi.mocked(global.fetch).mockResolvedValue({
             ok: false,
             status: 500,
             json: vi.fn().mockResolvedValue([]),

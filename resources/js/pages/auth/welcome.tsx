@@ -18,12 +18,20 @@ export default function Welcome({ email, userId }: WelcomeProps) {
         <AuthLayout title="Welcome to ERNIE" description="Set your password to activate your account">
             <Head title="Welcome - Set Your Password" />
 
-            <Form {...WelcomeController.store.form({ user: userId })} resetOnSuccess={['password', 'password_confirmation']}>
+            <Form {...WelcomeController.store.post({ user: userId })} resetOnSuccess={['password', 'password_confirmation']}>
                 {({ processing, errors }) => (
                     <div className="grid gap-6">
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
-                            <Input id="email" type="email" name="email" autoComplete="email" value={email} className="bg-muted mt-1 block w-full" readOnly />
+                            <Input
+                                id="email"
+                                type="email"
+                                name="email"
+                                autoComplete="email"
+                                value={email}
+                                className="mt-1 block w-full bg-muted"
+                                readOnly
+                            />
                         </div>
 
                         <div className="grid gap-2">

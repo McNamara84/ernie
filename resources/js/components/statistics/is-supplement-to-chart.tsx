@@ -1,3 +1,4 @@
+import type { PieLabel } from 'recharts';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 type IsSupplementToData = {
@@ -41,7 +42,10 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                        label={
+                            (((props: { name: string; payload: { percentage: number } }) =>
+                                `${props.name}: ${props.payload.percentage}%`) as PieLabel)
+                        }
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"

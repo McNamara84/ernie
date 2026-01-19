@@ -673,7 +673,7 @@ class OldDataStatisticsController extends Controller
     /**
      * Get timeline statistics (publications over time).
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<string, array<int, array<string, int>>>
      */
     private function getTimelineStats(): array
     {

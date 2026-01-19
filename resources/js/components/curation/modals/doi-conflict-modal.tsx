@@ -3,14 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 /** Timeout duration in milliseconds for resetting the copied state indicator */
@@ -54,11 +47,10 @@ export function DoiConflictModal({
 }: DoiConflictModalProps) {
     const [copiedField, setCopiedField] = useState<'suggested' | 'last' | null>(null);
     const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    
+
     // Check if Clipboard API is available (requires secure context)
-    const isClipboardAvailable = typeof navigator !== 'undefined' 
-        && typeof navigator.clipboard !== 'undefined'
-        && typeof navigator.clipboard.writeText === 'function';
+    const isClipboardAvailable =
+        typeof navigator !== 'undefined' && typeof navigator.clipboard !== 'undefined' && typeof navigator.clipboard.writeText === 'function';
 
     // Cleanup timeout on unmount or when copiedField changes
     useEffect(() => {
@@ -69,40 +61,40 @@ export function DoiConflictModal({
         };
     }, []);
 
-    const copyToClipboard = useCallback(async (text: string, field: 'suggested' | 'last') => {
-        // Feature detection: check if Clipboard API is available
-        if (!isClipboardAvailable) {
-            toast.error(
-                'Die Zwischenablage ist in diesem Browser nicht verfügbar. Bitte kopieren Sie die DOI manuell.',
-                { duration: 5000 }
-            );
-            return;
-        }
-        
-        try {
-            await navigator.clipboard.writeText(text);
-            setCopiedField(field);
-            toast.success('DOI in die Zwischenablage kopiert');
-            
-            // Clear any existing timeout before setting a new one
-            if (copyTimeoutRef.current) {
-                clearTimeout(copyTimeoutRef.current);
+    const copyToClipboard = useCallback(
+        async (text: string, field: 'suggested' | 'last') => {
+            // Feature detection: check if Clipboard API is available
+            if (!isClipboardAvailable) {
+                toast.error('Die Zwischenablage ist in diesem Browser nicht verfügbar. Bitte kopieren Sie die DOI manuell.', { duration: 5000 });
+                return;
             }
-            
-            // Reset the copied state after timeout
-            copyTimeoutRef.current = setTimeout(() => {
-                setCopiedField(null);
-            }, COPY_SUCCESS_TIMEOUT_MS);
-        } catch (error) {
-            // Log the full error for debugging
-            console.error('Failed to copy to clipboard:', error);
-            // Provide user-friendly error message with guidance
-            toast.error(
-                'Kopieren fehlgeschlagen. Bitte stellen Sie sicher, dass die Seite über HTTPS geladen wird und Ihr Browser Zugriff auf die Zwischenablage hat.',
-                { duration: 5000 }
-            );
-        }
-    }, [isClipboardAvailable]);
+
+            try {
+                await navigator.clipboard.writeText(text);
+                setCopiedField(field);
+                toast.success('DOI in die Zwischenablage kopiert');
+
+                // Clear any existing timeout before setting a new one
+                if (copyTimeoutRef.current) {
+                    clearTimeout(copyTimeoutRef.current);
+                }
+
+                // Reset the copied state after timeout
+                copyTimeoutRef.current = setTimeout(() => {
+                    setCopiedField(null);
+                }, COPY_SUCCESS_TIMEOUT_MS);
+            } catch (error) {
+                // Log the full error for debugging
+                console.error('Failed to copy to clipboard:', error);
+                // Provide user-friendly error message with guidance
+                toast.error(
+                    'Kopieren fehlgeschlagen. Bitte stellen Sie sicher, dass die Seite über HTTPS geladen wird und Ihr Browser Zugriff auf die Zwischenablage hat.',
+                    { duration: 5000 },
+                );
+            }
+        },
+        [isClipboardAvailable],
+    );
 
     const handleUseSuggested = useCallback(() => {
         onUseSuggested?.(suggestedDoi);
@@ -121,20 +113,14 @@ export function DoiConflictModal({
                         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
                         DOI bereits vergeben
                     </DialogTitle>
-                    <DialogDescription>
-                        Die eingegebene DOI ist bereits in der Datenbank registriert.
-                    </DialogDescription>
+                    <DialogDescription>Die eingegebene DOI ist bereits in der Datenbank registriert.</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
                     {/* Existing DOI Info */}
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                        <div className="mb-2 text-sm font-medium text-destructive">
-                            Konflikt-DOI:
-                        </div>
-                        <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">
-                            {existingDoi}
-                        </code>
+                        <div className="mb-2 text-sm font-medium text-destructive">Konflikt-DOI:</div>
+                        <code className="block rounded bg-muted px-2 py-1 font-mono text-sm">{existingDoi}</code>
                         {existingResourceTitle && (
                             <div className="mt-2 text-sm text-muted-foreground">
                                 <span className="font-medium">Zugehörige Resource:</span>{' '}
@@ -157,22 +143,15 @@ export function DoiConflictModal({
 
                     {/* Last Assigned DOI */}
                     <div className="space-y-2">
-                        <div className="text-sm font-medium">
-                            Zuletzt vergebene DOI:
-                        </div>
+                        <div className="text-sm font-medium">Zuletzt vergebene DOI:</div>
                         <div className="flex items-center gap-2">
-                            <code className="flex-1 rounded bg-muted px-2 py-1 font-mono text-sm">
-                                {lastAssignedDoi}
-                            </code>
+                            <code className="flex-1 rounded bg-muted px-2 py-1 font-mono text-sm">{lastAssignedDoi}</code>
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => copyToClipboard(lastAssignedDoi, 'last')}
-                                className={cn(
-                                    'shrink-0 transition-colors',
-                                    copiedField === 'last' && 'border-green-500 text-green-600'
-                                )}
+                                className={cn('shrink-0 transition-colors', copiedField === 'last' && 'border-green-500 text-green-600')}
                                 aria-label="Zuletzt vergebene DOI kopieren"
                             >
                                 {copiedField === 'last' ? (
@@ -187,9 +166,7 @@ export function DoiConflictModal({
                     {/* Suggested DOI - only show if suggestion is available */}
                     {hasSuggestion && suggestedDoi ? (
                         <div className="space-y-2">
-                            <div className="text-sm font-medium text-primary">
-                                Vorgeschlagene DOI:
-                            </div>
+                            <div className="text-sm font-medium text-primary">Vorgeschlagene DOI:</div>
                             <div className="flex items-center gap-2">
                                 <code className="flex-1 rounded bg-primary/10 px-2 py-1 font-mono text-sm font-medium text-primary">
                                     {suggestedDoi}
@@ -199,10 +176,7 @@ export function DoiConflictModal({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => copyToClipboard(suggestedDoi, 'suggested')}
-                                    className={cn(
-                                        'shrink-0 transition-colors',
-                                        copiedField === 'suggested' && 'border-green-500 text-green-600'
-                                    )}
+                                    className={cn('shrink-0 transition-colors', copiedField === 'suggested' && 'border-green-500 text-green-600')}
                                     aria-label="Vorgeschlagene DOI kopieren"
                                 >
                                     {copiedField === 'suggested' ? (

@@ -64,7 +64,7 @@ describe('PublicLayout', () => {
                     user: null,
                 },
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(
             <PublicLayout>
@@ -85,7 +85,7 @@ describe('PublicLayout', () => {
                     user: { id: 1, name: 'Test User', email: 'test@example.com' },
                 },
             },
-        } as ReturnType<typeof usePage>);
+        } as unknown as ReturnType<typeof usePage>);
 
         render(
             <PublicLayout>

@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
+import { createMockUser } from '@test-helpers';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -59,13 +60,15 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
 }));
 
 describe('UserMenuContent', () => {
+    const mockUser = createMockUser({ name: 'Jane', email: 'jane@example.com' });
+
     beforeEach(() => {
         mockCleanup.mockClear();
         flushAll.mockClear();
     });
 
     it('renders user info and menu links', () => {
-        render(<UserMenuContent user={{ name: 'Jane', email: 'jane@example.com' }} />);
+        render(<UserMenuContent user={mockUser} />);
         expect(screen.getByText('Jane')).toBeInTheDocument();
         expect(screen.getByText('jane@example.com')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/profile/edit');
@@ -74,7 +77,7 @@ describe('UserMenuContent', () => {
 
     it('calls cleanup and flushAll on link interactions', async () => {
         const user = userEvent.setup();
-        render(<UserMenuContent user={{ name: 'Jane', email: 'jane@example.com' }} />);
+        render(<UserMenuContent user={mockUser} />);
 
         await user.click(screen.getByRole('link', { name: /settings/i }));
         expect(mockCleanup).toHaveBeenCalledTimes(1);

@@ -4,25 +4,23 @@ import { describe, expect,it } from 'vitest';
 import { destroy,edit, update } from '@/routes/profile';
 
 describe('profile routes', () => {
-  it('generates edit route and forms', () => {
+  it('generates edit route and HTTP methods', () => {
     expect({...edit(), url: normalizeTestUrl(edit().url)}).toEqual({ url: '/settings/profile', method: 'get' });
     expectUrlToBe(edit.url(), '/settings/profile');
     expectUrlToBe(edit.url({ query: { ref: 'abc' } }), '/settings/profile?ref=abc');
-    expect(normalizeTestUrl(edit.form.get({ query: { q: '1' } }).action)).toBe('/settings/profile?q=1');
-    expect(normalizeTestUrl(edit.form.head({ query: { q: '1' } }).action)).toBe('/settings/profile?_method=HEAD&q=1');
+    expect({...edit.get({ query: { q: '1' } }), url: normalizeTestUrl(edit.get({ query: { q: '1' } }).url)}).toEqual({ url: '/settings/profile?q=1', method: 'get' });
+    expect({...edit.head({ query: { q: '1' } }), url: normalizeTestUrl(edit.head({ query: { q: '1' } }).url)}).toEqual({ url: '/settings/profile?q=1', method: 'head' });
   });
 
-  it('generates update route and forms', () => {
+  it('generates update route and HTTP methods', () => {
     expect({...update(), url: normalizeTestUrl(update().url)}).toEqual({ url: '/settings/profile', method: 'patch' });
     expectUrlToBe(update.url({ query: { foo: 'bar' } }), '/settings/profile?foo=bar');
     expect({...update.patch({ query: { id: '1' } }), url: normalizeTestUrl(update.patch({ query: { id: '1' } }).url)}).toEqual({ url: '/settings/profile?id=1', method: 'patch' });
-    expect(normalizeTestUrl(update.form.patch({ query: { id: '1' } }).action)).toBe('/settings/profile?_method=PATCH&id=1');
   });
 
-  it('generates destroy route and forms', () => {
+  it('generates destroy route and HTTP methods', () => {
     expect({...destroy(), url: normalizeTestUrl(destroy().url)}).toEqual({ url: '/settings/profile', method: 'delete' });
     expectUrlToBe(destroy.url({ query: { foo: 'bar' } }), '/settings/profile?foo=bar');
     expect({...destroy.delete({ query: { foo: 'bar' } }), url: normalizeTestUrl(destroy.delete({ query: { foo: 'bar' } }).url)}).toEqual({ url: '/settings/profile?foo=bar', method: 'delete' });
-    expect(normalizeTestUrl(destroy.form.delete({ query: { id: 1 } }).action)).toBe('/settings/profile?_method=DELETE&id=1');
   });
 });

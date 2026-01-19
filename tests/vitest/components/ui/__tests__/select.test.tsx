@@ -18,13 +18,9 @@ import {
 describe('Select', () => {
     beforeAll(() => {
         // Polyfill pointer capture methods required by Radix Select
-        // @ts-expect-error jsdom lacks this method
         Element.prototype.hasPointerCapture = () => false;
-        // @ts-expect-error jsdom lacks this method
         Element.prototype.setPointerCapture = () => {};
-        // @ts-expect-error jsdom lacks this method
         Element.prototype.releasePointerCapture = () => {};
-        // @ts-expect-error jsdom lacks this method
         Element.prototype.scrollIntoView = () => {};
     });
     it('renders groups and items when open', () => {
