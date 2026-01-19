@@ -41,11 +41,13 @@ import { useEffect, useState } from 'react';
  * ```
  */
 export function useScrollSpy(sectionIds: string[], rootMargin = '-80px 0px -80% 0px'): string | null {
-    const [activeId, setActiveId] = useState<string | null>(null);
+    // Initialize with first section to prevent UI flicker
+    const [activeId, setActiveId] = useState<string | null>(sectionIds.length > 0 ? sectionIds[0] : null);
 
     useEffect(() => {
         // Early return if no sections to observe
         if (sectionIds.length === 0) {
+            setActiveId(null);
             return;
         }
 
@@ -65,6 +67,17 @@ export function useScrollSpy(sectionIds: string[], rootMargin = '-80px 0px -80% 
                         return;
                     }
                 }
+
+                // If no sections are intersecting, keep current active or use first section
+                // This handles edge cases like scrolling before first section or after last
+                setActiveId((current) => {
+                    // If current is still in the list, keep it
+                    if (current && sectionIds.includes(current)) {
+                        return current;
+                    }
+                    // Otherwise default to first section
+                    return sectionIds[0];
+                });
             },
             {
                 rootMargin,
@@ -81,12 +94,6 @@ export function useScrollSpy(sectionIds: string[], rootMargin = '-80px 0px -80% 
                 elements.push(element);
             }
         });
-
-        // Set initial active section (first one if none are intersecting)
-        if (elements.length > 0) {
-            // Only set initial value, let IntersectionObserver handle updates
-            setActiveId((current) => current ?? sectionIds[0]);
-        }
 
         return () => {
             observer.disconnect();

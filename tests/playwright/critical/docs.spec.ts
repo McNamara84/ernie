@@ -94,15 +94,25 @@ test.describe('Documentation Page - Interactive Features', () => {
             // Find a section button and click it
             const firstButton = sidebar.locator('button').first();
 
+            // Store initial scroll position
+            const initialScrollY = await page.evaluate(() => window.scrollY);
+
             await firstButton.click();
 
             // Wait for scroll to complete
             await page.waitForTimeout(500);
 
-            // Verify scroll happened by checking page scrolled from top
-            const scrollY = await page.evaluate(() => window.scrollY);
-            // Page should have scrolled (or section is already visible)
-            expect(scrollY).toBeGreaterThanOrEqual(0);
+            // Verify the button click was processed (either scrolled or section was already visible)
+            // We check that the first section heading is in viewport after click
+            const firstSectionText = await firstButton.textContent();
+            if (firstSectionText) {
+                // The section should be visible after clicking its navigation item
+                const heading = page.locator(`h2, h3`).filter({ hasText: firstSectionText }).first();
+                // Either the heading is visible, or the page scrolled
+                const isVisible = await heading.isVisible().catch(() => false);
+                const currentScrollY = await page.evaluate(() => window.scrollY);
+                expect(isVisible || currentScrollY !== initialScrollY).toBe(true);
+            }
         });
     });
 

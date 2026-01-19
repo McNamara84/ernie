@@ -54,7 +54,7 @@ export function DocsTabs({ activeTab, onTabChange, className }: DocsTabsProps) {
                         value={tab.id}
                         data-testid={`tab-${tab.id}`}
                         className={cn(
-                            'flex flex-col items-center gap-2 rounded-lg border bg-card p-4 transition-all',
+                            'group flex flex-col items-center gap-2 rounded-lg border bg-card p-4 transition-all',
                             'data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:shadow-sm',
                             'hover:border-primary/50 hover:bg-accent/50',
                             'h-auto whitespace-normal',

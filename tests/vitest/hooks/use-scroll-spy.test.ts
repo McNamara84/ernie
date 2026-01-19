@@ -155,9 +155,9 @@ describe('useScrollSpy', () => {
         expect(mockObserver!.elements).toHaveLength(3);
     });
 
-    it('does not cause infinite loop when activeId changes', () => {
-        // This test verifies the fix for the infinite loop issue
-        // The hook should not re-run the effect when activeId changes
+    it('handles rapid intersection changes without getting stuck', () => {
+        // This test verifies that rapid intersection changes are handled correctly
+        // and the hook settles on the first intersecting section in DOM order
         const { result } = renderHook(() => useScrollSpy(['section-1', 'section-2']));
 
         // Simulate rapid intersection changes
@@ -171,5 +171,31 @@ describe('useScrollSpy', () => {
 
         // Should have settled on section-1 (first in order)
         expect(result.current).toBe('section-1');
+    });
+
+    it('keeps current active section when no sections are intersecting', () => {
+        const { result } = renderHook(() => useScrollSpy(['section-1', 'section-2', 'section-3']));
+
+        // First, make section-2 active
+        act(() => {
+            mockObserver!.simulateIntersection([
+                { target: document.getElementById('section-1')!, isIntersecting: false },
+                { target: document.getElementById('section-2')!, isIntersecting: true },
+                { target: document.getElementById('section-3')!, isIntersecting: false },
+            ]);
+        });
+        expect(result.current).toBe('section-2');
+
+        // Now simulate all sections not intersecting (e.g., user scrolled past all)
+        act(() => {
+            mockObserver!.simulateIntersection([
+                { target: document.getElementById('section-1')!, isIntersecting: false },
+                { target: document.getElementById('section-2')!, isIntersecting: false },
+                { target: document.getElementById('section-3')!, isIntersecting: false },
+            ]);
+        });
+
+        // Should keep section-2 as active (not reset to null or first)
+        expect(result.current).toBe('section-2');
     });
 });
