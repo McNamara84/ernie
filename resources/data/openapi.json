@@ -166,6 +166,89 @@
                 ]
             }
         },
+        "/api/v1/licenses/elmo/{resourceTypeSlug}": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List licenses enabled for ELMO filtered by resource type",
+                "description": "Returns all licenses that are enabled for ELMO and available for the specified resource type. Licenses that have the resource type in their exclusion list will not be returned. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "resourceTypeSlug",
+                        "in": "path",
+                        "required": true,
+                        "description": "The slug of the resource type (e.g., 'software', 'dataset', 'book-chapter')",
+                        "schema": {
+                            "type": "string",
+                            "example": "software"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of licenses available for the resource type",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/License"
+                                    }
+                                },
+                                "example": [
+                                    {
+                                        "id": 1,
+                                        "identifier": "MIT",
+                                        "name": "MIT License"
+                                    },
+                                    {
+                                        "id": 2,
+                                        "identifier": "GPL-3.0-or-later",
+                                        "name": "GNU General Public License v3.0 or later"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or missing API key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid API key."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Resource type not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Resource type not found."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/date-types/elmo": {
             "get": {
                 "tags": ["Editor Configuration"],
