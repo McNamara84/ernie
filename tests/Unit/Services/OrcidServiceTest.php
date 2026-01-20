@@ -358,4 +358,72 @@ class OrcidServiceTest extends TestCase
         $this->assertTrue($result['exists']);
         $this->assertNull($result['errorType']);
     }
+
+    /** @test */
+    public function test_it_returns_timeout_error_type_after_connection_failures(): void
+    {
+        $attemptCount = 0;
+
+        // Simulate connection timeout for all 3 attempts using sequence with throwable
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->whenEmpty(Http::response(function () use (&$attemptCount) {
+                    $attemptCount++;
+                    throw new \Illuminate\Http\Client\ConnectionException('Connection timed out');
+                })),
+        ]);
+
+        // Use a spy to count actual HTTP calls via exception throwing
+        $connectionException = new \Illuminate\Http\Client\ConnectionException('Connection timed out');
+        Http::fake(fn () => throw $connectionException);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertNull($result['exists']);
+        $this->assertEquals('timeout', $result['errorType']);
+        $this->assertStringContainsString('could not verify', strtolower($result['message']));
+    }
+
+    /** @test */
+    public function test_it_retries_on_server_error_before_returning_api_error(): void
+    {
+        // Simulate 500 error for all 3 attempts
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 500)
+                ->push(null, 500)
+                ->push(null, 500),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertNull($result['exists']);
+        $this->assertEquals('api_error', $result['errorType']);
+
+        // Verify all 3 retry attempts were made
+        Http::assertSentCount(3);
+    }
+
+    /** @test */
+    public function test_it_retries_on_rate_limit_429_error(): void
+    {
+        // Simulate 429 for first 2 attempts, then success
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 429)
+                ->push(null, 429)
+                ->push(['name' => []], 200),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertTrue($result['exists']);
+        $this->assertNull($result['errorType']);
+
+        // Verify all 3 attempts were made (2 retries + final success)
+        Http::assertSentCount(3);
+    }
 }

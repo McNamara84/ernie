@@ -50,9 +50,6 @@ class OrcidService
     private const FETCH_TIMEOUT = 12;
 
     /**
-     * Maximum retry attempts for transient failures
-     */
-    /**
      * Maximum number of attempts for API calls (1 initial + retries)
      */
     private const MAX_ATTEMPTS = 3;
@@ -188,9 +185,9 @@ class OrcidService
                     ];
                 }
 
-                // Server error (5xx) - retry if attempts remain
-                if ($response->status() >= 500 && $attempt < self::MAX_ATTEMPTS) {
-                    Log::info('ORCID API server error, retrying', [
+                // Server error (5xx) or rate limited (429) - retry if attempts remain
+                if (($response->status() >= 500 || $response->status() === 429) && $attempt < self::MAX_ATTEMPTS) {
+                    Log::info('ORCID API error, retrying', [
                         'orcid' => $orcid,
                         'attempt' => $attempt,
                         'status' => $response->status(),
