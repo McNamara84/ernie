@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-19",
+        "date": "2026-01-20",
         "features": [
+            {
+                "title": "Quick Font Size Toggle in Header",
+                "description": "A new font size toggle button is now displayed in the page header on all authenticated pages. Click the icon to instantly switch between regular and large font sizes without navigating to settings. The preference is automatically saved to your profile and persists across sessions. This improves accessibility by making text size adjustment quick and easy to find."
+            },
             {
                 "title": "IGSNs Map View",
                 "description": "A new interactive map view displays all IGSNs (physical samples) with geographic coordinates on an OpenStreetMap-based map. The map automatically adjusts its viewport to show all markers. Clicking a marker reveals a popup with the sample's title, creator, and publication year. The sidebar now shows 'IGSNs List' and 'IGSNs Map' as separate menu items under IGSN Curation."

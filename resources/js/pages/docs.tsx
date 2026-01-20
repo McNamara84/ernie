@@ -130,6 +130,12 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Font Size:</strong> Adjust to Regular or Large for better readability
                             </li>
                         </ul>
+
+                        <h4>Quick Font Size Toggle</h4>
+                        <p>
+                            For quick access, use the font size toggle button in the page header (top right). Click the icon to instantly switch
+                            between regular and large font sizes without navigating to settings. Your preference is automatically saved.
+                        </p>
                     </>
                 ),
             },
