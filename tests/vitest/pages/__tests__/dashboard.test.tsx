@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
