@@ -245,13 +245,15 @@ class OrcidService
             }
         }
 
-        // Should not reach here, but handle gracefully
+        // @codeCoverageIgnoreStart
+        // Unreachable: all loop paths return, but PHPStan requires explicit return
         return [
             'valid' => true,
             'exists' => null,
             'message' => 'Could not verify ORCID ID',
             'errorType' => 'unknown',
         ];
+        // @codeCoverageIgnoreEnd
     }
 
     /**

@@ -362,20 +362,8 @@ class OrcidServiceTest extends TestCase
     /** @test */
     public function test_it_returns_timeout_error_type_after_connection_failures(): void
     {
-        $attemptCount = 0;
-
-        // Simulate connection timeout for all 3 attempts using sequence with throwable
-        Http::fake([
-            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
-                ->whenEmpty(Http::response(function () use (&$attemptCount) {
-                    $attemptCount++;
-                    throw new \Illuminate\Http\Client\ConnectionException('Connection timed out');
-                })),
-        ]);
-
-        // Use a spy to count actual HTTP calls via exception throwing
-        $connectionException = new \Illuminate\Http\Client\ConnectionException('Connection timed out');
-        Http::fake(fn () => throw $connectionException);
+        // Simulate connection timeout for all attempts
+        Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'));
 
         $result = $this->service->validateOrcid('0000-0002-1825-0097');
 
