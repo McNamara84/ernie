@@ -145,7 +145,7 @@ class OrcidService
         }
 
         // Check negative cache for known non-existent ORCIDs
-        $negativeCacheKey = 'orcid_not_found_'.$orcid;
+        $negativeCacheKey = 'orcid:negative:'.$orcid;
         if (Cache::has($negativeCacheKey)) {
             return [
                 'valid' => true,

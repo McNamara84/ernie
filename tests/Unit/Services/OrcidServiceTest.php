@@ -334,8 +334,12 @@ class OrcidServiceTest extends TestCase
     /** @test */
     public function test_it_returns_api_error_type_for_server_errors(): void
     {
+        // Use sequence to handle all 3 retry attempts
         Http::fake([
-            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::response(null, 500),
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 500)
+                ->push(null, 500)
+                ->push(null, 500),
         ]);
 
         $result = $this->service->validateOrcid('0000-0002-1825-0097');

@@ -317,7 +317,8 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 return;
             }
 
-            // Early checksum validation (offline)
+            // Early checksum validation (offline) - provides instant feedback without network round-trip.
+            // Backend also validates for security, but frontend validation improves UX.
             if (!OrcidService.validateChecksum(personEntry.orcid)) {
                 setVerificationError('Invalid ORCID checksum');
                 setErrorType('checksum');
@@ -349,6 +350,15 @@ export function useOrcidAutofill<T extends BaseEntry>({
                     setVerificationError('ORCID not found');
                     setErrorType('not_found');
                     setCanRetry(false); // No retry for confirmed 404
+                    setIsVerifying(false);
+                    return;
+                }
+
+                // Permanent validation errors - no retry
+                if (validationData?.errorType === 'checksum' || validationData?.errorType === 'format') {
+                    setVerificationError(validationData.errorType === 'checksum' ? 'Invalid ORCID checksum' : 'Invalid ORCID format');
+                    setErrorType(validationData.errorType);
+                    setCanRetry(false);
                     setIsVerifying(false);
                     return;
                 }
