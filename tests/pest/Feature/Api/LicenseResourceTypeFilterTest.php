@@ -6,6 +6,9 @@ use App\Models\ResourceType;
 use App\Models\Right;
 
 beforeEach(function () {
+    // Configure API key for testing
+    config(['services.elmo.api_key' => 'test-secret-key']);
+
     // Create test resource types
     $this->softwareType = ResourceType::factory()->create(['name' => 'Software', 'slug' => 'software']);
     $this->datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);

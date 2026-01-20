@@ -72,7 +72,7 @@ test('admin users can update resource and title types and settings', function ()
             ['id' => $title->id, 'name' => 'Main', 'slug' => 'main', 'active' => false, 'elmo_active' => true],
         ],
         'licenses' => [
-            ['id' => $right->id, 'active' => false, 'elmo_active' => true],
+            ['id' => $right->id, 'active' => false, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
         ],
         'languages' => [
             ['id' => $language->id, 'active' => false, 'elmo_active' => true],

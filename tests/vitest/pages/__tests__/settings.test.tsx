@@ -234,7 +234,7 @@ describe('EditorSettings page', () => {
 describe('License settings', () => {
     it('updates license ERNIE active when toggled', () => {
         const licenses = [
-            { id: 1, identifier: 'MIT', name: 'MIT License', active: false, elmo_active: false },
+            { id: 1, identifier: 'MIT', name: 'MIT License', active: false, elmo_active: false, excluded_resource_type_ids: [] },
         ];
         render(
             <EditorSettings
@@ -250,7 +250,7 @@ describe('License settings', () => {
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('licenses', [
-            { id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false },
+            { id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] },
         ]);
     });
 });

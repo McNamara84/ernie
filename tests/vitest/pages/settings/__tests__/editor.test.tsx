@@ -160,8 +160,8 @@ describe('EditorSettings page', () => {
                 resourceTypes: [],
                 titleTypes: [],
                 licenses: [
-                    { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0', active: true, elmo_active: false },
-                    { id: 2, identifier: 'CC0', name: 'Public Domain', active: false, elmo_active: true },
+                    { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0', active: true, elmo_active: false, excluded_resource_type_ids: [] },
+                    { id: 2, identifier: 'CC0', name: 'Public Domain', active: false, elmo_active: true, excluded_resource_type_ids: [] },
                 ],
                 languages: [],
                 dateTypes: [],
@@ -179,8 +179,8 @@ describe('EditorSettings page', () => {
                 resourceTypes={[]}
                 titleTypes={[]}
                 licenses={[
-                    { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0', active: true, elmo_active: false },
-                    { id: 2, identifier: 'CC0', name: 'Public Domain', active: false, elmo_active: true },
+                    { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0', active: true, elmo_active: false, excluded_resource_type_ids: [] },
+                    { id: 2, identifier: 'CC0', name: 'Public Domain', active: false, elmo_active: true, excluded_resource_type_ids: [] },
                 ]}
                 languages={[]}
                 dateTypes={[]}
