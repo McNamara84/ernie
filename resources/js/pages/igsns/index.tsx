@@ -1,7 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, FileJson, Trash2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { FileJson, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -19,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SortableTableHeader, type SortDirection, type SortState } from '@/components/ui/sortable-table-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
@@ -57,15 +57,10 @@ interface PaginationInfo {
     has_more: boolean;
 }
 
-interface SortState {
-    key: string;
-    direction: 'asc' | 'desc';
-}
-
 interface IgsnsPageProps {
     igsns: Igsn[];
     pagination: PaginationInfo;
-    sort: SortState;
+    sort: SortState<SortKey>;
     canDelete: boolean;
 }
 
@@ -82,9 +77,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type SortKey = 'id' | 'igsn' | 'title' | 'sample_type' | 'material' | 'collection_date' | 'upload_status' | 'created_at' | 'updated_at';
 
-const DEFAULT_SORT: SortState = { key: 'updated_at', direction: 'desc' };
+const DEFAULT_SORT: SortState<SortKey> = { key: 'updated_at', direction: 'desc' };
 
-const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, 'asc' | 'desc'> = {
+const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, SortDirection> = {
     id: 'asc',
     igsn: 'asc',
     title: 'asc',
@@ -99,6 +94,7 @@ const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, 'asc' | 'desc'> = {
 // ============================================================================
 // Helper Functions
 // ============================================================================
+// ============================================================================
 
 const formatDateRange = (dateString: string | null): { start: string; end: string | null } => {
     if (!dateString) return { start: '-', end: null };
@@ -112,50 +108,12 @@ const formatDateRange = (dateString: string | null): { start: string; end: strin
     return { start: dateString, end: null };
 };
 
-const determineNextDirection = (currentState: SortState, targetKey: SortKey): 'asc' | 'desc' => {
+const determineNextDirection = (currentState: SortState<SortKey>, targetKey: SortKey): SortDirection => {
     if (currentState.key !== targetKey) {
         return DEFAULT_DIRECTION_BY_KEY[targetKey];
     }
     return currentState.direction === 'asc' ? 'desc' : 'asc';
 };
-
-// ============================================================================
-// Sub-Components
-// ============================================================================
-
-function SortDirectionIndicator({ isActive, direction }: { isActive: boolean; direction: 'asc' | 'desc' }) {
-    if (!isActive) {
-        return <ArrowUpDown aria-hidden="true" className="size-3.5" />;
-    }
-    return direction === 'asc' ? <ArrowUp aria-hidden="true" className="size-3.5" /> : <ArrowDown aria-hidden="true" className="size-3.5" />;
-}
-
-interface SortableHeaderProps {
-    label: ReactNode;
-    sortKey: SortKey;
-    sortState: SortState;
-    onSort: (key: SortKey) => void;
-    className?: string;
-}
-
-function SortableHeader({ label, sortKey, sortState, onSort, className }: SortableHeaderProps) {
-    const isActive = sortState.key === sortKey;
-
-    return (
-        <TableHead className={className}>
-            <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-3 h-8 px-3 font-medium"
-                onClick={() => onSort(sortKey)}
-                aria-label={`Sort by ${sortKey}`}
-            >
-                {label}
-                <SortDirectionIndicator isActive={isActive} direction={sortState.direction} />
-            </Button>
-        </TableHead>
-    );
-}
 
 // ============================================================================
 // Main Component
@@ -164,7 +122,7 @@ function SortableHeader({ label, sortKey, sortState, onSort, className }: Sortab
 function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
-    const [sortState, setSortState] = useState<SortState>(initialSort || DEFAULT_SORT);
+    const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [igsnToDelete, setIgsnToDelete] = useState<Igsn | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -305,42 +263,43 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="w-20">Actions</TableHead>
-                                                <SortableHeader
+                                                <SortableTableHeader<SortKey>
                                                     label="IGSN"
                                                     sortKey="igsn"
                                                     sortState={sortState}
                                                     onSort={handleSortChange}
                                                     className="w-48"
                                                 />
-                                                <SortableHeader
+                                                <SortableTableHeader<SortKey>
                                                     label="Title"
                                                     sortKey="title"
                                                     sortState={sortState}
                                                     onSort={handleSortChange}
                                                     className="min-w-[250px]"
                                                 />
-                                                <SortableHeader
+                                                <SortableTableHeader<SortKey>
                                                     label="Sample Type"
                                                     sortKey="sample_type"
                                                     sortState={sortState}
                                                     onSort={handleSortChange}
                                                     className="w-36"
                                                 />
-                                                <SortableHeader
+                                                <SortableTableHeader<SortKey>
                                                     label="Material"
                                                     sortKey="material"
                                                     sortState={sortState}
                                                     onSort={handleSortChange}
                                                     className="w-36"
                                                 />
-                                                <SortableHeader
+                                                <SortableTableHeader<SortKey>
                                                     label="Collection Date"
                                                     sortKey="collection_date"
                                                     sortState={sortState}
                                                     onSort={handleSortChange}
                                                     className="w-40"
+                                                    defaultDirection="desc"
                                                 />
-                                                <SortableHeader
+                                                <SortableTableHeader<SortKey>
                                                     label="Status"
                                                     sortKey="upload_status"
                                                     sortState={sortState}

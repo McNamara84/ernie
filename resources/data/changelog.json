@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-18",
+        "date": "2026-01-19",
         "features": [
             {
                 "title": "IGSNs Map View",
@@ -45,6 +45,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Migrated to shadcn/ui Component Library",
+                "description": "The application now uses shadcn/ui components consistently for better accessibility and visual consistency. This includes ScrollArea for scrollable lists with styled scrollbars, DataTable components with skeleton loading states, DatePicker with calendar popover, Command/Combobox for search dialogs, and consistent loading indicators using Skeleton and Loader2 components."
+            },
             {
                 "title": "Enhanced Publisher Export (DataCite 4.6)",
                 "description": "Publisher element now includes full metadata according to DataCite Schema 4.6 for all GFZ Data Services publications. JSON and XML exports now output publisherIdentifier (re3data DOI), publisherIdentifierScheme, schemeUri, and lang attributes. This applies to resources created via the editor, IGSN CSV uploads, XML uploads, and DOI registration. When importing from DataCite, older GFZ Data Services records are automatically enriched with full publisher metadata, while non-GFZ publishers retain their original data."

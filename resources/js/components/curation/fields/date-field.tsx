@@ -1,10 +1,12 @@
+import { format, parseISO } from 'date-fns';
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-import InputField from './input-field';
 import { SelectField } from './select-field';
 
 interface Option {
@@ -69,24 +71,33 @@ export function DateField({
 
     return (
         <div className={cn('grid gap-4', isDateRange ? 'md:grid-cols-[1fr_1fr_180px_40px]' : 'md:grid-cols-[1fr_180px_40px]', className)}>
-            <InputField
-                id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
-                label={isDateRange ? 'Start Date' : 'Date'}
-                type="date"
-                value={startDate ?? ''}
-                onChange={(e) => onStartDateChange(e.target.value)}
-                hideLabel={!isFirst}
-                required={dateType === 'created'}
-            />
-            {isDateRange && (
-                <InputField
-                    id={`${id}-endDate`}
-                    label="End Date"
-                    type="date"
-                    value={endDate ?? ''}
-                    onChange={(e) => onEndDateChange(e.target.value)}
-                    hideLabel={!isFirst}
+            <div className="space-y-2">
+                {isFirst && (
+                    <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>
+                        {isDateRange ? 'Start Date' : 'Date'}
+                        {dateType === 'created' && <span className="text-destructive"> *</span>}
+                    </Label>
+                )}
+                <DatePicker
+                    id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
+                    value={startDate ? parseISO(startDate) : undefined}
+                    onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                    placeholder="Select date"
+                    dateFormat="yyyy-MM-dd"
+                    required={dateType === 'created'}
                 />
+            </div>
+            {isDateRange && (
+                <div className="space-y-2">
+                    {isFirst && <Label htmlFor={`${id}-endDate`}>End Date</Label>}
+                    <DatePicker
+                        id={`${id}-endDate`}
+                        value={endDate ? parseISO(endDate) : undefined}
+                        onChange={(date) => onEndDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                        placeholder="Select date"
+                        dateFormat="yyyy-MM-dd"
+                    />
+                </div>
             )}
             <div>
                 <SelectField

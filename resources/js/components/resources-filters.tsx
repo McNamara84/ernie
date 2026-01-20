@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DateRangeFilterPopover } from '@/components/ui/date-range-filter-popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -438,150 +439,40 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                 </Popover>
 
                 {/* Created Date Range Popover */}
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="default"
-                            className={`w-full justify-start font-normal sm:w-[180px] ${
-                                filters.created_from || filters.created_to ? 'border-primary' : ''
-                            }`}
-                            disabled={isLoading}
-                            aria-label="Filter by creation date range"
-                        >
-                            <Calendar className="mr-2 h-4 w-4" />
-                            {filters.created_from || filters.created_to ? (
-                                <span className="truncate">
-                                    Created: {filters.created_from || '...'} - {filters.created_to || '...'}
-                                </span>
-                            ) : (
-                                <span>Created Date</span>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium">Created Date Range</h4>
-                                <p className="text-xs text-muted-foreground">Filter resources by when they were created in the system</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="created-from" className="text-xs">
-                                        From Date
-                                    </Label>
-                                    <Input
-                                        id="created-from"
-                                        type="date"
-                                        value={filters.created_from || ''}
-                                        onChange={(e) => handleCreatedFromChange(e.target.value)}
-                                        className="h-9"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="created-to" className="text-xs">
-                                        To Date
-                                    </Label>
-                                    <Input
-                                        id="created-to"
-                                        type="date"
-                                        value={filters.created_to || ''}
-                                        onChange={(e) => handleCreatedToChange(e.target.value)}
-                                        className="h-9"
-                                    />
-                                </div>
-                            </div>
-                            {(filters.created_from || filters.created_to) && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const newFilters = { ...filters };
-                                        delete newFilters.created_from;
-                                        delete newFilters.created_to;
-                                        onFilterChange(newFilters);
-                                    }}
-                                    className="w-full"
-                                >
-                                    Clear Created Date Range
-                                </Button>
-                            )}
-                        </div>
-                    </PopoverContent>
-                </Popover>
+                <DateRangeFilterPopover
+                    label="Created"
+                    description="Filter resources by when they were created in the system"
+                    fromValue={filters.created_from}
+                    toValue={filters.created_to}
+                    onFromChange={handleCreatedFromChange}
+                    onToChange={handleCreatedToChange}
+                    onClear={() => {
+                        const newFilters = { ...filters };
+                        delete newFilters.created_from;
+                        delete newFilters.created_to;
+                        onFilterChange(newFilters);
+                    }}
+                    disabled={isLoading}
+                    ariaLabel="Filter by creation date range"
+                />
 
                 {/* Updated Date Range Popover */}
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant="outline"
-                            size="default"
-                            className={`w-full justify-start font-normal sm:w-[180px] ${
-                                filters.updated_from || filters.updated_to ? 'border-primary' : ''
-                            }`}
-                            disabled={isLoading}
-                            aria-label="Filter by last update date range"
-                        >
-                            <Calendar className="mr-2 h-4 w-4" />
-                            {filters.updated_from || filters.updated_to ? (
-                                <span className="truncate">
-                                    Updated: {filters.updated_from || '...'} - {filters.updated_to || '...'}
-                                </span>
-                            ) : (
-                                <span>Updated Date</span>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80" align="start">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium">Updated Date Range</h4>
-                                <p className="text-xs text-muted-foreground">Filter resources by when they were last updated</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="updated-from" className="text-xs">
-                                        From Date
-                                    </Label>
-                                    <Input
-                                        id="updated-from"
-                                        type="date"
-                                        value={filters.updated_from || ''}
-                                        onChange={(e) => handleUpdatedFromChange(e.target.value)}
-                                        className="h-9"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="updated-to" className="text-xs">
-                                        To Date
-                                    </Label>
-                                    <Input
-                                        id="updated-to"
-                                        type="date"
-                                        value={filters.updated_to || ''}
-                                        onChange={(e) => handleUpdatedToChange(e.target.value)}
-                                        className="h-9"
-                                    />
-                                </div>
-                            </div>
-                            {(filters.updated_from || filters.updated_to) && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const newFilters = { ...filters };
-                                        delete newFilters.updated_from;
-                                        delete newFilters.updated_to;
-                                        onFilterChange(newFilters);
-                                    }}
-                                    className="w-full"
-                                >
-                                    Clear Updated Date Range
-                                </Button>
-                            )}
-                        </div>
-                    </PopoverContent>
-                </Popover>
+                <DateRangeFilterPopover
+                    label="Updated"
+                    description="Filter resources by when they were last updated"
+                    fromValue={filters.updated_from}
+                    toValue={filters.updated_to}
+                    onFromChange={handleUpdatedFromChange}
+                    onToChange={handleUpdatedToChange}
+                    onClear={() => {
+                        const newFilters = { ...filters };
+                        delete newFilters.updated_from;
+                        delete newFilters.updated_to;
+                        onFilterChange(newFilters);
+                    }}
+                    disabled={isLoading}
+                    ariaLabel="Filter by last update date range"
+                />
 
                 {/* Clear All Filters Button */}
                 {hasActiveFilters && (

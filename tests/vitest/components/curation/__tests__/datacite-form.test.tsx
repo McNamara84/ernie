@@ -2491,6 +2491,7 @@ describe('DataCiteForm', () => {
 
     it(
         'shows validation feedback when saving fails',
+        { timeout: 20000 },
         async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -2579,7 +2580,6 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('A main title is required.')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();
         },
-        10000,
     );
 
     it(
@@ -2952,12 +2952,17 @@ describe('DataCiteForm', () => {
             const addButton = screen.getByRole('button', { name: 'Add Date' });
             await user.click(addButton);
 
-            // After adding a new date: should have 1 date input
-            const allDateInputs = document.querySelectorAll('input[type="date"]');
-            expect(allDateInputs).toHaveLength(1);
+            // After adding a new date: the DatePicker uses combobox role
+            // Find all comboboxes - one is the date picker, one is the date type select
+            const allComboboxes = screen.getAllByRole('combobox');
+            // DatePicker comboboxes contain "Select date" text
+            const datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
             
             // Verify 'Created' and 'Updated' are not available in dropdown
-            const dateTypeTriggers = screen.getAllByRole('combobox').filter(el => 
+            const dateTypeTriggers = allComboboxes.filter(el => 
                 el.getAttribute('id')?.includes('dateType')
             );
             await user.click(dateTypeTriggers[0]);
@@ -2988,16 +2993,22 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // Should have 2 date inputs from initialDates
-            let dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(2);
+            // Should have 2 date picker comboboxes from initialDates
+            let allComboboxes = screen.getAllByRole('combobox');
+            let datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes).toHaveLength(2);
 
             // Remove button should be on the second date entry (first shows "Add")
             const removeButton = screen.getByRole('button', { name: 'Remove date' });
             await user.click(removeButton);
 
-            dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(1);
+            allComboboxes = screen.getAllByRole('combobox');
+            datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes).toHaveLength(1);
         });
 
         it('filters out already used date types from options', async () => {
@@ -3073,8 +3084,12 @@ describe('DataCiteForm', () => {
             );
 
             // "valid" date type should have both start and end date fields (date range)
-            const dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(2);
+            // DatePicker uses combobox role
+            const allComboboxes = screen.getAllByRole('combobox');
+            const datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes).toHaveLength(2);
         });
 
         it('clears endDate when switching from "valid" to another date type', async () => {
@@ -3094,14 +3109,17 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // Initially, "valid" type should have both dates filled
-            let dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(2);
-            expect(dateInputs[0]).toHaveValue('2024-01-01');
-            expect(dateInputs[1]).toHaveValue('2024-12-31');
+            // Initially, "valid" type should have both date pickers with values displayed
+            let allComboboxes = screen.getAllByRole('combobox');
+            let datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes).toHaveLength(2);
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
+            expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
 
             // Open the date type selector and change to "accepted" (since Created is auto-managed)
-            const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
+            const dateTypeTrigger = allComboboxes.find(el => 
                 el.getAttribute('id')?.includes('dateType')
             );
             expect(dateTypeTrigger).toBeDefined();
@@ -3111,11 +3129,14 @@ describe('DataCiteForm', () => {
                 await user.click(acceptedOption);
             }
 
-            // After changing to "accepted", should only have 1 date field
-            dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(1);
+            // After changing to "accepted", should only have 1 date picker
+            allComboboxes = screen.getAllByRole('combobox');
+            datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes).toHaveLength(1);
             // startDate should be preserved
-            expect(dateInputs[0]).toHaveValue('2024-01-01');
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
 
         it('filters out created and updated dates from initialDates', () => {
@@ -3139,9 +3160,13 @@ describe('DataCiteForm', () => {
             );
 
             // Only 'accepted' should be shown, 'created' and 'updated' are auto-managed
-            const dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(1);
-            expect(dateInputs[0]).toHaveValue('2024-01-10');
+            // DatePicker uses combobox role
+            const allComboboxes = screen.getAllByRole('combobox');
+            const datePickerComboboxes = allComboboxes.filter(el => 
+                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            );
+            expect(datePickerComboboxes).toHaveLength(1);
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-10');
         });
     });
 

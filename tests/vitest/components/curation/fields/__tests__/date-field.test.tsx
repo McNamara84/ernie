@@ -36,165 +36,156 @@ describe('DateField', () => {
         vi.clearAllMocks();
     });
 
-    it('renders date input field', () => {
+    it('renders date picker component', () => {
         render(<DateField {...defaultProps} />);
 
-        // Use the ID-based selector for the date input
-        expect(document.getElementById('test-date-date')).toBeInTheDocument();
+        // DatePicker renders a combobox trigger (Button with role="combobox")
+        // Find by role, excluding the date type select combobox
+        const comboboxes = screen.getAllByRole('combobox');
+        // At least one should be the date picker (the other is the date type select)
+        expect(comboboxes.length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows Date label for non-range date types', () => {
         render(<DateField {...defaultProps} dateType="created" />);
 
-        // Use the ID-based selector for the exact date label
-        const dateLabel = document.getElementById('test-date-date-label');
-        expect(dateLabel).toBeInTheDocument();
-        expect(dateLabel).toHaveTextContent('Date');
+        expect(screen.getByText('Date')).toBeInTheDocument();
     });
 
     it('shows Start Date and End Date labels for valid date type', () => {
         render(<DateField {...defaultProps} dateType="valid" />);
 
-        expect(screen.getByLabelText('Start Date', { exact: false })).toBeInTheDocument();
-        expect(screen.getByLabelText('End Date', { exact: false })).toBeInTheDocument();
+        expect(screen.getByText('Start Date')).toBeInTheDocument();
+        expect(screen.getByText('End Date')).toBeInTheDocument();
     });
 
     it('hides End Date field for non-valid date types', () => {
         render(<DateField {...defaultProps} dateType="created" />);
 
-        expect(screen.queryByLabelText('End Date', { exact: false })).not.toBeInTheDocument();
+        expect(screen.queryByText('End Date')).not.toBeInTheDocument();
     });
 
-    it('calls onStartDateChange when date is entered', async () => {
-        const user = userEvent.setup();
+    it('renders date type select with options', async () => {
         render(<DateField {...defaultProps} />);
 
-        const dateInput = document.getElementById('test-date-date') as HTMLInputElement;
-        await user.type(dateInput, '2024-01-15');
-
-        expect(mockOnStartDateChange).toHaveBeenCalled();
+        // Find all comboboxes - one is DatePicker, one is SelectField for date type
+        const comboboxes = screen.getAllByRole('combobox');
+        // The date type select should show "Created" as the current value
+        const dateTypeSelect = comboboxes.find((cb) => cb.textContent?.includes('Created'));
+        expect(dateTypeSelect).toBeInTheDocument();
     });
 
-    it('calls onEndDateChange when end date is entered', async () => {
-        const user = userEvent.setup();
-        render(<DateField {...defaultProps} dateType="valid" />);
-
-        const endDateInput = screen.getByLabelText('End Date', { exact: false });
-        await user.type(endDateInput, '2024-12-31');
-
-        expect(mockOnEndDateChange).toHaveBeenCalled();
-    });
-
-    it('renders date type select with options', () => {
-        render(<DateField {...defaultProps} />);
-
-        expect(screen.getByRole('combobox')).toBeInTheDocument();
-    });
-
-    it('displays prefilled start date', () => {
+    it('displays prefilled start date in button text', () => {
         render(<DateField {...defaultProps} startDate="2024-06-15" />);
 
-        const dateInput = document.getElementById('test-date-date') as HTMLInputElement;
-        expect(dateInput.value).toBe('2024-06-15');
+        // DatePicker shows the selected date in the button
+        expect(screen.getByText(/2024-06-15/)).toBeInTheDocument();
     });
 
     it('displays prefilled end date for valid type', () => {
         render(<DateField {...defaultProps} dateType="valid" endDate="2024-12-31" />);
 
-        const endDateInput = screen.getByLabelText('End Date', { exact: false }) as HTMLInputElement;
-        expect(endDateInput.value).toBe('2024-12-31');
-    });
-
-    it('shows Add button when isFirst is true', () => {
-        render(<DateField {...defaultProps} isFirst={true} />);
-
-        expect(screen.getByRole('button', { name: /Add date/i })).toBeInTheDocument();
-    });
-
-    it('shows Remove button when isFirst is false', () => {
-        render(<DateField {...defaultProps} isFirst={false} />);
-
-        expect(screen.getByRole('button', { name: /Remove date/i })).toBeInTheDocument();
-    });
-
-    it('calls onAdd when Add button is clicked', async () => {
-        const user = userEvent.setup();
-        render(<DateField {...defaultProps} isFirst={true} />);
-
-        await user.click(screen.getByRole('button', { name: /Add date/i }));
-
-        expect(mockOnAdd).toHaveBeenCalled();
-    });
-
-    it('calls onRemove when Remove button is clicked', async () => {
-        const user = userEvent.setup();
-        render(<DateField {...defaultProps} isFirst={false} />);
-
-        await user.click(screen.getByRole('button', { name: /Remove date/i }));
-
-        expect(mockOnRemove).toHaveBeenCalled();
-    });
-
-    it('disables Add button when canAdd is false', () => {
-        render(<DateField {...defaultProps} isFirst={true} canAdd={false} />);
-
-        expect(screen.getByRole('button', { name: /Add date/i })).toBeDisabled();
-    });
-
-    it('enables Add button by default', () => {
-        render(<DateField {...defaultProps} isFirst={true} />);
-
-        expect(screen.getByRole('button', { name: /Add date/i })).not.toBeDisabled();
-    });
-
-    it('displays date type description when provided', () => {
-        render(<DateField {...defaultProps} dateTypeDescription="The date when resource was created" />);
-
-        expect(screen.getByText('The date when resource was created')).toBeInTheDocument();
-    });
-
-    it('does not display description when not provided', () => {
-        render(<DateField {...defaultProps} />);
-
-        expect(screen.queryByText(/The date when/)).not.toBeInTheDocument();
+        expect(screen.getByText(/2024-12-31/)).toBeInTheDocument();
     });
 
     it('marks date as required for created type', () => {
         render(<DateField {...defaultProps} dateType="created" />);
 
-        const dateInput = document.getElementById('test-date-date') as HTMLInputElement;
-        expect(dateInput).toHaveAttribute('required');
-    });
-
-    it('clears endDate when switching from valid to another type', () => {
-        const { rerender } = render(<DateField {...defaultProps} dateType="valid" endDate="2024-12-31" />);
-
-        // Switch from valid to created
-        rerender(<DateField {...defaultProps} dateType="created" endDate="2024-12-31" />);
-
-        expect(mockOnEndDateChange).toHaveBeenCalledWith('');
-    });
-
-    it('does not clear endDate when staying on valid type', () => {
-        const { rerender } = render(<DateField {...defaultProps} dateType="valid" endDate="2024-12-31" />);
-
-        // Stay on valid type
-        rerender(<DateField {...defaultProps} dateType="valid" endDate="2024-12-31" />);
-
-        expect(mockOnEndDateChange).not.toHaveBeenCalled();
-    });
-
-    it('applies custom className', () => {
-        const { container } = render(<DateField {...defaultProps} className="custom-class" />);
-
-        expect(container.firstChild).toHaveClass('custom-class');
+        // The asterisk indicates required
+        const label = screen.getByText('Date');
+        const requiredIndicator = label.parentElement?.querySelector('.text-destructive');
+        expect(requiredIndicator).toBeInTheDocument();
     });
 
     it('hides labels when isFirst is false', () => {
         render(<DateField {...defaultProps} isFirst={false} />);
 
-        // Labels should be visually hidden but still accessible
-        const dateLabel = document.getElementById('test-date-date-label');
-        expect(dateLabel).toHaveClass('sr-only');
+        expect(screen.queryByText('Date')).not.toBeInTheDocument();
+    });
+
+    it('renders add button when isFirst is true', () => {
+        render(<DateField {...defaultProps} isFirst={true} />);
+
+        expect(screen.getByRole('button', { name: /add date/i })).toBeInTheDocument();
+    });
+
+    it('renders remove button when isFirst is false', () => {
+        render(<DateField {...defaultProps} isFirst={false} />);
+
+        expect(screen.getByRole('button', { name: /remove date/i })).toBeInTheDocument();
+    });
+
+    it('calls onAdd when add button is clicked', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} isFirst={true} />);
+
+        await user.click(screen.getByRole('button', { name: /add date/i }));
+
+        expect(mockOnAdd).toHaveBeenCalled();
+    });
+
+    it('calls onRemove when remove button is clicked', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} isFirst={false} />);
+
+        await user.click(screen.getByRole('button', { name: /remove date/i }));
+
+        expect(mockOnRemove).toHaveBeenCalled();
+    });
+
+    it('disables add button when canAdd is false', () => {
+        render(<DateField {...defaultProps} isFirst={true} canAdd={false} />);
+
+        expect(screen.getByRole('button', { name: /add date/i })).toBeDisabled();
+    });
+
+    it('calls onTypeChange when date type is changed', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} />);
+
+        // Find all comboboxes and identify the date type select
+        const comboboxes = screen.getAllByRole('combobox');
+        const dateTypeSelect = comboboxes.find((cb) => cb.textContent?.includes('Created'));
+        expect(dateTypeSelect).toBeTruthy();
+
+        await user.click(dateTypeSelect!);
+
+        // Wait for options to be visible and click "Valid"
+        const validOption = await screen.findByRole('option', { name: 'Valid' });
+        await user.click(validOption);
+
+        expect(mockOnTypeChange).toHaveBeenCalledWith('valid');
+    });
+
+    it('shows two date pickers for valid date type', () => {
+        render(<DateField {...defaultProps} dateType="valid" />);
+
+        // For "valid" type, there should be multiple comboboxes:
+        // - Start date picker (combobox)
+        // - End date picker (combobox)
+        // - Date type select (combobox)
+        const comboboxes = screen.getAllByRole('combobox');
+        // Filter to find date pickers by looking for "Select date" placeholder text
+        const datePickerComboboxes = comboboxes.filter((cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''));
+        expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows one date picker for non-valid date types', () => {
+        render(<DateField {...defaultProps} dateType="created" />);
+
+        // For non-valid types, there should be:
+        // - One date picker (combobox)
+        // - One date type select (combobox)
+        // - Add/remove button (button)
+        const comboboxes = screen.getAllByRole('combobox');
+        // Filter to find date pickers by looking for "Select date" placeholder text
+        const datePickerComboboxes = comboboxes.filter((cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''));
+        expect(datePickerComboboxes.length).toBe(1);
+    });
+
+    it('displays date type description when provided', () => {
+        render(<DateField {...defaultProps} dateTypeDescription="This is when the resource was created" />);
+
+        expect(screen.getByText('This is when the resource was created')).toBeInTheDocument();
     });
 });

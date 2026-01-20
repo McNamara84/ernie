@@ -149,9 +149,11 @@ describe('ResourcesFilters Component', () => {
     it('displays result count correctly when filtered', () => {
         render(<ResourcesFilters {...defaultProps} resultCount={5} totalCount={100} />);
         
-        expect(screen.getByText(/showing/i)).toBeInTheDocument();
-        expect(screen.getByText('5')).toBeInTheDocument();
-        expect(screen.getByText('100')).toBeInTheDocument();
+        // The result count shows up when resultCount !== totalCount
+        // Look for the span containing "Showing" as direct text
+        const spans = screen.getAllByText(/Showing/);
+        const resultSpan = spans.find((el) => el.textContent === 'Showing 5 of 100 resources');
+        expect(resultSpan).toBeInTheDocument();
     });
 
     it('shows clear all button when filters are active', () => {
