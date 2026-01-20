@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Mail\WelcomeNewUser;
 use App\Models\User;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
@@ -175,6 +176,7 @@ describe('Welcome Page - Expired Signature', function () {
 
 describe('Welcome Resend', function () {
     it('resends welcome email for user without password', function () {
+        $this->withoutMiddleware(ThrottleRequests::class);
         Mail::fake();
 
         $user = User::factory()->create([
@@ -195,6 +197,7 @@ describe('Welcome Resend', function () {
     });
 
     it('does not resend email for user with password already set', function () {
+        $this->withoutMiddleware(ThrottleRequests::class);
         Mail::fake();
 
         $user = User::factory()->create([
@@ -213,6 +216,7 @@ describe('Welcome Resend', function () {
     });
 
     it('does not reveal if email exists (security)', function () {
+        $this->withoutMiddleware(ThrottleRequests::class);
         Mail::fake();
 
         $response = $this->post(route('welcome.resend'), [
