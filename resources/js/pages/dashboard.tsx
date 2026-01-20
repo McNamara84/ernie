@@ -79,13 +79,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 type DashboardPageProps = SharedData & {
-    resourceCount?: number;
+    dataResourceCount?: number;
+    igsnCount?: number;
+    dataInstitutionCount?: number;
+    igsnInstitutionCount?: number;
     phpVersion?: string;
     laravelVersion?: string;
 };
 
 export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
-    const { auth, resourceCount, phpVersion = '8.4.12', laravelVersion = '12.28.1' } = usePage<DashboardPageProps>().props;
+    const { auth, dataResourceCount, igsnCount, dataInstitutionCount, igsnInstitutionCount, phpVersion = '8.4.12', laravelVersion = '12.28.1' } = usePage<DashboardPageProps>().props;
 
     // Easter Egg State
     const [isEasterEggActive, setIsEasterEggActive] = useState(false);
@@ -97,7 +100,10 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
     const unicornIdCounterRef = useRef(0);
 
-    const datasetCount = typeof resourceCount === 'number' ? resourceCount : 0;
+    const datasetCount = typeof dataResourceCount === 'number' ? dataResourceCount : 0;
+    const igsnCountDisplay = typeof igsnCount === 'number' ? igsnCount : 0;
+    const dataInstitutions = typeof dataInstitutionCount === 'number' ? dataInstitutionCount : 0;
+    const igsnInstitutions = typeof igsnInstitutionCount === 'number' ? igsnInstitutionCount : 0;
 
     // Easter Egg: Reset everything
     const resetEasterEgg = useCallback(() => {
@@ -242,7 +248,14 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             <CardTitle>Statistics</CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground">
-                            <strong className="font-semibold text-foreground">{datasetCount}</strong> datasets from y data centers of z institutions
+                            <p>
+                                <strong className="font-semibold text-foreground">{datasetCount}</strong> datasets from{' '}
+                                <strong className="font-semibold text-foreground">{dataInstitutions}</strong> institutions
+                            </p>
+                            <p>
+                                <strong className="font-semibold text-foreground">{igsnCountDisplay}</strong> IGSNs from{' '}
+                                <strong className="font-semibold text-foreground">{igsnInstitutions}</strong> institutions
+                            </p>
                         </CardContent>
                     </Card>
                     <Card onMouseEnter={() => handleCardHover('environment')}>
