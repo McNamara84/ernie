@@ -22,6 +22,10 @@ vi.mock('@/components/ui/sidebar', () => ({
     ),
 }));
 
+vi.mock('@/components/font-size-quick-toggle', () => ({
+    FontSizeQuickToggle: () => <button data-testid="font-size-toggle">Font Size</button>,
+}));
+
 describe('AppSidebarHeader', () => {
     it('renders sidebar trigger and breadcrumbs', () => {
         render(
@@ -36,5 +40,9 @@ describe('AppSidebarHeader', () => {
         expect(screen.getByText('Home')).toBeInTheDocument();
         expect(screen.getByText('Settings')).toBeInTheDocument();
     });
-});
 
+    it('renders font size quick toggle', () => {
+        render(<AppSidebarHeader breadcrumbs={[]} />);
+        expect(screen.getByTestId('font-size-toggle')).toBeInTheDocument();
+    });
+});
