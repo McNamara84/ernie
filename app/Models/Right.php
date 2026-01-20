@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 /**
  * Rights Model (DataCite #16) - formerly License
@@ -92,5 +93,50 @@ class Right extends Model
             ->withTimestamps();
 
         return $relation;
+    }
+
+    /**
+     * Resource types that are EXCLUDED from this license (blacklist approach).
+     *
+     * If a resource type is in this relationship, the license is NOT available for that type.
+     *
+     * @return BelongsToMany<ResourceType, static, Pivot, 'pivot'>
+     */
+    public function excludedResourceTypes(): BelongsToMany
+    {
+        /** @var BelongsToMany<ResourceType, static, Pivot, 'pivot'> $relation */
+        $relation = $this->belongsToMany(
+            ResourceType::class,
+            'right_resource_type_exclusions',
+            'right_id',
+            'resource_type_id'
+        )->withTimestamps();
+
+        return $relation;
+    }
+
+    /**
+     * Check if this license is available for a given resource type.
+     */
+    public function isAvailableForResourceType(int $resourceTypeId): bool
+    {
+        return ! $this->excludedResourceTypes()
+            ->where('resource_types.id', $resourceTypeId)
+            ->exists();
+    }
+
+    /**
+     * Scope to filter licenses available for a specific resource type.
+     *
+     * Returns licenses that do NOT have the given resource type in their exclusion list.
+     *
+     * @param  Builder<Right>  $query
+     * @return Builder<Right>
+     */
+    public function scopeAvailableForResourceType(Builder $query, int $resourceTypeId): Builder
+    {
+        return $query->whereDoesntHave('excludedResourceTypes', function (Builder $q) use ($resourceTypeId): void {
+            $q->where('resource_types.id', $resourceTypeId);
+        });
     }
 }
