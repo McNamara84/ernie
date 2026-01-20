@@ -4,6 +4,10 @@
         "date": "2026-01-20",
         "features": [
             {
+                "title": "Dashboard Statistics Separation",
+                "description": "The dashboard now displays separate statistics for Data Resources and IGSNs (Physical Objects). Each category shows its own count along with the number of contributing institutions identified by their ROR IDs. This provides clearer insights into the distribution of metadata across different resource types."
+            },
+            {
                 "title": "License Resource Type Restrictions",
                 "description": "Licenses can now be restricted to specific resource types in Editor Settings. Using a blacklist approach, licenses are available for all resource types by default, but administrators can exclude specific types (e.g., restrict software-specific licenses like MIT or GPL to the 'Software' resource type only). The configuration is shared between ERNIE and ELMO. A new column 'Resource Types' in the Licenses table shows a compact popover with checkboxes for all resource types. A new ELMO API endpoint GET /api/v1/licenses/elmo/{resourceTypeSlug} returns filtered licenses based on the selected resource type."
             },
