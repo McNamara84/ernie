@@ -8,7 +8,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CheckCircle2, ExternalLink, GripVertical, Loader2, Trash2 } from 'lucide-react';
+import { CheckCircle2, ExternalLink, GripVertical, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -82,13 +82,24 @@ export default function AuthorItem({
     };
 
     // ORCID auto-fill, verification, and suggestions via shared hook
-    const { isVerifying, verificationError, orcidSuggestions, isLoadingSuggestions, showSuggestions, hideSuggestions, handleOrcidSelect } =
-        useOrcidAutofill<AuthorEntry>({
-            entry: author,
-            onEntryChange: onAuthorChange,
-            hasUserInteracted,
-            includeEmail: true, // Authors can have email auto-filled
-        });
+    const {
+        isVerifying,
+        verificationError,
+        orcidSuggestions,
+        isLoadingSuggestions,
+        showSuggestions,
+        hideSuggestions,
+        handleOrcidSelect,
+        canRetry,
+        retryVerification,
+        errorType,
+        isFormatValid,
+    } = useOrcidAutofill<AuthorEntry>({
+        entry: author,
+        onEntryChange: onAuthorChange,
+        hasUserInteracted,
+        includeEmail: true, // Authors can have email auto-filled
+    });
 
     // Handle selecting an ORCID suggestion
     const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {
@@ -201,7 +212,35 @@ export default function AuthorItem({
                                         />
                                     )}
                                 </div>
-                                {verificationError && <p className="mt-1 text-sm text-red-600">{verificationError}</p>}
+                                {/* Error display with retry button */}
+                                {verificationError && (
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <p className="text-sm text-red-600">{verificationError}</p>
+                                        {canRetry && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={retryVerification}
+                                                className="h-6 px-2 text-xs"
+                                            >
+                                                <RefreshCw className="mr-1 h-3 w-3" />
+                                                Retry
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                                {/* Format valid badge when checksum is valid but online verification failed */}
+                                {isFormatValid &&
+                                    !author.orcidVerified &&
+                                    (errorType === 'timeout' || errorType === 'api_error' || errorType === 'network') && (
+                                        <Badge
+                                            variant="outline"
+                                            className="mt-1 h-4 border-yellow-600 px-1.5 py-0 text-[10px] leading-none text-yellow-600"
+                                        >
+                                            Format valid (unverified)
+                                        </Badge>
+                                    )}
                                 {author.orcid && OrcidService.isValidFormat(author.orcid) && (
                                     <a
                                         href={OrcidService.formatOrcidUrl(author.orcid)}

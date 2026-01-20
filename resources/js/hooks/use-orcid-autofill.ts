@@ -10,7 +10,7 @@
  * - Fetch and merge ORCID data (name, affiliations)
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { type OrcidAffiliation, type OrcidSearchResult, OrcidService } from '@/services/orcid';
 import type { AffiliationTag } from '@/types/affiliations';
@@ -66,6 +66,11 @@ export interface UseOrcidAutofillConfig<T extends BaseEntry> {
 }
 
 /**
+ * Error type for differentiated error handling
+ */
+export type OrcidErrorType = 'format' | 'checksum' | 'not_found' | 'api_error' | 'timeout' | 'network' | 'unknown' | null;
+
+/**
  * Hook return value
  */
 export interface UseOrcidAutofillReturn {
@@ -85,6 +90,14 @@ export interface UseOrcidAutofillReturn {
     hideSuggestions: () => void;
     /** Handle selecting an ORCID from search dialog or suggestions */
     handleOrcidSelect: (orcid: string) => Promise<void>;
+    /** Whether a retry is available (for timeout/api errors) */
+    canRetry: boolean;
+    /** Trigger manual retry of ORCID verification */
+    retryVerification: () => void;
+    /** Error type for differentiated display */
+    errorType: OrcidErrorType;
+    /** Whether ORCID format and checksum are valid (offline validation) */
+    isFormatValid: boolean;
 }
 
 /**
@@ -139,14 +152,38 @@ export function useOrcidAutofill<T extends BaseEntry>({
     // Verification state
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
+    const [errorType, setErrorType] = useState<OrcidErrorType>(null);
+    const [canRetry, setCanRetry] = useState(false);
 
     // Suggestion state
     const [orcidSuggestions, setOrcidSuggestions] = useState<OrcidSearchResult[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
-    const clearError = useCallback(() => setVerificationError(null), []);
+    // Track retry trigger
+    const [retryTrigger, setRetryTrigger] = useState(0);
+
+    const clearError = useCallback(() => {
+        setVerificationError(null);
+        setErrorType(null);
+        setCanRetry(false);
+    }, []);
     const hideSuggestions = useCallback(() => setShowSuggestions(false), []);
+
+    // Check if current ORCID has valid format and checksum (offline validation)
+    const isFormatValid = useMemo(() => {
+        if (!isPersonEntry(entry) || !entry.orcid?.trim()) {
+            return false;
+        }
+        return OrcidService.isValidFormat(entry.orcid) && OrcidService.validateChecksum(entry.orcid);
+    }, [entry]);
+
+    // Manual retry function
+    const retryVerification = useCallback(() => {
+        if (!isPersonEntry(entry) || !entry.orcid?.trim()) return;
+        clearError();
+        setRetryTrigger((prev) => prev + 1);
+    }, [entry, clearError]);
 
     /**
      * Handle ORCID selection (from search dialog or suggestions)
@@ -280,15 +317,64 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 return;
             }
 
+            // Early checksum validation (offline) - provides instant feedback without network round-trip.
+            // Backend also validates for security, but frontend validation improves UX.
+            if (!OrcidService.validateChecksum(personEntry.orcid)) {
+                setVerificationError('Invalid ORCID checksum');
+                setErrorType('checksum');
+                setCanRetry(false);
+                return;
+            }
+
             setIsVerifying(true);
             setVerificationError(null);
+            setErrorType(null);
+            setCanRetry(false);
 
             try {
                 // Validate ORCID exists
                 const validationResponse = await OrcidService.validateOrcid(personEntry.orcid);
 
-                if (!validationResponse.success || !validationResponse.data?.exists) {
+                if (!validationResponse.success) {
+                    setVerificationError('Network error - please check connection');
+                    setErrorType('network');
+                    setCanRetry(true);
+                    setIsVerifying(false);
+                    return;
+                }
+
+                const validationData = validationResponse.data;
+
+                // Handle different error types from backend
+                if (validationData?.errorType === 'not_found') {
                     setVerificationError('ORCID not found');
+                    setErrorType('not_found');
+                    setCanRetry(false); // No retry for confirmed 404
+                    setIsVerifying(false);
+                    return;
+                }
+
+                // Permanent validation errors - no retry
+                if (validationData?.errorType === 'checksum' || validationData?.errorType === 'format') {
+                    setVerificationError(validationData.errorType === 'checksum' ? 'Invalid ORCID checksum' : 'Invalid ORCID format');
+                    setErrorType(validationData.errorType);
+                    setCanRetry(false);
+                    setIsVerifying(false);
+                    return;
+                }
+
+                if (validationData?.errorType === 'timeout' || validationData?.errorType === 'api_error') {
+                    setVerificationError('ORCID service temporarily unavailable');
+                    setErrorType(validationData.errorType);
+                    setCanRetry(true);
+                    setIsVerifying(false);
+                    return;
+                }
+
+                if (!validationData?.exists) {
+                    setVerificationError('Could not verify ORCID');
+                    setErrorType('unknown');
+                    setCanRetry(true);
                     setIsVerifying(false);
                     return;
                 }
@@ -298,6 +384,8 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
                 if (!response.success || !response.data) {
                     setVerificationError('Failed to fetch ORCID data');
+                    setErrorType('api_error');
+                    setCanRetry(true);
                     setIsVerifying(false);
                     return;
                 }
@@ -329,6 +417,8 @@ export function useOrcidAutofill<T extends BaseEntry>({
             } catch (error) {
                 console.error('Auto-verify ORCID error:', error);
                 setVerificationError('Failed to verify ORCID');
+                setErrorType('network');
+                setCanRetry(true);
             } finally {
                 setIsVerifying(false);
             }
@@ -338,7 +428,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         const timeoutId = setTimeout(autoVerifyOrcid, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [entry, isVerifying, onEntryChange, includeEmail]);
+    }, [entry, isVerifying, onEntryChange, includeEmail, retryTrigger]);
 
     return {
         isVerifying,
@@ -349,5 +439,9 @@ export function useOrcidAutofill<T extends BaseEntry>({
         showSuggestions,
         hideSuggestions,
         handleOrcidSelect,
+        canRetry,
+        retryVerification,
+        errorType,
+        isFormatValid,
     };
 }

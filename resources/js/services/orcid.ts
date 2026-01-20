@@ -45,6 +45,7 @@ export interface OrcidValidationResult {
     valid: boolean;
     exists: boolean | null;
     message: string;
+    errorType: 'format' | 'checksum' | 'not_found' | 'api_error' | 'timeout' | 'network' | 'unknown' | null;
 }
 
 /**
@@ -224,6 +225,40 @@ export class OrcidService {
     static isValidFormat(orcid: string): boolean {
         const pattern = /^(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])$/;
         return pattern.test(orcid);
+    }
+
+    /**
+     * Validate ORCID checksum using ISO 7064 MOD 11-2 algorithm
+     *
+     * The last character of an ORCID is a checksum that can be validated offline.
+     * This is useful as a fallback when the ORCID API is unavailable.
+     *
+     * @param orcid The ORCID ID to validate
+     * @returns True if checksum is valid
+     * @see https://support.orcid.org/hc/en-us/articles/360006897674-Structure-of-the-ORCID-Identifier
+     */
+    static validateChecksum(orcid: string): boolean {
+        const digits = orcid.replace(/-/g, '');
+
+        if (digits.length !== 16) {
+            return false;
+        }
+
+        // ISO 7064 MOD 11-2 algorithm
+        let total = 0;
+        for (let i = 0; i < 15; i++) {
+            const digit = parseInt(digits[i], 10);
+            if (isNaN(digit)) {
+                return false;
+            }
+            total = (total + digit) * 2;
+        }
+
+        const remainder = total % 11;
+        const checkDigit = (12 - remainder) % 11;
+        const expectedCheckChar = checkDigit === 10 ? 'X' : String(checkDigit);
+
+        return digits[15].toUpperCase() === expectedCheckChar;
     }
 
     /**

@@ -34,6 +34,32 @@ class OrcidService
     private const CACHE_TTL = 86400;
 
     /**
+     * Negative cache TTL for non-existent ORCIDs (1 hour)
+     */
+    private const NEGATIVE_CACHE_TTL = 3600;
+
+    /**
+     * Timeout for validation requests (seconds)
+     * Conservative value to handle sporadic API slowdowns
+     */
+    private const VALIDATION_TIMEOUT = 7;
+
+    /**
+     * Timeout for full record fetch requests (seconds)
+     */
+    private const FETCH_TIMEOUT = 12;
+
+    /**
+     * Maximum number of attempts for API calls (1 initial + retries)
+     */
+    private const MAX_ATTEMPTS = 3;
+
+    /**
+     * Initial retry delay in seconds (doubles with each retry)
+     */
+    private const RETRY_DELAY = 2;
+
+    /**
      * ORCID ID validation pattern
      * Format: XXXX-XXXX-XXXX-XXXX (with check digit)
      */
@@ -52,10 +78,48 @@ class OrcidService
     }
 
     /**
+     * Validate ORCID checksum using ISO 7064 MOD 11-2 algorithm
+     *
+     * The last character of an ORCID is a checksum calculated using this algorithm.
+     * This allows offline validation of ORCID format correctness.
+     *
+     * @param  string  $orcid  The ORCID ID (format: XXXX-XXXX-XXXX-XXXX)
+     * @return bool True if checksum is valid
+     *
+     * @see https://support.orcid.org/hc/en-us/articles/360006897674-Structure-of-the-ORCID-Identifier
+     */
+    #[\NoDiscard('Checksum validation result must be checked')]
+    public function validateOrcidChecksum(string $orcid): bool
+    {
+        // Remove dashes
+        $digits = str_replace('-', '', $orcid);
+
+        if (strlen($digits) !== 16) {
+            return false;
+        }
+
+        // ISO 7064 MOD 11-2 algorithm
+        $total = 0;
+        for ($i = 0; $i < 15; $i++) {
+            if (! ctype_digit($digits[$i])) {
+                return false;
+            }
+            $digit = (int) $digits[$i];
+            $total = ($total + $digit) * 2;
+        }
+
+        $remainder = $total % 11;
+        $checkDigit = (12 - $remainder) % 11;
+        $expectedCheckChar = $checkDigit === 10 ? 'X' : (string) $checkDigit;
+
+        return strtoupper($digits[15]) === $expectedCheckChar;
+    }
+
+    /**
      * Validate ORCID ID format and check if it exists
      *
      * @param  string  $orcid  The ORCID ID to validate
-     * @return array{valid: bool, exists: bool|null, message: string}
+     * @return array{valid: bool, exists: bool|null, message: string, errorType: string|null}
      */
     #[\NoDiscard('ORCID validation result must be checked')]
     public function validateOrcid(string $orcid): array
@@ -66,48 +130,130 @@ class OrcidService
                 'valid' => false,
                 'exists' => null,
                 'message' => 'Invalid ORCID format. Expected format: XXXX-XXXX-XXXX-XXXX',
+                'errorType' => 'format',
             ];
         }
 
-        // Check if ORCID exists via API
-        try {
-            $response = Http::timeout(5)
-                ->acceptJson()
-                ->get(self::API_BASE_URL.'/'.$orcid.'/person');
-
-            if ($response->successful()) {
-                return [
-                    'valid' => true,
-                    'exists' => true,
-                    'message' => 'Valid ORCID ID',
-                ];
-            }
-
-            if ($response->status() === 404) {
-                return [
-                    'valid' => true,
-                    'exists' => false,
-                    'message' => 'ORCID ID not found',
-                ];
-            }
-
+        // Check checksum
+        if (! $this->validateOrcidChecksum($orcid)) {
             return [
-                'valid' => true,
+                'valid' => false,
                 'exists' => null,
-                'message' => 'Could not verify ORCID ID',
-            ];
-        } catch (\Exception $e) {
-            Log::warning('ORCID validation failed', [
-                'orcid' => $orcid,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [
-                'valid' => true,
-                'exists' => null,
-                'message' => 'Could not verify ORCID ID',
+                'message' => 'Invalid ORCID checksum',
+                'errorType' => 'checksum',
             ];
         }
+
+        // Check negative cache for known non-existent ORCIDs
+        $negativeCacheKey = 'orcid:negative:'.$orcid;
+        if (Cache::has($negativeCacheKey)) {
+            return [
+                'valid' => true,
+                'exists' => false,
+                'message' => 'ORCID ID not found',
+                'errorType' => 'not_found',
+            ];
+        }
+
+        // Try API with retry logic for transient failures
+        $retryDelay = self::RETRY_DELAY;
+
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            try {
+                $response = Http::timeout(self::VALIDATION_TIMEOUT)
+                    ->acceptJson()
+                    ->get(self::API_BASE_URL.'/'.$orcid.'/person');
+
+                if ($response->successful()) {
+                    return [
+                        'valid' => true,
+                        'exists' => true,
+                        'message' => 'Valid ORCID ID',
+                        'errorType' => null,
+                    ];
+                }
+
+                if ($response->status() === 404) {
+                    // Cache negative result
+                    Cache::put($negativeCacheKey, true, self::NEGATIVE_CACHE_TTL);
+
+                    return [
+                        'valid' => true,
+                        'exists' => false,
+                        'message' => 'ORCID ID not found',
+                        'errorType' => 'not_found',
+                    ];
+                }
+
+                // Server error (5xx) or rate limited (429) - retry if attempts remain
+                if (($response->status() >= 500 || $response->status() === 429) && $attempt < self::MAX_ATTEMPTS) {
+                    Log::info('ORCID API error, retrying', [
+                        'orcid' => $orcid,
+                        'attempt' => $attempt,
+                        'status' => $response->status(),
+                    ]);
+                    sleep($retryDelay);
+                    $retryDelay *= 2; // Exponential backoff
+                    continue;
+                }
+
+                return [
+                    'valid' => true,
+                    'exists' => null,
+                    'message' => 'ORCID service temporarily unavailable',
+                    'errorType' => 'api_error',
+                ];
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                Log::warning('ORCID validation timeout/connection error', [
+                    'orcid' => $orcid,
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+
+                if ($attempt < self::MAX_ATTEMPTS) {
+                    sleep($retryDelay);
+                    $retryDelay *= 2;
+                    continue;
+                }
+
+                // All retries exhausted - return checksum-validated status
+                return [
+                    'valid' => true,
+                    'exists' => null,
+                    'message' => 'Format valid, could not verify online',
+                    'errorType' => 'timeout',
+                ];
+            } catch (\Exception $e) {
+                Log::warning('ORCID validation failed', [
+                    'orcid' => $orcid,
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+
+                if ($attempt < self::MAX_ATTEMPTS) {
+                    sleep($retryDelay);
+                    $retryDelay *= 2;
+                    continue;
+                }
+
+                return [
+                    'valid' => true,
+                    'exists' => null,
+                    'message' => 'Could not verify ORCID ID',
+                    'errorType' => 'unknown',
+                ];
+            }
+        }
+
+        // @codeCoverageIgnoreStart
+        // Unreachable: all loop paths return, but PHPStan requires explicit return
+        return [
+            'valid' => true,
+            'exists' => null,
+            'message' => 'Could not verify ORCID ID',
+            'errorType' => 'unknown',
+        ];
+        // @codeCoverageIgnoreEnd
     }
 
     /**
@@ -140,7 +286,7 @@ class OrcidService
 
         try {
             // Fetch full record (person + activities)
-            $response = Http::timeout(10)
+            $response = Http::timeout(self::FETCH_TIMEOUT)
                 ->acceptJson()
                 ->get(self::API_BASE_URL.'/'.$orcid);
 

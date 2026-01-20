@@ -260,4 +260,162 @@ class OrcidServiceTest extends TestCase
                 && (int) $params['rows'] === 200;
         });
     }
+
+    /** @test */
+    public function test_it_validates_orcid_checksum_correctly(): void
+    {
+        // Valid checksums (verified against ORCID spec)
+        $this->assertTrue($this->service->validateOrcidChecksum('0000-0002-1825-0097'));
+        $this->assertTrue($this->service->validateOrcidChecksum('0000-0001-5109-3700'));
+        $this->assertTrue($this->service->validateOrcidChecksum('0000-0002-9079-593X')); // With X checksum
+        $this->assertTrue($this->service->validateOrcidChecksum('0000-0002-0275-1903')); // Issue #403 ORCID
+
+        // Invalid checksums
+        $this->assertFalse($this->service->validateOrcidChecksum('0000-0002-1825-0098')); // Wrong check digit
+        $this->assertFalse($this->service->validateOrcidChecksum('0000-0000-0000-0000')); // Invalid ORCID
+        $this->assertFalse($this->service->validateOrcidChecksum('1234-5678-9012-3456')); // Random invalid
+    }
+
+    /** @test */
+    public function test_it_returns_checksum_error_type_for_invalid_checksum(): void
+    {
+        $result = $this->service->validateOrcid('0000-0002-1825-0098'); // Wrong checksum
+
+        $this->assertFalse($result['valid']);
+        $this->assertNull($result['exists']);
+        $this->assertEquals('checksum', $result['errorType']);
+        $this->assertStringContainsString('checksum', $result['message']);
+    }
+
+    /** @test */
+    public function test_it_returns_format_error_type_for_invalid_format(): void
+    {
+        $result = $this->service->validateOrcid('invalid-format');
+
+        $this->assertFalse($result['valid']);
+        $this->assertEquals('format', $result['errorType']);
+    }
+
+    /** @test */
+    public function test_it_returns_not_found_error_type_for_404(): void
+    {
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::response(null, 404),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertFalse($result['exists']);
+        $this->assertEquals('not_found', $result['errorType']);
+    }
+
+    /** @test */
+    public function test_it_caches_negative_result_for_404(): void
+    {
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::response(null, 404),
+        ]);
+
+        // First call - result must be used due to NoDiscard attribute
+        $firstResult = $this->service->validateOrcid('0000-0002-1825-0097');
+        $this->assertEquals('not_found', $firstResult['errorType']);
+
+        // Second call should use cache (same fake is still in place)
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertFalse($result['exists']);
+        $this->assertEquals('not_found', $result['errorType']);
+
+        // Verify only one HTTP call was made (second used cache)
+        Http::assertSentCount(1);
+    }
+
+    /** @test */
+    public function test_it_returns_api_error_type_for_server_errors(): void
+    {
+        // Use sequence to handle all 3 retry attempts
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 500)
+                ->push(null, 500)
+                ->push(null, 500),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertNull($result['exists']);
+        $this->assertEquals('api_error', $result['errorType']);
+    }
+
+    /** @test */
+    public function test_it_returns_null_error_type_for_successful_validation(): void
+    {
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::response(['name' => []], 200),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertTrue($result['exists']);
+        $this->assertNull($result['errorType']);
+    }
+
+    /** @test */
+    public function test_it_returns_timeout_error_type_after_connection_failures(): void
+    {
+        // Simulate connection timeout for all attempts
+        Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'));
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertNull($result['exists']);
+        $this->assertEquals('timeout', $result['errorType']);
+        $this->assertStringContainsString('could not verify', strtolower($result['message']));
+    }
+
+    /** @test */
+    public function test_it_retries_on_server_error_before_returning_api_error(): void
+    {
+        // Simulate 500 error for all 3 attempts
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 500)
+                ->push(null, 500)
+                ->push(null, 500),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertNull($result['exists']);
+        $this->assertEquals('api_error', $result['errorType']);
+
+        // Verify all 3 retry attempts were made
+        Http::assertSentCount(3);
+    }
+
+    /** @test */
+    public function test_it_retries_on_rate_limit_429_error(): void
+    {
+        // Simulate 429 for first 2 attempts, then success
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 429)
+                ->push(null, 429)
+                ->push(['name' => []], 200),
+        ]);
+
+        $result = $this->service->validateOrcid('0000-0002-1825-0097');
+
+        $this->assertTrue($result['valid']);
+        $this->assertTrue($result['exists']);
+        $this->assertNull($result['errorType']);
+
+        // Verify all 3 attempts were made (2 retries + final success)
+        Http::assertSentCount(3);
+    }
 }
