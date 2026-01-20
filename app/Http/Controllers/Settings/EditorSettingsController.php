@@ -41,13 +41,17 @@ class EditorSettingsController extends Controller
             'elmo_active' => $t->is_elmo_active,
         ]);
 
-        $licenses = Right::orderBy('id')->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
-            'id' => $r->id,
-            'identifier' => $r->identifier,
-            'name' => $r->name,
-            'active' => $r->is_active,
-            'elmo_active' => $r->is_elmo_active,
-        ]);
+        $licenses = Right::with('excludedResourceTypes:id')
+            ->orderBy('id')
+            ->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active'])
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'identifier' => $r->identifier,
+                'name' => $r->name,
+                'active' => $r->is_active,
+                'elmo_active' => $r->is_elmo_active,
+                'excluded_resource_type_ids' => $r->excludedResourceTypes->pluck('id')->toArray(),
+            ]);
 
         $dateTypes = DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active'])->map(fn ($d) => [
             'id' => $d->id,
@@ -121,8 +125,8 @@ class EditorSettingsController extends Controller
                     ]);
             }
 
-            // Update licenses (rights)
-            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $licenses */
+            // Update licenses (rights) with resource type exclusions
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool, excluded_resource_type_ids: array<int>}> $licenses */
             $licenses = $validated['licenses'];
             foreach ($licenses as $license) {
                 DB::table('rights')
@@ -132,6 +136,27 @@ class EditorSettingsController extends Controller
                         'is_elmo_active' => $license['elmo_active'],
                         'updated_at' => now(),
                     ]);
+
+                // Sync excluded resource types using a direct query to ensure it works within transaction
+                /** @var int[] $excludedIds */
+                $excludedIds = $license['excluded_resource_type_ids'];
+                
+                // Delete existing exclusions
+                DB::table('right_resource_type_exclusions')
+                    ->where('right_id', $license['id'])
+                    ->delete();
+                
+                // Insert new exclusions
+                if (count($excludedIds) > 0) {
+                    $insertData = array_map(fn (int $resourceTypeId) => [
+                        'right_id' => $license['id'],
+                        'resource_type_id' => $resourceTypeId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ], $excludedIds);
+                    
+                    DB::table('right_resource_type_exclusions')->insert($insertData);
+                }
             }
 
             // Update languages
