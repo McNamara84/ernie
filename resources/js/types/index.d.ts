@@ -34,7 +34,10 @@ export interface SharedData {
     auth: Auth;
     sidebarOpen: boolean;
     fontSizePreference: FontSize;
-    resourceCount?: number;
+    dataResourceCount?: number;
+    igsnCount?: number;
+    dataInstitutionCount?: number;
+    igsnInstitutionCount?: number;
     [key: string]: unknown;
 }
 

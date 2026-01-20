@@ -14,7 +14,10 @@ use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
+use App\Models\Affiliation;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
+use App\Models\ResourceType;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -298,8 +301,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.destroy');
 
     Route::get('dashboard', function () {
+        // Get PhysicalObject type ID for filtering
+        $physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
+
+        // Count Data Resources (non-IGSN)
+        $dataResourceCount = Resource::where(function ($query) use ($physicalObjectTypeId) {
+            $query->whereNull('resource_type_id')
+                  ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+        })->count();
+
+        // Count IGSN Resources
+        $igsnCount = $physicalObjectTypeId
+            ? Resource::where('resource_type_id', $physicalObjectTypeId)->count()
+            : 0;
+
+        // Count unique institutions (ROR-identified) for Data Resources
+        $dataInstitutionCount = Affiliation::query()
+            ->whereNotNull('identifier')
+            ->where('identifier_scheme', 'ROR')
+            ->whereHasMorph('affiliatable', [ResourceCreator::class], function ($query) use ($physicalObjectTypeId) {
+                $query->whereHas('resource', function ($q) use ($physicalObjectTypeId) {
+                    $q->where(function ($subQ) use ($physicalObjectTypeId) {
+                        $subQ->whereNull('resource_type_id')
+                             ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                    });
+                });
+            })
+            ->distinct('identifier')
+            ->count('identifier');
+
+        // Count unique institutions (ROR-identified) for IGSN Resources
+        $igsnInstitutionCount = $physicalObjectTypeId
+            ? Affiliation::query()
+                ->whereNotNull('identifier')
+                ->where('identifier_scheme', 'ROR')
+                ->whereHasMorph('affiliatable', [ResourceCreator::class], function ($query) use ($physicalObjectTypeId) {
+                    $query->whereHas('resource', function ($q) use ($physicalObjectTypeId) {
+                        $q->where('resource_type_id', $physicalObjectTypeId);
+                    });
+                })
+                ->distinct('identifier')
+                ->count('identifier')
+            : 0;
+
         return Inertia::render('dashboard', [
-            'resourceCount' => Resource::count(),
+            'dataResourceCount' => $dataResourceCount,
+            'igsnCount' => $igsnCount,
+            'dataInstitutionCount' => $dataInstitutionCount,
+            'igsnInstitutionCount' => $igsnInstitutionCount,
             'phpVersion' => PHP_VERSION,
             'laravelVersion' => app()->version(),
         ]);

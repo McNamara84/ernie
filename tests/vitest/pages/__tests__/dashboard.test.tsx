@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -72,7 +72,10 @@ describe('Dashboard', () => {
         usePageMock.mockReturnValue({ 
             props: { 
                 auth: { user: { name: 'Jane' } }, 
-                resourceCount: 17,
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
                 phpVersion: '8.4.12',
                 laravelVersion: '12.28.1'
             } 
@@ -85,21 +88,25 @@ describe('Dashboard', () => {
         expect(screen.getByText(/hello jane!/i)).toBeInTheDocument();
     });
 
-    it('displays the resource count in the statistics card', () => {
+    it('displays the data resource count and institution count in the statistics card', () => {
         render(<Dashboard />);
-        const statsSection = screen.getByText(/datasets from y data centers of z institutions/i);
-        const count = within(statsSection).getByText('17');
-        expect(count.tagName).toBe('STRONG');
-        expect(count).toHaveClass('font-semibold');
-        expect(statsSection).toHaveTextContent('17 datasets from y data centers of z institutions');
+        const statsCard = screen.getByText(/datasets from/i).closest('p');
+        expect(statsCard).toHaveTextContent('17 datasets from 3 institutions');
     });
 
-    it('falls back to zero datasets when the count is unavailable', () => {
+    it('displays the IGSN count and institution count in the statistics card', () => {
+        render(<Dashboard />);
+        const igsnStats = screen.getByText(/IGSNs from/i).closest('p');
+        expect(igsnStats).toHaveTextContent('5 IGSNs from 2 institutions');
+    });
+
+    it('falls back to zero for all counts when props are unavailable', () => {
         usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
         render(<Dashboard />);
-        const statsSection = screen.getByText(/datasets from y data centers of z institutions/i);
-        expect(within(statsSection).getByText('0')).toBeInTheDocument();
-        expect(statsSection).toHaveTextContent('0 datasets from y data centers of z institutions');
+        const dataStats = screen.getByText(/datasets from/i).closest('p');
+        const igsnStats = screen.getByText(/IGSNs from/i).closest('p');
+        expect(dataStats).toHaveTextContent('0 datasets from 0 institutions');
+        expect(igsnStats).toHaveTextContent('0 IGSNs from 0 institutions');
     });
 
     it('links the ERNIE version to the changelog', () => {
@@ -137,7 +144,10 @@ describe('Dashboard', () => {
         usePageMock.mockReturnValueOnce({ 
             props: { 
                 auth: { user: { name: 'Jane' } }, 
-                resourceCount: 17,
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
                 phpVersion: '8.5.3',
                 laravelVersion: '12.28.1'
             } 
@@ -154,7 +164,10 @@ describe('Dashboard', () => {
         usePageMock.mockReturnValueOnce({ 
             props: { 
                 auth: { user: { name: 'Jane' } }, 
-                resourceCount: 17,
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
                 phpVersion: '8.4.12',
                 laravelVersion: '13.5.10'
             } 
@@ -171,7 +184,10 @@ describe('Dashboard', () => {
         usePageMock.mockReturnValueOnce({ 
             props: { 
                 auth: { user: { name: 'Jane' } }, 
-                resourceCount: 17
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2
             } 
         });
         render(<Dashboard />);
