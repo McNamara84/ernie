@@ -233,7 +233,7 @@ export default function AuthorItem({
                                 {/* Format valid badge when checksum is valid but online verification failed */}
                                 {isFormatValid &&
                                     !author.orcidVerified &&
-                                    (errorType === 'timeout' || errorType === 'api_error') && (
+                                    (errorType === 'timeout' || errorType === 'api_error' || errorType === 'network') && (
                                         <Badge
                                             variant="outline"
                                             className="mt-1 h-4 border-yellow-600 px-1.5 py-0 text-[10px] leading-none text-yellow-600"

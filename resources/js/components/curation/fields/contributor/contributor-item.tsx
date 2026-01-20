@@ -288,7 +288,7 @@ export default function ContributorItem({
                                 </div>
                             )}
                             {/* Format valid badge when checksum is valid but online verification failed */}
-                            {isFormatValid && !contributor.orcidVerified && (errorType === 'timeout' || errorType === 'api_error') && (
+                            {isFormatValid && !contributor.orcidVerified && (errorType === 'timeout' || errorType === 'api_error' || errorType === 'network') && (
                                 <Badge variant="outline" className="mt-1 h-4 border-yellow-600 px-1.5 py-0 text-[10px] leading-none text-yellow-600">
                                     Format valid (unverified)
                                 </Badge>

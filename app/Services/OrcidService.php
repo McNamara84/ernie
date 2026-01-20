@@ -52,7 +52,10 @@ class OrcidService
     /**
      * Maximum retry attempts for transient failures
      */
-    private const MAX_RETRIES = 2;
+    /**
+     * Maximum number of attempts for API calls (1 initial + retries)
+     */
+    private const MAX_ATTEMPTS = 3;
 
     /**
      * Initial retry delay in seconds (doubles with each retry)
@@ -158,7 +161,7 @@ class OrcidService
         // Try API with retry logic for transient failures
         $retryDelay = self::RETRY_DELAY;
 
-        for ($attempt = 1; $attempt <= self::MAX_RETRIES; $attempt++) {
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
             try {
                 $response = Http::timeout(self::VALIDATION_TIMEOUT)
                     ->acceptJson()
@@ -186,7 +189,7 @@ class OrcidService
                 }
 
                 // Server error (5xx) - retry if attempts remain
-                if ($response->status() >= 500 && $attempt < self::MAX_RETRIES) {
+                if ($response->status() >= 500 && $attempt < self::MAX_ATTEMPTS) {
                     Log::info('ORCID API server error, retrying', [
                         'orcid' => $orcid,
                         'attempt' => $attempt,
@@ -210,7 +213,7 @@ class OrcidService
                     'error' => $e->getMessage(),
                 ]);
 
-                if ($attempt < self::MAX_RETRIES) {
+                if ($attempt < self::MAX_ATTEMPTS) {
                     sleep($retryDelay);
                     $retryDelay *= 2;
                     continue;
@@ -230,7 +233,7 @@ class OrcidService
                     'error' => $e->getMessage(),
                 ]);
 
-                if ($attempt < self::MAX_RETRIES) {
+                if ($attempt < self::MAX_ATTEMPTS) {
                     sleep($retryDelay);
                     $retryDelay *= 2;
                     continue;
