@@ -305,4 +305,34 @@ describe('OrcidService', () => {
             expect(result.error).toBe('Network error: Could not search ORCID');
         });
     });
+
+    describe('validateChecksum', () => {
+        it('returns true for valid ORCID with correct checksum', () => {
+            // These are verified valid ORCIDs
+            expect(OrcidService.validateChecksum('0000-0002-1825-0097')).toBe(true);
+            expect(OrcidService.validateChecksum('0000-0001-5109-3700')).toBe(true);
+            expect(OrcidService.validateChecksum('0000-0002-0275-1903')).toBe(true); // Issue #403 ORCID
+        });
+
+        it('returns true for valid ORCID ending with X', () => {
+            expect(OrcidService.validateChecksum('0000-0002-9079-593X')).toBe(true);
+            expect(OrcidService.validateChecksum('0000-0002-9079-593x')).toBe(true); // lowercase X
+        });
+
+        it('returns false for ORCID with invalid checksum', () => {
+            expect(OrcidService.validateChecksum('0000-0002-1825-0098')).toBe(false); // Wrong check digit
+            expect(OrcidService.validateChecksum('0000-0000-0000-0000')).toBe(false);
+            expect(OrcidService.validateChecksum('1234-5678-9012-3456')).toBe(false);
+        });
+
+        it('returns false for invalid format', () => {
+            expect(OrcidService.validateChecksum('0000-0002-1825')).toBe(false); // Too short
+            expect(OrcidService.validateChecksum('')).toBe(false);
+            expect(OrcidService.validateChecksum('invalid')).toBe(false);
+        });
+
+        it('returns false for ORCID with non-numeric characters in body', () => {
+            expect(OrcidService.validateChecksum('000A-0002-1825-0097')).toBe(false);
+        });
+    });
 });
