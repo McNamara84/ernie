@@ -5,7 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class ResourceType extends Model
 {
@@ -60,6 +62,26 @@ class ResourceType extends Model
     {
         /** @var HasMany<\App\Models\Resource, static> $relation */
         $relation = $this->hasMany(Resource::class);
+
+        return $relation;
+    }
+
+    /**
+     * Licenses (Rights) that EXCLUDE this resource type.
+     *
+     * If a license is in this relationship, that license is NOT available for this resource type.
+     *
+     * @return BelongsToMany<Right, static, Pivot, 'pivot'>
+     */
+    public function excludedFromRights(): BelongsToMany
+    {
+        /** @var BelongsToMany<Right, static, Pivot, 'pivot'> $relation */
+        $relation = $this->belongsToMany(
+            Right::class,
+            'right_resource_type_exclusions',
+            'resource_type_id',
+            'right_id'
+        )->withTimestamps();
 
         return $relation;
     }

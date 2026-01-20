@@ -30,6 +30,8 @@ class UpdateSettingsRequest extends FormRequest
             'licenses.*.id' => ['required', 'integer', 'exists:rights,id'],
             'licenses.*.active' => ['required', 'boolean'],
             'licenses.*.elmo_active' => ['required', 'boolean'],
+            'licenses.*.excluded_resource_type_ids' => ['present', 'array'],
+            'licenses.*.excluded_resource_type_ids.*' => ['integer', 'exists:resource_types,id'],
             'languages' => ['required', 'array'],
             'languages.*.id' => ['required', 'integer', 'exists:languages,id'],
             'languages.*.active' => ['required', 'boolean'],

@@ -27,6 +27,7 @@ Route::get('/v1/date-types', [DateTypeController::class, 'index']);
 Route::middleware('elmo.api-key')->get('/v1/date-types/elmo', [DateTypeController::class, 'elmo']);
 Route::get('/v1/date-types/ernie', [DateTypeController::class, 'ernie']);
 Route::get('/v1/licenses', [LicenseController::class, 'index']);
+Route::middleware('elmo.api-key')->get('/v1/licenses/elmo/{resourceTypeSlug}', [LicenseController::class, 'elmoForResourceType']);
 Route::middleware('elmo.api-key')->get('/v1/licenses/elmo', [LicenseController::class, 'elmo']);
 Route::get('/v1/licenses/ernie', [LicenseController::class, 'ernie']);
 Route::get('/v1/languages', [LanguageController::class, 'index']);

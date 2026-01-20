@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ResourceType;
 use App\Models\Right;
 use Illuminate\Http\JsonResponse;
 
@@ -33,6 +34,29 @@ class LicenseController extends Controller
         $rights = Right::query()
             ->active()
             ->elmoActive()
+            ->orderByName()
+            ->get(['id', 'identifier', 'name']);
+
+        return response()->json($rights);
+    }
+
+    /**
+     * Return all rights/licenses that are active for ELMO and available for a specific resource type.
+     */
+    public function elmoForResourceType(string $resourceTypeSlug): JsonResponse
+    {
+        $resourceType = ResourceType::where('slug', $resourceTypeSlug)->first();
+
+        if (! $resourceType) {
+            return response()->json([
+                'message' => 'Resource type not found.',
+            ], 404);
+        }
+
+        $rights = Right::query()
+            ->active()
+            ->elmoActive()
+            ->availableForResourceType($resourceType->id)
             ->orderByName()
             ->get(['id', 'identifier', 'name']);
 

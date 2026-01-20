@@ -232,7 +232,7 @@ describe('EditorSettings with Thesauri', function () {
                 ['id' => $titleType->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => true, 'elmo_active' => true],
             ],
             'licenses' => [
-                ['id' => $license->id, 'active' => true, 'elmo_active' => true],
+                ['id' => $license->id, 'active' => true, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
             ],
             'languages' => [
                 ['id' => $language->id, 'active' => true, 'elmo_active' => true],

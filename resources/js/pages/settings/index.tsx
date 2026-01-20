@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 
+import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ interface LicenseRow {
     name: string;
     active: boolean;
     elmo_active: boolean;
+    excluded_resource_type_ids: number[];
 }
 
 interface LanguageRow {
@@ -93,6 +95,7 @@ export default function EditorSettings({
             name: l.name,
             active: l.active,
             elmo_active: l.elmo_active,
+            excluded_resource_type_ids: l.excluded_resource_type_ids,
         })),
         languages: languages.map((l) => ({
             id: l.id,
@@ -171,6 +174,13 @@ export default function EditorSettings({
         setData(
             'licenses',
             data.licenses.map((l, i) => (i === index ? { ...l, elmo_active: value } : l)),
+        );
+    };
+
+    const handleLicenseExcludedResourceTypesChange = (index: number, excludedIds: number[]) => {
+        setData(
+            'licenses',
+            data.licenses.map((l, i) => (i === index ? { ...l, excluded_resource_type_ids: excludedIds } : l)),
         );
     };
 
@@ -254,6 +264,11 @@ export default function EditorSettings({
                                                     <br />
                                                     active
                                                 </th>
+                                                <th className="border-b p-2 text-center">
+                                                    Resource
+                                                    <br />
+                                                    Types
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -280,6 +295,20 @@ export default function EditorSettings({
                                                             id={`lic-elmo-active-${license.id}`}
                                                             checked={license.elmo_active}
                                                             onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
+                                                        />
+                                                    </td>
+                                                    <td className="border-b p-2 text-center">
+                                                        <LicenseResourceTypePopover
+                                                            licenseId={license.id}
+                                                            licenseName={license.name}
+                                                            resourceTypes={data.resourceTypes.map((rt) => ({
+                                                                id: rt.id,
+                                                                name: rt.name,
+                                                            }))}
+                                                            excludedIds={license.excluded_resource_type_ids}
+                                                            onExcludedChange={(ids) =>
+                                                                handleLicenseExcludedResourceTypesChange(index, ids)
+                                                            }
                                                         />
                                                     </td>
                                                 </tr>
