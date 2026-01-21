@@ -281,7 +281,7 @@ class DataCiteXmlExporter
                 $titleElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->iso_code ?? 'en'
+                    $resource->language->code ?? 'en'
                 );
             }
 
@@ -712,13 +712,25 @@ class DataCiteXmlExporter
 
     /**
      * Build language element (optional)
+     *
+     * For IGSN resources without explicit language, defaults to 'en'
+     * since IGSN CSV imports don't include language data.
      */
     private function buildLanguage(Resource $resource): void
     {
+        $languageCode = null;
+
         if ($resource->language) {
+            $languageCode = $resource->language->code ?? 'en';
+        } elseif ($resource->igsnMetadata) {
+            // IGSN resources default to English
+            $languageCode = 'en';
+        }
+
+        if ($languageCode !== null) {
             $language = $this->dom->createElement(
                 'language',
-                htmlspecialchars($resource->language->iso_code ?? 'en')
+                htmlspecialchars($languageCode)
             );
             $this->root->appendChild($language);
         }
@@ -876,7 +888,7 @@ class DataCiteXmlExporter
                 $rightsElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->iso_code ?? 'en'
+                    $resource->language->code ?? 'en'
                 );
             }
 
@@ -905,7 +917,7 @@ class DataCiteXmlExporter
                 $descriptionElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->iso_code ?? 'en'
+                    $resource->language->code ?? 'en'
                 );
             }
 

@@ -91,8 +91,12 @@ class DataCiteJsonExporter
             $attributes['dates'] = $dates;
         }
 
+        // Language: use resource language if set, or default to 'en' for IGSN resources
         if ($resource->language) {
-            $attributes['language'] = $resource->language->iso_code ?? 'en';
+            $attributes['language'] = $resource->language->code ?? 'en';
+        } elseif ($resource->igsnMetadata) {
+            // IGSN resources default to English since IGSN CSV doesn't include language
+            $attributes['language'] = 'en';
         }
 
         if ($resource->version) {
@@ -174,7 +178,7 @@ class DataCiteJsonExporter
 
             // Add language if available
             if ($resource->language) {
-                $titleData['lang'] = $resource->language->iso_code ?? 'en';
+                $titleData['lang'] = $resource->language->code ?? 'en';
             }
 
             $titles[] = $titleData;
@@ -623,7 +627,7 @@ class DataCiteJsonExporter
 
             // Add language if available
             if ($resource->language) {
-                $descriptionData['lang'] = $resource->language->iso_code ?? 'en';
+                $descriptionData['lang'] = $resource->language->code ?? 'en';
             }
 
             $descriptions[] = $descriptionData;
@@ -702,7 +706,7 @@ class DataCiteJsonExporter
 
             // Add language if available
             if ($resource->language) {
-                $rightsData['lang'] = $resource->language->iso_code ?? 'en';
+                $rightsData['lang'] = $resource->language->code ?? 'en';
             }
 
             $rightsList[] = $rightsData;

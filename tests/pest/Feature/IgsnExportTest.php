@@ -2460,3 +2460,189 @@ describe('IGSN Size Export', function () {
         expect($json['data']['attributes'])->not->toHaveKey('sizes');
     });
 });
+
+describe('IGSN Language Export', function () {
+    it('exports language as "en" for IGSN resources without explicit language', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        // IGSN resource without language set
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.LANGTEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => null, // No language set
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Language Test Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        // IGSN resources should default to 'en'
+        expect($json['data']['attributes'])->toHaveKey('language')
+            ->and($json['data']['attributes']['language'])->toBe('en');
+    });
+
+    it('exports language as "en" for IGSN resources to XML', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.LANGXMLTEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => null,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Language XML Test Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        expect($xml)->toContain('<language>en</language>');
+    });
+
+    it('does not export language for non-IGSN resources without explicit language', function () {
+        $user = User::factory()->create();
+        $datasetType = ResourceType::where('name', 'Dataset')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        // Non-IGSN resource (Dataset) without language
+        $resource = Resource::create([
+            'doi' => '10.5880/TEST.NOLANG.2026.001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $datasetType->id,
+            'language_id' => null,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Dataset Without Language',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Regular',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        // Non-IGSN resources without language should NOT have language key
+        expect($json['data']['attributes'])->not->toHaveKey('language');
+    });
+
+    it('respects explicit language for IGSN resources', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $germanLanguage = \App\Models\Language::where('code', 'de')->first();
+
+        // Skip test if German language not seeded
+        if (! $germanLanguage) {
+            $this->markTestSkipped('German language not available in database');
+        }
+
+        // IGSN resource with explicit German language
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.LANGDE',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $germanLanguage->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'German Language Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        // Explicit language should be used (German)
+        expect($json['data']['attributes']['language'])->toBe('de');
+    });
+});
