@@ -39,13 +39,6 @@ test('extracts contributors from uploaded XML', function () {
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
-    <contributor contributorType="ContactPerson">
-      <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-      <givenName>ExampleGivenName</givenName>
-      <familyName>ExampleFamilyName</familyName>
-      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
-      <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
-    </contributor>
     <contributor contributorType="WorkPackageLeader">
       <contributorName nameType="Personal">ExampleLeaderFamily, ExampleLeaderGiven</contributorName>
       <givenName>ExampleLeaderGiven</givenName>
@@ -66,28 +59,18 @@ XML;
         ->assertOk();
 
     $response->assertSessionDataPath('contributors.0.type', 'person');
-    $response->assertSessionDataPath('contributors.0.roles', ['Contact Person']);
-    $response->assertSessionDataPath('contributors.0.orcid', '0000-0001-5727-2427');
-    $response->assertSessionDataPath('contributors.0.firstName', 'ExampleGivenName');
-    $response->assertSessionDataPath('contributors.0.lastName', 'ExampleFamilyName');
-    // Affiliation value can be either XML text or ROR-resolved name, depending on cache availability
-    expect($response->sessionData('contributors.0.affiliations.0.value'))
-        ->toBeIn(['ExampleAffiliation', 'DataCite']);
-    $response->assertSessionDataPath('contributors.0.affiliations.0.rorId', 'https://ror.org/04wxnsj81');
+    $response->assertSessionDataPath('contributors.0.roles', ['Work Package Leader']);
+    $response->assertSessionDataPath('contributors.0.orcid', '0000-0002-5727-2427');
+    $response->assertSessionDataPath('contributors.0.firstName', 'ExampleLeaderGiven');
+    $response->assertSessionDataPath('contributors.0.lastName', 'ExampleLeaderFamily');
 
-    $response->assertSessionDataPath('contributors.1.type', 'person');
-    $response->assertSessionDataPath('contributors.1.roles', ['Work Package Leader']);
-    $response->assertSessionDataPath('contributors.1.orcid', '0000-0002-5727-2427');
-    $response->assertSessionDataPath('contributors.1.firstName', 'ExampleLeaderGiven');
-    $response->assertSessionDataPath('contributors.1.lastName', 'ExampleLeaderFamily');
-
-    $response->assertSessionDataPath('contributors.2.type', 'institution');
-    $response->assertSessionDataPath('contributors.2.roles', ['Distributor']);
-    $response->assertSessionDataPath('contributors.2.institutionName', 'ExampleOrganization');
+    $response->assertSessionDataPath('contributors.1.type', 'institution');
+    $response->assertSessionDataPath('contributors.1.roles', ['Distributor']);
+    $response->assertSessionDataPath('contributors.1.institutionName', 'ExampleOrganization');
     // Affiliation can be institution name or ROR-resolved name
-    expect($response->sessionData('contributors.2.affiliations.0.value'))
+    expect($response->sessionData('contributors.1.affiliations.0.value'))
         ->toBeIn(['ExampleOrganization', 'California Digital Library']);
-    $response->assertSessionDataPath('contributors.2.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+    $response->assertSessionDataPath('contributors.1.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
 });
 
 test('treats research group contributors without a name type as institutions', function () {
@@ -126,14 +109,14 @@ test('deduplicates contributors that appear multiple times with different roles'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
-    <contributor contributorType="ContactPerson">
+    <contributor contributorType="DataCurator">
       <contributorName nameType="Personal">ExampleFamilyNameCP, ExampleGivenNameCP</contributorName>
       <givenName>ExampleGivenNameCP</givenName>
       <familyName>ExampleFamilyNameCP</familyName>
       <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
       <affiliation>ExampleAffiliation</affiliation>
     </contributor>
-    <contributor contributorType="DataCurator">
+    <contributor contributorType="DataManager">
       <contributorName nameType="Personal">ExampleFamilyNameCP, ExampleGivenNameCP</contributorName>
       <givenName>ExampleGivenNameCP</givenName>
       <familyName>ExampleFamilyNameCP</familyName>
@@ -159,7 +142,7 @@ XML;
     $response->assertSessionDataCount(2, 'contributors');
 
     $response->assertSessionDataPath('contributors.0.type', 'person');
-    $response->assertSessionDataPath('contributors.0.roles', ['Contact Person', 'Data Curator']);
+    $response->assertSessionDataPath('contributors.0.roles', ['Data Curator', 'Data Manager']);
     $response->assertSessionDataPath('contributors.0.orcid', '0000-0001-5727-2427');
     $response->assertSessionDataPath('contributors.0.affiliations.0.value', 'ExampleAffiliation');
     $response->assertSessionDataPath('contributors.0.affiliations.1.value', 'Additional Affiliation');
@@ -521,4 +504,338 @@ XML;
     // "GCMD Instruments" (short format)
     $response->assertSessionDataPath('gcmdKeywords.2.scheme', 'Instruments');
     $response->assertSessionDataPath('gcmdKeywords.2.uuid', 'd8480746-ff39-4de8-ba2e-b5de47890c78');
+});
+
+// =============================================================================
+// Contact Person Handling Tests (Issue #404)
+// =============================================================================
+
+test('marks author as contact person when ContactPerson contributor matches by ORCID', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Doe, Jane</creatorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0001-2345-6789</nameIdentifier>
+    </creator>
+  </creators>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Doe, Jane</contributorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0001-2345-6789</nameIdentifier>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('contact-by-orcid.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Author should be marked as contact person
+    $response->assertSessionDataPath('authors.0.isContact', true);
+    $response->assertSessionDataPath('authors.0.firstName', 'Jane');
+    $response->assertSessionDataPath('authors.0.lastName', 'Doe');
+
+    // ContactPerson should NOT be in contributors
+    $response->assertSessionDataCount(0, 'contributors');
+});
+
+test('marks author as contact person when ContactPerson contributor matches by name', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Smith, John</creatorName>
+      <givenName>John</givenName>
+      <familyName>Smith</familyName>
+    </creator>
+  </creators>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Smith, John</contributorName>
+      <givenName>John</givenName>
+      <familyName>Smith</familyName>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('contact-by-name.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Author should be marked as contact person
+    $response->assertSessionDataPath('authors.0.isContact', true);
+
+    // ContactPerson should NOT be in contributors
+    $response->assertSessionDataCount(0, 'contributors');
+});
+
+test('adds ContactPerson as new author when not matching existing creator', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Doe, Jane</creatorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+    </creator>
+  </creators>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Different, Person</contributorName>
+      <givenName>Person</givenName>
+      <familyName>Different</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0009-8765-4321</nameIdentifier>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('contact-new-author.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Two authors: original creator and new contact person
+    $response->assertSessionDataCount(2, 'authors');
+
+    // First author (original creator) should NOT be contact person
+    $response->assertSessionDataPath('authors.0.firstName', 'Jane');
+    $response->assertSessionDataPath('authors.0.lastName', 'Doe');
+    expect($response->sessionData('authors.0.isContact'))->toBeFalsy();
+
+    // Second author (added from ContactPerson) should be contact person
+    $response->assertSessionDataPath('authors.1.firstName', 'Person');
+    $response->assertSessionDataPath('authors.1.lastName', 'Different');
+    $response->assertSessionDataPath('authors.1.isContact', true);
+    $response->assertSessionDataPath('authors.1.orcid', '0000-0009-8765-4321');
+
+    // ContactPerson should NOT be in contributors
+    $response->assertSessionDataCount(0, 'contributors');
+});
+
+test('extracts email and website from ISO pointOfContact for contact person', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xmlPath = base_path('tests/pest/dataset-examples/contact-person-with-iso.xml');
+    $xmlContent = file_get_contents($xmlPath);
+
+    $file = UploadedFile::fake()->createWithContent('contact-with-iso.xml', $xmlContent);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Author should be marked as contact person with email and website from ISO
+    $response->assertSessionDataPath('authors.0.isContact', true);
+    $response->assertSessionDataPath('authors.0.firstName', 'Max');
+    $response->assertSessionDataPath('authors.0.lastName', 'Mustermann');
+    $response->assertSessionDataPath('authors.0.email', 'max.mustermann@example.org');
+    $response->assertSessionDataPath('authors.0.website', 'https://example.org/mustermann');
+
+    // ContactPerson should NOT be in contributors
+    $response->assertSessionDataCount(0, 'contributors');
+});
+
+test('handles XML without ISO part gracefully', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Doe, Jane</creatorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+    </creator>
+  </creators>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Doe, Jane</contributorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('contact-no-iso.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Author should be marked as contact person but without email/website
+    $response->assertSessionDataPath('authors.0.isContact', true);
+    $response->assertSessionDataPath('authors.0.email', '');
+    $response->assertSessionDataPath('authors.0.website', '');
+});
+
+test('matches correct email to correct person with multiple contact persons', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Mueller, Max</creatorName>
+      <givenName>Max</givenName>
+      <familyName>Mueller</familyName>
+    </creator>
+    <creator>
+      <creatorName nameType="Personal">Schmidt, Anna</creatorName>
+      <givenName>Anna</givenName>
+      <familyName>Schmidt</familyName>
+    </creator>
+  </creators>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Mueller, Max</contributorName>
+      <givenName>Max</givenName>
+      <familyName>Mueller</familyName>
+    </contributor>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Schmidt, Anna</contributorName>
+      <givenName>Anna</givenName>
+      <familyName>Schmidt</familyName>
+    </contributor>
+  </contributors>
+</resource>
+<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
+  <identificationInfo>
+    <MD_DataIdentification>
+      <pointOfContact>
+        <CI_ResponsibleParty>
+          <individualName>
+            <gco:CharacterString>Mueller, Max</gco:CharacterString>
+          </individualName>
+          <contactInfo>
+            <CI_Contact>
+              <address>
+                <CI_Address>
+                  <electronicMailAddress>
+                    <gco:CharacterString>max@example.com</gco:CharacterString>
+                  </electronicMailAddress>
+                </CI_Address>
+              </address>
+              <onlineResource>
+                <CI_OnlineResource>
+                  <linkage>
+                    <URL>https://max.example.com</URL>
+                  </linkage>
+                </CI_OnlineResource>
+              </onlineResource>
+            </CI_Contact>
+          </contactInfo>
+        </CI_ResponsibleParty>
+      </pointOfContact>
+      <pointOfContact>
+        <CI_ResponsibleParty>
+          <individualName>
+            <gco:CharacterString>Schmidt, Anna</gco:CharacterString>
+          </individualName>
+          <contactInfo>
+            <CI_Contact>
+              <address>
+                <CI_Address>
+                  <electronicMailAddress>
+                    <gco:CharacterString>anna@example.com</gco:CharacterString>
+                  </electronicMailAddress>
+                </CI_Address>
+              </address>
+              <onlineResource>
+                <CI_OnlineResource>
+                  <linkage>
+                    <URL>https://anna.example.com</URL>
+                  </linkage>
+                </CI_OnlineResource>
+              </onlineResource>
+            </CI_Contact>
+          </contactInfo>
+        </CI_ResponsibleParty>
+      </pointOfContact>
+    </MD_DataIdentification>
+  </identificationInfo>
+</MD_Metadata>
+</envelope>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('multiple-contacts.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Both authors should be contact persons with their respective emails
+    $response->assertSessionDataPath('authors.0.isContact', true);
+    $response->assertSessionDataPath('authors.0.firstName', 'Max');
+    $response->assertSessionDataPath('authors.0.lastName', 'Mueller');
+    $response->assertSessionDataPath('authors.0.email', 'max@example.com');
+    $response->assertSessionDataPath('authors.0.website', 'https://max.example.com');
+
+    $response->assertSessionDataPath('authors.1.isContact', true);
+    $response->assertSessionDataPath('authors.1.firstName', 'Anna');
+    $response->assertSessionDataPath('authors.1.lastName', 'Schmidt');
+    $response->assertSessionDataPath('authors.1.email', 'anna@example.com');
+    $response->assertSessionDataPath('authors.1.website', 'https://anna.example.com');
+});
+
+test('excludes ContactPerson from contributors array', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Doe, Jane</creatorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+    </creator>
+  </creators>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Doe, Jane</contributorName>
+      <givenName>Jane</givenName>
+      <familyName>Doe</familyName>
+    </contributor>
+    <contributor contributorType="DataCurator">
+      <contributorName nameType="Personal">Other, Person</contributorName>
+      <givenName>Person</givenName>
+      <familyName>Other</familyName>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('mixed-contributors.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Only the non-ContactPerson contributor should be in contributors
+    $response->assertSessionDataCount(1, 'contributors');
+    $response->assertSessionDataPath('contributors.0.firstName', 'Person');
+    $response->assertSessionDataPath('contributors.0.lastName', 'Other');
+    $response->assertSessionDataPath('contributors.0.roles', ['Data Curator']);
+
+    // ContactPerson should be merged into author
+    $response->assertSessionDataPath('authors.0.isContact', true);
 });
