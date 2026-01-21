@@ -179,6 +179,9 @@ class DataCiteJsonExporter
             // Add language if available
             if ($resource->language) {
                 $titleData['lang'] = $resource->language->code ?? 'en';
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $titleData['lang'] = 'en';
             }
 
             $titles[] = $titleData;
@@ -628,6 +631,9 @@ class DataCiteJsonExporter
             // Add language if available
             if ($resource->language) {
                 $descriptionData['lang'] = $resource->language->code ?? 'en';
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $descriptionData['lang'] = 'en';
             }
 
             $descriptions[] = $descriptionData;

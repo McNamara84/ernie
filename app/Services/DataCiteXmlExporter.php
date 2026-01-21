@@ -283,6 +283,13 @@ class DataCiteXmlExporter
                     'xml:lang',
                     $resource->language->code ?? 'en'
                 );
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $titleElement->setAttributeNS(
+                    self::XML_NAMESPACE,
+                    'xml:lang',
+                    'en'
+                );
             }
 
             $titles->appendChild($titleElement);
@@ -918,6 +925,13 @@ class DataCiteXmlExporter
                     self::XML_NAMESPACE,
                     'xml:lang',
                     $resource->language->code ?? 'en'
+                );
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $descriptionElement->setAttributeNS(
+                    self::XML_NAMESPACE,
+                    'xml:lang',
+                    'en'
                 );
             }
 
