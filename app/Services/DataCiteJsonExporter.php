@@ -107,6 +107,11 @@ class DataCiteJsonExporter
             $attributes['geoLocations'] = $geoLocations;
         }
 
+        // For IGSN resources, export AlternativeTitles as alternateIdentifiers
+        if ($alternateIdentifiers = $this->buildAlternateIdentifiers($resource)) {
+            $attributes['alternateIdentifiers'] = $alternateIdentifiers;
+        }
+
         if ($relatedIdentifiers = $this->buildRelatedIdentifiers($resource)) {
             $attributes['relatedIdentifiers'] = $relatedIdentifiers;
         }
@@ -740,6 +745,40 @@ class DataCiteJsonExporter
         }
 
         return ! empty($geoLocationsData) ? $geoLocationsData : null;
+    }
+
+    /**
+     * Build alternate identifiers array for IGSN resources.
+     *
+     * For IGSN (Physical Object) resources, exports Titles with type "Other"
+     * as alternateIdentifiers with type "Local sample name".
+     * This maps the 'name' and 'sample_other_names' CSV fields to DataCite
+     * alternateIdentifiers per Issue #445.
+     *
+     * Note: These titles are ALSO exported as regular titles with titleType "Other".
+     *
+     * @return array<int, array{alternateIdentifier: string, alternateIdentifierType: string}>|null
+     */
+    private function buildAlternateIdentifiers(Resource $resource): ?array
+    {
+        // Only for IGSN resources (Physical Object type)
+        if (! $resource->igsnMetadata) {
+            return null;
+        }
+
+        $alternateIdentifiers = [];
+
+        // Get Titles with type "Other" - these are 'name' and 'sample_other_names' from CSV
+        foreach ($resource->titles as $title) {
+            if ($title->titleType?->slug === 'Other') {
+                $alternateIdentifiers[] = [
+                    'alternateIdentifier' => $title->value,
+                    'alternateIdentifierType' => 'Local sample name',
+                ];
+            }
+        }
+
+        return ! empty($alternateIdentifiers) ? $alternateIdentifiers : null;
     }
 
     /**

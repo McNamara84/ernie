@@ -726,11 +726,42 @@ class DataCiteXmlExporter
 
     /**
      * Build alternateIdentifiers element (optional)
+     *
+     * For IGSN (Physical Object) resources, exports Titles with type "Other"
+     * as alternateIdentifiers with type "Local sample name".
+     * This maps the 'name' and 'sample_other_names' CSV fields to DataCite
+     * alternateIdentifiers per Issue #445.
+     *
+     * Note: These titles are ALSO exported as regular titles with titleType "Other".
      */
     private function buildAlternateIdentifiers(Resource $resource): void
     {
-        // Currently not implemented in ERNIE data model
-        // Placeholder for future implementation
+        // Only for IGSN resources (Physical Object type)
+        if (! $resource->igsnMetadata) {
+            return;
+        }
+
+        // Get Titles with type "Other" - these are 'name' and 'sample_other_names' from CSV
+        $otherTitles = $resource->titles->filter(
+            fn ($title) => $title->titleType?->slug === 'Other'
+        );
+
+        if ($otherTitles->isEmpty()) {
+            return;
+        }
+
+        $alternateIdentifiers = $this->dom->createElement('alternateIdentifiers');
+
+        foreach ($otherTitles as $title) {
+            $alternateIdentifier = $this->dom->createElement(
+                'alternateIdentifier',
+                htmlspecialchars($title->value)
+            );
+            $alternateIdentifier->setAttribute('alternateIdentifierType', 'Local sample name');
+            $alternateIdentifiers->appendChild($alternateIdentifier);
+        }
+
+        $this->root->appendChild($alternateIdentifiers);
     }
 
     /**

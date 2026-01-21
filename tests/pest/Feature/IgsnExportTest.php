@@ -1655,3 +1655,368 @@ describe('IGSN GeoLocation Export', function () {
         expect($xml)->toMatch('/<northBoundLatitude>53/');
     });
 });
+
+/**
+ * Tests for Issue #445: alternateIdentifier Element
+ *
+ * Mapping specification:
+ * | DC Element              | CSV Table Header    | Default values     |
+ * |-------------------------|---------------------|-------------------|
+ * | alternateIdentifier     | sample_other_names  | --                |
+ * | alternateIdentifier     | name                | --                |
+ * | alternateIdentifierType | --                  | Local sample name |
+ *
+ * Note: name and sample_other_names are stored as Titles with titleType "Other"
+ * AND additionally exported as alternateIdentifiers for IGSN resources.
+ *
+ * @see https://github.com/McNamara84/ernie/issues/445
+ */
+describe('IGSN AlternateIdentifier Export', function () {
+    it('exports name field as alternateIdentifier with type "Local sample name"', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+        $otherTitleType = TitleType::where('slug', 'Other')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.ALT-001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        // Main title
+        $resource->titles()->create([
+            'value' => 'DOVE Borehole Sample 001',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // Name field stored as Title with type "Other" (exported as both title AND alternateIdentifier)
+        $resource->titles()->create([
+            'value' => 'ICDP5068EH50001',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 2,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Jane',
+            'family_name' => 'Collector',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        expect($json['data']['attributes'])->toHaveKey('alternateIdentifiers');
+        $altIds = $json['data']['attributes']['alternateIdentifiers'];
+
+        expect($altIds)->toHaveCount(1);
+        expect($altIds[0]['alternateIdentifier'])->toBe('ICDP5068EH50001');
+        expect($altIds[0]['alternateIdentifierType'])->toBe('Local sample name');
+    });
+
+    it('exports sample_other_names as alternateIdentifiers', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+        $otherTitleType = TitleType::where('slug', 'Other')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.ALT-002',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Main Sample Title',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // Multiple sample_other_names stored as Titles with type "Other"
+        $resource->titles()->create([
+            'value' => 'DOVE-001',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 2,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample-A',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 3,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Local-ID-123',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 4,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'John',
+            'family_name' => 'Researcher',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $altIds = $json['data']['attributes']['alternateIdentifiers'];
+        expect($altIds)->toHaveCount(3);
+
+        // All should have the same type
+        foreach ($altIds as $altId) {
+            expect($altId['alternateIdentifierType'])->toBe('Local sample name');
+        }
+
+        // Check values
+        $values = array_column($altIds, 'alternateIdentifier');
+        expect($values)->toContain('DOVE-001');
+        expect($values)->toContain('Sample-A');
+        expect($values)->toContain('Local-ID-123');
+    });
+
+    it('does not export alternateIdentifiers for non-IGSN resources', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Dataset')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+        $otherTitleType = TitleType::where('slug', 'Other')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.5880/TEST.2026.001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Main Dataset Title',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // Title with type "Other" for regular resource - should stay as title only, not alternateIdentifier
+        $resource->titles()->create([
+            'value' => 'Other Dataset Name',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 2,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        // Non-IGSN resources should NOT have alternateIdentifiers
+        expect($json['data']['attributes'])->not->toHaveKey('alternateIdentifiers');
+
+        // But they should still have titles with "Other" type
+        $titles = $json['data']['attributes']['titles'];
+        $hasOtherTitle = false;
+        foreach ($titles as $title) {
+            if (($title['titleType'] ?? null) === 'Other') {
+                $hasOtherTitle = true;
+                break;
+            }
+        }
+        expect($hasOtherTitle)->toBeTrue();
+    });
+
+    it('does not export alternateIdentifiers when IGSN has no "Other" titles', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.ALT-003',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        // Only main title, no "Other" titles (name/sample_other_names)
+        $resource->titles()->create([
+            'value' => 'Only Main Title',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Jane',
+            'family_name' => 'Doe',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        // No alternateIdentifiers when there are no "Other" titles
+        expect($json['data']['attributes'])->not->toHaveKey('alternateIdentifiers');
+    });
+
+    it('exports alternateIdentifiers to XML format', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+        $otherTitleType = TitleType::where('slug', 'Other')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.ALT-XML-001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'XML Export Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'LOCAL-SAMPLE-ID-001',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 2,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'ARCHIVE-REF-XYZ',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 3,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'XML',
+            'family_name' => 'Tester',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        expect($xml)->toContain('<alternateIdentifiers>');
+        expect($xml)->toContain('<alternateIdentifier alternateIdentifierType="Local sample name">LOCAL-SAMPLE-ID-001</alternateIdentifier>');
+        expect($xml)->toContain('<alternateIdentifier alternateIdentifierType="Local sample name">ARCHIVE-REF-XYZ</alternateIdentifier>');
+        expect($xml)->toContain('</alternateIdentifiers>');
+    });
+
+    it('does not export alternateIdentifiers to XML for non-IGSN resources', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Dataset')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+        $otherTitleType = TitleType::where('slug', 'Other')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.5880/TEST.XML.2026.001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Regular Dataset',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Dataset Other Name',
+            'title_type_id' => $otherTitleType->id,
+            'position' => 2,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Regular',
+            'family_name' => 'User',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        // Non-IGSN resources should NOT have alternateIdentifiers element
+        expect($xml)->not->toContain('<alternateIdentifiers>');
+
+        // But should have the title with "Other" type
+        expect($xml)->toContain('titleType="Other"');
+        expect($xml)->toContain('Dataset Other Name');
+    });
+});
