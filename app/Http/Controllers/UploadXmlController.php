@@ -1868,13 +1868,35 @@ class UploadXmlController extends Controller
     }
 
     /**
+     * Get a direct child element from ISO 19115 content without normalization.
+     *
+     * Unlike firstElement(), this method does not flatten nested structures.
+     * This is necessary for ISO 19115 parsing where we need to traverse
+     * the deep hierarchy step by step.
+     *
+     * @param  array<string, mixed>  $content
+     */
+    private function getIsoChildElement(array $content, string $key): ?Element
+    {
+        if (! array_key_exists($key, $content)) {
+            return null;
+        }
+
+        $value = $content[$key];
+
+        return $value instanceof Element ? $value : null;
+    }
+
+    /**
      * Extract a CharacterString value from ISO 19115 content.
      *
      * ISO 19115 wraps most text values in gco:CharacterString elements.
+     *
+     * @param  array<string, mixed>  $content
      */
     private function extractIsoCharacterString(array $content, string $elementName): ?string
     {
-        $element = $this->firstElement($content, $elementName);
+        $element = $this->getIsoChildElement($content, $elementName);
 
         if ($element === null) {
             return null;
@@ -1887,9 +1909,12 @@ class UploadXmlController extends Controller
             return trim($innerContent);
         }
 
-        // Check for nested CharacterString (gco:CharacterString)
+        // Check for nested CharacterString (gco:CharacterString with or without prefix)
         if (is_array($innerContent)) {
-            $charString = $this->firstElement($innerContent, 'CharacterString');
+            // Try with namespace prefix first, then without
+            $charString = $this->getIsoChildElement($innerContent, 'gco:CharacterString')
+                ?? $this->getIsoChildElement($innerContent, 'CharacterString');
+
             if ($charString !== null) {
                 $value = $charString->getContent();
                 if (is_string($value)) {
@@ -1905,10 +1930,12 @@ class UploadXmlController extends Controller
      * Extract email address from ISO 19115 CI_ResponsibleParty content.
      *
      * Path: contactInfo/CI_Contact/address/CI_Address/electronicMailAddress/CharacterString
+     *
+     * @param  array<string, mixed>  $content
      */
     private function extractIsoEmail(array $content): ?string
     {
-        $contactInfoElement = $this->firstElement($content, 'contactInfo');
+        $contactInfoElement = $this->getIsoChildElement($content, 'contactInfo');
         if ($contactInfoElement === null) {
             return null;
         }
@@ -1918,7 +1945,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $ciContact = $this->firstElement($contactInfoContent, 'CI_Contact');
+        $ciContact = $this->getIsoChildElement($contactInfoContent, 'CI_Contact');
         if ($ciContact === null) {
             return null;
         }
@@ -1928,7 +1955,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $address = $this->firstElement($ciContactContent, 'address');
+        $address = $this->getIsoChildElement($ciContactContent, 'address');
         if ($address === null) {
             return null;
         }
@@ -1938,7 +1965,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $ciAddress = $this->firstElement($addressContent, 'CI_Address');
+        $ciAddress = $this->getIsoChildElement($addressContent, 'CI_Address');
         if ($ciAddress === null) {
             return null;
         }
@@ -1955,10 +1982,12 @@ class UploadXmlController extends Controller
      * Extract website URL from ISO 19115 CI_ResponsibleParty content.
      *
      * Path: contactInfo/CI_Contact/onlineResource/CI_OnlineResource/linkage/URL
+     *
+     * @param  array<string, mixed>  $content
      */
     private function extractIsoWebsite(array $content): ?string
     {
-        $contactInfoElement = $this->firstElement($content, 'contactInfo');
+        $contactInfoElement = $this->getIsoChildElement($content, 'contactInfo');
         if ($contactInfoElement === null) {
             return null;
         }
@@ -1968,7 +1997,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $ciContact = $this->firstElement($contactInfoContent, 'CI_Contact');
+        $ciContact = $this->getIsoChildElement($contactInfoContent, 'CI_Contact');
         if ($ciContact === null) {
             return null;
         }
@@ -1978,7 +2007,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $onlineResource = $this->firstElement($ciContactContent, 'onlineResource');
+        $onlineResource = $this->getIsoChildElement($ciContactContent, 'onlineResource');
         if ($onlineResource === null) {
             return null;
         }
@@ -1988,7 +2017,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $ciOnlineResource = $this->firstElement($onlineResourceContent, 'CI_OnlineResource');
+        $ciOnlineResource = $this->getIsoChildElement($onlineResourceContent, 'CI_OnlineResource');
         if ($ciOnlineResource === null) {
             return null;
         }
@@ -1998,7 +2027,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $linkage = $this->firstElement($ciOnlineResourceContent, 'linkage');
+        $linkage = $this->getIsoChildElement($ciOnlineResourceContent, 'linkage');
         if ($linkage === null) {
             return null;
         }
@@ -2008,7 +2037,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $urlElement = $this->firstElement($linkageContent, 'URL');
+        $urlElement = $this->getIsoChildElement($linkageContent, 'URL');
         if ($urlElement === null) {
             return null;
         }
