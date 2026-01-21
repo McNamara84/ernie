@@ -368,6 +368,101 @@ CSV;
 
         expect($result['rows'][0]['_geo_location']['place'])->toBe('Berlin, Germany');
     });
+
+    it('uses primary_location_name as fallback when locality is missing', function () {
+        $csv = <<<'CSV'
+igsn|title|name|primary_location_name
+10.58052/IGSN.1234|Title|Name|Munich Research Site
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('Munich Research Site');
+    });
+
+    it('prefers locality over primary_location_name when both present', function () {
+        $csv = <<<'CSV'
+igsn|title|name|locality|primary_location_name
+10.58052/IGSN.1234|Title|Name|Berlin|Munich Research Site
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('Berlin');
+    });
+
+    it('combines locality, city, province, country into place', function () {
+        $csv = <<<'CSV'
+igsn|title|name|locality|city|province|country
+10.58052/IGSN.1234|Title|Name|Winterstettenstadt|Biberach|Baden-Württemberg|Germany
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])
+            ->toBe('Winterstettenstadt, Biberach, Baden-Württemberg, Germany');
+    });
+
+    it('handles missing city and province gracefully', function () {
+        $csv = <<<'CSV'
+igsn|title|name|locality|country
+10.58052/IGSN.1234|Title|Name|Research Station|Antarctica
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('Research Station, Antarctica');
+    });
+
+    it('parses elevation with snake_case unit column', function () {
+        $csv = <<<'CSV'
+igsn|title|name|latitude|longitude|elevation|elevation_unit
+10.58052/IGSN.1234|Title|Name|52.5200|13.4050|100.0|meters
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['elevation'])->toBe(100.0)
+            ->and($result['rows'][0]['_geo_location']['elevationUnit'])->toBe('meters');
+    });
+
+    it('returns null for missing geo location data', function () {
+        $csv = <<<'CSV'
+igsn|title|name
+10.58052/IGSN.1234|Title|Name
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['latitude'])->toBeNull()
+            ->and($result['rows'][0]['_geo_location']['longitude'])->toBeNull()
+            ->and($result['rows'][0]['_geo_location']['elevation'])->toBeNull()
+            ->and($result['rows'][0]['_geo_location']['place'])->toBeNull();
+    });
+
+    it('parses negative coordinates correctly', function () {
+        $csv = <<<'CSV'
+igsn|title|name|latitude|longitude
+10.58052/IGSN.1234|Title|Name|-33.8688|151.2093
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // Sydney coordinates
+        expect($result['rows'][0]['_geo_location']['latitude'])->toBe(-33.8688)
+            ->and($result['rows'][0]['_geo_location']['longitude'])->toBe(151.2093);
+    });
+
+    it('handles location_description in place field', function () {
+        $csv = <<<'CSV'
+igsn|title|name|location_description
+10.58052/IGSN.1234|Title|Name|50m depth in borehole ICDP5068
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('50m depth in borehole ICDP5068');
+    });
 });
 
 describe('Related Identifiers Parsing', function () {

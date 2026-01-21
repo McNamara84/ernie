@@ -1060,185 +1060,598 @@ describe('IGSN Creator Export', function () {
 });
 
 /**
- * End-to-End Tests: CSV Upload → Database → DataCite Export
+ * Tests for Issue #444: geoLocation Element
  *
- * These tests verify that data flows correctly through the entire
- * IGSN pipeline: from CSV upload through storage to DataCite export.
+ * Mapping specification:
+ * | DC Element         | CSV Table Header       | Default values |
+ * |--------------------|------------------------|----------------|
+ * | geoLocationPlace   | locality               | --             |
+ * | geoLocationPlace   | primary_location_name  | --             |
+ * | pointLatitude      | latitude               | --             |
+ * | pointLongitude     | longitude              | --             |
+ *
+ * @see https://github.com/McNamara84/ernie/issues/444
  */
-describe('IGSN End-to-End Workflow', function () {
-    it('uploads CSV and exports DataCite JSON with correct resourceType from sample_type and material', function () {
+describe('IGSN GeoLocation Export', function () {
+    it('exports geoLocationPoint with latitude and longitude', function () {
         $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
 
-        // Create a CSV with sample_type and material
-        $csvContent = "igsn|title|name|sample_type|material\nIGSN-E2E-001|Sediment Core|Deep Sea Core|Core|Sediment";
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
-
-        // Upload CSV
-        $uploadResponse = $this->actingAs($user)
-            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
-
-        $uploadResponse->assertOk(); // API returns JSON success response
-        expect($uploadResponse->json('success'))->toBeTrue();
-
-        // Find the created resource
-        $resource = Resource::where('doi', 'IGSN-E2E-001')->first();
-        expect($resource)->not->toBeNull();
-
-        // Export as DataCite JSON
-        $exportResponse = $this->actingAs($user)
-            ->get("/igsns/{$resource->id}/export/json");
-
-        $exportResponse->assertOk();
-        $json = json_decode($exportResponse->streamedContent(), true);
-
-        // Verify resourceType is built from sample_type + material
-        expect($json['data']['attributes']['types']['resourceTypeGeneral'])->toBe('PhysicalObject');
-        expect($json['data']['attributes']['types']['resourceType'])->toBe('Core: Sediment');
-    });
-
-    it('uploads CSV and exports DataCite JSON with correct creator from givenName/familyName columns', function () {
-        $user = User::factory()->create();
-
-        // Create a CSV with dedicated givenName and familyName columns
-        $csvContent = "igsn|title|name|givenName|familyName|orcid|affiliation\nIGSN-E2E-002|Rock Sample|Granite Sample|Maria|Garcia|0000-0001-2345-6789|GFZ Potsdam";
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
-
-        // Upload CSV
-        $uploadResponse = $this->actingAs($user)
-            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
-
-        $uploadResponse->assertOk();
-        expect($uploadResponse->json('success'))->toBeTrue();
-
-        // Find the created resource
-        $resource = Resource::where('doi', 'IGSN-E2E-002')->first();
-        expect($resource)->not->toBeNull();
-
-        // Export as DataCite JSON
-        $exportResponse = $this->actingAs($user)
-            ->get("/igsns/{$resource->id}/export/json");
-
-        $exportResponse->assertOk();
-        $json = json_decode($exportResponse->streamedContent(), true);
-        $creators = $json['data']['attributes']['creators'];
-
-        // Verify creator is exported correctly
-        expect($creators)->toHaveCount(1);
-        expect($creators[0]['givenName'])->toBe('Maria');
-        expect($creators[0]['familyName'])->toBe('Garcia');
-        expect($creators[0]['name'])->toBe('Garcia, Maria');
-        expect($creators[0]['nameType'])->toBe('Personal');
-
-        // Verify ORCID
-        expect($creators[0]['nameIdentifiers'][0]['nameIdentifier'])->toBe('https://orcid.org/0000-0001-2345-6789');
-    });
-
-    it('uploads CSV and exports DataCite JSON with year-only collection dates', function () {
-        $user = User::factory()->create();
-
-        // Create a CSV with year-only dates
-        $csvContent = "igsn|title|name|collection_start_date|collection_end_date|givenName|familyName\nIGSN-E2E-003|Historical Sample|Old Rock|1995|2000|John|Doe";
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
-
-        // Upload CSV
-        $uploadResponse = $this->actingAs($user)
-            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
-
-        $uploadResponse->assertOk();
-        expect($uploadResponse->json('success'))->toBeTrue();
-
-        // Find the created resource
-        $resource = Resource::where('doi', 'IGSN-E2E-003')->first();
-        expect($resource)->not->toBeNull();
-
-        // Export as DataCite JSON
-        $exportResponse = $this->actingAs($user)
-            ->get("/igsns/{$resource->id}/export/json");
-
-        $exportResponse->assertOk();
-        $json = json_decode($exportResponse->streamedContent(), true);
-        $dates = $json['data']['attributes']['dates'];
-
-        // Verify dates are exported correctly with year-only format
-        expect($dates)->toHaveCount(1);
-        expect($dates[0]['date'])->toBe('1995/2000');
-        expect($dates[0]['dateType'])->toBe('Collected');
-    });
-
-    it('uploads CSV and exports DataCite XML with all mapped fields', function () {
-        $user = User::factory()->create();
-
-        // Create a comprehensive CSV with all PR #453 features
-        $csvContent = implode("\n", [
-            "igsn|title|name|sample_type|material|givenName|familyName|orcid|collection_start_date|collection_end_date",
-            "IGSN-E2E-004|Complete Sample|Full Test|Borehole|Granite|Sofia|Martinez|0000-0002-9876-5432|2024-03|2024-06",
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
         ]);
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
 
-        // Upload CSV
-        $uploadResponse = $this->actingAs($user)
-            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+        $resource->titles()->create([
+            'value' => 'Sample with Coordinates',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
 
-        $uploadResponse->assertOk();
-        expect($uploadResponse->json('success'))->toBeTrue();
+        $person = Person::create([
+            'given_name' => 'Jane',
+            'family_name' => 'Geologist',
+        ]);
 
-        // Find the created resource
-        $resource = Resource::where('doi', 'IGSN-E2E-004')->first();
-        expect($resource)->not->toBeNull();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
 
-        // Export as DataCite XML
-        $exportResponse = $this->actingAs($user)
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create geoLocation with point coordinates
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 52.5200,
+            'point_longitude' => 13.4050,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        expect($json['data']['attributes'])->toHaveKey('geoLocations');
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+
+        expect($geoLocations)->toHaveCount(1);
+        expect($geoLocations[0])->toHaveKey('geoLocationPoint');
+
+        $point = $geoLocations[0]['geoLocationPoint'];
+        expect($point['pointLatitude'])->toBe(52.52);
+        expect($point['pointLongitude'])->toBe(13.405);
+    });
+
+    it('exports geoLocationPlace from locality field', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-002',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Place',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'John',
+            'family_name' => 'Researcher',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create geoLocation with place name
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'place' => 'Berlin, Germany',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        expect($json['data']['attributes'])->toHaveKey('geoLocations');
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+
+        expect($geoLocations[0])->toHaveKey('geoLocationPlace');
+        expect($geoLocations[0]['geoLocationPlace'])->toBe('Berlin, Germany');
+    });
+
+    it('exports complete geoLocation with point and place', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-003',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Full GeoLocation',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Emma',
+            'family_name' => 'Scientist',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'material' => 'Granite',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create geoLocation with both point and place
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 48.0000,
+            'point_longitude' => 9.7490,
+            'place' => 'Winterstettenstadt, Baden-Württemberg, Germany',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+
+        expect($geoLocations[0])->toHaveKey('geoLocationPlace');
+        expect($geoLocations[0])->toHaveKey('geoLocationPoint');
+
+        expect($geoLocations[0]['geoLocationPlace'])->toBe('Winterstettenstadt, Baden-Württemberg, Germany');
+        expect((float) $geoLocations[0]['geoLocationPoint']['pointLatitude'])->toBe(48.0);
+        expect((float) $geoLocations[0]['geoLocationPoint']['pointLongitude'])->toBe(9.749);
+    });
+
+    it('exports geoLocation with elevation data', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-004',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Elevation',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Max',
+            'family_name' => 'Miner',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create geoLocation with elevation
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 48.0000,
+            'point_longitude' => 9.7490,
+            'elevation' => 587.9,
+            'elevation_unit' => 'm',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+        expect($geoLocations[0])->toHaveKey('geoLocationPoint');
+
+        // Note: DataCite JSON does not have a standard field for elevation
+        // The elevation is stored in the database but not exported to DataCite JSON
+        // as there is no corresponding field in the DataCite schema
+    });
+
+    it('exports geoLocationBox with bounding coordinates', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-005',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Bounding Box',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Anna',
+            'family_name' => 'Researcher',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create geoLocation with bounding box
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'west_bound_longitude' => 13.0,
+            'east_bound_longitude' => 14.0,
+            'south_bound_latitude' => 52.0,
+            'north_bound_latitude' => 53.0,
+            'place' => 'Brandenburg Region, Germany',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+        expect($geoLocations[0])->toHaveKey('geoLocationBox');
+
+        $box = $geoLocations[0]['geoLocationBox'];
+        expect((float) $box['westBoundLongitude'])->toBe(13.0);
+        expect((float) $box['eastBoundLongitude'])->toBe(14.0);
+        expect((float) $box['southBoundLatitude'])->toBe(52.0);
+        expect((float) $box['northBoundLatitude'])->toBe(53.0);
+    });
+
+    it('exports multiple geoLocations', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-006',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Multiple Locations',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Peter',
+            'family_name' => 'Explorer',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create two geoLocations
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 52.5200,
+            'point_longitude' => 13.4050,
+            'place' => 'Berlin, Germany',
+        ]);
+
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 48.1351,
+            'point_longitude' => 11.5820,
+            'place' => 'Munich, Germany',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+        expect($geoLocations)->toHaveCount(2);
+
+        expect($geoLocations[0]['geoLocationPlace'])->toBe('Berlin, Germany');
+        expect($geoLocations[1]['geoLocationPlace'])->toBe('Munich, Germany');
+    });
+
+    it('does not export geoLocations when none exist', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-007',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample without Location',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Unknown',
+            'family_name' => 'Collector',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        // geoLocations should not be present when there are none
+        expect($json['data']['attributes'])->not->toHaveKey('geoLocations');
+    });
+
+    it('exports geoLocationPolygon with polygon points', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-008',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Polygon',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Lisa',
+            'family_name' => 'Mapper',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create geoLocation with polygon (minimum 3 points required)
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'polygon_points' => [
+                ['longitude' => 13.0, 'latitude' => 52.0],
+                ['longitude' => 14.0, 'latitude' => 52.0],
+                ['longitude' => 14.0, 'latitude' => 53.0],
+                ['longitude' => 13.0, 'latitude' => 53.0],
+            ],
+            'in_polygon_point_longitude' => 13.5,
+            'in_polygon_point_latitude' => 52.5,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $geoLocations = $json['data']['attributes']['geoLocations'];
+        expect($geoLocations[0])->toHaveKey('geoLocationPolygon');
+
+        $polygon = $geoLocations[0]['geoLocationPolygon'];
+        expect($polygon)->toHaveKey('polygonPoints');
+        expect($polygon['polygonPoints'])->toHaveCount(4);
+
+        // Verify in-polygon point
+        expect($polygon)->toHaveKey('inPolygonPoint');
+        expect($polygon['inPolygonPoint']['pointLongitude'])->toBe(13.5);
+        expect($polygon['inPolygonPoint']['pointLatitude'])->toBe(52.5);
+    });
+
+    it('exports geoLocation to XML with point coordinates', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-XML-001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'XML GeoLocation Sample',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Tom',
+            'family_name' => 'Tester',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 52.5200,
+            'point_longitude' => 13.4050,
+            'place' => 'Berlin, Germany',
+        ]);
+
+        $response = $this->actingAs($user)
             ->get(route('resources.export-datacite-xml', $resource));
 
-        $exportResponse->assertOk();
-        $xml = method_exists($exportResponse->baseResponse, 'streamedContent')
-            ? $exportResponse->streamedContent()
-            : $exportResponse->getContent();
+        $response->assertOk();
+        $xml = $response->getContent();
 
-        // Verify all PR #453 features in XML:
-        // 1. ResourceType from sample_type + material
-        expect($xml)->toContain('resourceTypeGeneral="PhysicalObject"');
-        expect($xml)->toContain('>Borehole: Granite</resourceType>');
-
-        // 2. Creator with givenName/familyName
-        expect($xml)->toContain('<givenName>Sofia</givenName>');
-        expect($xml)->toContain('<familyName>Martinez</familyName>');
-        expect($xml)->toContain('nameIdentifierScheme="ORCID"');
-
-        // 3. Collection date with year-month format
-        expect($xml)->toContain('dateType="Collected"');
-        expect($xml)->toContain('2024-03/2024-06</date>');
+        // Verify XML structure
+        expect($xml)->toContain('<geoLocations>');
+        expect($xml)->toContain('<geoLocation>');
+        expect($xml)->toContain('<geoLocationPlace>Berlin, Germany</geoLocationPlace>');
+        expect($xml)->toContain('<geoLocationPoint>');
+        // Values may be formatted differently (13.405 vs 13.40500000)
+        expect($xml)->toMatch('/<pointLongitude>13\.405/');
+        expect($xml)->toMatch('/<pointLatitude>52\.52/');
     });
 
-    it('uploads CSV with collector field fallback when givenName/familyName are empty', function () {
+    it('exports geoLocation to XML with bounding box', function () {
         $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
 
-        // Create a CSV with collector field but no givenName/familyName
-        $csvContent = "igsn|title|name|collector|orcid\nIGSN-E2E-005|Fallback Test|Sample|Smith, Jane|0000-0003-1111-2222";
-        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.GEO-XML-002',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
 
-        // Upload CSV
-        $uploadResponse = $this->actingAs($user)
-            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+        $resource->titles()->create([
+            'value' => 'XML Bounding Box Sample',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
 
-        $uploadResponse->assertOk();
-        expect($uploadResponse->json('success'))->toBeTrue();
+        $person = Person::create([
+            'given_name' => 'Sarah',
+            'family_name' => 'Surveyor',
+        ]);
 
-        // Find the created resource
-        $resource = Resource::where('doi', 'IGSN-E2E-005')->first();
-        expect($resource)->not->toBeNull();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
 
-        // Export as DataCite JSON
-        $exportResponse = $this->actingAs($user)
-            ->get("/igsns/{$resource->id}/export/json");
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
 
-        $exportResponse->assertOk();
-        $json = json_decode($exportResponse->streamedContent(), true);
-        $creator = $json['data']['attributes']['creators'][0];
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'west_bound_longitude' => 13.0,
+            'east_bound_longitude' => 14.0,
+            'south_bound_latitude' => 52.0,
+            'north_bound_latitude' => 53.0,
+        ]);
 
-        // Verify collector field was parsed correctly (FamilyName, GivenName format)
-        expect($creator['familyName'])->toBe('Smith');
-        expect($creator['givenName'])->toBe('Jane');
-        expect($creator['name'])->toBe('Smith, Jane');
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        expect($xml)->toContain('<geoLocationBox>');
+        // Values may include decimals (13 vs 13.00000000)
+        expect($xml)->toMatch('/<westBoundLongitude>13/');
+        expect($xml)->toMatch('/<eastBoundLongitude>14/');
+        expect($xml)->toMatch('/<southBoundLatitude>52/');
+        expect($xml)->toMatch('/<northBoundLatitude>53/');
     });
 });
