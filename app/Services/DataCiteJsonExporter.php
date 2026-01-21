@@ -116,6 +116,10 @@ class DataCiteJsonExporter
             $attributes['relatedIdentifiers'] = $relatedIdentifiers;
         }
 
+        if ($sizes = $this->buildSizes($resource)) {
+            $attributes['sizes'] = $sizes;
+        }
+
         if ($fundingReferences = $this->buildFundingReferences($resource)) {
             $attributes['fundingReferences'] = $fundingReferences;
         }
@@ -823,5 +827,27 @@ class DataCiteJsonExporter
         }
 
         return ! empty($fundingReferences) ? $fundingReferences : null;
+    }
+
+    /**
+     * Build sizes array
+     *
+     * DataCite sizes is a simple array of strings.
+     *
+     * @return list<string>|null
+     */
+    private function buildSizes(Resource $resource): ?array
+    {
+        if ($resource->sizes->isEmpty()) {
+            return null;
+        }
+
+        $sizes = [];
+
+        foreach ($resource->sizes as $size) {
+            $sizes[] = $size->value;
+        }
+
+        return $sizes;
     }
 }

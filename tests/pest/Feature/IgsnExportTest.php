@@ -2259,3 +2259,204 @@ describe('IGSN RelatedIdentifier Export', function () {
         expect($json['data']['attributes'])->not->toHaveKey('relatedIdentifiers');
     });
 });
+
+describe('IGSN Size Export', function () {
+    it('exports size with unit to JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.SIZETEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Size Test Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'size' => 15.5,
+            'size_unit' => 'cm',
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        // Create size entry (as would be created by IgsnStorageService)
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '15.5 cm',
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes'])->toHaveKey('sizes')
+            ->and($json['data']['attributes']['sizes'])->toHaveCount(1)
+            ->and($json['data']['attributes']['sizes'][0])->toBe('15.5 cm');
+    });
+
+    it('exports size without unit to JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.SIZENOUNIT',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Size No Unit Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'size' => 250,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        // Create size entry without unit
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '250',
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes'])->toHaveKey('sizes')
+            ->and($json['data']['attributes']['sizes'][0])->toBe('250');
+    });
+
+    it('exports size to XML', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.SIZEXMLTEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Size XML Test Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'size' => 100,
+            'size_unit' => 'g',
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '100 g',
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        expect($xml)->toContain('<sizes>')
+            ->and($xml)->toContain('</sizes>')
+            ->and($xml)->toContain('<size>100 g</size>');
+    });
+
+    it('does not export sizes when none exist', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.NOSIZE',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'No Size Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes'])->not->toHaveKey('sizes');
+    });
+});
