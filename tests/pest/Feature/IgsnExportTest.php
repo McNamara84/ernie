@@ -390,6 +390,185 @@ describe('IGSN JSON Export with Schema Validation', function () {
     });
 });
 
+describe('IGSN ResourceType Export', function () {
+    it('exports resourceType with sample_type and material combined', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-RESTYPE-001',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Resource Type',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Sedite',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $types = $json['data']['attributes']['types'];
+
+        expect($types['resourceTypeGeneral'])->toBe('PhysicalObject');
+        expect($types['resourceType'])->toBe('Core: Sedite');
+    });
+
+    it('exports resourceType with only sample_type when material is empty', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-RESTYPE-002',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample Type Only',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Borehole',
+            'material' => null,
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $types = $json['data']['attributes']['types'];
+
+        expect($types['resourceTypeGeneral'])->toBe('PhysicalObject');
+        expect($types['resourceType'])->toBe('Borehole');
+    });
+
+    it('exports resourceType with only material when sample_type is empty', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-RESTYPE-003',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Material Only',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => null,
+            'material' => 'Granite',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $types = $json['data']['attributes']['types'];
+
+        expect($types['resourceTypeGeneral'])->toBe('PhysicalObject');
+        expect($types['resourceType'])->toBe('Granite');
+    });
+
+    it('exports resourceType as "Physical Object" when both sample_type and material are empty', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-RESTYPE-004',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Empty Types',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => null,
+            'material' => null,
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $types = $json['data']['attributes']['types'];
+
+        expect($types['resourceTypeGeneral'])->toBe('PhysicalObject');
+        expect($types['resourceType'])->toBe('Physical Object');
+    });
+
+    it('exports resourceType correctly in XML format', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-RESTYPE-XML',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test XML ResourceType',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = method_exists($response->baseResponse, 'streamedContent')
+            ? $response->streamedContent()
+            : $response->getContent();
+
+        // Verify XML contains correct resourceType
+        expect($xml)->toContain('resourceTypeGeneral="PhysicalObject"');
+        expect($xml)->toContain('>Core: Rock</resourceType>');
+    });
+});
+
 describe('IGSN Collection Date Export', function () {
     it('exports collection date range in DataCite JSON format', function () {
         $user = User::factory()->create();

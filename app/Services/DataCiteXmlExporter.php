@@ -355,17 +355,64 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Build resourceType element (required)
+     * Build resourceType element (required).
+     *
+     * For IGSN resources (PhysicalObject), uses sample_type and/or material
+     * from IGSN metadata as the specific resourceType value.
      */
     private function buildResourceType(Resource $resource): void
     {
         $resourceType = $resource->resourceType;
+        $typeName = $resourceType->name ?? 'Other';
+
+        // Map to DataCite resourceTypeGeneral format
+        $resourceTypeGeneral = match ($typeName) {
+            'Physical Object' => 'PhysicalObject',
+            'Book Chapter' => 'BookChapter',
+            'Conference Paper' => 'ConferencePaper',
+            'Conference Proceeding' => 'ConferenceProceeding',
+            'Computational Notebook' => 'ComputationalNotebook',
+            'Data Paper' => 'DataPaper',
+            'Interactive Resource' => 'InteractiveResource',
+            'Journal Article' => 'JournalArticle',
+            'Output Management Plan' => 'OutputManagementPlan',
+            'Peer Review' => 'PeerReview',
+            'Study Registration' => 'StudyRegistration',
+            default => str_replace(' ', '', $typeName),
+        };
+
+        // For PhysicalObject (IGSN), build specific resourceType from sample_type and material
+        $specificType = $typeName;
+        if ($resourceTypeGeneral === 'PhysicalObject' && $resource->igsnMetadata) {
+            $specificType = $this->buildIgsnResourceType($resource->igsnMetadata);
+        }
+
         $resourceTypeElement = $this->dom->createElement(
             'resourceType',
-            htmlspecialchars($resourceType->name ?? 'Other')
+            htmlspecialchars($specificType)
         );
-        $resourceTypeElement->setAttribute('resourceTypeGeneral', $resourceType->name ?? 'Other');
+        $resourceTypeElement->setAttribute('resourceTypeGeneral', $resourceTypeGeneral);
         $this->root->appendChild($resourceTypeElement);
+    }
+
+    /**
+     * Build specific resourceType value for IGSN from sample_type and material.
+     *
+     * Combines sample_type and material with a colon separator when both are available.
+     * Returns "Physical Object" as fallback when neither is set.
+     */
+    private function buildIgsnResourceType(\App\Models\IgsnMetadata $igsnMetadata): string
+    {
+        $parts = array_filter([
+            $igsnMetadata->sample_type,
+            $igsnMetadata->material,
+        ]);
+
+        if (empty($parts)) {
+            return 'Physical Object';
+        }
+
+        return implode(': ', $parts);
     }
 
     /**

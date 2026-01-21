@@ -272,7 +272,10 @@ class DataCiteJsonExporter
     ];
 
     /**
-     * Build types (resource type) information
+     * Build types (resource type) information.
+     *
+     * For IGSN resources (PhysicalObject), uses sample_type and/or material
+     * from IGSN metadata as the specific resourceType value.
      *
      * @return array<string, string>
      */
@@ -286,10 +289,36 @@ class DataCiteJsonExporter
         $dataCiteType = self::RESOURCE_TYPE_GENERAL_MAP[$typeName]
             ?? str_replace(' ', '', $typeName);
 
+        // For PhysicalObject (IGSN), build specific resourceType from sample_type and material
+        $specificType = $typeName;
+        if ($dataCiteType === 'PhysicalObject' && $resource->igsnMetadata) {
+            $specificType = $this->buildIgsnResourceType($resource->igsnMetadata);
+        }
+
         return [
             'resourceTypeGeneral' => $dataCiteType,
-            'resourceType' => $typeName,
+            'resourceType' => $specificType,
         ];
+    }
+
+    /**
+     * Build specific resourceType value for IGSN from sample_type and material.
+     *
+     * Combines sample_type and material with a colon separator when both are available.
+     * Returns "Physical Object" as fallback when neither is set.
+     */
+    private function buildIgsnResourceType(\App\Models\IgsnMetadata $igsnMetadata): string
+    {
+        $parts = array_filter([
+            $igsnMetadata->sample_type,
+            $igsnMetadata->material,
+        ]);
+
+        if (empty($parts)) {
+            return 'Physical Object';
+        }
+
+        return implode(': ', $parts);
     }
 
     /**
