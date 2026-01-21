@@ -1056,4 +1056,189 @@ describe('IGSN Creator Export', function () {
         expect($creator['name'])->toBe('Darwin');
         expect($creator['familyName'])->toBe('Darwin');
         expect($creator)->not->toHaveKey('givenName'); // Not present when null
-    });});
+    });
+});
+
+/**
+ * End-to-End Tests: CSV Upload → Database → DataCite Export
+ *
+ * These tests verify that data flows correctly through the entire
+ * IGSN pipeline: from CSV upload through storage to DataCite export.
+ */
+describe('IGSN End-to-End Workflow', function () {
+    it('uploads CSV and exports DataCite JSON with correct resourceType from sample_type and material', function () {
+        $user = User::factory()->create();
+
+        // Create a CSV with sample_type and material
+        $csvContent = "igsn|title|name|sample_type|material\nIGSN-E2E-001|Sediment Core|Deep Sea Core|Core|Sediment";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        // Upload CSV
+        $uploadResponse = $this->actingAs($user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $uploadResponse->assertOk(); // API returns JSON success response
+        expect($uploadResponse->json('success'))->toBeTrue();
+
+        // Find the created resource
+        $resource = Resource::where('doi', 'IGSN-E2E-001')->first();
+        expect($resource)->not->toBeNull();
+
+        // Export as DataCite JSON
+        $exportResponse = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $exportResponse->assertOk();
+        $json = json_decode($exportResponse->streamedContent(), true);
+
+        // Verify resourceType is built from sample_type + material
+        expect($json['data']['attributes']['types']['resourceTypeGeneral'])->toBe('PhysicalObject');
+        expect($json['data']['attributes']['types']['resourceType'])->toBe('Core: Sediment');
+    });
+
+    it('uploads CSV and exports DataCite JSON with correct creator from givenName/familyName columns', function () {
+        $user = User::factory()->create();
+
+        // Create a CSV with dedicated givenName and familyName columns
+        $csvContent = "igsn|title|name|givenName|familyName|orcid|affiliation\nIGSN-E2E-002|Rock Sample|Granite Sample|Maria|Garcia|0000-0001-2345-6789|GFZ Potsdam";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        // Upload CSV
+        $uploadResponse = $this->actingAs($user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $uploadResponse->assertOk();
+        expect($uploadResponse->json('success'))->toBeTrue();
+
+        // Find the created resource
+        $resource = Resource::where('doi', 'IGSN-E2E-002')->first();
+        expect($resource)->not->toBeNull();
+
+        // Export as DataCite JSON
+        $exportResponse = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $exportResponse->assertOk();
+        $json = json_decode($exportResponse->streamedContent(), true);
+        $creators = $json['data']['attributes']['creators'];
+
+        // Verify creator is exported correctly
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['givenName'])->toBe('Maria');
+        expect($creators[0]['familyName'])->toBe('Garcia');
+        expect($creators[0]['name'])->toBe('Garcia, Maria');
+        expect($creators[0]['nameType'])->toBe('Personal');
+
+        // Verify ORCID
+        expect($creators[0]['nameIdentifiers'][0]['nameIdentifier'])->toBe('https://orcid.org/0000-0001-2345-6789');
+    });
+
+    it('uploads CSV and exports DataCite JSON with year-only collection dates', function () {
+        $user = User::factory()->create();
+
+        // Create a CSV with year-only dates
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date|givenName|familyName\nIGSN-E2E-003|Historical Sample|Old Rock|1995|2000|John|Doe";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        // Upload CSV
+        $uploadResponse = $this->actingAs($user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $uploadResponse->assertOk();
+        expect($uploadResponse->json('success'))->toBeTrue();
+
+        // Find the created resource
+        $resource = Resource::where('doi', 'IGSN-E2E-003')->first();
+        expect($resource)->not->toBeNull();
+
+        // Export as DataCite JSON
+        $exportResponse = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $exportResponse->assertOk();
+        $json = json_decode($exportResponse->streamedContent(), true);
+        $dates = $json['data']['attributes']['dates'];
+
+        // Verify dates are exported correctly with year-only format
+        expect($dates)->toHaveCount(1);
+        expect($dates[0]['date'])->toBe('1995/2000');
+        expect($dates[0]['dateType'])->toBe('Collected');
+    });
+
+    it('uploads CSV and exports DataCite XML with all mapped fields', function () {
+        $user = User::factory()->create();
+
+        // Create a comprehensive CSV with all PR #453 features
+        $csvContent = implode("\n", [
+            "igsn|title|name|sample_type|material|givenName|familyName|orcid|collection_start_date|collection_end_date",
+            "IGSN-E2E-004|Complete Sample|Full Test|Borehole|Granite|Sofia|Martinez|0000-0002-9876-5432|2024-03|2024-06",
+        ]);
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        // Upload CSV
+        $uploadResponse = $this->actingAs($user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $uploadResponse->assertOk();
+        expect($uploadResponse->json('success'))->toBeTrue();
+
+        // Find the created resource
+        $resource = Resource::where('doi', 'IGSN-E2E-004')->first();
+        expect($resource)->not->toBeNull();
+
+        // Export as DataCite XML
+        $exportResponse = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $exportResponse->assertOk();
+        $xml = method_exists($exportResponse->baseResponse, 'streamedContent')
+            ? $exportResponse->streamedContent()
+            : $exportResponse->getContent();
+
+        // Verify all PR #453 features in XML:
+        // 1. ResourceType from sample_type + material
+        expect($xml)->toContain('resourceTypeGeneral="PhysicalObject"');
+        expect($xml)->toContain('>Borehole: Granite</resourceType>');
+
+        // 2. Creator with givenName/familyName
+        expect($xml)->toContain('<givenName>Sofia</givenName>');
+        expect($xml)->toContain('<familyName>Martinez</familyName>');
+        expect($xml)->toContain('nameIdentifierScheme="ORCID"');
+
+        // 3. Collection date with year-month format
+        expect($xml)->toContain('dateType="Collected"');
+        expect($xml)->toContain('2024-03/2024-06</date>');
+    });
+
+    it('uploads CSV with collector field fallback when givenName/familyName are empty', function () {
+        $user = User::factory()->create();
+
+        // Create a CSV with collector field but no givenName/familyName
+        $csvContent = "igsn|title|name|collector|orcid\nIGSN-E2E-005|Fallback Test|Sample|Smith, Jane|0000-0003-1111-2222";
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        // Upload CSV
+        $uploadResponse = $this->actingAs($user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $uploadResponse->assertOk();
+        expect($uploadResponse->json('success'))->toBeTrue();
+
+        // Find the created resource
+        $resource = Resource::where('doi', 'IGSN-E2E-005')->first();
+        expect($resource)->not->toBeNull();
+
+        // Export as DataCite JSON
+        $exportResponse = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $exportResponse->assertOk();
+        $json = json_decode($exportResponse->streamedContent(), true);
+        $creator = $json['data']['attributes']['creators'][0];
+
+        // Verify collector field was parsed correctly (FamilyName, GivenName format)
+        expect($creator['familyName'])->toBe('Smith');
+        expect($creator['givenName'])->toBe('Jane');
+        expect($creator['name'])->toBe('Smith, Jane');
+    });
+});
