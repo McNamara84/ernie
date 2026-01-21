@@ -169,7 +169,7 @@ CSV;
 });
 
 describe('Creator (Collector) Parsing', function () {
-    it('parses collector name and splits into family/given', function () {
+    it('parses collector name and splits into family/given (comma format)', function () {
         $csv = <<<'CSV'
 igsn|title|name|collector
 10.58052/IGSN.1234|Title|Name|Doe, John
@@ -181,6 +181,43 @@ CSV;
             ->and($result['rows'][0]['_creator']['givenName'])->toBe('John');
     });
 
+    it('parses collector name in "GivenName FamilyName" format', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|John Doe
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // Format: "GivenName FamilyName" - last word is family name
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Doe')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBe('John');
+    });
+
+    it('handles collector name with multiple given names', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|John Paul Smith
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Smith')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBe('John Paul');
+    });
+
+    it('handles single-word collector name as family name', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|Darwin
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Darwin')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBeNull();
+    });
+
     it('parses collector with ORCID and affiliation', function () {
         $csv = <<<'CSV'
 igsn|title|name|collector|collector_identifier|collector_affiliation|collector_affiliation_identifier
@@ -190,6 +227,117 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0001-2345-6789')
+            ->and($result['rows'][0]['_creator']['affiliation'])->toBe('GFZ Potsdam')
+            ->and($result['rows'][0]['_creator']['ror'])->toBe('https://ror.org/04z8jg394');
+    });
+
+    it('parses ORCID from orcid column (real CSV format)', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|orcid|affiliation|ror
+10.58052/IGSN.1234|Title|Name|Gabriel, Gerald|0000-0001-9404-882X|Leibniz Institute|https://ror.org/05txczf44
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0001-9404-882X')
+            ->and($result['rows'][0]['_creator']['affiliation'])->toBe('Leibniz Institute')
+            ->and($result['rows'][0]['_creator']['ror'])->toBe('https://ror.org/05txczf44');
+    });
+
+    it('normalizes ORCID that is already a full URL', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|orcid
+10.58052/IGSN.1234|Title|Name|Doe, John|https://orcid.org/0000-0001-2345-6789
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0001-2345-6789');
+    });
+
+    it('returns null for empty collector', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBeNull()
+            ->and($result['rows'][0]['_creator']['givenName'])->toBeNull();
+    });
+
+    it('parses separate givenName and familyName columns', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName
+10.58052/IGSN.1234|Title|Name|John|Doe
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('John')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Doe');
+    });
+
+    it('prefers separate givenName/familyName over collector field', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|givenName|familyName
+10.58052/IGSN.1234|Title|Name|Should Be Ignored|Max|Mustermann
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('Max')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Mustermann');
+    });
+
+    it('falls back to collector when givenName/familyName are empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|givenName|familyName
+10.58052/IGSN.1234|Title|Name|Fallback, User||
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Fallback')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBe('User');
+    });
+
+    it('handles only givenName without familyName', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName
+10.58052/IGSN.1234|Title|Name|Madonna|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('Madonna')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBeNull();
+    });
+
+    it('handles only familyName without givenName', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName
+10.58052/IGSN.1234|Title|Name||Darwin
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBeNull()
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Darwin');
+    });
+
+    it('combines givenName/familyName with ORCID and affiliation', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName|orcid|affiliation|ror
+10.58052/IGSN.1234|Title|Name|Max|Mustermann|0000-0002-1234-5678|GFZ Potsdam|https://ror.org/04z8jg394
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('Max')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Mustermann')
+            ->and($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0002-1234-5678')
             ->and($result['rows'][0]['_creator']['affiliation'])->toBe('GFZ Potsdam')
             ->and($result['rows'][0]['_creator']['ror'])->toBe('https://ror.org/04z8jg394');
     });

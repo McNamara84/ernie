@@ -610,3 +610,271 @@ describe('IGSN Collection Date Export', function () {
         expect($xml)->toContain('2021-04-12/2021-05-05</date>');
     });
 });
+
+describe('IGSN Creator Export', function () {
+    it('exports creator with nameType Personal in DataCite JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-CREATOR-TEST-001',
+            'publication_year' => 2024,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample with Creator',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // Create person with ORCID
+        $person = \App\Models\Person::factory()->create([
+            'given_name' => 'Sofia',
+            'family_name' => 'Garcia',
+            'name_identifier' => 'https://orcid.org/0000-0001-5727-2427',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'material' => 'Granite',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $creators = $json['data']['attributes']['creators'];
+
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['nameType'])->toBe('Personal');
+        expect($creators[0]['givenName'])->toBe('Sofia');
+        expect($creators[0]['familyName'])->toBe('Garcia');
+        expect($creators[0]['name'])->toBe('Garcia, Sofia');
+    });
+
+    it('exports creator with ORCID nameIdentifier in DataCite JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-CREATOR-TEST-002',
+            'publication_year' => 2024,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample with ORCID',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create([
+            'given_name' => 'Gerald',
+            'family_name' => 'Gabriel',
+            'name_identifier' => 'https://orcid.org/0000-0001-9404-882X',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Borehole',
+            'material' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $creator = $json['data']['attributes']['creators'][0];
+
+        // Verify nameIdentifiers array structure
+        expect($creator)->toHaveKey('nameIdentifiers');
+        expect($creator['nameIdentifiers'])->toHaveCount(1);
+        expect($creator['nameIdentifiers'][0]['nameIdentifier'])->toBe('https://orcid.org/0000-0001-9404-882X');
+        expect($creator['nameIdentifiers'][0]['nameIdentifierScheme'])->toBe('ORCID');
+        expect($creator['nameIdentifiers'][0]['schemeUri'])->toBe('https://orcid.org');
+    });
+
+    it('exports creator in DataCite XML with correct structure', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-CREATOR-TEST-003',
+            'publication_year' => 2024,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample XML Creator',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create([
+            'given_name' => 'John',
+            'family_name' => 'Doe',
+            'name_identifier' => 'https://orcid.org/0000-0001-2345-6789',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = method_exists($response->baseResponse, 'streamedContent')
+            ? $response->streamedContent()
+            : $response->getContent();
+
+        // Verify XML structure for creator
+        expect($xml)->toContain('<creators>');
+        expect($xml)->toContain('nameType="Personal"');
+        expect($xml)->toContain('<givenName>John</givenName>');
+        expect($xml)->toContain('<familyName>Doe</familyName>');
+        expect($xml)->toContain('nameIdentifierScheme="ORCID"');
+        expect($xml)->toContain('schemeURI="https://orcid.org"');
+    });
+
+    it('exports all three name fields (name, givenName, familyName) in JSON', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.NAME-TEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Name Fields',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        // Create a person with both given and family name
+        $person = Person::create([
+            'given_name' => 'Maria',
+            'family_name' => 'Garcia',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+        $creator = $json['data']['attributes']['creators'][0];
+
+        // All three fields should be present
+        expect($creator)->toHaveKey('name');
+        expect($creator)->toHaveKey('givenName');
+        expect($creator)->toHaveKey('familyName');
+
+        // Verify values
+        expect($creator['name'])->toBe('Garcia, Maria');
+        expect($creator['givenName'])->toBe('Maria');
+        expect($creator['familyName'])->toBe('Garcia');
+        expect($creator['nameType'])->toBe('Personal');
+    });
+
+    it('exports name field correctly when only familyName is provided', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $titleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.FAMILY-ONLY',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Family Only',
+            'title_type_id' => $titleType->id,
+            'position' => 1,
+        ]);
+
+        // Create a person with only family name (like "Darwin")
+        $person = Person::create([
+            'given_name' => null,
+            'family_name' => 'Darwin',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+        $creator = $json['data']['attributes']['creators'][0];
+
+        // name should be constructed from familyName only
+        expect($creator['name'])->toBe('Darwin');
+        expect($creator['familyName'])->toBe('Darwin');
+        expect($creator)->not->toHaveKey('givenName'); // Not present when null
+    });});
