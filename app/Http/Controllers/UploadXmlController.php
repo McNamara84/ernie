@@ -2111,12 +2111,20 @@ class UploadXmlController extends Controller
 
             // 2. Fallback to name match
             if (! $matched) {
-                $cpNameKey = $this->buildNameKey($cp['lastName'] ?? '', $cp['firstName'] ?? '');
+                $cpLastName = trim($cp['lastName'] ?? '');
+                $cpFirstName = trim($cp['firstName'] ?? '');
+
+                // Skip name matching if lastName is empty (firstName alone is not reliable enough)
+                if ($cpLastName === '') {
+                    continue;
+                }
+
+                $cpNameKey = $this->buildNameKey($cpLastName, $cpFirstName);
 
                 foreach ($authors as &$author) {
                     if (($author['type'] ?? '') === 'person') {
                         $authorNameKey = $this->buildNameKey($author['lastName'] ?? '', $author['firstName'] ?? '');
-                        if ($cpNameKey === $authorNameKey && $cpNameKey !== ', ') {
+                        if ($cpNameKey === $authorNameKey) {
                             $author['isContact'] = true;
                             $this->enrichAuthorWithContactInfo($author, $isoContactInfo);
                             $matched = true;
