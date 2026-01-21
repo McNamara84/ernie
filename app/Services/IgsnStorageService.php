@@ -42,7 +42,7 @@ class IgsnStorageService
 
     private ?int $mainTitleTypeId = null;
 
-    private ?int $otherTitleTypeId = null;
+    private ?int $alternativeTitleTypeId = null;
 
     private ?int $collectedDateTypeId = null;
 
@@ -151,7 +151,7 @@ class IgsnStorageService
     {
         $this->physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
         $this->mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
-        $this->otherTitleTypeId = TitleType::where('slug', 'Other')->value('id');
+        $this->alternativeTitleTypeId = TitleType::where('slug', 'AlternativeTitle')->value('id');
         $this->collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
         $this->defaultPublisherId = Publisher::getDefault()?->id;
 
@@ -159,7 +159,7 @@ class IgsnStorageService
             throw new \RuntimeException('ResourceType "physical-object" not found. Please run seeders.');
         }
 
-        if ($this->mainTitleTypeId === null || $this->otherTitleTypeId === null) {
+        if ($this->mainTitleTypeId === null || $this->alternativeTitleTypeId === null) {
             throw new \RuntimeException('Required TitleTypes not found. Please run seeders.');
         }
     }
@@ -178,16 +178,16 @@ class IgsnStorageService
             'title_type_id' => $this->mainTitleTypeId,
         ]);
 
-        // Sample name as Title with type "Other" (also exported as alternateIdentifier)
+        // Sample name as Title with type "AlternativeTitle" (also exported as alternateIdentifier)
         if (! empty($data['name'])) {
             Title::create([
                 'resource_id' => $resource->id,
                 'value' => $data['name'],
-                'title_type_id' => $this->otherTitleTypeId,
+                'title_type_id' => $this->alternativeTitleTypeId,
             ]);
         }
 
-        // Other sample names as Titles with type "Other" (also exported as alternateIdentifiers)
+        // Other sample names as Titles with type "AlternativeTitle" (also exported as alternateIdentifiers)
         $otherNames = $data['sample_other_names'] ?? [];
         if (is_array($otherNames)) {
             foreach ($otherNames as $name) {
@@ -195,7 +195,7 @@ class IgsnStorageService
                     Title::create([
                         'resource_id' => $resource->id,
                         'value' => $name,
-                        'title_type_id' => $this->otherTitleTypeId,
+                        'title_type_id' => $this->alternativeTitleTypeId,
                     ]);
                 }
             }
