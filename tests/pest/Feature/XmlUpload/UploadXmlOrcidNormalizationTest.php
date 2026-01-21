@@ -21,7 +21,7 @@ test('normalizes ORCID from full URL to identifier only', function () {
     </creator>
   </creators>
   <contributors>
-    <contributor contributorType="ContactPerson">
+    <contributor contributorType="DataCurator">
       <contributorName nameType="Personal">Test, Contributor</contributorName>
       <givenName>Contributor</givenName>
       <familyName>Test</familyName>
@@ -39,7 +39,7 @@ XML;
     // Author ORCID should be normalized (URL prefix removed)
     $response->assertSessionDataPath('authors.0.orcid', '0000-0001-5727-2427');
 
-    // Contributor ORCID should also be normalized
+    // Contributor ORCID should also be normalized (using DataCurator instead of ContactPerson)
     $response->assertSessionDataPath('contributors.0.orcid', '0000-0002-9876-5432');
 });
 
