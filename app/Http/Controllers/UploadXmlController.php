@@ -90,6 +90,14 @@ class UploadXmlController extends Controller
         $contributorsAndLabs = $this->extractContributorsAndMslLaboratories($reader);
         $contributors = $contributorsAndLabs['contributors'];
         $mslLaboratories = $contributorsAndLabs['mslLaboratories'];
+        $contactPersons = $contributorsAndLabs['contactPersons'];
+
+        // Extract contact info (email, website) from ISO 19115 part of the XML
+        $isoContactInfo = $this->extractContactInfoFromIso($reader);
+
+        // Merge ContactPerson contributors into authors with isContact flag and contact info
+        $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons, $isoContactInfo);
+
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
         $coverages = $this->extractCoverages($reader, $dates);
@@ -264,7 +272,7 @@ class UploadXmlController extends Controller
     /**
      * Extract both regular contributors and MSL laboratories
      *
-     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>}
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>, contactPersons: array<int, array<string, mixed>>}
      */
     private function extractContributorsAndMslLaboratories(XmlReader $reader): array
     {
@@ -275,6 +283,7 @@ class UploadXmlController extends Controller
         $contributors = [];
         $contributorIndexByKey = [];
         $mslLaboratories = [];
+        $contactPersons = [];
 
         foreach ($contributorElements as $contributor) {
             $content = $contributor->getContent();
@@ -285,6 +294,16 @@ class UploadXmlController extends Controller
 
             $contributorType = $contributor->getAttribute('contributorType');
             $roles = $this->extractContributorRoles($contributorType);
+
+            // Check if this is a ContactPerson - handle separately
+            if (strcasecmp($contributorType ?? '', 'ContactPerson') === 0) {
+                $contactPerson = $this->extractContactPersonData($content);
+                if ($contactPerson !== null) {
+                    $contactPersons[] = $contactPerson;
+                }
+
+                continue; // Don't add to regular contributors
+            }
 
             // Check if this is an MSL Laboratory (HostingInstitution with labid)
             // Use contributorType directly for robust detection (case-insensitive)
@@ -365,6 +384,48 @@ class UploadXmlController extends Controller
         return [
             'contributors' => $contributors,
             'mslLaboratories' => $mslLaboratories,
+            'contactPersons' => $contactPersons,
+        ];
+    }
+
+    /**
+     * Extract data from a ContactPerson contributor element.
+     *
+     * @param  array<string, mixed>  $content  Contributor element content
+     * @return array<string, mixed>|null  Contact person data or null if invalid
+     */
+    private function extractContactPersonData(array $content): ?array
+    {
+        $nameElement = $this->firstElement($content, 'contributorName');
+        $nameType = $nameElement?->getAttribute('nameType');
+
+        // Check if this is a person (not institution)
+        if (is_string($nameType) && Str::lower($nameType) === 'organizational') {
+            // Skip organizational contact persons (not supported in ERNIE author contact)
+            return null;
+        }
+
+        $givenName = $this->stringValue($this->firstElement($content, 'givenName'));
+        $familyName = $this->stringValue($this->firstElement($content, 'familyName'));
+
+        // Try to parse name from contributorName if separate parts are missing
+        if ((! $givenName || ! $familyName) && $nameElement instanceof Element) {
+            $resolved = $this->splitCreatorName($this->stringValue($nameElement));
+            $familyName ??= $resolved['familyName'];
+            $givenName ??= $resolved['givenName'];
+        }
+
+        // Require at least a family name
+        if (! $familyName) {
+            return null;
+        }
+
+        return [
+            'type' => 'person',
+            'orcid' => $this->extractOrcid($content),
+            'firstName' => $givenName ?? '',
+            'lastName' => $familyName,
+            'affiliations' => $this->extractAffiliations($content),
         ];
     }
 
@@ -1749,5 +1810,368 @@ class UploadXmlController extends Controller
         }
 
         return $fundingReferences;
+    }
+
+    /**
+     * Extract contact information (email, website) from ISO 19115 pointOfContact elements.
+     *
+     * Parses the MD_Metadata section of the XML to find pointOfContact entries
+     * with individualName and their associated email addresses and websites.
+     *
+     * @return array<string, array{email: string, website: string}>
+     *         Key is normalized name "familyname, givenname" (lowercase, trimmed)
+     */
+    private function extractContactInfoFromIso(XmlReader $reader): array
+    {
+        $contactInfo = [];
+
+        // Query all pointOfContact elements within MD_DataIdentification
+        // These are in the ISO 19115 namespace (gmd)
+        $pointOfContactElements = $reader
+            ->xpathElement('//*[local-name()="identificationInfo"]//*[local-name()="pointOfContact"]/*[local-name()="CI_ResponsibleParty"]')
+            ->get();
+
+        foreach ($pointOfContactElements as $element) {
+            $content = $element->getContent();
+
+            if (! is_array($content)) {
+                continue;
+            }
+
+            // Extract individualName (format: "Familyname, Givenname")
+            $individualName = $this->extractIsoCharacterString($content, 'individualName');
+
+            if ($individualName === null || $individualName === '') {
+                continue;
+            }
+
+            $normalizedName = $this->normalizeNameForMatching($individualName);
+
+            // Skip if we already have contact info for this person (use first found)
+            if (isset($contactInfo[$normalizedName])) {
+                continue;
+            }
+
+            // Extract email from nested CI_Contact/address/CI_Address/electronicMailAddress
+            $email = $this->extractIsoEmail($content);
+
+            // Extract website from nested CI_Contact/onlineResource/CI_OnlineResource/linkage/URL
+            $website = $this->extractIsoWebsite($content);
+
+            $contactInfo[$normalizedName] = [
+                'email' => $email ?? '',
+                'website' => $website ?? '',
+            ];
+        }
+
+        return $contactInfo;
+    }
+
+    /**
+     * Get a direct child element from ISO 19115 content without normalization.
+     *
+     * Unlike firstElement(), this method does not flatten nested structures.
+     * This is necessary for ISO 19115 parsing where we need to traverse
+     * the deep hierarchy step by step.
+     *
+     * @param  array<string, mixed>  $content
+     */
+    private function getIsoChildElement(array $content, string $key): ?Element
+    {
+        if (! array_key_exists($key, $content)) {
+            return null;
+        }
+
+        $value = $content[$key];
+
+        return $value instanceof Element ? $value : null;
+    }
+
+    /**
+     * Extract a CharacterString value from ISO 19115 content.
+     *
+     * ISO 19115 wraps most text values in gco:CharacterString elements.
+     *
+     * @param  array<string, mixed>  $content
+     */
+    private function extractIsoCharacterString(array $content, string $elementName): ?string
+    {
+        $element = $this->getIsoChildElement($content, $elementName);
+
+        if ($element === null) {
+            return null;
+        }
+
+        $innerContent = $element->getContent();
+
+        // Check if it's directly a string
+        if (is_string($innerContent)) {
+            return trim($innerContent);
+        }
+
+        // Check for nested CharacterString (gco:CharacterString with or without prefix)
+        if (is_array($innerContent)) {
+            // Try with namespace prefix first, then without
+            $charString = $this->getIsoChildElement($innerContent, 'gco:CharacterString')
+                ?? $this->getIsoChildElement($innerContent, 'CharacterString');
+
+            if ($charString !== null) {
+                $value = $charString->getContent();
+                if (is_string($value)) {
+                    return trim($value);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract email address from ISO 19115 CI_ResponsibleParty content.
+     *
+     * Path: contactInfo/CI_Contact/address/CI_Address/electronicMailAddress/CharacterString
+     *
+     * @param  array<string, mixed>  $content
+     */
+    private function extractIsoEmail(array $content): ?string
+    {
+        $contactInfoElement = $this->getIsoChildElement($content, 'contactInfo');
+        if ($contactInfoElement === null) {
+            return null;
+        }
+
+        $contactInfoContent = $contactInfoElement->getContent();
+        if (! is_array($contactInfoContent)) {
+            return null;
+        }
+
+        $ciContact = $this->getIsoChildElement($contactInfoContent, 'CI_Contact');
+        if ($ciContact === null) {
+            return null;
+        }
+
+        $ciContactContent = $ciContact->getContent();
+        if (! is_array($ciContactContent)) {
+            return null;
+        }
+
+        $address = $this->getIsoChildElement($ciContactContent, 'address');
+        if ($address === null) {
+            return null;
+        }
+
+        $addressContent = $address->getContent();
+        if (! is_array($addressContent)) {
+            return null;
+        }
+
+        $ciAddress = $this->getIsoChildElement($addressContent, 'CI_Address');
+        if ($ciAddress === null) {
+            return null;
+        }
+
+        $ciAddressContent = $ciAddress->getContent();
+        if (! is_array($ciAddressContent)) {
+            return null;
+        }
+
+        return $this->extractIsoCharacterString($ciAddressContent, 'electronicMailAddress');
+    }
+
+    /**
+     * Extract website URL from ISO 19115 CI_ResponsibleParty content.
+     *
+     * Path: contactInfo/CI_Contact/onlineResource/CI_OnlineResource/linkage/URL
+     *
+     * @param  array<string, mixed>  $content
+     */
+    private function extractIsoWebsite(array $content): ?string
+    {
+        $contactInfoElement = $this->getIsoChildElement($content, 'contactInfo');
+        if ($contactInfoElement === null) {
+            return null;
+        }
+
+        $contactInfoContent = $contactInfoElement->getContent();
+        if (! is_array($contactInfoContent)) {
+            return null;
+        }
+
+        $ciContact = $this->getIsoChildElement($contactInfoContent, 'CI_Contact');
+        if ($ciContact === null) {
+            return null;
+        }
+
+        $ciContactContent = $ciContact->getContent();
+        if (! is_array($ciContactContent)) {
+            return null;
+        }
+
+        $onlineResource = $this->getIsoChildElement($ciContactContent, 'onlineResource');
+        if ($onlineResource === null) {
+            return null;
+        }
+
+        $onlineResourceContent = $onlineResource->getContent();
+        if (! is_array($onlineResourceContent)) {
+            return null;
+        }
+
+        $ciOnlineResource = $this->getIsoChildElement($onlineResourceContent, 'CI_OnlineResource');
+        if ($ciOnlineResource === null) {
+            return null;
+        }
+
+        $ciOnlineResourceContent = $ciOnlineResource->getContent();
+        if (! is_array($ciOnlineResourceContent)) {
+            return null;
+        }
+
+        $linkage = $this->getIsoChildElement($ciOnlineResourceContent, 'linkage');
+        if ($linkage === null) {
+            return null;
+        }
+
+        $linkageContent = $linkage->getContent();
+        if (! is_array($linkageContent)) {
+            return null;
+        }
+
+        $urlElement = $this->getIsoChildElement($linkageContent, 'URL');
+        if ($urlElement === null) {
+            return null;
+        }
+
+        $url = $urlElement->getContent();
+
+        return is_string($url) ? trim($url) : null;
+    }
+
+    /**
+     * Normalize a name for matching purposes.
+     *
+     * Handles both "Familyname, Givenname" format and separate first/last name.
+     * Returns lowercase, trimmed version for case-insensitive comparison.
+     *
+     * @param  string  $name  Name in "Familyname, Givenname" format
+     */
+    private function normalizeNameForMatching(string $name): string
+    {
+        return mb_strtolower(trim($name));
+    }
+
+    /**
+     * Build a normalized name key from first and last name.
+     *
+     * @return string Name in "familyname, givenname" format (lowercase)
+     */
+    private function buildNameKey(string $familyName, string $firstName): string
+    {
+        return mb_strtolower(trim($familyName).', '.trim($firstName));
+    }
+
+    /**
+     * Merge ContactPerson contributors into authors array.
+     *
+     * Matching priority:
+     * 1. ORCID (if both have it)
+     * 2. Name (familyName + givenName, case-insensitive)
+     *
+     * If match found: Set isContact=true, add email/website from ISO
+     * If no match: Add as new author with isContact=true
+     *
+     * @param  array<int, array<string, mixed>>  $authors  Extracted authors from creators
+     * @param  array<int, array<string, mixed>>  $contactPersons  ContactPerson contributors
+     * @param  array<string, array{email: string, website: string}>  $isoContactInfo  Email/website map from ISO
+     * @return array<int, array<string, mixed>>  Modified authors array
+     */
+    private function mergeContactPersonsIntoAuthors(array $authors, array $contactPersons, array $isoContactInfo): array
+    {
+        foreach ($contactPersons as $cp) {
+            // Skip institution-type contact persons (not supported in ERNIE)
+            if (($cp['type'] ?? '') === 'institution') {
+                continue;
+            }
+
+            $matched = false;
+
+            // 1. Try ORCID match first (most reliable)
+            $cpOrcid = $cp['orcid'] ?? '';
+            if ($cpOrcid !== '') {
+                foreach ($authors as &$author) {
+                    if (($author['type'] ?? '') === 'person' && ($author['orcid'] ?? '') === $cpOrcid) {
+                        $author['isContact'] = true;
+                        $this->enrichAuthorWithContactInfo($author, $isoContactInfo);
+                        $matched = true;
+                        break;
+                    }
+                }
+                unset($author);
+            }
+
+            // 2. Fallback to name match
+            if (! $matched) {
+                $cpLastName = trim($cp['lastName'] ?? '');
+                $cpFirstName = trim($cp['firstName'] ?? '');
+
+                // Skip name matching if lastName is empty (firstName alone is not reliable enough)
+                if ($cpLastName === '') {
+                    continue;
+                }
+
+                $cpNameKey = $this->buildNameKey($cpLastName, $cpFirstName);
+
+                foreach ($authors as &$author) {
+                    if (($author['type'] ?? '') === 'person') {
+                        $authorNameKey = $this->buildNameKey($author['lastName'] ?? '', $author['firstName'] ?? '');
+                        if ($cpNameKey === $authorNameKey) {
+                            $author['isContact'] = true;
+                            $this->enrichAuthorWithContactInfo($author, $isoContactInfo);
+                            $matched = true;
+                            break;
+                        }
+                    }
+                }
+                unset($author);
+            }
+
+            // 3. No match found - add as new author
+            if (! $matched) {
+                $newAuthor = [
+                    'type' => 'person',
+                    'orcid' => $cp['orcid'] ?? '',
+                    'firstName' => $cp['firstName'] ?? '',
+                    'lastName' => $cp['lastName'] ?? '',
+                    'affiliations' => $cp['affiliations'] ?? [],
+                    'isContact' => true,
+                    'email' => '',
+                    'website' => '',
+                ];
+                $this->enrichAuthorWithContactInfo($newAuthor, $isoContactInfo);
+                $authors[] = $newAuthor;
+            }
+        }
+
+        return $authors;
+    }
+
+    /**
+     * Enrich an author entry with email and website from ISO contact info.
+     *
+     * @param  array<string, mixed>  $author  Author entry (modified by reference)
+     * @param  array<string, array{email: string, website: string}>  $isoContactInfo  Contact info map
+     */
+    private function enrichAuthorWithContactInfo(array &$author, array $isoContactInfo): void
+    {
+        $nameKey = $this->buildNameKey($author['lastName'] ?? '', $author['firstName'] ?? '');
+
+        if (isset($isoContactInfo[$nameKey])) {
+            $author['email'] = $isoContactInfo[$nameKey]['email'];
+            $author['website'] = $isoContactInfo[$nameKey]['website'];
+        } else {
+            // Ensure fields exist even if no match found
+            $author['email'] = $author['email'] ?? '';
+            $author['website'] = $author['website'] ?? '';
+        }
     }
 }

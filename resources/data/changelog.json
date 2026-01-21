@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-20",
+        "date": "2026-01-21",
         "features": [
             {
                 "title": "Dashboard Statistics Separation",
@@ -103,6 +103,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Loss of Contact Person Email and Website during XML Upload",
+                "description": "Fixed an issue where email addresses and website URLs of contact persons were lost when uploading DataCite XML files. The system now extracts contact information from the embedded ISO 19115 section (pointOfContact elements) and automatically associates it with the corresponding authors. ContactPerson contributors are matched to authors by ORCID (preferred) or name, eliminating the need to manually re-enter contact details that were already present in the exported XML."
+            },
             {
                 "title": "ORCID Verification Fails for Valid ORCIDs",
                 "description": "Fixed intermittent 'ORCID not found' errors for valid ORCIDs caused by temporary ORCID API unavailability. The system now implements automatic retry logic with exponential backoff, differentiates between true 404 responses and temporary failures, and shows a 'Format valid (unverified)' status with a Retry button when the service is unavailable. Confirmed non-existent ORCIDs are cached to avoid repeated lookups."
