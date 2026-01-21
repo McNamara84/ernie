@@ -276,18 +276,39 @@ CSV;
 });
 
 describe('Collection Date Parsing', function () {
-    it('parses start and end dates', function () {
+    it('parses start and end dates in full date format (YYYY-MM-DD)', function () {
         $dates = $this->parser->parseCollectionDates('2024-01-15', '2024-02-20');
 
         expect($dates['start'])->toBe('2024-01-15')
             ->and($dates['end'])->toBe('2024-02-20');
     });
 
-    it('handles date with only year', function () {
+    it('parses year-month format (YYYY-MM)', function () {
+        $dates = $this->parser->parseCollectionDates('2024-03', '2024-06');
+
+        expect($dates['start'])->toBe('2024-03')
+            ->and($dates['end'])->toBe('2024-06');
+    });
+
+    it('handles date with only year (YYYY)', function () {
         $dates = $this->parser->parseCollectionDates('2024', '');
 
         expect($dates['start'])->toBe('2024')
             ->and($dates['end'])->toBeNull();
+    });
+
+    it('handles year-only format for both start and end dates', function () {
+        $dates = $this->parser->parseCollectionDates('2020', '2024');
+
+        expect($dates['start'])->toBe('2020')
+            ->and($dates['end'])->toBe('2024');
+    });
+
+    it('handles only end date without start date', function () {
+        $dates = $this->parser->parseCollectionDates('', '2024-12-31');
+
+        expect($dates['start'])->toBeNull()
+            ->and($dates['end'])->toBe('2024-12-31');
     });
 
     it('returns null for empty dates', function () {
@@ -295,6 +316,27 @@ describe('Collection Date Parsing', function () {
 
         expect($dates['start'])->toBeNull()
             ->and($dates['end'])->toBeNull();
+    });
+
+    it('normalizes alternative date formats to ISO format', function () {
+        // Some CSV files might use different date formats
+        $dates = $this->parser->parseCollectionDates('January 15, 2024', '');
+
+        expect($dates['start'])->toBe('2024-01-15');
+    });
+
+    it('handles whitespace around dates', function () {
+        $dates = $this->parser->parseCollectionDates('  2024-01-15  ', '  2024-02-20  ');
+
+        expect($dates['start'])->toBe('2024-01-15')
+            ->and($dates['end'])->toBe('2024-02-20');
+    });
+
+    it('handles mixed precision dates (year start, full date end)', function () {
+        $dates = $this->parser->parseCollectionDates('2024', '2024-06-30');
+
+        expect($dates['start'])->toBe('2024')
+            ->and($dates['end'])->toBe('2024-06-30');
     });
 });
 

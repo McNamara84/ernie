@@ -389,3 +389,224 @@ describe('IGSN JSON Export with Schema Validation', function () {
         expect($attributes['types']['resourceTypeGeneral'])->toBe('PhysicalObject');
     });
 });
+
+describe('IGSN Collection Date Export', function () {
+    it('exports collection date range in DataCite JSON format', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        // Create resource
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DATE-TEST-001',
+            'publication_year' => 2024,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample with Collection Date',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // Add creator
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        // Add IGSN metadata
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add collection date range (like from CSV)
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2024-01-15',
+            'end_date' => '2024-06-30',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $attributes = $json['data']['attributes'];
+
+        // Verify dates are exported correctly
+        expect($attributes)->toHaveKey('dates');
+        expect($attributes['dates'])->toHaveCount(1);
+        expect($attributes['dates'][0]['date'])->toBe('2024-01-15/2024-06-30');
+        expect($attributes['dates'][0]['dateType'])->toBe('Collected');
+    });
+
+    it('exports collection date with year-only format in DataCite JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DATE-TEST-002',
+            'publication_year' => 2020,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample with Year Range',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Borehole',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add collection date with year-only format
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2020',
+            'end_date' => '2024',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+
+        expect($json['data']['attributes']['dates'][0]['date'])->toBe('2020/2024');
+        expect($json['data']['attributes']['dates'][0]['dateType'])->toBe('Collected');
+    });
+
+    it('exports open-ended collection date (start only) in DataCite JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DATE-TEST-003',
+            'publication_year' => 2024,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample Open-Ended',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Sample',
+            'material' => 'Water',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add collection date with only start date (open-ended)
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2024-03-15',
+            'end_date' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+
+        // Open-ended ranges should be exported as single date
+        expect($json['data']['attributes']['dates'][0]['date'])->toBe('2024-03-15');
+        expect($json['data']['attributes']['dates'][0]['dateType'])->toBe('Collected');
+    });
+
+    it('exports collection date in DataCite XML format', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DATE-TEST-004',
+            'publication_year' => 2021,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample XML Export',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Borehole',
+            'material' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add collection date range
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2021-04-12',
+            'end_date' => '2021-05-05',
+        ]);
+
+        // Use the general resources XML export endpoint (works for all resource types including IGSNs)
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+
+        // Get XML content (may be regular response or streamed)
+        $xml = method_exists($response->baseResponse, 'streamedContent')
+            ? $response->streamedContent()
+            : $response->getContent();
+
+        // Verify XML contains the date with correct format
+        expect($xml)->toContain('<dates>');
+        expect($xml)->toContain('dateType="Collected"');
+        expect($xml)->toContain('2021-04-12/2021-05-05</date>');
+    });
+});

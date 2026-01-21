@@ -144,6 +144,68 @@ describe('IGSN Data Storage', function () {
         expect($collectionDate->end_date)->toBe('2021-05-05');
     });
 
+    it('stores collection date with only start date (open-ended range)', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN123|Test Title|Test Name|2024-06-15|";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->not->toBeNull();
+        expect($collectionDate->start_date)->toBe('2024-06-15');
+        expect($collectionDate->end_date)->toBeNull();
+    });
+
+    it('stores collection date with year-only format', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN456|Test Title|Test Name|2020|2024";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->not->toBeNull();
+        expect($collectionDate->start_date)->toBe('2020');
+        expect($collectionDate->end_date)->toBe('2024');
+    });
+
+    it('stores collection date with year-month format', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN789|Test Title|Test Name|2024-03|2024-09";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->not->toBeNull();
+        expect($collectionDate->start_date)->toBe('2024-03');
+        expect($collectionDate->end_date)->toBe('2024-09');
+    });
+
+    it('does not create collection date when both dates are empty', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN000|Test Title|Test Name||";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->toBeNull();
+    });
+
     it('stores IGSN metadata correctly from CSV', function () {
         $csvContent = file_get_contents(getDoveCsvPath());
         $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
