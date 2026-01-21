@@ -2020,3 +2020,242 @@ describe('IGSN AlternateIdentifier Export', function () {
         expect($xml)->toContain('Dataset Other Name');
     });
 });
+
+describe('IGSN RelatedIdentifier Export', function () {
+    it('exports parent_igsn as relatedIdentifier with IsPartOf relation to JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $igsnIdentifierType = \App\Models\IdentifierType::where('slug', 'IGSN')->first();
+        $isPartOfRelationType = \App\Models\RelationType::where('slug', 'IsPartOf')->first();
+
+        // Create IGSN resource
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.CHILD',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Child Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        // Create related identifier for parent IGSN
+        \App\Models\RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.58052/IGSN.PARENT',
+            'identifier_type_id' => $igsnIdentifierType->id,
+            'relation_type_id' => $isPartOfRelationType->id,
+            'position' => 0,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'Collector',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes'])->toHaveKey('relatedIdentifiers')
+            ->and($json['data']['attributes']['relatedIdentifiers'])->toHaveCount(1)
+            ->and($json['data']['attributes']['relatedIdentifiers'][0]['relatedIdentifier'])->toBe('10.58052/IGSN.PARENT')
+            ->and($json['data']['attributes']['relatedIdentifiers'][0]['relatedIdentifierType'])->toBe('IGSN')
+            ->and($json['data']['attributes']['relatedIdentifiers'][0]['relationType'])->toBe('IsPartOf');
+    });
+
+    it('exports multiple relatedIdentifiers to JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $igsnIdentifierType = \App\Models\IdentifierType::where('slug', 'IGSN')->first();
+        $doiIdentifierType = \App\Models\IdentifierType::where('slug', 'DOI')->first();
+        $isPartOfRelationType = \App\Models\RelationType::where('slug', 'IsPartOf')->first();
+        $isCitedByRelationType = \App\Models\RelationType::where('slug', 'IsCitedBy')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.MULTI',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Multi-Relation Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        // Parent IGSN relation
+        \App\Models\RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.58052/IGSN.PARENT',
+            'identifier_type_id' => $igsnIdentifierType->id,
+            'relation_type_id' => $isPartOfRelationType->id,
+            'position' => 0,
+        ]);
+
+        // Related publication
+        \App\Models\RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.1234/paper.2024',
+            'identifier_type_id' => $doiIdentifierType->id,
+            'relation_type_id' => $isCitedByRelationType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes']['relatedIdentifiers'])->toHaveCount(2);
+
+        // Check first relation (parent IGSN)
+        $parentRelation = collect($json['data']['attributes']['relatedIdentifiers'])
+            ->firstWhere('relatedIdentifier', '10.58052/IGSN.PARENT');
+        expect($parentRelation['relatedIdentifierType'])->toBe('IGSN')
+            ->and($parentRelation['relationType'])->toBe('IsPartOf');
+
+        // Check second relation (cited paper)
+        $paperRelation = collect($json['data']['attributes']['relatedIdentifiers'])
+            ->firstWhere('relatedIdentifier', '10.1234/paper.2024');
+        expect($paperRelation['relatedIdentifierType'])->toBe('DOI')
+            ->and($paperRelation['relationType'])->toBe('IsCitedBy');
+    });
+
+    it('exports relatedIdentifiers to XML with correct attributes', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $igsnIdentifierType = \App\Models\IdentifierType::where('slug', 'IGSN')->first();
+        $isPartOfRelationType = \App\Models\RelationType::where('slug', 'IsPartOf')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.XMLTEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'XML Test Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        \App\Models\RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.58052/IGSN.PARENT',
+            'identifier_type_id' => $igsnIdentifierType->id,
+            'relation_type_id' => $isPartOfRelationType->id,
+            'position' => 0,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        // Check XML structure
+        expect($xml)->toContain('<relatedIdentifiers>')
+            ->and($xml)->toContain('</relatedIdentifiers>')
+            ->and($xml)->toContain('relatedIdentifierType="IGSN"')
+            ->and($xml)->toContain('relationType="IsPartOf"')
+            ->and($xml)->toContain('10.58052/IGSN.PARENT');
+    });
+
+    it('does not export relatedIdentifiers when none exist', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.NOREL',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'No Relations Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes'])->not->toHaveKey('relatedIdentifiers');
+    });
+});

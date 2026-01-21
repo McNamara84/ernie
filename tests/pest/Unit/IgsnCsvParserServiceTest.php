@@ -490,6 +490,49 @@ CSV;
 
         expect($result['rows'][0]['_related_identifiers'])->toHaveCount(2);
     });
+
+    it('parses parent_igsn as relatedIdentifier with IsPartOf relation', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn
+10.58052/IGSN.CHILD|Child Sample|Child Name|10.58052/IGSN.PARENT
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_related_identifiers'])->toHaveCount(1)
+            ->and($result['rows'][0]['_related_identifiers'][0]['identifier'])->toBe('10.58052/IGSN.PARENT')
+            ->and($result['rows'][0]['_related_identifiers'][0]['type'])->toBe('IGSN')
+            ->and($result['rows'][0]['_related_identifiers'][0]['relationType'])->toBe('IsPartOf');
+    });
+
+    it('includes parent_igsn with other relatedIdentifiers', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn|relatedIdentifier|relatedIdentifierType|relationtype
+10.58052/IGSN.CHILD|Child Sample|Child Name|10.58052/IGSN.PARENT|10.1234/paper|DOI|IsCitedBy
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // parent_igsn should be first, then other relatedIdentifiers
+        expect($result['rows'][0]['_related_identifiers'])->toHaveCount(2)
+            ->and($result['rows'][0]['_related_identifiers'][0]['identifier'])->toBe('10.58052/IGSN.PARENT')
+            ->and($result['rows'][0]['_related_identifiers'][0]['type'])->toBe('IGSN')
+            ->and($result['rows'][0]['_related_identifiers'][0]['relationType'])->toBe('IsPartOf')
+            ->and($result['rows'][0]['_related_identifiers'][1]['identifier'])->toBe('10.1234/paper')
+            ->and($result['rows'][0]['_related_identifiers'][1]['type'])->toBe('DOI')
+            ->and($result['rows'][0]['_related_identifiers'][1]['relationType'])->toBe('IsCitedBy');
+    });
+
+    it('ignores empty parent_igsn', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn
+10.58052/IGSN.1234|Title|Name|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_related_identifiers'])->toBeEmpty();
+    });
 });
 
 describe('Funding References Parsing', function () {

@@ -256,6 +256,8 @@ class IgsnCsvParserService
      * Parse related identifiers from CSV row.
      *
      * CSV has multiple relatedIdentifier columns. We need to handle both sets.
+     * Also handles parent_igsn as a special relatedIdentifier with type IGSN
+     * and relationType IsPartOf.
      *
      * @param  array<string, mixed>  $data
      * @return list<array{identifier: string, type: string, relationType: string}>
@@ -263,6 +265,16 @@ class IgsnCsvParserService
     private function parseRelatedIdentifiers(array $data): array
     {
         $result = [];
+
+        // Handle parent_igsn as a relatedIdentifier with IsPartOf relation
+        $parentIgsn = trim((string) ($data['parent_igsn'] ?? ''));
+        if ($parentIgsn !== '') {
+            $result[] = [
+                'identifier' => $parentIgsn,
+                'type' => 'IGSN',
+                'relationType' => 'IsPartOf',
+            ];
+        }
 
         // Get all related identifier fields (may be arrays from multi-value parsing)
         $identifiers = is_array($data['relatedIdentifier'] ?? null)
