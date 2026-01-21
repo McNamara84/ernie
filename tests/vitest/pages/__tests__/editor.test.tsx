@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Editor from '@/pages/editor';
+import * as sessionWarmup from '@/lib/session-warmup';
 import type { DateType, Language,License, ResourceType, TitleType } from '@/types';
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
@@ -21,6 +22,8 @@ const licenses: License[] = [
 const languages: Language[] = [
     { id: 1, code: 'en', name: 'English' },
 ];
+
+const roles = [{ id: 1, name: 'DataCollector' }];
 
 const renderForm = vi.fn();
 
@@ -46,9 +49,21 @@ vi.mock('@/components/curation/datacite-form', () => ({
     },
 }));
 
+// Mock session warmup module
+vi.mock('@/lib/session-warmup', () => ({
+    warmupSession: vi.fn(),
+}));
+
 describe('Editor page', () => {
     beforeEach(() => {
         renderForm.mockClear();
+        
+        // Setup warmupSession mock to return resource types
+        vi.mocked(sessionWarmup.warmupSession).mockResolvedValue({ 
+            success: true, 
+            data: resourceTypes 
+        });
+        
         vi.stubGlobal(
             'fetch',
             vi.fn((url: RequestInfo) =>
@@ -64,7 +79,11 @@ describe('Editor page', () => {
                                     ? dateTypes
                                     : url.toString().includes('licenses')
                                       ? licenses
-                                      : languages,
+                                      : url.toString().includes('languages')
+                                        ? languages
+                                        : url.toString().includes('roles')
+                                          ? roles
+                                          : [],
                         ),
                 }),
             ),
@@ -85,7 +104,8 @@ describe('Editor page', () => {
     });
 
     it('shows loading state before types load', () => {
-        vi.mocked(fetch).mockImplementation(
+        // Make warmupSession hang to keep loading state
+        vi.mocked(sessionWarmup.warmupSession).mockImplementation(
             () => new Promise(() => {}),
         );
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
@@ -96,11 +116,7 @@ describe('Editor page', () => {
 
     it('shows loading state when only one type set has loaded', async () => {
         const unresolved = new Promise<Response>(() => {});
-        vi.mocked(fetch).mockImplementation((url) =>
-            url.toString().includes('resource-types')
-                ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) } as Response)
-                : unresolved,
-        );
+        vi.mocked(fetch).mockImplementation(() => unresolved);
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource and title types, licenses, languages, and role options/i,

@@ -148,9 +148,8 @@ class EditorDataTransformer
             $creatorable = $firstEntry->creatorable;
 
             // Collect all unique affiliations from all entries of this creator
-            $allAffiliations = $group->flatMap(function ($creator) {
-                return $creator->affiliations;
-            })->unique(function ($affiliation): string {
+            /** @var \Illuminate\Support\Collection<int, \App\Models\Affiliation> $allAffiliations */
+            $allAffiliations = $group->flatMap(fn (\App\Models\ResourceCreator $creator) => $creator->affiliations)->unique(function (\App\Models\Affiliation $affiliation): string {
                 // Unique by name and identifier combination
                 return $affiliation->name.'|'.($affiliation->identifier ?? 'null');
             });
