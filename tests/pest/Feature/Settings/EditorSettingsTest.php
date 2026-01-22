@@ -22,11 +22,7 @@ test('admin users can view editor settings page', function () {
     // Issue #379: Only Admin and Group Leader can access Editor Settings
     $user = User::factory()->admin()->create();
     ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]);
-    // Use firstOrCreate since migration may have already created MainTitle
-    TitleType::firstOrCreate(
-        ['slug' => 'MainTitle'],
-        ['name' => 'Main Title', 'is_active' => true]
-    );
+    TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]);
     Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);
     Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
@@ -41,8 +37,8 @@ test('admin users can view editor settings page', function () {
         ->has('titleTypes', 1)
         ->has('licenses', 1)
         ->has('languages', 1)
-        // 1 from test (Created) + 1 from migration (Coverage) = 2
-        ->has('dateTypes', 2)
+        // 1 dateType created in this test
+        ->has('dateTypes', 1)
         ->where('maxTitles', Setting::DEFAULT_LIMIT)
         ->where('maxLicenses', Setting::DEFAULT_LIMIT)
     );
@@ -52,11 +48,7 @@ test('admin users can update resource and title types and settings', function ()
     // Issue #379: Only Admin and Group Leader can access Editor Settings
     $user = User::factory()->admin()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
-    // Use firstOrCreate since migration may have already created MainTitle
-    $title = TitleType::firstOrCreate(
-        ['slug' => 'MainTitle'],
-        ['name' => 'Main Title', 'is_active' => true, 'is_elmo_active' => true]
-    );
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
     $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);

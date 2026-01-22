@@ -8,6 +8,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
 
+    // Create all test data - tests should not depend on seeded data
     DateType::create(['name' => 'Accepted', 'slug' => 'accepted', 'is_active' => true]);
     DateType::create(['name' => 'Available', 'slug' => 'available', 'is_active' => true]);
     DateType::create(['name' => 'Collected', 'slug' => 'collected', 'is_active' => false]);
@@ -16,13 +17,12 @@ beforeEach(function () {
 
 test('returns all date types ordered by name', function () {
     $response = $this->getJson('/api/v1/date-types')->assertOk();
-    // 4 from beforeEach + 1 Coverage from migration = 5 total
-    expect($response->json())->toHaveCount(5);
+    // 4 types created in beforeEach, ordered alphabetically
+    expect($response->json())->toHaveCount(4);
     expect(array_column($response->json(), 'name'))->toBe([
         'Accepted',
         'Available',
         'Collected',
-        'Coverage',
         'Other',
     ]);
 });
