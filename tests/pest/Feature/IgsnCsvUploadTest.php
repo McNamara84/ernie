@@ -144,6 +144,68 @@ describe('IGSN Data Storage', function () {
         expect($collectionDate->end_date)->toBe('2021-05-05');
     });
 
+    it('stores collection date with only start date (open-ended range)', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN123|Test Title|Test Name|2024-06-15|";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->not->toBeNull();
+        expect($collectionDate->start_date)->toBe('2024-06-15');
+        expect($collectionDate->end_date)->toBeNull();
+    });
+
+    it('stores collection date with year-only format', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN456|Test Title|Test Name|2020|2024";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->not->toBeNull();
+        expect($collectionDate->start_date)->toBe('2020');
+        expect($collectionDate->end_date)->toBe('2024');
+    });
+
+    it('stores collection date with year-month format', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN789|Test Title|Test Name|2024-03|2024-09";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->not->toBeNull();
+        expect($collectionDate->start_date)->toBe('2024-03');
+        expect($collectionDate->end_date)->toBe('2024-09');
+    });
+
+    it('does not create collection date when both dates are empty', function () {
+        $csvContent = "igsn|title|name|collection_start_date|collection_end_date\nIGSN000|Test Title|Test Name||";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
+
+        expect($collectionDate)->toBeNull();
+    });
+
     it('stores IGSN metadata correctly from CSV', function () {
         $csvContent = file_get_contents(getDoveCsvPath());
         $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
@@ -187,9 +249,131 @@ describe('IGSN Data Storage', function () {
 
         expect($creator)->not->toBeNull();
         expect($creator->creatorable)->not->toBeNull();
-        expect($creator->creatorable->family_name)->toBe('Gabriel');
-        expect($creator->creatorable->given_name)->toBe('Gerald');
+        // Note: CSV has dedicated givenName/familyName columns which are used over collector field
+        // givenName=Gabriel, familyName=Gerald (from dedicated columns)
+        expect($creator->creatorable->given_name)->toBe('Gabriel');
+        expect($creator->creatorable->family_name)->toBe('Gerald');
         expect($creator->creatorable->orcid)->toBe('https://orcid.org/0000-0001-9404-882X');
+    });
+
+    it('stores creator with ORCID correctly from CSV', function () {
+        $csvContent = file_get_contents(getDoveCsvPath());
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+        $person = $creator->creatorable;
+
+        // Verify creator is stored with correct name parts from dedicated columns
+        // givenName=Gabriel, familyName=Gerald (from dedicated columns, not parsed from collector)
+        expect($person->given_name)->toBe('Gabriel');
+        expect($person->family_name)->toBe('Gerald');
+
+        // Verify ORCID is stored correctly with scheme
+        expect($person->name_identifier)->toBe('https://orcid.org/0000-0001-9404-882X');
+        expect($person->name_identifier_scheme)->toBe('ORCID');
+    });
+
+    it('stores creator with affiliation from CSV', function () {
+        $csvContent = file_get_contents(getDoveCsvPath());
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+
+        // Verify affiliation is linked to creator
+        $affiliations = $creator->affiliations;
+        expect($affiliations->count())->toBeGreaterThanOrEqual(1);
+
+        $affiliation = $affiliations->first();
+        expect($affiliation->name)->toContain('Leibniz');
+    });
+
+    it('stores creator from collector name in "FamilyName, GivenName" format', function () {
+        $csvContent = "igsn|title|name|collector|orcid\nIGSN-CREATOR-1|Test|Name|Smith, Jane|0000-0002-1234-5678";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+
+        expect($creator->creatorable->family_name)->toBe('Smith');
+        expect($creator->creatorable->given_name)->toBe('Jane');
+    });
+
+    it('stores creator from collector name in "GivenName FamilyName" format', function () {
+        $csvContent = "igsn|title|name|collector\nIGSN-CREATOR-2|Test|Name|Jane Smith";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+
+        expect($creator->creatorable->family_name)->toBe('Smith');
+        expect($creator->creatorable->given_name)->toBe('Jane');
+    });
+
+    it('does not create creator when collector is empty', function () {
+        $csvContent = "igsn|title|name|collector\nIGSN-NO-CREATOR|Test|Name|";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        expect($resource->creators->count())->toBe(0);
+    });
+
+    it('stores creator from separate givenName and familyName columns', function () {
+        $csvContent = "igsn|title|name|givenName|familyName\nIGSN-SEPARATE-1|Test|Name|Max|Mustermann";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+
+        expect($creator->creatorable->given_name)->toBe('Max');
+        expect($creator->creatorable->family_name)->toBe('Mustermann');
+    });
+
+    it('prefers givenName/familyName columns over collector field', function () {
+        $csvContent = "igsn|title|name|collector|givenName|familyName\nIGSN-PREFER-1|Test|Name|Ignored, Name|Maria|Garcia";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+
+        expect($creator->creatorable->given_name)->toBe('Maria');
+        expect($creator->creatorable->family_name)->toBe('Garcia');
+    });
+
+    it('stores creator with only familyName when givenName is empty', function () {
+        $csvContent = "igsn|title|name|givenName|familyName\nIGSN-FAMILY-ONLY|Test|Name||Darwin";
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $creator = $resource->creators->first();
+
+        expect($creator->creatorable->given_name)->toBeNull();
+        expect($creator->creatorable->family_name)->toBe('Darwin');
     });
 
     it('stores alternative titles (name and sample_other_names) from CSV', function () {

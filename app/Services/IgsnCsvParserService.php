@@ -256,6 +256,8 @@ class IgsnCsvParserService
      * Parse related identifiers from CSV row.
      *
      * CSV has multiple relatedIdentifier columns. We need to handle both sets.
+     * Also handles parent_igsn as a special relatedIdentifier with type IGSN
+     * and relationType IsPartOf.
      *
      * @param  array<string, mixed>  $data
      * @return list<array{identifier: string, type: string, relationType: string}>
@@ -263,6 +265,16 @@ class IgsnCsvParserService
     private function parseRelatedIdentifiers(array $data): array
     {
         $result = [];
+
+        // Handle parent_igsn as a relatedIdentifier with IsPartOf relation
+        $parentIgsn = trim((string) ($data['parent_igsn'] ?? ''));
+        if ($parentIgsn !== '') {
+            $result[] = [
+                'identifier' => $parentIgsn,
+                'type' => 'IGSN',
+                'relationType' => 'IsPartOf',
+            ];
+        }
 
         // Get all related identifier fields (may be arrays from multi-value parsing)
         $identifiers = is_array($data['relatedIdentifier'] ?? null)
@@ -336,31 +348,45 @@ class IgsnCsvParserService
     /**
      * Parse creator (collector) data from CSV row.
      *
+     * Supports two input modes:
+     * 1. Separate givenName/familyName columns (preferred when available)
+     * 2. Combined collector field (parsed as "FamilyName, GivenName" or "GivenName FamilyName")
+     *
      * @param  array<string, string>  $data
      * @return array{familyName: string|null, givenName: string|null, orcid: string|null, affiliation: string|null, ror: string|null}
      */
     private function parseCreator(array $data): array
     {
-        // Parse from collector field first (format: "FamilyName, GivenName" or "GivenName FamilyName")
-        // This is more reliable than dedicated givenName/familyName fields which are sometimes swapped
         $familyName = null;
         $givenName = null;
-        $collectorName = $data['collector'] ?? '';
 
-        if ($collectorName !== '') {
-            if (str_contains($collectorName, ',')) {
-                // Format: "FamilyName, GivenName"
-                $parts = explode(',', $collectorName, 2);
-                $familyName = trim($parts[0]);
-                $givenName = isset($parts[1]) ? trim($parts[1]) : null;
-            } else {
-                // Format: "GivenName FamilyName" (assume last word is family name)
-                $parts = explode(' ', trim($collectorName));
-                if (count($parts) > 1) {
-                    $familyName = array_pop($parts);
-                    $givenName = implode(' ', $parts);
+        // Check for dedicated givenName/familyName columns first (these are curated and reliable)
+        $csvGivenName = trim($data['givenName'] ?? '');
+        $csvFamilyName = trim($data['familyName'] ?? '');
+
+        if ($csvGivenName !== '' || $csvFamilyName !== '') {
+            // Use dedicated columns when available
+            $givenName = $csvGivenName !== '' ? $csvGivenName : null;
+            $familyName = $csvFamilyName !== '' ? $csvFamilyName : null;
+        } else {
+            // Fallback: Parse from collector field (format: "FamilyName, GivenName" or "GivenName FamilyName")
+            $collectorName = trim($data['collector'] ?? '');
+
+            if ($collectorName !== '') {
+                if (str_contains($collectorName, ',')) {
+                    // Format: "FamilyName, GivenName"
+                    $parts = explode(',', $collectorName, 2);
+                    $familyName = trim($parts[0]);
+                    $givenName = isset($parts[1]) ? trim($parts[1]) : null;
                 } else {
-                    $familyName = $collectorName;
+                    // Format: "GivenName FamilyName" (assume last word is family name)
+                    $parts = explode(' ', $collectorName);
+                    if (count($parts) > 1) {
+                        $familyName = array_pop($parts);
+                        $givenName = implode(' ', $parts);
+                    } else {
+                        $familyName = $collectorName;
+                    }
                 }
             }
         }

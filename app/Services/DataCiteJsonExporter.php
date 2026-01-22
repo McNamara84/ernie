@@ -91,8 +91,12 @@ class DataCiteJsonExporter
             $attributes['dates'] = $dates;
         }
 
+        // Language: use resource language if set, or default to 'en' for IGSN resources
         if ($resource->language) {
-            $attributes['language'] = $resource->language->iso_code ?? 'en';
+            $attributes['language'] = $resource->language->code ?? 'en';
+        } elseif ($resource->igsnMetadata) {
+            // IGSN resources default to English since IGSN CSV doesn't include language
+            $attributes['language'] = 'en';
         }
 
         if ($resource->version) {
@@ -107,8 +111,17 @@ class DataCiteJsonExporter
             $attributes['geoLocations'] = $geoLocations;
         }
 
+        // For IGSN resources, export AlternativeTitles as alternateIdentifiers
+        if ($alternateIdentifiers = $this->buildAlternateIdentifiers($resource)) {
+            $attributes['alternateIdentifiers'] = $alternateIdentifiers;
+        }
+
         if ($relatedIdentifiers = $this->buildRelatedIdentifiers($resource)) {
             $attributes['relatedIdentifiers'] = $relatedIdentifiers;
+        }
+
+        if ($sizes = $this->buildSizes($resource)) {
+            $attributes['sizes'] = $sizes;
         }
 
         if ($fundingReferences = $this->buildFundingReferences($resource)) {
@@ -165,7 +178,10 @@ class DataCiteJsonExporter
 
             // Add language if available
             if ($resource->language) {
-                $titleData['lang'] = $resource->language->iso_code ?? 'en';
+                $titleData['lang'] = $resource->language->code ?? 'en';
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $titleData['lang'] = 'en';
             }
 
             $titles[] = $titleData;
@@ -272,7 +288,10 @@ class DataCiteJsonExporter
     ];
 
     /**
-     * Build types (resource type) information
+     * Build types (resource type) information.
+     *
+     * For IGSN resources (PhysicalObject), uses sample_type and/or material
+     * from IGSN metadata as the specific resourceType value.
      *
      * @return array<string, string>
      */
@@ -286,10 +305,36 @@ class DataCiteJsonExporter
         $dataCiteType = self::RESOURCE_TYPE_GENERAL_MAP[$typeName]
             ?? str_replace(' ', '', $typeName);
 
+        // For PhysicalObject (IGSN), build specific resourceType from sample_type and material
+        $specificType = $typeName;
+        if ($dataCiteType === 'PhysicalObject' && $resource->igsnMetadata) {
+            $specificType = $this->buildIgsnResourceType($resource->igsnMetadata);
+        }
+
         return [
             'resourceTypeGeneral' => $dataCiteType,
-            'resourceType' => $typeName,
+            'resourceType' => $specificType,
         ];
+    }
+
+    /**
+     * Build specific resourceType value for IGSN from sample_type and material.
+     *
+     * Combines sample_type and material with a colon separator when both are available.
+     * Returns "Physical Object" as fallback when neither is set.
+     */
+    private function buildIgsnResourceType(\App\Models\IgsnMetadata $igsnMetadata): string
+    {
+        $parts = array_filter([
+            $igsnMetadata->sample_type,
+            $igsnMetadata->material,
+        ]);
+
+        if (empty($parts)) {
+            return 'Physical Object';
+        }
+
+        return implode(': ', $parts);
     }
 
     /**
@@ -585,7 +630,10 @@ class DataCiteJsonExporter
 
             // Add language if available
             if ($resource->language) {
-                $descriptionData['lang'] = $resource->language->iso_code ?? 'en';
+                $descriptionData['lang'] = $resource->language->code ?? 'en';
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $descriptionData['lang'] = 'en';
             }
 
             $descriptions[] = $descriptionData;
@@ -664,7 +712,7 @@ class DataCiteJsonExporter
 
             // Add language if available
             if ($resource->language) {
-                $rightsData['lang'] = $resource->language->iso_code ?? 'en';
+                $rightsData['lang'] = $resource->language->code ?? 'en';
             }
 
             $rightsList[] = $rightsData;
@@ -714,6 +762,40 @@ class DataCiteJsonExporter
     }
 
     /**
+     * Build alternate identifiers array for IGSN resources.
+     *
+     * For IGSN (Physical Object) resources, exports Titles with type "Other"
+     * as alternateIdentifiers with type "Local sample name".
+     * This maps the 'name' and 'sample_other_names' CSV fields to DataCite
+     * alternateIdentifiers per Issue #445.
+     *
+     * Note: These titles are ALSO exported as regular titles with titleType "Other".
+     *
+     * @return array<int, array{alternateIdentifier: string, alternateIdentifierType: string}>|null
+     */
+    private function buildAlternateIdentifiers(Resource $resource): ?array
+    {
+        // Only for IGSN resources (Physical Object type)
+        if (! $resource->igsnMetadata) {
+            return null;
+        }
+
+        $alternateIdentifiers = [];
+
+        // Get Titles with type "Other" - these are 'name' and 'sample_other_names' from CSV
+        foreach ($resource->titles as $title) {
+            if ($title->titleType?->slug === 'Other') {
+                $alternateIdentifiers[] = [
+                    'alternateIdentifier' => $title->value,
+                    'alternateIdentifierType' => 'Local sample name',
+                ];
+            }
+        }
+
+        return ! empty($alternateIdentifiers) ? $alternateIdentifiers : null;
+    }
+
+    /**
      * Build related identifiers array
      *
      * @return array<int, array<string, mixed>>|null
@@ -755,5 +837,27 @@ class DataCiteJsonExporter
         }
 
         return ! empty($fundingReferences) ? $fundingReferences : null;
+    }
+
+    /**
+     * Build sizes array
+     *
+     * DataCite sizes is a simple array of strings.
+     *
+     * @return list<string>|null
+     */
+    private function buildSizes(Resource $resource): ?array
+    {
+        if ($resource->sizes->isEmpty()) {
+            return null;
+        }
+
+        $sizes = [];
+
+        foreach ($resource->sizes as $size) {
+            $sizes[] = $size->value;
+        }
+
+        return $sizes;
     }
 }

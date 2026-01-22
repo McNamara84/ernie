@@ -281,7 +281,14 @@ class DataCiteXmlExporter
                 $titleElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->iso_code ?? 'en'
+                    $resource->language->code ?? 'en'
+                );
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $titleElement->setAttributeNS(
+                    self::XML_NAMESPACE,
+                    'xml:lang',
+                    'en'
                 );
             }
 
@@ -355,17 +362,64 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Build resourceType element (required)
+     * Build resourceType element (required).
+     *
+     * For IGSN resources (PhysicalObject), uses sample_type and/or material
+     * from IGSN metadata as the specific resourceType value.
      */
     private function buildResourceType(Resource $resource): void
     {
         $resourceType = $resource->resourceType;
+        $typeName = $resourceType->name ?? 'Other';
+
+        // Map to DataCite resourceTypeGeneral format
+        $resourceTypeGeneral = match ($typeName) {
+            'Physical Object' => 'PhysicalObject',
+            'Book Chapter' => 'BookChapter',
+            'Conference Paper' => 'ConferencePaper',
+            'Conference Proceeding' => 'ConferenceProceeding',
+            'Computational Notebook' => 'ComputationalNotebook',
+            'Data Paper' => 'DataPaper',
+            'Interactive Resource' => 'InteractiveResource',
+            'Journal Article' => 'JournalArticle',
+            'Output Management Plan' => 'OutputManagementPlan',
+            'Peer Review' => 'PeerReview',
+            'Study Registration' => 'StudyRegistration',
+            default => str_replace(' ', '', $typeName),
+        };
+
+        // For PhysicalObject (IGSN), build specific resourceType from sample_type and material
+        $specificType = $typeName;
+        if ($resourceTypeGeneral === 'PhysicalObject' && $resource->igsnMetadata) {
+            $specificType = $this->buildIgsnResourceType($resource->igsnMetadata);
+        }
+
         $resourceTypeElement = $this->dom->createElement(
             'resourceType',
-            htmlspecialchars($resourceType->name ?? 'Other')
+            htmlspecialchars($specificType)
         );
-        $resourceTypeElement->setAttribute('resourceTypeGeneral', $resourceType->name ?? 'Other');
+        $resourceTypeElement->setAttribute('resourceTypeGeneral', $resourceTypeGeneral);
         $this->root->appendChild($resourceTypeElement);
+    }
+
+    /**
+     * Build specific resourceType value for IGSN from sample_type and material.
+     *
+     * Combines sample_type and material with a colon separator when both are available.
+     * Returns "Physical Object" as fallback when neither is set.
+     */
+    private function buildIgsnResourceType(\App\Models\IgsnMetadata $igsnMetadata): string
+    {
+        $parts = array_filter([
+            $igsnMetadata->sample_type,
+            $igsnMetadata->material,
+        ]);
+
+        if (empty($parts)) {
+            return 'Physical Object';
+        }
+
+        return implode(': ', $parts);
     }
 
     /**
@@ -665,13 +719,25 @@ class DataCiteXmlExporter
 
     /**
      * Build language element (optional)
+     *
+     * For IGSN resources without explicit language, defaults to 'en'
+     * since IGSN CSV imports don't include language data.
      */
     private function buildLanguage(Resource $resource): void
     {
+        $languageCode = null;
+
         if ($resource->language) {
+            $languageCode = $resource->language->code ?? 'en';
+        } elseif ($resource->igsnMetadata) {
+            // IGSN resources default to English
+            $languageCode = 'en';
+        }
+
+        if ($languageCode !== null) {
             $language = $this->dom->createElement(
                 'language',
-                htmlspecialchars($resource->language->iso_code ?? 'en')
+                htmlspecialchars($languageCode)
             );
             $this->root->appendChild($language);
         }
@@ -679,11 +745,42 @@ class DataCiteXmlExporter
 
     /**
      * Build alternateIdentifiers element (optional)
+     *
+     * For IGSN (Physical Object) resources, exports Titles with type "Other"
+     * as alternateIdentifiers with type "Local sample name".
+     * This maps the 'name' and 'sample_other_names' CSV fields to DataCite
+     * alternateIdentifiers per Issue #445.
+     *
+     * Note: These titles are ALSO exported as regular titles with titleType "Other".
      */
     private function buildAlternateIdentifiers(Resource $resource): void
     {
-        // Currently not implemented in ERNIE data model
-        // Placeholder for future implementation
+        // Only for IGSN resources (Physical Object type)
+        if (! $resource->igsnMetadata) {
+            return;
+        }
+
+        // Get Titles with type "Other" - these are 'name' and 'sample_other_names' from CSV
+        $otherTitles = $resource->titles->filter(
+            fn ($title) => $title->titleType?->slug === 'Other'
+        );
+
+        if ($otherTitles->isEmpty()) {
+            return;
+        }
+
+        $alternateIdentifiers = $this->dom->createElement('alternateIdentifiers');
+
+        foreach ($otherTitles as $title) {
+            $alternateIdentifier = $this->dom->createElement(
+                'alternateIdentifier',
+                htmlspecialchars($title->value)
+            );
+            $alternateIdentifier->setAttribute('alternateIdentifierType', 'Local sample name');
+            $alternateIdentifiers->appendChild($alternateIdentifier);
+        }
+
+        $this->root->appendChild($alternateIdentifiers);
     }
 
     /**
@@ -798,7 +895,7 @@ class DataCiteXmlExporter
                 $rightsElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->iso_code ?? 'en'
+                    $resource->language->code ?? 'en'
                 );
             }
 
@@ -827,7 +924,14 @@ class DataCiteXmlExporter
                 $descriptionElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->iso_code ?? 'en'
+                    $resource->language->code ?? 'en'
+                );
+            } elseif ($resource->igsnMetadata) {
+                // IGSN resources default to English since IGSN CSV doesn't include language
+                $descriptionElement->setAttributeNS(
+                    self::XML_NAMESPACE,
+                    'xml:lang',
+                    'en'
                 );
             }
 

@@ -169,7 +169,7 @@ CSV;
 });
 
 describe('Creator (Collector) Parsing', function () {
-    it('parses collector name and splits into family/given', function () {
+    it('parses collector name and splits into family/given (comma format)', function () {
         $csv = <<<'CSV'
 igsn|title|name|collector
 10.58052/IGSN.1234|Title|Name|Doe, John
@@ -181,6 +181,43 @@ CSV;
             ->and($result['rows'][0]['_creator']['givenName'])->toBe('John');
     });
 
+    it('parses collector name in "GivenName FamilyName" format', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|John Doe
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // Format: "GivenName FamilyName" - last word is family name
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Doe')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBe('John');
+    });
+
+    it('handles collector name with multiple given names', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|John Paul Smith
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Smith')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBe('John Paul');
+    });
+
+    it('handles single-word collector name as family name', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|Darwin
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Darwin')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBeNull();
+    });
+
     it('parses collector with ORCID and affiliation', function () {
         $csv = <<<'CSV'
 igsn|title|name|collector|collector_identifier|collector_affiliation|collector_affiliation_identifier
@@ -190,6 +227,117 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0001-2345-6789')
+            ->and($result['rows'][0]['_creator']['affiliation'])->toBe('GFZ Potsdam')
+            ->and($result['rows'][0]['_creator']['ror'])->toBe('https://ror.org/04z8jg394');
+    });
+
+    it('parses ORCID from orcid column (real CSV format)', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|orcid|affiliation|ror
+10.58052/IGSN.1234|Title|Name|Gabriel, Gerald|0000-0001-9404-882X|Leibniz Institute|https://ror.org/05txczf44
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0001-9404-882X')
+            ->and($result['rows'][0]['_creator']['affiliation'])->toBe('Leibniz Institute')
+            ->and($result['rows'][0]['_creator']['ror'])->toBe('https://ror.org/05txczf44');
+    });
+
+    it('normalizes ORCID that is already a full URL', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|orcid
+10.58052/IGSN.1234|Title|Name|Doe, John|https://orcid.org/0000-0001-2345-6789
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0001-2345-6789');
+    });
+
+    it('returns null for empty collector', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector
+10.58052/IGSN.1234|Title|Name|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBeNull()
+            ->and($result['rows'][0]['_creator']['givenName'])->toBeNull();
+    });
+
+    it('parses separate givenName and familyName columns', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName
+10.58052/IGSN.1234|Title|Name|John|Doe
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('John')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Doe');
+    });
+
+    it('prefers separate givenName/familyName over collector field', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|givenName|familyName
+10.58052/IGSN.1234|Title|Name|Should Be Ignored|Max|Mustermann
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('Max')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Mustermann');
+    });
+
+    it('falls back to collector when givenName/familyName are empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|collector|givenName|familyName
+10.58052/IGSN.1234|Title|Name|Fallback, User||
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['familyName'])->toBe('Fallback')
+            ->and($result['rows'][0]['_creator']['givenName'])->toBe('User');
+    });
+
+    it('handles only givenName without familyName', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName
+10.58052/IGSN.1234|Title|Name|Madonna|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('Madonna')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBeNull();
+    });
+
+    it('handles only familyName without givenName', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName
+10.58052/IGSN.1234|Title|Name||Darwin
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBeNull()
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Darwin');
+    });
+
+    it('combines givenName/familyName with ORCID and affiliation', function () {
+        $csv = <<<'CSV'
+igsn|title|name|givenName|familyName|orcid|affiliation|ror
+10.58052/IGSN.1234|Title|Name|Max|Mustermann|0000-0002-1234-5678|GFZ Potsdam|https://ror.org/04z8jg394
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_creator']['givenName'])->toBe('Max')
+            ->and($result['rows'][0]['_creator']['familyName'])->toBe('Mustermann')
+            ->and($result['rows'][0]['_creator']['orcid'])->toBe('https://orcid.org/0000-0002-1234-5678')
             ->and($result['rows'][0]['_creator']['affiliation'])->toBe('GFZ Potsdam')
             ->and($result['rows'][0]['_creator']['ror'])->toBe('https://ror.org/04z8jg394');
     });
@@ -220,6 +368,101 @@ CSV;
 
         expect($result['rows'][0]['_geo_location']['place'])->toBe('Berlin, Germany');
     });
+
+    it('uses primary_location_name as fallback when locality is missing', function () {
+        $csv = <<<'CSV'
+igsn|title|name|primary_location_name
+10.58052/IGSN.1234|Title|Name|Munich Research Site
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('Munich Research Site');
+    });
+
+    it('prefers locality over primary_location_name when both present', function () {
+        $csv = <<<'CSV'
+igsn|title|name|locality|primary_location_name
+10.58052/IGSN.1234|Title|Name|Berlin|Munich Research Site
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('Berlin');
+    });
+
+    it('combines locality, city, province, country into place', function () {
+        $csv = <<<'CSV'
+igsn|title|name|locality|city|province|country
+10.58052/IGSN.1234|Title|Name|Winterstettenstadt|Biberach|Baden-Württemberg|Germany
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])
+            ->toBe('Winterstettenstadt, Biberach, Baden-Württemberg, Germany');
+    });
+
+    it('handles missing city and province gracefully', function () {
+        $csv = <<<'CSV'
+igsn|title|name|locality|country
+10.58052/IGSN.1234|Title|Name|Research Station|Antarctica
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('Research Station, Antarctica');
+    });
+
+    it('parses elevation with snake_case unit column', function () {
+        $csv = <<<'CSV'
+igsn|title|name|latitude|longitude|elevation|elevation_unit
+10.58052/IGSN.1234|Title|Name|52.5200|13.4050|100.0|meters
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['elevation'])->toBe(100.0)
+            ->and($result['rows'][0]['_geo_location']['elevationUnit'])->toBe('meters');
+    });
+
+    it('returns null for missing geo location data', function () {
+        $csv = <<<'CSV'
+igsn|title|name
+10.58052/IGSN.1234|Title|Name
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['latitude'])->toBeNull()
+            ->and($result['rows'][0]['_geo_location']['longitude'])->toBeNull()
+            ->and($result['rows'][0]['_geo_location']['elevation'])->toBeNull()
+            ->and($result['rows'][0]['_geo_location']['place'])->toBeNull();
+    });
+
+    it('parses negative coordinates correctly', function () {
+        $csv = <<<'CSV'
+igsn|title|name|latitude|longitude
+10.58052/IGSN.1234|Title|Name|-33.8688|151.2093
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // Sydney coordinates
+        expect($result['rows'][0]['_geo_location']['latitude'])->toBe(-33.8688)
+            ->and($result['rows'][0]['_geo_location']['longitude'])->toBe(151.2093);
+    });
+
+    it('handles location_description in place field', function () {
+        $csv = <<<'CSV'
+igsn|title|name|location_description
+10.58052/IGSN.1234|Title|Name|50m depth in borehole ICDP5068
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_geo_location']['place'])->toBe('50m depth in borehole ICDP5068');
+    });
 });
 
 describe('Related Identifiers Parsing', function () {
@@ -246,6 +489,49 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_related_identifiers'])->toHaveCount(2);
+    });
+
+    it('parses parent_igsn as relatedIdentifier with IsPartOf relation', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn
+10.58052/IGSN.CHILD|Child Sample|Child Name|10.58052/IGSN.PARENT
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_related_identifiers'])->toHaveCount(1)
+            ->and($result['rows'][0]['_related_identifiers'][0]['identifier'])->toBe('10.58052/IGSN.PARENT')
+            ->and($result['rows'][0]['_related_identifiers'][0]['type'])->toBe('IGSN')
+            ->and($result['rows'][0]['_related_identifiers'][0]['relationType'])->toBe('IsPartOf');
+    });
+
+    it('includes parent_igsn with other relatedIdentifiers', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn|relatedIdentifier|relatedIdentifierType|relationtype
+10.58052/IGSN.CHILD|Child Sample|Child Name|10.58052/IGSN.PARENT|10.1234/paper|DOI|IsCitedBy
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // parent_igsn should be first, then other relatedIdentifiers
+        expect($result['rows'][0]['_related_identifiers'])->toHaveCount(2)
+            ->and($result['rows'][0]['_related_identifiers'][0]['identifier'])->toBe('10.58052/IGSN.PARENT')
+            ->and($result['rows'][0]['_related_identifiers'][0]['type'])->toBe('IGSN')
+            ->and($result['rows'][0]['_related_identifiers'][0]['relationType'])->toBe('IsPartOf')
+            ->and($result['rows'][0]['_related_identifiers'][1]['identifier'])->toBe('10.1234/paper')
+            ->and($result['rows'][0]['_related_identifiers'][1]['type'])->toBe('DOI')
+            ->and($result['rows'][0]['_related_identifiers'][1]['relationType'])->toBe('IsCitedBy');
+    });
+
+    it('ignores empty parent_igsn', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn
+10.58052/IGSN.1234|Title|Name|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_related_identifiers'])->toBeEmpty();
     });
 });
 
@@ -276,18 +562,39 @@ CSV;
 });
 
 describe('Collection Date Parsing', function () {
-    it('parses start and end dates', function () {
+    it('parses start and end dates in full date format (YYYY-MM-DD)', function () {
         $dates = $this->parser->parseCollectionDates('2024-01-15', '2024-02-20');
 
         expect($dates['start'])->toBe('2024-01-15')
             ->and($dates['end'])->toBe('2024-02-20');
     });
 
-    it('handles date with only year', function () {
+    it('parses year-month format (YYYY-MM)', function () {
+        $dates = $this->parser->parseCollectionDates('2024-03', '2024-06');
+
+        expect($dates['start'])->toBe('2024-03')
+            ->and($dates['end'])->toBe('2024-06');
+    });
+
+    it('handles date with only year (YYYY)', function () {
         $dates = $this->parser->parseCollectionDates('2024', '');
 
         expect($dates['start'])->toBe('2024')
             ->and($dates['end'])->toBeNull();
+    });
+
+    it('handles year-only format for both start and end dates', function () {
+        $dates = $this->parser->parseCollectionDates('2020', '2024');
+
+        expect($dates['start'])->toBe('2020')
+            ->and($dates['end'])->toBe('2024');
+    });
+
+    it('handles only end date without start date', function () {
+        $dates = $this->parser->parseCollectionDates('', '2024-12-31');
+
+        expect($dates['start'])->toBeNull()
+            ->and($dates['end'])->toBe('2024-12-31');
     });
 
     it('returns null for empty dates', function () {
@@ -295,6 +602,27 @@ describe('Collection Date Parsing', function () {
 
         expect($dates['start'])->toBeNull()
             ->and($dates['end'])->toBeNull();
+    });
+
+    it('normalizes alternative date formats to ISO format', function () {
+        // Some CSV files might use different date formats
+        $dates = $this->parser->parseCollectionDates('January 15, 2024', '');
+
+        expect($dates['start'])->toBe('2024-01-15');
+    });
+
+    it('handles whitespace around dates', function () {
+        $dates = $this->parser->parseCollectionDates('  2024-01-15  ', '  2024-02-20  ');
+
+        expect($dates['start'])->toBe('2024-01-15')
+            ->and($dates['end'])->toBe('2024-02-20');
+    });
+
+    it('handles mixed precision dates (year start, full date end)', function () {
+        $dates = $this->parser->parseCollectionDates('2024', '2024-06-30');
+
+        expect($dates['start'])->toBe('2024')
+            ->and($dates['end'])->toBe('2024-06-30');
     });
 });
 

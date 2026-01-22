@@ -22,6 +22,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
+use App\Models\Size;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
@@ -134,6 +135,9 @@ class IgsnStorageService
         // Create funding references
         $this->createFundingReferences($resource, $data);
 
+        // Create size from size and size_unit fields
+        $this->createSize($resource, $data);
+
         // Create IGSN-specific relations (classifications, geological ages/units)
         $this->createIgsnRelations($resource, $data);
 
@@ -174,7 +178,7 @@ class IgsnStorageService
             'title_type_id' => $this->mainTitleTypeId,
         ]);
 
-        // Sample name as AlternativeTitle
+        // Sample name as Title with type "AlternativeTitle" (also exported as alternateIdentifier)
         if (! empty($data['name'])) {
             Title::create([
                 'resource_id' => $resource->id,
@@ -183,7 +187,7 @@ class IgsnStorageService
             ]);
         }
 
-        // Other sample names as AlternativeTitles
+        // Other sample names as Titles with type "AlternativeTitle" (also exported as alternateIdentifiers)
         $otherNames = $data['sample_other_names'] ?? [];
         if (is_array($otherNames)) {
             foreach ($otherNames as $name) {
@@ -479,6 +483,36 @@ class IgsnStorageService
                 'funder_identifier' => $funder['identifier'],
             ]);
         }
+    }
+
+    /**
+     * Create size entry from size and size_unit fields.
+     *
+     * Combines size value and unit into a single DataCite size string.
+     * Example: "15.5" + "cm" = "15.5 cm"
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function createSize(Resource $resource, array $data): void
+    {
+        $sizeValue = $data['size'] ?? null;
+        $sizeUnit = $data['size_unit'] ?? null;
+
+        // Skip if no size value
+        if ($sizeValue === null || $sizeValue === '') {
+            return;
+        }
+
+        // Build combined size string
+        $sizeString = (string) $sizeValue;
+        if (! empty($sizeUnit)) {
+            $sizeString .= ' '.$sizeUnit;
+        }
+
+        Size::create([
+            'resource_id' => $resource->id,
+            'value' => $sizeString,
+        ]);
     }
 
     /**
