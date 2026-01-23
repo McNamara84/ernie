@@ -511,10 +511,11 @@ return new class extends Migration
         Schema::create('landing_pages', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('resource_id')
+                ->unique()                             // Enforces 1:1 relationship
                 ->constrained('resources')
                 ->cascadeOnDelete();
             $table->string('doi_prefix', 255)->nullable(); // DOI for semantic URLs
-            $table->string('slug')->unique();
+            $table->string('slug');                    // NOT globally unique - see composite constraints below
             $table->string('template', 50)->default('default_gfz');
             $table->string('ftp_url', 2048)->nullable();
             $table->boolean('is_published')->default(false);
@@ -528,6 +529,7 @@ return new class extends Migration
             $table->index('preview_token');
             $table->index(['doi_prefix', 'slug'], 'landing_pages_url_lookup');
             $table->unique(['doi_prefix', 'slug'], 'landing_pages_unique_url');
+            $table->unique(['resource_id', 'slug'], 'landing_pages_resource_slug_unique');
         });
 
         // Settings
