@@ -165,7 +165,7 @@ erDiagram
 
     sessions {
         varchar id PK
-        bigint user_id FK
+        bigint user_id "indexed, no FK constraint"
         varchar ip_address "45"
         text user_agent
         longtext payload
@@ -580,8 +580,8 @@ erDiagram
     %% User self-reference
     users }o--o| users : "deactivated by"
 
-    %% Sessions
-    sessions }o--o| users : "belongs to"
+    %% Sessions (no FK constraint, just indexed)
+    %% sessions.user_id references users.id but is not enforced at DB level
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"

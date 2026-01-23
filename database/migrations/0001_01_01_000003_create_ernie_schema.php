@@ -300,6 +300,13 @@ return new class extends Migration
 
             $table->index(['affiliatable_type', 'affiliatable_id'], 'affiliations_morph_idx');
             $table->index(['identifier_scheme', 'identifier'], 'affiliations_ror_lookup_index');
+            // Note: For MySQL/MariaDB, the name index should use a prefix (191 chars)
+            // since TEXT columns cannot be fully indexed. The Laravel schema builder
+            // doesn't support prefix indexes, so this creates a regular index that
+            // works with SQLite. For MySQL/MariaDB production, run:
+            // ALTER TABLE affiliations DROP INDEX idx_affiliations_name;
+            // CREATE INDEX idx_affiliations_name ON affiliations (name(191));
+            $table->index('name', 'idx_affiliations_name');
         });
 
         // Subjects (DataCite #6) - Merged keywords and controlled keywords
@@ -526,8 +533,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('is_published');
-            $table->index('preview_token');
-            $table->index(['doi_prefix', 'slug'], 'landing_pages_url_lookup');
+            // Note: preview_token index is implicitly created by unique() constraint
+            // Note: (doi_prefix, slug) index is implicitly created by unique() constraint
             $table->unique(['doi_prefix', 'slug'], 'landing_pages_unique_url');
             $table->unique(['resource_id', 'slug'], 'landing_pages_resource_slug_unique');
         });
