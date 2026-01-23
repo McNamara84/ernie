@@ -23,7 +23,10 @@ return new class extends Migration
             $table->string('role')->default('curator');
             $table->boolean('is_active')->default(true);
             $table->timestamp('deactivated_at')->nullable();
-            $table->foreignId('deactivated_by')->nullable();
+            $table->foreignId('deactivated_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
             $table->timestamps();
         });
 
