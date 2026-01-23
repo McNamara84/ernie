@@ -157,6 +157,21 @@ erDiagram
         timestamp updated_at
     }
 
+    password_reset_tokens {
+        varchar email PK
+        varchar token
+        timestamp created_at
+    }
+
+    sessions {
+        varchar id PK
+        bigint user_id FK
+        varchar ip_address "45"
+        text user_agent
+        longtext payload
+        int last_activity
+    }
+
     %% =========================================================================
     %% MAIN RESOURCE TABLE
     %% =========================================================================
@@ -393,6 +408,55 @@ erDiagram
     }
 
     %% =========================================================================
+    %% LARAVEL FRAMEWORK TABLES
+    %% =========================================================================
+
+    cache {
+        varchar key PK
+        mediumtext value
+        int expiration
+    }
+
+    cache_locks {
+        varchar key PK
+        varchar owner
+        int expiration
+    }
+
+    jobs {
+        bigint id PK
+        varchar queue
+        longtext payload
+        tinyint attempts
+        int reserved_at
+        int available_at
+        int created_at
+    }
+
+    job_batches {
+        varchar id PK
+        varchar name
+        int total_jobs
+        int pending_jobs
+        int failed_jobs
+        longtext failed_job_ids
+        mediumtext options
+        int cancelled_at
+        int created_at
+        int finished_at
+    }
+
+    failed_jobs {
+        bigint id PK
+        varchar uuid UK
+        text connection
+        text queue
+        longtext payload
+        longtext exception
+        timestamp failed_at
+    }
+
+    %% =========================================================================
     %% IGSN TABLES (Physical Sample Management)
     %% =========================================================================
 
@@ -515,6 +579,9 @@ erDiagram
 
     %% User self-reference
     users }o--o| users : "deactivated by"
+
+    %% Sessions
+    sessions }o--o| users : "belongs to"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"
