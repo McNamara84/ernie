@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -300,14 +301,19 @@ return new class extends Migration
 
             $table->index(['affiliatable_type', 'affiliatable_id'], 'affiliations_morph_idx');
             $table->index(['identifier_scheme', 'identifier'], 'affiliations_ror_lookup_index');
-            // Note: For MySQL/MariaDB, the name index should use a prefix (191 chars)
-            // since TEXT columns cannot be fully indexed. The Laravel schema builder
-            // doesn't support prefix indexes, so this creates a regular index that
-            // works with SQLite. For MySQL/MariaDB production, run:
-            // ALTER TABLE affiliations DROP INDEX idx_affiliations_name;
-            // CREATE INDEX idx_affiliations_name ON affiliations (name(191));
-            $table->index('name', 'idx_affiliations_name');
+            // Note: name index is created after the table due to TEXT column limitations
         });
+
+        // Create name index for affiliations table (driver-specific)
+        // MySQL/MariaDB requires a prefix length for TEXT columns
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('affiliations', function (Blueprint $table): void {
+                $table->index('name', 'idx_affiliations_name');
+            });
+        } else {
+            // MySQL/MariaDB: Use prefix index (191 chars for utf8mb4 compatibility)
+            DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name(191))');
+        }
 
         // Subjects (DataCite #6) - Merged keywords and controlled keywords
         Schema::create('subjects', function (Blueprint $table): void {
