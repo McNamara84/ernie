@@ -146,7 +146,13 @@ erDiagram
         varchar email UK
         timestamp email_verified_at
         varchar password
+        timestamp password_set_at
         varchar remember_token
+        varchar font_size_preference "default: regular"
+        varchar role "default: curator"
+        boolean is_active "default: true"
+        timestamp deactivated_at
+        bigint deactivated_by FK
         timestamp created_at
         timestamp updated_at
     }
@@ -398,7 +404,7 @@ erDiagram
         varchar material
         boolean is_private
         decimal size "12,4"
-        varchar size_unit
+        varchar size_unit "100"
         decimal depth_min "10,2"
         decimal depth_max "10,2"
         varchar depth_scale
@@ -506,6 +512,9 @@ erDiagram
     %% License exclusions
     right_resource_type_exclusions }o--|| rights : "excludes"
     right_resource_type_exclusions }o--|| resource_types : "from type"
+
+    %% User self-reference
+    users }o--o| users : "deactivated by"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"
