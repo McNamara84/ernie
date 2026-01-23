@@ -354,7 +354,7 @@ erDiagram
 
     landing_pages {
         bigint id PK
-        bigint resource_id FK UK "1:1 with resources"
+        bigint resource_id FK "UK, 1:1 with resources"
         varchar doi_prefix
         varchar slug "unique with doi_prefix"
         varchar template
