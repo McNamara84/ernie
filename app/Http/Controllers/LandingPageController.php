@@ -30,7 +30,14 @@ class LandingPageController extends Controller
      *
      * @var list<string>
      */
-    public const ALLOWED_TEMPLATES = ['default_gfz'];
+    public const ALLOWED_TEMPLATES = ['default_gfz', 'default_gfz_igsn'];
+
+    /**
+     * Templates restricted to PhysicalObject resources (IGSNs).
+     *
+     * @var list<string>
+     */
+    public const IGSN_ONLY_TEMPLATES = ['default_gfz_igsn'];
 
     /**
      * Display the public landing page.
@@ -94,6 +101,17 @@ class LandingPageController extends Controller
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
+
+        // Validate that IGSN-only templates can only be used with PhysicalObject resources
+        if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
+            $resource->loadMissing('resourceType');
+            if ($resource->resourceType?->name !== 'PhysicalObject') {
+                return response()->json([
+                    'message' => 'The IGSN template can only be used with Physical Object resources.',
+                    'error' => 'invalid_template_for_resource_type',
+                ], 422);
+            }
+        }
 
         // Detect conflicting status/is_published values.
         // If both are provided with conflicting values, this may indicate a client bug.
@@ -278,6 +296,17 @@ class LandingPageController extends Controller
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
+
+        // Validate that IGSN-only templates can only be used with PhysicalObject resources
+        if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
+            $resource->loadMissing('resourceType');
+            if ($resource->resourceType?->name !== 'PhysicalObject') {
+                return response()->json([
+                    'message' => 'The IGSN template can only be used with Physical Object resources.',
+                    'error' => 'invalid_template_for_resource_type',
+                ], 422);
+            }
+        }
 
         // Determine requested publication status change (if any).
         // Support both 'status' (preferred) and 'is_published' (legacy) fields.

@@ -1,4 +1,4 @@
-import { Copy } from 'lucide-react';
+import { Copy, FlaskConical } from 'lucide-react';
 import { useState } from 'react';
 
 import { getResourceTypeIcon } from './ResourceTypeIcons';
@@ -10,12 +10,15 @@ interface ResourceHeroProps {
     mainTitle: string;
     subtitle?: string;
     citation: string;
+    /** Use FlaskConical icon for IGSN instead of resource type icon */
+    useIgsnIcon?: boolean;
 }
 
-export function ResourceHero({ resourceType, status, mainTitle, subtitle, citation }: ResourceHeroProps) {
+export function ResourceHero({ resourceType, status, mainTitle, subtitle, citation, useIgsnIcon = false }: ResourceHeroProps) {
     const [copied, setCopied] = useState(false);
 
-    const ResourceTypeIcon = getResourceTypeIcon(resourceType);
+    // Use FlaskConical for IGSN, otherwise use resource type icon
+    const ResourceTypeIcon = useIgsnIcon ? FlaskConical : getResourceTypeIcon(resourceType);
     const statusConfig = getStatusConfig(status);
     const StatusIcon = statusConfig.icon;
 

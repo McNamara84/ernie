@@ -1,10 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { FileJson, Trash2 } from 'lucide-react';
+import { FileJson, Globe, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
+import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
     AlertDialog,
@@ -130,6 +131,8 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
+    const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
+    const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
 
     // Update state when props change (after navigation)
     useEffect(() => {
@@ -222,6 +225,16 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const handleDeleteClick = useCallback((igsn: Igsn) => {
         setIgsnToDelete(igsn);
         setDeleteDialogOpen(true);
+    }, []);
+
+    const handleSetupLandingPage = useCallback((igsn: Igsn) => {
+        setSelectedIgsnForLandingPage(igsn);
+        setIsLandingPageModalOpen(true);
+    }, []);
+
+    const handleCloseLandingPageModal = useCallback(() => {
+        setIsLandingPageModalOpen(false);
+        setSelectedIgsnForLandingPage(null);
     }, []);
 
     const handleDeleteConfirm = useCallback(() => {
@@ -327,6 +340,22 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                     </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>Export as DataCite JSON</TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() => handleSetupLandingPage(igsn)}
+                                                                        aria-label="Setup Landing Page"
+                                                                    >
+                                                                        <Globe className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Setup Landing Page</TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
                                                         {canDelete && (
@@ -447,6 +476,19 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                 resourceType="IGSN"
                 schemaVersion={validationSchemaVersion}
             />
+
+            {/* IGSN Landing Page Setup Modal */}
+            {selectedIgsnForLandingPage && (
+                <SetupIgsnLandingPageModal
+                    resource={{
+                        id: selectedIgsnForLandingPage.id,
+                        doi: selectedIgsnForLandingPage.igsn,
+                        title: selectedIgsnForLandingPage.title,
+                    }}
+                    isOpen={isLandingPageModalOpen}
+                    onClose={handleCloseLandingPageModal}
+                />
+            )}
         </AppLayout>
     );
 }

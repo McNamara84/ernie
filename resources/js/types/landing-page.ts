@@ -311,6 +311,9 @@ export interface TemplateMetadata {
 
     /** Template version (for migration tracking) */
     version?: string;
+
+    /** Restrict template to specific resource types. null/undefined = all types allowed */
+    resourceTypes?: string[] | null;
 }
 
 /**
@@ -334,30 +337,62 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
         description: 'Standard template with all features',
         category: 'official',
         version: '1.0',
+        resourceTypes: null, // Available for all resource types
     },
-    // Future templates will be added here:
-    // modern_minimal: {
-    //     key: 'modern_minimal',
-    //     name: 'Modern Minimalist',
-    //     description: 'Clean and modern design with smooth scrolling and animations',
-    //     category: 'custom',
-    //     version: '1.0',
-    // },
+    default_gfz_igsn: {
+        key: 'default_gfz_igsn',
+        name: 'Default GFZ IGSN Template',
+        description: 'Simplified template for physical samples (IGSN)',
+        category: 'official',
+        version: '1.0',
+        resourceTypes: ['PhysicalObject'], // Only for IGSNs
+    },
 } as const;
 
 /**
  * Template Options for Select Dropdown
  *
- * Formats template metadata for form selects
+ * Formats template metadata for form selects.
+ * Can optionally filter by resource type.
  *
+ * @param resourceType - Optional resource type to filter templates for
  * @returns Array of template options with value, label, and description
  */
-export function getTemplateOptions(): LandingPageTemplateOption[] {
-    return Object.values(LANDING_PAGE_TEMPLATES).map((template) => ({
-        value: template.key,
-        label: template.name,
-        description: template.description,
-    }));
+export function getTemplateOptions(resourceType?: string): LandingPageTemplateOption[] {
+    return Object.values(LANDING_PAGE_TEMPLATES)
+        .filter((template) => {
+            // If no resourceTypes restriction, template is available for all
+            if (!template.resourceTypes) return true;
+            // If no resourceType provided, only show unrestricted templates
+            if (!resourceType) return !template.resourceTypes;
+            // Check if resourceType is in the allowed list
+            return template.resourceTypes.includes(resourceType);
+        })
+        .map((template) => ({
+            value: template.key,
+            label: template.name,
+            description: template.description,
+        }));
+}
+
+/**
+ * Get IGSN-specific Template Options
+ *
+ * Returns only templates available for PhysicalObject resources (IGSNs)
+ *
+ * @returns Array of IGSN template options
+ */
+export function getIgsnTemplateOptions(): LandingPageTemplateOption[] {
+    return getTemplateOptions('PhysicalObject');
+}
+
+/**
+ * Get Default IGSN Template Key
+ *
+ * @returns Default template identifier for IGSNs ('default_gfz_igsn')
+ */
+export function getDefaultIgsnTemplate(): string {
+    return 'default_gfz_igsn';
 }
 
 /**

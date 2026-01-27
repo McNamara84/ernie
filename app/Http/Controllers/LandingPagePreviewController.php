@@ -40,6 +40,17 @@ class LandingPagePreviewController extends Controller
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
         ]);
 
+        // Validate that IGSN-only templates can only be used with PhysicalObject resources
+        if (in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true)) {
+            $resource->loadMissing('resourceType');
+            if ($resource->resourceType?->name !== 'PhysicalObject') {
+                return response()->json([
+                    'message' => 'The IGSN template can only be used with Physical Object resources.',
+                    'error' => 'invalid_template_for_resource_type',
+                ], 422);
+            }
+        }
+
         // Store preview data in session
         $sessionKey = "landing_page_preview.{$resource->id}";
         Session::put($sessionKey, [
