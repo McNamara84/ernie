@@ -1,10 +1,10 @@
 // Components
 import { Form, Head } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
 
 import EmailVerificationNotificationController from '@/actions/App/Http/Controllers/Auth/EmailVerificationNotificationController';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { logout } from '@/routes';
 
@@ -23,7 +23,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                 {({ processing }) => (
                     <>
                         <Button disabled={processing} variant="secondary">
-                            {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                            {processing && <Spinner size="sm" />}
                             Resend verification email
                         </Button>
 

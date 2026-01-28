@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, Loader2, Send } from 'lucide-react';
+import { AlertCircle, CheckCircle, Send } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ContactPerson {
@@ -260,10 +261,14 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                             <Button type="button" variant="outline" onClick={handleClose} disabled={formStatus === 'submitting'}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={formStatus === 'submitting'} className="gap-2" style={{ backgroundColor: '#0C2A63' }}>
+                            <Button
+                                type="submit"
+                                disabled={formStatus === 'submitting'}
+                                className="gap-2 bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
+                            >
                                 {formStatus === 'submitting' ? (
                                     <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <Spinner size="sm" />
                                         Sending...
                                     </>
                                 ) : (

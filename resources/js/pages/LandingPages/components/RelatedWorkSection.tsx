@@ -1,6 +1,8 @@
 import { ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { Spinner } from '@/components/ui/spinner';
+
 interface RelatedIdentifier {
     id: number;
     identifier: string;
@@ -144,7 +146,7 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                                     <li key={rel.id}>
                                         {citationData?.loading && (
                                             <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-500">
-                                                <div className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                                                <Spinner size="sm" className="mt-0.5 shrink-0" />
                                                 <span>Loading citation...</span>
                                             </div>
                                         )}

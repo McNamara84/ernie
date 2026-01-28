@@ -1,12 +1,13 @@
 'use client';
 
-import { Check, ChevronsUpDown, Loader2, X } from 'lucide-react';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 export interface AsyncComboboxOption<T = unknown> {
@@ -302,7 +303,7 @@ export function AsyncCombobox<T = unknown>({
                     <CommandList>
                         {isLoading ? (
                             <div className="flex items-center justify-center py-6">
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Spinner size="sm" className="mr-2" />
                                 <span className="text-sm text-muted-foreground">{loadingMessage}</span>
                             </div>
                         ) : searchQuery.length < minSearchLength ? (

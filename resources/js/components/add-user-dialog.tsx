@@ -1,12 +1,25 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import { createUserSchema, type CreateUserInput } from '@/lib/validations/user';
 
 interface AddUserDialogProps {
     disabled?: boolean;
@@ -15,31 +28,23 @@ interface AddUserDialogProps {
 export function AddUserDialog({ disabled }: AddUserDialogProps) {
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
 
-    const resetForm = () => {
-        setName('');
-        setEmail('');
-        setErrors({});
-    };
+    const form = useForm<CreateUserInput>({
+        resolver: zodResolver(createUserSchema),
+        defaultValues: {
+            name: '',
+            email: '',
+        },
+    });
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (isSubmitting) return;
-
+    const handleSubmit = (data: CreateUserInput) => {
         setIsSubmitting(true);
-        setErrors({});
-
         router.post(
             '/users',
-            { name, email },
+            data,
             {
                 preserveScroll: true,
                 onSuccess: (page) => {
-                    // Use flash messages from backend to handle both success and warning cases
                     const flash = page.props.flash as { success?: string; warning?: string } | undefined;
                     if (flash?.warning) {
                         toast.warning(flash.warning);
@@ -47,12 +52,16 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
                         toast.success(flash.success);
                     }
                     setOpen(false);
-                    resetForm();
+                    form.reset();
+                    setIsSubmitting(false);
                 },
                 onError: (errors) => {
-                    setErrors(errors as { name?: string; email?: string });
-                },
-                onFinish: () => {
+                    // Map server errors to form fields
+                    Object.entries(errors).forEach(([field, message]) => {
+                        if (field === 'name' || field === 'email') {
+                            form.setError(field, { message: message as string });
+                        }
+                    });
                     setIsSubmitting(false);
                 },
             },
@@ -64,7 +73,7 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
             open={open}
             onOpenChange={(isOpen) => {
                 setOpen(isOpen);
-                if (!isOpen) resetForm();
+                if (!isOpen) form.reset();
             }}
         >
             <DialogTrigger asChild>
@@ -74,47 +83,61 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>Add New User</DialogTitle>
-                        <DialogDescription>
-                            Create a new user account. They will receive an email with a link to set their password. New users are automatically
-                            assigned the 'Beginner' role.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
-                                id="name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="John Doe"
-                                disabled={isSubmitting}
-                                required
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSubmit)}>
+                        <DialogHeader>
+                            <DialogTitle>Add New User</DialogTitle>
+                            <DialogDescription>
+                                Create a new user account. They will receive an email with a link to set their password. New users are automatically
+                                assigned the 'Beginner' role.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="John Doe" disabled={isSubmitting} {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
                             />
-                            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="john.doe@example.com"
-                                disabled={isSubmitting}
-                                required
+                            <FormField
+                                control={form.control}
+                                name="email"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Email</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="email"
+                                                placeholder="john.doe@example.com"
+                                                disabled={isSubmitting}
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
                             />
-                            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Creating...' : 'Create User'}
-                        </Button>
-                    </DialogFooter>
-                </form>
+                        <DialogFooter className="gap-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" disabled={isSubmitting}>
+                                    Cancel
+                                </Button>
+                            </DialogClose>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Spinner size="sm" className="mr-2" />}
+                                {isSubmitting ? 'Creating...' : 'Create User'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
             </DialogContent>
         </Dialog>
     );

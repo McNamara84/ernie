@@ -1,5 +1,4 @@
 import { type PropsWithChildren } from 'react';
-import { Toaster } from 'sonner';
 
 import { AppContent } from '@/components/app-content';
 import { AppFooter } from '@/components/app-footer';
@@ -7,6 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { Toaster } from '@/components/ui/sonner';
 import { useSessionWarmup } from '@/hooks/use-session-warmup';
 import { type BreadcrumbItem } from '@/types';
 

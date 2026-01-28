@@ -105,6 +105,15 @@ describe('AddUserDialog', () => {
 
             expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
         });
+
+        it('renders cancel button', async () => {
+            const user = userEvent.setup();
+            render(<AddUserDialog />);
+
+            await user.click(screen.getByRole('button', { name: /add user/i }));
+
+            expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+        });
     });
 
     describe('form input', () => {
@@ -227,26 +236,45 @@ describe('AddUserDialog', () => {
             });
         });
 
-        it('displays name validation error', async () => {
+        it('displays name validation error from client-side Zod validation', async () => {
             const user = userEvent.setup();
-            vi.mocked(router.post).mockImplementation((_url, _data, options) => {
-                const opts = options as Record<string, unknown> | undefined;
-                const onError = opts?.onError as ((errors: Record<string, string>) => void) | undefined;
-                const onFinish = opts?.onFinish as (() => void) | undefined;
-                onError?.({ name: 'The name is too short.' });
-                onFinish?.();
-            });
 
             render(<AddUserDialog />);
 
             await user.click(screen.getByRole('button', { name: /add user/i }));
-            // Fill both fields since they have required attribute
+            // Fill with short name to trigger Zod validation
             await user.type(screen.getByLabelText(/name/i), 'A');
             await user.type(screen.getByLabelText(/email/i), 'test@example.com');
             await user.click(screen.getByRole('button', { name: /create user/i }));
 
             await waitFor(() => {
-                expect(screen.getByText('The name is too short.')).toBeInTheDocument();
+                // Zod validation message for name minimum length
+                expect(screen.getByText('Name must be at least 2 characters')).toBeInTheDocument();
+            });
+
+            // Server should NOT be called because client-side validation failed
+            expect(router.post).not.toHaveBeenCalled();
+        });
+
+        it('displays server-side validation errors', async () => {
+            const user = userEvent.setup();
+            vi.mocked(router.post).mockImplementation((_url, _data, options) => {
+                const opts = options as Record<string, unknown> | undefined;
+                const onError = opts?.onError as ((errors: Record<string, string>) => void) | undefined;
+                // Server returns error (e.g., email already exists)
+                onError?.({ email: 'The email has already been taken.' });
+            });
+
+            render(<AddUserDialog />);
+
+            await user.click(screen.getByRole('button', { name: /add user/i }));
+            // Valid data that passes client-side validation
+            await user.type(screen.getByLabelText(/name/i), 'Test User');
+            await user.type(screen.getByLabelText(/email/i), 'existing@example.com');
+            await user.click(screen.getByRole('button', { name: /create user/i }));
+
+            await waitFor(() => {
+                expect(screen.getByText('The email has already been taken.')).toBeInTheDocument();
             });
         });
     });

@@ -1,11 +1,11 @@
 import { Form, Head } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
 
 import WelcomeController from '@/actions/App/Http/Controllers/Auth/WelcomeController';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface WelcomeProps {
@@ -62,7 +62,7 @@ export default function Welcome({ email, userId }: WelcomeProps) {
                         </div>
 
                         <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                            {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                            {processing && <Spinner size="sm" className="mr-2" />}
                             Set Password & Continue
                         </Button>
                     </div>

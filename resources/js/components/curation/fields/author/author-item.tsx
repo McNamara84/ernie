@@ -8,13 +8,14 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CheckCircle2, ExternalLink, GripVertical, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { CheckCircle2, ExternalLink, GripVertical, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
@@ -189,7 +190,7 @@ export default function AuthorItem({
                                     )}
                                     {isVerifying && (
                                         <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                            <Spinner size="xs" />
                                             Verifying...
                                         </span>
                                     )}
@@ -258,7 +259,7 @@ export default function AuthorItem({
                                     <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
                                         {isLoadingSuggestions && (
                                             <div className="flex items-center gap-2 p-3 text-sm text-gray-500">
-                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                <Spinner size="sm" />
                                                 Searching for matching ORCIDs...
                                             </div>
                                         )}

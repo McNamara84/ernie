@@ -2256,7 +2256,7 @@ export default function DataCiteForm({
                         <DialogDescription>{successMessage}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button type="button" onClick={() => setShowSuccessModal(false)}>
+                        <Button type="button" variant="outline" onClick={() => setShowSuccessModal(false)}>
                             Close
                         </Button>
                     </DialogFooter>

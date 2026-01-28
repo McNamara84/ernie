@@ -36,7 +36,7 @@ export default function DefaultGfzIgsnTemplate() {
     const citation = buildCitation(resource);
 
     return (
-        <div className="min-h-screen pt-6" style={{ backgroundColor: '#0C2A63' }}>
+        <div className="min-h-screen bg-gfz-primary pt-6">
             {isPreview && <div className="bg-yellow-400 px-4 py-2 text-center text-sm font-medium text-gray-900">Preview Mode</div>}
 
             <div className="mx-auto max-w-7xl rounded bg-white">

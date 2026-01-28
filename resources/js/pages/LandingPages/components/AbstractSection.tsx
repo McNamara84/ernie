@@ -197,8 +197,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                         {freeKeywords.map((subject) => (
                             <span
                                 key={subject.id}
-                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                style={{ backgroundColor: '#0C2A63' }}
+                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
                             >
                                 {subject.subject}
                             </span>
@@ -215,8 +214,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                         {gcmdScienceKeywords.map((subject) => (
                             <span
                                 key={subject.id}
-                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                style={{ backgroundColor: '#0C2A63' }}
+                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
                             >
                                 {subject.subject}
                             </span>
@@ -233,8 +231,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                         {gcmdPlatforms.map((subject) => (
                             <span
                                 key={subject.id}
-                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                style={{ backgroundColor: '#0C2A63' }}
+                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
                             >
                                 {subject.subject}
                             </span>
@@ -251,8 +248,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                         {gcmdInstruments.map((subject) => (
                             <span
                                 key={subject.id}
-                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                style={{ backgroundColor: '#0C2A63' }}
+                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
                             >
                                 {subject.subject}
                             </span>
@@ -269,8 +265,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                         {mslVocabularies.map((subject) => (
                             <span
                                 key={subject.id}
-                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                style={{ backgroundColor: '#0C2A63' }}
+                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
                             >
                                 {subject.subject}
                             </span>

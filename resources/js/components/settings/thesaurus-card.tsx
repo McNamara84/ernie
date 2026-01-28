@@ -1,11 +1,12 @@
 import { router, usePage } from '@inertiajs/react';
-import { AlertCircle, Calendar, CheckCircle2, Database, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle2, Database, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { type SharedData } from '@/types';
 
 /**
@@ -253,7 +254,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
                     {checkStatus === 'loading' ? (
                         <>
-                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            <Spinner size="xs" className="mr-1" />
                             Checking...
                         </>
                     ) : (
@@ -320,7 +321,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 >
                     {jobStatus.status === 'running' ? (
                         <>
-                            <Loader2 className="mt-0.5 h-4 w-4 flex-shrink-0 animate-spin" />
+                            <Spinner size="sm" className="mt-0.5 flex-shrink-0" />
                             <span>{jobStatus.progress}</span>
                         </>
                     ) : jobStatus.status === 'completed' ? (

@@ -5,13 +5,14 @@
  * Uses shadcn/ui Command component for an improved search experience.
  */
 
-import { ExternalLink, Loader2, Search, User } from 'lucide-react';
+import { ExternalLink, Search, User } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Spinner } from '@/components/ui/spinner';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
 
 interface OrcidSearchDialogProps {
@@ -124,7 +125,7 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                             {/* Loading state */}
                             {isSearching && (
                                 <div className="flex items-center justify-center p-8 text-muted-foreground">
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    <Spinner size="md" className="mr-2" />
                                     <span>Searching ORCID database...</span>
                                 </div>
                             )}
