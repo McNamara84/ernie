@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\ContributorType;
 use App\Models\DateType;
+use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
 use App\Models\GeoLocation;
 use App\Models\IdentifierType;
@@ -477,10 +478,18 @@ class IgsnStorageService
                 continue;
             }
 
+            $funderIdentifierTypeId = null;
+            if (! empty($funder['identifierType'])) {
+                $funderIdentifierTypeId = FunderIdentifierType::where('name', $funder['identifierType'])
+                    ->orWhere('slug', $funder['identifierType'])
+                    ->value('id');
+            }
+
             FundingReference::create([
                 'resource_id' => $resource->id,
                 'funder_name' => $funder['name'],
                 'funder_identifier' => $funder['identifier'],
+                'funder_identifier_type_id' => $funderIdentifierTypeId,
             ]);
         }
     }
