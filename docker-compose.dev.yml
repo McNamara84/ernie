@@ -216,6 +216,8 @@ services:
       - CB_DB_PASSWORD=secret
     labels:
       - "traefik.enable=true"
+      # Note: These labels are for documentation/reference only.
+      # Actual routing is defined in docker/traefik/dynamic/routes.yml
       - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.localhost`)"
       - "traefik.http.routers.ernie-cloudbeaver.entrypoints=https"
       - "traefik.http.routers.ernie-cloudbeaver.service=ernie-cloudbeaver-service"

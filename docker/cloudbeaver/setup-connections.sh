@@ -11,6 +11,18 @@ WORKSPACE="/opt/cloudbeaver/workspace"
 GLOBAL_CONFIG_DIR="$WORKSPACE/GlobalConfiguration/.dbeaver"
 DATA_SOURCES_FILE="$GLOBAL_CONFIG_DIR/data-sources.json"
 
+# Function to escape strings for JSON (handles quotes, backslashes, newlines)
+json_escape() {
+    local str="$1"
+    # Escape backslashes first, then quotes, then control characters
+    str="${str//\\/\\\\}"
+    str="${str//\"/\\\"}"
+    str="${str//$'\n'/\\n}"
+    str="${str//$'\r'/\\r}"
+    str="${str//$'\t'/\\t}"
+    printf '%s' "$str"
+}
+
 # Function to setup database connection
 setup_connection() {
     # Create the GlobalConfiguration directory if it doesn't exist
@@ -21,10 +33,11 @@ setup_connection() {
         echo "[ERNIE Setup] Creating initial database connection configuration..."
         
         # Use environment variables (from docker-compose) with defaults
-        DB_USER="${CB_DB_USER:-ernie}"
-        DB_PASS="${CB_DB_PASSWORD:-secret}"
-        DB_NAME="${CB_DB_NAME:-ernie}"
-        DB_HOST="${CB_DB_HOST:-db}"
+        # Apply JSON escaping to prevent injection issues with special characters
+        DB_USER=$(json_escape "${CB_DB_USER:-ernie}")
+        DB_PASS=$(json_escape "${CB_DB_PASSWORD:-secret}")
+        DB_NAME=$(json_escape "${CB_DB_NAME:-ernie}")
+        DB_HOST=$(json_escape "${CB_DB_HOST:-db}")
         
         cat > "$DATA_SOURCES_FILE" << EOF
 {
