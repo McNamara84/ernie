@@ -261,7 +261,11 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                             <Button type="button" variant="outline" onClick={handleClose} disabled={formStatus === 'submitting'}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={formStatus === 'submitting'} className="gap-2" style={{ backgroundColor: '#0C2A63' }}>
+                            <Button
+                                type="submit"
+                                disabled={formStatus === 'submitting'}
+                                className="gap-2 bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
+                            >
                                 {formStatus === 'submitting' ? (
                                     <>
                                         <Spinner size="sm" />

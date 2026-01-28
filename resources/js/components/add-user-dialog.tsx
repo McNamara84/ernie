@@ -6,7 +6,16 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -116,7 +125,12 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
                                 )}
                             />
                         </div>
-                        <DialogFooter>
+                        <DialogFooter className="gap-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" disabled={isSubmitting}>
+                                    Cancel
+                                </Button>
+                            </DialogClose>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting && <Spinner size="sm" className="mr-2" />}
                                 {isSubmitting ? 'Creating...' : 'Create User'}

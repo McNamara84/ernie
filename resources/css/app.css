@@ -65,6 +65,10 @@
     --color-header: var(--header);
     --color-header-foreground: var(--header-foreground);
     --color-header-hover: var(--header-hover);
+
+    /* GFZ Branding Colors */
+    --color-gfz-primary: var(--gfz-primary);
+    --color-gfz-primary-foreground: var(--gfz-primary-foreground);
 }
 
 :root {
@@ -105,6 +109,10 @@
     --header: #002864;
     --header-foreground: #ffffff;
     --header-hover: #003da6;
+
+    /* GFZ Branding */
+    --gfz-primary: #0C2A63;
+    --gfz-primary-foreground: #ffffff;
 }
 
 .dark {
@@ -140,6 +148,10 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(0.269 0 0);
     --sidebar-ring: oklch(0.439 0 0);
+
+    /* GFZ Branding - same in dark mode */
+    --gfz-primary: #0C2A63;
+    --gfz-primary-foreground: #ffffff;
 }
 
 @layer base {

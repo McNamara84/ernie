@@ -417,7 +417,11 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                         </Button>
                     )}
 
-                    {(modalState === 'completed' || modalState === 'failed') && <Button onClick={handleClose}>Close</Button>}
+                    {(modalState === 'completed' || modalState === 'failed') && (
+                        <Button variant="outline" onClick={handleClose}>
+                            Close
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

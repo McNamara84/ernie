@@ -105,6 +105,15 @@ describe('AddUserDialog', () => {
 
             expect(screen.getByRole('button', { name: /create user/i })).toBeInTheDocument();
         });
+
+        it('renders cancel button', async () => {
+            const user = userEvent.setup();
+            render(<AddUserDialog />);
+
+            await user.click(screen.getByRole('button', { name: /add user/i }));
+
+            expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+        });
     });
 
     describe('form input', () => {

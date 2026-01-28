@@ -142,8 +142,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                 setSelectedPerson(null);
                                 setIsModalOpen(true);
                             }}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
-                            style={{ backgroundColor: '#0C2A63' }}
+                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-gfz-primary-foreground transition-colors hover:opacity-90"
                         >
                             <Mail className="h-4 w-4" />
                             Contact all ({contactPersons.length})
