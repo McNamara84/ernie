@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
 import { getOppositeRelationType, MOST_USED_RELATION_TYPES, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
@@ -142,7 +143,7 @@ export default function RelatedWorkQuickAdd({
                         />
                         {validation.status === 'validating' && (
                             <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                <Spinner size="sm" />
                             </div>
                         )}
                     </div>

@@ -1,5 +1,4 @@
 import { Form, Head } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
 
 import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import InputError from '@/components/input-error';
@@ -9,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
+import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { request } from '@/routes/password';
 
@@ -67,7 +67,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </div>
 
                             <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
-                                {processing && <LoaderCircle data-testid="loading-spinner" className="h-4 w-4 animate-spin" />}
+                                {processing && <Spinner size="sm" data-testid="loading-spinner" />}
                                 Log in
                             </Button>
                         </div>

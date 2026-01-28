@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2, Download, Loader2, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Download, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
+import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 
 interface ImportProgress {
@@ -267,7 +268,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="flex items-center gap-2">
-                                        <Loader2 className="size-4 animate-spin" />
+                                        <Spinner size="sm" />
                                         Processing...
                                     </span>
                                     <span className="text-muted-foreground">
@@ -396,7 +397,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                             <Button onClick={startImport} disabled={isStarting}>
                                 {isStarting ? (
                                     <>
-                                        <Loader2 className="mr-2 size-4 animate-spin" />
+                                        <Spinner size="sm" className="mr-2" />
                                         Starting...
                                     </>
                                 ) : (
@@ -411,7 +412,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
 
                     {modalState === 'running' && (
                         <Button variant="outline" disabled>
-                            <Loader2 className="mr-2 size-4 animate-spin" />
+                            <Spinner size="sm" className="mr-2" />
                             Import in progress...
                         </Button>
                     )}

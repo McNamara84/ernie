@@ -1,8 +1,9 @@
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Upload, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
@@ -173,7 +174,7 @@ export function IgsnCsvUpload() {
                 {/* Upload State: Uploading */}
                 {uploadState === 'uploading' && (
                     <div className="flex w-full flex-col items-center gap-4 rounded-md border bg-muted/50 p-8">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        <Spinner size="xl" className="text-primary" />
                         <p className="text-sm font-medium">Uploading {selectedFile?.name}...</p>
                         <Progress value={uploadProgress} className="w-full max-w-md" />
                         <p className="text-xs text-muted-foreground">Processing IGSN data...</p>

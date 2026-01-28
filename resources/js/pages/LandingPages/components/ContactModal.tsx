@@ -1,7 +1,8 @@
-import { AlertCircle, CheckCircle, Loader2, Send } from 'lucide-react';
+import { AlertCircle, CheckCircle, Send } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -263,7 +264,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                             <Button type="submit" disabled={formStatus === 'submitting'} className="gap-2" style={{ backgroundColor: '#0C2A63' }}>
                                 {formStatus === 'submitting' ? (
                                     <>
-                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <Spinner size="sm" />
                                         Sending...
                                     </>
                                 ) : (

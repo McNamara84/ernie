@@ -1,11 +1,12 @@
 import { Form, Head } from '@inertiajs/react';
-import { AlertCircle, LoaderCircle, Mail } from 'lucide-react';
+import { AlertCircle, Mail } from 'lucide-react';
 
 import WelcomeController from '@/actions/App/Http/Controllers/Auth/WelcomeController';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface WelcomeExpiredProps {
@@ -41,7 +42,7 @@ export default function WelcomeExpired({ email }: WelcomeExpiredProps) {
                         </div>
 
                         <Button type="submit" className="w-full" disabled={processing}>
-                            {processing ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                            {processing ? <Spinner size="sm" className="mr-2" /> : <Mail className="mr-2 h-4 w-4" />}
                             Send New Welcome Email
                         </Button>
                     </div>

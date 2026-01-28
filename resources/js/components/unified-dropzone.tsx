@@ -1,10 +1,11 @@
 import { router } from '@inertiajs/react';
-import { AlertCircle, CheckCircle2, FileSpreadsheet, FileText, Loader2, Upload, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileSpreadsheet, FileText, Upload, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { uploadIgsnCsv as uploadIgsnCsvRoute } from '@/routes/dashboard';
 import { index as igsnIndexRoute } from '@/routes/igsns';
@@ -227,7 +228,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
         return (
             <div data-testid="dropzone-uploading-state" className="flex w-full flex-col items-center gap-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Spinner size="md" />
                     <span>Uploading {lastUploadType === 'csv' ? 'CSV' : 'XML'} file...</span>
                 </div>
                 <Progress value={uploadProgress} className="w-full max-w-xs" />

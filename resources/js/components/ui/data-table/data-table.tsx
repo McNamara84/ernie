@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-table';
 import * as React from 'react';
 
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
@@ -148,7 +149,7 @@ export function DataTable<TData, TValue>({
                                 <TableRow key={`skeleton-${index}`}>
                                     {columns.map((_, colIndex) => (
                                         <TableCell key={`skeleton-${index}-${colIndex}`}>
-                                            <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                                            <Skeleton className="h-4 w-full" />
                                         </TableCell>
                                     ))}
                                 </TableRow>

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -305,13 +306,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                 <span className="mr-2" aria-live="polite">
                                     Processing...
                                 </span>
-                                <span
-                                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                                    role="status"
-                                    aria-label="Loading"
-                                >
-                                    <span className="sr-only">Loading</span>
-                                </span>
+                                <Spinner size="sm" aria-label="Loading" />
                             </>
                         ) : hasExistingDoi ? (
                             'Update Metadata'
