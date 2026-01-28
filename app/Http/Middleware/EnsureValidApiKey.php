@@ -17,7 +17,9 @@ abstract class EnsureValidApiKey
         $configuredKey = config('services.'.$this->serviceName().'.api_key');
 
         if (! is_string($configuredKey) || $configuredKey === '') {
-            return $next($request);
+            return new JsonResponse([
+                'message' => 'API key not configured.',
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
         $providedKey = $this->extractApiKey($request);

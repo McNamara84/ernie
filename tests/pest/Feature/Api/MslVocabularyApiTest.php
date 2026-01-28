@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Storage;
 use function Pest\Laravel\getJson;
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
     Storage::fake();
     // Clear cache to ensure each test starts fresh
     Cache::flush();
@@ -45,7 +45,7 @@ function createTestMslVocabularyFile(): void
 it('returns MSL vocabulary', function () {
     createTestMslVocabularyFile();
 
-    $response = getJson('/api/v1/vocabularies/msl')
+    $response = getJson('/api/v1/vocabularies/msl', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonStructure([
             'lastUpdated',
@@ -69,7 +69,7 @@ it('returns MSL vocabulary', function () {
 
 it('returns 404 when MSL vocabulary file does not exist', function () {
     // Error handling occurs in the cache callback, which throws VocabularyNotFoundException
-    getJson('/api/v1/vocabularies/msl')
+    getJson('/api/v1/vocabularies/msl', ['X-API-Key' => 'test-api-key'])
         ->assertStatus(404)
         ->assertJson([
             'error' => 'Vocabulary file not found. Please run: php artisan get-msl-keywords',
@@ -79,8 +79,6 @@ it('returns 404 when MSL vocabulary file does not exist', function () {
 it('rejects MSL vocabulary requests without an API key when one is configured', function () {
     createTestMslVocabularyFile();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     getJson('/api/v1/vocabularies/msl')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
@@ -88,8 +86,6 @@ it('rejects MSL vocabulary requests without an API key when one is configured', 
 
 it('rejects MSL vocabulary requests with an invalid API key', function () {
     createTestMslVocabularyFile();
-
-    config(['services.elmo.api_key' => 'secret-key']);
 
     getJson('/api/v1/vocabularies/msl', ['X-API-Key' => 'wrong-key'])
         ->assertStatus(401)
@@ -99,9 +95,7 @@ it('rejects MSL vocabulary requests with an invalid API key', function () {
 it('allows MSL vocabulary requests with a valid API key header', function () {
     createTestMslVocabularyFile();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
-    $response = getJson('/api/v1/vocabularies/msl', ['X-API-Key' => 'secret-key'])
+    $response = getJson('/api/v1/vocabularies/msl', ['X-API-Key' => 'test-api-key'])
         ->assertOk();
 
     expect($response->json('data.0.text'))->toBe('Material');
@@ -110,10 +104,18 @@ it('allows MSL vocabulary requests with a valid API key header', function () {
 it('rejects API keys in query parameters for security', function () {
     createTestMslVocabularyFile();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     // API keys in query params are rejected as they can leak via logs and Referer headers
-    getJson('/api/v1/vocabularies/msl?api_key=secret-key')
+    getJson('/api/v1/vocabularies/msl?api_key=test-api-key')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
+});
+
+it('rejects MSL vocabulary requests when no API key is configured on server', function () {
+    createTestMslVocabularyFile();
+
+    config(['services.elmo.api_key' => null]);
+
+    getJson('/api/v1/vocabularies/msl')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'API key not configured.']);
 });

@@ -62,20 +62,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 }
             }
@@ -99,20 +86,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 },
                 "description": "Returns all title types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
@@ -142,20 +116,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 },
                 "description": "Returns all licenses that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
@@ -215,20 +176,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     },
                     "404": {
                         "description": "Resource type not found",
@@ -274,20 +222,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 }
             }
@@ -311,20 +246,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 },
                 "description": "Returns all languages that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
@@ -360,20 +282,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 }
             }
@@ -403,20 +312,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 }
             }
@@ -446,20 +342,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 }
             }
@@ -486,20 +369,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     },
                     "404": {
                         "description": "Vocabulary file not found",
@@ -542,20 +412,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     },
                     "404": {
                         "description": "Vocabulary file not found",
@@ -598,20 +455,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid or missing API key",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Invalid API key."
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/components/responses/UnauthorizedError"
                     },
                     "404": {
                         "description": "Vocabulary file not found",
@@ -642,6 +486,40 @@
                 "description": "API key required to access ELMO-specific endpoints. Must be provided in the `X-API-Key` header. Query parameter authentication is not supported for security reasons. Contact the ERNIE team to obtain an API key."
             }
         },
+        "responses": {
+            "UnauthorizedError": {
+                "description": "Authentication failed. Either the API key is invalid/missing, or the server has no API key configured.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error message describing the authentication failure",
+                                    "enum": ["Invalid API key.", "API key not configured."]
+                                }
+                            },
+                            "required": ["message"]
+                        },
+                        "examples": {
+                            "invalidKey": {
+                                "summary": "Invalid or missing API key",
+                                "value": {
+                                    "message": "Invalid API key."
+                                }
+                            },
+                            "notConfigured": {
+                                "summary": "API key not configured on server",
+                                "value": {
+                                    "message": "API key not configured."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "schemas": {
             "ElmoResourceType": {
                 "type": "object",
@@ -655,6 +533,11 @@
                     "name": {
                         "type": "string",
                         "example": "Dataset"
+                    },
+                    "description": {
+                        "type": ["string", "null"],
+                        "description": "Official DataCite description for this resource type",
+                        "example": "Data encoded in a defined structure."
                     }
                 },
                 "required": ["id", "name"]
