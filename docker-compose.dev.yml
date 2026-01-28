@@ -196,7 +196,8 @@ services:
     restart: unless-stopped
     volumes:
       - cloudbeaver-workspace-dev:/opt/cloudbeaver/workspace
-      - ./docker/cloudbeaver/setup-connections.sh:/docker-entrypoint-initdb.d/setup-connections.sh:ro
+      - ./docker/cloudbeaver/setup-connections.sh:/opt/cloudbeaver/setup-connections.sh:ro
+    entrypoint: ["/bin/bash", "/opt/cloudbeaver/setup-connections.sh"]
     networks:
       - ernie-dev-network
     depends_on:
@@ -208,6 +209,11 @@ services:
       - CB_ADMIN_PASSWORD=devpassword
       - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
       - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
+      # Database connection credentials for auto-configuration
+      - CB_DB_HOST=db
+      - CB_DB_NAME=ernie
+      - CB_DB_USER=ernie
+      - CB_DB_PASSWORD=secret
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.localhost`)"

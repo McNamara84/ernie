@@ -117,7 +117,8 @@ services:
     restart: unless-stopped
     volumes:
       - cloudbeaver-workspace:/opt/cloudbeaver/workspace
-      - ./docker/cloudbeaver/setup-connections.sh:/docker-entrypoint-initdb.d/setup-connections.sh:ro
+      - ./docker/cloudbeaver/setup-connections.sh:/opt/cloudbeaver/setup-connections.sh:ro
+    entrypoint: ["/bin/bash", "/opt/cloudbeaver/setup-connections.sh"]
     networks:
       - dockerized-laravel-network
       - traefik
@@ -129,6 +130,11 @@ services:
       - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD:-ChangeMe123!}
       - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
       - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
+      # Database connection credentials for auto-configuration (from stack.env)
+      - CB_DB_HOST=db
+      - CB_DB_NAME=${MARIADB_DATABASE:-ernie}
+      - CB_DB_USER=${MARIADB_USER:-ernie}
+      - CB_DB_PASSWORD=${MARIADB_PASSWORD}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.rz-vm182.gfz.de`)"
