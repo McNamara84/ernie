@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 });
 
 function createElmoLanguages(): Language
@@ -81,7 +81,7 @@ it('rejects API keys in query parameters for security', function () {
 it('rejects language requests when no API key is configured on server', function () {
     createElmoLanguages();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     $this->getJson('/api/v1/languages/elmo')
         ->assertStatus(401)

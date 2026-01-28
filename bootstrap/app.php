@@ -2,7 +2,7 @@
 
 use App\Console\Kernel as ConsoleKernel;
 use App\Http\Middleware\EnsureTestEnvironment;
-use App\Http\Middleware\EnsureValidElmoApiKey;
+use App\Http\Middleware\EnsureValidErnieApiKey;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernelContract;
@@ -26,7 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
-            'elmo.api-key' => EnsureValidElmoApiKey::class,
+            'ernie.api-key' => EnsureValidErnieApiKey::class,
             'ensure.test-environment' => EnsureTestEnvironment::class,
             // Note: 'can.manage.users' middleware has been replaced by Gate-based authorization
             // Use Route::middleware(['can:access-administration']) or ['can:manage-users'] instead

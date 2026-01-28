@@ -7,7 +7,7 @@ use App\Models\Right;
 
 beforeEach(function () {
     // Configure API key for testing
-    config(['services.elmo.api_key' => 'test-secret-key']);
+    config(['services.ernie.api_key' => 'test-secret-key']);
 
     // Create test resource types
     $this->softwareType = ResourceType::factory()->create(['name' => 'Software', 'slug' => 'software']);
@@ -31,7 +31,7 @@ beforeEach(function () {
 
 describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
     it('returns all ELMO licenses for resource type without exclusions', function () {
-        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.elmo.api_key')])
+        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
             ->assertJsonCount(2);
     });
@@ -40,7 +40,7 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
         // Exclude MIT from datasets
         $this->mitLicense->excludedResourceTypes()->attach($this->datasetType->id);
 
-        $this->getJson('/api/v1/licenses/elmo/dataset', ['X-API-Key' => config('services.elmo.api_key')])
+        $this->getJson('/api/v1/licenses/elmo/dataset', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonFragment(['identifier' => 'CC-BY-4.0'])
@@ -52,14 +52,14 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
         $this->mitLicense->excludedResourceTypes()->attach($this->datasetType->id);
 
         // Should still return MIT for software
-        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.elmo.api_key')])
+        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
             ->assertJsonCount(2)
             ->assertJsonFragment(['identifier' => 'MIT']);
     });
 
     it('returns 404 for unknown resource type slug', function () {
-        $this->getJson('/api/v1/licenses/elmo/unknown-type', ['X-API-Key' => config('services.elmo.api_key')])
+        $this->getJson('/api/v1/licenses/elmo/unknown-type', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertNotFound()
             ->assertJson(['message' => 'Resource type not found.']);
     });
@@ -72,7 +72,7 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
     it('respects is_elmo_active flag', function () {
         $this->ccByLicense->update(['is_elmo_active' => false]);
 
-        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.elmo.api_key')])
+        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonFragment(['identifier' => 'MIT'])
@@ -82,7 +82,7 @@ describe('GET /api/v1/licenses/elmo/{resourceTypeSlug}', function () {
     it('respects is_active flag', function () {
         $this->mitLicense->update(['is_active' => false]);
 
-        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.elmo.api_key')])
+        $this->getJson('/api/v1/licenses/elmo/software', ['X-API-Key' => config('services.ernie.api_key')])
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonFragment(['identifier' => 'CC-BY-4.0'])

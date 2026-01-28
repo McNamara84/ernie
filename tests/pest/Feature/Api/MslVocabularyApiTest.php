@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Storage;
 use function Pest\Laravel\getJson;
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
     Storage::fake();
     // Clear cache to ensure each test starts fresh
     Cache::flush();
@@ -113,7 +113,7 @@ it('rejects API keys in query parameters for security', function () {
 it('rejects MSL vocabulary requests when no API key is configured on server', function () {
     createTestMslVocabularyFile();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     getJson('/api/v1/vocabularies/msl')
         ->assertStatus(401)

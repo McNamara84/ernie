@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 });
 
 function createElmoDateTypes(): DateType
@@ -85,7 +85,7 @@ it('rejects API keys in query parameters for security', function () {
 it('rejects requests when no API key is configured on server', function () {
     createElmoDateTypes();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     getJson('/api/v1/date-types/elmo')
         ->assertStatus(401)

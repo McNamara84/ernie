@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 });
 
 function createElmoResourceTypes(): ResourceType
@@ -82,7 +82,7 @@ it('rejects API keys in query parameters for security', function () {
 it('rejects requests when no API key is configured on server', function () {
     createElmoResourceTypes();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     getJson('/api/v1/resource-types/elmo')
         ->assertStatus(401)
@@ -92,7 +92,7 @@ it('rejects requests when no API key is configured on server', function () {
 it('rejects requests when API key is configured as empty string', function () {
     createElmoResourceTypes();
 
-    config(['services.elmo.api_key' => '']);
+    config(['services.ernie.api_key' => '']);
 
     getJson('/api/v1/resource-types/elmo', ['X-API-Key' => 'any-key'])
         ->assertStatus(401)

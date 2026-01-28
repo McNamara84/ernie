@@ -150,7 +150,7 @@ describe('VocabularyController with Thesaurus Settings', function () {
         ]));
 
         // Configure ELMO API key for test
-        Config::set('services.elmo.api_key', 'test-api-key');
+        Config::set('services.ernie.api_key', 'test-api-key');
 
         // Instruments: is_active = false, is_elmo_active = true
         // ELMO request should succeed
@@ -164,7 +164,7 @@ describe('VocabularyController with Thesaurus Settings', function () {
         Storage::put('gcmd-platforms.json', json_encode(['data' => []]));
 
         // Configure ELMO API key for test
-        Config::set('services.elmo.api_key', 'test-api-key');
+        Config::set('services.ernie.api_key', 'test-api-key');
 
         // Platforms: is_active = true, is_elmo_active = false
         // ELMO request should fail

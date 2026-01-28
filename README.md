@@ -120,10 +120,10 @@ DB_OLD_USERNAME=root
 DB_OLD_PASSWORD=
 ```
 
-#### ELMO API Key (for External Service Integration)
+#### ERNIE API Key (for External Service Integration)
 Add to `.env`:
 ```env
-ELMO_API_KEY=your_api_key_here
+ERNIE_API_KEY=your_api_key_here
 ```
 
 ### User Management

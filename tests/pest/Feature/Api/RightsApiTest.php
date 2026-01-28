@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 });
 
 function createElmoRights(): Right
@@ -103,7 +103,7 @@ it('rejects API keys in query parameters for security', function () {
 it('rejects license requests when no API key is configured on server', function () {
     createElmoRights();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     $this->getJson('/api/v1/licenses/elmo')
         ->assertStatus(401)
