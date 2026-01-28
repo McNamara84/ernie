@@ -166,7 +166,7 @@ class VocabularyController extends Controller
     /**
      * Determine if the current request is an ELMO API request.
      *
-     * ELMO requests are identified by the presence of the elmo.api-key middleware
+     * ELMO requests are identified by the presence of the ernie.api-key middleware
      * on the current route. This is more reliable than URL pattern matching
      * because some /api/* routes (like thesauri-availability) are used by
      * the ERNIE frontend and should not be treated as ELMO requests.
@@ -175,11 +175,11 @@ class VocabularyController extends Controller
     {
         $route = request()->route();
 
-        // Check if the current route has the elmo.api-key middleware applied
+        // Check if the current route has the ernie.api-key middleware applied
         if ($route !== null) {
             $middleware = $route->gatherMiddleware();
 
-            return in_array('elmo.api-key', $middleware, true);
+            return in_array('ernie.api-key', $middleware, true);
         }
 
         // Fallback: check for X-API-Key header (for requests outside Laravel routing)

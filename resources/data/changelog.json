@@ -1023,7 +1023,7 @@
             },
             {
                 "title": "API Key Authentication for ELMO Resource Types",
-                "description": "Protected ELMO endpoint with configurable API key using new ELMO_API_KEY environment variable. Configuration added to .env.example and stack.env with updated tests for consistent test environment."
+                "description": "Protected ELMO endpoint with configurable API key using new ERNIE_API_KEY environment variable. Configuration added to .env.example and stack.env with updated tests for consistent test environment."
             },
             {
                 "title": "Dashboard Statistics Card",

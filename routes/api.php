@@ -18,28 +18,28 @@ use Illuminate\Support\Facades\Route;
 Route::get('/changelog', [ChangelogController::class, 'index']);
 
 Route::get('/v1/resource-types', [ResourceTypeController::class, 'index']);
-Route::middleware('elmo.api-key')->get('/v1/resource-types/elmo', [ResourceTypeController::class, 'elmo']);
+Route::middleware('ernie.api-key')->get('/v1/resource-types/elmo', [ResourceTypeController::class, 'elmo']);
 Route::get('/v1/resource-types/ernie', [ResourceTypeController::class, 'ernie']);
 Route::get('/v1/title-types', [TitleTypeController::class, 'index']);
-Route::middleware('elmo.api-key')->get('/v1/title-types/elmo', [TitleTypeController::class, 'elmo']);
+Route::middleware('ernie.api-key')->get('/v1/title-types/elmo', [TitleTypeController::class, 'elmo']);
 Route::get('/v1/title-types/ernie', [TitleTypeController::class, 'ernie']);
 Route::get('/v1/date-types', [DateTypeController::class, 'index']);
-Route::middleware('elmo.api-key')->get('/v1/date-types/elmo', [DateTypeController::class, 'elmo']);
+Route::middleware('ernie.api-key')->get('/v1/date-types/elmo', [DateTypeController::class, 'elmo']);
 Route::get('/v1/date-types/ernie', [DateTypeController::class, 'ernie']);
 Route::get('/v1/licenses', [LicenseController::class, 'index']);
-Route::middleware('elmo.api-key')->get('/v1/licenses/elmo/{resourceTypeSlug}', [LicenseController::class, 'elmoForResourceType']);
-Route::middleware('elmo.api-key')->get('/v1/licenses/elmo', [LicenseController::class, 'elmo']);
+Route::middleware('ernie.api-key')->get('/v1/licenses/elmo/{resourceTypeSlug}', [LicenseController::class, 'elmoForResourceType']);
+Route::middleware('ernie.api-key')->get('/v1/licenses/elmo', [LicenseController::class, 'elmo']);
 Route::get('/v1/licenses/ernie', [LicenseController::class, 'ernie']);
 Route::get('/v1/languages', [LanguageController::class, 'index']);
-Route::middleware('elmo.api-key')->get('/v1/languages/elmo', [LanguageController::class, 'elmo']);
+Route::middleware('ernie.api-key')->get('/v1/languages/elmo', [LanguageController::class, 'elmo']);
 Route::get('/v1/languages/ernie', [LanguageController::class, 'ernie']);
 Route::get('/v1/roles/authors/ernie', [RoleController::class, 'authorRolesForErnie']);
-Route::middleware('elmo.api-key')->get('/v1/roles/authors/elmo', [RoleController::class, 'authorRolesForElmo']);
+Route::middleware('ernie.api-key')->get('/v1/roles/authors/elmo', [RoleController::class, 'authorRolesForElmo']);
 Route::get(
     '/v1/roles/contributor-persons/ernie',
     [RoleController::class, 'contributorPersonRolesForErnie'],
 );
-Route::middleware('elmo.api-key')->get(
+Route::middleware('ernie.api-key')->get(
     '/v1/roles/contributor-persons/elmo',
     [RoleController::class, 'contributorPersonRolesForElmo'],
 );
@@ -47,7 +47,7 @@ Route::get(
     '/v1/roles/contributor-institutions/ernie',
     [RoleController::class, 'contributorInstitutionRolesForErnie'],
 );
-Route::middleware('elmo.api-key')->get(
+Route::middleware('ernie.api-key')->get(
     '/v1/roles/contributor-institutions/elmo',
     [RoleController::class, 'contributorInstitutionRolesForElmo'],
 );
@@ -60,10 +60,10 @@ Route::middleware('throttle:orcid-api')->group(function () {
     Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
     Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 });
-Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
-Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
-Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
-Route::middleware('elmo.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
 
 // Thesauri availability - returns which thesauri are enabled (no auth required for frontend)
 Route::get('/v1/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
