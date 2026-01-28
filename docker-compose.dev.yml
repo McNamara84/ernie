@@ -189,6 +189,42 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
+  # CloudBeaver Database Admin
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: ernie-cloudbeaver-dev
+    restart: unless-stopped
+    volumes:
+      - cloudbeaver-workspace-dev:/opt/cloudbeaver/workspace
+      - ./docker/cloudbeaver/setup-connections.sh:/opt/cloudbeaver/setup-connections.sh:ro
+    entrypoint: ["/bin/bash", "/opt/cloudbeaver/setup-connections.sh"]
+    networks:
+      - ernie-dev-network
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - CB_SERVER_NAME=ERNIE Database Admin (Dev)
+      - CB_ADMIN_NAME=cbadmin
+      - CB_ADMIN_PASSWORD=devpassword
+      - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
+      - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
+      # Database connection credentials for auto-configuration
+      - CB_DB_HOST=db
+      - CB_DB_NAME=ernie
+      - CB_DB_USER=ernie
+      - CB_DB_PASSWORD=secret
+      - CB_DB_TYPE=dev
+    labels:
+      - "traefik.enable=true"
+      # Note: These labels are for documentation/reference only.
+      # Actual routing is defined in docker/traefik/dynamic/routes.yml
+      - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.localhost`)"
+      - "traefik.http.routers.ernie-cloudbeaver.entrypoints=https"
+      - "traefik.http.routers.ernie-cloudbeaver.service=ernie-cloudbeaver-service"
+      - "traefik.http.routers.ernie-cloudbeaver.tls=true"
+      - "traefik.http.services.ernie-cloudbeaver-service.loadbalancer.server.port=8978"
+
   # Queue Worker
   queue:
     build:
@@ -232,4 +268,6 @@ volumes:
   ernie-vendor:
     driver: local
   ernie-node-modules:
+    driver: local
+  cloudbeaver-workspace-dev:
     driver: local
