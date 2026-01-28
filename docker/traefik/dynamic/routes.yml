@@ -45,6 +45,18 @@ http:
       tls: {}
 
     # ==========================================================================
+    # CloudBeaver Database Admin Router
+    # ==========================================================================
+    
+    ernie-cloudbeaver:
+      rule: "Host(`db.ernie.localhost`)"
+      entryPoints:
+        - https
+      priority: 100
+      service: ernie-cloudbeaver-service
+      tls: {}
+
+    # ==========================================================================
     # Main Application Router
     # ==========================================================================
     # Catch-all for all other requests - routes to Laravel application
@@ -69,3 +81,8 @@ http:
         passHostHeader: false
         servers:
           - url: "http://ernie-vite-dev:5173"
+
+    ernie-cloudbeaver-service:
+      loadBalancer:
+        servers:
+          - url: "http://ernie-cloudbeaver-dev:8978"

@@ -111,6 +111,32 @@ services:
     ports:
       - "6379:6379"
 
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: ernie-cloudbeaver-stage
+    restart: unless-stopped
+    volumes:
+      - cloudbeaver-workspace:/opt/cloudbeaver/workspace
+      - ./docker/cloudbeaver/setup-connections.sh:/docker-entrypoint-initdb.d/setup-connections.sh:ro
+    networks:
+      - dockerized-laravel-network
+      - traefik
+    depends_on:
+      - db
+    environment:
+      - CB_SERVER_NAME=ERNIE Database Admin
+      - CB_ADMIN_NAME=cbadmin
+      - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD:-ChangeMe123!}
+      - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
+      - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.rz-vm182.gfz.de`)"
+      - "traefik.http.routers.ernie-cloudbeaver.entrypoints=https"
+      - "traefik.http.routers.ernie-cloudbeaver.service=ernie-cloudbeaver-service"
+      - "traefik.http.services.ernie-cloudbeaver-service.loadbalancer.server.port=8978"
+      - "traefik.docker.network=traefik"
+
   queue:
     build:
       context: .
@@ -166,4 +192,6 @@ volumes:
   storage-data:
     driver: local
   bootstrap-cache:
+    driver: local
+  cloudbeaver-workspace:
     driver: local
