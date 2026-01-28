@@ -127,7 +127,7 @@ services:
     environment:
       - CB_SERVER_NAME=ERNIE Database Admin
       - CB_ADMIN_NAME=cbadmin
-      - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD:-ChangeMe123!}
+      - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD:?CLOUDBEAVER_ADMIN_PASSWORD must be set in stack.env}
       - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
       - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
       # Database connection credentials for auto-configuration (from stack.env)
@@ -135,6 +135,7 @@ services:
       - CB_DB_NAME=${MARIADB_DATABASE:-ernie}
       - CB_DB_USER=${MARIADB_USER:-ernie}
       - CB_DB_PASSWORD=${MARIADB_PASSWORD}
+      - CB_DB_TYPE=stage
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.rz-vm182.gfz.de`)"

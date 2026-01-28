@@ -214,6 +214,7 @@ services:
       - CB_DB_NAME=ernie
       - CB_DB_USER=ernie
       - CB_DB_PASSWORD=secret
+      - CB_DB_TYPE=dev
     labels:
       - "traefik.enable=true"
       # Note: These labels are for documentation/reference only.

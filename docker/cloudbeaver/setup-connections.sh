@@ -38,6 +38,7 @@ setup_connection() {
         DB_PASS=$(json_escape "${CB_DB_PASSWORD:-secret}")
         DB_NAME=$(json_escape "${CB_DB_NAME:-ernie}")
         DB_HOST=$(json_escape "${CB_DB_HOST:-db}")
+        DB_TYPE="${CB_DB_TYPE:-dev}"
         
         cat > "$DATA_SOURCES_FILE" << EOF
 {
@@ -55,7 +56,7 @@ setup_connection() {
         "user": "$DB_USER",
         "password": "$DB_PASS",
         "url": "jdbc:mysql://$DB_HOST:3306/$DB_NAME?allowPublicKeyRetrieval=true&useSSL=false",
-        "type": "dev"
+        "type": "$DB_TYPE"
       }
     }
   }
