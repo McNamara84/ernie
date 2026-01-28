@@ -3,9 +3,9 @@ import { useCallback, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { uploadIgsnCsv as uploadIgsnCsvRoute } from '@/routes/dashboard';
 
