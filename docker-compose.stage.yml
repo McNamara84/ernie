@@ -117,8 +117,6 @@ services:
     restart: unless-stopped
     volumes:
       - cloudbeaver-workspace:/opt/cloudbeaver/workspace
-      - ./docker/cloudbeaver/setup-connections.sh:/opt/cloudbeaver/setup-connections.sh:ro
-    entrypoint: ["/bin/bash", "/opt/cloudbeaver/setup-connections.sh"]
     networks:
       - dockerized-laravel-network
       - traefik
@@ -136,6 +134,47 @@ services:
       - CB_DB_USER=${MARIADB_USER:-ernie}
       - CB_DB_PASSWORD=${MARIADB_PASSWORD}
       - CB_DB_TYPE=stage
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        # Create database connection configuration
+        WORKSPACE="/opt/cloudbeaver/workspace"
+        GLOBAL_CONFIG_DIR="$$WORKSPACE/GlobalConfiguration/.dbeaver"
+        DATA_SOURCES_FILE="$$GLOBAL_CONFIG_DIR/data-sources.json"
+        
+        mkdir -p "$$GLOBAL_CONFIG_DIR"
+        
+        if [ ! -s "$$DATA_SOURCES_FILE" ] || grep -q '"connections":{}' "$$DATA_SOURCES_FILE" 2>/dev/null; then
+          echo "[ERNIE Setup] Creating initial database connection configuration..."
+          cat > "$$DATA_SOURCES_FILE" << EOF
+        {
+          "folders": {},
+          "connections": {
+            "mysql_ernie": {
+              "provider": "mysql",
+              "driver": "mysql8",
+              "name": "ERNIE Database",
+              "save-password": true,
+              "configuration": {
+                "host": "$${CB_DB_HOST:-db}",
+                "port": "3306",
+                "database": "$${CB_DB_NAME:-ernie}",
+                "user": "$${CB_DB_USER:-ernie}",
+                "password": "$${CB_DB_PASSWORD}",
+                "url": "jdbc:mysql://$${CB_DB_HOST:-db}:3306/$${CB_DB_NAME:-ernie}?allowPublicKeyRetrieval=true&useSSL=false",
+                "type": "$${CB_DB_TYPE:-stage}"
+              }
+            }
+          }
+        }
+        EOF
+          echo "[ERNIE Setup] Database connection configuration created!"
+        else
+          echo "[ERNIE Setup] Database connection already configured, skipping..."
+        fi
+        
+        # Start CloudBeaver
+        exec /opt/cloudbeaver/run-server.sh
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.rz-vm182.gfz.de`)"
