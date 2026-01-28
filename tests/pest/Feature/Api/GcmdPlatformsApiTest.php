@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Storage;
 use function Pest\Laravel\getJson;
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
     Storage::fake();
     // Clear cache to ensure each test starts fresh
     Cache::flush();
@@ -45,7 +45,7 @@ function createTestPlatformsVocabularyFile(): void
 it('returns GCMD Platforms vocabulary', function () {
     createTestPlatformsVocabularyFile();
 
-    $response = getJson('/api/v1/vocabularies/gcmd-platforms')
+    $response = getJson('/api/v1/vocabularies/gcmd-platforms', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonStructure([
             'lastUpdated',
@@ -68,7 +68,7 @@ it('returns GCMD Platforms vocabulary', function () {
 });
 
 it('returns 404 when platforms file does not exist', function () {
-    getJson('/api/v1/vocabularies/gcmd-platforms')
+    getJson('/api/v1/vocabularies/gcmd-platforms', ['X-API-Key' => 'test-api-key'])
         ->assertStatus(404)
         ->assertJson([
             'error' => 'Vocabulary file not found. Please run: php artisan get-gcmd-platforms',
@@ -78,8 +78,6 @@ it('returns 404 when platforms file does not exist', function () {
 it('rejects platforms requests without an API key when one is configured', function () {
     createTestPlatformsVocabularyFile();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     getJson('/api/v1/vocabularies/gcmd-platforms')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
@@ -87,8 +85,6 @@ it('rejects platforms requests without an API key when one is configured', funct
 
 it('rejects platforms requests with an invalid API key', function () {
     createTestPlatformsVocabularyFile();
-
-    config(['services.elmo.api_key' => 'secret-key']);
 
     getJson('/api/v1/vocabularies/gcmd-platforms', ['X-API-Key' => 'wrong-key'])
         ->assertStatus(401)
@@ -98,9 +94,7 @@ it('rejects platforms requests with an invalid API key', function () {
 it('allows platforms requests with a valid API key header', function () {
     createTestPlatformsVocabularyFile();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
-    $response = getJson('/api/v1/vocabularies/gcmd-platforms', ['X-API-Key' => 'secret-key'])
+    $response = getJson('/api/v1/vocabularies/gcmd-platforms', ['X-API-Key' => 'test-api-key'])
         ->assertOk();
 
     expect($response->json('data.0.text'))->toBe('Test Platform');
@@ -109,10 +103,18 @@ it('allows platforms requests with a valid API key header', function () {
 it('rejects API keys in query parameters for security', function () {
     createTestPlatformsVocabularyFile();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     // API keys in query params are rejected as they can leak via logs and Referer headers
-    getJson('/api/v1/vocabularies/gcmd-platforms?api_key=secret-key')
+    getJson('/api/v1/vocabularies/gcmd-platforms?api_key=test-api-key')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
+});
+
+it('rejects platforms requests when no API key is configured on server', function () {
+    createTestPlatformsVocabularyFile();
+
+    config(['services.elmo.api_key' => null]);
+
+    getJson('/api/v1/vocabularies/gcmd-platforms')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'API key not configured.']);
 });

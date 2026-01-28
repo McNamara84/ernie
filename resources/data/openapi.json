@@ -655,6 +655,11 @@
                     "name": {
                         "type": "string",
                         "example": "Dataset"
+                    },
+                    "description": {
+                        "type": ["string", "null"],
+                        "description": "Official DataCite description for this resource type",
+                        "example": "Data encoded in a defined structure."
                     }
                 },
                 "required": ["id", "name"]

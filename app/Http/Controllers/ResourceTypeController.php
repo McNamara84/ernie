@@ -14,7 +14,7 @@ class ResourceTypeController extends Controller
     {
         $types = ResourceType::query()
             ->orderByName()
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'description']);
 
         return response()->json($types);
     }
@@ -28,7 +28,7 @@ class ResourceTypeController extends Controller
             ->active()
             ->elmoActive()
             ->orderByName()
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'description']);
 
         return response()->json($types);
     }
@@ -41,7 +41,7 @@ class ResourceTypeController extends Controller
         $types = ResourceType::query()
             ->active()
             ->orderByName()
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'description']);
 
         return response()->json($types);
     }

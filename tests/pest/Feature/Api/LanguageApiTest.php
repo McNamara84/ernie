@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
 });
 
 function createElmoLanguages(): Language
@@ -28,7 +28,7 @@ it('lists all languages', function () {
 it('lists ELMO-active languages', function () {
     $enabled = createElmoLanguages();
 
-    $this->getJson('/api/v1/languages/elmo')
+    $this->getJson('/api/v1/languages/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonCount(1)
         ->assertJsonPath('0.code', $enabled->code);
@@ -47,8 +47,6 @@ it('lists ERNIE-active languages', function () {
 it('rejects language requests without an API key when one is configured', function () {
     createElmoLanguages();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     $this->getJson('/api/v1/languages/elmo')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
@@ -56,8 +54,6 @@ it('rejects language requests without an API key when one is configured', functi
 
 it('rejects language requests with an invalid API key', function () {
     createElmoLanguages();
-
-    config(['services.elmo.api_key' => 'secret-key']);
 
     $this->getJson('/api/v1/languages/elmo', ['X-API-Key' => 'wrong-key'])
         ->assertStatus(401)
@@ -67,9 +63,7 @@ it('rejects language requests with an invalid API key', function () {
 it('allows language requests with a valid API key header', function () {
     $enabled = createElmoLanguages();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
-    $this->getJson('/api/v1/languages/elmo', ['X-API-Key' => 'secret-key'])
+    $this->getJson('/api/v1/languages/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonCount(1)
         ->assertJsonPath('0.code', $enabled->code);
@@ -78,10 +72,18 @@ it('allows language requests with a valid API key header', function () {
 it('rejects API keys in query parameters for security', function () {
     createElmoLanguages();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     // API keys in query params are rejected as they can leak via logs and Referer headers
-    $this->getJson('/api/v1/languages/elmo?api_key=secret-key')
+    $this->getJson('/api/v1/languages/elmo?api_key=test-api-key')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
+});
+
+it('rejects language requests when no API key is configured on server', function () {
+    createElmoLanguages();
+
+    config(['services.elmo.api_key' => null]);
+
+    $this->getJson('/api/v1/languages/elmo')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'API key not configured.']);
 });

@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
 });
 
 function createElmoDateTypes(): DateType
@@ -37,7 +37,7 @@ function createElmoDateTypes(): DateType
 it('returns only active date types for ELMO (same as Ernie)', function () {
     createElmoDateTypes();
 
-    $response = getJson('/api/v1/date-types/elmo')
+    $response = getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonCount(2);
 
@@ -49,8 +49,6 @@ it('returns only active date types for ELMO (same as Ernie)', function () {
 it('rejects requests without an API key when one is configured', function () {
     createElmoDateTypes();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     getJson('/api/v1/date-types/elmo')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
@@ -58,8 +56,6 @@ it('rejects requests without an API key when one is configured', function () {
 
 it('rejects requests with an invalid API key', function () {
     createElmoDateTypes();
-
-    config(['services.elmo.api_key' => 'secret-key']);
 
     getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'wrong-key'])
         ->assertStatus(401)
@@ -69,9 +65,7 @@ it('rejects requests with an invalid API key', function () {
 it('allows requests with a valid API key header', function () {
     createElmoDateTypes();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
-    $response = getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'secret-key'])
+    $response = getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonCount(2);
 
@@ -82,10 +76,18 @@ it('allows requests with a valid API key header', function () {
 it('rejects API keys in query parameters for security', function () {
     createElmoDateTypes();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     // API keys in query params are rejected as they can leak via logs and Referer headers
-    getJson('/api/v1/date-types/elmo?api_key=secret-key')
+    getJson('/api/v1/date-types/elmo?api_key=test-api-key')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
+});
+
+it('rejects requests when no API key is configured on server', function () {
+    createElmoDateTypes();
+
+    config(['services.elmo.api_key' => null]);
+
+    getJson('/api/v1/date-types/elmo')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'API key not configured.']);
 });

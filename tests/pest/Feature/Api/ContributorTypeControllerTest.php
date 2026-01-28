@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
 });
 
 function createContributorTypes(): ContributorType
@@ -47,7 +47,7 @@ it('returns contributor types for persons (ERNIE)', function () {
 it('returns contributor types for persons (ELMO)', function () {
     createContributorTypes();
 
-    $response = getJson('/api/v1/roles/contributor-persons/elmo')
+    $response = getJson('/api/v1/roles/contributor-persons/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk();
 
     expect($response->json())->toBeArray()
@@ -66,7 +66,7 @@ it('returns contributor types for institutions (ERNIE)', function () {
 it('returns contributor types for institutions (ELMO)', function () {
     createContributorTypes();
 
-    $response = getJson('/api/v1/roles/contributor-institutions/elmo')
+    $response = getJson('/api/v1/roles/contributor-institutions/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk();
 
     expect($response->json())->toBeArray();
@@ -74,7 +74,6 @@ it('returns contributor types for institutions (ELMO)', function () {
 
 it('rejects requests without API key when one is configured (ELMO)', function () {
     createContributorTypes();
-    config(['services.elmo.api_key' => 'secret-key']);
 
     getJson('/api/v1/roles/contributor-persons/elmo')
         ->assertUnauthorized();
@@ -82,8 +81,17 @@ it('rejects requests without API key when one is configured (ELMO)', function ()
 
 it('accepts requests with correct API key (ELMO)', function () {
     createContributorTypes();
-    config(['services.elmo.api_key' => 'secret-key']);
 
-    getJson('/api/v1/roles/contributor-persons/elmo', ['X-API-Key' => 'secret-key'])
+    getJson('/api/v1/roles/contributor-persons/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk();
+});
+
+it('rejects requests when no API key is configured on server (ELMO)', function () {
+    createContributorTypes();
+
+    config(['services.elmo.api_key' => null]);
+
+    getJson('/api/v1/roles/contributor-persons/elmo')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'API key not configured.']);
 });

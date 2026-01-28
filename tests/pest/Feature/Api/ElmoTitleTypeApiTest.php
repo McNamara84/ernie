@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
 });
 
 function createElmoTitleTypes(): TitleType
@@ -33,7 +33,7 @@ function createElmoTitleTypes(): TitleType
 it('returns only title types enabled for ELMO', function () {
     $enabled = createElmoTitleTypes();
 
-    $response = getJson('/api/v1/title-types/elmo')
+    $response = getJson('/api/v1/title-types/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         // Only 'Main' is created with is_elmo_active=true, 'Alt' has is_elmo_active=false
         ->assertJsonCount(1);
@@ -47,8 +47,6 @@ it('returns only title types enabled for ELMO', function () {
 it('rejects title type requests without an API key when one is configured', function () {
     createElmoTitleTypes();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     getJson('/api/v1/title-types/elmo')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
@@ -56,8 +54,6 @@ it('rejects title type requests without an API key when one is configured', func
 
 it('rejects title type requests with an invalid API key', function () {
     createElmoTitleTypes();
-
-    config(['services.elmo.api_key' => 'secret-key']);
 
     getJson('/api/v1/title-types/elmo', ['X-API-Key' => 'wrong-key'])
         ->assertStatus(401)
@@ -67,9 +63,7 @@ it('rejects title type requests with an invalid API key', function () {
 it('allows title type requests with a valid API key header', function () {
     $enabled = createElmoTitleTypes();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
-    $response = getJson('/api/v1/title-types/elmo', ['X-API-Key' => 'secret-key'])
+    $response = getJson('/api/v1/title-types/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         // Only 'Main' is created with is_elmo_active=true
         ->assertJsonCount(1);
@@ -83,10 +77,18 @@ it('allows title type requests with a valid API key header', function () {
 it('rejects API keys in query parameters for security', function () {
     createElmoTitleTypes();
 
-    config(['services.elmo.api_key' => 'secret-key']);
-
     // API keys in query params are rejected as they can leak via logs and Referer headers
-    getJson('/api/v1/title-types/elmo?api_key=secret-key')
+    getJson('/api/v1/title-types/elmo?api_key=test-api-key')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
+});
+
+it('rejects title type requests when no API key is configured on server', function () {
+    createElmoTitleTypes();
+
+    config(['services.elmo.api_key' => null]);
+
+    getJson('/api/v1/title-types/elmo')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'API key not configured.']);
 });

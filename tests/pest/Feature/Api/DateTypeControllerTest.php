@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config(['services.elmo.api_key' => 'test-api-key']);
 
     // Create all test data - tests should not depend on seeded data
     DateType::create(['name' => 'Accepted', 'slug' => 'accepted', 'is_active' => true]);
@@ -37,7 +37,7 @@ test('returns only active date types for Ernie', function () {
 });
 
 test('returns only active date types for Elmo (same as Ernie)', function () {
-    $response = $this->getJson('/api/v1/date-types/elmo')->assertOk();
+    $response = $this->getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'test-api-key'])->assertOk();
     expect($response->json())->toHaveCount(2);
     expect(array_column($response->json(), 'name'))->toBe([
         'Accepted',
