@@ -480,8 +480,8 @@ class IgsnStorageService
 
             $funderIdentifierTypeId = null;
             if (! empty($funder['identifierType'])) {
-                $funderIdentifierTypeId = FunderIdentifierType::where('name', $funder['identifierType'])
-                    ->orWhere('slug', $funder['identifierType'])
+                $funderIdentifierTypeId = FunderIdentifierType::whereRaw('LOWER(name) = ?', [strtolower($funder['identifierType'])])
+                    ->orWhereRaw('LOWER(slug) = ?', [strtolower($funder['identifierType'])])
                     ->value('id');
             }
 
