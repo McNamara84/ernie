@@ -17,6 +17,7 @@ class ResourceType extends Model
     protected $fillable = [
         'name',
         'slug',
+        'description',
         'is_active',
         'is_elmo_active',
     ];
