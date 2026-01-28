@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-21",
+        "date": "2026-01-27",
         "features": [
+            {
+                "title": "IGSN Landing Pages",
+                "description": "Physical samples (IGSNs) can now have their own landing pages. A new 'Setup Landing Page' button on the IGSN list page opens a modal to configure and publish landing pages. The IGSN landing page template displays a simplified view with the sample title, citation, and publication status, using a flask icon to distinguish it from regular data resources. Preview and publish functionality works the same as for standard resources."
+            },
             {
                 "title": "Dashboard Statistics Separation",
                 "description": "The dashboard now displays separate statistics for Data Resources and IGSNs (Physical Objects). Each category shows its own count along with the number of contributing institutions identified by their ROR IDs. This provides clearer insights into the distribution of metadata across different resource types."
