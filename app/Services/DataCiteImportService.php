@@ -105,7 +105,7 @@ class DataCiteImportService
                 'User-Agent' => 'ERNIE/1.0 (GFZ Helmholtz Centre; mailto:ernie@gfz.de)',
             ])
             ->timeout(30)
-            ->retry(3, 500, function (\Exception $exception): bool {
+            ->retry(3, 500, function (\Throwable $exception): bool {
                 // Retry on connection-related exceptions (timeouts, network errors)
                 //
                 // Note on HTTP client dependency:

@@ -519,8 +519,9 @@ class OldDataset extends Model
             ->orderBy('order')
             ->get()
             ->groupBy('resourceagent_order')
-            ->map(function ($affiliations) {
-                return $affiliations->map(function ($affiliation) {
+            ->map(function (\Illuminate\Support\Collection $affiliations): array {
+                /** @var \Illuminate\Support\Collection<int, \stdClass> $affiliations */
+                return $affiliations->map(function (\stdClass $affiliation): array {
                     $identifier = $affiliation->identifier ?? null;
 
                     // Normalize ROR identifier to full URL format
@@ -718,8 +719,9 @@ class OldDataset extends Model
             ->orderBy('order')
             ->get()
             ->groupBy('resourceagent_order')
-            ->map(function ($affiliations) {
-                return $affiliations->map(function ($affiliation) {
+            ->map(function (\Illuminate\Support\Collection $affiliations): array {
+                /** @var \Illuminate\Support\Collection<int, \stdClass> $affiliations */
+                return $affiliations->map(function (\stdClass $affiliation): array {
                     $identifier = $affiliation->identifier ?? null;
 
                     // Normalize ROR identifier to full URL format
