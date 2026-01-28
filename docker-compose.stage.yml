@@ -174,7 +174,7 @@ services:
         fi
         
         # Start CloudBeaver
-        exec /opt/cloudbeaver/run-server.sh
+        exec /opt/cloudbeaver/launch-product.sh
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.rz-vm182.gfz.de`)"
