@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 
     // Create all test data - tests should not depend on seeded data
     TitleType::create(['name' => 'Alpha', 'slug' => 'alpha', 'is_active' => true, 'is_elmo_active' => true]);

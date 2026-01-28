@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 
     ResourceType::create(['name' => 'Alpha', 'slug' => 'alpha', 'description' => 'Alpha description', 'is_active' => true, 'is_elmo_active' => true]);
     ResourceType::create(['name' => 'Bravo', 'slug' => 'bravo', 'description' => 'Bravo description', 'is_active' => true, 'is_elmo_active' => false]);

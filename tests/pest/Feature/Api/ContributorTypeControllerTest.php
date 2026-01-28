@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 });
 
 function createContributorTypes(): ContributorType
@@ -89,7 +89,7 @@ it('accepts requests with correct API key (ELMO)', function () {
 it('rejects requests when no API key is configured on server (ELMO)', function () {
     createContributorTypes();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     getJson('/api/v1/roles/contributor-persons/elmo')
         ->assertStatus(401)

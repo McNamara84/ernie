@@ -8,7 +8,7 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => 'test-api-key']);
+    config(['services.ernie.api_key' => 'test-api-key']);
 });
 
 function createElmoTitleTypes(): TitleType
@@ -86,7 +86,7 @@ it('rejects API keys in query parameters for security', function () {
 it('rejects title type requests when no API key is configured on server', function () {
     createElmoTitleTypes();
 
-    config(['services.elmo.api_key' => null]);
+    config(['services.ernie.api_key' => null]);
 
     getJson('/api/v1/title-types/elmo')
         ->assertStatus(401)
