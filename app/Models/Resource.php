@@ -48,6 +48,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnClassification> $igsnClassifications
  * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalAge> $igsnGeologicalAges
  * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, AlternateIdentifier> $alternateIdentifiers
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
  */
@@ -251,6 +252,25 @@ class Resource extends Model
     {
         /** @var HasMany<IgsnGeologicalUnit, static> $relation */
         $relation = $this->hasMany(IgsnGeologicalUnit::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /**
+     * Get alternate identifiers for this resource.
+     *
+     * Used for IGSN resources to store:
+     * - 'name' field with type "Local accession number"
+     * - 'sample_other_names' field with type "Local sample name"
+     *
+     * @return HasMany<AlternateIdentifier, static>
+     *
+     * @see https://github.com/McNamara84/ernie/issues/465
+     */
+    public function alternateIdentifiers(): HasMany
+    {
+        /** @var HasMany<AlternateIdentifier, static> $relation */
+        $relation = $this->hasMany(AlternateIdentifier::class)->orderBy('position');
 
         return $relation;
     }

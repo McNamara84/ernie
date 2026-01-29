@@ -762,37 +762,33 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build alternate identifiers array for IGSN resources.
+     * Build alternate identifiers array.
      *
-     * For IGSN (Physical Object) resources, exports Titles with type "Other"
-     * as alternateIdentifiers with type "Local sample name".
-     * This maps the 'name' and 'sample_other_names' CSV fields to DataCite
-     * alternateIdentifiers per Issue #445.
-     *
-     * Note: These titles are ALSO exported as regular titles with titleType "Other".
+     * Exports AlternateIdentifier records associated with the resource.
+     * For IGSN resources, this includes:
+     * - 'name' field with type "Local accession number"
+     * - 'sample_other_names' field with type "Local sample name"
      *
      * @return array<int, array{alternateIdentifier: string, alternateIdentifierType: string}>|null
+     *
+     * @see https://github.com/McNamara84/ernie/issues/465
      */
     private function buildAlternateIdentifiers(Resource $resource): ?array
     {
-        // Only for IGSN resources (Physical Object type)
-        if (! $resource->igsnMetadata) {
+        if ($resource->alternateIdentifiers->isEmpty()) {
             return null;
         }
 
         $alternateIdentifiers = [];
 
-        // Get Titles with type "Other" - these are 'name' and 'sample_other_names' from CSV
-        foreach ($resource->titles as $title) {
-            if ($title->titleType?->slug === 'Other') {
-                $alternateIdentifiers[] = [
-                    'alternateIdentifier' => $title->value,
-                    'alternateIdentifierType' => 'Local sample name',
-                ];
-            }
+        foreach ($resource->alternateIdentifiers as $altId) {
+            $alternateIdentifiers[] = [
+                'alternateIdentifier' => $altId->value,
+                'alternateIdentifierType' => $altId->type,
+            ];
         }
 
-        return ! empty($alternateIdentifiers) ? $alternateIdentifiers : null;
+        return $alternateIdentifiers;
     }
 
     /**

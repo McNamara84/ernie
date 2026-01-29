@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\FunderIdentifierType;
@@ -42,8 +43,6 @@ class IgsnStorageService
     private ?int $physicalObjectTypeId = null;
 
     private ?int $mainTitleTypeId = null;
-
-    private ?int $alternativeTitleTypeId = null;
 
     private ?int $collectedDateTypeId = null;
 
@@ -112,8 +111,11 @@ class IgsnStorageService
             'created_by_user_id' => $userId,
         ]);
 
-        // Create titles (main title + alternative titles for name and sample_other_names)
+        // Create main title only (name field is now stored as alternateIdentifier per Issue #465)
         $this->createTitles($resource, $data);
+
+        // Create alternate identifiers for 'name' and 'sample_other_names' (Issue #465)
+        $this->createAlternateIdentifiers($resource, $data);
 
         // Create IGSN metadata (1:1)
         $this->createIgsnMetadata($resource, $data, $filename);
@@ -152,7 +154,6 @@ class IgsnStorageService
     {
         $this->physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
         $this->mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
-        $this->alternativeTitleTypeId = TitleType::where('slug', 'AlternativeTitle')->value('id');
         $this->collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
         $this->defaultPublisherId = Publisher::getDefault()?->id;
 
@@ -160,15 +161,20 @@ class IgsnStorageService
             throw new \RuntimeException('ResourceType "physical-object" not found. Please run seeders.');
         }
 
-        if ($this->mainTitleTypeId === null || $this->alternativeTitleTypeId === null) {
-            throw new \RuntimeException('Required TitleTypes not found. Please run seeders.');
+        if ($this->mainTitleTypeId === null) {
+            throw new \RuntimeException('Required TitleType "MainTitle" not found. Please run seeders.');
         }
     }
 
     /**
      * Create titles for the resource.
      *
+     * Only creates the main title. The 'name' and 'sample_other_names' fields
+     * are now stored as alternateIdentifiers per Issue #465.
+     *
      * @param  array<string, mixed>  $data
+     *
+     * @see https://github.com/McNamara84/ernie/issues/465
      */
     private function createTitles(Resource $resource, array $data): void
     {
@@ -178,25 +184,43 @@ class IgsnStorageService
             'value' => $data['title'],
             'title_type_id' => $this->mainTitleTypeId,
         ]);
+    }
 
-        // Sample name as Title with type "AlternativeTitle" (also exported as alternateIdentifier)
+    /**
+     * Create alternate identifiers for the resource.
+     *
+     * Maps CSV fields to DataCite alternateIdentifier:
+     * - 'name' → type "Local accession number"
+     * - 'sample_other_names' → type "Local sample name"
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @see https://github.com/McNamara84/ernie/issues/465
+     */
+    private function createAlternateIdentifiers(Resource $resource, array $data): void
+    {
+        $position = 0;
+
+        // 'name' field → "Local accession number"
         if (! empty($data['name'])) {
-            Title::create([
+            AlternateIdentifier::create([
                 'resource_id' => $resource->id,
                 'value' => $data['name'],
-                'title_type_id' => $this->alternativeTitleTypeId,
+                'type' => 'Local accession number',
+                'position' => $position++,
             ]);
         }
 
-        // Other sample names as Titles with type "AlternativeTitle" (also exported as alternateIdentifiers)
+        // 'sample_other_names' → "Local sample name"
         $otherNames = $data['sample_other_names'] ?? [];
         if (is_array($otherNames)) {
             foreach ($otherNames as $name) {
                 if (! empty($name)) {
-                    Title::create([
+                    AlternateIdentifier::create([
                         'resource_id' => $resource->id,
                         'value' => $name,
-                        'title_type_id' => $this->alternativeTitleTypeId,
+                        'type' => 'Local sample name',
+                        'position' => $position++,
                     ]);
                 }
             }

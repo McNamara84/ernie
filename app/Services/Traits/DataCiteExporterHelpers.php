@@ -44,6 +44,7 @@ trait DataCiteExporterHelpers
             'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',
+            'alternateIdentifiers',
             'sizes',
             'formats',
         ];
