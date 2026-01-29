@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\Resource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -42,29 +43,32 @@ class BatchIgsnController extends Controller
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));
 
-        // Verify all resources are IGSNs (have igsnMetadata)
-        $igsnCount = Resource::whereIn('id', $ids)
-            ->whereHas('igsnMetadata')
-            ->count();
+        // Use transaction with row locking for atomic validation + delete
+        // This ensures no race condition between checking igsnMetadata and deleting
+        DB::transaction(function () use ($ids): void {
+            // Lock the rows we're about to delete to prevent concurrent modifications
+            $lockedResources = Resource::whereIn('id', $ids)
+                ->whereHas('igsnMetadata')
+                ->lockForUpdate()
+                ->get();
 
-        if ($igsnCount !== count($ids)) {
-            throw ValidationException::withMessages([
-                'ids' => ['Some selected resources are not valid IGSNs.'],
-            ]);
-        }
+            // Verify all resources are valid IGSNs
+            if ($lockedResources->count() !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'ids' => ['Some selected resources are not valid IGSNs.'],
+                ]);
+            }
 
-        // Delete only resources that are valid IGSNs (same constraint as validation)
-        // This prevents race conditions where igsnMetadata could be removed between check and delete
-        $deletedCount = Resource::whereIn('id', $ids)
-            ->whereHas('igsnMetadata')
-            ->delete();
+            // Delete the locked resources
+            $deletedCount = Resource::whereIn('id', $ids)->delete();
 
-        // Verify all requested resources were deleted
-        if ($deletedCount !== count($ids)) {
-            throw ValidationException::withMessages([
-                'ids' => ['Some IGSNs could not be deleted. Please refresh and try again.'],
-            ]);
-        }
+            // Verify all were deleted (should always succeed with locking, but safety check)
+            if ($deletedCount !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'ids' => ['Some IGSNs could not be deleted. Please refresh and try again.'],
+                ]);
+            }
+        });
 
         $count = count($ids);
         $message = $count === 1

@@ -283,9 +283,20 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                 setIsDeleting(false);
                 setDeleteDialogOpen(false);
 
-                // Show validation errors or generic error message
-                const errorMessage =
-                    errors && typeof errors === 'object' && 'ids' in errors ? (errors.ids as string) : 'Failed to delete IGSNs. Please try again.';
+                // Extract error message from Inertia errors object
+                // Laravel may return 'ids' for array-level errors or 'ids.0', 'ids.1' for item-level errors
+                let errorMessage = 'Failed to delete IGSNs. Please try again.';
+                if (errors && typeof errors === 'object') {
+                    if ('ids' in errors) {
+                        errorMessage = errors.ids as string;
+                    } else {
+                        // Check for ids.* keys (e.g., ids.0, ids.1) from ids.* validation rule
+                        const idsErrorKey = Object.keys(errors).find((key) => key.startsWith('ids.'));
+                        if (idsErrorKey) {
+                            errorMessage = errors[idsErrorKey] as string;
+                        }
+                    }
+                }
                 toast.error(errorMessage);
             },
         });
@@ -389,7 +400,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                     <TableCell>
                                                         <Checkbox
                                                             checked={selectedIds.has(igsn.id)}
-                                                            onCheckedChange={(checked) => handleSelectOne(igsn.id, !!checked)}
+                                                            onCheckedChange={(checked) => handleSelectOne(igsn.id, checked === true)}
                                                             aria-label={`Select ${igsn.igsn || igsn.title}`}
                                                         />
                                                     </TableCell>
