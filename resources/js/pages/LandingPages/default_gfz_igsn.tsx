@@ -56,7 +56,14 @@ export default function DefaultGfzIgsnTemplate() {
 
                 {/* Content - Only ResourceHero for IGSN */}
                 <div className="pb-6">
-                    <ResourceHero resourceType="IGSN" status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} useIgsnIcon={true} />
+                    <ResourceHero
+                        resourceType="IGSN"
+                        status={status}
+                        mainTitle={mainTitle}
+                        subtitle={subtitle}
+                        citation={citation}
+                        useIgsnIcon={true}
+                    />
                 </div>
 
                 {/* Footer */}

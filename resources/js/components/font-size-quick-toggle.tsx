@@ -28,12 +28,7 @@ export function FontSizeQuickToggle() {
                     aria-label={`Font size: ${isLarge ? 'Large' : 'Regular'}. Click to switch to ${isLarge ? 'regular' : 'large'} font size.`}
                     className="h-8 w-8"
                 >
-                    <ALargeSmall
-                        className={cn(
-                            'transition-transform',
-                            isLarge && 'scale-110 text-primary',
-                        )}
-                    />
+                    <ALargeSmall className={cn('transition-transform', isLarge && 'scale-110 text-primary')} />
                 </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">

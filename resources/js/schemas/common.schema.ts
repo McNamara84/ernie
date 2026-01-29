@@ -89,10 +89,13 @@ const currentYear = new Date().getFullYear();
 export const yearSchema = z
     .string()
     .regex(/^\d{4}$/, 'Year must be a 4-digit number')
-    .refine((val) => {
-        const year = parseInt(val, 10);
-        return year >= 1900 && year <= currentYear + 1;
-    }, `Year must be between 1900 and ${currentYear + 1}`)
+    .refine(
+        (val) => {
+            const year = parseInt(val, 10);
+            return year >= 1900 && year <= currentYear + 1;
+        },
+        `Year must be between 1900 and ${currentYear + 1}`,
+    )
     .optional()
     .or(z.literal(''));
 
@@ -118,7 +121,7 @@ export const latitudeSchema = z
             const num = parseFloat(val);
             return !isNaN(num) && num >= -90 && num <= 90;
         },
-        { message: 'Latitude must be between -90 and +90' }
+        { message: 'Latitude must be between -90 and +90' },
     )
     .optional()
     .or(z.literal(''));
@@ -131,7 +134,7 @@ export const longitudeSchema = z
             const num = parseFloat(val);
             return !isNaN(num) && num >= -180 && num <= 180;
         },
-        { message: 'Longitude must be between -180 and +180' }
+        { message: 'Longitude must be between -180 and +180' },
     )
     .optional()
     .or(z.literal(''));

@@ -2,6 +2,12 @@
     {
         "version": "1.0.0dev",
         "date": "2026-01-29",
+        "features": [
+            {
+                "title": "IGSN Bulk Selection and Delete",
+                "description": "The IGSN list page now supports selecting multiple records using checkboxes. A 'Select All' checkbox in the table header selects all items on the current page. When items are selected, a bulk actions toolbar appears showing the selection count and available actions. Administrators can delete multiple IGSNs at once via the bulk delete button. The table header now remains fixed while scrolling through the data, ensuring action buttons are always visible. This architecture is designed for future bulk operations like batch export."
+            }
+        ],
         "improvements": [
             {
                 "title": "IGSN Name Field Mapping Corrected",

@@ -16,8 +16,7 @@ export interface TagInputChangeDetail<T extends TagInputItem = TagInputItem> {
     tags: T[];
 }
 
-interface TagInputFieldProps<T extends TagInputItem = TagInputItem>
-    extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+interface TagInputFieldProps<T extends TagInputItem = TagInputItem> extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
     id: string;
     label: string;
     value: T[];

@@ -88,7 +88,15 @@ type DashboardPageProps = SharedData & {
 };
 
 export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
-    const { auth, dataResourceCount, igsnCount, dataInstitutionCount, igsnInstitutionCount, phpVersion = '8.4.12', laravelVersion = '12.28.1' } = usePage<DashboardPageProps>().props;
+    const {
+        auth,
+        dataResourceCount,
+        igsnCount,
+        dataInstitutionCount,
+        igsnInstitutionCount,
+        phpVersion = '8.4.12',
+        laravelVersion = '12.28.1',
+    } = usePage<DashboardPageProps>().props;
 
     // Easter Egg State
     const [isEasterEggActive, setIsEasterEggActive] = useState(false);

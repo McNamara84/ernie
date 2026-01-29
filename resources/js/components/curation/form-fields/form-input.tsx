@@ -40,13 +40,7 @@ export function FormInput<TFieldValues extends FieldValues = FieldValues>({
                 <FormItem className={className}>
                     <FormLabel>{label}</FormLabel>
                     <FormControl>
-                        <Input
-                            {...field}
-                            type={type}
-                            placeholder={placeholder}
-                            disabled={disabled}
-                            autoComplete={autoComplete}
-                        />
+                        <Input {...field} type={type} placeholder={placeholder} disabled={disabled} autoComplete={autoComplete} />
                     </FormControl>
                     {description && <FormDescription>{description}</FormDescription>}
                     <FormMessage />

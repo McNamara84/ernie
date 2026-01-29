@@ -58,7 +58,7 @@ function SidebarItem({ item, activeId, onSectionClick, depth }: SidebarItemProps
                 className={cn(
                     'group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     'hover:bg-accent hover:text-accent-foreground',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
                     isActive && 'bg-accent text-accent-foreground',
                     !isActive && !hasActiveChild && 'text-muted-foreground',
                     hasActiveChild && !isActive && 'text-foreground',
@@ -94,7 +94,7 @@ export function DocsSidebarMobile({ items, activeId, onSectionClick }: DocsSideb
     return (
         <div className="mb-6 lg:hidden">
             <div className="rounded-lg border bg-card p-4">
-                <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">On this page</h2>
+                <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">On this page</h2>
                 <nav className="flex flex-wrap gap-2">
                     {items.map((item) => (
                         <button

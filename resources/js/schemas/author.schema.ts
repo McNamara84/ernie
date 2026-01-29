@@ -75,7 +75,6 @@ export const validateContactAuthor = (authors: AuthorFormData[]): boolean => {
 /**
  * Refine authors array to ensure at least one contact author
  */
-export const authorsWithContactSchema = authorsArraySchema.refine(
-    (authors) => authors.some((a) => a.type === 'person' && a.isContact),
-    { message: 'At least one person author must be marked as contact' }
-);
+export const authorsWithContactSchema = authorsArraySchema.refine((authors) => authors.some((a) => a.type === 'person' && a.isContact), {
+    message: 'At least one person author must be marked as contact',
+});
