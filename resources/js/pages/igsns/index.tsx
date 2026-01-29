@@ -332,9 +332,8 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                     <AlertDescription>No IGSNs found. Upload a CSV file from the Dashboard to add physical samples.</AlertDescription>
                                 </Alert>
                             ) : (
-                                <div className="max-h-[calc(100vh-350px)] overflow-auto rounded-md border">
-                                    <Table>
-                                        <TableHeader className="sticky top-0 z-10 bg-background">
+                                <Table containerClassName="max-h-[calc(100vh-350px)] rounded-md border">
+                                    <TableHeader className="sticky top-0 z-10 bg-background">
                                             <TableRow>
                                                 <TableHead className="w-12">
                                                     <Checkbox
@@ -477,7 +476,6 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                             ))}
                                         </TableBody>
                                     </Table>
-                                </div>
                             )}
 
                             {/* Pagination Info */}
