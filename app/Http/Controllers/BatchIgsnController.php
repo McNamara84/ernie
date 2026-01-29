@@ -48,8 +48,16 @@ class BatchIgsnController extends Controller
             abort(422, 'Some selected resources are not valid IGSNs.');
         }
 
-        // Delete all validated resources
-        Resource::whereIn('id', $ids)->delete();
+        // Delete only resources that are valid IGSNs (same constraint as validation)
+        // This prevents race conditions where igsnMetadata could be removed between check and delete
+        $deletedCount = Resource::whereIn('id', $ids)
+            ->whereHas('igsnMetadata')
+            ->delete();
+
+        // Verify all requested resources were deleted
+        if ($deletedCount !== count($ids)) {
+            abort(422, 'Some IGSNs could not be deleted. Please refresh and try again.');
+        }
 
         $count = count($ids);
         $message = $count === 1

@@ -230,8 +230,9 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
 
     // Selection handlers for bulk actions
     const handleSelectAll = useCallback(
-        (checked: boolean) => {
-            if (checked) {
+        (checked: boolean | 'indeterminate') => {
+            // Only select all when explicitly checked (true), not for indeterminate state
+            if (checked === true) {
                 setSelectedIds(new Set(igsns.map((igsn) => igsn.id)));
             } else {
                 setSelectedIds(new Set());
