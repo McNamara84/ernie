@@ -1122,9 +1122,44 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Features</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click column headers to sort</li>
-                            <li>Search and filter IGSNs</li>
-                            <li>Export individual IGSNs as JSON</li>
+                            <li>Export individual IGSNs as DataCite JSON</li>
+                            <li>Setup landing pages for IGSNs</li>
                         </ul>
+
+                        <h4>Bulk Selection</h4>
+                        <p>
+                            You can select multiple IGSNs at once using the checkboxes:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Click the checkbox in each row to select individual IGSNs</li>
+                            <li>Use the checkbox in the table header to select all IGSNs on the current page</li>
+                            <li>When items are selected, a toolbar appears showing the selection count and available actions</li>
+                            <li>The table header remains fixed while scrolling, so actions are always visible</li>
+                        </ul>
+                    </>
+                ),
+            },
+            {
+                id: 'igsn-admin',
+                title: 'IGSN Administration',
+                icon: Settings,
+                minRole: 'admin',
+                content: (
+                    <>
+                        <h3>Bulk Delete</h3>
+                        <p>
+                            As an administrator, you can delete multiple IGSNs at once:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Select the IGSNs you want to delete using the checkboxes in the list</li>
+                            <li>Click the "Delete" button in the bulk actions toolbar</li>
+                            <li>Confirm the deletion in the dialog</li>
+                        </ul>
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Warning:</strong> Deleting IGSNs is permanent and cannot be undone.
+                            </p>
+                        </div>
                     </>
                 ),
             },
