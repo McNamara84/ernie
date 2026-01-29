@@ -295,6 +295,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.index');
     Route::get('igsns-map', [IgsnMapController::class, 'index'])
         ->name('igsns.map');
+    // Batch operations must be defined before routes with {resource} parameter
+    Route::delete('igsns/batch', [\App\Http\Controllers\BatchIgsnController::class, 'destroy'])
+        ->name('igsns.batch.destroy');
     Route::get('igsns/{resource}/export/json', [\App\Http\Controllers\IgsnController::class, 'exportJson'])
         ->name('igsns.export.json');
     Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])

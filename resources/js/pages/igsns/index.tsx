@@ -1,9 +1,10 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { FileJson, Globe, Trash2 } from 'lucide-react';
+import { FileJson, Globe } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { SortableTableHeader, type SortDirection, type SortState } from '@/components/ui/sortable-table-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -125,7 +127,6 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [igsnToDelete, setIgsnToDelete] = useState<Igsn | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [exportingIgsns, setExportingIgsns] = useState<Set<number>>(new Set());
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -134,11 +135,16 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
 
+    // Selection state for bulk actions
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
     // Update state when props change (after navigation)
     useEffect(() => {
         setIgsns(initialIgsns);
         setPagination(initialPagination);
         setSortState(initialSort || DEFAULT_SORT);
+        // Clear selection when data changes (e.g., after pagination or sorting)
+        setSelectedIds(new Set());
     }, [initialIgsns, initialPagination, initialSort]);
 
     const handleExportJson = useCallback(async (igsn: Igsn) => {
@@ -222,10 +228,34 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         [sortState],
     );
 
-    const handleDeleteClick = useCallback((igsn: Igsn) => {
-        setIgsnToDelete(igsn);
-        setDeleteDialogOpen(true);
+    // Selection handlers for bulk actions
+    const handleSelectAll = useCallback(
+        (checked: boolean) => {
+            if (checked) {
+                setSelectedIds(new Set(igsns.map((igsn) => igsn.id)));
+            } else {
+                setSelectedIds(new Set());
+            }
+        },
+        [igsns],
+    );
+
+    const handleSelectOne = useCallback((id: number, checked: boolean) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (checked) {
+                next.add(id);
+            } else {
+                next.delete(id);
+            }
+            return next;
+        });
     }, []);
+
+    const handleBulkDeleteClick = useCallback(() => {
+        if (selectedIds.size === 0) return;
+        setDeleteDialogOpen(true);
+    }, [selectedIds]);
 
     const handleSetupLandingPage = useCallback((igsn: Igsn) => {
         setSelectedIgsnForLandingPage(igsn);
@@ -237,21 +267,26 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         setSelectedIgsnForLandingPage(null);
     }, []);
 
-    const handleDeleteConfirm = useCallback(() => {
-        if (!igsnToDelete) return;
+    const handleBulkDeleteConfirm = useCallback(() => {
+        if (selectedIds.size === 0) return;
 
         setIsDeleting(true);
-        router.delete(`/igsns/${igsnToDelete.id}`, {
+        router.delete('/igsns/batch', {
+            data: { ids: Array.from(selectedIds) },
             onSuccess: () => {
                 setDeleteDialogOpen(false);
-                setIgsnToDelete(null);
+                setSelectedIds(new Set());
                 setIsDeleting(false);
             },
             onError: () => {
                 setIsDeleting(false);
             },
         });
-    }, [igsnToDelete]);
+    }, [selectedIds]);
+
+    // Computed values for selection state
+    const allSelected = igsns.length > 0 && selectedIds.size === igsns.length;
+    const someSelected = selectedIds.size > 0 && selectedIds.size < igsns.length;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -266,15 +301,31 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
+                            {/* Bulk Actions Toolbar */}
+                            <BulkActionsToolbar
+                                selectedCount={selectedIds.size}
+                                onDelete={handleBulkDeleteClick}
+                                canDelete={canDelete}
+                                isDeleting={isDeleting}
+                            />
+
                             {igsns.length === 0 ? (
                                 <Alert>
                                     <AlertDescription>No IGSNs found. Upload a CSV file from the Dashboard to add physical samples.</AlertDescription>
                                 </Alert>
                             ) : (
-                                <div className="rounded-md border">
+                                <div className="max-h-[calc(100vh-350px)] overflow-auto rounded-md border">
                                     <Table>
-                                        <TableHeader>
+                                        <TableHeader className="sticky top-0 z-10 bg-background">
                                             <TableRow>
+                                                <TableHead className="w-12">
+                                                    <Checkbox
+                                                        checked={allSelected}
+                                                        indeterminate={someSelected}
+                                                        onCheckedChange={handleSelectAll}
+                                                        aria-label="Select all"
+                                                    />
+                                                </TableHead>
                                                 <TableHead className="w-20">Actions</TableHead>
                                                 <SortableTableHeader<SortKey>
                                                     label="IGSN"
@@ -323,7 +374,18 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                         </TableHeader>
                                         <TableBody>
                                             {igsns.map((igsn) => (
-                                                <TableRow key={igsn.id} className={igsn.parent_resource_id ? 'bg-muted/30' : ''}>
+                                                <TableRow
+                                                    key={igsn.id}
+                                                    className={igsn.parent_resource_id ? 'bg-muted/30' : ''}
+                                                    data-state={selectedIds.has(igsn.id) ? 'selected' : undefined}
+                                                >
+                                                    <TableCell>
+                                                        <Checkbox
+                                                            checked={selectedIds.has(igsn.id)}
+                                                            onCheckedChange={(checked) => handleSelectOne(igsn.id, !!checked)}
+                                                            aria-label={`Select ${igsn.igsn || igsn.title}`}
+                                                        />
+                                                    </TableCell>
                                                     <TableCell>
                                                         <TooltipProvider>
                                                             <Tooltip>
@@ -358,24 +420,6 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                 <TooltipContent>Setup Landing Page</TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
-                                                        {canDelete && (
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                            onClick={() => handleDeleteClick(igsn)}
-                                                                            aria-label="Delete IGSN"
-                                                                        >
-                                                                            <Trash2 className="size-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>Delete IGSN</TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        )}
                                                     </TableCell>
                                                     <TableCell className="font-mono text-sm">
                                                         {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}
@@ -448,17 +492,16 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete IGSN</AlertDialogTitle>
+                        <AlertDialogTitle>Delete {selectedIds.size === 1 ? 'IGSN' : 'IGSNs'}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete the IGSN{' '}
-                            <span className="font-mono font-semibold">{igsnToDelete?.igsn || igsnToDelete?.title}</span>? This action cannot be
+                            Are you sure you want to delete {selectedIds.size} {selectedIds.size === 1 ? 'IGSN' : 'IGSNs'}? This action cannot be
                             undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleDeleteConfirm}
+                            onClick={handleBulkDeleteConfirm}
                             disabled={isDeleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >

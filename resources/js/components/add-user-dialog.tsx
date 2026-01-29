@@ -19,7 +19,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { createUserSchema, type CreateUserInput } from '@/lib/validations/user';
+import { type CreateUserInput,createUserSchema } from '@/lib/validations/user';
 
 interface AddUserDialogProps {
     disabled?: boolean;
