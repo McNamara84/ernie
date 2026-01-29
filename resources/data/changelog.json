@@ -1,6 +1,16 @@
 [
     {
         "version": "1.0.0dev",
+        "date": "2026-01-29",
+        "improvements": [
+            {
+                "title": "IGSN Name Field Mapping Corrected",
+                "description": "The 'name' column from IGSN CSV uploads is now correctly mapped to DataCite alternateIdentifier with type 'Local accession number' instead of being stored as a Title. The 'sample_other_names' field continues to be exported as alternateIdentifiers with type 'Local sample name'. This ensures proper compliance with IGSN metadata standards."
+            }
+        ]
+    },
+    {
+        "version": "1.0.0dev",
         "date": "2026-01-27",
         "features": [
             {
