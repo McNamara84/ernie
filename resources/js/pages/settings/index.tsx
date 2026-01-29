@@ -306,9 +306,7 @@ export default function EditorSettings({
                                                                 name: rt.name,
                                                             }))}
                                                             excludedIds={license.excluded_resource_type_ids}
-                                                            onExcludedChange={(ids) =>
-                                                                handleLicenseExcludedResourceTypesChange(index, ids)
-                                                            }
+                                                            onExcludedChange={(ids) => handleLicenseExcludedResourceTypesChange(index, ids)}
                                                         />
                                                     </td>
                                                 </tr>

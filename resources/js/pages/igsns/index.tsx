@@ -279,8 +279,14 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                 setSelectedIds(new Set());
                 setIsDeleting(false);
             },
-            onError: () => {
+            onError: (errors) => {
                 setIsDeleting(false);
+                setDeleteDialogOpen(false);
+
+                // Show validation errors or generic error message
+                const errorMessage =
+                    errors && typeof errors === 'object' && 'ids' in errors ? (errors.ids as string) : 'Failed to delete IGSNs. Please try again.';
+                toast.error(errorMessage);
             },
         });
     }, [selectedIds]);

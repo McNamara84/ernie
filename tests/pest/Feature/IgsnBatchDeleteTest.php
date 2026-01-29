@@ -173,7 +173,9 @@ describe('IGSN Batch Delete', function () {
         $response = $this->actingAs($admin)
             ->delete('/igsns/batch', ['ids' => [$regularResource->id]]);
 
-        $response->assertStatus(422);
+        // ValidationException redirects back with errors (not 422 status)
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('ids');
 
         // Verify regular resource still exists
         expect(Resource::where('id', $regularResource->id)->exists())->toBeTrue();
@@ -191,7 +193,9 @@ describe('IGSN Batch Delete', function () {
         $response = $this->actingAs($admin)
             ->delete('/igsns/batch', ['ids' => $ids]);
 
-        $response->assertStatus(422);
+        // ValidationException redirects back with errors (not 422 status)
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('ids');
 
         // Verify nothing was deleted
         expect(Resource::whereIn('id', $igsns->pluck('id'))->count())->toBe(2);

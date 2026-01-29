@@ -61,8 +61,8 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                             cy="50%"
                             labelLine={false}
                             label={
-                                (((props: { name: string; payload: { percentage: string } }) =>
-                                    `${props.name}: ${props.payload.percentage}%`) as PieLabel)
+                                ((props: { name: string; payload: { percentage: string } }) =>
+                                    `${props.name}: ${props.payload.percentage}%`) as PieLabel
                             }
                             outerRadius={100}
                             fill="#8884d8"

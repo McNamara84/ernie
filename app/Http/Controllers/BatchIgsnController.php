@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Models\Resource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Controller for batch operations on IGSN resources.
@@ -21,6 +22,8 @@ class BatchIgsnController extends Controller
      * Delete multiple IGSN resources.
      *
      * Only admins can delete IGSN resources.
+     *
+     * @throws ValidationException
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -37,7 +40,7 @@ class BatchIgsnController extends Controller
         ]);
 
         /** @var array<int> $ids */
-        $ids = $validated['ids'];
+        $ids = array_values(array_unique($validated['ids']));
 
         // Verify all resources are IGSNs (have igsnMetadata)
         $igsnCount = Resource::whereIn('id', $ids)
@@ -45,7 +48,9 @@ class BatchIgsnController extends Controller
             ->count();
 
         if ($igsnCount !== count($ids)) {
-            abort(422, 'Some selected resources are not valid IGSNs.');
+            throw ValidationException::withMessages([
+                'ids' => ['Some selected resources are not valid IGSNs.'],
+            ]);
         }
 
         // Delete only resources that are valid IGSNs (same constraint as validation)
@@ -56,7 +61,9 @@ class BatchIgsnController extends Controller
 
         // Verify all requested resources were deleted
         if ($deletedCount !== count($ids)) {
-            abort(422, 'Some IGSNs could not be deleted. Please refresh and try again.');
+            throw ValidationException::withMessages([
+                'ids' => ['Some IGSNs could not be deleted. Please refresh and try again.'],
+            ]);
         }
 
         $count = count($ids);

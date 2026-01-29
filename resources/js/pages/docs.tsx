@@ -172,9 +172,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </div>
                         </div>
 
-                        <p className="mt-4">
-                            Click on a badge to see a detailed breakdown of which fields are complete and which need attention.
-                        </p>
+                        <p className="mt-4">Click on a badge to see a detailed breakdown of which fields are complete and which need attention.</p>
                     </>
                 ),
             },
@@ -506,9 +504,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>Titles</h3>
-                        <p>
-                            Every resource requires at least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.
-                        </p>
+                        <p>Every resource requires at least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.</p>
 
                         <h4>Title Types</h4>
                         <div className="mt-2 space-y-2">
@@ -799,9 +795,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>Select appropriate licenses for your dataset from the SPDX license list.</p>
 
                         <h4>Selecting a License</h4>
-                        <p>
-                            The license dropdown shows all active licenses. Common choices for research data include:
-                        </p>
+                        <p>The license dropdown shows all active licenses. Common choices for research data include:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>CC-BY-4.0:</strong> Attribution required, commercial use allowed
@@ -1127,9 +1121,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
 
                         <h4>Bulk Selection</h4>
-                        <p>
-                            You can select multiple IGSNs at once using the checkboxes:
-                        </p>
+                        <p>You can select multiple IGSNs at once using the checkboxes:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click the checkbox in each row to select individual IGSNs</li>
                             <li>Use the checkbox in the table header to select all IGSNs on the current page</li>
@@ -1147,9 +1139,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>Bulk Delete</h3>
-                        <p>
-                            As an administrator, you can delete multiple IGSNs at once:
-                        </p>
+                        <p>As an administrator, you can delete multiple IGSNs at once:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Select the IGSNs you want to delete using the checkboxes in the list</li>
                             <li>Click the "Delete" button in the bulk actions toolbar</li>
