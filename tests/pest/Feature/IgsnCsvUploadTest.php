@@ -28,6 +28,7 @@ beforeEach(function () {
     $this->artisan('db:seed', ['--class' => 'ContributorTypeSeeder']);
     $this->artisan('db:seed', ['--class' => 'IdentifierTypeSeeder']);
     $this->artisan('db:seed', ['--class' => 'RelationTypeSeeder']);
+    $this->artisan('db:seed', ['--class' => 'FunderIdentifierTypeSeeder']);
 
     $this->user = User::factory()->admin()->create();
 });
@@ -577,6 +578,50 @@ describe('IGSN DIVE CSV Data Storage', function () {
         $funderNames = $funders->pluck('funder_name')->toArray();
         expect($funderNames)->toContain('Swiss National Science Foundation');
         expect($funderNames)->toContain('DFG German Research Foundation');
+    });
+
+    it('stores funderIdentifierType correctly for Crossref Funder IDs', function () {
+        $csvContent = file_get_contents(getDiveCsvPath());
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+
+        // Find a funder with a Crossref Funder ID
+        $fundersWithCrossrefId = \App\Models\FundingReference::where('resource_id', $resource->id)
+            ->whereNotNull('funder_identifier')
+            ->where('funder_identifier', 'like', '%doi.org/10.13039%')
+            ->get();
+
+        expect($fundersWithCrossrefId->count())->toBeGreaterThan(0);
+
+        // All funders with doi.org/10.13039 should have Crossref Funder ID type
+        foreach ($fundersWithCrossrefId as $funder) {
+            expect($funder->funderIdentifierType)->not->toBeNull();
+            expect($funder->funderIdentifierType->name)->toBe('Crossref Funder ID');
+        }
+    });
+
+    it('stores null funderIdentifierType when no identifier provided', function () {
+        // Create a custom CSV with a funder that has no identifier
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.TEST123|Test Sample|Sample Name|Test Funder Without ID|
+CSV;
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csv);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::whereHas('igsnMetadata')->first();
+        $funder = \App\Models\FundingReference::where('resource_id', $resource->id)->first();
+
+        expect($funder)->not->toBeNull();
+        expect($funder->funder_name)->toBe('Test Funder Without ID');
+        expect($funder->funder_identifier)->toBeNull();
+        expect($funder->funder_identifier_type_id)->toBeNull();
     });
 
     it('stores DIVE geological ages and units correctly', function () {

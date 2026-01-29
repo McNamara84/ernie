@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\FunderIdentifierTypeDetector;
 use Illuminate\Support\Str;
 
 /**
@@ -319,8 +320,10 @@ class IgsnCsvParserService
     /**
      * Parse funding references from CSV row.
      *
+     * Automatically detects the funderIdentifierType based on the identifier URL pattern.
+     *
      * @param  array<string, string>  $data
-     * @return list<array{name: string, identifier: string|null}>
+     * @return list<array{name: string, identifier: string|null, identifierType: string|null}>
      */
     private function parseFundingReferences(array $data): array
     {
@@ -336,9 +339,12 @@ class IgsnCsvParserService
             }
 
             $identifier = isset($identifiers[$i]) ? trim($identifiers[$i]) : '';
+            $normalizedIdentifier = $identifier !== '' ? $this->normalizeIdentifier($identifier) : null;
+
             $funders[] = [
                 'name' => $name,
-                'identifier' => $identifier !== '' ? $this->normalizeIdentifier($identifier) : null,
+                'identifier' => $normalizedIdentifier,
+                'identifierType' => FunderIdentifierTypeDetector::detect($normalizedIdentifier),
             ];
         }
 

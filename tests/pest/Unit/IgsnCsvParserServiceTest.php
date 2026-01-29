@@ -559,6 +559,75 @@ CSV;
 
         expect($result['rows'][0]['_funding_references'])->toHaveCount(2);
     });
+
+    it('detects ROR type from funderIdentifier', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.1234|Test Sample|Sample A|Deutsche Forschungsgemeinschaft|https://ror.org/018mejw64
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'])->toHaveCount(1)
+            ->and($result['rows'][0]['_funding_references'])->toHaveCount(1)
+            ->and($result['rows'][0]['_funding_references'][0]['identifierType'])->toBe('ROR');
+    });
+
+    it('detects Crossref Funder ID type', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.1234|Test Sample|Sample A|European Commission|https://doi.org/10.13039/501100000780
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_funding_references'][0]['identifierType'])->toBe('Crossref Funder ID');
+    });
+
+    it('detects ISNI type from formatted string', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.1234|Test Sample|Sample A|Some Funder|0000 0001 2162 673X
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_funding_references'][0]['identifierType'])->toBe('ISNI');
+    });
+
+    it('detects GRID type', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.1234|Test Sample|Sample A|Some Funder|https://www.grid.ac/institutes/grid.123456.7
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_funding_references'][0]['identifierType'])->toBe('GRID');
+    });
+
+    it('returns null identifierType when no funderIdentifier', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.1234|Test Sample|Sample A|Some Funder|
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_funding_references'][0]['identifier'])->toBeNull()
+            ->and($result['rows'][0]['_funding_references'][0]['identifierType'])->toBeNull();
+    });
+
+    it('returns Other for unknown identifier format', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+10.58052/IGSN.1234|Test Sample|Sample A|Some Funder|CUSTOM-ID-12345
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_funding_references'][0]['identifierType'])->toBe('Other');
+    });
 });
 
 describe('Collection Date Parsing', function () {
