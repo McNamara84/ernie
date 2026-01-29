@@ -1657,26 +1657,25 @@ describe('IGSN GeoLocation Export', function () {
 });
 
 /**
- * Tests for Issue #445: alternateIdentifier Element
+ * Tests for Issue #445 and Issue #465: alternateIdentifier Element
  *
- * Mapping specification:
- * | DC Element              | CSV Table Header    | Default values     |
- * |-------------------------|---------------------|-------------------|
- * | alternateIdentifier     | sample_other_names  | --                |
- * | alternateIdentifier     | name                | --                |
- * | alternateIdentifierType | --                  | Local sample name |
+ * Mapping specification (Issue #465):
+ * | DC Element              | CSV Table Header    | alternateIdentifierType |
+ * |-------------------------|---------------------|-------------------------|
+ * | alternateIdentifier     | name                | Local accession number  |
+ * | alternateIdentifier     | sample_other_names  | Local sample name       |
  *
- * Note: name and sample_other_names are stored as Titles with titleType "Other"
- * AND additionally exported as alternateIdentifiers for IGSN resources.
+ * Note: name and sample_other_names are now stored as AlternateIdentifier records,
+ * NOT as Titles with titleType "Other".
  *
  * @see https://github.com/McNamara84/ernie/issues/445
+ * @see https://github.com/McNamara84/ernie/issues/465
  */
 describe('IGSN AlternateIdentifier Export', function () {
-    it('exports name field as alternateIdentifier with type "Local sample name"', function () {
+    it('exports name field as alternateIdentifier with type "Local accession number"', function () {
         $user = User::factory()->create();
         $resourceType = ResourceType::where('name', 'Physical Object')->first();
         $mainTitleType = TitleType::where('name', 'Main Title')->first();
-        $otherTitleType = TitleType::where('slug', 'Other')->first();
 
         $resource = Resource::create([
             'doi' => '10.58052/IGSN.ALT-001',
@@ -1691,11 +1690,11 @@ describe('IGSN AlternateIdentifier Export', function () {
             'position' => 1,
         ]);
 
-        // Name field stored as Title with type "Other" (exported as both title AND alternateIdentifier)
-        $resource->titles()->create([
+        // Name field stored as AlternateIdentifier with type "Local accession number" (Issue #465)
+        $resource->alternateIdentifiers()->create([
             'value' => 'ICDP5068EH50001',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 2,
+            'type' => 'Local accession number',
+            'position' => 0,
         ]);
 
         $person = Person::create([
@@ -1727,14 +1726,13 @@ describe('IGSN AlternateIdentifier Export', function () {
 
         expect($altIds)->toHaveCount(1);
         expect($altIds[0]['alternateIdentifier'])->toBe('ICDP5068EH50001');
-        expect($altIds[0]['alternateIdentifierType'])->toBe('Local sample name');
+        expect($altIds[0]['alternateIdentifierType'])->toBe('Local accession number');
     });
 
-    it('exports sample_other_names as alternateIdentifiers', function () {
+    it('exports sample_other_names as alternateIdentifiers with type "Local sample name"', function () {
         $user = User::factory()->create();
         $resourceType = ResourceType::where('name', 'Physical Object')->first();
         $mainTitleType = TitleType::where('name', 'Main Title')->first();
-        $otherTitleType = TitleType::where('slug', 'Other')->first();
 
         $resource = Resource::create([
             'doi' => '10.58052/IGSN.ALT-002',
@@ -1748,23 +1746,23 @@ describe('IGSN AlternateIdentifier Export', function () {
             'position' => 1,
         ]);
 
-        // Multiple sample_other_names stored as Titles with type "Other"
-        $resource->titles()->create([
+        // Multiple sample_other_names stored as AlternateIdentifiers with type "Local sample name"
+        $resource->alternateIdentifiers()->create([
             'value' => 'DOVE-001',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 2,
+            'type' => 'Local sample name',
+            'position' => 0,
         ]);
 
-        $resource->titles()->create([
+        $resource->alternateIdentifiers()->create([
             'value' => 'Sample-A',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 3,
+            'type' => 'Local sample name',
+            'position' => 1,
         ]);
 
-        $resource->titles()->create([
+        $resource->alternateIdentifiers()->create([
             'value' => 'Local-ID-123',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 4,
+            'type' => 'Local sample name',
+            'position' => 2,
         ]);
 
         $person = Person::create([
@@ -1794,7 +1792,7 @@ describe('IGSN AlternateIdentifier Export', function () {
         $altIds = $json['data']['attributes']['alternateIdentifiers'];
         expect($altIds)->toHaveCount(3);
 
-        // All should have the same type
+        // All should have the same type "Local sample name"
         foreach ($altIds as $altId) {
             expect($altId['alternateIdentifierType'])->toBe('Local sample name');
         }
@@ -1806,11 +1804,10 @@ describe('IGSN AlternateIdentifier Export', function () {
         expect($values)->toContain('Local-ID-123');
     });
 
-    it('does not export alternateIdentifiers for non-IGSN resources', function () {
+    it('does not export alternateIdentifiers for resources without alternateIdentifier records', function () {
         $user = User::factory()->create();
         $resourceType = ResourceType::where('name', 'Dataset')->first();
         $mainTitleType = TitleType::where('name', 'Main Title')->first();
-        $otherTitleType = TitleType::where('slug', 'Other')->first();
 
         $resource = Resource::create([
             'doi' => '10.5880/TEST.2026.001',
@@ -1822,13 +1819,6 @@ describe('IGSN AlternateIdentifier Export', function () {
             'value' => 'Main Dataset Title',
             'title_type_id' => $mainTitleType->id,
             'position' => 1,
-        ]);
-
-        // Title with type "Other" for regular resource - should stay as title only, not alternateIdentifier
-        $resource->titles()->create([
-            'value' => 'Other Dataset Name',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 2,
         ]);
 
         $person = Person::create([
@@ -1849,22 +1839,11 @@ describe('IGSN AlternateIdentifier Export', function () {
         $response->assertOk();
         $json = json_decode($response->getContent(), true);
 
-        // Non-IGSN resources should NOT have alternateIdentifiers
+        // Resources without alternateIdentifiers should NOT have that key
         expect($json['data']['attributes'])->not->toHaveKey('alternateIdentifiers');
-
-        // But they should still have titles with "Other" type
-        $titles = $json['data']['attributes']['titles'];
-        $hasOtherTitle = false;
-        foreach ($titles as $title) {
-            if (($title['titleType'] ?? null) === 'Other') {
-                $hasOtherTitle = true;
-                break;
-            }
-        }
-        expect($hasOtherTitle)->toBeTrue();
     });
 
-    it('does not export alternateIdentifiers when IGSN has no "Other" titles', function () {
+    it('does not export alternateIdentifiers when IGSN has no alternateIdentifier records', function () {
         $user = User::factory()->create();
         $resourceType = ResourceType::where('name', 'Physical Object')->first();
         $mainTitleType = TitleType::where('name', 'Main Title')->first();
@@ -1906,7 +1885,7 @@ describe('IGSN AlternateIdentifier Export', function () {
         $response->assertOk();
         $json = json_decode($response->getContent(), true);
 
-        // No alternateIdentifiers when there are no "Other" titles
+        // No alternateIdentifiers when there are no AlternateIdentifier records
         expect($json['data']['attributes'])->not->toHaveKey('alternateIdentifiers');
     });
 
@@ -1914,7 +1893,6 @@ describe('IGSN AlternateIdentifier Export', function () {
         $user = User::factory()->create();
         $resourceType = ResourceType::where('name', 'Physical Object')->first();
         $mainTitleType = TitleType::where('name', 'Main Title')->first();
-        $otherTitleType = TitleType::where('slug', 'Other')->first();
 
         $resource = Resource::create([
             'doi' => '10.58052/IGSN.ALT-XML-001',
@@ -1928,16 +1906,18 @@ describe('IGSN AlternateIdentifier Export', function () {
             'position' => 1,
         ]);
 
-        $resource->titles()->create([
+        // Name field as AlternateIdentifier with type "Local accession number"
+        $resource->alternateIdentifiers()->create([
             'value' => 'LOCAL-SAMPLE-ID-001',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 2,
+            'type' => 'Local accession number',
+            'position' => 0,
         ]);
 
-        $resource->titles()->create([
+        // sample_other_names as AlternateIdentifier with type "Local sample name"
+        $resource->alternateIdentifiers()->create([
             'value' => 'ARCHIVE-REF-XYZ',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 3,
+            'type' => 'Local sample name',
+            'position' => 1,
         ]);
 
         $person = Person::create([
@@ -1965,16 +1945,15 @@ describe('IGSN AlternateIdentifier Export', function () {
         $xml = $response->getContent();
 
         expect($xml)->toContain('<alternateIdentifiers>');
-        expect($xml)->toContain('<alternateIdentifier alternateIdentifierType="Local sample name">LOCAL-SAMPLE-ID-001</alternateIdentifier>');
+        expect($xml)->toContain('<alternateIdentifier alternateIdentifierType="Local accession number">LOCAL-SAMPLE-ID-001</alternateIdentifier>');
         expect($xml)->toContain('<alternateIdentifier alternateIdentifierType="Local sample name">ARCHIVE-REF-XYZ</alternateIdentifier>');
         expect($xml)->toContain('</alternateIdentifiers>');
     });
 
-    it('does not export alternateIdentifiers to XML for non-IGSN resources', function () {
+    it('does not export alternateIdentifiers to XML for resources without alternateIdentifier records', function () {
         $user = User::factory()->create();
         $resourceType = ResourceType::where('name', 'Dataset')->first();
         $mainTitleType = TitleType::where('name', 'Main Title')->first();
-        $otherTitleType = TitleType::where('slug', 'Other')->first();
 
         $resource = Resource::create([
             'doi' => '10.5880/TEST.XML.2026.001',
@@ -1986,12 +1965,6 @@ describe('IGSN AlternateIdentifier Export', function () {
             'value' => 'Regular Dataset',
             'title_type_id' => $mainTitleType->id,
             'position' => 1,
-        ]);
-
-        $resource->titles()->create([
-            'value' => 'Dataset Other Name',
-            'title_type_id' => $otherTitleType->id,
-            'position' => 2,
         ]);
 
         $person = Person::create([
@@ -2012,12 +1985,84 @@ describe('IGSN AlternateIdentifier Export', function () {
         $response->assertOk();
         $xml = $response->getContent();
 
-        // Non-IGSN resources should NOT have alternateIdentifiers element
+        // Resources without alternateIdentifiers should NOT have alternateIdentifiers element
         expect($xml)->not->toContain('<alternateIdentifiers>');
+    });
 
-        // But should have the title with "Other" type
-        expect($xml)->toContain('titleType="Other"');
-        expect($xml)->toContain('Dataset Other Name');
+    it('exports both name and sample_other_names with different types', function () {
+        $user = User::factory()->create();
+        $resourceType = ResourceType::where('name', 'Physical Object')->first();
+        $mainTitleType = TitleType::where('name', 'Main Title')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.ALT-BOTH-001',
+            'publication_year' => now()->year,
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Sample with Both Name Types',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // 'name' field → "Local accession number"
+        $resource->alternateIdentifiers()->create([
+            'value' => 'ACCESSION-001',
+            'type' => 'Local accession number',
+            'position' => 0,
+        ]);
+
+        // 'sample_other_names' → "Local sample name"
+        $resource->alternateIdentifiers()->create([
+            'value' => 'OTHER-NAME-A',
+            'type' => 'Local sample name',
+            'position' => 1,
+        ]);
+
+        $resource->alternateIdentifiers()->create([
+            'value' => 'OTHER-NAME-B',
+            'type' => 'Local sample name',
+            'position' => 2,
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = json_decode($response->getContent(), true);
+
+        $altIds = $json['data']['attributes']['alternateIdentifiers'];
+        expect($altIds)->toHaveCount(3);
+
+        // First one should be "Local accession number" (from 'name' field)
+        expect($altIds[0]['alternateIdentifier'])->toBe('ACCESSION-001');
+        expect($altIds[0]['alternateIdentifierType'])->toBe('Local accession number');
+
+        // Others should be "Local sample name" (from 'sample_other_names')
+        expect($altIds[1]['alternateIdentifier'])->toBe('OTHER-NAME-A');
+        expect($altIds[1]['alternateIdentifierType'])->toBe('Local sample name');
+
+        expect($altIds[2]['alternateIdentifier'])->toBe('OTHER-NAME-B');
+        expect($altIds[2]['alternateIdentifierType'])->toBe('Local sample name');
     });
 });
 

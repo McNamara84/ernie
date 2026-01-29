@@ -377,7 +377,7 @@ describe('IGSN Data Storage', function () {
         expect($creator->creatorable->family_name)->toBe('Darwin');
     });
 
-    it('stores alternative titles (name and sample_other_names) from CSV', function () {
+    it('stores alternate identifiers (name and sample_other_names) from CSV per Issue #465', function () {
         $csvContent = file_get_contents(getDoveCsvPath());
         $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
 
@@ -385,12 +385,14 @@ describe('IGSN Data Storage', function () {
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $alternativeTitleTypeId = TitleType::where('slug', 'AlternativeTitle')->value('id');
-        $altTitles = $resource->titles->where('title_type_id', $alternativeTitleTypeId);
+        $altIds = $resource->alternateIdentifiers;
 
-        // Should have name (5068_1_A) as alternative title
-        expect($altTitles->count())->toBeGreaterThanOrEqual(1);
-        expect($altTitles->pluck('value')->toArray())->toContain('5068_1_A');
+        // Should have name (5068_1_A) as alternateIdentifier with type "Local accession number"
+        expect($altIds->count())->toBeGreaterThanOrEqual(1);
+
+        $nameAltId = $altIds->firstWhere('value', '5068_1_A');
+        expect($nameAltId)->not->toBeNull();
+        expect($nameAltId->type)->toBe('Local accession number');
     });
 
     it('stores contributors correctly from CSV', function () {
