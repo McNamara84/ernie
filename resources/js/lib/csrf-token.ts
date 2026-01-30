@@ -125,7 +125,7 @@ export const buildCsrfHeaders = (): Record<string, string> => {
  * 1. `axios.defaults.headers` are updated with both X-CSRF-TOKEN and X-XSRF-TOKEN
  * 2. The `<meta name="csrf-token">` tag is updated for forms that read it
  *
- * @param axios - The axios instance to update (pass `axios.defaults.headers.common`)
+ * @param axiosDefaultHeaders - The axios default headers object (i.e., `axios.defaults.headers.common`)
  * @returns The token if sync was successful, null otherwise
  */
 export const syncCsrfTokenToAxiosAndMeta = (

@@ -284,6 +284,31 @@ axios.interceptors.response.use(
     },
 );
 
+// Fallback interceptor: handle 419 errors on retried requests (session expired beyond CSRF)
+axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const config = error.config as AxiosRequestConfigWithRetry;
+
+        // If this is a 419 on a retried request, the session is truly expired
+        // (not just a CSRF mismatch). Reload to let the user re-authenticate.
+        if (error.response?.status === 419 && config?._retry) {
+            console.warn('[CSRF] Session expired after retry, reloading page...');
+
+            try {
+                sessionStorage.setItem('csrf_refresh_pending', 'true');
+            } catch {
+                // Intentionally ignored
+            }
+
+            window.location.reload();
+            return new Promise(() => {});
+        }
+
+        return Promise.reject(error);
+    },
+);
+
 // Check if we just refreshed due to CSRF mismatch and show notification
 try {
     if (sessionStorage.getItem('csrf_refresh_pending') === 'true') {
