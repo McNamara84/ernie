@@ -338,19 +338,45 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build creators array from authors
+     * Build creators array from authors.
+     *
+     * For IGSN resources, contributors are also included as creators to ensure
+     * all contributing persons are prominently represented in the metadata.
+     * Duplicates are avoided by checking ORCID or name.
      *
      * @return array<int, array<string, mixed>>
      */
     private function buildCreators(Resource $resource): array
     {
         $creators = [];
+        $seenIdentifiers = []; // Track ORCID/name combinations to avoid duplicates
 
+        // 1. Build original creators
         foreach ($resource->creators as $creator) {
             if ($creator->creatorable_type === Person::class) {
                 $creators[] = $this->buildPersonCreator($creator);
+                $seenIdentifiers[] = $this->getPersonIdentifier($creator);
             } elseif ($creator->creatorable_type === Institution::class) {
                 $creators[] = $this->buildInstitutionCreator($creator);
+            }
+        }
+
+        // 2. For IGSN resources: Add person contributors as creators (avoiding duplicates)
+        if ($resource->igsnMetadata) {
+            foreach ($resource->contributors as $contributor) {
+                // Only process persons, skip institutions
+                if ($contributor->contributorable_type !== Person::class) {
+                    continue;
+                }
+
+                // Check for duplicates
+                $identifier = $this->getPersonIdentifier($contributor);
+                if (in_array($identifier, $seenIdentifiers, true)) {
+                    continue; // Skip duplicate
+                }
+
+                $creators[] = $this->buildPersonAsCreatorFromContributor($contributor);
+                $seenIdentifiers[] = $identifier;
             }
         }
 
@@ -363,6 +389,56 @@ class DataCiteJsonExporter
         }
 
         return $creators;
+    }
+
+    /**
+     * Get a unique identifier for a person to detect duplicates.
+     *
+     * Uses ORCID if available, otherwise falls back to normalized name.
+     *
+     * @return string Unique identifier for the person
+     */
+    private function getPersonIdentifier(ResourceCreator|ResourceContributor $author): string
+    {
+        /** @var Person|null $person */
+        $person = $author instanceof ResourceCreator
+            ? $author->creatorable
+            : $author->contributorable;
+
+        if (! $person instanceof Person) {
+            return '';
+        }
+
+        // Prefer ORCID as unique identifier
+        if (! empty($person->name_identifier) && $person->name_identifier_scheme === 'ORCID') {
+            return 'orcid:' . $person->name_identifier;
+        }
+
+        // Fallback to normalized name (lowercase, trimmed)
+        $name = strtolower(trim(($person->family_name ?? '') . ',' . ($person->given_name ?? '')));
+
+        return 'name:' . $name;
+    }
+
+    /**
+     * Build a creator entry from a person contributor (for IGSN export).
+     *
+     * @return array<string, mixed>
+     */
+    private function buildPersonAsCreatorFromContributor(ResourceContributor $contributor): array
+    {
+        /** @var Person|null $person */
+        $person = $contributor->contributorable;
+
+        if (! $person instanceof Person) {
+            return [
+                'name' => 'Unknown',
+                'nameType' => 'Personal',
+            ];
+        }
+
+        // Reuse the trait method for consistent creator data building
+        return $this->buildPersonCreatorData($contributor, $person);
     }
 
     /**

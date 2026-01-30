@@ -459,3 +459,345 @@ describe('DataCiteJsonExporter - Optional Fields', function () {
         expect($attributes)->not->toHaveKey('version');
     });
 });
+
+describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
+    test('includes person contributors as creators for IGSN resources', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add a creator
+        $creator = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+        ]);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $creator->id,
+            'position' => 1,
+        ]);
+
+        // Add person contributors
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        $contributor1 = Person::factory()->create([
+            'family_name' => 'Doe',
+            'given_name' => 'Jane',
+        ]);
+        $contributor2 = Person::factory()->create([
+            'family_name' => 'Brown',
+            'given_name' => 'Bob',
+        ]);
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $contributor1->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $contributor2->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 2,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should have 3 creators: 1 original + 2 from contributors
+        expect($creators)->toHaveCount(3);
+        expect($creators[0]['name'])->toBe('Smith, John');
+        expect($creators[1]['name'])->toBe('Doe, Jane');
+        expect($creators[2]['name'])->toBe('Brown, Bob');
+    });
+
+    test('does not include contributors as creators for non-IGSN resources', function () {
+        // Create regular resource without IGSN metadata
+        $resource = Resource::factory()->create();
+
+        // Add a creator
+        $creator = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+        ]);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $creator->id,
+            'position' => 1,
+        ]);
+
+        // Add person contributor
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        $contributor = Person::factory()->create([
+            'family_name' => 'Doe',
+            'given_name' => 'Jane',
+        ]);
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $contributor->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should only have 1 creator (the original)
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['name'])->toBe('Smith, John');
+    });
+
+    test('avoids duplicate creators when person is both creator and contributor in IGSN', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create person with ORCID
+        $person = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+            'name_identifier' => '0000-0001-2345-6789',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        // Add as both creator and contributor
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should only have 1 creator (duplicate avoided)
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['name'])->toBe('Smith, John');
+    });
+
+    test('avoids duplicates by name when person has no ORCID', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create person without ORCID - use same person as creator and contributor
+        $person = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+            'name_identifier' => null,
+            'name_identifier_scheme' => null,
+        ]);
+
+        // Add as both creator and contributor
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should only have 1 creator (duplicate avoided by name)
+        expect($creators)->toHaveCount(1);
+    });
+
+    test('excludes institution contributors from creators array in IGSN export', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add a person creator
+        $creator = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+        ]);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $creator->id,
+            'position' => 1,
+        ]);
+
+        // Add institution contributor
+        $institution = Institution::factory()->create(['name' => 'Test Lab']);
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'HostingInstitution'],
+            ['name' => 'Hosting Institution']
+        );
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Institution::class,
+            'contributorable_id' => $institution->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should only have 1 creator (institution excluded)
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['name'])->toBe('Smith, John');
+    });
+
+    test('preserves contributors in contributors element for IGSN resources', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add a creator
+        $creator = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+        ]);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $creator->id,
+            'position' => 1,
+        ]);
+
+        // Add person contributors
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        $contributor1 = Person::factory()->create([
+            'family_name' => 'Doe',
+            'given_name' => 'Jane',
+        ]);
+        $contributor2 = Person::factory()->create([
+            'family_name' => 'Brown',
+            'given_name' => 'Bob',
+        ]);
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $contributor1->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $contributor2->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 2,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $contributors = $result['data']['attributes']['contributors'];
+
+        // Contributors should still appear in the contributors element
+        expect($contributors)->toHaveCount(2);
+        expect($contributors[0]['name'])->toBe('Doe, Jane');
+        expect($contributors[0]['contributorType'])->toBe('DataCollector');
+        expect($contributors[1]['name'])->toBe('Brown, Bob');
+    });
+
+    test('maintains creator order: original creators first, then contributors', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Add creators
+        $creator1 = Person::factory()->create(['family_name' => 'First', 'given_name' => 'Creator']);
+        $creator2 = Person::factory()->create(['family_name' => 'Second', 'given_name' => 'Creator']);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $creator1->id,
+            'position' => 1,
+        ]);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $creator2->id,
+            'position' => 2,
+        ]);
+
+        // Add contributor
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        $contributor = Person::factory()->create(['family_name' => 'Third', 'given_name' => 'Contributor']);
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $contributor->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = (new DataCiteJsonExporter)->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Verify order: creators first, then contributors
+        expect($creators)->toHaveCount(3);
+        expect($creators[0]['name'])->toBe('First, Creator');
+        expect($creators[1]['name'])->toBe('Second, Creator');
+        expect($creators[2]['name'])->toBe('Third, Contributor');
+    });
+});
