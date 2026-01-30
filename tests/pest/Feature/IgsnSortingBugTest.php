@@ -49,11 +49,10 @@ function createIgsnResource(string $igsn, ?string $collectionDate = null): Resou
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
-    // Add a title
+    // Add a title (titles table has no 'position' column)
     $resource->titles()->create([
         'value' => "Sample {$igsn}",
         'title_type_id' => $mainTitleType->id,
-        'position' => 1,
     ]);
 
     // Add IGSN metadata
@@ -159,7 +158,6 @@ describe('IGSN List Sorting Bug', function () {
         $resource->titles()->create([
             'value' => 'Sample with date range',
             'title_type_id' => $mainTitleType->id,
-            'position' => 1,
         ]);
 
         IgsnMetadata::create([
