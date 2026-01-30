@@ -447,11 +447,42 @@ class DataCiteJsonExporter
         if (! empty($person->name_identifier)) {
             $scheme = $person->name_identifier_scheme ?? 'ORCID';
             if (strtoupper($scheme) === 'ORCID') {
-                $identifiers[] = 'orcid:' . $person->name_identifier;
+                // Normalize ORCID: strip URL prefixes to get bare ID for consistent matching
+                // ORCIDs may be stored as full URLs (https://orcid.org/0000-...) or bare IDs (0000-...)
+                $normalizedOrcid = $this->normalizeOrcid($person->name_identifier);
+                $identifiers[] = 'orcid:' . $normalizedOrcid;
             }
         }
 
         return $identifiers;
+    }
+
+    /**
+     * Normalize an ORCID value by stripping URL prefixes.
+     *
+     * Handles various formats:
+     * - https://orcid.org/0000-0001-2345-6789 -> 0000-0001-2345-6789
+     * - http://orcid.org/0000-0001-2345-6789 -> 0000-0001-2345-6789
+     * - 0000-0001-2345-6789 -> 0000-0001-2345-6789
+     */
+    private function normalizeOrcid(string $orcid): string
+    {
+        // Remove common ORCID URL prefixes
+        $prefixes = [
+            'https://orcid.org/',
+            'http://orcid.org/',
+            'https://www.orcid.org/',
+            'http://www.orcid.org/',
+        ];
+
+        $normalized = trim($orcid);
+        foreach ($prefixes as $prefix) {
+            if (stripos($normalized, $prefix) === 0) {
+                return substr($normalized, strlen($prefix));
+            }
+        }
+
+        return $normalized;
     }
 
     /**

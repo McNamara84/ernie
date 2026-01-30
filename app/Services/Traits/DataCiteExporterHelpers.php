@@ -47,6 +47,7 @@ trait DataCiteExporterHelpers
             'alternateIdentifiers',
             'sizes',
             'formats',
+            'igsnMetadata', // For IGSN-specific creator/contributor handling
         ];
     }
 

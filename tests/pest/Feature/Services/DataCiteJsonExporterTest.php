@@ -461,9 +461,19 @@ describe('DataCiteJsonExporter - Optional Fields', function () {
 });
 
 describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
+    beforeEach(function () {
+        // Ensure Physical Object resource type exists for IGSN tests
+        $this->physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'datacite_type' => 'PhysicalObject']
+        );
+    });
+
     test('includes person contributors as creators for IGSN resources', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
@@ -562,8 +572,10 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
     });
 
     test('avoids duplicate creators when person is both creator and contributor in IGSN', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
@@ -607,8 +619,10 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
     });
 
     test('avoids duplicates by name when person has no ORCID', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
@@ -651,8 +665,10 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
     });
 
     test('avoids duplicates when creator has ORCID but contributor does not', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
@@ -702,9 +718,65 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         expect($creators[0]['name'])->toBe('Smith, John');
     });
 
+    test('avoids duplicates when ORCID is stored as URL vs bare ID', function () {
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create person with ORCID as full URL (as stored by PersonFactory::withOrcid())
+        $personWithUrlOrcid = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+            'name_identifier' => 'https://orcid.org/0000-0001-2345-6789',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        // Create same person with ORCID as bare ID
+        $personWithBareOrcid = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+            'name_identifier' => '0000-0001-2345-6789',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $personWithUrlOrcid->id,
+            'position' => 1,
+        ]);
+
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $personWithBareOrcid->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should only have 1 creator (ORCID normalized, duplicate detected)
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['name'])->toBe('Smith, John');
+    });
+
     test('excludes institution contributors from creators array in IGSN export', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
@@ -746,8 +818,10 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
     });
 
     test('preserves contributors in contributors element for IGSN resources', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
@@ -805,8 +879,10 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
     });
 
     test('maintains creator order: original creators first, then contributors', function () {
-        // Create resource with IGSN metadata
-        $resource = Resource::factory()->create();
+        // Create IGSN resource with Physical Object type
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->physicalObjectType->id,
+        ]);
         \App\Models\IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
