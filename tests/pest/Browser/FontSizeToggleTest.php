@@ -12,14 +12,14 @@ uses(RefreshDatabase::class);
 /**
  * Pest v4 Browser Tests for Font Size Toggle
  *
- * These tests verify that:
- * 1. The font-large class is correctly initialized based on user preference
- * 2. Pages with font size toggle load without JavaScript errors
+ * These tests verify:
+ * 1. Pages with font size toggle load without JavaScript errors (smoke tests)
+ * 2. User font size preference is correctly stored and validated via API
  *
- * Note: Full UI interaction tests (clicking the toggle button) require
- * the Vite dev server to be running. For those tests, use:
- * - npm run dev (start Vite)
- * - npm run test:e2e (Playwright tests)
+ * Note: These are smoke tests that verify pages load and API works correctly.
+ * Full UI interaction tests (clicking the toggle button and verifying CSS class
+ * changes in rendered HTML) are in the Playwright E2E suite:
+ * - tests/playwright/critical/font-size-toggle.spec.ts
  *
  * @see https://pestphp.com/docs/browser-testing
  */

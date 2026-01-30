@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
-import { buildCsrfHeaders } from './lib/csrf-token';
+import { buildCsrfHeaders, getXsrfTokenFromCookie } from './lib/csrf-token';
 import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -159,7 +159,6 @@ let isRefreshingCsrf = false;
 let failedQueue: Array<{
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
-    config: typeof axios.defaults;
 }> = [];
 
 /**
@@ -175,13 +174,10 @@ async function refreshCsrfToken(): Promise<boolean> {
             headers: { 'X-Skip-CSRF-Refresh': 'true' },
         });
 
-        // Update axios headers with new token
-        const xsrfCookie = document.cookie
-            .split('; ')
-            .find((row) => row.startsWith('XSRF-TOKEN='));
+        // Update axios headers with new token using shared helper (handles base64 padding correctly)
+        const token = getXsrfTokenFromCookie();
 
-        if (xsrfCookie) {
-            const token = decodeURIComponent(xsrfCookie.split('=')[1] || '');
+        if (token) {
             axios.defaults.headers.common['X-XSRF-TOKEN'] = token;
             axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
 
@@ -196,6 +192,7 @@ async function refreshCsrfToken(): Promise<boolean> {
             }
             return true;
         }
+
         return false;
     } catch (error) {
         if (import.meta.env.DEV) {
@@ -236,7 +233,7 @@ axios.interceptors.response.use(
             // If we're already refreshing, queue this request
             if (isRefreshingCsrf) {
                 return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject, config: originalRequest });
+                    failedQueue.push({ resolve, reject });
                 }).then(() => axios(originalRequest));
             }
 
@@ -267,11 +264,13 @@ axios.interceptors.response.use(
                     return axios(originalRequest);
                 }
             } catch {
-                processQueue(false);
-                isRefreshingCsrf = false;
+                // Exception during refresh - handled below
             }
 
-            // If refresh failed, fall back to page reload
+            // If refresh failed (returned false or threw), clean up state before reload
+            processQueue(false);
+            isRefreshingCsrf = false;
+
             console.warn('CSRF token refresh failed, reloading page...');
 
             try {

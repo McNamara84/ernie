@@ -32,7 +32,7 @@ test.describe('Font Size Toggle', () => {
         const toggleButton = page.getByTestId('font-size-quick-toggle');
 
         // Get initial state
-        const initialClass = await htmlElement.getAttribute('class') ?? '';
+        const initialClass = (await htmlElement.getAttribute('class')) ?? '';
         const wasLarge = initialClass.includes('font-large');
 
         // Click the font size toggle button
@@ -60,7 +60,7 @@ test.describe('Font Size Toggle', () => {
         const toggleButton = page.getByTestId('font-size-quick-toggle');
 
         // Get initial state
-        const initialClass = await htmlElement.getAttribute('class') ?? '';
+        const initialClass = (await htmlElement.getAttribute('class')) ?? '';
         const wasLarge = initialClass.includes('font-large');
 
         // Focus the toggle button and press Enter
@@ -83,11 +83,7 @@ test.describe('Font Size Toggle', () => {
         await expect(fontSizeGroup).toBeVisible();
 
         // Verify both options are present
-        await expect(
-            page.locator('[aria-label="Font size options"] button', { hasText: 'Regular' }),
-        ).toBeVisible();
-        await expect(
-            page.locator('[aria-label="Font size options"] button', { hasText: 'Large' }),
-        ).toBeVisible();
+        await expect(page.locator('[aria-label="Font size options"] button', { hasText: 'Regular' })).toBeVisible();
+        await expect(page.locator('[aria-label="Font size options"] button', { hasText: 'Large' })).toBeVisible();
     });
 });

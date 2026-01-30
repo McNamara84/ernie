@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { useEffect, useRef } from 'react';
 
+import { getXsrfTokenFromCookie } from '@/lib/csrf-token';
+
 /**
  * Hook that ensures the session and CSRF token are properly initialized.
  *
@@ -46,7 +48,7 @@ async function initializeCsrfToken(): Promise<void> {
             timeout: 5000,
         });
 
-        // After the cookie is set, update axios headers
+        // After the cookie is set, update axios headers using shared helper
         updateAxiosHeaders();
 
         // Also update the meta tag to ensure consistency
@@ -65,13 +67,14 @@ async function initializeCsrfToken(): Promise<void> {
 
 /**
  * Update axios default headers with the current XSRF token from cookies.
+ * Uses the shared helper to correctly handle base64 values with padding.
  */
 function updateAxiosHeaders(): void {
-    const xsrfToken = getXsrfTokenFromCookie();
+    const token = getXsrfTokenFromCookie();
 
-    if (xsrfToken) {
-        axios.defaults.headers.common['X-XSRF-TOKEN'] = xsrfToken;
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = xsrfToken;
+    if (token) {
+        axios.defaults.headers.common['X-XSRF-TOKEN'] = token;
+        axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
     }
 }
 
@@ -80,31 +83,11 @@ function updateAxiosHeaders(): void {
  * This ensures forms that read from the meta tag use the correct token.
  */
 function updateMetaTag(): void {
-    const xsrfToken = getXsrfTokenFromCookie();
-    if (!xsrfToken) return;
+    const token = getXsrfTokenFromCookie();
+    if (!token) return;
 
     const metaTag = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]');
     if (metaTag) {
-        metaTag.content = xsrfToken;
-    }
-}
-
-/**
- * Extract the XSRF token from the cookie.
- */
-function getXsrfTokenFromCookie(): string | null {
-    const cookie = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('XSRF-TOKEN='));
-
-    if (!cookie) return null;
-
-    const value = cookie.split('=')[1];
-    if (!value) return null;
-
-    try {
-        return decodeURIComponent(value);
-    } catch {
-        return value;
+        metaTag.content = token;
     }
 }
