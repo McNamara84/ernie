@@ -1,6 +1,6 @@
 # ERNIE - Earth Research Notary for Information Editing
 
-![Version](https://img.shields.io/badge/version-1.0.0b-blue)
+![Version](https://img.shields.io/badge/version-1.0.0rc1-blue)
 ![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)
 ![PHP](https://img.shields.io/badge/PHP-8-777BB4?logo=php&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
@@ -12,7 +12,7 @@
 
 A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
 
-**🎉 First Public Beta Release (v1.0.0b)** – This is the first public beta version of ERNIE, featuring complete core metadata curation functionality, DOI registration workflows, and comprehensive testing. See the [interactive changelog](/changelog) for full release notes.
+**🎉 First Public Beta Release (v1.0.0rc1)** – This is the first public beta version of ERNIE, featuring complete core metadata curation functionality, DOI registration workflows, and comprehensive testing. See the [interactive changelog](/changelog) for full release notes.
 
 ## Features
 

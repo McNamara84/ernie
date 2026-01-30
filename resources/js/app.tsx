@@ -266,7 +266,7 @@ axios.interceptors.response.use(
 
                     return axios(originalRequest);
                 }
-            } catch (refreshError) {
+            } catch {
                 processQueue(false);
                 isRefreshingCsrf = false;
             }
