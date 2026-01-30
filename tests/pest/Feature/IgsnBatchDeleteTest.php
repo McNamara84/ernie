@@ -32,7 +32,7 @@ function createIgsns(int $count): \Illuminate\Support\Collection
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
             'doi' => "IGSN-BATCH-TEST-{$i}",
-            'publication_year' => 2026,
+            'publication_year' => now()->year,
         ]);
 
         $resource->titles()->create([
