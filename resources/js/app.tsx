@@ -100,6 +100,9 @@ let csrfRefreshNotificationShown = false;
  * Shows a brief notification to the user explaining the session refresh.
  * This improves UX by informing users why the page reloaded.
  * Animation styles are pre-defined at module load to avoid race conditions.
+ *
+ * The notification is non-blocking (pointer-events: none) to avoid interfering
+ * with user interactions, and auto-dismisses after 3 seconds.
  */
 function showSessionRefreshNotification(): void {
     if (csrfRefreshNotificationShown) {
@@ -111,7 +114,7 @@ function showSessionRefreshNotification(): void {
     // Create a toast-like notification
     const notification = document.createElement('div');
     notification.id = 'session-refresh-notification';
-    notification.setAttribute('role', 'alert');
+    notification.setAttribute('role', 'status');
     notification.setAttribute('aria-live', 'polite');
     notification.style.cssText = `
         position: fixed;
@@ -119,38 +122,36 @@ function showSessionRefreshNotification(): void {
         right: 20px;
         background: #1f2937;
         color: white;
-        padding: 16px 24px;
+        padding: 12px 20px;
         border-radius: 8px;
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         z-index: 9999;
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 14px;
-        max-width: 320px;
+        max-width: 280px;
+        pointer-events: none;
         animation: session-notification-slide-in 0.3s ease-out;
     `;
     notification.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
                 <path d="M21 3v5h-5"/>
             </svg>
-            <div>
-                <strong style="display: block; margin-bottom: 4px;">Session refreshed</strong>
-                <span style="opacity: 0.9;">Please try your action again.</span>
-            </div>
+            <span>Session refreshed</span>
         </div>
     `;
 
     document.body.appendChild(notification);
 
-    // Auto-remove after 5 seconds
+    // Auto-remove after 3 seconds (reduced from 5s for less intrusion)
     setTimeout(() => {
         notification.style.animation = 'session-notification-slide-out 0.3s ease-out forwards';
         setTimeout(() => {
             notification.remove();
             csrfRefreshNotificationShown = false;
         }, 300);
-    }, 5000);
+    }, 3000);
 }
 
 // Add response interceptor to handle CSRF token refresh on 419 errors
