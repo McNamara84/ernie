@@ -1,7 +1,7 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 
@@ -154,11 +154,17 @@ function showSessionRefreshNotification(): void {
     }, 3000);
 }
 
+// Extended Axios request config with retry tracking
+interface AxiosRequestConfigWithRetry extends InternalAxiosRequestConfig {
+    _retry?: boolean;
+}
+
 // Track if we're currently refreshing the CSRF token to avoid loops
 let isRefreshingCsrf = false;
 let failedQueue: Array<{
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
+    config: AxiosRequestConfigWithRetry;
 }> = [];
 
 /**
@@ -222,7 +228,7 @@ axios.interceptors.response.use(
         return response;
     },
     async function (error) {
-        const originalRequest = error.config;
+        const originalRequest = error.config as AxiosRequestConfigWithRetry;
 
         // Check if this is a 419 error and we haven't already tried to refresh
         if (
@@ -230,10 +236,11 @@ axios.interceptors.response.use(
             !originalRequest._retry &&
             !originalRequest.headers?.['X-Skip-CSRF-Refresh']
         ) {
-            // If we're already refreshing, queue this request
+            // If we're already refreshing, queue this request (mark as _retry to prevent loops)
             if (isRefreshingCsrf) {
+                originalRequest._retry = true;
                 return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject });
+                    failedQueue.push({ resolve, reject, config: originalRequest });
                 }).then(() => axios(originalRequest));
             }
 

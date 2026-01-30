@@ -61,7 +61,8 @@ async function initializeCsrfToken(): Promise<void> {
         if (import.meta.env.DEV) {
             console.warn('[Session] Failed to initialize CSRF token:', error);
         }
-        // Even if this fails, the user can still try - the 419 handler will reload
+        // Even if this fails, the user can still try - the 419 handler in app.tsx
+        // will attempt to refresh the token and retry the request automatically
     }
 }
 

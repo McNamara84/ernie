@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
+import { loginAsTestUser } from '../helpers/test-helpers';
 
 /**
  * Font Size Toggle E2E Tests
@@ -16,12 +16,7 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 
 test.describe('Font Size Toggle', () => {
     test.beforeEach(async ({ page }) => {
-        // Login
-        await page.goto('/login');
-        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
-        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
-        await page.getByRole('button', { name: 'Log in' }).click();
-        await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+        await loginAsTestUser(page);
 
         // Wait for page to stabilize
         await page.waitForLoadState('networkidle');

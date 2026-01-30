@@ -26,7 +26,7 @@ uses(RefreshDatabase::class);
 
 describe('Font Size Toggle', function (): void {
 
-    it('initializes with font-large class when user preference is large', function (): void {
+    it('loads dashboard without JavaScript errors when user preference is large', function (): void {
         /** @var TestCase $this */
         $user = User::factory()->create([
             'role' => UserRole::CURATOR,
@@ -42,7 +42,7 @@ describe('Font Size Toggle', function (): void {
         expect($user->font_size_preference)->toBe('large');
     });
 
-    it('initializes without font-large class when user preference is regular', function (): void {
+    it('loads dashboard without JavaScript errors when user preference is regular', function (): void {
         /** @var TestCase $this */
         $user = User::factory()->create([
             'role' => UserRole::CURATOR,
