@@ -19,7 +19,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { createUserSchema, type CreateUserInput } from '@/lib/validations/user';
+import { type CreateUserInput, createUserSchema } from '@/lib/validations/user';
 
 interface AddUserDialogProps {
     disabled?: boolean;
@@ -39,33 +39,29 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
 
     const handleSubmit = (data: CreateUserInput) => {
         setIsSubmitting(true);
-        router.post(
-            '/users',
-            data,
-            {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    const flash = page.props.flash as { success?: string; warning?: string } | undefined;
-                    if (flash?.warning) {
-                        toast.warning(flash.warning);
-                    } else if (flash?.success) {
-                        toast.success(flash.success);
-                    }
-                    setOpen(false);
-                    form.reset();
-                    setIsSubmitting(false);
-                },
-                onError: (errors) => {
-                    // Map server errors to form fields
-                    Object.entries(errors).forEach(([field, message]) => {
-                        if (field === 'name' || field === 'email') {
-                            form.setError(field, { message: message as string });
-                        }
-                    });
-                    setIsSubmitting(false);
-                },
+        router.post('/users', data, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const flash = page.props.flash as { success?: string; warning?: string } | undefined;
+                if (flash?.warning) {
+                    toast.warning(flash.warning);
+                } else if (flash?.success) {
+                    toast.success(flash.success);
+                }
+                setOpen(false);
+                form.reset();
+                setIsSubmitting(false);
             },
-        );
+            onError: (errors) => {
+                // Map server errors to form fields
+                Object.entries(errors).forEach(([field, message]) => {
+                    if (field === 'name' || field === 'email') {
+                        form.setError(field, { message: message as string });
+                    }
+                });
+                setIsSubmitting(false);
+            },
+        });
     };
 
     return (
@@ -113,12 +109,7 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
                                     <FormItem>
                                         <FormLabel>Email</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="email"
-                                                placeholder="john.doe@example.com"
-                                                disabled={isSubmitting}
-                                                {...field}
-                                            />
+                                            <Input type="email" placeholder="john.doe@example.com" disabled={isSubmitting} {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

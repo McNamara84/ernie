@@ -219,10 +219,14 @@ test.describe('IGSN Workflow', () => {
         const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
-        // Get the row containing this IGSN and find its delete button
-        // Test user is always admin (see PlaywrightTestSeeder), so delete button must exist
+        // Get the row containing this IGSN and select it via checkbox
+        // Test user is always admin (see PlaywrightTestSeeder), so bulk delete is available
         const row = page.locator('tr').filter({ has: igsnCell }).first();
-        const deleteButton = row.getByRole('button', { name: 'Delete IGSN' });
+        const checkbox = row.getByRole('checkbox');
+        await checkbox.click();
+
+        // Click the bulk delete button in the toolbar
+        const deleteButton = page.getByRole('button', { name: /delete/i });
         await expect(deleteButton).toBeVisible({ timeout: 5000 });
         await deleteButton.click();
 

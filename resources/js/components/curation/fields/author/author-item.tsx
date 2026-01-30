@@ -218,13 +218,7 @@ export default function AuthorItem({
                                     <div className="mt-1 flex items-center gap-2">
                                         <p className="text-sm text-red-600">{verificationError}</p>
                                         {canRetry && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={retryVerification}
-                                                className="h-6 px-2 text-xs"
-                                            >
+                                            <Button type="button" variant="ghost" size="sm" onClick={retryVerification} className="h-6 px-2 text-xs">
                                                 <RefreshCw className="mr-1 h-3 w-3" />
                                                 Retry
                                             </Button>

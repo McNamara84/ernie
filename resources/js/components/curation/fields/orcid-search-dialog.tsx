@@ -115,11 +115,7 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                 </DialogHeader>
 
                 <Command className="rounded-none border-0" shouldFilter={false}>
-                    <CommandInput
-                        placeholder="Search by name, institution, keywords..."
-                        value={searchQuery}
-                        onValueChange={handleSearchChange}
-                    />
+                    <CommandInput placeholder="Search by name, institution, keywords..." value={searchQuery} onValueChange={handleSearchChange} />
                     <CommandList className="max-h-none">
                         <ScrollArea className="h-[400px]">
                             {/* Loading state */}
@@ -140,7 +136,9 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                             )}
 
                             {/* Empty state - no results */}
-                            {!isSearching && hasSearched && results.length === 0 && <CommandEmpty>No ORCID records found. Try a different search term.</CommandEmpty>}
+                            {!isSearching && hasSearched && results.length === 0 && (
+                                <CommandEmpty>No ORCID records found. Try a different search term.</CommandEmpty>
+                            )}
 
                             {/* Results */}
                             {!isSearching && results.length > 0 && (
