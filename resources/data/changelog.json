@@ -1,6 +1,16 @@
 [
     {
         "version": "1.0.0dev",
+        "date": "2026-01-30",
+        "improvements": [
+            {
+                "title": "IGSN Contributors in Creator Element",
+                "description": "For IGSN resources (physical samples), contributors are now also included in the 'creators' element when exporting to DataCite JSON format. This ensures that all persons who contributed to the sample collection are prominently represented in the metadata. Contributors still appear in the 'contributors' element with their original role. Duplicates are automatically detected and avoided using ORCID or name matching."
+            }
+        ]
+    },
+    {
+        "version": "1.0.0dev",
         "date": "2026-01-29",
         "features": [
             {

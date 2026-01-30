@@ -338,19 +338,80 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build creators array from authors
+     * Build creators array from authors.
+     *
+     * For IGSN resources, contributors are also included as creators to ensure
+     * all contributing persons are prominently represented in the metadata.
+     * Duplicates are avoided by checking both ORCID and normalized name.
+     *
+     * Unresolvable person relations are silently skipped. If no valid creators
+     * exist, a single "Unknown" placeholder is returned to satisfy DataCite schema.
      *
      * @return array<int, array<string, mixed>>
      */
     private function buildCreators(Resource $resource): array
     {
         $creators = [];
+        $seenIdentifiers = []; // Associative set for O(1) duplicate lookups
 
+        // 1. Build original creators
         foreach ($resource->creators as $creator) {
             if ($creator->creatorable_type === Person::class) {
-                $creators[] = $this->buildPersonCreator($creator);
+                /** @var Person|null $person */
+                $person = $creator->creatorable;
+
+                // Skip unresolvable person relations
+                if (! $person instanceof Person) {
+                    continue;
+                }
+
+                $creators[] = $this->buildPersonCreatorData($creator, $person);
+
+                // Mark identifiers as seen for duplicate detection
+                foreach ($this->getPersonIdentifiers($person) as $identifier) {
+                    $seenIdentifiers[$identifier] = true;
+                }
             } elseif ($creator->creatorable_type === Institution::class) {
                 $creators[] = $this->buildInstitutionCreator($creator);
+            }
+        }
+
+        // 2. For IGSN resources: Add person contributors as creators (avoiding duplicates)
+        if ($resource->igsnMetadata) {
+            foreach ($resource->contributors as $contributor) {
+                // Only process persons, skip institutions
+                if ($contributor->contributorable_type !== Person::class) {
+                    continue;
+                }
+
+                /** @var Person|null $person */
+                $person = $contributor->contributorable;
+
+                // Skip unresolvable person relations
+                if (! $person instanceof Person) {
+                    continue;
+                }
+
+                // Check for duplicates - if any identifier matches, it's a duplicate
+                $identifiers = $this->getPersonIdentifiers($person);
+                $isDuplicate = false;
+                foreach ($identifiers as $identifier) {
+                    if (isset($seenIdentifiers[$identifier])) {
+                        $isDuplicate = true;
+                        break;
+                    }
+                }
+
+                if ($isDuplicate) {
+                    continue;
+                }
+
+                $creators[] = $this->buildPersonCreatorData($contributor, $person);
+
+                // Mark identifiers as seen
+                foreach ($identifiers as $identifier) {
+                    $seenIdentifiers[$identifier] = true;
+                }
             }
         }
 
@@ -366,23 +427,62 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build a person creator entry
+     * Get unique identifiers for a person to detect duplicates.
      *
-     * @return array<string, mixed>
+     * Returns both ORCID (if available) and normalized name to ensure
+     * duplicates are detected even when one record has ORCID and another doesn't.
+     *
+     * @return array<int, string> Array of identifiers (always contains at least the name)
      */
-    private function buildPersonCreator(ResourceCreator $creator): array
+    private function getPersonIdentifiers(Person $person): array
     {
-        /** @var Person|null $person */
-        $person = $creator->creatorable;
+        $identifiers = [];
 
-        if (! $person instanceof Person) {
-            return [
-                'name' => 'Unknown',
-                'nameType' => 'Personal',
-            ];
+        // Always include normalized name for matching
+        $name = strtolower(trim(($person->family_name ?? '') . ',' . ($person->given_name ?? '')));
+        $identifiers[] = 'name:' . $name;
+
+        // Also include ORCID if available
+        // Consistent with buildPersonNameIdentifier(): null scheme defaults to ORCID
+        if (! empty($person->name_identifier)) {
+            $scheme = $person->name_identifier_scheme ?? 'ORCID';
+            if (strtoupper($scheme) === 'ORCID') {
+                // Normalize ORCID: strip URL prefixes to get bare ID for consistent matching
+                // ORCIDs may be stored as full URLs (https://orcid.org/0000-...) or bare IDs (0000-...)
+                $normalizedOrcid = $this->normalizeOrcid($person->name_identifier);
+                $identifiers[] = 'orcid:' . $normalizedOrcid;
+            }
         }
 
-        return $this->buildPersonCreatorData($creator, $person);
+        return $identifiers;
+    }
+
+    /**
+     * Normalize an ORCID value by stripping URL prefixes.
+     *
+     * Handles various formats:
+     * - https://orcid.org/0000-0001-2345-6789 -> 0000-0001-2345-6789
+     * - http://orcid.org/0000-0001-2345-6789 -> 0000-0001-2345-6789
+     * - 0000-0001-2345-6789 -> 0000-0001-2345-6789
+     */
+    private function normalizeOrcid(string $orcid): string
+    {
+        // Remove common ORCID URL prefixes
+        $prefixes = [
+            'https://orcid.org/',
+            'http://orcid.org/',
+            'https://www.orcid.org/',
+            'http://www.orcid.org/',
+        ];
+
+        $normalized = trim($orcid);
+        foreach ($prefixes as $prefix) {
+            if (stripos($normalized, $prefix) === 0) {
+                return substr($normalized, strlen($prefix));
+            }
+        }
+
+        return $normalized;
     }
 
     /**

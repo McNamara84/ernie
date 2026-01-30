@@ -47,6 +47,7 @@ trait DataCiteExporterHelpers
             'alternateIdentifiers',
             'sizes',
             'formats',
+            'igsnMetadata', // For IGSN-specific creator/contributor handling
         ];
     }
 
@@ -319,9 +320,12 @@ trait DataCiteExporterHelpers
     /**
      * Build creator data structure from a Person for DataCite format.
      *
+     * Accepts both ResourceCreator and ResourceContributor to support
+     * exporting contributors as creators for IGSN resources.
+     *
      * @return array<string, mixed>
      */
-    protected function buildPersonCreatorData(ResourceCreator $creator, Person $person): array
+    protected function buildPersonCreatorData(ResourceCreator|ResourceContributor $author, Person $person): array
     {
         $data = [
             'name' => $this->formatPersonName($person),
@@ -342,7 +346,7 @@ trait DataCiteExporterHelpers
         }
 
         // Add affiliations
-        $affiliations = $this->transformAffiliations($creator);
+        $affiliations = $this->transformAffiliations($author);
         if (! empty($affiliations)) {
             $data['affiliation'] = $affiliations;
         }
@@ -353,9 +357,12 @@ trait DataCiteExporterHelpers
     /**
      * Build creator data structure from an Institution for DataCite format.
      *
+     * Accepts both ResourceCreator and ResourceContributor to support
+     * exporting contributors as creators for IGSN resources.
+     *
      * @return array<string, mixed>
      */
-    protected function buildInstitutionCreatorData(ResourceCreator $creator, Institution $institution): array
+    protected function buildInstitutionCreatorData(ResourceCreator|ResourceContributor $author, Institution $institution): array
     {
         $data = [
             'name' => $this->formatInstitutionName($institution),
@@ -368,7 +375,7 @@ trait DataCiteExporterHelpers
         }
 
         // Add affiliations
-        $affiliations = $this->transformAffiliations($creator);
+        $affiliations = $this->transformAffiliations($author);
         if (! empty($affiliations)) {
             $data['affiliation'] = $affiliations;
         }
@@ -383,25 +390,10 @@ trait DataCiteExporterHelpers
      */
     protected function buildPersonContributorData(ResourceContributor $contributor, Person $person): array
     {
-        $data = $this->buildPersonCreatorData(
-            // Create a temporary creator-like object for reuse
-            new ResourceCreator([
-                'creatorable_id' => $person->id,
-                'creatorable_type' => Person::class,
-            ]),
-            $person
-        );
+        $data = $this->buildPersonCreatorData($contributor, $person);
 
-        // Add contributor type
-        $data['contributorType'] = $contributor->contributorType->name;
-
-        // Re-add affiliations from the actual contributor
-        $affiliations = $this->transformAffiliations($contributor);
-        if (! empty($affiliations)) {
-            $data['affiliation'] = $affiliations;
-        } else {
-            unset($data['affiliation']);
-        }
+        // Add contributor type - use slug for DataCite-compliant PascalCase values
+        $data['contributorType'] = $contributor->contributorType->slug ?? 'Other';
 
         return $data;
     }
@@ -413,24 +405,10 @@ trait DataCiteExporterHelpers
      */
     protected function buildInstitutionContributorData(ResourceContributor $contributor, Institution $institution): array
     {
-        $data = $this->buildInstitutionCreatorData(
-            new ResourceCreator([
-                'creatorable_id' => $institution->id,
-                'creatorable_type' => Institution::class,
-            ]),
-            $institution
-        );
+        $data = $this->buildInstitutionCreatorData($contributor, $institution);
 
-        // Add contributor type
-        $data['contributorType'] = $contributor->contributorType->name;
-
-        // Re-add affiliations from the actual contributor
-        $affiliations = $this->transformAffiliations($contributor);
-        if (! empty($affiliations)) {
-            $data['affiliation'] = $affiliations;
-        } else {
-            unset($data['affiliation']);
-        }
+        // Add contributor type - use slug for DataCite-compliant PascalCase values
+        $data['contributorType'] = $contributor->contributorType->slug ?? 'Other';
 
         return $data;
     }
