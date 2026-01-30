@@ -342,20 +342,28 @@ class DataCiteJsonExporter
      *
      * For IGSN resources, contributors are also included as creators to ensure
      * all contributing persons are prominently represented in the metadata.
-     * Duplicates are avoided by checking ORCID or name.
+     * Duplicates are avoided by checking both ORCID and normalized name.
      *
      * @return array<int, array<string, mixed>>
      */
     private function buildCreators(Resource $resource): array
     {
         $creators = [];
-        $seenIdentifiers = []; // Track ORCID/name combinations to avoid duplicates
+        $seenIdentifiers = []; // Associative set for O(1) duplicate lookups
 
         // 1. Build original creators
         foreach ($resource->creators as $creator) {
             if ($creator->creatorable_type === Person::class) {
+                $identifiers = $this->getPersonIdentifiers($creator);
+                // Skip if person cannot be resolved
+                if ($identifiers === null) {
+                    continue;
+                }
                 $creators[] = $this->buildPersonCreator($creator);
-                $seenIdentifiers[] = $this->getPersonIdentifier($creator);
+                // Mark all identifiers as seen (both ORCID and name if available)
+                foreach ($identifiers as $identifier) {
+                    $seenIdentifiers[$identifier] = true;
+                }
             } elseif ($creator->creatorable_type === Institution::class) {
                 $creators[] = $this->buildInstitutionCreator($creator);
             }
@@ -369,14 +377,30 @@ class DataCiteJsonExporter
                     continue;
                 }
 
-                // Check for duplicates
-                $identifier = $this->getPersonIdentifier($contributor);
-                if (in_array($identifier, $seenIdentifiers, true)) {
-                    continue; // Skip duplicate
+                $identifiers = $this->getPersonIdentifiers($contributor);
+                // Skip if person cannot be resolved
+                if ($identifiers === null) {
+                    continue;
+                }
+
+                // Check for duplicates - if any identifier matches, it's a duplicate
+                $isDuplicate = false;
+                foreach ($identifiers as $identifier) {
+                    if (isset($seenIdentifiers[$identifier])) {
+                        $isDuplicate = true;
+                        break;
+                    }
+                }
+
+                if ($isDuplicate) {
+                    continue;
                 }
 
                 $creators[] = $this->buildPersonAsCreatorFromContributor($contributor);
-                $seenIdentifiers[] = $identifier;
+                // Mark all identifiers as seen
+                foreach ($identifiers as $identifier) {
+                    $seenIdentifiers[$identifier] = true;
+                }
             }
         }
 
@@ -392,13 +416,14 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Get a unique identifier for a person to detect duplicates.
+     * Get unique identifiers for a person to detect duplicates.
      *
-     * Uses ORCID if available, otherwise falls back to normalized name.
+     * Returns both ORCID (if available) and normalized name to ensure
+     * duplicates are detected even when one record has ORCID and another doesn't.
      *
-     * @return string Unique identifier for the person
+     * @return array<int, string>|null Array of identifiers, or null if person cannot be resolved
      */
-    private function getPersonIdentifier(ResourceCreator|ResourceContributor $author): string
+    private function getPersonIdentifiers(ResourceCreator|ResourceContributor $author): ?array
     {
         /** @var Person|null $person */
         $person = $author instanceof ResourceCreator
@@ -406,18 +431,21 @@ class DataCiteJsonExporter
             : $author->contributorable;
 
         if (! $person instanceof Person) {
-            return '';
+            return null;
         }
 
-        // Prefer ORCID as unique identifier
-        if (! empty($person->name_identifier) && $person->name_identifier_scheme === 'ORCID') {
-            return 'orcid:' . $person->name_identifier;
-        }
+        $identifiers = [];
 
-        // Fallback to normalized name (lowercase, trimmed)
+        // Always include normalized name for matching
         $name = strtolower(trim(($person->family_name ?? '') . ',' . ($person->given_name ?? '')));
+        $identifiers[] = 'name:' . $name;
 
-        return 'name:' . $name;
+        // Also include ORCID if available
+        if (! empty($person->name_identifier) && $person->name_identifier_scheme === 'ORCID') {
+            $identifiers[] = 'orcid:' . $person->name_identifier;
+        }
+
+        return $identifiers;
     }
 
     /**

@@ -510,7 +510,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 2,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
 
         // Should have 3 creators: 1 original + 2 from contributors
@@ -553,7 +553,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 1,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
 
         // Should only have 1 creator (the original)
@@ -598,7 +598,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 1,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
 
         // Should only have 1 creator (duplicate avoided)
@@ -643,11 +643,63 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 1,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
 
         // Should only have 1 creator (duplicate avoided by name)
         expect($creators)->toHaveCount(1);
+    });
+
+    test('avoids duplicates when creator has ORCID but contributor does not', function () {
+        // Create resource with IGSN metadata
+        $resource = Resource::factory()->create();
+        \App\Models\IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Create person with ORCID as creator
+        $personWithOrcid = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+            'name_identifier' => '0000-0001-2345-6789',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        // Create same person without ORCID as contributor (e.g., data entry error)
+        $personWithoutOrcid = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'John',
+            'name_identifier' => null,
+            'name_identifier_scheme' => null,
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $personWithOrcid->id,
+            'position' => 1,
+        ]);
+
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $personWithoutOrcid->id,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $creators = $result['data']['attributes']['creators'];
+
+        // Should only have 1 creator (duplicate detected by name even though ORCID differs)
+        expect($creators)->toHaveCount(1);
+        expect($creators[0]['name'])->toBe('Smith, John');
     });
 
     test('excludes institution contributors from creators array in IGSN export', function () {
@@ -685,7 +737,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 1,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
 
         // Should only have 1 creator (institution excluded)
@@ -742,7 +794,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 2,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $contributors = $result['data']['attributes']['contributors'];
 
         // Contributors should still appear in the contributors element
@@ -791,7 +843,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'position' => 1,
         ]);
 
-        $result = (new DataCiteJsonExporter)->export($resource);
+        $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
 
         // Verify order: creators first, then contributors
