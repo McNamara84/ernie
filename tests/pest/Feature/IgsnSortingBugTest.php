@@ -86,28 +86,78 @@ describe('IGSN List Sorting Bug', function () {
         $response->assertStatus(200);
     });
 
-    it('can sort by collection_date descending (BUG REPRODUCTION)', function () {
+    it('sorts by collection_date descending correctly', function () {
         // Create test IGSNs with different collection dates
-        createIgsnResource('TEST-IGSN-001', '2024-01-15');
-        createIgsnResource('TEST-IGSN-002', '2024-06-20');
-        createIgsnResource('TEST-IGSN-003'); // No collection date
+        createIgsnResource('TEST-IGSN-EARLY', '2024-01-15');
+        createIgsnResource('TEST-IGSN-LATE', '2024-06-20');
+        createIgsnResource('TEST-IGSN-MIDDLE', '2024-03-10');
+        createIgsnResource('TEST-IGSN-NONE'); // No collection date
 
-        // This is the exact failing request from the bug report
         $response = $this->actingAs($this->user)
             ->get('/igsns?sort=collection_date&direction=desc');
 
-        // The bug causes a 500 error - this should return 200
         $response->assertStatus(200);
+
+        // Verify sort order: latest date first, null dates last
+        $igsns = $response->original->getData()['page']['props']['igsns'];
+        $collectionDates = collect($igsns)->pluck('collection_date')->toArray();
+
+        // Filter out nulls for comparison, then verify descending order
+        $datesWithValues = array_filter($collectionDates, fn ($d) => $d !== null);
+        $sortedDates = $datesWithValues;
+        rsort($sortedDates); // descending
+        expect(array_values($datesWithValues))->toBe(array_values($sortedDates));
     });
 
-    it('can sort by collection_date ascending', function () {
-        createIgsnResource('TEST-IGSN-001', '2024-01-15');
-        createIgsnResource('TEST-IGSN-002', '2024-06-20');
+    it('sorts by collection_date ascending correctly', function () {
+        createIgsnResource('TEST-IGSN-LATE', '2024-06-20');
+        createIgsnResource('TEST-IGSN-EARLY', '2024-01-15');
+        createIgsnResource('TEST-IGSN-MIDDLE', '2024-03-10');
 
         $response = $this->actingAs($this->user)
             ->get('/igsns?sort=collection_date&direction=asc');
 
         $response->assertStatus(200);
+
+        // Verify sort order: earliest date first
+        $igsns = $response->original->getData()['page']['props']['igsns'];
+        $collectionDates = collect($igsns)->pluck('collection_date')->toArray();
+
+        $sortedDates = $collectionDates;
+        sort($sortedDates); // ascending
+        expect($collectionDates)->toBe($sortedDates);
+    });
+
+    it('sorts by title alphabetically', function () {
+        createIgsnResource('TEST-IGSN-C'); // Title: "Sample TEST-IGSN-C"
+        createIgsnResource('TEST-IGSN-A'); // Title: "Sample TEST-IGSN-A"
+        createIgsnResource('TEST-IGSN-B'); // Title: "Sample TEST-IGSN-B"
+
+        // Test ascending order
+        $response = $this->actingAs($this->user)
+            ->get('/igsns?sort=title&direction=asc');
+
+        $response->assertStatus(200);
+
+        $igsns = $response->original->getData()['page']['props']['igsns'];
+        $titles = collect($igsns)->pluck('title')->toArray();
+
+        $sortedTitles = $titles;
+        sort($sortedTitles); // ascending alphabetical
+        expect($titles)->toBe($sortedTitles);
+
+        // Test descending order
+        $response = $this->actingAs($this->user)
+            ->get('/igsns?sort=title&direction=desc');
+
+        $response->assertStatus(200);
+
+        $igsns = $response->original->getData()['page']['props']['igsns'];
+        $titles = collect($igsns)->pluck('title')->toArray();
+
+        $sortedTitles = $titles;
+        rsort($sortedTitles); // descending alphabetical
+        expect($titles)->toBe($sortedTitles);
     });
 
     it('can sort by all allowed sort columns without error', function () {
