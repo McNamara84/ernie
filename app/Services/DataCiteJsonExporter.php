@@ -344,6 +344,9 @@ class DataCiteJsonExporter
      * all contributing persons are prominently represented in the metadata.
      * Duplicates are avoided by checking both ORCID and normalized name.
      *
+     * Unresolvable person relations are silently skipped. If no valid creators
+     * exist, a single "Unknown" placeholder is returned to satisfy DataCite schema.
+     *
      * @return array<int, array<string, mixed>>
      */
     private function buildCreators(Resource $resource): array
@@ -354,14 +357,18 @@ class DataCiteJsonExporter
         // 1. Build original creators
         foreach ($resource->creators as $creator) {
             if ($creator->creatorable_type === Person::class) {
-                $identifiers = $this->getPersonIdentifiers($creator);
-                // Skip if person cannot be resolved
-                if ($identifiers === null) {
+                /** @var Person|null $person */
+                $person = $creator->creatorable;
+
+                // Skip unresolvable person relations
+                if (! $person instanceof Person) {
                     continue;
                 }
-                $creators[] = $this->buildPersonCreator($creator);
-                // Mark all identifiers as seen (both ORCID and name if available)
-                foreach ($identifiers as $identifier) {
+
+                $creators[] = $this->buildPersonCreatorData($creator, $person);
+
+                // Mark identifiers as seen for duplicate detection
+                foreach ($this->getPersonIdentifiers($person) as $identifier) {
                     $seenIdentifiers[$identifier] = true;
                 }
             } elseif ($creator->creatorable_type === Institution::class) {
@@ -377,13 +384,16 @@ class DataCiteJsonExporter
                     continue;
                 }
 
-                $identifiers = $this->getPersonIdentifiers($contributor);
-                // Skip if person cannot be resolved
-                if ($identifiers === null) {
+                /** @var Person|null $person */
+                $person = $contributor->contributorable;
+
+                // Skip unresolvable person relations
+                if (! $person instanceof Person) {
                     continue;
                 }
 
                 // Check for duplicates - if any identifier matches, it's a duplicate
+                $identifiers = $this->getPersonIdentifiers($person);
                 $isDuplicate = false;
                 foreach ($identifiers as $identifier) {
                     if (isset($seenIdentifiers[$identifier])) {
@@ -396,8 +406,9 @@ class DataCiteJsonExporter
                     continue;
                 }
 
-                $creators[] = $this->buildPersonAsCreatorFromContributor($contributor);
-                // Mark all identifiers as seen
+                $creators[] = $this->buildPersonCreatorData($contributor, $person);
+
+                // Mark identifiers as seen
                 foreach ($identifiers as $identifier) {
                     $seenIdentifiers[$identifier] = true;
                 }
@@ -421,19 +432,10 @@ class DataCiteJsonExporter
      * Returns both ORCID (if available) and normalized name to ensure
      * duplicates are detected even when one record has ORCID and another doesn't.
      *
-     * @return array<int, string>|null Array of identifiers, or null if person cannot be resolved
+     * @return array<int, string> Array of identifiers (always contains at least the name)
      */
-    private function getPersonIdentifiers(ResourceCreator|ResourceContributor $author): ?array
+    private function getPersonIdentifiers(Person $person): array
     {
-        /** @var Person|null $person */
-        $person = $author instanceof ResourceCreator
-            ? $author->creatorable
-            : $author->contributorable;
-
-        if (! $person instanceof Person) {
-            return null;
-        }
-
         $identifiers = [];
 
         // Always include normalized name for matching
@@ -450,47 +452,6 @@ class DataCiteJsonExporter
         }
 
         return $identifiers;
-    }
-
-    /**
-     * Build a creator entry from a person contributor (for IGSN export).
-     *
-     * @return array<string, mixed>
-     */
-    private function buildPersonAsCreatorFromContributor(ResourceContributor $contributor): array
-    {
-        /** @var Person|null $person */
-        $person = $contributor->contributorable;
-
-        if (! $person instanceof Person) {
-            return [
-                'name' => 'Unknown',
-                'nameType' => 'Personal',
-            ];
-        }
-
-        // Reuse the trait method for consistent creator data building
-        return $this->buildPersonCreatorData($contributor, $person);
-    }
-
-    /**
-     * Build a person creator entry
-     *
-     * @return array<string, mixed>
-     */
-    private function buildPersonCreator(ResourceCreator $creator): array
-    {
-        /** @var Person|null $person */
-        $person = $creator->creatorable;
-
-        if (! $person instanceof Person) {
-            return [
-                'name' => 'Unknown',
-                'nameType' => 'Personal',
-            ];
-        }
-
-        return $this->buildPersonCreatorData($creator, $person);
     }
 
     /**
