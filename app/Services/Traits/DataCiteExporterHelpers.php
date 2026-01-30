@@ -391,8 +391,8 @@ trait DataCiteExporterHelpers
     {
         $data = $this->buildPersonCreatorData($contributor, $person);
 
-        // Add contributor type
-        $data['contributorType'] = $contributor->contributorType->name;
+        // Add contributor type - use slug for DataCite-compliant PascalCase values
+        $data['contributorType'] = $contributor->contributorType->slug ?? 'Other';
 
         return $data;
     }
@@ -406,8 +406,8 @@ trait DataCiteExporterHelpers
     {
         $data = $this->buildInstitutionCreatorData($contributor, $institution);
 
-        // Add contributor type
-        $data['contributorType'] = $contributor->contributorType->name;
+        // Add contributor type - use slug for DataCite-compliant PascalCase values
+        $data['contributorType'] = $contributor->contributorType->slug ?? 'Other';
 
         return $data;
     }

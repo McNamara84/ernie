@@ -441,8 +441,12 @@ class DataCiteJsonExporter
         $identifiers[] = 'name:' . $name;
 
         // Also include ORCID if available
-        if (! empty($person->name_identifier) && $person->name_identifier_scheme === 'ORCID') {
-            $identifiers[] = 'orcid:' . $person->name_identifier;
+        // Consistent with buildPersonNameIdentifier(): null scheme defaults to ORCID
+        if (! empty($person->name_identifier)) {
+            $scheme = $person->name_identifier_scheme ?? 'ORCID';
+            if (strtoupper($scheme) === 'ORCID') {
+                $identifiers[] = 'orcid:' . $person->name_identifier;
+            }
         }
 
         return $identifiers;
