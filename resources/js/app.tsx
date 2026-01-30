@@ -154,30 +154,136 @@ function showSessionRefreshNotification(): void {
     }, 3000);
 }
 
+// Track if we're currently refreshing the CSRF token to avoid loops
+let isRefreshingCsrf = false;
+let failedQueue: Array<{
+    resolve: (value: unknown) => void;
+    reject: (reason?: unknown) => void;
+    config: typeof axios.defaults;
+}> = [];
+
+/**
+ * Refresh the CSRF token via the Sanctum endpoint.
+ * Returns true if successful, false otherwise.
+ */
+async function refreshCsrfToken(): Promise<boolean> {
+    try {
+        await axios.get('/sanctum/csrf-cookie', {
+            withCredentials: true,
+            timeout: 5000,
+            // Skip the interceptor for this request to avoid infinite loops
+            headers: { 'X-Skip-CSRF-Refresh': 'true' },
+        });
+
+        // Update axios headers with new token
+        const xsrfCookie = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('XSRF-TOKEN='));
+
+        if (xsrfCookie) {
+            const token = decodeURIComponent(xsrfCookie.split('=')[1] || '');
+            axios.defaults.headers.common['X-XSRF-TOKEN'] = token;
+            axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+
+            // Also update the meta tag
+            const metaTag = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]');
+            if (metaTag) {
+                metaTag.content = token;
+            }
+
+            if (import.meta.env.DEV) {
+                console.debug('[CSRF] Token refreshed successfully');
+            }
+            return true;
+        }
+        return false;
+    } catch (error) {
+        if (import.meta.env.DEV) {
+            console.warn('[CSRF] Failed to refresh token:', error);
+        }
+        return false;
+    }
+}
+
+/**
+ * Process queued requests after CSRF refresh
+ */
+function processQueue(success: boolean): void {
+    failedQueue.forEach(({ resolve, reject }) => {
+        if (success) {
+            resolve(true);
+        } else {
+            reject(new Error('CSRF refresh failed'));
+        }
+    });
+    failedQueue = [];
+}
+
 // Add response interceptor to handle CSRF token refresh on 419 errors
 axios.interceptors.response.use(
     function (response) {
         return response;
     },
-    function (error) {
-        if (error.response && error.response.status === 419) {
-            console.warn('CSRF token mismatch, attempting to refresh...');
+    async function (error) {
+        const originalRequest = error.config;
 
-            // Store flag in sessionStorage so we can show notification after reload
+        // Check if this is a 419 error and we haven't already tried to refresh
+        if (
+            error.response?.status === 419 &&
+            !originalRequest._retry &&
+            !originalRequest.headers?.['X-Skip-CSRF-Refresh']
+        ) {
+            // If we're already refreshing, queue this request
+            if (isRefreshingCsrf) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject, config: originalRequest });
+                }).then(() => axios(originalRequest));
+            }
+
+            originalRequest._retry = true;
+            isRefreshingCsrf = true;
+
+            try {
+                const refreshed = await refreshCsrfToken();
+
+                if (refreshed) {
+                    processQueue(true);
+                    isRefreshingCsrf = false;
+
+                    // Retry the original request with updated headers
+                    const token =
+                        axios.defaults.headers.common['X-XSRF-TOKEN'] ||
+                        axios.defaults.headers.common['X-CSRF-TOKEN'];
+
+                    if (token) {
+                        originalRequest.headers['X-XSRF-TOKEN'] = token;
+                        originalRequest.headers['X-CSRF-TOKEN'] = token;
+                    }
+
+                    if (import.meta.env.DEV) {
+                        console.debug('[CSRF] Retrying request after token refresh');
+                    }
+
+                    return axios(originalRequest);
+                }
+            } catch (refreshError) {
+                processQueue(false);
+                isRefreshingCsrf = false;
+            }
+
+            // If refresh failed, fall back to page reload
+            console.warn('CSRF token refresh failed, reloading page...');
+
             try {
                 sessionStorage.setItem('csrf_refresh_pending', 'true');
             } catch {
-                // Intentionally ignored: sessionStorage may be unavailable in private
-                // browsing mode or when storage quota is exceeded. The page reload will
-                // still work, users just won't see the explanatory notification.
+                // Intentionally ignored
             }
 
-            // Force page reload to get new CSRF token.
-            // Return a never-resolving promise to prevent downstream error handlers
-            // from processing this error (which could cause duplicate reloads or unwanted UI).
             window.location.reload();
             return new Promise(() => {});
         }
+
         return Promise.reject(error);
     },
 );
