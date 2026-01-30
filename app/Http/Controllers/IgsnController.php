@@ -332,11 +332,13 @@ class IgsnController extends Controller
                 break;
 
             case 'title':
+                // Sort by the first title (ordered by title_type_id to prioritize MainTitle)
+                // Note: The column is named 'value' in the titles table
                 $query->orderBy(function ($q) {
-                    return $q->select('title as sort_value')
+                    return $q->select('value as sort_value')
                         ->from('titles')
                         ->whereColumn('titles.resource_id', 'resources.id')
-                        ->orderBy('position')
+                        ->orderBy('title_type_id')
                         ->limit(1);
                 }, $sortDirection);
                 break;
@@ -354,11 +356,12 @@ class IgsnController extends Controller
 
             case 'collection_date':
                 // Use COALESCE to prefer start_date over date_value (consistent with formatCollectionDate)
+                // Note: The table is named 'dates' (not 'resource_dates') - see ResourceDate model
                 $query->orderBy(function ($q) {
                     return $q->selectRaw('COALESCE(start_date, date_value) as sort_value')
-                        ->from('resource_dates')
-                        ->join('date_types', 'resource_dates.date_type_id', '=', 'date_types.id')
-                        ->whereColumn('resource_dates.resource_id', 'resources.id')
+                        ->from('dates')
+                        ->join('date_types', 'dates.date_type_id', '=', 'date_types.id')
+                        ->whereColumn('dates.resource_id', 'resources.id')
                         ->where('date_types.slug', 'Collected')
                         ->limit(1);
                 }, $sortDirection);
