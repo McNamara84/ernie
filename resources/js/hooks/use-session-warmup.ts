@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useEffect, useRef } from 'react';
 
-import { getXsrfTokenFromCookie } from '@/lib/csrf-token';
+import { syncCsrfTokenToAxiosAndMeta } from '@/lib/csrf-token';
 
 /**
  * Hook that ensures the session and CSRF token are properly initialized.
@@ -48,11 +48,9 @@ async function initializeCsrfToken(): Promise<void> {
             timeout: 5000,
         });
 
-        // After the cookie is set, update axios headers using shared helper
-        updateAxiosHeaders();
-
-        // Also update the meta tag to ensure consistency
-        updateMetaTag();
+        // After the cookie is set, sync to axios headers and meta tag
+        // using the shared helper for consistency with 419 refresh handling
+        syncCsrfTokenToAxiosAndMeta(axios.defaults.headers.common);
 
         if (import.meta.env.DEV) {
             console.debug('[Session] CSRF token initialized successfully');
@@ -63,32 +61,5 @@ async function initializeCsrfToken(): Promise<void> {
         }
         // Even if this fails, the user can still try - the 419 handler in app.tsx
         // will attempt to refresh the token and retry the request automatically
-    }
-}
-
-/**
- * Update axios default headers with the current XSRF token from cookies.
- * Uses the shared helper to correctly handle base64 values with padding.
- */
-function updateAxiosHeaders(): void {
-    const token = getXsrfTokenFromCookie();
-
-    if (token) {
-        axios.defaults.headers.common['X-XSRF-TOKEN'] = token;
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
-    }
-}
-
-/**
- * Update the CSRF meta tag to match the cookie token.
- * This ensures forms that read from the meta tag use the correct token.
- */
-function updateMetaTag(): void {
-    const token = getXsrfTokenFromCookie();
-    if (!token) return;
-
-    const metaTag = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]');
-    if (metaTag) {
-        metaTag.content = token;
     }
 }

@@ -45,9 +45,8 @@ test.describe('Font Size Toggle', () => {
     test('font size toggle button has correct accessibility attributes', async ({ page }) => {
         const toggleButton = page.getByTestId('font-size-quick-toggle');
 
-        // Check aria-label contains expected text pattern
-        const ariaLabel = await toggleButton.getAttribute('aria-label');
-        expect(ariaLabel).toMatch(/Font size: (Regular|Large)\. Click to switch to (regular|large) font size\./);
+        // Use Playwright's toHaveAttribute for better diagnostics on failure
+        await expect(toggleButton).toHaveAttribute('aria-label', /Font size: (Regular|Large)\. Click to switch to (regular|large) font size\./);
     });
 
     test('font size toggle is accessible via keyboard', async ({ page }) => {

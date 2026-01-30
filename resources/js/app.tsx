@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
-import { buildCsrfHeaders, getXsrfTokenFromCookie } from './lib/csrf-token';
+import { buildCsrfHeaders, syncCsrfTokenToAxiosAndMeta } from './lib/csrf-token';
 import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -164,7 +164,6 @@ let isRefreshingCsrf = false;
 let failedQueue: Array<{
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
-    config: AxiosRequestConfigWithRetry;
 }> = [];
 
 /**
@@ -180,19 +179,10 @@ async function refreshCsrfToken(): Promise<boolean> {
             headers: { 'X-Skip-CSRF-Refresh': 'true' },
         });
 
-        // Update axios headers with new token using shared helper (handles base64 padding correctly)
-        const token = getXsrfTokenFromCookie();
+        // Use shared helper to sync token to axios headers and meta tag
+        const token = syncCsrfTokenToAxiosAndMeta(axios.defaults.headers.common);
 
         if (token) {
-            axios.defaults.headers.common['X-XSRF-TOKEN'] = token;
-            axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
-
-            // Also update the meta tag
-            const metaTag = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]');
-            if (metaTag) {
-                metaTag.content = token;
-            }
-
             if (import.meta.env.DEV) {
                 console.debug('[CSRF] Token refreshed successfully');
             }
@@ -240,7 +230,7 @@ axios.interceptors.response.use(
             if (isRefreshingCsrf) {
                 originalRequest._retry = true;
                 return new Promise((resolve, reject) => {
-                    failedQueue.push({ resolve, reject, config: originalRequest });
+                    failedQueue.push({ resolve, reject });
                 }).then(() => axios(originalRequest));
             }
 
