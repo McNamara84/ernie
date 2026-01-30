@@ -59,14 +59,10 @@ class BatchIgsnController extends Controller
                 ]);
             }
 
-            // Delete the locked resources
-            $deletedCount = Resource::whereIn('id', $ids)->delete();
-
-            // Verify all were deleted (should always succeed with locking, but safety check)
-            if ($deletedCount !== count($ids)) {
-                throw ValidationException::withMessages([
-                    'ids' => ['Some IGSNs could not be deleted. Please refresh and try again.'],
-                ]);
+            // Delete each resource individually to trigger Eloquent events/observers
+            // This ensures ResourceObserver::deleted() fires and caches are invalidated
+            foreach ($lockedResources as $resource) {
+                $resource->delete();
             }
         });
 
