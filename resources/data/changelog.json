@@ -7,6 +7,12 @@
                 "title": "IGSN Contributors in Creator Element",
                 "description": "For IGSN resources (physical samples), contributors are now also included in the 'creators' element when exporting to DataCite JSON format. This ensures that all persons who contributed to the sample collection are prominently represented in the metadata. Contributors still appear in the 'contributors' element with their original role. Duplicates are automatically detected and avoided using ORCID or name matching."
             }
+        ],
+        "fixes": [
+            {
+                "title": "IGSN List Sorting by Collection Date",
+                "description": "Fixed a 500 Internal Server Error that occurred when sorting the IGSN list by 'Collection Date' or 'Title'. The error was caused by incorrect table and column names in the sorting queries. The 'dates' table was incorrectly referenced as 'resource_dates', and the 'value' column in the titles table was incorrectly referenced as 'title'."
+            }
         ]
     },
     {
