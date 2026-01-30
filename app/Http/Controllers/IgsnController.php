@@ -332,9 +332,8 @@ class IgsnController extends Controller
                 break;
 
             case 'title':
-                // Sort by MainTitle first (title_type_id), then by id
+                // Sort by the first title (ordered by title_type_id to prioritize MainTitle)
                 // Note: The column is named 'value' in the titles table
-                // Note: titles table has no 'position' column, use title_type_id to prioritize MainTitle
                 $query->orderBy(function ($q) {
                     return $q->select('value as sort_value')
                         ->from('titles')
