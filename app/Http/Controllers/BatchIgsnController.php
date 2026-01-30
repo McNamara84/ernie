@@ -20,6 +20,12 @@ use Illuminate\Validation\ValidationException;
 class BatchIgsnController extends Controller
 {
     /**
+     * Maximum number of IGSNs that can be deleted in a single batch operation.
+     * Matches MAX_PER_PAGE in IgsnController to align with UI pagination.
+     */
+    private const MAX_BATCH_SIZE = 100;
+
+    /**
      * Delete multiple IGSN resources.
      *
      * Only admins can delete IGSN resources.
@@ -36,7 +42,7 @@ class BatchIgsnController extends Controller
         }
 
         $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
+            'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
             'ids.*' => ['required', 'integer', 'exists:resources,id'],
         ]);
 

@@ -237,6 +237,18 @@ describe('IGSN Batch Delete', function () {
 
         $response->assertSessionHasErrors('ids.0');
     });
+
+    it('rejects more than 100 IDs to prevent performance issues', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+
+        // Create an array of 101 fake IDs (we don't need real resources for this validation test)
+        $tooManyIds = range(1, 101);
+
+        $response = $this->actingAs($admin)
+            ->delete('/igsns/batch', ['ids' => $tooManyIds]);
+
+        $response->assertSessionHasErrors('ids');
+    });
 });
 
 describe('IGSN List Page Selection', function () {
