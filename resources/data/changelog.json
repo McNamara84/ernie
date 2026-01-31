@@ -2,39 +2,11 @@
     {
         "version": "1.0.0dev",
         "date": "2026-01-30",
-        "improvements": [
-            {
-                "title": "IGSN Contributors in Creator Element",
-                "description": "For IGSN resources (physical samples), contributors are now also included in the 'creators' element when exporting to DataCite JSON format. This ensures that all persons who contributed to the sample collection are prominently represented in the metadata. Contributors still appear in the 'contributors' element with their original role. Duplicates are automatically detected and avoided using ORCID or name matching."
-            }
-        ],
-        "fixes": [
-            {
-                "title": "IGSN List Sorting by Collection Date",
-                "description": "Fixed a 500 Internal Server Error that occurred when sorting the IGSN list by 'Collection Date' or 'Title'. The error was caused by incorrect table and column names in the sorting queries. The 'dates' table was incorrectly referenced as 'resource_dates', and the 'value' column in the titles table was incorrectly referenced as 'title'."
-            }
-        ]
-    },
-    {
-        "version": "1.0.0dev",
-        "date": "2026-01-29",
         "features": [
             {
                 "title": "IGSN Bulk Selection and Delete",
                 "description": "The IGSN list page now supports selecting multiple records using checkboxes. A 'Select All' checkbox in the table header selects all items on the current page. When items are selected, a bulk actions toolbar appears showing the selection count and available actions. Administrators can delete multiple IGSNs at once via the bulk delete button. The table header now remains fixed while scrolling through the data, ensuring action buttons are always visible. This architecture is designed for future bulk operations like batch export."
-            }
-        ],
-        "improvements": [
-            {
-                "title": "IGSN Name Field Mapping Corrected",
-                "description": "The 'name' column from IGSN CSV uploads is now correctly mapped to DataCite alternateIdentifier with type 'Local accession number' instead of being stored as a Title. The 'sample_other_names' field continues to be exported as alternateIdentifiers with type 'Local sample name'. This ensures proper compliance with IGSN metadata standards."
-            }
-        ]
-    },
-    {
-        "version": "1.0.0dev",
-        "date": "2026-01-27",
-        "features": [
+            },
             {
                 "title": "IGSN Landing Pages",
                 "description": "Physical samples (IGSNs) can now have their own landing pages. A new 'Setup Landing Page' button on the IGSN list page opens a modal to configure and publish landing pages. The IGSN landing page template displays a simplified view with the sample title, citation, and publication status, using a flask icon to distinguish it from regular data resources. Preview and publish functionality works the same as for standard resources."
@@ -94,6 +66,14 @@
         ],
         "improvements": [
             {
+                "title": "IGSN Name Field Mapping Corrected",
+                "description": "The 'name' column from IGSN CSV uploads is now correctly mapped to DataCite alternateIdentifier with type 'Local accession number' instead of being stored as a Title. The 'sample_other_names' field continues to be exported as alternateIdentifiers with type 'Local sample name'. This ensures proper compliance with IGSN metadata standards."
+            },
+            {
+                "title": "IGSN Contributors in Creator Element",
+                "description": "For IGSN resources (physical samples), contributors are now also included in the 'creators' element when exporting to DataCite JSON format. This ensures that all persons who contributed to the sample collection are prominently represented in the metadata. Contributors still appear in the 'contributors' element with their original role. Duplicates are automatically detected and avoided using ORCID or name matching."
+            },
+            {
                 "title": "Migrated to shadcn/ui Component Library",
                 "description": "The application now uses shadcn/ui components consistently for better accessibility and visual consistency. This includes ScrollArea for scrollable lists with styled scrollbars, DataTable components with skeleton loading states, DatePicker with calendar popover, Command/Combobox for search dialogs, and consistent loading indicators using Skeleton and Loader2 components."
             },
@@ -139,6 +119,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "IGSN List Sorting by Collection Date",
+                "description": "Fixed a 500 Internal Server Error that occurred when sorting the IGSN list by 'Collection Date' or 'Title'. The error was caused by incorrect table and column names in the sorting queries. The 'dates' table was incorrectly referenced as 'resource_dates', and the 'value' column in the titles table was incorrectly referenced as 'title'."
+            },
             {
                 "title": "Loss of Contact Person Email and Website during XML Upload",
                 "description": "Fixed an issue where email addresses and website URLs of contact persons were lost when uploading DataCite XML files. The system now extracts contact information from the embedded ISO 19115 section (pointOfContact elements) and automatically associates it with the corresponding authors. ContactPerson contributors are matched to authors by ORCID (preferred) or name, eliminating the need to manually re-enter contact details that were already present in the exported XML."

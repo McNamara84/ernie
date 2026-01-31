@@ -164,13 +164,14 @@
     }
 }
 
-/* Font size adjustments for large preference */
+/* Font size adjustments for large preference
+   Since Tailwind uses rem units based on the root font-size (default 16px),
+   increasing the root font-size will proportionally scale all text.
+   Default: 16px (1rem = 16px)
+   Large: 18px (1rem = 18px, ~12.5% increase)
+*/
 .font-large {
-    /* Increase smaller font sizes by 2px for better readability */
-    --font-size-xs: 14px; /* was 12px */
-    --font-size-sm: 16px; /* was 14px */
-    --font-size-base: 18px; /* was 16px */
-    /* Larger font sizes (e.g., headings) remain unchanged */
+    font-size: 18px;
 }
 
 @layer components {

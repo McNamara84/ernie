@@ -1,3 +1,5 @@
+import type { AxiosHeaderValue } from 'axios';
+
 const CSRF_META_SELECTOR = 'meta[name="csrf-token"]';
 const XSRF_COOKIE_NAME = 'XSRF-TOKEN';
 
@@ -115,4 +117,46 @@ export const buildCsrfHeaders = (): Record<string, string> => {
     }
 
     return headers;
+};
+
+/**
+ * Syncs the CSRF token from the cookie to axios defaults and the meta tag.
+ *
+ * This is the single source of truth for token propagation after a Sanctum
+ * CSRF refresh. It ensures:
+ * 1. `axios.defaults.headers` are updated with both X-CSRF-TOKEN and X-XSRF-TOKEN
+ * 2. The `<meta name="csrf-token">` tag is updated for forms that read it
+ *
+ * @param axiosDefaultHeaders - The axios default headers object (i.e., `axios.defaults.headers.common`)
+ * @returns The token if sync was successful, null otherwise
+ */
+export const syncCsrfTokenToAxiosAndMeta = (
+    axiosDefaultHeaders: Record<string, AxiosHeaderValue | undefined>,
+): string | null => {
+    const token = getXsrfTokenFromCookie();
+
+    if (!token) {
+        if (import.meta.env.DEV) {
+            console.warn('[CSRF] No token in cookie to sync');
+        }
+        return null;
+    }
+
+    // Update axios defaults
+    axiosDefaultHeaders['X-XSRF-TOKEN'] = token;
+    axiosDefaultHeaders['X-CSRF-TOKEN'] = token;
+
+    // Update meta tag for forms that read from it
+    if (isBrowser()) {
+        const metaTag = document.querySelector<HTMLMetaElement>(CSRF_META_SELECTOR);
+        if (metaTag) {
+            metaTag.content = token;
+        }
+    }
+
+    if (import.meta.env.DEV) {
+        console.debug('[CSRF] Token synced to axios and meta tag');
+    }
+
+    return token;
 };

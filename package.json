@@ -1,6 +1,6 @@
 {
   "name": "ernie",
-  "version": "1.0.0b",
+  "version": "1.0.0rc1",
   "private": true,
   "type": "module",
   "engines": {
