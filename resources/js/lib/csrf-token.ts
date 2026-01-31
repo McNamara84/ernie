@@ -1,3 +1,5 @@
+import type { AxiosHeaderValue } from 'axios';
+
 const CSRF_META_SELECTOR = 'meta[name="csrf-token"]';
 const XSRF_COOKIE_NAME = 'XSRF-TOKEN';
 
@@ -129,7 +131,7 @@ export const buildCsrfHeaders = (): Record<string, string> => {
  * @returns The token if sync was successful, null otherwise
  */
 export const syncCsrfTokenToAxiosAndMeta = (
-    axiosDefaultHeaders: Record<string, unknown>,
+    axiosDefaultHeaders: Record<string, AxiosHeaderValue | undefined>,
 ): string | null => {
     const token = getXsrfTokenFromCookie();
 
