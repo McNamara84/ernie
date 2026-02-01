@@ -146,8 +146,8 @@ it('returns 500 when the OpenAPI file contains invalid JSON', function () {
 });
 
 it('dynamically replaces URLs with current APP_URL', function () {
-    // The server URL and termsOfService should be replaced with APP_URL
-    $appUrl = config('app.url');
+    // Mirror the same normalization as the controller (trim trailing slashes)
+    $appUrl = rtrim((string) config('app.url'), '/');
 
     getJson('/api/v1/doc')
         ->assertOk()
