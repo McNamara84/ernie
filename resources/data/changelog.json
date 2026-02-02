@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-30",
+        "date": "2026-02-01",
         "features": [
             {
                 "title": "IGSN Bulk Selection and Delete",
@@ -119,6 +119,14 @@
             }
         ],
         "fixes": [
+            {
+                "title": "API Documentation Shows Wrong Base URL",
+                "description": "Fixed an issue where the OpenAPI documentation at /api/v1/doc displayed the hardcoded stage environment URL instead of the current environment's URL. The server URL and termsOfService link are now dynamically replaced with the configured APP_URL, ensuring correct URLs on all environments (local, stage, production)."
+            },
+            {
+                "title": "ERNIE_API_KEY Not Passed to Docker Container",
+                "description": "Fixed missing ERNIE_API_KEY environment variable in docker-compose.prod.yml and docker-compose.stage.yml. The API key configured in Portainer was not being passed to the application container, causing API authentication to fail."
+            },
             {
                 "title": "IGSN List Sorting by Collection Date",
                 "description": "Fixed a 500 Internal Server Error that occurred when sorting the IGSN list by 'Collection Date' or 'Title'. The error was caused by incorrect table and column names in the sorting queries. The 'dates' table was incorrectly referenced as 'resource_dates', and the 'value' column in the titles table was incorrectly referenced as 'title'."

@@ -25,6 +25,7 @@ services:
       - APP_ENV=production
       - APP_DEBUG=false
       - INERTIA_SSR_ENABLED=false
+      - ERNIE_API_KEY=${ERNIE_API_KEY}
       - DATACITE_ENDPOINT=${DATACITE_ENDPOINT:-https://api.datacite.org}
       - DATACITE_CLIENT_ID=${DATACITE_CLIENT_ID:-tib.gfz}
       - DATACITE_USERNAME=${DATACITE_USERNAME}
