@@ -68,10 +68,15 @@ describe('ResourceType API with descriptions', function () {
             '*' => ['id', 'name', 'description'],
         ]);
 
-        // Verify at least some descriptions are present
+        // Verify ALL returned resource types have non-empty descriptions
         $data = $response->json();
-        $hasDescriptions = collect($data)->filter(fn ($item) => ! empty($item['description']))->count();
+        $missingDescriptions = collect($data)
+            ->filter(fn ($item) => empty($item['description']))
+            ->pluck('name')
+            ->toArray();
 
-        expect($hasDescriptions)->toBeGreaterThan(0, 'API should return resource types with descriptions');
+        expect($missingDescriptions)->toBeEmpty(
+            'API returned resource types without descriptions: '.implode(', ', $missingDescriptions)
+        );
     });
 });
