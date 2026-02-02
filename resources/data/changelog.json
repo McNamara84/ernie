@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-01",
+        "date": "2026-02-02",
         "features": [
             {
                 "title": "IGSN Bulk Selection and Delete",
@@ -119,6 +119,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Thesauri Settings Auto-Recovery",
+                "description": "Fixed a bug where the three GCMD thesauri (Science Keywords, Platforms, Instruments) were not displayed on the Editor Settings page. This occurred when the thesaurus settings database entries were missing (e.g., seeder not run or entries accidentally deleted). The system now automatically creates missing thesaurus settings when the settings page is loaded, ensuring the thesauri are always available for updates."
+            },
             {
                 "title": "API Documentation Shows Wrong Base URL",
                 "description": "Fixed an issue where the OpenAPI documentation at /api/v1/doc displayed the hardcoded stage environment URL instead of the current environment's URL. The server URL and termsOfService link are now dynamically replaced with the configured APP_URL, ensuring correct URLs on all environments (local, stage, production)."
