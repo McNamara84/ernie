@@ -105,7 +105,7 @@
     "globals": "^17.0.0",
     "laravel-vite-plugin": "^2.0",
     "leaflet": "^1.9.4",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^0.563.0",
     "papaparse": "^5.5.3",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
