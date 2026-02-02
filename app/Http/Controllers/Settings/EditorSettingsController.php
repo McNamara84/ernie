@@ -25,6 +25,9 @@ class EditorSettingsController extends Controller
 
     public function index(): Response
     {
+        // Ensure thesaurus settings exist (auto-create if missing)
+        $this->ensureThesaurusSettingsExist();
+
         // Map database fields to frontend expected field names
         $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
             'id' => $r->id,
@@ -205,5 +208,39 @@ class EditorSettingsController extends Controller
         });
 
         return back()->with('success', 'Settings updated');
+    }
+
+    /**
+     * Ensure all three thesaurus settings exist in the database.
+     * This is a fallback mechanism to handle cases where the seeder wasn't run
+     * or entries were accidentally deleted.
+     */
+    private function ensureThesaurusSettingsExist(): void
+    {
+        $thesauriConfig = [
+            [
+                'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+                'display_name' => 'GCMD Science Keywords',
+            ],
+            [
+                'type' => ThesaurusSetting::TYPE_PLATFORMS,
+                'display_name' => 'GCMD Platforms',
+            ],
+            [
+                'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
+                'display_name' => 'GCMD Instruments',
+            ],
+        ];
+
+        foreach ($thesauriConfig as $config) {
+            ThesaurusSetting::firstOrCreate(
+                ['type' => $config['type']],
+                [
+                    'display_name' => $config['display_name'],
+                    'is_active' => true,
+                    'is_elmo_active' => true,
+                ]
+            );
+        }
     }
 }
