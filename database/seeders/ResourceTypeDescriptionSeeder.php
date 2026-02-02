@@ -61,6 +61,16 @@ class ResourceTypeDescriptionSeeder extends Seeder
     ];
 
     /**
+     * Get the resource type names that have descriptions defined.
+     *
+     * @return array<string>
+     */
+    public static function getDescriptionKeys(): array
+    {
+        return array_keys(self::DESCRIPTIONS);
+    }
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
