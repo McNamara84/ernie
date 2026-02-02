@@ -3,14 +3,14 @@ import { expect, test } from '@playwright/test';
 import { STAGE_TEST_PASSWORD, STAGE_TEST_USERNAME } from '../constants';
 
 /**
- * Thesauri Settings Bug Reproduction Test
+ * Thesauri Settings Regression Test
  * 
- * This test reproduces a bug where the three thesauri (Science Keywords, Platforms, Instruments)
- * are not displayed in the Settings page after an update was performed.
+ * This test verifies that the three thesauri (Science Keywords, Platforms, Instruments)
+ * are displayed in the Settings page.
  * 
- * The bug: After updating thesauri settings, the thesauri are no longer visible on /settings,
- * so users cannot check for updates anymore. However, the thesauri are still available
- * in the Data Editor under /editor.
+ * Background: A bug was found where thesauri weren't visible after the seeder wasn't run
+ * or entries were accidentally deleted. The fix auto-creates missing thesaurus settings
+ * when the settings page is loaded.
  * 
  * Usage:
  *   npx playwright test --config=playwright.stage.config.ts tests/playwright/stage/thesauri-settings-bug.spec.ts

@@ -5,6 +5,7 @@ use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Setting;
+use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -144,4 +145,58 @@ test('updating settings with invalid data returns errors', function () {
 
     $response->assertSessionHasErrors('maxTitles')
         ->assertRedirect(route('settings'));
+});
+
+test('thesaurus settings are auto-created when missing', function () {
+    // Regression test: Ensure thesauri are automatically created if they don't exist
+    // This fixes a bug where thesauri weren't displayed after the seeder wasn't run
+    $user = User::factory()->admin()->create();
+    ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]);
+    TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]);
+    Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);
+    Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
+    Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
+
+    // Verify no thesaurus settings exist initially
+    expect(ThesaurusSetting::count())->toBe(0);
+
+    $this->actingAs($user);
+    withoutVite();
+
+    // Access the settings page - this should auto-create thesaurus settings
+    $response = $this->get(route('settings'))->assertOk();
+
+    // Verify all three thesaurus settings were created
+    expect(ThesaurusSetting::count())->toBe(3);
+
+    $this->assertDatabaseHas('thesaurus_settings', [
+        'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+        'display_name' => 'GCMD Science Keywords',
+        'is_active' => true,
+        'is_elmo_active' => true,
+    ]);
+    $this->assertDatabaseHas('thesaurus_settings', [
+        'type' => ThesaurusSetting::TYPE_PLATFORMS,
+        'display_name' => 'GCMD Platforms',
+        'is_active' => true,
+        'is_elmo_active' => true,
+    ]);
+    $this->assertDatabaseHas('thesaurus_settings', [
+        'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
+        'display_name' => 'GCMD Instruments',
+        'is_active' => true,
+        'is_elmo_active' => true,
+    ]);
+
+    // Verify thesauri are returned in the response
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('settings/index')
+        ->has('thesauri', 3)
+        ->where('thesauri.0.type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
+        ->where('thesauri.0.displayName', 'GCMD Science Keywords')
+        ->where('thesauri.1.type', ThesaurusSetting::TYPE_PLATFORMS)
+        ->where('thesauri.2.type', ThesaurusSetting::TYPE_INSTRUMENTS)
+    );
 });
