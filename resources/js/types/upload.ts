@@ -48,9 +48,10 @@ export interface UploadErrorResponse {
 
 /**
  * Success response from XML upload endpoint.
+ * Note: Backend does not include 'success' field, only 'sessionKey'.
  */
 export interface XmlUploadSuccessResponse {
-    success: true;
+    success?: true;
     /** Session key for retrieving parsed XML data */
     sessionKey: string;
 }
@@ -62,6 +63,8 @@ export interface CsvUploadSuccessResponse {
     success: true;
     /** Number of IGSNs created */
     created: number;
+    /** Filename that was uploaded */
+    filename?: string;
     /** Optional success message */
     message?: string;
     /** Partial errors (some rows failed but others succeeded) */
@@ -77,21 +80,22 @@ export type UploadResponse = UploadErrorResponse | XmlUploadSuccessResponse | Cs
  * Type guard to check if response is an error.
  */
 export function isUploadError(response: UploadResponse): response is UploadErrorResponse {
-    return response.success === false;
+    return 'success' in response && response.success === false;
 }
 
 /**
  * Type guard to check if response is XML success.
+ * Note: Backend XML success response only contains 'sessionKey', not 'success'.
  */
 export function isXmlUploadSuccess(response: UploadResponse): response is XmlUploadSuccessResponse {
-    return response.success === true && 'sessionKey' in response;
+    return 'sessionKey' in response && (response.success === true || response.success === undefined);
 }
 
 /**
  * Type guard to check if response is CSV success.
  */
 export function isCsvUploadSuccess(response: UploadResponse): response is CsvUploadSuccessResponse {
-    return response.success === true && 'created' in response;
+    return 'success' in response && response.success === true && 'created' in response;
 }
 
 /**

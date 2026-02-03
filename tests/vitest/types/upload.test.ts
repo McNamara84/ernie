@@ -34,11 +34,20 @@ describe('Upload Types', () => {
     });
 
     describe('isXmlUploadSuccess', () => {
-        it('returns true for XML success response', () => {
+        it('returns true for XML success response with explicit success', () => {
             const response: XmlUploadSuccessResponse = {
                 success: true,
                 sessionKey: 'abc123',
             };
+
+            expect(isXmlUploadSuccess(response)).toBe(true);
+        });
+
+        it('returns true for XML success response without success field (real backend response)', () => {
+            // Backend XML upload only returns { sessionKey: '...' }
+            const response = {
+                sessionKey: 'abc123',
+            } as XmlUploadSuccessResponse;
 
             expect(isXmlUploadSuccess(response)).toBe(true);
         });
