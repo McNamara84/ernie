@@ -41,6 +41,8 @@ class UploadXmlRequest extends FormRequest
      * Handle a failed validation attempt.
      *
      * Logs the validation failure and returns a structured JSON error response.
+     * The response format is compatible with Laravel's standard validation format
+     * (contains 'message' and 'errors' keys) while also including our custom fields.
      */
     protected function failedValidation(Validator $validator): void
     {
@@ -62,9 +64,14 @@ class UploadXmlRequest extends FormRequest
         // Map Laravel validation to our error codes
         $errorCode = $this->mapValidationErrorCode($errors);
 
+        // Response format is compatible with Laravel's standard validation format
+        // (message + errors) while also including our structured error fields
         throw new HttpResponseException(response()->json([
-            'success' => false,
+            // Standard Laravel validation format (for assertJsonValidationErrors)
             'message' => $firstError,
+            'errors' => $errors,
+            // Our custom structured error format
+            'success' => false,
             'filename' => $filename,
             'error' => [
                 'category' => 'validation',
@@ -87,14 +94,17 @@ class UploadXmlRequest extends FormRequest
         if (isset($errors['file'])) {
             $fileErrors = $errors['file'];
             foreach ($fileErrors as $error) {
-                if (str_contains(strtolower($error), 'larger') || str_contains(strtolower($error), 'size')) {
+                $lowerError = strtolower($error);
+                if (str_contains($lowerError, 'larger') || str_contains($lowerError, 'size')) {
                     return 'file_too_large';
                 }
-                if (str_contains(strtolower($error), 'xml') || str_contains(strtolower($error), 'type')) {
-                    return 'invalid_file_type';
-                }
-                if (str_contains(strtolower($error), 'required') || str_contains(strtolower($error), 'upload')) {
+                // Check for required/upload BEFORE xml/type to avoid false positives
+                // ("Please upload an XML file" contains both "upload" and "xml")
+                if (str_contains($lowerError, 'required') || str_contains($lowerError, 'upload')) {
                     return 'file_required';
+                }
+                if (str_contains($lowerError, 'xml') || str_contains($lowerError, 'type')) {
+                    return 'invalid_file_type';
                 }
             }
         }

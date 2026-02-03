@@ -21,6 +21,7 @@ use JsonException;
 use Saloon\XmlWrangler\Data\Element;
 use Saloon\XmlWrangler\Exceptions\XmlReaderException;
 use Saloon\XmlWrangler\XmlReader;
+use VeeWee\Xml\Exception\RuntimeException as XmlRuntimeException;
 
 class UploadXmlController extends Controller
 {
@@ -96,7 +97,89 @@ class UploadXmlController extends Controller
 
         try {
             $reader = XmlReader::fromString($contents);
-        } catch (XmlReaderException $e) {
+
+            $doi = $this->extractFirstStringFromQuery(
+                $reader->xpathValue('//*[local-name()="identifier" and @identifierType="DOI"]'),
+            );
+            $year = $this->extractFirstStringFromQuery(
+                $reader->xpathValue('//*[local-name()="publicationYear"]'),
+            );
+            $version = $this->extractFirstStringFromQuery(
+                $reader->xpathValue('//*[local-name()="version"]'),
+            );
+            $language = $this->extractFirstStringFromQuery(
+                $reader->xpathValue('//*[local-name()="language"]'),
+            );
+            $authors = $this->extractAuthors($reader);
+            $contributorsAndLabs = $this->extractContributorsAndMslLaboratories($reader);
+            $contributors = $contributorsAndLabs['contributors'];
+            $mslLaboratories = $contributorsAndLabs['mslLaboratories'];
+            $contactPersons = $contributorsAndLabs['contactPersons'];
+
+            // Extract contact info (email, website) from ISO 19115 part of the XML
+            $isoContactInfo = $this->extractContactInfoFromIso($reader);
+
+            // Merge ContactPerson contributors into authors with isContact flag and contact info
+            $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons, $isoContactInfo);
+
+            $descriptions = $this->extractDescriptions($reader);
+            $dates = $this->extractDates($reader);
+            $coverages = $this->extractCoverages($reader, $dates);
+            $gcmdKeywords = $this->extractGcmdKeywords($reader);
+
+            // Use dedicated service for keyword extraction
+            $keywordExtractor = new XmlKeywordExtractor;
+            $freeKeywords = $keywordExtractor->extractFreeKeywords($reader);
+            $mslKeywords = $keywordExtractor->extractMslKeywords($reader);
+
+            $rightsElements = $reader
+                ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
+                ->get();
+            $licenses = [];
+
+            foreach ($rightsElements as $element) {
+                $identifier = $element->getAttribute('rightsIdentifier');
+                if ($identifier) {
+                    $licenses[] = $identifier;
+                }
+            }
+
+            $titleElements = $reader
+                ->xpathElement('//*[local-name()="resource"]/*[local-name()="titles"]/*[local-name()="title"]')
+                ->get();
+            $titles = [];
+
+            foreach ($titleElements as $element) {
+                $titleType = $element->getAttribute('titleType');
+                $titles[] = [
+                    'title' => $element->getContent(),
+                    'titleType' => $titleType ? Str::kebab($titleType) : 'main-title',
+                ];
+            }
+
+            $mainTitles = array_values(array_filter(
+                $titles,
+                fn ($t) => $t['titleType'] === 'main-title'
+            ));
+            $otherTitles = array_values(array_filter(
+                $titles,
+                fn ($t) => $t['titleType'] !== 'main-title'
+            ));
+            $titles = array_merge($mainTitles, $otherTitles);
+
+            $resourceTypeElement = $this->extractFirstElementFromQuery(
+                $reader->xpathElement('//*[local-name()="resourceType"]'),
+            );
+            $resourceTypeName = $resourceTypeElement?->getAttribute('resourceTypeGeneral');
+            $resourceType = null;
+
+            if ($resourceTypeName !== null) {
+                $resourceTypeModel = ResourceType::whereRaw('LOWER(name) = ?', [Str::lower($resourceTypeName)])->first();
+                $resourceType = $resourceTypeModel?->id;
+            }
+
+            $fundingReferences = $this->extractFundingReferences($reader);
+        } catch (XmlReaderException|XmlRuntimeException $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::XML_PARSE_ERROR,
                 'The XML file could not be parsed: '.$e->getMessage()
@@ -126,88 +209,6 @@ class UploadXmlController extends Controller
                 'An unexpected error occurred while parsing the XML file.'
             );
         }
-
-        $doi = $this->extractFirstStringFromQuery(
-            $reader->xpathValue('//*[local-name()="identifier" and @identifierType="DOI"]'),
-        );
-        $year = $this->extractFirstStringFromQuery(
-            $reader->xpathValue('//*[local-name()="publicationYear"]'),
-        );
-        $version = $this->extractFirstStringFromQuery(
-            $reader->xpathValue('//*[local-name()="version"]'),
-        );
-        $language = $this->extractFirstStringFromQuery(
-            $reader->xpathValue('//*[local-name()="language"]'),
-        );
-        $authors = $this->extractAuthors($reader);
-        $contributorsAndLabs = $this->extractContributorsAndMslLaboratories($reader);
-        $contributors = $contributorsAndLabs['contributors'];
-        $mslLaboratories = $contributorsAndLabs['mslLaboratories'];
-        $contactPersons = $contributorsAndLabs['contactPersons'];
-
-        // Extract contact info (email, website) from ISO 19115 part of the XML
-        $isoContactInfo = $this->extractContactInfoFromIso($reader);
-
-        // Merge ContactPerson contributors into authors with isContact flag and contact info
-        $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons, $isoContactInfo);
-
-        $descriptions = $this->extractDescriptions($reader);
-        $dates = $this->extractDates($reader);
-        $coverages = $this->extractCoverages($reader, $dates);
-        $gcmdKeywords = $this->extractGcmdKeywords($reader);
-
-        // Use dedicated service for keyword extraction
-        $keywordExtractor = new XmlKeywordExtractor;
-        $freeKeywords = $keywordExtractor->extractFreeKeywords($reader);
-        $mslKeywords = $keywordExtractor->extractMslKeywords($reader);
-
-        $rightsElements = $reader
-            ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
-            ->get();
-        $licenses = [];
-
-        foreach ($rightsElements as $element) {
-            $identifier = $element->getAttribute('rightsIdentifier');
-            if ($identifier) {
-                $licenses[] = $identifier;
-            }
-        }
-
-        $titleElements = $reader
-            ->xpathElement('//*[local-name()="resource"]/*[local-name()="titles"]/*[local-name()="title"]')
-            ->get();
-        $titles = [];
-
-        foreach ($titleElements as $element) {
-            $titleType = $element->getAttribute('titleType');
-            $titles[] = [
-                'title' => $element->getContent(),
-                'titleType' => $titleType ? Str::kebab($titleType) : 'main-title',
-            ];
-        }
-
-        $mainTitles = array_values(array_filter(
-            $titles,
-            fn ($t) => $t['titleType'] === 'main-title'
-        ));
-        $otherTitles = array_values(array_filter(
-            $titles,
-            fn ($t) => $t['titleType'] !== 'main-title'
-        ));
-        $titles = array_merge($mainTitles, $otherTitles);
-
-        $resourceTypeElement = $this->extractFirstElementFromQuery(
-            $reader->xpathElement('//*[local-name()="resourceType"]'),
-        );
-        $resourceTypeName = $resourceTypeElement?->getAttribute('resourceTypeGeneral');
-        $resourceType = null;
-
-        if ($resourceTypeName !== null) {
-            $resourceTypeModel = ResourceType::whereRaw('LOWER(name) = ?', [Str::lower($resourceTypeName)])->first();
-            $resourceType = $resourceTypeModel?->id;
-        }
-
-        $fundingReferences = $this->extractFundingReferences($reader);
 
         // Store data in session to avoid 414 URI Too Long errors
         $sessionKey = 'xml_upload_'.Str::random(32);
