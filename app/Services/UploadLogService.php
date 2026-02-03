@@ -53,6 +53,7 @@ class UploadLogService
      * Log a simple upload failure from an error code.
      *
      * @param  'xml'|'csv'  $uploadType
+     * @param  array<string, mixed>  $context
      */
     public function logSimpleFailure(
         string $uploadType,

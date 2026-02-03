@@ -79,6 +79,8 @@ class UploadXmlRequest extends FormRequest
 
     /**
      * Map Laravel validation error keys to our error codes.
+     *
+     * @param  array<string, array<int, string>>  $errors
      */
     private function mapValidationErrorCode(array $errors): string
     {
