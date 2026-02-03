@@ -10,6 +10,7 @@ import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import type { UploadErrorResponse } from '@/types/upload';
 
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
@@ -23,6 +24,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
 
     const formData = new FormData();
     formData.append('file', files[0]);
+    const filename = files[0].name;
 
     try {
         const response = await fetch(uploadXmlRoute.url(), {
@@ -33,24 +35,26 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         });
 
         if (!response.ok) {
-            let message = 'Upload failed';
-
             // Handle 419 CSRF token mismatch specifically
             if (response.status === 419) {
                 console.warn('CSRF token expired, reloading page...');
-                // Automatically reload the page to get a fresh CSRF token
                 window.location.reload();
-                // Throw error to prevent further execution
                 throw new Error('Session expired. Reloading page...');
-            } else {
-                try {
-                    const errorData: { message?: string } = await response.json();
-                    message = errorData.message ?? message;
-                } catch (err) {
-                    console.error('Failed to parse error response', err);
-                }
             }
-            throw new Error(message);
+
+            // Try to parse structured error response
+            try {
+                const errorData: UploadErrorResponse = await response.json();
+                // Include filename in error for better context
+                const message = errorData.message || 'Upload failed';
+                throw new Error(message);
+            } catch (parseErr) {
+                // If parsing fails, throw generic error
+                if (parseErr instanceof Error && parseErr.message !== 'Upload failed') {
+                    throw parseErr;
+                }
+                throw new Error(`Failed to upload ${filename}`);
+            }
         }
 
         // Backend now returns a session key instead of all data
@@ -61,9 +65,9 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {
-            throw new Error(`Upload failed: ${error.message}`);
+            throw error;
         }
-        throw new Error('Upload failed');
+        throw new Error(`Failed to upload ${filename}`);
     }
 };
 

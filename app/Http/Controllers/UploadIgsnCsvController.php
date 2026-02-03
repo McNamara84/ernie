@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\UploadErrorCode;
 use App\Http\Requests\UploadIgsnCsvRequest;
 use App\Models\Resource;
 use App\Services\IgsnCsvParserService;
 use App\Services\IgsnStorageService;
+use App\Services\UploadLogService;
+use App\Support\UploadError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
@@ -21,6 +24,7 @@ class UploadIgsnCsvController extends Controller
     public function __construct(
         protected IgsnCsvParserService $parser,
         protected IgsnStorageService $storage,
+        protected UploadLogService $uploadLogService,
     ) {}
 
     /**
@@ -32,18 +36,20 @@ class UploadIgsnCsvController extends Controller
     {
         $validated = $request->validated();
         $file = $validated['file'];
+        $filename = $file->getClientOriginalName();
 
         // Get file contents
         $contents = $file->get();
 
         if ($contents === false) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to read file contents.',
-            ], 422);
-        }
+            $error = UploadError::fromCode(UploadErrorCode::FILE_UNREADABLE);
+            $this->uploadLogService->logFailure('csv', $filename, $error);
 
-        $filename = $file->getClientOriginalName();
+            return $this->errorResponse(
+                UploadErrorCode::FILE_UNREADABLE,
+                $filename,
+            );
+        }
 
         Log::info('IGSN CSV upload started', [
             'filename' => $filename,
@@ -57,38 +63,50 @@ class UploadIgsnCsvController extends Controller
 
             // Check for parsing errors
             if (count($parseResult['errors']) > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'CSV parsing failed.',
-                    'errors' => $parseResult['errors'],
-                ], 422);
+                $errors = $this->convertToUploadErrors($parseResult['errors'], UploadErrorCode::CSV_PARSE_ERROR);
+                $this->uploadLogService->logMultipleErrors($filename, $errors);
+
+                return $this->multiErrorResponse(
+                    'CSV parsing failed.',
+                    $filename,
+                    $errors,
+                );
             }
 
             if (count($parseResult['rows']) === 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No valid data rows found in CSV.',
-                ], 422);
+                $error = UploadError::fromCode(UploadErrorCode::NO_VALID_ROWS);
+                $this->uploadLogService->logFailure('csv', $filename, $error);
+
+                return $this->errorResponse(
+                    UploadErrorCode::NO_VALID_ROWS,
+                    $filename,
+                );
             }
 
             // Validate required fields
             $validationErrors = $this->validateRequiredFields($parseResult['rows']);
             if (count($validationErrors) > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed.',
-                    'errors' => $validationErrors,
-                ], 422);
+                $errors = $this->convertToUploadErrors($validationErrors, UploadErrorCode::MISSING_REQUIRED_FIELD);
+                $this->uploadLogService->logMultipleErrors($filename, $errors);
+
+                return $this->multiErrorResponse(
+                    'Validation failed. Required fields are missing.',
+                    $filename,
+                    $errors,
+                );
             }
 
             // Check for duplicate IGSNs (already exist in database)
             $duplicateErrors = $this->checkForDuplicateIgsns($parseResult['rows']);
             if (count($duplicateErrors) > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Duplicate IGSN(s) found. IGSNs must be globally unique.',
-                    'errors' => $duplicateErrors,
-                ], 422);
+                $errors = $this->convertToUploadErrors($duplicateErrors, UploadErrorCode::DUPLICATE_IGSN);
+                $this->uploadLogService->logMultipleErrors($filename, $errors);
+
+                return $this->multiErrorResponse(
+                    'Duplicate IGSN(s) found. IGSNs must be globally unique.',
+                    $filename,
+                    $errors,
+                );
             }
 
             // Store IGSNs
@@ -105,31 +123,50 @@ class UploadIgsnCsvController extends Controller
             ]);
 
             if ($result['created'] === 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No IGSNs were created.',
-                    'errors' => $result['errors'],
-                ], 422);
+                $errors = $this->convertToUploadErrors($result['errors'], UploadErrorCode::STORAGE_ERROR);
+                $this->uploadLogService->logMultipleErrors($filename, $errors);
+
+                return $this->multiErrorResponse(
+                    'No IGSNs were created due to storage errors.',
+                    $filename,
+                    $errors,
+                );
             }
+
+            // Log success
+            $this->uploadLogService->logSuccess('csv', $filename, [
+                'created' => $result['created'],
+            ]);
+
+            // Convert any partial errors for the response
+            $responseErrors = count($result['errors']) > 0
+                ? $this->convertToUploadErrors($result['errors'], UploadErrorCode::STORAGE_ERROR)
+                : [];
 
             return response()->json([
                 'success' => true,
                 'created' => $result['created'],
-                'errors' => $result['errors'],
+                'errors' => array_map(fn (UploadError $e) => $e->toArray(), $responseErrors),
                 'message' => $result['created'].' IGSN(s) successfully imported.',
+                'filename' => $filename,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('IGSN CSV upload failed', [
-                'filename' => $filename,
-                'error' => $e->getMessage(),
+            $error = UploadError::withMessage(
+                UploadErrorCode::UNEXPECTED_ERROR,
+                'An error occurred during import: '.$e->getMessage()
+            );
+            $this->uploadLogService->logFailure('csv', $filename, $error, [
+                'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred during import: '.$e->getMessage(),
-            ], 500);
+            return $this->errorResponse(
+                UploadErrorCode::UNEXPECTED_ERROR,
+                $filename,
+                'An error occurred during import: '.$e->getMessage(),
+                500
+            );
         }
     }
 
@@ -218,5 +255,64 @@ class UploadIgsnCsvController extends Controller
         }
 
         return $errors;
+    }
+
+    /**
+     * Create a structured error JSON response for a single error.
+     */
+    private function errorResponse(
+        UploadErrorCode $code,
+        string $filename,
+        ?string $customMessage = null,
+        int $status = 422
+    ): JsonResponse {
+        $message = $customMessage ?? $code->message();
+
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'filename' => $filename,
+            'error' => [
+                'category' => $code->category(),
+                'code' => $code->value,
+                'message' => $message,
+                'field' => null,
+                'row' => null,
+                'identifier' => null,
+            ],
+        ], $status);
+    }
+
+    /**
+     * Create a structured error JSON response for multiple errors.
+     *
+     * @param  list<UploadError>  $errors
+     */
+    private function multiErrorResponse(
+        string $message,
+        string $filename,
+        array $errors,
+        int $status = 422
+    ): JsonResponse {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'filename' => $filename,
+            'errors' => array_map(fn (UploadError $e) => $e->toArray(), $errors),
+        ], $status);
+    }
+
+    /**
+     * Convert legacy error format to UploadError objects.
+     *
+     * @param  list<array{row?: int, igsn?: string, message?: string}>  $legacyErrors
+     * @return list<UploadError>
+     */
+    private function convertToUploadErrors(array $legacyErrors, UploadErrorCode $code): array
+    {
+        return array_map(
+            fn (array $e) => UploadError::fromLegacyError($e, $code),
+            $legacyErrors
+        );
     }
 }
