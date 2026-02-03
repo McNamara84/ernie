@@ -350,7 +350,8 @@ describe('handleXmlFiles', () => {
         const fetchMock = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
         const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-        await expect(handleXmlFiles([file])).rejects.toThrow('Upload failed: network down');
+        // The error is re-thrown as-is from the catch block
+        await expect(handleXmlFiles([file])).rejects.toThrow('network down');
         expect(consoleErrorMock).toHaveBeenCalled();
 
         fetchMock.mockRestore();

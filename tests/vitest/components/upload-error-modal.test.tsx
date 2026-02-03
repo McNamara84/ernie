@@ -106,7 +106,12 @@ describe('UploadErrorModal', () => {
 
         render(<UploadErrorModal {...defaultProps} onClose={onClose} />);
 
-        await user.click(screen.getByRole('button', { name: 'Close' }));
+        // Use getAllByRole and select the footer button (not the dialog X button)
+        const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+        // The footer button is the first one in the DOM order within DialogFooter
+        const footerCloseButton = closeButtons.find((btn) => btn.getAttribute('data-slot') === 'button');
+        expect(footerCloseButton).toBeDefined();
+        await user.click(footerCloseButton!);
 
         expect(onClose).toHaveBeenCalled();
     });
