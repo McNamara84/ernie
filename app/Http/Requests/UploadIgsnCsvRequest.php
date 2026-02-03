@@ -58,8 +58,22 @@ class UploadIgsnCsvRequest extends FormRequest
      * Handle a failed validation attempt.
      *
      * Logs the validation failure and returns a structured JSON error response.
-     * The response format is compatible with Laravel's standard validation format
-     * (contains 'message' and 'errors' keys) while also including our custom fields.
+     *
+     * DESIGN NOTE: The response intentionally includes BOTH formats:
+     *
+     * 1. Laravel standard format (`message` + `errors`):
+     *    - `message`: First validation error message
+     *    - `errors`: Array of validation messages keyed by field name
+     *    - Purpose: Enables use of Laravel's `assertJsonValidationErrors()` in tests
+     *
+     * 2. Custom structured format (`error`):
+     *    - `error.category`: Error category (validation, data, server)
+     *    - `error.code`: Machine-readable error code for frontend handling
+     *    - `error.message`: Human-readable error message
+     *    - Purpose: Enables enhanced error display with categorization and icons
+     *
+     * Frontend consumers should use the `error` field for display purposes.
+     * The `errors` field exists primarily for backward compatibility and testing.
      */
     protected function failedValidation(Validator $validator): void
     {
