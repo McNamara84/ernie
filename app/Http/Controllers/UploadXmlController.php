@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Enums\UploadErrorCode;
 use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
+use App\Services\UploadLogService;
 use App\Support\GcmdUriHelper;
 use App\Support\MslLaboratoryService;
+use App\Support\UploadError;
 use App\Support\UriHelper;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use JsonException;
 use Saloon\XmlWrangler\Data\Element;
+use Saloon\XmlWrangler\Exceptions\XmlReaderException;
 use Saloon\XmlWrangler\XmlReader;
 
 class UploadXmlController extends Controller
@@ -67,13 +73,60 @@ class UploadXmlController extends Controller
 
     private bool $affiliationMapLoaded = false;
 
+    public function __construct(
+        private readonly UploadLogService $uploadLogService,
+    ) {}
+
     public function __invoke(UploadXmlRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $filename = $validated['file']->getClientOriginalName();
 
         $contents = $validated['file']->get();
 
-        $reader = XmlReader::fromString($contents);
+        if ($contents === false) {
+            $error = UploadError::fromCode(UploadErrorCode::FILE_UNREADABLE);
+            $this->uploadLogService->logFailure('xml', $filename, $error);
+
+            return $this->errorResponse(
+                UploadErrorCode::FILE_UNREADABLE,
+                $filename,
+            );
+        }
+
+        try {
+            $reader = XmlReader::fromString($contents);
+        } catch (XmlReaderException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::XML_PARSE_ERROR,
+                'The XML file could not be parsed: '.$e->getMessage()
+            );
+            $this->uploadLogService->logFailure('xml', $filename, $error, [
+                'exception' => $e->getMessage(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::XML_PARSE_ERROR,
+                $filename,
+                'The XML file could not be parsed: '.$e->getMessage()
+            );
+        } catch (\Throwable $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::UNEXPECTED_ERROR,
+                'An unexpected error occurred while parsing the XML file.'
+            );
+            $this->uploadLogService->logFailure('xml', $filename, $error, [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::UNEXPECTED_ERROR,
+                $filename,
+                'An unexpected error occurred while parsing the XML file.'
+            );
+        }
+
         $doi = $this->extractFirstStringFromQuery(
             $reader->xpathValue('//*[local-name()="identifier" and @identifierType="DOI"]'),
         );
@@ -2173,5 +2226,31 @@ class UploadXmlController extends Controller
             $author['email'] = $author['email'] ?? '';
             $author['website'] = $author['website'] ?? '';
         }
+    }
+
+    /**
+     * Create a structured error JSON response.
+     */
+    private function errorResponse(
+        UploadErrorCode $code,
+        string $filename,
+        ?string $customMessage = null,
+        int $status = 422
+    ): JsonResponse {
+        $message = $customMessage ?? $code->message();
+
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'filename' => $filename,
+            'error' => [
+                'category' => $code->category(),
+                'code' => $code->value,
+                'message' => $message,
+                'field' => null,
+                'row' => null,
+                'identifier' => null,
+            ],
+        ], $status);
     }
 }
