@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-02",
+        "date": "2026-02-03",
         "features": [
+            {
+                "title": "Upload Failure Notifications",
+                "description": "Data curators now receive detailed notifications when file uploads fail. When an XML or CSV upload fails, a toast notification appears showing the filename and specific error reason. For complex errors with multiple issues (such as CSV files with several invalid rows), a modal dialog displays all errors grouped by category (validation, data, server). Each error includes the row number and identifier when applicable, helping curators quickly identify and fix issues."
+            },
             {
                 "title": "IGSN Bulk Selection and Delete",
                 "description": "The IGSN list page now supports selecting multiple records using checkboxes. A 'Select All' checkbox in the table header selects all items on the current page. When items are selected, a bulk actions toolbar appears showing the selection count and available actions. Administrators can delete multiple IGSNs at once via the bulk delete button. The table header now remains fixed while scrolling through the data, ensuring action buttons are always visible. This architecture is designed for future bulk operations like batch export."
