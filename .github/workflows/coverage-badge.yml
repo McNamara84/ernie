@@ -41,6 +41,9 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate --force
 
+      - name: Generate Wayfinder Routes
+        run: php artisan wayfinder:generate
+
       # Laravel Tests with Clover Report
       - name: Run tests with coverage
         env:
@@ -62,6 +65,8 @@ jobs:
         id: vitest
         env:
           LARAVEL_BYPASS_ENV_CHECK: 1
+          VITE_APP_URL: ""
+          APP_URL: ""
         # Continue even if some tests fail (flaky timeouts) - coverage is still generated
         continue-on-error: true
         run: npx vitest run --coverage
@@ -71,6 +76,8 @@ jobs:
         run: |
           if [ ! -f "coverage/coverage-summary.json" ]; then
             echo "Coverage report not found!"
+            echo "Listing coverage directory contents:"
+            ls -la coverage/ 2>/dev/null || echo "Coverage directory does not exist"
             echo "exists=false" >> $GITHUB_OUTPUT
             exit 1
           fi
