@@ -47,32 +47,12 @@ export const registrationSchema = z
 export type RegistrationFormData = z.infer<typeof registrationSchema>;
 
 // =============================================================================
-// Password Change Schema
+// Password Change & Profile Update Schemas
 // =============================================================================
-
-export const passwordChangeSchema = z
-    .object({
-        current_password: z.string().min(1, 'Current password is required'),
-        password: z.string().min(8, 'New password must be at least 8 characters'),
-        password_confirmation: z.string(),
-    })
-    .refine((data) => data.password === data.password_confirmation, {
-        message: 'Passwords do not match',
-        path: ['password_confirmation'],
-    });
-
-export type PasswordChangeFormData = z.infer<typeof passwordChangeSchema>;
-
+// MIGRATED: These schemas have been consolidated into /lib/validations/user.ts
+// Use `updatePasswordSchema` and `updateProfileSchema` from '@/lib/validations/user'
+// for settings forms. The new schemas include stricter validation (name regex, etc.)
 // =============================================================================
-// Profile Update Schema
-// =============================================================================
-
-export const profileUpdateSchema = z.object({
-    name: z.string().min(1, 'Name is required').max(255, 'Name is too long'),
-    email: z.string().email('Invalid email address'),
-});
-
-export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
 
 // =============================================================================
 // Forgot Password Schema
