@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,7 +54,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                         placeholder="Full name"
                                     />
 
-                                    <InputError className="mt-2" message={errors.name} />
+                                    <FormError className="mt-2" message={errors.name} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -71,7 +71,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                         placeholder="Email address"
                                     />
 
-                                    <InputError className="mt-2" message={errors.email} />
+                                    <FormError className="mt-2" message={errors.email} />
                                 </div>
 
                                 {mustVerifyEmail && auth.user.email_verified_at === null && (

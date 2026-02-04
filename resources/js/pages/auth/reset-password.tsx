@@ -1,7 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 
 import NewPasswordController from '@/actions/App/Http/Controllers/Auth/NewPasswordController';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
                             <Input id="email" type="email" name="email" autoComplete="email" value={email} className="mt-1 block w-full" readOnly />
-                            <InputError message={errors.email} className="mt-2" />
+                            <FormError message={errors.email} className="mt-2" />
                         </div>
 
                         <div className="grid gap-2">
@@ -42,7 +42,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                                 autoFocus
                                 placeholder="Password"
                             />
-                            <InputError message={errors.password} />
+                            <FormError message={errors.password} />
                         </div>
 
                         <div className="grid gap-2">
@@ -55,7 +55,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                                 className="mt-1 block w-full"
                                 placeholder="Confirm password"
                             />
-                            <InputError message={errors.password_confirmation} className="mt-2" />
+                            <FormError message={errors.password_confirmation} className="mt-2" />
                         </div>
 
                         <Button type="submit" className="mt-4 w-full" disabled={processing}>

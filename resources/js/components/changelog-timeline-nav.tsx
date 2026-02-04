@@ -95,17 +95,17 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                     >
                         <div className="space-y-2">
                             {releases.map((release, index) => (
-                                <button
+                                <Button
                                     key={release.version}
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => {
                                         onNavigate(index);
                                         setIsOpen(false);
                                     }}
                                     className={cn(
-                                        'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors',
-                                        activeIndex === index
-                                            ? 'bg-gray-100 font-medium dark:bg-gray-700'
-                                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/50',
+                                        'w-full justify-start gap-2',
+                                        activeIndex === index && 'bg-accent font-medium',
                                     )}
                                 >
                                     <span
@@ -115,8 +115,8 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                             activeIndex === index && 'ring-2 ring-gray-400 ring-offset-2',
                                         )}
                                     />
-                                    <span className="flex-1 truncate">v{release.version}</span>
-                                </button>
+                                    <span className="flex-1 truncate text-left">v{release.version}</span>
+                                </Button>
                             ))}
                         </div>
                     </motion.div>

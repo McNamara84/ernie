@@ -1,7 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 
 import ConfirmablePasswordController from '@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,7 @@ export default function ConfirmPassword() {
                             <Label htmlFor="password">Password</Label>
                             <Input id="password" type="password" name="password" placeholder="Password" autoComplete="current-password" autoFocus />
 
-                            <InputError message={errors.password} />
+                            <FormError message={errors.password} />
                         </div>
 
                         <div className="flex items-center">

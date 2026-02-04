@@ -160,10 +160,12 @@ export function Combobox({
                     {displayItems.map((opt) => (
                         <Badge key={opt.value} variant="secondary" className="mr-1">
                             {renderValue ? renderValue(opt) : opt.label}
+                            {/* Native button used here intentionally - Button component would break Badge layout */}
                             <button
                                 type="button"
                                 className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                 onClick={(e) => handleRemoveValue(e, opt.value)}
+                                aria-label={`Remove ${opt.label}`}
                             >
                                 <X className="h-3 w-3" />
                             </button>

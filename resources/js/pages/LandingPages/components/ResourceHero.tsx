@@ -1,6 +1,8 @@
 import { Copy, FlaskConical } from 'lucide-react';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+
 import { getResourceTypeIcon } from './ResourceTypeIcons';
 import { getStatusConfig } from './StatusConfig';
 
@@ -59,14 +61,16 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
             <div className="border-t border-gray-200 pt-4">
                 <div className="flex items-start gap-3">
                     <p className="flex-1 text-sm leading-relaxed text-gray-700">{citation}</p>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={handleCopy}
-                        className="shrink-0 rounded p-2 transition-colors hover:bg-gray-100"
+                        className="h-8 w-8 shrink-0"
                         title={copied ? 'Copied!' : 'Copy citation'}
                         aria-label="Copy citation to clipboard"
                     >
                         <Copy className={`h-4 w-4 ${copied ? 'text-green-600' : 'text-gray-600'}`} />
-                    </button>
+                    </Button>
                 </div>
                 {copied && <p className="mt-2 text-right text-xs text-green-600">Citation copied to clipboard!</p>}
             </div>

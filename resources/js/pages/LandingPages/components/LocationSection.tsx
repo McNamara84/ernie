@@ -6,6 +6,8 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
 import { MapContainer, Marker, Polygon, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
@@ -254,14 +256,16 @@ function FullscreenControl() {
     return (
         <div className="leaflet-top leaflet-right">
             <div className="leaflet-control leaflet-bar">
-                <button
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={toggleFullscreen}
-                    className="flex h-[30px] w-[30px] items-center justify-center bg-white hover:bg-gray-100"
+                    className="h-[30px] w-[30px] rounded-none bg-white hover:bg-gray-100"
                     title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                     aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                 >
                     {isFullscreen ? <Minimize2 className="h-4 w-4 text-gray-700" /> : <Maximize2 className="h-4 w-4 text-gray-700" />}
-                </button>
+                </Button>
             </div>
         </div>
     );

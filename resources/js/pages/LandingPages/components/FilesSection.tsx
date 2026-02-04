@@ -1,6 +1,8 @@
 import { Download, ExternalLink, Mail } from 'lucide-react';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+
 import { ContactModal } from './ContactModal';
 import { CreativeCommonsIcon } from './CreativeCommonsIcon';
 
@@ -96,13 +98,13 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
 
                     {/* Contact Form Button - shown when no download URL but contact person with email exists */}
                     {displayMode === 'contact-form' && contactPersonWithEmail && (
-                        <button
+                        <Button
                             onClick={() => handleContactClick(contactPersonWithEmail)}
-                            className="gfz-action-button flex w-full items-center gap-2 rounded-lg bg-[#0C2A63] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                            className="gfz-action-button flex w-full items-center gap-2 bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
                         >
                             <Mail className="h-4 w-4" />
                             Request data via contact form
-                        </button>
+                        </Button>
                     )}
 
                     {/* Website Link - shown when no download URL and no contact email, but contact person has website */}

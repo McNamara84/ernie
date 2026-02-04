@@ -3,7 +3,7 @@ import { useRef } from 'react';
 
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import HeadingSmall from '@/components/heading-small';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -68,7 +68,7 @@ export default function DeleteUser() {
                                             autoComplete="current-password"
                                         />
 
-                                        <InputError message={errors.password} />
+                                        <FormError message={errors.password} />
                                     </div>
 
                                     <DialogFooter className="gap-2">

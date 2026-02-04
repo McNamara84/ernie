@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
@@ -197,7 +198,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-                                <RefreshCw className={cn('mr-2 size-4', isLoading && 'animate-spin')} />
+                                {isLoading ? <Spinner size="sm" className="mr-2" /> : <RefreshCw className="mr-2 size-4" />}
                                 Refresh
                             </Button>
                             {can_delete && (

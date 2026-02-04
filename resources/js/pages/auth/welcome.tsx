@@ -1,7 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 
 import WelcomeController from '@/actions/App/Http/Controllers/Auth/WelcomeController';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,7 +45,7 @@ export default function Welcome({ email, userId }: WelcomeProps) {
                                 autoFocus
                                 placeholder="Enter your new password"
                             />
-                            <InputError message={errors.password} />
+                            <FormError message={errors.password} />
                         </div>
 
                         <div className="grid gap-2">
@@ -58,7 +58,7 @@ export default function Welcome({ email, userId }: WelcomeProps) {
                                 className="mt-1 block w-full"
                                 placeholder="Confirm your password"
                             />
-                            <InputError message={errors.password_confirmation} />
+                            <FormError message={errors.password_confirmation} />
                         </div>
 
                         <Button type="submit" className="mt-4 w-full" disabled={processing}>

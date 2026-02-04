@@ -2,6 +2,8 @@ import { Head, router } from '@inertiajs/react';
 import { RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
 
+import { Spinner } from '@/components/ui/spinner';
+
 import AbstractAnalysis from '@/components/statistics/abstract-analysis';
 import AffiliationStatsCard from '@/components/statistics/affiliation-stats-card';
 import CompletenessGauge from '@/components/statistics/completeness-gauge';
@@ -298,7 +300,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                         <p className="mt-1 text-sm text-muted-foreground">Last updated: {formatDate(lastUpdated)}</p>
                     </div>
                     <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline" size="sm">
-                        <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        {isRefreshing ? <Spinner size="sm" className="mr-2" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                         Refresh Data
                     </Button>
                 </div>

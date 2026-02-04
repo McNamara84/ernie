@@ -17,9 +17,10 @@ vi.mock('@/actions/App/Http/Controllers/Auth/NewPasswordController', () => ({
   default: { store: { post: () => ({}) } },
 }));
 
-vi.mock('@/components/input-error', () => ({
-  default: ({ message }: { message?: string }) => (message ? <p>{message}</p> : null),
-}));
+vi.mock('@/components/input-error', () => {
+  const FormError = ({ message }: { message?: string }) => (message ? <p>{message}</p> : null);
+  return { default: FormError, FormError };
+});
 
 vi.mock('@/components/ui/button', () => ({
   Button: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,

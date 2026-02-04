@@ -4,7 +4,7 @@ import { useRef } from 'react';
 
 import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import HeadingSmall from '@/components/heading-small';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,7 +65,7 @@ export default function Password() {
                                         placeholder="Current password"
                                     />
 
-                                    <InputError message={errors.current_password} />
+                                    <FormError message={errors.current_password} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -81,7 +81,7 @@ export default function Password() {
                                         placeholder="New password"
                                     />
 
-                                    <InputError message={errors.password} />
+                                    <FormError message={errors.password} />
                                 </div>
 
                                 <div className="grid gap-2">
@@ -96,7 +96,7 @@ export default function Password() {
                                         placeholder="Confirm password"
                                     />
 
-                                    <InputError message={errors.password_confirmation} />
+                                    <FormError message={errors.password_confirmation} />
                                 </div>
 
                                 <div className="flex items-center gap-4">
