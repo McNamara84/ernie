@@ -21,6 +21,7 @@ export default function FontSizeToggle({ className = '', ...props }: HTMLAttribu
             {...props}
         >
             {options.map(({ value, label, description }) => (
+                // Native button used intentionally - custom tab styling incompatible with shadcn Button
                 <button
                     key={value}
                     onClick={() => updateFontSize(value)}

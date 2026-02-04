@@ -4,6 +4,7 @@ import { Bug, Sparkles, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
+import { Button } from '@/components/ui/button';
 import PublicLayout from '@/layouts/public-layout';
 
 // Type declaration for test helpers exposed on window object
@@ -326,12 +327,12 @@ export default function Changelog() {
                 >
                     <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">Failed to load changelog</h2>
                     <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
-                    <button
+                    <Button
                         onClick={() => window.location.reload()}
-                        className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none dark:bg-red-700 dark:hover:bg-red-800"
+                        variant="destructive"
                     >
                         Reload page
-                    </button>
+                    </Button>
                 </div>
             ) : (
                 <ul className="relative space-y-4 border-l border-gray-300 pl-6" aria-label="Changelog Timeline">
@@ -394,6 +395,7 @@ export default function Changelog() {
                                         data-testid="version-anchor"
                                         className={`absolute top-3 -left-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
                                     ></span>
+                                    {/* Native button used intentionally - custom accordion styling with complex children */}
                                     <button
                                         onClick={() => {
                                             userInteractedRef.current = true;

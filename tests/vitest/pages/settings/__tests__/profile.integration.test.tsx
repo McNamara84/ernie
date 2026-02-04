@@ -38,7 +38,7 @@ vi.mock('@/layouts/app-layout', () => ({ default: ({ children }: { children?: Re
 vi.mock('@/layouts/settings/layout', () => ({ default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('@/components/delete-user', () => ({ default: () => <div /> }));
 vi.mock('@/components/heading-small', () => ({ default: ({ title, description }: { title: string; description: string }) => (<div><h2>{title}</h2><p>{description}</p></div>) }));
-vi.mock('@/components/input-error', () => ({ default: ({ message }: { message?: string }) => (message ? <p>{message}</p> : null) }));
+vi.mock('@/components/input-error', () => { const FormError = ({ message }: { message?: string }) => (message ? <p>{message}</p> : null); return { default: FormError, FormError }; });
 vi.mock('@/components/ui/button', () => ({ Button: ({ children, ...props }: React.ComponentProps<'button'>) => <button {...props}>{children}</button> }));
 vi.mock('@/components/ui/input', () => ({ Input: (props: React.ComponentProps<'input'>) => <input {...props} /> }));
 vi.mock('@/components/ui/label', () => ({ Label: ({ children, ...props }: React.ComponentProps<'label'>) => <label {...props}>{children}</label> }));

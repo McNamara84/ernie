@@ -79,9 +79,10 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
-vi.mock('@/components/input-error', () => ({
-    default: ({ message }: { message?: string }) => (message ? <div>{message}</div> : null),
-}));
+vi.mock('@/components/input-error', () => {
+    const FormError = ({ message }: { message?: string }) => (message ? <div>{message}</div> : null);
+    return { default: FormError, FormError };
+});
 
 describe('DeleteUser', () => {
     it('renders warning and delete button', () => {

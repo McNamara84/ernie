@@ -1,7 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 
 import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,7 +38,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     autoComplete="email"
                                     placeholder="email@gfz.de"
                                 />
-                                <InputError message={errors.email} />
+                                <FormError message={errors.email} />
                             </div>
 
                             <div className="grid gap-2">
@@ -58,7 +58,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     autoComplete="current-password"
                                     placeholder="Password"
                                 />
-                                <InputError message={errors.password} />
+                                <FormError message={errors.password} />
                             </div>
 
                             <div className="flex items-center space-x-3">

@@ -1,6 +1,8 @@
 import { ExternalLink, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+
 import { ContactModal } from './ContactModal';
 
 interface Affiliation {
@@ -66,14 +68,15 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                             <div className="flex flex-wrap items-center gap-2">
                                 {/* Contact link */}
                                 {person.has_email && (
-                                    <button
+                                    <Button
+                                        variant="link"
                                         onClick={() => handleContactClick(person)}
-                                        className="flex items-center gap-1.5 text-sm font-medium text-blue-600 transition-colors hover:text-blue-800 hover:underline"
+                                        className="h-auto gap-1.5 p-0 text-sm font-medium text-blue-600 hover:text-blue-800"
                                         title={`Contact ${person.name}`}
                                     >
                                         <User className="h-4 w-4" />
                                         {person.name}
-                                    </button>
+                                    </Button>
                                 )}
 
                                 {/* ORCID icon */}

@@ -163,10 +163,6 @@ export {
     forgotPasswordSchema,
     type LoginFormData,
     loginSchema,
-    type PasswordChangeFormData,
-    passwordChangeSchema,
-    type ProfileUpdateFormData,
-    profileUpdateSchema,
     type RegistrationFormData,
     registrationSchema,
     type ResetPasswordFormData,
@@ -174,4 +170,6 @@ export {
     type UserRole,
     userRoles,
     userRoleSchema,
+    // Password change and profile update schemas are now in @/lib/validations/user.ts
+    // Use: updatePasswordSchema, updateProfileSchema, deleteAccountSchema
 } from './user.schema';

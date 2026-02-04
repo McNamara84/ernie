@@ -2,7 +2,7 @@
 import { Form, Head } from '@inertiajs/react';
 
 import PasswordResetLinkController from '@/actions/App/Http/Controllers/Auth/PasswordResetLinkController';
-import InputError from '@/components/input-error';
+import { FormError } from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                 <Label htmlFor="email">Email address</Label>
                                 <Input id="email" type="email" name="email" autoComplete="off" autoFocus placeholder="email@example.com" />
 
-                                <InputError message={errors.email} />
+                                <FormError message={errors.email} />
                             </div>
 
                             <div className="my-6 flex items-center justify-start">

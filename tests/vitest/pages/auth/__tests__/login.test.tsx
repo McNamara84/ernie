@@ -69,9 +69,10 @@ vi.mock('@/components/text-link', () => ({
     default: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
 }));
 
-vi.mock('@/components/input-error', () => ({
-    default: ({ message }: { message?: string }) => (message ? <p>{message}</p> : null),
-}));
+vi.mock('@/components/input-error', () => {
+    const FormError = ({ message }: { message?: string }) => (message ? <p>{message}</p> : null);
+    return { default: FormError, FormError };
+});
 
 vi.mock('@/components/ui/button', () => ({
     Button: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
