@@ -126,6 +126,13 @@ Add to `.env`:
 ERNIE_API_KEY=your_api_key_here
 ```
 
+#### Landing Page Contact Form Cc
+When visitors send messages via the landing page contact form, the data publication team receives a Cc copy. Configure the recipient email:
+```env
+LANDING_PAGE_CONTACT_CC_EMAIL=datapub@gfz.de
+```
+Set to empty string to disable Cc notifications.
+
 ### User Management
 
 ERNIE uses a **closed application model** – there is no public registration. Users must be created via command line by administrators.
