@@ -1,7 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { Map as MapIcon, PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GroupImperativeHandle } from 'react-resizable-panels';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { PortalFilters } from '@/components/portal/PortalFilters';
 import { PortalMap } from '@/components/portal/PortalMap';
@@ -19,7 +18,6 @@ const DEFAULT_MAP_SIZE = 45;
 
 export default function Portal({ resources, mapData, pagination, filters }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
-    const groupRef = useRef<GroupImperativeHandle>(null);
 
     // Initialize map collapsed state from localStorage
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
@@ -130,7 +128,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
 
                     {/* Resizable layout for 2xl+ screens */}
                     <div className="hidden flex-1 overflow-hidden 2xl:flex">
-                        <ResizablePanelGroup orientation="horizontal" className="h-full" groupRef={groupRef} onLayoutChanged={handleLayoutChanged}>
+                        <ResizablePanelGroup orientation="horizontal" className="h-full" onLayoutChanged={handleLayoutChanged}>
                             {/* Results Panel */}
                             <ResizablePanel id="results" defaultSize={isMapCollapsed ? 100 : panelSizes.results} minSize={30}>
                                 <div className="flex h-full flex-col overflow-hidden">
