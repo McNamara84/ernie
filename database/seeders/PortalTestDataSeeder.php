@@ -231,16 +231,8 @@ class PortalTestDataSeeder extends Seeder
             'title_type_id' => $this->mainTitleType->id,
         ]);
 
-        // Creator
-        $person = Person::create([
-            'family_name' => $this->generateLastName($index),
-            'given_name' => $this->generateFirstName($index),
-        ]);
-        $resource->creators()->create([
-            'creatorable_type' => Person::class,
-            'creatorable_id' => $person->id,
-            'position' => 1,
-        ]);
+        // Creators (1-3 authors for diversity)
+        $this->createDiverseCreators($resource, $index);
 
         // Landing Page
         LandingPage::create([
@@ -393,16 +385,8 @@ class PortalTestDataSeeder extends Seeder
             'title_type_id' => $this->mainTitleType->id,
         ]);
 
-        // Creator
-        $person = Person::create([
-            'family_name' => $this->generateLastName($index),
-            'given_name' => $this->generateFirstName($index),
-        ]);
-        $resource->creators()->create([
-            'creatorable_type' => Person::class,
-            'creatorable_id' => $person->id,
-            'position' => 1,
-        ]);
+        // Creators (1-3 authors for diversity)
+        $this->createDiverseCreators($resource, $index);
 
         // IGSN Metadata
         IgsnMetadata::create([
@@ -431,16 +415,76 @@ class PortalTestDataSeeder extends Seeder
         return true;
     }
 
+    /**
+     * Create 1-3 diverse creators for a resource.
+     */
+    private function createDiverseCreators(Resource $resource, int $index): void
+    {
+        // Determine number of authors based on index for variety:
+        // 40% single author, 35% two authors, 25% three authors
+        $authorPattern = $index % 20;
+        $authorCount = match (true) {
+            $authorPattern < 8 => 1,   // 0-7: single author (40%)
+            $authorPattern < 15 => 2,  // 8-14: two authors (35%)
+            default => 3,              // 15-19: three authors (25%)
+        };
+
+        for ($i = 0; $i < $authorCount; $i++) {
+            $orcid = $this->generateOptionalOrcid($index, $i);
+            $person = Person::create([
+                'family_name' => $this->generateLastName($index + $i * 17),
+                'given_name' => $this->generateFirstName($index + $i * 13),
+                'name_identifier' => $orcid ? "https://orcid.org/{$orcid}" : null,
+                'name_identifier_scheme' => $orcid ? 'ORCID' : null,
+                'scheme_uri' => $orcid ? 'https://orcid.org/' : null,
+            ]);
+            $resource->creators()->create([
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'position' => $i + 1,
+            ]);
+        }
+    }
+
+    /**
+     * Generate optional ORCID based on index (50% of first authors, 30% of others).
+     */
+    private function generateOptionalOrcid(int $resourceIndex, int $authorIndex): ?string
+    {
+        // First author: 50% chance of ORCID
+        // Other authors: 30% chance of ORCID
+        $chance = $authorIndex === 0 ? 50 : 30;
+        if (rand(1, 100) > $chance) {
+            return null;
+        }
+
+        // Generate a plausible ORCID format: 0000-000X-XXXX-XXXX
+        return sprintf(
+            '0000-%04d-%04d-%04d',
+            $resourceIndex % 10000,
+            ($authorIndex + 1) * 1111,
+            rand(1000, 9999)
+        );
+    }
+
     private function generateFirstName(int $seed): string
     {
-        $names = ['Anna', 'Max', 'Julia', 'Paul', 'Emma', 'Lukas', 'Sophie', 'Felix', 'Maria', 'Jan'];
+        $names = [
+            'Anna', 'Max', 'Julia', 'Paul', 'Emma', 'Lukas', 'Sophie', 'Felix', 'Maria', 'Jan',
+            'Laura', 'David', 'Sarah', 'Michael', 'Lisa', 'Thomas', 'Nina', 'Alexander', 'Hannah', 'Daniel',
+            'Elena', 'Markus', 'Katharina', 'Stefan', 'Claudia', 'Andreas', 'Martina', 'Peter', 'Sabine', 'Christian',
+        ];
 
         return $names[$seed % count($names)];
     }
 
     private function generateLastName(int $seed): string
     {
-        $names = ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann'];
+        $names = [
+            'Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann',
+            'Koch', 'Richter', 'Klein', 'Wolf', 'Braun', 'Zimmermann', 'Krüger', 'Hartmann', 'Lange', 'Werner',
+            'Schwarz', 'Neumann', 'Schmitz', 'Krause', 'Peters', 'Maier', 'Huber', 'Fuchs', 'Vogel', 'Frank',
+        ];
 
         return $names[$seed % count($names)];
     }
