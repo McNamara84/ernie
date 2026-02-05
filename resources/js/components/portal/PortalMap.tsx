@@ -258,7 +258,7 @@ export function PortalMap({ resources, className, hideHeader = false }: PortalMa
     );
 
     return (
-        <div className={cn('flex h-full flex-col', className)}>
+        <div className={cn('flex h-full flex-col', className)} data-testid="map">
             {/* Header-less mode for external header (resizable panel layout) */}
             {hideHeader && (
                 <div className="h-full w-full">

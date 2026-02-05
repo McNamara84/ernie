@@ -134,16 +134,16 @@ describe('Portal Type Filter', function () {
 
 describe('Portal Pagination', function () {
     it('paginates results', function () {
-        // Create 15 resources (more than default 12 per page)
-        for ($i = 1; $i <= 15; $i++) {
+        // Create 25 resources (more than default 20 per page)
+        for ($i = 1; $i <= 25; $i++) {
             createPublishedResource($this->datasetType, "Dataset {$i}");
         }
 
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('pagination.total', 15)
-                ->where('pagination.per_page', 12)
+                ->where('pagination.total', 25)
+                ->where('pagination.per_page', 20)
                 ->where('pagination.current_page', 1)
                 ->where('pagination.last_page', 2)
             );
