@@ -15,6 +15,7 @@ function createMockResource(overrides: Partial<PortalResource> = {}): PortalReso
         title: 'Test Resource Title',
         doi: '10.5880/GFZ.TEST.2024.001',
         resourceType: 'Dataset',
+        resourceTypeSlug: 'dataset',
         isIgsn: false,
         year: 2024,
         landingPageUrl: '/landing/test-slug',
@@ -41,10 +42,11 @@ describe('PortalResultCard', () => {
         });
 
         it('renders resource type badge', () => {
-            const resource = createMockResource({ resourceType: 'Dataset' });
+            const resource = createMockResource({ isIgsn: false });
             render(<PortalResultCard resource={resource} />);
 
-            expect(screen.getByText('Dataset')).toBeInTheDocument();
+            // Badge shows 'DOI' for non-IGSN resources
+            expect(screen.getByText('DOI')).toBeInTheDocument();
         });
 
         it('renders publication year', () => {
@@ -131,7 +133,7 @@ describe('PortalResultCard', () => {
             const resource = createMockResource({ isIgsn: false, resourceType: 'Dataset' });
             render(<PortalResultCard resource={resource} />);
 
-            const badge = screen.getByText('Dataset');
+            const badge = screen.getByText('DOI');
             expect(badge).toBeInTheDocument();
             // Badge should not have secondary variant class
             expect(badge).not.toHaveClass('bg-secondary');
@@ -141,7 +143,7 @@ describe('PortalResultCard', () => {
             const resource = createMockResource({ isIgsn: true, resourceType: 'PhysicalObject' });
             render(<PortalResultCard resource={resource} />);
 
-            const badge = screen.getByText('PhysicalObject');
+            const badge = screen.getByText('IGSN');
             expect(badge).toBeInTheDocument();
         });
     });
@@ -191,9 +193,10 @@ describe('PortalResultCard', () => {
 
             expect(screen.getByText('Comprehensive Geoscience Dataset')).toBeInTheDocument();
             expect(screen.getByText('10.5880/GFZ.FULL.001')).toBeInTheDocument();
-            expect(screen.getByText('Dataset')).toBeInTheDocument();
-            // Year appears in the author line as "Harrison et al. • 2024"
-            expect(screen.getByText(/Harrison et al\..*2024/)).toBeInTheDocument();
+            expect(screen.getByText('DOI')).toBeInTheDocument();
+            // Year appears in the author row
+            expect(screen.getByText('2024')).toBeInTheDocument();
+            expect(screen.getByText('Harrison et al.')).toBeInTheDocument();
             expect(screen.getByRole('link')).toHaveAttribute('href', '/landing/full-resource');
         });
 
@@ -210,7 +213,7 @@ describe('PortalResultCard', () => {
             render(<PortalResultCard resource={resource} />);
 
             expect(screen.getByText('Rock Core Sample XYZ')).toBeInTheDocument();
-            expect(screen.getByText('PhysicalObject')).toBeInTheDocument();
+            expect(screen.getByText('IGSN')).toBeInTheDocument();
             expect(screen.getByText('Geology Lab')).toBeInTheDocument();
             expect(screen.queryByRole('link')).not.toBeInTheDocument();
         });

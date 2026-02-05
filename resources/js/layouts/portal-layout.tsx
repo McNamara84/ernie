@@ -2,7 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
 import { AppFooter } from '@/components/app-footer';
-import { dashboard, login } from '@/routes';
+import { dashboard } from '@/routes';
 import { type SharedData } from '@/types';
 
 /**
@@ -21,17 +21,11 @@ export default function PortalLayout({ children }: PropsWithChildren) {
                     <Link href="/" className="text-lg font-semibold">
                         ERNIE
                     </Link>
-                    <div className="flex items-center gap-4">
-                        {auth.user ? (
-                            <Link href={dashboard()} className="rounded-sm border px-5 py-1.5 hover:bg-accent">
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <Link href={login()} className="rounded-sm border px-5 py-1.5 hover:bg-accent">
-                                Log in
-                            </Link>
-                        )}
-                    </div>
+                    {auth.user && (
+                        <Link href={dashboard()} className="rounded-sm border px-5 py-1.5 hover:bg-accent">
+                            Dashboard
+                        </Link>
+                    )}
                 </nav>
             </header>
             <main className="flex flex-1 flex-col">{children}</main>

@@ -120,6 +120,8 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
             {resource.landingPageUrl && (
                 <a
                     href={resource.landingPageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center text-xs font-medium text-primary hover:underline"
                 >
                     View Details →
@@ -144,7 +146,7 @@ export function PortalMap({ resources, className }: PortalMapProps) {
 
     const geoCount = resourcesWithGeo.reduce((acc, r) => acc + r.geoLocations.length, 0);
 
-    // Invalidate map size when collapsible state changes
+    // Invalidate map size when collapsible state changes or on resize
     useEffect(() => {
         if (!isCollapsed && mapRef.current) {
             setTimeout(() => {
@@ -153,13 +155,114 @@ export function PortalMap({ resources, className }: PortalMapProps) {
         }
     }, [isCollapsed]);
 
+    // Re-invalidate map on window resize (for responsive layout changes)
+    useEffect(() => {
+        const handleResize = () => {
+            if (mapRef.current) {
+                mapRef.current.invalidateSize();
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const mapContent = resourcesWithGeo.length > 0 ? (
+        <MapContainer
+            center={[30, 0]}
+            zoom={2}
+            className="h-full w-full"
+            ref={mapRef}
+        >
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <FitBoundsControl resources={resourcesWithGeo} />
+
+            {resourcesWithGeo.map((resource) =>
+                resource.geoLocations.map((geo) => {
+                    const key = `${resource.id}-${geo.id}`;
+
+                    // Render point marker
+                    if (geo.type === 'point' && geo.point) {
+                        return (
+                            <Marker
+                                key={key}
+                                position={[geo.point.lat, geo.point.lng]}
+                            >
+                                <Popup>
+                                    <ResourcePopupContent resource={resource} />
+                                </Popup>
+                            </Marker>
+                        );
+                    }
+
+                    // Render bounding box
+                    if (geo.type === 'box' && geo.bounds) {
+                        const bounds: L.LatLngBoundsExpression = [
+                            [geo.bounds.south, geo.bounds.west],
+                            [geo.bounds.north, geo.bounds.east],
+                        ];
+                        return (
+                            <Rectangle
+                                key={key}
+                                bounds={bounds}
+                                pathOptions={{
+                                    color: GFZ_BLUE,
+                                    weight: 2,
+                                    fillOpacity: 0.2,
+                                }}
+                            >
+                                <Popup>
+                                    <ResourcePopupContent resource={resource} />
+                                </Popup>
+                            </Rectangle>
+                        );
+                    }
+
+                    // Render polygon
+                    if (geo.type === 'polygon' && geo.polygon) {
+                        const positions: L.LatLngExpression[] = geo.polygon.map(
+                            (p) => [p.lat, p.lng],
+                        );
+                        return (
+                            <Polygon
+                                key={key}
+                                positions={positions}
+                                pathOptions={{
+                                    color: GFZ_BLUE,
+                                    weight: 2,
+                                    fillOpacity: 0.2,
+                                }}
+                            >
+                                <Popup>
+                                    <ResourcePopupContent resource={resource} />
+                                </Popup>
+                            </Polygon>
+                        );
+                    }
+
+                    return null;
+                }),
+            )}
+        </MapContainer>
+    ) : (
+        <div className="flex h-full items-center justify-center bg-muted/30">
+            <p className="text-sm text-muted-foreground">
+                No geographic data available for current results
+            </p>
+        </div>
+    );
+
     return (
-        <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
-            <div className={cn('border-b', className)}>
+        <div className={cn('flex h-full flex-col', className)}>
+            {/* Collapsible header for stacked layout (below 2xl) */}
+            <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className="2xl:hidden">
                 <CollapsibleTrigger asChild>
                     <Button
                         variant="ghost"
-                        className="flex w-full items-center justify-between rounded-none px-4 py-3 hover:bg-muted/50"
+                        className="flex w-full items-center justify-between rounded-none border-b px-4 py-3 hover:bg-muted/50"
                     >
                         <div className="flex items-center gap-2">
                             <MapIcon className="h-4 w-4" />
@@ -177,97 +280,25 @@ export function PortalMap({ resources, className }: PortalMapProps) {
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                    <div className="h-[350px] w-full">
-                        {resourcesWithGeo.length > 0 ? (
-                            <MapContainer
-                                center={[30, 0]}
-                                zoom={2}
-                                className="h-full w-full"
-                                ref={mapRef}
-                            >
-                                <TileLayer
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                />
-                                <FitBoundsControl resources={resourcesWithGeo} />
-
-                                {resourcesWithGeo.map((resource) =>
-                                    resource.geoLocations.map((geo) => {
-                                        const key = `${resource.id}-${geo.id}`;
-
-                                        // Render point marker
-                                        if (geo.type === 'point' && geo.point) {
-                                            return (
-                                                <Marker
-                                                    key={key}
-                                                    position={[geo.point.lat, geo.point.lng]}
-                                                >
-                                                    <Popup>
-                                                        <ResourcePopupContent resource={resource} />
-                                                    </Popup>
-                                                </Marker>
-                                            );
-                                        }
-
-                                        // Render bounding box
-                                        if (geo.type === 'box' && geo.bounds) {
-                                            const bounds: L.LatLngBoundsExpression = [
-                                                [geo.bounds.south, geo.bounds.west],
-                                                [geo.bounds.north, geo.bounds.east],
-                                            ];
-                                            return (
-                                                <Rectangle
-                                                    key={key}
-                                                    bounds={bounds}
-                                                    pathOptions={{
-                                                        color: GFZ_BLUE,
-                                                        weight: 2,
-                                                        fillOpacity: 0.2,
-                                                    }}
-                                                >
-                                                    <Popup>
-                                                        <ResourcePopupContent resource={resource} />
-                                                    </Popup>
-                                                </Rectangle>
-                                            );
-                                        }
-
-                                        // Render polygon
-                                        if (geo.type === 'polygon' && geo.polygon) {
-                                            const positions: L.LatLngExpression[] = geo.polygon.map(
-                                                (p) => [p.lat, p.lng],
-                                            );
-                                            return (
-                                                <Polygon
-                                                    key={key}
-                                                    positions={positions}
-                                                    pathOptions={{
-                                                        color: GFZ_BLUE,
-                                                        weight: 2,
-                                                        fillOpacity: 0.2,
-                                                    }}
-                                                >
-                                                    <Popup>
-                                                        <ResourcePopupContent resource={resource} />
-                                                    </Popup>
-                                                </Polygon>
-                                            );
-                                        }
-
-                                        return null;
-                                    }),
-                                )}
-                            </MapContainer>
-                        ) : (
-                            <div className="flex h-full items-center justify-center bg-muted/30">
-                                <p className="text-sm text-muted-foreground">
-                                    No geographic data available for current results
-                                </p>
-                            </div>
-                        )}
+                    <div className="h-[300px] w-full">
+                        {mapContent}
                     </div>
                 </CollapsibleContent>
+            </Collapsible>
+
+            {/* Non-collapsible full-height map for side panel (2xl+) */}
+            <div className="hidden h-full flex-col 2xl:flex">
+                <div className="flex items-center gap-2 border-b px-4 py-3">
+                    <MapIcon className="h-4 w-4" />
+                    <span className="font-medium">Map</span>
+                    <span className="text-sm text-muted-foreground">
+                        ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
+                    </span>
+                </div>
+                <div className="flex-1">
+                    {mapContent}
+                </div>
             </div>
-        </Collapsible>
+        </div>
     );
 }

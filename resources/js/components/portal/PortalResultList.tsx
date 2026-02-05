@@ -25,9 +25,9 @@ export function PortalResultList({
 }: PortalResultListProps) {
     if (isLoading) {
         return (
-            <div className="flex-1 space-y-4 p-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            <div className="flex-1 space-y-2 p-4">
+                {Array.from({ length: 10 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-md" />
                 ))}
             </div>
         );
@@ -56,9 +56,9 @@ export function PortalResultList({
                 </p>
             </div>
 
-            {/* Results Grid */}
+            {/* Results List */}
             <ScrollArea className="flex-1">
-                <div className="grid gap-4 p-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="flex flex-col gap-2 p-4">
                     {resources.map((resource) => (
                         <PortalResultCard key={resource.id} resource={resource} />
                     ))}

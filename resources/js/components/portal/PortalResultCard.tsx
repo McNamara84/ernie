@@ -1,5 +1,6 @@
+import { ExternalLink } from 'lucide-react';
+
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { PortalCreator, PortalResource } from '@/types/portal';
 
@@ -41,66 +42,70 @@ function getTypeBadgeVariant(isIgsn: boolean): 'default' | 'secondary' | 'outlin
 }
 
 /**
- * Single resource card for portal results.
+ * Single-line resource row for portal results.
  */
 export function PortalResultCard({ resource }: PortalResultCardProps) {
     const authors = formatAuthors(resource.creators);
     const hasLandingPage = resource.landingPageUrl !== null;
 
-    const cardContent = (
-        <Card
+    const rowContent = (
+        <div
             className={cn(
-                'transition-all duration-200',
-                hasLandingPage && 'cursor-pointer hover:border-primary hover:shadow-md',
+                'flex items-center gap-3 rounded-md border bg-card px-3 py-2 transition-all duration-200',
+                hasLandingPage && 'cursor-pointer hover:border-primary hover:bg-accent/50',
             )}
         >
-            <CardContent className="p-4">
-                <div className="flex flex-col gap-2">
-                    {/* Type Badge */}
-                    <div className="flex items-start justify-between gap-2">
-                        <Badge variant={getTypeBadgeVariant(resource.isIgsn)} className="shrink-0">
-                            {resource.resourceType}
-                        </Badge>
-                        {resource.doi && (
-                            <span className="truncate text-xs text-muted-foreground">{resource.doi}</span>
-                        )}
-                    </div>
+            {/* Type Badge */}
+            <Badge variant={getTypeBadgeVariant(resource.isIgsn)} className="shrink-0 text-xs">
+                {resource.isIgsn ? 'IGSN' : 'DOI'}
+            </Badge>
 
-                    {/* Title */}
-                    <h3
-                        className={cn(
-                            'line-clamp-2 text-base font-semibold leading-tight',
-                            hasLandingPage && 'group-hover:text-primary',
-                        )}
-                    >
-                        {resource.title}
-                    </h3>
+            {/* Year */}
+            {resource.year && (
+                <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>
+            )}
 
-                    {/* Authors & Year */}
-                    <p className="text-sm text-muted-foreground">
-                        {authors}
-                        {resource.year && (
-                            <>
-                                <span className="mx-1.5">•</span>
-                                {resource.year}
-                            </>
-                        )}
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
+            {/* Title - takes remaining space */}
+            <span
+                className={cn(
+                    'min-w-0 flex-1 truncate text-sm font-medium',
+                    hasLandingPage && 'group-hover:text-primary',
+                )}
+            >
+                {resource.title}
+            </span>
+
+            {/* Authors */}
+            <span className="hidden shrink-0 text-sm text-muted-foreground sm:block lg:max-w-[200px] lg:truncate">
+                {authors}
+            </span>
+
+            {/* DOI */}
+            {resource.doi && (
+                <span className="hidden shrink-0 text-xs text-muted-foreground xl:block xl:max-w-[180px] xl:truncate">
+                    {resource.doi}
+                </span>
+            )}
+
+            {/* External link indicator */}
+            {hasLandingPage && (
+                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+        </div>
     );
 
     if (hasLandingPage) {
         return (
             <a
                 href={resource.landingPageUrl!}
-                className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
             >
-                {cardContent}
+                {rowContent}
             </a>
         );
     }
 
-    return cardContent;
+    return rowContent;
 }

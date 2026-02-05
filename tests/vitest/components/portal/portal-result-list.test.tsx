@@ -16,6 +16,7 @@ function createMockResource(id: number, overrides: Partial<PortalResource> = {})
         title: `Resource ${id}`,
         doi: `10.5880/GFZ.TEST.${id}`,
         resourceType: 'Dataset',
+        resourceTypeSlug: 'dataset',
         isIgsn: false,
         year: 2024,
         landingPageUrl: `/landing/resource-${id}`,
@@ -277,13 +278,13 @@ describe('PortalResultList', () => {
         });
     });
 
-    describe('Grid Layout', () => {
-        it('renders cards in a grid container', () => {
+    describe('List Layout', () => {
+        it('renders cards in a flex column container', () => {
             render(<PortalResultList {...defaultProps} />);
 
-            // Check that there is a grid  container
-            const grid = document.querySelector('.grid');
-            expect(grid).toBeInTheDocument();
+            // Check that there is a flex container
+            const container = document.querySelector('.flex-col');
+            expect(container).toBeInTheDocument();
         });
     });
 });

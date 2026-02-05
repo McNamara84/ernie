@@ -65,17 +65,21 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                         totalResults={pagination.total}
                     />
 
-                    {/* Map + Results */}
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                        {/* Map */}
-                        <PortalMap resources={mapData} />
-
+                    {/* Results + Map Container */}
+                    <div className="flex flex-1 flex-col overflow-hidden 2xl:flex-row">
                         {/* Results List */}
-                        <PortalResultList
-                            resources={resources}
-                            pagination={pagination}
-                            onPageChange={handlePageChange}
-                        />
+                        <div className="flex flex-1 flex-col overflow-hidden 2xl:min-w-[500px]">
+                            <PortalResultList
+                                resources={resources}
+                                pagination={pagination}
+                                onPageChange={handlePageChange}
+                            />
+                        </div>
+
+                        {/* Map - stacked on smaller screens, side panel on 2xl+ */}
+                        <div className="border-t 2xl:border-l 2xl:border-t-0 2xl:w-[500px] 2xl:shrink-0">
+                            <PortalMap resources={mapData} />
+                        </div>
                     </div>
                 </div>
             </div>

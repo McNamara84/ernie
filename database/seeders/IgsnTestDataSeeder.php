@@ -36,6 +36,12 @@ class IgsnTestDataSeeder extends Seeder
         $publisher = Publisher::first();
         $language = Language::first();
 
+        if (! $publisher || ! $language) {
+            $this->command->error('Publisher or Language not found! Run base seeders first.');
+
+            return;
+        }
+
         // Create test user if none exists
         $user = User::first();
         if (! $user) {

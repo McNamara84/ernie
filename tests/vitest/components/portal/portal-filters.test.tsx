@@ -11,7 +11,6 @@ describe('PortalFilters', () => {
     const defaultFilters: PortalFiltersType = {
         query: '',
         type: 'all',
-        page: 1,
     };
 
     const defaultProps = {
