@@ -30,7 +30,7 @@ test.describe('Portal Page', () => {
 
         test('displays results area', async ({ page }) => {
             // Either results or empty state should be visible
-            const hasResults = await page.getByTestId('results').isVisible();
+            const hasResults = await page.getByTestId('portal-results-list').first().isVisible();
             const hasEmptyState = await page.getByText(/no results/i).isVisible();
             expect(hasResults || hasEmptyState).toBe(true);
         });
@@ -133,7 +133,7 @@ test.describe('Portal Page', () => {
         });
 
         test('map shows OpenStreetMap attribution', async ({ page }) => {
-            await expect(page.getByTestId('map').getByText(/openstreetmap/i)).toBeVisible();
+            await expect(page.getByRole('link', { name: 'OpenStreetMap' }).first()).toBeVisible();
         });
     });
 
@@ -191,7 +191,7 @@ test.describe('Portal Page', () => {
     test.describe('Results Display', () => {
         test('results show resource cards or empty state', async ({ page }) => {
             // Wait for either results area or empty state to be visible
-            const resultsArea = page.getByTestId('results');
+            const resultsArea = page.getByTestId('portal-results-list').first();
             const emptyState = page.getByText(/no results found/i);
 
             // One of these should be visible within 5 seconds
@@ -204,7 +204,7 @@ test.describe('Portal Page', () => {
 
         test('pagination appears when there are multiple pages', async ({ page }) => {
             // This test is conditional - only checks pagination if there are enough results
-            const resultsText = page.getByTestId('results').getByText(/showing \d+-\d+ of \d+ results/i);
+            const resultsText = page.getByText(/showing \d+-\d+ of \d+ results/i).first();
 
             if (await resultsText.isVisible()) {
                 const text = await resultsText.textContent();

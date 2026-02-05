@@ -48,7 +48,7 @@ export function PortalResultList({
     const { current_page, last_page, from, to, total } = pagination;
 
     return (
-        <div className="flex flex-1 flex-col" data-testid="results">
+        <div className="flex flex-1 flex-col" data-testid="portal-results-list">
             {/* Results Header */}
             <div className="border-b px-4 py-2">
                 <p className="text-sm text-muted-foreground">
