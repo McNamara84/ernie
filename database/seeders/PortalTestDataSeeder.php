@@ -252,18 +252,116 @@ class PortalTestDataSeeder extends Seeder
             'published_at' => now()->subDays(rand(1, 365)),
         ]);
 
-        // GeoLocation (70% of datasets)
+        // GeoLocation (70% of datasets) - diversified types
         if ($hasGeo) {
-            $resource->geoLocations()->create([
-                'place' => $location['name'],
-                'point_latitude' => $location['lat'],
-                'point_longitude' => $location['lng'],
-            ]);
+            $this->createDiverseGeoLocation($resource, $location, $index);
         }
 
         $this->command->info("  ✓ DOI: {$topic} - {$location['name']} ({$year})");
 
         return true;
+    }
+
+    /**
+     * Create diverse geolocation types based on index for variety.
+     *
+     * @param  array{name: string, lat: float, lng: float}  $location
+     */
+    private function createDiverseGeoLocation(Resource $resource, array $location, int $index): void
+    {
+        $geoType = $index % 10; // Cycle through different types
+
+        switch ($geoType) {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+                // 40% - Simple point
+                $resource->geoLocations()->create([
+                    'place' => $location['name'],
+                    'point_latitude' => $location['lat'],
+                    'point_longitude' => $location['lng'],
+                ]);
+                break;
+
+            case 4:
+            case 5:
+                // 20% - Bounding box (rectangle) around the point
+                $latOffset = rand(5, 20) / 10; // 0.5 to 2.0 degrees
+                $lngOffset = rand(5, 20) / 10;
+                $resource->geoLocations()->create([
+                    'place' => "{$location['name']} Region",
+                    'north_bound_latitude' => $location['lat'] + $latOffset,
+                    'south_bound_latitude' => $location['lat'] - $latOffset,
+                    'east_bound_longitude' => $location['lng'] + $lngOffset,
+                    'west_bound_longitude' => $location['lng'] - $lngOffset,
+                ]);
+                break;
+
+            case 6:
+            case 7:
+                // 20% - Polygon (triangle or quadrilateral)
+                $polygonPoints = $this->createPolygonAroundPoint($location['lat'], $location['lng']);
+                $resource->geoLocations()->create([
+                    'place' => "{$location['name']} Study Area",
+                    'polygon_points' => $polygonPoints,
+                ]);
+                break;
+
+            case 8:
+                // 10% - Multiple geolocations (point + box)
+                $resource->geoLocations()->create([
+                    'place' => $location['name'],
+                    'point_latitude' => $location['lat'],
+                    'point_longitude' => $location['lng'],
+                ]);
+                $latOffset = rand(3, 8) / 10;
+                $lngOffset = rand(3, 8) / 10;
+                $resource->geoLocations()->create([
+                    'place' => "{$location['name']} Extended Area",
+                    'north_bound_latitude' => $location['lat'] + $latOffset + 0.5,
+                    'south_bound_latitude' => $location['lat'] - $latOffset,
+                    'east_bound_longitude' => $location['lng'] + $lngOffset + 0.5,
+                    'west_bound_longitude' => $location['lng'] - $lngOffset,
+                ]);
+                break;
+
+            case 9:
+                // 10% - Multiple geolocations (two points)
+                $resource->geoLocations()->create([
+                    'place' => "{$location['name']} Site A",
+                    'point_latitude' => $location['lat'],
+                    'point_longitude' => $location['lng'],
+                ]);
+                $resource->geoLocations()->create([
+                    'place' => "{$location['name']} Site B",
+                    'point_latitude' => $location['lat'] + (rand(-30, 30) / 10),
+                    'point_longitude' => $location['lng'] + (rand(-30, 30) / 10),
+                ]);
+                break;
+        }
+    }
+
+    /**
+     * Create polygon points around a center point.
+     *
+     * @return list<array{latitude: float, longitude: float}>
+     */
+    private function createPolygonAroundPoint(float $centerLat, float $centerLng): array
+    {
+        $numPoints = rand(3, 6); // Triangle to hexagon
+        $radius = rand(5, 15) / 10; // 0.5 to 1.5 degrees
+        $points = [];
+
+        for ($i = 0; $i < $numPoints; $i++) {
+            $angle = (2 * M_PI * $i) / $numPoints;
+            $points[] = [
+                'latitude' => round($centerLat + $radius * sin($angle), 6),
+                'longitude' => round($centerLng + $radius * cos($angle), 6),
+            ];
+        }
+
+        return $points;
     }
 
     private function createIgsnSample(int $index): bool
@@ -325,12 +423,8 @@ class PortalTestDataSeeder extends Seeder
             'published_at' => now()->subDays(rand(1, 365)),
         ]);
 
-        // GeoLocation (all IGSN samples have geo-location)
-        $resource->geoLocations()->create([
-            'place' => $location['name'],
-            'point_latitude' => $location['lat'],
-            'point_longitude' => $location['lng'],
-        ]);
+        // GeoLocation (all IGSN samples have geo-location) - diversified types
+        $this->createDiverseGeoLocation($resource, $location, $index + 100);
 
         $this->command->info("  ✓ IGSN: {$sampleType} ({$material}) - {$location['name']}");
 
