@@ -123,6 +123,9 @@ return [
     | publication team is informed of all contact requests.
     | Set to empty string to disable.
     |
+    | IMPORTANT: Must be a valid email address. Invalid addresses are ignored
+    | and logged as warnings.
+    |
     */
 
     'landing_page_contact_cc' => env('LANDING_PAGE_CONTACT_CC_EMAIL', 'datapub@gfz.de'),

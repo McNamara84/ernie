@@ -142,7 +142,12 @@ class ContactMessageController extends Controller
         ]);
 
         // Get Cc email from config (empty string disables Cc)
+        // Validate email format to prevent runtime errors
         $ccEmail = config('mail.landing_page_contact_cc');
+        if (! empty($ccEmail) && filter_var($ccEmail, FILTER_VALIDATE_EMAIL) === false) {
+            Log::warning('Invalid Cc email address in config', ['cc_email' => $ccEmail]);
+            $ccEmail = null;
+        }
         $isFirstRecipient = true;
 
         // Send emails to all recipients

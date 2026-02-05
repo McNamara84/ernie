@@ -432,9 +432,17 @@ describe('ContactMessageController', function (): void {
                 'send_to_all' => true,
             ])->assertOk();
 
-            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
-                return $mail->hasCc('datapub@gfz.de');
+            // Verify exactly one email has Cc (consistent with multi-recipient test pattern)
+            $emailsWithCc = 0;
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) use (&$emailsWithCc) {
+                if ($mail->hasCc('datapub@gfz.de')) {
+                    $emailsWithCc++;
+                }
+
+                return true;
             });
+
+            expect($emailsWithCc)->toBe(1, 'Exactly one email should have Cc');
         });
 
         it('does not add cc when config is empty', function (): void {
@@ -470,6 +478,43 @@ describe('ContactMessageController', function (): void {
 
             Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
                 // Verify no Cc is added to any email when config is empty
+                return empty($mail->cc);
+            });
+        });
+
+        it('does not add cc when config contains invalid email address', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'not-a-valid-email']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $person = Person::factory()->create([
+                'given_name' => 'Test',
+                'family_name' => 'Person',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'test.person@example.com',
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.invalid.001',
+                'slug' => 'invalid-cc-test',
+            ]);
+
+            $this->postJson('/10.5880/gfz.invalid.001/invalid-cc-test/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'This is a test message with invalid cc config.',
+                'send_to_all' => true,
+            ])->assertOk();
+
+            // Verify no Cc is added when config contains invalid email
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
                 return empty($mail->cc);
             });
         });
