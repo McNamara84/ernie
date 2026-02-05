@@ -21,7 +21,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class PortalSearchService
 {
-    private const DEFAULT_PER_PAGE = 12;
+    private const DEFAULT_PER_PAGE = 20;
 
     private const MAX_PER_PAGE = 50;
 

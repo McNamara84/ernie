@@ -1,5 +1,3 @@
-import { ExternalLink } from 'lucide-react';
-
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { PortalCreator, PortalResource } from '@/types/portal';
@@ -60,9 +58,11 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
                 {resource.isIgsn ? 'IGSN' : 'DOI'}
             </Badge>
 
-            {/* Year */}
-            {resource.year && (
-                <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>
+            {/* DOI / IGSN identifier */}
+            {resource.doi && (
+                <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:block sm:max-w-[180px] sm:truncate">
+                    {resource.doi}
+                </span>
             )}
 
             {/* Title - takes remaining space */}
@@ -76,20 +76,13 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
             </span>
 
             {/* Authors */}
-            <span className="hidden shrink-0 text-sm text-muted-foreground sm:block lg:max-w-[200px] lg:truncate">
+            <span className="hidden shrink-0 text-sm text-muted-foreground md:block lg:max-w-[200px] lg:truncate">
                 {authors}
             </span>
 
-            {/* DOI */}
-            {resource.doi && (
-                <span className="hidden shrink-0 text-xs text-muted-foreground xl:block xl:max-w-[180px] xl:truncate">
-                    {resource.doi}
-                </span>
-            )}
-
-            {/* External link indicator */}
-            {hasLandingPage && (
-                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+            {/* Year */}
+            {resource.year && (
+                <span className="shrink-0 text-sm text-muted-foreground">{resource.year}</span>
             )}
         </div>
     );

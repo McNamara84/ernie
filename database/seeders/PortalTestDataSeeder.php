@@ -247,7 +247,7 @@ class PortalTestDataSeeder extends Seeder
             'resource_id' => $resource->id,
             'doi_prefix' => '10.5880/GFZ',
             'slug' => 'portal-doi-' . $index,
-            'template' => 'gfz',
+            'template' => 'default_gfz',
             'is_published' => true,
             'published_at' => now()->subDays(rand(1, 365)),
         ]);
@@ -320,7 +320,7 @@ class PortalTestDataSeeder extends Seeder
             'resource_id' => $resource->id,
             'doi_prefix' => '10.5880/IGSN',
             'slug' => 'portal-igsn-' . $index,
-            'template' => 'gfz',
+            'template' => 'default_gfz',
             'is_published' => true,
             'published_at' => now()->subDays(rand(1, 365)),
         ]);

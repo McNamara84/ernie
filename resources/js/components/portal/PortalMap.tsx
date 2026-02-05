@@ -29,6 +29,8 @@ const GFZ_BLUE = '#0C2A63';
 interface PortalMapProps {
     resources: PortalResource[];
     className?: string;
+    /** Hide the header (used when header is rendered externally) */
+    hideHeader?: boolean;
 }
 
 /**
@@ -134,7 +136,7 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
 /**
  * Interactive map displaying resources with geo locations.
  */
-export function PortalMap({ resources, className }: PortalMapProps) {
+export function PortalMap({ resources, className, hideHeader = false }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const mapRef = useRef<L.Map | null>(null);
 
@@ -257,48 +259,59 @@ export function PortalMap({ resources, className }: PortalMapProps) {
 
     return (
         <div className={cn('flex h-full flex-col', className)}>
-            {/* Collapsible header for stacked layout (below 2xl) */}
-            <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className="2xl:hidden">
-                <CollapsibleTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        className="flex w-full items-center justify-between rounded-none border-b px-4 py-3 hover:bg-muted/50"
-                    >
-                        <div className="flex items-center gap-2">
-                            <MapIcon className="h-4 w-4" />
-                            <span className="font-medium">Map</span>
-                            <span className="text-sm text-muted-foreground">
-                                ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
-                            </span>
-                        </div>
-                        {isCollapsed ? (
-                            <ChevronDown className="h-4 w-4" />
-                        ) : (
-                            <ChevronUp className="h-4 w-4" />
-                        )}
-                    </Button>
-                </CollapsibleTrigger>
-
-                <CollapsibleContent>
-                    <div className="h-[300px] w-full">
-                        {mapContent}
-                    </div>
-                </CollapsibleContent>
-            </Collapsible>
-
-            {/* Non-collapsible full-height map for side panel (2xl+) */}
-            <div className="hidden h-full flex-col 2xl:flex">
-                <div className="flex items-center gap-2 border-b px-4 py-3">
-                    <MapIcon className="h-4 w-4" />
-                    <span className="font-medium">Map</span>
-                    <span className="text-sm text-muted-foreground">
-                        ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
-                    </span>
-                </div>
-                <div className="flex-1">
+            {/* Header-less mode for external header (resizable panel layout) */}
+            {hideHeader && (
+                <div className="h-full w-full">
                     {mapContent}
                 </div>
-            </div>
+            )}
+
+            {/* Collapsible header for stacked layout (below 2xl) - only when header not hidden */}
+            {!hideHeader && (
+                <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className="2xl:hidden">
+                    <CollapsibleTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            className="flex w-full items-center justify-between rounded-none border-b px-4 py-3 hover:bg-muted/50"
+                        >
+                            <div className="flex items-center gap-2">
+                                <MapIcon className="h-4 w-4" />
+                                <span className="font-medium">Map</span>
+                                <span className="text-sm text-muted-foreground">
+                                    ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
+                                </span>
+                            </div>
+                            {isCollapsed ? (
+                                <ChevronDown className="h-4 w-4" />
+                            ) : (
+                                <ChevronUp className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </CollapsibleTrigger>
+
+                    <CollapsibleContent>
+                        <div className="h-[300px] w-full">
+                            {mapContent}
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
+            )}
+
+            {/* Non-collapsible full-height map for side panel (2xl+) - only when header not hidden */}
+            {!hideHeader && (
+                <div className="hidden h-full flex-col 2xl:flex">
+                    <div className="flex items-center gap-2 border-b px-4 py-3">
+                        <MapIcon className="h-4 w-4" />
+                        <span className="font-medium">Map</span>
+                        <span className="text-sm text-muted-foreground">
+                            ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
+                        </span>
+                    </div>
+                    <div className="flex-1">
+                        {mapContent}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
