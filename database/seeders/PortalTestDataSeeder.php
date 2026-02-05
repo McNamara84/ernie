@@ -187,7 +187,7 @@ class PortalTestDataSeeder extends Seeder
 
     private function initializeLookupTables(): void
     {
-        $this->datasetType = ResourceType::where('slug', 'Dataset')->firstOrFail();
+        $this->datasetType = ResourceType::where('slug', 'dataset')->firstOrFail();
         $this->physicalObjectType = ResourceType::where('slug', 'physical-object')->firstOrFail();
         $this->language = Language::where('code', 'en')->firstOrFail();
         $this->publisher = Publisher::where('is_default', true)->firstOrFail();
