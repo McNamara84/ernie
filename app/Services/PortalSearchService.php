@@ -91,7 +91,13 @@ class PortalSearchService
             ->whereHas('landingPage', function (Builder $q): void {
                 $q->where('is_published', true);
             })
-            ->orderByDesc('publication_year')
+            // Order by actual publication date (when landing page was published)
+            // Then by resource creation date as fallback
+            ->orderByDesc(
+                \App\Models\LandingPage::select('published_at')
+                    ->whereColumn('landing_pages.resource_id', 'resources.id')
+                    ->limit(1)
+            )
             ->orderByDesc('created_at');
 
         // Apply type filter

@@ -52,8 +52,16 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
 
     // Persist map collapsed state to localStorage
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, String(isMapCollapsed));
+        localStorage.setItem(STORAGE_KEY_COLLAPSED, String(isMapCollapsed));
     }, [isMapCollapsed]);
+
+    // Handle layout changes and persist to localStorage
+    const handleLayoutChanged = useCallback((layout: { [panelId: string]: number }) => {
+        const resultsSize = layout['results'] ?? DEFAULT_RESULTS_SIZE;
+        const mapSize = layout['map'] ?? DEFAULT_MAP_SIZE;
+        setPanelSizes({ results: resultsSize, map: mapSize });
+        localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
+    }, []);
 
     const { setSearch, setType, clearFilters, hasActiveFilters } = usePortalFilters({
         filters,
@@ -136,9 +144,15 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                         <ResizablePanelGroup
                             orientation="horizontal"
                             className="h-full"
+                            groupRef={groupRef}
+                            onLayoutChanged={handleLayoutChanged}
                         >
                             {/* Results Panel */}
-                            <ResizablePanel defaultSize={isMapCollapsed ? 100 : 55} minSize={30}>
+                            <ResizablePanel
+                                id="results"
+                                defaultSize={isMapCollapsed ? 100 : panelSizes.results}
+                                minSize={30}
+                            >
                                 <div className="flex h-full flex-col overflow-hidden">
                                     <PortalResultList
                                         resources={resources}
@@ -155,7 +169,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
 
                             {/* Map Panel - collapsible */}
                             {!isMapCollapsed && (
-                                <ResizablePanel defaultSize={45} minSize={20}>
+                                <ResizablePanel id="map" defaultSize={panelSizes.map} minSize={20}>
                                     <div className="flex h-full flex-col border-l">
                                         {/* Map Header with collapse button */}
                                         <div className="flex items-center justify-between border-b px-4 py-3">
