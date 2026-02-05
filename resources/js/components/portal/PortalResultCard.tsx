@@ -55,7 +55,7 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
         >
             {/* Type Badge */}
             <Badge variant={getTypeBadgeVariant(resource.isIgsn)} className="shrink-0 text-xs">
-                {resource.isIgsn ? 'IGSN' : 'DOI'}
+                {resource.isIgsn ? 'IGSN' : resource.resourceType}
             </Badge>
 
             {/* DOI / IGSN identifier */}

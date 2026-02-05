@@ -42,11 +42,11 @@ describe('PortalResultCard', () => {
         });
 
         it('renders resource type badge', () => {
-            const resource = createMockResource({ isIgsn: false });
+            const resource = createMockResource({ isIgsn: false, resourceType: 'Dataset' });
             render(<PortalResultCard resource={resource} />);
 
-            // Badge shows 'DOI' for non-IGSN resources
-            expect(screen.getByText('DOI')).toBeInTheDocument();
+            // Badge shows resourceType for non-IGSN resources
+            expect(screen.getByText('Dataset')).toBeInTheDocument();
         });
 
         it('renders publication year', () => {
@@ -133,7 +133,7 @@ describe('PortalResultCard', () => {
             const resource = createMockResource({ isIgsn: false, resourceType: 'Dataset' });
             render(<PortalResultCard resource={resource} />);
 
-            const badge = screen.getByText('DOI');
+            const badge = screen.getByText('Dataset');
             expect(badge).toBeInTheDocument();
             // Badge should not have secondary variant class
             expect(badge).not.toHaveClass('bg-secondary');
@@ -193,7 +193,7 @@ describe('PortalResultCard', () => {
 
             expect(screen.getByText('Comprehensive Geoscience Dataset')).toBeInTheDocument();
             expect(screen.getByText('10.5880/GFZ.FULL.001')).toBeInTheDocument();
-            expect(screen.getByText('DOI')).toBeInTheDocument();
+            expect(screen.getByText('Dataset')).toBeInTheDocument();
             // Year appears in the author row
             expect(screen.getByText('2024')).toBeInTheDocument();
             expect(screen.getByText('Harrison et al.')).toBeInTheDocument();

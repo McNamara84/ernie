@@ -30,7 +30,7 @@ class PortalController extends Controller
             'query' => $request->query('q'),
             'type' => $request->query('type', 'all'),
             'page' => (int) $request->query('page', 1),
-            'per_page' => 12,
+            'per_page' => 20,
         ];
 
         // Get paginated results
