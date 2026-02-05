@@ -469,7 +469,8 @@ describe('ContactMessageController', function (): void {
             ])->assertOk();
 
             Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
-                return ! $mail->hasCc('datapub@gfz.de');
+                // Verify no Cc is added to any email when config is empty
+                return empty($mail->cc);
             });
         });
 
@@ -506,14 +507,24 @@ describe('ContactMessageController', function (): void {
             ])->assertOk();
 
             // Verify the copy to sender email does NOT have Cc
-            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
-                // This is the sender copy (isCopyToSender = true)
+            // AND the contact person email DOES have Cc
+            $senderCopyHasNoCc = false;
+            $contactPersonHasCc = false;
+
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) use (&$senderCopyHasNoCc, &$contactPersonHasCc) {
                 if ($mail->isCopyToSender) {
-                    return ! $mail->hasCc('datapub@gfz.de');
+                    // Sender copy should NOT have Cc
+                    $senderCopyHasNoCc = empty($mail->cc);
+                } else {
+                    // Contact person email should HAVE Cc
+                    $contactPersonHasCc = $mail->hasCc('datapub@gfz.de');
                 }
 
                 return true;
             });
+
+            expect($senderCopyHasNoCc)->toBeTrue('Sender copy should not have Cc');
+            expect($contactPersonHasCc)->toBeTrue('Contact person email should have Cc');
         });
 
         it('adds cc only to first recipient when sending to multiple contact persons', function (): void {
