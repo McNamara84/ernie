@@ -6,9 +6,9 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, Marker, Polygon, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Button } from '@/components/ui/button';
-import { MapContainer, Marker, Polygon, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
 // Using unknown as intermediate step for safer type assertion

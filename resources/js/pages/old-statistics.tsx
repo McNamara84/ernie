@@ -2,8 +2,6 @@ import { Head, router } from '@inertiajs/react';
 import { RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
 
-import { Spinner } from '@/components/ui/spinner';
-
 import AbstractAnalysis from '@/components/statistics/abstract-analysis';
 import AffiliationStatsCard from '@/components/statistics/affiliation-stats-card';
 import CompletenessGauge from '@/components/statistics/completeness-gauge';
@@ -30,6 +28,7 @@ import TimelineChart from '@/components/statistics/timeline-chart';
 import TopDatasetsByRelationType from '@/components/statistics/top-datasets-by-relation-type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { oldStatistics } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
