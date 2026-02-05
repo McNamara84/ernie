@@ -399,4 +399,184 @@ describe('ContactMessageController', function (): void {
 
     });
 
+    describe('cc email functionality (Issue #456)', function (): void {
+
+        it('adds cc to first recipient when configured', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $person = Person::factory()->create([
+                'given_name' => 'John',
+                'family_name' => 'Doe',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'john.doe@example.com',
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.cc.001',
+                'slug' => 'cc-test',
+            ]);
+
+            $this->postJson('/10.5880/gfz.cc.001/cc-test/contact', [
+                'sender_name' => 'Jane Smith',
+                'sender_email' => 'jane@example.com',
+                'message' => 'This is a test message for cc functionality.',
+                'send_to_all' => true,
+            ])->assertOk();
+
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
+                return $mail->hasCc('datapub@gfz.de');
+            });
+        });
+
+        it('does not add cc when config is empty', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => '']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $person = Person::factory()->create([
+                'given_name' => 'Jane',
+                'family_name' => 'Doe',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'jane.doe@example.com',
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.nocc.001',
+                'slug' => 'no-cc-test',
+            ]);
+
+            $this->postJson('/10.5880/gfz.nocc.001/no-cc-test/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'This is a test message without cc.',
+                'send_to_all' => true,
+            ])->assertOk();
+
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
+                return ! $mail->hasCc('datapub@gfz.de');
+            });
+        });
+
+        it('does not add cc to copy-to-sender emails', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $person = Person::factory()->create([
+                'given_name' => 'John',
+                'family_name' => 'Doe',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'john.doe@example.com',
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.sender.001',
+                'slug' => 'sender-copy-test',
+            ]);
+
+            $this->postJson('/10.5880/gfz.sender.001/sender-copy-test/contact', [
+                'sender_name' => 'Jane Smith',
+                'sender_email' => 'jane@example.com',
+                'message' => 'This is a test message with copy to sender.',
+                'send_to_all' => true,
+                'copy_to_sender' => true,
+            ])->assertOk();
+
+            // Verify the copy to sender email does NOT have Cc
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
+                // This is the sender copy (isCopyToSender = true)
+                if ($mail->isCopyToSender) {
+                    return ! $mail->hasCc('datapub@gfz.de');
+                }
+
+                return true;
+            });
+        });
+
+        it('adds cc only to first recipient when sending to multiple contact persons', function (): void {
+            Mail::fake();
+            config(['mail.landing_page_contact_cc' => 'datapub@gfz.de']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            // Create multiple contact persons
+            $person1 = Person::factory()->create(['given_name' => 'Alice', 'family_name' => 'First']);
+            $person2 = Person::factory()->create(['given_name' => 'Bob', 'family_name' => 'Second']);
+            $person3 = Person::factory()->create(['given_name' => 'Carol', 'family_name' => 'Third']);
+
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person1->id,
+                'email' => 'alice@example.com',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person2->id,
+                'email' => 'bob@example.com',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person3->id,
+                'email' => 'carol@example.com',
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.multi.001',
+                'slug' => 'multi-recipient-test',
+            ]);
+
+            $this->postJson('/10.5880/gfz.multi.001/multi-recipient-test/contact', [
+                'sender_name' => 'Multi Sender',
+                'sender_email' => 'multi@example.com',
+                'message' => 'This is a test message for multiple recipients.',
+                'send_to_all' => true,
+            ])->assertOk();
+
+            // Verify exactly 3 emails were queued (one per recipient)
+            Mail::assertQueued(ContactPersonMessage::class, 3);
+
+            // Count how many emails have Cc
+            $emailsWithCc = 0;
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) use (&$emailsWithCc) {
+                if ($mail->hasCc('datapub@gfz.de')) {
+                    $emailsWithCc++;
+                }
+
+                return true;
+            });
+
+            // Only 1 email should have Cc
+            expect($emailsWithCc)->toBe(1);
+        });
+
+    });
+
 });

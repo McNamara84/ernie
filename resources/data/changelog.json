@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-03",
+        "date": "2026-02-05",
         "features": [
+            {
+                "title": "Contact Form Cc to Data Publication Team",
+                "description": "When a visitor sends a message via the landing page contact form, the data publication team (datapub@gfz.de) now automatically receives a Cc copy of the email. This ensures the team is informed of all contact requests even if the original contact person's email address has changed. When sending to multiple contact persons, only the first email includes the Cc to avoid duplicate notifications. The Cc email address is configurable via environment variable (LANDING_PAGE_CONTACT_CC_EMAIL) and can be disabled by setting it to an empty string."
+            },
             {
                 "title": "Upload Failure Notifications",
                 "description": "Data curators now receive detailed notifications when file uploads fail. When an XML or CSV upload fails, a toast notification appears showing the filename and specific error reason. For complex errors with multiple issues (such as CSV files with several invalid rows), a modal dialog displays all errors grouped by category (validation, data, server). Each error includes the row number and identifier when applicable, helping curators quickly identify and fix issues."

@@ -113,4 +113,18 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Landing Page Contact Form Cc
+    |--------------------------------------------------------------------------
+    |
+    | When set, this email address receives a Cc copy of all contact form
+    | messages sent from resource landing pages. This ensures the data
+    | publication team is informed of all contact requests.
+    | Set to empty string to disable.
+    |
+    */
+
+    'landing_page_contact_cc' => env('LANDING_PAGE_CONTACT_CC_EMAIL', 'datapub@gfz.de'),
+
 ];

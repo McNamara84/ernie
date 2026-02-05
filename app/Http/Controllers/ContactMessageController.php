@@ -141,9 +141,21 @@ class ContactMessageController extends Controller
             'ip_address' => $ipAddress,
         ]);
 
+        // Get Cc email from config (empty string disables Cc)
+        $ccEmail = config('mail.landing_page_contact_cc');
+        $isFirstRecipient = true;
+
         // Send emails to all recipients
         foreach ($recipients as $recipient) {
-            Mail::to($recipient['email'])->queue(
+            $mail = Mail::to($recipient['email']);
+
+            // Add Cc only to first recipient when configured
+            if ($isFirstRecipient && ! empty($ccEmail)) {
+                $mail->cc($ccEmail);
+                $isFirstRecipient = false;
+            }
+
+            $mail->queue(
                 new ContactPersonMessage(
                     $contactMessage,
                     $resource,
@@ -173,6 +185,7 @@ class ContactMessageController extends Controller
             'resource_id' => $resourceId,
             'recipients_count' => count($recipients),
             'copy_to_sender' => $validated['copy_to_sender'] ?? false,
+            'cc_email' => ! empty($ccEmail) ? $ccEmail : null,
         ]);
 
         return response()->json([
