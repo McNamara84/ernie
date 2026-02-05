@@ -7,11 +7,7 @@ import { PortalFilters } from '@/components/portal/PortalFilters';
 import { PortalMap } from '@/components/portal/PortalMap';
 import { PortalResultList } from '@/components/portal/PortalResultList';
 import { Button } from '@/components/ui/button';
-import {
-    ResizableHandle,
-    ResizablePanel,
-    ResizablePanelGroup,
-} from '@/components/ui/resizable';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
 import type { PortalPageProps } from '@/types/portal';
@@ -24,7 +20,7 @@ const DEFAULT_MAP_SIZE = 45;
 export default function Portal({ resources, mapData, pagination, filters }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
     const groupRef = useRef<GroupImperativeHandle>(null);
-    
+
     // Initialize map collapsed state from localStorage
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -70,8 +66,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
 
     // Count geo locations for display
     const geoCount = useMemo(() => {
-        return mapData.filter((r) => r.geoLocations.length > 0)
-            .reduce((acc, r) => acc + r.geoLocations.length, 0);
+        return mapData.filter((r) => r.geoLocations.length > 0).reduce((acc, r) => acc + r.geoLocations.length, 0);
     }, [mapData]);
 
     const handlePageChange = useCallback(
@@ -103,9 +98,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                 {/* Page Header */}
                 <div className="border-b px-6 py-4">
                     <h1 className="text-2xl font-bold">Data Portal</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Discover and explore published research datasets
-                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">Discover and explore published research datasets</p>
                 </div>
 
                 {/* Main Content */}
@@ -126,11 +119,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                     <div className="flex flex-1 flex-col overflow-hidden 2xl:hidden">
                         {/* Results List */}
                         <div className="flex flex-1 flex-col overflow-hidden">
-                            <PortalResultList
-                                resources={resources}
-                                pagination={pagination}
-                                onPageChange={handlePageChange}
-                            />
+                            <PortalResultList resources={resources} pagination={pagination} onPageChange={handlePageChange} />
                         </div>
 
                         {/* Map - collapsible on smaller screens */}
@@ -141,31 +130,16 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
 
                     {/* Resizable layout for 2xl+ screens */}
                     <div className="hidden flex-1 overflow-hidden 2xl:flex">
-                        <ResizablePanelGroup
-                            orientation="horizontal"
-                            className="h-full"
-                            groupRef={groupRef}
-                            onLayoutChanged={handleLayoutChanged}
-                        >
+                        <ResizablePanelGroup orientation="horizontal" className="h-full" groupRef={groupRef} onLayoutChanged={handleLayoutChanged}>
                             {/* Results Panel */}
-                            <ResizablePanel
-                                id="results"
-                                defaultSize={isMapCollapsed ? 100 : panelSizes.results}
-                                minSize={30}
-                            >
+                            <ResizablePanel id="results" defaultSize={isMapCollapsed ? 100 : panelSizes.results} minSize={30}>
                                 <div className="flex h-full flex-col overflow-hidden">
-                                    <PortalResultList
-                                        resources={resources}
-                                        pagination={pagination}
-                                        onPageChange={handlePageChange}
-                                    />
+                                    <PortalResultList resources={resources} pagination={pagination} onPageChange={handlePageChange} />
                                 </div>
                             </ResizablePanel>
 
                             {/* Resize Handle */}
-                            {!isMapCollapsed && (
-                                <ResizableHandle withHandle />
-                            )}
+                            {!isMapCollapsed && <ResizableHandle withHandle />}
 
                             {/* Map Panel - collapsible */}
                             {!isMapCollapsed && (
@@ -180,12 +154,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                                                     ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
                                                 </span>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => setIsMapCollapsed(true)}
-                                                title="Collapse map"
-                                            >
+                                            <Button variant="ghost" size="icon" onClick={() => setIsMapCollapsed(true)} title="Collapse map">
                                                 <PanelRightClose className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -201,13 +170,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                         {/* Collapsed Map Toggle Button */}
                         {isMapCollapsed && (
                             <div className="flex flex-col border-l">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="m-2"
-                                    onClick={() => setIsMapCollapsed(false)}
-                                    title="Show map"
-                                >
+                                <Button variant="ghost" size="icon" className="m-2" onClick={() => setIsMapCollapsed(false)} title="Show map">
                                     <PanelRightOpen className="h-4 w-4" />
                                 </Button>
                                 <div className="flex flex-1 items-center justify-center">
