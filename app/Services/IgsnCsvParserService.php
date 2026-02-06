@@ -153,7 +153,13 @@ class IgsnCsvParserService
         $data = [];
         foreach ($headers as $index => $header) {
             $value = trim($values[$index] ?? '');
-            $data[$header] = $value;
+
+            // Merge duplicate column headers with semicolon separator (Issue #487)
+            if (isset($data[$header]) && $value !== '') {
+                $data[$header] .= '; ' . $value;
+            } else {
+                $data[$header] = $data[$header] ?? $value;
+            }
         }
 
         // Validate required fields
@@ -232,9 +238,9 @@ class IgsnCsvParserService
     private function parseContributors(array $data): array
     {
         $names = $this->splitMultiValue($data['contributor'] ?? '', '; ');
-        $types = $this->splitMultiValue($data['contributorType'] ?? '', '; ');
-        $identifiers = $this->splitMultiValue($data['identifier'] ?? '', '; ');
-        $identifierTypes = $this->splitMultiValue($data['identifierType'] ?? $data['identifiertype'] ?? '', '; ');
+        $types = $this->splitMultiValuePreservePositions($data['contributorType'] ?? '', '; ');
+        $identifiers = $this->splitMultiValuePreservePositions($data['identifier'] ?? '', '; ');
+        $identifierTypes = $this->splitMultiValuePreservePositions($data['identifierType'] ?? $data['identifiertype'] ?? '', '; ');
 
         $contributors = [];
         $count = max(count($names), 1);
@@ -331,7 +337,7 @@ class IgsnCsvParserService
     private function parseFundingReferences(array $data): array
     {
         $names = $this->splitMultiValue($data['funderName'] ?? '', '; ');
-        $identifiers = $this->splitMultiValue($data['funderIdentifier'] ?? '', '; ');
+        $identifiers = $this->splitMultiValuePreservePositions($data['funderIdentifier'] ?? '', '; ');
 
         $funders = [];
         $namesCount = count($names);
@@ -565,7 +571,11 @@ class IgsnCsvParserService
     }
 
     /**
-     * Split a multi-value string into an array.
+     * Split a multi-value string into an array, skipping empty values.
+     *
+     * Use this for primary fields (e.g., names, identifiers) where empty entries
+     * should be excluded. For dependent/type fields that must maintain positional
+     * alignment, use splitMultiValuePreservePositions() instead.
      *
      * @return list<string>
      */
@@ -586,6 +596,36 @@ class IgsnCsvParserService
         }
 
         return $result;
+    }
+
+    /**
+     * Split a multi-value string preserving empty positions.
+     *
+     * Unlike splitMultiValue(), this method preserves empty elements to maintain
+     * positional alignment between parallel fields (e.g., funderName ↔ funderIdentifier).
+     * Empty positions are represented as empty strings.
+     *
+     * Also handles trailing separator characters (e.g., "value;" where the input was
+     * trimmed and lost the trailing space from "; ").
+     *
+     * @return list<string>
+     */
+    private function splitMultiValuePreservePositions(string $value, string $delimiter): array
+    {
+        if ($value === '' || $delimiter === '') {
+            return [];
+        }
+
+        // Normalize trailing separator without space (e.g., "value;" → "value; ")
+        // This happens when parseRow() trims the field, removing trailing spaces
+        $separatorChar = trim($delimiter);
+        if ($separatorChar !== '' && str_ends_with($value, $separatorChar) && ! str_ends_with($value, $delimiter)) {
+            $value .= ' ';
+        }
+
+        $parts = explode($delimiter, $value);
+
+        return array_map('trim', $parts);
     }
 
     /**

@@ -808,6 +808,444 @@ describe('Collection Date Parsing', function () {
     });
 });
 
+describe('Duplicate Column Headers (Issue #487)', function () {
+    it('merges duplicate relatedIdentifier columns into combined values', function () {
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+ICDP5071EC01001|Test Core|Core Sample|ICDP5071EH30001|https://doi.org/10.5880/ICDP.5071.001|DOI|IsCitedBy|https://doi.org/10.48440/ICDP.5071.002|DOI|IsCitedBy
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty()
+            ->and($result['rows'])->toHaveCount(1);
+
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+
+        // parent_igsn + two DOIs from duplicate columns = 3 related identifiers
+        expect($relatedIds)->toHaveCount(3)
+            ->and($relatedIds[0]['identifier'])->toBe('ICDP5071EH30001')
+            ->and($relatedIds[0]['type'])->toBe('IGSN')
+            ->and($relatedIds[0]['relationType'])->toBe('IsPartOf')
+            ->and($relatedIds[1]['identifier'])->toBe('https://doi.org/10.5880/ICDP.5071.001')
+            ->and($relatedIds[1]['type'])->toBe('DOI')
+            ->and($relatedIds[1]['relationType'])->toBe('IsCitedBy')
+            ->and($relatedIds[2]['identifier'])->toBe('https://doi.org/10.48440/ICDP.5071.002')
+            ->and($relatedIds[2]['type'])->toBe('DOI')
+            ->and($relatedIds[2]['relationType'])->toBe('IsCitedBy');
+    });
+
+    it('handles duplicate columns where first column is empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+ICDP5071EC01001|Test Core|Core Sample|||IsCitedBy|https://doi.org/10.48440/ICDP.5071.002|DOI|IsCitedBy
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        expect($relatedIds)->toHaveCount(1)
+            ->and($relatedIds[0]['identifier'])->toBe('https://doi.org/10.48440/ICDP.5071.002')
+            ->and($relatedIds[0]['type'])->toBe('DOI');
+    });
+
+    it('handles duplicate columns where second column is empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+ICDP5071EC01001|Test Core|Core Sample|https://doi.org/10.5880/ICDP.5071.001|DOI|IsCitedBy|||
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        expect($relatedIds)->toHaveCount(1)
+            ->and($relatedIds[0]['identifier'])->toBe('https://doi.org/10.5880/ICDP.5071.001')
+            ->and($relatedIds[0]['type'])->toBe('DOI')
+            ->and($relatedIds[0]['relationType'])->toBe('IsCitedBy');
+    });
+
+    it('handles three duplicate relatedIdentifier columns', function () {
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+ICDP5071EC01001|Test|Sample|https://doi.org/10.1|DOI|IsCitedBy|https://doi.org/10.2|DOI|IsReferencedBy|https://doi.org/10.3|DOI|IsPartOf
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        expect($relatedIds)->toHaveCount(3)
+            ->and($relatedIds[0]['identifier'])->toBe('https://doi.org/10.1')
+            ->and($relatedIds[0]['relationType'])->toBe('IsCitedBy')
+            ->and($relatedIds[1]['identifier'])->toBe('https://doi.org/10.2')
+            ->and($relatedIds[1]['relationType'])->toBe('IsReferencedBy')
+            ->and($relatedIds[2]['identifier'])->toBe('https://doi.org/10.3')
+            ->and($relatedIds[2]['relationType'])->toBe('IsPartOf');
+    });
+
+    it('merges duplicate funderName columns', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier|funderName|funderIdentifier
+ICDP5071EC01001|Test|Sample|DFG|https://doi.org/10.13039/501100001659|EU|https://doi.org/10.13039/501100000780
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(2)
+            ->and($funders[0]['name'])->toBe('DFG')
+            ->and($funders[0]['identifier'])->toBe('https://doi.org/10.13039/501100001659')
+            ->and($funders[1]['name'])->toBe('EU')
+            ->and($funders[1]['identifier'])->toBe('https://doi.org/10.13039/501100000780');
+    });
+});
+
+describe('Positional Alignment with Empty Values (Issue #489)', function () {
+    it('preserves positional alignment when first funderIdentifier is empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+ICDP5071EC01001|Test|Sample|ICDP; Swiss NSF; FWF; DFG| ; https://doi.org/10.13039/501100001711; https://doi.org/10.13039/501100002428; https://doi.org/10.13039/501100001659
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(4)
+            // First funder: no identifier (was empty/space)
+            ->and($funders[0]['name'])->toBe('ICDP')
+            ->and($funders[0]['identifier'])->toBeNull()
+            ->and($funders[0]['identifierType'])->toBeNull()
+            // Second funder: correctly aligned
+            ->and($funders[1]['name'])->toBe('Swiss NSF')
+            ->and($funders[1]['identifier'])->toBe('https://doi.org/10.13039/501100001711')
+            ->and($funders[1]['identifierType'])->toBe('Crossref Funder ID')
+            // Third funder: correctly aligned
+            ->and($funders[2]['name'])->toBe('FWF')
+            ->and($funders[2]['identifier'])->toBe('https://doi.org/10.13039/501100002428')
+            ->and($funders[2]['identifierType'])->toBe('Crossref Funder ID')
+            // Fourth funder: correctly aligned
+            ->and($funders[3]['name'])->toBe('DFG')
+            ->and($funders[3]['identifier'])->toBe('https://doi.org/10.13039/501100001659')
+            ->and($funders[3]['identifierType'])->toBe('Crossref Funder ID');
+    });
+
+    it('preserves positional alignment when last funderIdentifier is empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+ICDP5071EC01001|Test|Sample|ICDP; DFG|https://doi.org/10.13039/501100001659;
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(2)
+            ->and($funders[0]['name'])->toBe('ICDP')
+            ->and($funders[0]['identifier'])->toBe('https://doi.org/10.13039/501100001659')
+            ->and($funders[1]['name'])->toBe('DFG')
+            ->and($funders[1]['identifier'])->toBeNull();
+    });
+
+    it('preserves positional alignment when middle funderIdentifier is empty', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+ICDP5071EC01001|Test|Sample|A; B; C|https://doi.org/10.1; ; https://doi.org/10.3
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(3)
+            ->and($funders[0]['name'])->toBe('A')
+            ->and($funders[0]['identifier'])->toBe('https://doi.org/10.1')
+            ->and($funders[1]['name'])->toBe('B')
+            ->and($funders[1]['identifier'])->toBeNull()
+            ->and($funders[2]['name'])->toBe('C')
+            ->and($funders[2]['identifier'])->toBe('https://doi.org/10.3');
+    });
+
+    it('preserves positional alignment for contributor types with gaps', function () {
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier|identifierType
+10.58052/IGSN.1234|Title|Name|John Doe; Jane Smith|ContactPerson; DataManager| ; 0000-0002-3456-7890| ; ORCID
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $contributors = $result['rows'][0]['_contributors'];
+        expect($contributors)->toHaveCount(2)
+            ->and($contributors[0]['name'])->toBe('John Doe')
+            ->and($contributors[0]['type'])->toBe('ContactPerson')
+            ->and($contributors[0]['identifier'])->toBeNull()
+            ->and($contributors[0]['identifierType'])->toBeEmpty()
+            ->and($contributors[1]['name'])->toBe('Jane Smith')
+            ->and($contributors[1]['type'])->toBe('DataManager')
+            ->and($contributors[1]['identifier'])->toBe('https://orcid.org/0000-0002-3456-7890')
+            ->and($contributors[1]['identifierType'])->toBe('ORCID');
+    });
+
+    it('correctly aligns relatedIdentifier types with corresponding identifiers', function () {
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype
+10.58052/IGSN.1234|Title|Name|10.1234/test1; 10.5678/test2|DOI; IGSN|IsCitedBy; IsPartOf
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_related_identifiers'])->toHaveCount(2)
+            ->and($result['rows'][0]['_related_identifiers'][0]['type'])->toBe('DOI')
+            ->and($result['rows'][0]['_related_identifiers'][0]['relationType'])->toBe('IsCitedBy')
+            ->and($result['rows'][0]['_related_identifiers'][1]['type'])->toBe('IGSN')
+            ->and($result['rows'][0]['_related_identifiers'][1]['relationType'])->toBe('IsPartOf');
+    });
+
+    it('skips empty relatedIdentifier positions while preserving valid ones', function () {
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype
+10.58052/IGSN.1234|Title|Name| ; 10.5678/test2; ; 10.9999/test4|DOI; IGSN; DOI; DOI|IsCitedBy; IsPartOf; IsDerivedFrom; References
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        // Only non-empty identifiers should be returned (positions 1 and 3)
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        expect($relatedIds)->toHaveCount(2)
+            ->and($relatedIds[0]['identifier'])->toBe('10.5678/test2')
+            ->and($relatedIds[1]['identifier'])->toBe('10.9999/test4');
+    });
+
+    it('reproduces exact Issue #489 scenario (ICDP5071EC0100)', function () {
+        // Exact reproduction: 4 funders, first has no identifier (space before semicolon)
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+ICDP5071EC0100|ICDP Core|Core Sample|ICDP International Continental Scientific Drilling Program; Swiss National Science Foundation; FWF Der Wissenschaftsfonds; DFG German Research Foundation| ; https://doi.org/10.13039/501100001711; https://doi.org/10.13039/501100002428; https://doi.org/10.13039/501100001659
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(4)
+            // ICDP: no identifier
+            ->and($funders[0]['name'])->toBe('ICDP International Continental Scientific Drilling Program')
+            ->and($funders[0]['identifier'])->toBeNull()
+            // Swiss NSF: correct identifier (NOT shifted from DFG)
+            ->and($funders[1]['name'])->toBe('Swiss National Science Foundation')
+            ->and($funders[1]['identifier'])->toBe('https://doi.org/10.13039/501100001711')
+            // FWF: correct identifier (NOT shifted)
+            ->and($funders[2]['name'])->toBe('FWF Der Wissenschaftsfonds')
+            ->and($funders[2]['identifier'])->toBe('https://doi.org/10.13039/501100002428')
+            // DFG: correct identifier (NOT missing)
+            ->and($funders[3]['name'])->toBe('DFG German Research Foundation')
+            ->and($funders[3]['identifier'])->toBe('https://doi.org/10.13039/501100001659');
+    });
+});
+
+describe('Combined Duplicate Columns and Positional Alignment', function () {
+    it('handles duplicate columns with empty positional values simultaneously', function () {
+        // Duplicate relatedIdentifier columns + empty funderIdentifier positions
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype|funderName|funderIdentifier
+ICDP5071EC01001|Test|Sample|https://doi.org/10.5880/ICDP.5071.001|DOI|IsCitedBy|https://doi.org/10.48440/ICDP.5071.002|DOI|IsCitedBy|ICDP; DFG| ; https://doi.org/10.13039/501100001659
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        // Two related identifiers from duplicate columns
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        expect($relatedIds)->toHaveCount(2)
+            ->and($relatedIds[0]['identifier'])->toBe('https://doi.org/10.5880/ICDP.5071.001')
+            ->and($relatedIds[1]['identifier'])->toBe('https://doi.org/10.48440/ICDP.5071.002');
+
+        // Funders with positional alignment preserved
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(2)
+            ->and($funders[0]['name'])->toBe('ICDP')
+            ->and($funders[0]['identifier'])->toBeNull()
+            ->and($funders[1]['name'])->toBe('DFG')
+            ->and($funders[1]['identifier'])->toBe('https://doi.org/10.13039/501100001659');
+    });
+
+    it('reproduces exact Issue #487 scenario (ICDP5071EC01001 with parent_igsn and two DOI columns)', function () {
+        // Exact reproduction from issue: parent_igsn + two separate relatedIdentifier columns for DOIs
+        $csv = <<<'CSV'
+igsn|title|name|parent_igsn|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+ICDP5071EC01001|Eger Core|Core Sample|ICDP5071EH30001|https://doi.org/10.5880/ICDP.5071.001|DOI|IsCitedBy|https://doi.org/10.48440/ICDP.5071.002|DOI|IsCitedBy
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        // parent_igsn (IsPartOf) + DOI 1 (IsCitedBy) + DOI 2 (IsCitedBy) = 3
+        expect($relatedIds)->toHaveCount(3)
+            ->and($relatedIds[0]['identifier'])->toBe('ICDP5071EH30001')
+            ->and($relatedIds[0]['type'])->toBe('IGSN')
+            ->and($relatedIds[0]['relationType'])->toBe('IsPartOf')
+            ->and($relatedIds[1]['identifier'])->toBe('https://doi.org/10.5880/ICDP.5071.001')
+            ->and($relatedIds[1]['type'])->toBe('DOI')
+            ->and($relatedIds[1]['relationType'])->toBe('IsCitedBy')
+            ->and($relatedIds[2]['identifier'])->toBe('https://doi.org/10.48440/ICDP.5071.002')
+            ->and($relatedIds[2]['type'])->toBe('DOI')
+            ->and($relatedIds[2]['relationType'])->toBe('IsCitedBy');
+    });
+
+    it('handles multiple rows with duplicate columns consistently', function () {
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+IGSN001|Title 1|Name 1|https://doi.org/10.1|DOI|IsCitedBy|https://doi.org/10.2|DOI|IsReferencedBy
+IGSN002|Title 2|Name 2|https://doi.org/10.3|DOI|IsPartOf||DOI|IsCitedBy
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty()
+            ->and($result['rows'])->toHaveCount(2);
+
+        // Row 1: both columns have values
+        $row1Ids = $result['rows'][0]['_related_identifiers'];
+        expect($row1Ids)->toHaveCount(2)
+            ->and($row1Ids[0]['identifier'])->toBe('https://doi.org/10.1')
+            ->and($row1Ids[1]['identifier'])->toBe('https://doi.org/10.2');
+
+        // Row 2: second column is empty
+        $row2Ids = $result['rows'][1]['_related_identifiers'];
+        expect($row2Ids)->toHaveCount(1)
+            ->and($row2Ids[0]['identifier'])->toBe('https://doi.org/10.3');
+    });
+
+    it('handles semicolon values within duplicate columns combined with positional gaps', function () {
+        // First relatedIdentifier column has TWO values, second column has ONE value
+        $csv = <<<'CSV'
+igsn|title|name|relatedIdentifier|relatedIdentifierType|relationtype|relatedIdentifier|relatedIdentifierType|relationtype
+IGSN001|Title|Name|https://doi.org/10.1; https://doi.org/10.2|DOI; DOI|IsCitedBy; IsPartOf|https://doi.org/10.3|DOI|References
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $relatedIds = $result['rows'][0]['_related_identifiers'];
+        // 2 from first column + 1 from second column = 3
+        expect($relatedIds)->toHaveCount(3)
+            ->and($relatedIds[0]['identifier'])->toBe('https://doi.org/10.1')
+            ->and($relatedIds[1]['identifier'])->toBe('https://doi.org/10.2')
+            ->and($relatedIds[2]['identifier'])->toBe('https://doi.org/10.3');
+    });
+
+    it('handles all funders having empty identifiers', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+IGSN001|Title|Name|Funder A; Funder B; Funder C| ; ;
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(3)
+            ->and($funders[0]['name'])->toBe('Funder A')
+            ->and($funders[0]['identifier'])->toBeNull()
+            ->and($funders[0]['identifierType'])->toBeNull()
+            ->and($funders[1]['name'])->toBe('Funder B')
+            ->and($funders[1]['identifier'])->toBeNull()
+            ->and($funders[2]['name'])->toBe('Funder C')
+            ->and($funders[2]['identifier'])->toBeNull();
+    });
+
+    it('handles more funder identifiers than funder names gracefully', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+IGSN001|Title|Name|DFG|https://doi.org/10.13039/501100001659; https://doi.org/10.13039/extra
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        // Only one funder name, so only one funding reference
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(1)
+            ->and($funders[0]['name'])->toBe('DFG')
+            ->and($funders[0]['identifier'])->toBe('https://doi.org/10.13039/501100001659');
+    });
+
+    it('handles fewer funder identifiers than funder names gracefully', function () {
+        $csv = <<<'CSV'
+igsn|title|name|funderName|funderIdentifier
+IGSN001|Title|Name|DFG; EU; NSF|https://doi.org/10.13039/501100001659
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $funders = $result['rows'][0]['_funding_references'];
+        expect($funders)->toHaveCount(3)
+            ->and($funders[0]['name'])->toBe('DFG')
+            ->and($funders[0]['identifier'])->toBe('https://doi.org/10.13039/501100001659')
+            ->and($funders[1]['name'])->toBe('EU')
+            ->and($funders[1]['identifier'])->toBeNull()
+            ->and($funders[2]['name'])->toBe('NSF')
+            ->and($funders[2]['identifier'])->toBeNull();
+    });
+
+    it('handles contributor with more names than types uses default type', function () {
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType
+IGSN001|Title|Name|Alice; Bob; Charlie|ContactPerson
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $contributors = $result['rows'][0]['_contributors'];
+        expect($contributors)->toHaveCount(3)
+            ->and($contributors[0]['type'])->toBe('ContactPerson')
+            ->and($contributors[1]['type'])->toBe('Other')
+            ->and($contributors[2]['type'])->toBe('Other');
+    });
+
+    it('handles contributor with empty identifier in middle position', function () {
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier|identifierType
+IGSN001|Title|Name|Alice; Bob; Charlie|ContactPerson; DataManager; Other|0000-0001-1111-1111; ; 0000-0003-3333-3333|ORCID; ; ORCID
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $contributors = $result['rows'][0]['_contributors'];
+        expect($contributors)->toHaveCount(3)
+            ->and($contributors[0]['name'])->toBe('Alice')
+            ->and($contributors[0]['identifier'])->toBe('https://orcid.org/0000-0001-1111-1111')
+            ->and($contributors[0]['identifierType'])->toBe('ORCID')
+            ->and($contributors[1]['name'])->toBe('Bob')
+            ->and($contributors[1]['identifier'])->toBeNull()
+            ->and($contributors[1]['identifierType'])->toBeEmpty()
+            ->and($contributors[2]['name'])->toBe('Charlie')
+            ->and($contributors[2]['identifier'])->toBe('https://orcid.org/0000-0003-3333-3333')
+            ->and($contributors[2]['identifierType'])->toBe('ORCID');
+    });
+});
+
 describe('Error Handling', function () {
     it('returns error for empty CSV', function () {
         $result = $this->parser->parse('');
