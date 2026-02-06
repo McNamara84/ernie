@@ -33,7 +33,7 @@ beforeEach(function () {
     ]);
 
     $this->mainTitleType = TitleType::firstOrCreate(
-        ['slug' => 'main-title'],
+        ['slug' => 'MainTitle'],
         ['name' => 'Main Title']
     );
 });
@@ -310,7 +310,7 @@ describe('Portal Resource Transformation', function () {
 function createPublishedResource(ResourceType $type, string $title): Resource
 {
     $mainTitleType = TitleType::firstOrCreate(
-        ['slug' => 'main-title'],
+        ['slug' => 'MainTitle'],
         ['name' => 'Main Title']
     );
 
