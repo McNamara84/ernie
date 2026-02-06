@@ -132,6 +132,14 @@
         ],
         "fixes": [
             {
+                "title": "IGSN CSV Parser: Missing relatedIdentifier from Duplicate Columns",
+                "description": "Fixed an issue where IGSN CSV files with duplicate column headers (e.g., multiple 'relatedIdentifier' columns) would only retain the last column's value, causing related identifiers to be lost. The parser now detects duplicate headers and merges their values, so all related identifiers are correctly imported."
+            },
+            {
+                "title": "IGSN CSV Parser: Shifted Funding References with Empty Values",
+                "description": "Fixed an issue where empty positional values in semicolon-separated fields (e.g., a missing first funderIdentifier) caused all subsequent values to shift left, misaligning funder identifiers with their corresponding funder names. The parser now preserves empty positions to maintain correct alignment between parallel fields."
+            },
+            {
                 "title": "IGSN Size Parsing Supports Multiple Values",
                 "description": "The CSV size and size_unit fields now correctly handle multiple semicolon-separated specifications (e.g., '0.9; 146' with 'Drilled Length [m]; Core Diameter [mm]'), creating separate DataCite size entries for each pair. Previously, all values were concatenated into a single size string. The redundant size and size_unit columns have been removed from the igsn_metadata table; sizes are now exclusively stored in the sizes table (DataCite property #13)."
             },
