@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $resource_id
  * @property string|null $numeric_value Decimal value stored as string by Laravel's decimal:4 cast
  * @property string|null $unit
-
  * @property string|null $type
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
