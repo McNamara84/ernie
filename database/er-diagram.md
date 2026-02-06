@@ -467,8 +467,6 @@ erDiagram
         varchar sample_type
         varchar material
         boolean is_private
-        decimal size "12,4"
-        varchar size_unit "100"
         decimal depth_min "10,2"
         decimal depth_max "10,2"
         varchar depth_scale

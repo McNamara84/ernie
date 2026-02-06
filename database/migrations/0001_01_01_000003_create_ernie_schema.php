@@ -620,8 +620,6 @@ return new class extends Migration
             $table->string('sample_type', 100)->nullable();
             $table->string('material', 255)->nullable();
             $table->boolean('is_private')->default(false);
-            $table->decimal('size', 12, 4)->nullable();
-            $table->string('size_unit', 100)->nullable();
 
             // Depth information
             $table->decimal('depth_min', 10, 2)->nullable();

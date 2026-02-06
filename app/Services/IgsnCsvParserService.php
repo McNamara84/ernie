@@ -56,6 +56,8 @@ class IgsnCsvParserService
         'relatedidentifierType', // lowercase variant in DIVE CSV
         'funderName',
         'funderIdentifier',
+        'size',
+        'size_unit',
     ];
 
     /**
@@ -188,6 +190,7 @@ class IgsnCsvParserService
         $parsedData['_funding_references'] = $this->parseFundingReferences($data);
         $parsedData['_creator'] = $this->parseCreator($data);
         $parsedData['_geo_location'] = $this->parseGeoLocation($data);
+        $parsedData['_sizes'] = $this->parseSizes($parsedData);
         $parsedData['_row_number'] = $rowNumber;
 
         return ['data' => $parsedData, 'warnings' => $warnings, 'errors' => []];
@@ -410,6 +413,43 @@ class IgsnCsvParserService
             'affiliation' => ! empty($affiliation) ? $affiliation : null,
             'ror' => $this->normalizeIdentifier($data['ror'] ?? $data['collector_affiliation_identifier'] ?? ''),
         ];
+    }
+
+    /**
+     * Parse size data from CSV row.
+     *
+     * Combines size values with their corresponding units into DataCite size strings.
+     * Supports multiple size specifications separated by semicolons.
+     * Example: size="0.9; 146" + size_unit="Drilled Length [m]; Core Diameter [mm]"
+     *   → ["0.9 Drilled Length [m]", "146 Core Diameter [mm]"]
+     *
+     * @param  array<string, mixed>  $data  Parsed data (size/size_unit already split into arrays)
+     * @return list<string>
+     */
+    private function parseSizes(array $data): array
+    {
+        $sizes = is_array($data['size'] ?? null)
+            ? $data['size']
+            : $this->splitMultiValue((string) ($data['size'] ?? ''), '; ');
+
+        $units = is_array($data['size_unit'] ?? null)
+            ? $data['size_unit']
+            : $this->splitMultiValue((string) ($data['size_unit'] ?? ''), '; ');
+
+        $result = [];
+        $count = count($sizes);
+
+        for ($i = 0; $i < $count; $i++) {
+            $sizeValue = trim((string) ($sizes[$i] ?? ''));
+            if ($sizeValue === '') {
+                continue;
+            }
+
+            $unit = trim((string) ($units[$i] ?? ''));
+            $result[] = $unit !== '' ? "{$sizeValue} {$unit}" : $sizeValue;
+        }
+
+        return $result;
     }
 
     /**

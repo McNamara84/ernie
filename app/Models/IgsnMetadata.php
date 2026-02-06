@@ -24,8 +24,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $sample_type
  * @property string|null $material
  * @property bool $is_private
- * @property string|null $size
- * @property string|null $size_unit
  * @property string|null $depth_min
  * @property string|null $depth_max
  * @property string|null $depth_scale
@@ -74,8 +72,6 @@ class IgsnMetadata extends Model
         'sample_type',
         'material',
         'is_private',
-        'size',
-        'size_unit',
         'depth_min',
         'depth_max',
         'depth_scale',
@@ -107,7 +103,6 @@ class IgsnMetadata extends Model
      */
     protected $casts = [
         'is_private' => 'boolean',
-        'size' => 'decimal:4',
         'depth_min' => 'decimal:2',
         'depth_max' => 'decimal:2',
         'description_json' => 'array',
