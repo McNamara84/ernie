@@ -379,7 +379,7 @@ class ResourceTestDataSeeder extends Seeder
         // Note: CC-BY-4.0 license is already added by createBaseResource
 
         // Sizes and Formats
-        Size::create(['resource_id' => $resource->id, 'value' => '1.5 GB']);
+        Size::create(['resource_id' => $resource->id, 'numeric_value' => 1.5, 'unit' => 'GB']);
         Format::create(['resource_id' => $resource->id, 'value' => 'application/zip']);
 
         $this->createLandingPage($resource, 'fully-populated');
@@ -1099,9 +1099,9 @@ class ResourceTestDataSeeder extends Seeder
         // Note: Default contact person is already at position 1
         $this->addCreator($resource, 'File', 'Manager', null, 2);
 
-        Size::create(['resource_id' => $resource->id, 'value' => '2.5 GB']);
-        Size::create(['resource_id' => $resource->id, 'value' => '150,000 records']);
-        Size::create(['resource_id' => $resource->id, 'value' => '500 files']);
+        Size::create(['resource_id' => $resource->id, 'numeric_value' => 2.5, 'unit' => 'GB']);
+        Size::create(['resource_id' => $resource->id, 'numeric_value' => 150000, 'unit' => 'records']);
+        Size::create(['resource_id' => $resource->id, 'numeric_value' => 500, 'unit' => 'files']);
 
         Format::create(['resource_id' => $resource->id, 'value' => 'application/zip']);
         Format::create(['resource_id' => $resource->id, 'value' => 'text/csv']);

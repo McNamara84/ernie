@@ -642,11 +642,13 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
 
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '1.5 GB',
+            'numeric_value' => 1.5,
+            'unit' => 'GB',
         ]);
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '1000 files',
+            'numeric_value' => 1000,
+            'unit' => 'files',
         ]);
 
         $xml = $this->exporter->export($resource);
