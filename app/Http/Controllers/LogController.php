@@ -58,6 +58,7 @@ class LogController extends Controller
             ],
             'available_levels' => $this->logService->getAvailableLevels(),
             'can_delete' => Gate::allows('delete-logs'),
+            'can_delete_all_resources' => Gate::allows('delete-all-resources'),
         ]);
     }
 

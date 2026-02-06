@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, FileX2, Info, RefreshCw, ScrollText, Search, ShieldAlert, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, Database, FileX2, Info, RefreshCw, ScrollText, Search, ShieldAlert, Trash2, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -18,7 +18,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -53,6 +62,7 @@ interface LogsIndexProps {
     filters: Filters;
     available_levels: string[];
     can_delete: boolean;
+    can_delete_all_resources: boolean;
 }
 
 const levelColors: Record<string, string> = {
@@ -77,11 +87,14 @@ const levelIcons: Record<string, React.ReactNode> = {
     debug: <Info className="size-4" />,
 };
 
-export default function Index({ logs, pagination, filters, available_levels, can_delete }: LogsIndexProps) {
+export default function Index({ logs, pagination, filters, available_levels, can_delete, can_delete_all_resources }: LogsIndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [level, setLevel] = useState(filters.level ?? '');
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+    const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState('');
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
     // Preserve expanded rows across refreshes by tracking them in a ref
     const preservedExpandedRows = useRef<Set<number>>(new Set());
 
@@ -180,6 +193,24 @@ export default function Index({ logs, pagination, filters, available_levels, can
         });
     };
 
+    const handleDeleteAllResources = () => {
+        setIsDeletingAll(true);
+        router.delete('/resources/all', {
+            data: { confirmation: deleteConfirmation },
+            onSuccess: () => {
+                toast.success('All resources have been deleted successfully.');
+                setShowDeleteAllDialog(false);
+                setDeleteConfirmation('');
+            },
+            onError: () => {
+                toast.error('Failed to delete resources.');
+            },
+            onFinish: () => {
+                setIsDeletingAll(false);
+            },
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Logs" />
@@ -227,6 +258,16 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
+                            )}
+                            {can_delete_all_resources && (
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => setShowDeleteAllDialog(true)}
+                                >
+                                    <Database className="mr-2 size-4" />
+                                    Delete all Test Datasets
+                                </Button>
                             )}
                         </div>
                     </CardHeader>
@@ -397,6 +438,58 @@ export default function Index({ logs, pagination, filters, available_levels, can
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Delete All Resources Confirmation Dialog */}
+            <Dialog
+                open={showDeleteAllDialog}
+                onOpenChange={(open) => {
+                    setShowDeleteAllDialog(open);
+                    if (!open) setDeleteConfirmation('');
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete All Test Datasets</DialogTitle>
+                        <DialogDescription>
+                            This action is irreversible. All resources (datasets and IGSNs) will be permanently deleted from the database.
+                            Settings, user accounts, and lookup data will not be affected.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="delete-confirmation">
+                            Type <span className="font-mono font-bold">delete</span> to confirm:
+                        </Label>
+                        <Input
+                            id="delete-confirmation"
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder="delete"
+                            autoComplete="off"
+                        />
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowDeleteAllDialog(false);
+                                setDeleteConfirmation('');
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            disabled={deleteConfirmation !== 'delete' || isDeletingAll}
+                            onClick={handleDeleteAllResources}
+                        >
+                            {isDeletingAll && <Spinner size="sm" className="mr-2" />}
+                            Delete All Resources
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
