@@ -938,7 +938,7 @@ class DataCiteJsonExporter
     /**
      * Build sizes array
      *
-     * DataCite sizes is a simple array of strings.
+     * DataCite sizes is a simple array of strings (e.g., "3 m", "87 mm").
      *
      * @return list<string>|null
      */
@@ -951,9 +951,12 @@ class DataCiteJsonExporter
         $sizes = [];
 
         foreach ($resource->sizes as $size) {
-            $sizes[] = $size->value;
+            $exportString = $size->export_string;
+            if ($exportString !== '') {
+                $sizes[] = $exportString;
+            }
         }
 
-        return $sizes;
+        return $sizes !== [] ? $sizes : null;
     }
 }

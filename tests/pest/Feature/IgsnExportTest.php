@@ -2331,7 +2331,8 @@ describe('IGSN Size Export', function () {
         // Create size entry (as would be created by IgsnStorageService)
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '15.5 cm',
+            'numeric_value' => 15.5,
+            'unit' => 'cm',
         ]);
 
         $person = Person::create([
@@ -2382,7 +2383,7 @@ describe('IGSN Size Export', function () {
         // Create size entry without unit
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '250',
+            'numeric_value' => 250,
         ]);
 
         $person = Person::create([
@@ -2431,7 +2432,8 @@ describe('IGSN Size Export', function () {
 
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '100 g',
+            'numeric_value' => 100,
+            'unit' => 'g',
         ]);
 
         $person = Person::create([
@@ -2525,14 +2527,12 @@ describe('IGSN Size Export', function () {
         // Create multiple size entries (as would be created by IgsnStorageService)
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '0.9 Drilled Length [m]',
             'numeric_value' => 0.9,
             'unit' => 'm',
             'type' => 'Drilled Length',
         ]);
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '146 Core Diameter [mm]',
             'numeric_value' => 146,
             'unit' => 'mm',
             'type' => 'Core Diameter',
@@ -2558,8 +2558,8 @@ describe('IGSN Size Export', function () {
 
         expect($json['data']['attributes'])->toHaveKey('sizes')
             ->and($json['data']['attributes']['sizes'])->toHaveCount(2)
-            ->and($json['data']['attributes']['sizes'][0])->toBe('0.9 Drilled Length [m]')
-            ->and($json['data']['attributes']['sizes'][1])->toBe('146 Core Diameter [mm]');
+            ->and($json['data']['attributes']['sizes'][0])->toBe('0.9 m')
+            ->and($json['data']['attributes']['sizes'][1])->toBe('146 mm');
     });
 
     it('exports multiple sizes to XML', function () {
@@ -2586,14 +2586,12 @@ describe('IGSN Size Export', function () {
 
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '3 Drilled Length [m]',
             'numeric_value' => 3,
             'unit' => 'm',
             'type' => 'Drilled Length',
         ]);
         \App\Models\Size::create([
             'resource_id' => $resource->id,
-            'value' => '123 Core Diameter [mm]',
             'numeric_value' => 123,
             'unit' => 'mm',
             'type' => 'Core Diameter',
@@ -2619,8 +2617,8 @@ describe('IGSN Size Export', function () {
 
         expect($xml)->toContain('<sizes>')
             ->and($xml)->toContain('</sizes>')
-            ->and($xml)->toContain('<size>3 Drilled Length [m]</size>')
-            ->and($xml)->toContain('<size>123 Core Diameter [mm]</size>');
+            ->and($xml)->toContain('<size>3 m</size>')
+            ->and($xml)->toContain('<size>123 mm</size>');
     });
 });
 

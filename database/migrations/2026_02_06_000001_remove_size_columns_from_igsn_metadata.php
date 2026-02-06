@@ -12,10 +12,8 @@ return new class extends Migration
      * 1. Remove redundant size/size_unit columns from igsn_metadata table.
      * 2. Add structured columns (numeric_value, unit, type) to sizes table
      *    for 3NF-compliant storage of IGSN size data.
-     *
-     * Size data is now exclusively stored in the `sizes` table (DataCite property #13).
-     * The `value` column holds the combined export string (e.g., "0.9 Drilled Length [m]"),
-     * while the new columns store the decomposed parts for structured queries.
+     * 3. Remove the value column from sizes table (export string is now
+     *    built dynamically from numeric_value + unit).
      *
      * @see https://github.com/McNamara84/ernie/issues/488
      */
@@ -35,7 +33,7 @@ return new class extends Migration
         // Add structured columns to sizes table for 3NF compliance
         Schema::table('sizes', function (Blueprint $table): void {
             if (! Schema::hasColumn('sizes', 'numeric_value')) {
-                $table->decimal('numeric_value', 12, 4)->nullable()->after('value');
+                $table->decimal('numeric_value', 12, 4)->nullable()->after('resource_id');
             }
             if (! Schema::hasColumn('sizes', 'unit')) {
                 $table->string('unit', 50)->nullable()->after('numeric_value');
@@ -44,5 +42,12 @@ return new class extends Migration
                 $table->string('type', 100)->nullable()->after('unit');
             }
         });
+
+        // Remove the now-redundant value column
+        if (Schema::hasColumn('sizes', 'value')) {
+            Schema::table('sizes', function (Blueprint $table): void {
+                $table->dropColumn('value');
+            });
+        }
     }
 };

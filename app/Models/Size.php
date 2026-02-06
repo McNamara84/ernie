@@ -9,19 +9,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Size Model (DataCite #13)
  *
- * Stores size information for a Resource.
- * The `value` field holds the combined DataCite export string (e.g., "0.9 Drilled Length [m]").
- * For IGSN data, the structured columns `numeric_value`, `unit`, and `type` store the
- * decomposed parts for 3NF-compliant storage and structured queries.
+ * Stores size information for a Resource in 3NF.
+ * The structured columns `numeric_value`, `unit`, and `type` store the decomposed
+ * parts. The export string (e.g., "3 m") is built dynamically via the
+ * `export_string` accessor.
  *
  * @property int $id
  * @property int $resource_id
- * @property string $value
  * @property string|null $numeric_value
  * @property string|null $unit
  * @property string|null $type
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read string $export_string
  * @property-read Resource $resource
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/size/
@@ -33,7 +33,6 @@ class Size extends Model
 
     protected $fillable = [
         'resource_id',
-        'value',
         'numeric_value',
         'unit',
         'type',
@@ -47,6 +46,27 @@ class Size extends Model
         return [
             'numeric_value' => 'decimal:4',
         ];
+    }
+
+    /**
+     * Build DataCite export string from numeric_value and unit.
+     *
+     * Examples: "3 m", "87 mm", "15 pages", "250"
+     */
+    public function getExportStringAttribute(): string
+    {
+        $parts = [];
+
+        if ($this->numeric_value !== null) {
+            // Format: strip trailing zeros (3.0000 → 3, 0.9000 → 0.9)
+            $parts[] = rtrim(rtrim($this->numeric_value, '0'), '.');
+        }
+
+        if ($this->unit !== null && $this->unit !== '') {
+            $parts[] = $this->unit;
+        }
+
+        return implode(' ', $parts);
     }
 
     /** @return BelongsTo<Resource, static> */

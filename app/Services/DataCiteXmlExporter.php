@@ -818,11 +818,16 @@ class DataCiteXmlExporter
         $sizes = $this->dom->createElement('sizes');
 
         foreach ($resource->sizes as $size) {
-            $sizeElement = $this->dom->createElement('size', htmlspecialchars($size->value));
-            $sizes->appendChild($sizeElement);
+            $exportString = $size->export_string;
+            if ($exportString !== '') {
+                $sizeElement = $this->dom->createElement('size', htmlspecialchars($exportString));
+                $sizes->appendChild($sizeElement);
+            }
         }
 
-        $this->root->appendChild($sizes);
+        if ($sizes->hasChildNodes()) {
+            $this->root->appendChild($sizes);
+        }
     }
 
     /**

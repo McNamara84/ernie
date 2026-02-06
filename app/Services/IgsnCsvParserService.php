@@ -423,12 +423,12 @@ class IgsnCsvParserService
      *
      * Example: size="0.9; 146" + size_unit="Drilled Length [m]; Core Diameter [mm]"
      *   → [
-     *       ['numeric_value' => '0.9', 'unit' => 'm', 'type' => 'Drilled Length', 'value' => '0.9 Drilled Length [m]'],
-     *       ['numeric_value' => '146', 'unit' => 'mm', 'type' => 'Core Diameter', 'value' => '146 Core Diameter [mm]'],
+     *       ['numeric_value' => '0.9', 'unit' => 'm', 'type' => 'Drilled Length'],
+     *       ['numeric_value' => '146', 'unit' => 'mm', 'type' => 'Core Diameter'],
      *     ]
      *
      * @param  array<string, mixed>  $data  Parsed data (size/size_unit already split into arrays)
-     * @return list<array{numeric_value: string, unit: string|null, type: string|null, value: string}>
+     * @return list<array{numeric_value: string, unit: string|null, type: string|null}>
      */
     private function parseSizes(array $data): array
     {
@@ -452,14 +452,10 @@ class IgsnCsvParserService
             $unitString = trim((string) ($units[$i] ?? ''));
             $parsed = $this->parseUnitString($unitString);
 
-            // Build the combined export value string
-            $exportValue = $unitString !== '' ? "{$sizeValue} {$unitString}" : $sizeValue;
-
             $result[] = [
                 'numeric_value' => $sizeValue,
                 'unit' => $parsed['unit'],
                 'type' => $parsed['type'],
-                'value' => $exportValue,
             ];
         }
 

@@ -455,11 +455,8 @@ describe('IGSN Data Storage', function () {
         expect($metadata->upload_status)->toBe('uploaded');
 
         // Size entries (stored in sizes table)
-        $sizes = $resource->sizes()->pluck('value')->toArray();
-        expect($sizes)->toContain('0 core length [m]');
-
-        // Verify structured size columns
-        $sizeEntry = $resource->sizes()->where('value', '0 core length [m]')->first();
+        $sizeEntry = $resource->sizes()->where('type', 'core length')->first();
+        expect($sizeEntry)->not->toBeNull();
         expect($sizeEntry->numeric_value)->toBe('0.0000')
             ->and($sizeEntry->unit)->toBe('m')
             ->and($sizeEntry->type)->toBe('core length');
@@ -572,11 +569,8 @@ describe('IGSN DIVE CSV Data Storage', function () {
         expect($metadata->depth_scale)->toBe('m (depth_drilled)');
 
         // Size entries (stored in sizes table)
-        $sizes = $resource->sizes()->pluck('value')->toArray();
-        expect($sizes)->toContain('851.88 Total Cored Length [m]');
-
-        // Verify structured size columns
-        $sizeEntry = $resource->sizes()->where('value', '851.88 Total Cored Length [m]')->first();
+        $sizeEntry = $resource->sizes()->where('type', 'Total Cored Length')->first();
+        expect($sizeEntry)->not->toBeNull();
         expect($sizeEntry->numeric_value)->toBe('851.8800')
             ->and($sizeEntry->unit)->toBe('m')
             ->and($sizeEntry->type)->toBe('Total Cored Length');
@@ -721,10 +715,13 @@ describe('IGSN Multi-Value Size Storage', function () {
         $resource = Resource::where('doi', 'ICDP5071ECX0001')->first();
         expect($resource)->not->toBeNull();
 
-        $sizes = $resource->sizes()->pluck('value')->toArray();
-        expect($sizes)->toHaveCount(2)
-            ->and($sizes)->toContain('0.9 Drilled Length [m]')
-            ->and($sizes)->toContain('146 Core Diameter [mm]');
+        $sizes = $resource->sizes;
+        expect($sizes)->toHaveCount(2);
+
+        // Verify by export_string accessor
+        $exportStrings = $sizes->map->export_string->toArray();
+        expect($exportStrings)->toContain('0.9 m')
+            ->and($exportStrings)->toContain('146 mm');
 
         // Verify structured columns for first size
         $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();
@@ -750,10 +747,12 @@ describe('IGSN Multi-Value Size Storage', function () {
         $resource = Resource::where('doi', 'ICDP5071EC01001')->first();
         expect($resource)->not->toBeNull();
 
-        $sizes = $resource->sizes()->pluck('value')->toArray();
-        expect($sizes)->toHaveCount(2)
-            ->and($sizes)->toContain('3 Drilled Length [m]')
-            ->and($sizes)->toContain('123 Core Diameter [mm]');
+        $sizes = $resource->sizes;
+        expect($sizes)->toHaveCount(2);
+
+        $exportStrings = $sizes->map->export_string->toArray();
+        expect($exportStrings)->toContain('3 m')
+            ->and($exportStrings)->toContain('123 mm');
 
         // Verify structured columns
         $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();

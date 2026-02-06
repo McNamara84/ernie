@@ -497,10 +497,9 @@ return new class extends Migration
                 ->constrained('resources')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
-            $table->string('value');                       // Combined export string, e.g., "0.9 Drilled Length [m]"
-            $table->decimal('numeric_value', 12, 4)->nullable(); // Numeric part, e.g., 0.9
-            $table->string('unit', 50)->nullable();        // Unit, e.g., "m"
-            $table->string('type', 100)->nullable();       // Type/label, e.g., "Drilled Length"
+            $table->decimal('numeric_value', 12, 4)->nullable(); // Numeric part, e.g., 3
+            $table->string('unit', 50)->nullable();              // Unit, e.g., "m"
+            $table->string('type', 100)->nullable();             // Type/label, e.g., "Drilled Length"
             $table->timestamps();
 
             $table->index('resource_id');
