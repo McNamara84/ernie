@@ -140,6 +140,85 @@ CSV;
     });
 });
 
+describe('Size Parsing', function () {
+    it('parses multiple semicolon-separated size values with units', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|0.9; 146|Drilled Length [m]; Core Diameter [mm]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(2)
+            ->sequence(
+                fn ($size) => $size->toBe('0.9 Drilled Length [m]'),
+                fn ($size) => $size->toBe('146 Core Diameter [mm]'),
+            );
+    });
+
+    it('parses a single size value with unit', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|851.88|Total Cored Length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(1)
+            ->and($result['rows'][0]['_sizes'][0])->toBe('851.88 Total Cored Length [m]');
+    });
+
+    it('parses size without unit', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size
+10.58052/IGSN.1234|Title|Name|250
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(1)
+            ->and($result['rows'][0]['_sizes'][0])->toBe('250');
+    });
+
+    it('handles empty size field', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name||
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])->toBeEmpty();
+    });
+
+    it('handles size with zero value', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|0|core length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(1)
+            ->and($result['rows'][0]['_sizes'][0])->toBe('0 core length [m]');
+    });
+
+    it('handles no size column at all', function () {
+        $csv = <<<'CSV'
+igsn|title|name
+10.58052/IGSN.1234|Title|Name
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])->toBeEmpty();
+    });
+});
+
 describe('Contributor Parsing', function () {
     it('parses a single contributor', function () {
         $csv = <<<'CSV'

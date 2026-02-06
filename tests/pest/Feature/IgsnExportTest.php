@@ -2325,8 +2325,6 @@ describe('IGSN Size Export', function () {
 
         IgsnMetadata::create([
             'resource_id' => $resource->id,
-            'size' => 15.5,
-            'size_unit' => 'cm',
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
         ]);
 
@@ -2378,7 +2376,6 @@ describe('IGSN Size Export', function () {
 
         IgsnMetadata::create([
             'resource_id' => $resource->id,
-            'size' => 250,
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
         ]);
 
@@ -2429,8 +2426,6 @@ describe('IGSN Size Export', function () {
 
         IgsnMetadata::create([
             'resource_id' => $resource->id,
-            'size' => 100,
-            'size_unit' => 'g',
             'upload_status' => IgsnMetadata::STATUS_UPLOADED,
         ]);
 
@@ -2503,6 +2498,117 @@ describe('IGSN Size Export', function () {
         $json = $response->json();
 
         expect($json['data']['attributes'])->not->toHaveKey('sizes');
+    });
+
+    it('exports multiple sizes to JSON', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.MULTISIZETEST',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Multi Size Test Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        // Create multiple size entries (as would be created by IgsnStorageService)
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '0.9 Drilled Length [m]',
+        ]);
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '146 Core Diameter [mm]',
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-json', $resource));
+
+        $response->assertOk();
+        $json = $response->json();
+
+        expect($json['data']['attributes'])->toHaveKey('sizes')
+            ->and($json['data']['attributes']['sizes'])->toHaveCount(2)
+            ->and($json['data']['attributes']['sizes'][0])->toBe('0.9 Drilled Length [m]')
+            ->and($json['data']['attributes']['sizes'][1])->toBe('146 Core Diameter [mm]');
+    });
+
+    it('exports multiple sizes to XML', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::create([
+            'doi' => '10.58052/IGSN.MULTISIZEXML',
+            'publication_year' => now()->year,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Multi Size XML Test',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
+        ]);
+
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '3 Drilled Length [m]',
+        ]);
+        \App\Models\Size::create([
+            'resource_id' => $resource->id,
+            'value' => '123 Core Diameter [mm]',
+        ]);
+
+        $person = Person::create([
+            'given_name' => 'Test',
+            'family_name' => 'User',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+        $xml = $response->getContent();
+
+        expect($xml)->toContain('<sizes>')
+            ->and($xml)->toContain('</sizes>')
+            ->and($xml)->toContain('<size>3 Drilled Length [m]</size>')
+            ->and($xml)->toContain('<size>123 Core Diameter [mm]</size>');
     });
 });
 
