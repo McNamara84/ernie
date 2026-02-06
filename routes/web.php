@@ -9,6 +9,7 @@ use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
+use App\Http\Controllers\PortalController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
@@ -59,6 +60,10 @@ Route::get('/legal-notice', function () {
 Route::get('/changelog', function () {
     return Inertia::render('changelog');
 })->name('changelog');
+
+// Public Portal (Dataset Discovery)
+// ===========================================================
+Route::get('/portal', [PortalController::class, 'index'])->name('portal');
 
 // Public Landing Pages (accessible without authentication)
 // ===========================================================

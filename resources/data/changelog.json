@@ -4,6 +4,10 @@
         "date": "2026-02-05",
         "features": [
             {
+                "title": "Public Data Portal",
+                "description": "A new publicly accessible portal page at /portal allows visitors to discover and explore all published research datasets. The portal features a collapsible filter sidebar with full-text search (across titles, DOIs, authors, and descriptions) and resource type filtering (All, DOI Resources, or IGSN Samples). An interactive Leaflet map displays geographic locations as points, bounding boxes, and polygons with auto-zoom to fit visible data. Clicking a map marker shows a popup with the resource title, authors, year, and a link to the landing page. Results are displayed in a responsive card grid with citation-style author formatting (e.g., 'Smith et al.' for 3+ authors) and pagination. All search and filter parameters are stored in the URL for easy bookmarking and sharing."
+            },
+            {
                 "title": "Contact Form Cc to Data Publication Team",
                 "description": "When a visitor sends a message via the landing page contact form, the data publication team (datapub@gfz.de) now automatically receives a Cc copy of the email. This ensures the team is informed of all contact requests even if the original contact person's email address has changed. When sending to multiple contact persons, only the first email includes the Cc to avoid duplicate notifications. The Cc email address is configurable via environment variable (LANDING_PAGE_CONTACT_CC_EMAIL) and can be disabled by setting it to an empty string."
             },

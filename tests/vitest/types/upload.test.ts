@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    type CsvUploadSuccessResponse,
     getUploadErrors,
     hasMultipleErrors,
     isCsvUploadSuccess,
     isUploadError,
     isXmlUploadSuccess,
-    type CsvUploadSuccessResponse,
     type UploadError,
     type UploadErrorResponse,
     type XmlUploadSuccessResponse,
