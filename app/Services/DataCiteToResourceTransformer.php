@@ -871,8 +871,8 @@ class DataCiteToResourceTransformer
 
             $size = trim($size);
 
-            // Try to parse "number unit" pattern (e.g., "1.5 GB", "1000 files")
-            if (preg_match('/^([\d.]+)\s+(.+)$/', $size, $matches)) {
+            // Try to parse "number unit" pattern (e.g., "1.5 GB", "1000 files", "1.5GB")
+            if (preg_match('/^([\d.]+)\s*(.+)$/', $size, $matches)) {
                 Size::create([
                     'resource_id' => $resource->id,
                     'numeric_value' => (float) $matches[1],
