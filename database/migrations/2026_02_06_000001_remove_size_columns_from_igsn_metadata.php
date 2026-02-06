@@ -18,7 +18,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('igsn_metadata', function (Blueprint $table): void {
-            $table->dropColumn(['size', 'size_unit']);
+            $columnsToDrop = collect(['size', 'size_unit'])
+                ->filter(fn (string $column): bool => Schema::hasColumn('igsn_metadata', $column))
+                ->all();
+
+            if ($columnsToDrop !== []) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 };
