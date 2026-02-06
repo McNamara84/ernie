@@ -71,6 +71,7 @@ describe('Logs/Index', () => {
         filters: defaultFilters,
         available_levels: defaultAvailableLevels,
         can_delete: true,
+        can_delete_all_resources: false,
     };
 
     beforeEach(() => {
