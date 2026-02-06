@@ -490,14 +490,16 @@ return new class extends Migration
             $table->unique(['resource_id', 'rights_id']);
         });
 
-        // Sizes (DataCite #13) - Structure only, not yet used
+        // Sizes (DataCite #13)
         Schema::create('sizes', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('resource_id')
                 ->constrained('resources')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
-            $table->string('value');                       // e.g., "15 MB", "100 pages"
+            $table->decimal('numeric_value', 12, 4)->nullable(); // Numeric part, e.g., 3
+            $table->string('unit', 50)->nullable();              // Unit, e.g., "m"
+            $table->string('type', 100)->nullable();             // Type/label, e.g., "Drilled Length"
             $table->timestamps();
 
             $table->index('resource_id');
@@ -620,8 +622,6 @@ return new class extends Migration
             $table->string('sample_type', 100)->nullable();
             $table->string('material', 255)->nullable();
             $table->boolean('is_private')->default(false);
-            $table->decimal('size', 12, 4)->nullable();
-            $table->string('size_unit', 100)->nullable();
 
             // Depth information
             $table->decimal('depth_min', 10, 2)->nullable();

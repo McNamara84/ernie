@@ -43,6 +43,11 @@ function getDiveCsvPath(): string
     return base_path('tests/pest/dataset-examples/20260116_TEST_ICDP5071-DIVE-Parent-Boreholes.csv');
 }
 
+function getDiveChildrenCsvPath(): string
+{
+    return base_path('tests/pest/dataset-examples/20260206_TEST_ICDP5071-DIVE-Children-Cores.csv');
+}
+
 describe('IGSN CSV Upload Controller', function () {
     it('can upload DOVE CSV file via endpoint', function () {
         $csvContent = file_get_contents(getDoveCsvPath());
@@ -449,9 +454,12 @@ describe('IGSN Data Storage', function () {
         expect($metadata->material)->toBe('Sediment');
         expect($metadata->upload_status)->toBe('uploaded');
 
-        // Size fields (stored as decimal string in DB)
-        expect((float) $metadata->size)->toBe(0.0);
-        expect($metadata->size_unit)->toBe('core length [m]');
+        // Size entries (stored in sizes table)
+        $sizeEntry = $resource->sizes()->where('type', 'core length')->first();
+        expect($sizeEntry)->not->toBeNull();
+        expect($sizeEntry->numeric_value)->toBe('0.0000')
+            ->and($sizeEntry->unit)->toBe('m')
+            ->and($sizeEntry->type)->toBe('core length');
 
         // Collection method fields
         expect($metadata->collection_method)->toBe('drilling');
@@ -556,11 +564,16 @@ describe('IGSN DIVE CSV Data Storage', function () {
         // Verify IGSN metadata specific to DIVE (decimal fields stored as strings)
         expect($metadata->sample_type)->toBe('Borehole');
         expect($metadata->material)->toBe('Rock');
-        expect((float) $metadata->size)->toBe(851.88);
-        expect($metadata->size_unit)->toBe('Total Cored Length [m]');
         expect((float) $metadata->depth_min)->toBe(57.5);
         expect((float) $metadata->depth_max)->toBe(909.5);
         expect($metadata->depth_scale)->toBe('m (depth_drilled)');
+
+        // Size entries (stored in sizes table)
+        $sizeEntry = $resource->sizes()->where('type', 'Total Cored Length')->first();
+        expect($sizeEntry)->not->toBeNull();
+        expect($sizeEntry->numeric_value)->toBe('851.8800')
+            ->and($sizeEntry->unit)->toBe('m')
+            ->and($sizeEntry->type)->toBe('Total Cored Length');
     });
 
     it('stores DIVE funding references correctly', function () {
@@ -687,6 +700,68 @@ CSV;
 
         $projectLeaders = $contributors->where('contributor_type_id', $projectLeaderType->id);
         expect($projectLeaders->count())->toBe(6);
+    });
+});
+
+describe('IGSN Multi-Value Size Storage', function () {
+    it('stores multiple size entries from CSV with semicolon-separated values', function () {
+        $csvContent = file_get_contents(getDiveChildrenCsvPath());
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        // Get the first resource (ICDP5071ECX0001 with size "0.9; 146")
+        $resource = Resource::where('doi', 'ICDP5071ECX0001')->first();
+        expect($resource)->not->toBeNull();
+
+        $sizes = $resource->sizes;
+        expect($sizes)->toHaveCount(2);
+
+        // Verify by export_string accessor
+        $exportStrings = $sizes->map->export_string->toArray();
+        expect($exportStrings)->toContain('0.9 m')
+            ->and($exportStrings)->toContain('146 mm');
+
+        // Verify structured columns for first size
+        $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();
+        expect($drilledLength->numeric_value)->toBe('0.9000')
+            ->and($drilledLength->unit)->toBe('m')
+            ->and($drilledLength->type)->toBe('Drilled Length');
+
+        // Verify structured columns for second size
+        $coreDiameter = $resource->sizes()->where('type', 'Core Diameter')->first();
+        expect($coreDiameter->numeric_value)->toBe('146.0000')
+            ->and($coreDiameter->unit)->toBe('mm')
+            ->and($coreDiameter->type)->toBe('Core Diameter');
+    });
+
+    it('stores multiple size entries for each resource in CSV', function () {
+        $csvContent = file_get_contents(getDiveChildrenCsvPath());
+        $file = UploadedFile::fake()->createWithContent('test.csv', $csvContent);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        // ICDP5071EC01001 (size "3; 123")
+        $resource = Resource::where('doi', 'ICDP5071EC01001')->first();
+        expect($resource)->not->toBeNull();
+
+        $sizes = $resource->sizes;
+        expect($sizes)->toHaveCount(2);
+
+        $exportStrings = $sizes->map->export_string->toArray();
+        expect($exportStrings)->toContain('3 m')
+            ->and($exportStrings)->toContain('123 mm');
+
+        // Verify structured columns
+        $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();
+        expect($drilledLength->numeric_value)->toBe('3.0000')
+            ->and($drilledLength->unit)->toBe('m');
+
+        $coreDiameter = $resource->sizes()->where('type', 'Core Diameter')->first();
+        expect($coreDiameter->numeric_value)->toBe('123.0000')
+            ->and($coreDiameter->unit)->toBe('mm');
     });
 });
 

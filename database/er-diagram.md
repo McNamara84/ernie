@@ -335,7 +335,9 @@ erDiagram
     sizes {
         bigint id PK
         bigint resource_id FK
-        varchar value "e.g. 15 MB"
+        decimal numeric_value "12,4 nullable e.g. 3"
+        varchar unit "50 nullable e.g. m"
+        varchar type "100 nullable e.g. Drilled Length"
         timestamp created_at
         timestamp updated_at
     }
@@ -467,8 +469,6 @@ erDiagram
         varchar sample_type
         varchar material
         boolean is_private
-        decimal size "12,4"
-        varchar size_unit "100"
         decimal depth_min "10,2"
         decimal depth_max "10,2"
         varchar depth_scale

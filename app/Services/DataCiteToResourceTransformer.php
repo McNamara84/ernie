@@ -855,6 +855,11 @@ class DataCiteToResourceTransformer
     /**
      * Transform sizes from DataCite format.
      *
+     * Parses free-text size strings (e.g., "1.5 GB", "1000 files") into
+     * structured columns. If the string matches a "number unit" pattern,
+     * it is split into numeric_value and unit. Otherwise, the entire
+     * string is stored in unit so the export_string accessor returns it unchanged.
+     *
      * @param  array<int, string>  $sizes
      */
     private function transformSizes(array $sizes, Resource $resource): void
@@ -864,10 +869,22 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            Size::create([
-                'resource_id' => $resource->id,
-                'value' => $size,
-            ]);
+            $size = trim($size);
+
+            // Try to parse "number unit" pattern (e.g., "1.5 GB", "1000 files", "1.5GB")
+            if (preg_match('/^([\d.]+)\s*(.+)$/', $size, $matches)) {
+                Size::create([
+                    'resource_id' => $resource->id,
+                    'numeric_value' => (float) $matches[1],
+                    'unit' => $matches[2],
+                ]);
+            } else {
+                // Store as unit only so export_string returns the original string
+                Size::create([
+                    'resource_id' => $resource->id,
+                    'unit' => $size,
+                ]);
+            }
         }
     }
 

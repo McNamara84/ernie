@@ -138,7 +138,7 @@ class IgsnStorageService
         // Create funding references
         $this->createFundingReferences($resource, $data);
 
-        // Create size from size and size_unit fields
+        // Create size entries from parsed size/size_unit pairs
         $this->createSize($resource, $data);
 
         // Create IGSN-specific relations (classifications, geological ages/units)
@@ -240,8 +240,6 @@ class IgsnStorageService
             'sample_type' => $data['sample_type'] ?? null,
             'material' => $data['material'] ?? null,
             'is_private' => ($data['is_private'] ?? '0') === '1',
-            'size' => is_numeric($data['size'] ?? null) ? (float) $data['size'] : null,
-            'size_unit' => $data['size_unit'] ?? null,
             'depth_min' => is_numeric($data['depth_min'] ?? null) ? (float) $data['depth_min'] : null,
             'depth_max' => is_numeric($data['depth_max'] ?? null) ? (float) $data['depth_max'] : null,
             'depth_scale' => $data['depth_scale'] ?? null,
@@ -519,33 +517,34 @@ class IgsnStorageService
     }
 
     /**
-     * Create size entry from size and size_unit fields.
+     * Create size entries from parsed size/size_unit pairs.
      *
-     * Combines size value and unit into a single DataCite size string.
-     * Example: "15.5" + "cm" = "15.5 cm"
+     * Supports multiple size specifications per resource.
+     * Each entry in the _sizes array is a structured array with
+     * numeric_value, unit, and type.
      *
      * @param  array<string, mixed>  $data
      */
     private function createSize(Resource $resource, array $data): void
     {
-        $sizeValue = $data['size'] ?? null;
-        $sizeUnit = $data['size_unit'] ?? null;
+        $sizes = $data['_sizes'] ?? [];
 
-        // Skip if no size value
-        if ($sizeValue === null || $sizeValue === '') {
+        if (! is_array($sizes)) {
             return;
         }
 
-        // Build combined size string
-        $sizeString = (string) $sizeValue;
-        if (! empty($sizeUnit)) {
-            $sizeString .= ' '.$sizeUnit;
-        }
+        foreach ($sizes as $sizeEntry) {
+            if (empty($sizeEntry) || ! is_array($sizeEntry)) {
+                continue;
+            }
 
-        Size::create([
-            'resource_id' => $resource->id,
-            'value' => $sizeString,
-        ]);
+            Size::create([
+                'resource_id' => $resource->id,
+                'numeric_value' => is_numeric($sizeEntry['numeric_value'] ?? null) ? (float) $sizeEntry['numeric_value'] : null,
+                'unit' => $sizeEntry['unit'] ?? null,
+                'type' => $sizeEntry['type'] ?? null,
+            ]);
+        }
     }
 
     /**

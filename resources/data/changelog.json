@@ -132,6 +132,10 @@
         ],
         "fixes": [
             {
+                "title": "IGSN Size Parsing Supports Multiple Values",
+                "description": "The CSV size and size_unit fields now correctly handle multiple semicolon-separated specifications (e.g., '0.9; 146' with 'Drilled Length [m]; Core Diameter [mm]'), creating separate DataCite size entries for each pair. Previously, all values were concatenated into a single size string. The redundant size and size_unit columns have been removed from the igsn_metadata table; sizes are now exclusively stored in the sizes table (DataCite property #13)."
+            },
+            {
                 "title": "Thesauri Settings Auto-Recovery",
                 "description": "Fixed a bug where the three GCMD thesauri (Science Keywords, Platforms, Instruments) were not displayed on the Editor Settings page. This occurred when the thesaurus settings database entries were missing (e.g., seeder not run or entries accidentally deleted). The system now automatically creates missing thesaurus settings when the settings page is loaded, ensuring the thesauri are always available for updates."
             },

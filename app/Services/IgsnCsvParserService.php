@@ -56,6 +56,8 @@ class IgsnCsvParserService
         'relatedidentifierType', // lowercase variant in DIVE CSV
         'funderName',
         'funderIdentifier',
+        'size',
+        'size_unit',
     ];
 
     /**
@@ -188,6 +190,7 @@ class IgsnCsvParserService
         $parsedData['_funding_references'] = $this->parseFundingReferences($data);
         $parsedData['_creator'] = $this->parseCreator($data);
         $parsedData['_geo_location'] = $this->parseGeoLocation($data);
+        $parsedData['_sizes'] = $this->parseSizes($parsedData);
         $parsedData['_row_number'] = $rowNumber;
 
         return ['data' => $parsedData, 'warnings' => $warnings, 'errors' => []];
@@ -410,6 +413,76 @@ class IgsnCsvParserService
             'affiliation' => ! empty($affiliation) ? $affiliation : null,
             'ror' => $this->normalizeIdentifier($data['ror'] ?? $data['collector_affiliation_identifier'] ?? ''),
         ];
+    }
+
+    /**
+     * Parse size data from CSV row into structured arrays.
+     *
+     * Decomposes size values and their corresponding units into numeric value, unit, and type.
+     * Supports multiple size specifications separated by semicolons.
+     *
+     * Example: size="0.9; 146" + size_unit="Drilled Length [m]; Core Diameter [mm]"
+     *   → [
+     *       ['numeric_value' => '0.9', 'unit' => 'm', 'type' => 'Drilled Length'],
+     *       ['numeric_value' => '146', 'unit' => 'mm', 'type' => 'Core Diameter'],
+     *     ]
+     *
+     * @param  array<string, mixed>  $data  Parsed data (size/size_unit already split into arrays)
+     * @return list<array{numeric_value: string, unit: string|null, type: string|null}>
+     */
+    private function parseSizes(array $data): array
+    {
+        $sizes = is_array($data['size'] ?? null)
+            ? $data['size']
+            : $this->splitMultiValue((string) ($data['size'] ?? ''), '; ');
+
+        $units = is_array($data['size_unit'] ?? null)
+            ? $data['size_unit']
+            : $this->splitMultiValue((string) ($data['size_unit'] ?? ''), '; ');
+
+        $result = [];
+        $count = count($sizes);
+
+        for ($i = 0; $i < $count; $i++) {
+            $sizeValue = trim((string) ($sizes[$i] ?? ''));
+            if ($sizeValue === '') {
+                continue;
+            }
+
+            $unitString = trim((string) ($units[$i] ?? ''));
+            $parsed = $this->parseUnitString($unitString);
+
+            $result[] = [
+                'numeric_value' => $sizeValue,
+                'unit' => $parsed['unit'],
+                'type' => $parsed['type'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Parse a unit string like "Drilled Length [m]" into type and unit components.
+     *
+     * @return array{type: string|null, unit: string|null}
+     */
+    private function parseUnitString(string $unitString): array
+    {
+        if ($unitString === '') {
+            return ['type' => null, 'unit' => null];
+        }
+
+        // Match pattern: "Type [unit]" e.g., "Drilled Length [m]"
+        if (preg_match('/^(.+?)\s*\[([^\]]+)\]$/', $unitString, $matches)) {
+            return [
+                'type' => trim($matches[1]),
+                'unit' => trim($matches[2]),
+            ];
+        }
+
+        // No bracket pattern found — treat the whole string as type
+        return ['type' => $unitString, 'unit' => null];
     }
 
     /**

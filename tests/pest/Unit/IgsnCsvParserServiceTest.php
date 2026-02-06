@@ -140,6 +140,119 @@ CSV;
     });
 });
 
+describe('Size Parsing', function () {
+    it('parses multiple semicolon-separated size values with units', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|0.9; 146|Drilled Length [m]; Core Diameter [mm]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(2);
+
+        // First size entry
+        $first = $result['rows'][0]['_sizes'][0];
+        expect($first['numeric_value'])->toBe('0.9')
+            ->and($first['unit'])->toBe('m')
+            ->and($first['type'])->toBe('Drilled Length');
+
+        // Second size entry
+        $second = $result['rows'][0]['_sizes'][1];
+        expect($second['numeric_value'])->toBe('146')
+            ->and($second['unit'])->toBe('mm')
+            ->and($second['type'])->toBe('Core Diameter');
+    });
+
+    it('parses a single size value with unit', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|851.88|Total Cored Length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(1);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('851.88')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('Total Cored Length');
+    });
+
+    it('parses size without unit', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size
+10.58052/IGSN.1234|Title|Name|250
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(1);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('250')
+            ->and($entry['unit'])->toBeNull()
+            ->and($entry['type'])->toBeNull();
+    });
+
+    it('handles empty size field', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name||
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])->toBeEmpty();
+    });
+
+    it('handles size with zero value', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|0|core length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])
+            ->toHaveCount(1);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('0')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('core length');
+    });
+
+    it('handles no size column at all', function () {
+        $csv = <<<'CSV'
+igsn|title|name
+10.58052/IGSN.1234|Title|Name
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['rows'][0]['_sizes'])->toBeEmpty();
+    });
+
+    it('parses unit string without brackets as type only', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|5|meters
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('5')
+            ->and($entry['unit'])->toBeNull()
+            ->and($entry['type'])->toBe('meters');
+    });
+});
+
 describe('Contributor Parsing', function () {
     it('parses a single contributor', function () {
         $csv = <<<'CSV'
