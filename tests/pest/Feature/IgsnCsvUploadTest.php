@@ -458,6 +458,12 @@ describe('IGSN Data Storage', function () {
         $sizes = $resource->sizes()->pluck('value')->toArray();
         expect($sizes)->toContain('0 core length [m]');
 
+        // Verify structured size columns
+        $sizeEntry = $resource->sizes()->where('value', '0 core length [m]')->first();
+        expect($sizeEntry->numeric_value)->toBe('0.0000')
+            ->and($sizeEntry->unit)->toBe('m')
+            ->and($sizeEntry->type)->toBe('core length');
+
         // Collection method fields
         expect($metadata->collection_method)->toBe('drilling');
         expect($metadata->collection_method_description)->toBe('ROT (rotary drilling)');
@@ -568,6 +574,12 @@ describe('IGSN DIVE CSV Data Storage', function () {
         // Size entries (stored in sizes table)
         $sizes = $resource->sizes()->pluck('value')->toArray();
         expect($sizes)->toContain('851.88 Total Cored Length [m]');
+
+        // Verify structured size columns
+        $sizeEntry = $resource->sizes()->where('value', '851.88 Total Cored Length [m]')->first();
+        expect($sizeEntry->numeric_value)->toBe('851.8800')
+            ->and($sizeEntry->unit)->toBe('m')
+            ->and($sizeEntry->type)->toBe('Total Cored Length');
     });
 
     it('stores DIVE funding references correctly', function () {
@@ -713,6 +725,18 @@ describe('IGSN Multi-Value Size Storage', function () {
         expect($sizes)->toHaveCount(2)
             ->and($sizes)->toContain('0.9 Drilled Length [m]')
             ->and($sizes)->toContain('146 Core Diameter [mm]');
+
+        // Verify structured columns for first size
+        $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();
+        expect($drilledLength->numeric_value)->toBe('0.9000')
+            ->and($drilledLength->unit)->toBe('m')
+            ->and($drilledLength->type)->toBe('Drilled Length');
+
+        // Verify structured columns for second size
+        $coreDiameter = $resource->sizes()->where('type', 'Core Diameter')->first();
+        expect($coreDiameter->numeric_value)->toBe('146.0000')
+            ->and($coreDiameter->unit)->toBe('mm')
+            ->and($coreDiameter->type)->toBe('Core Diameter');
     });
 
     it('stores multiple size entries for each resource in CSV', function () {
@@ -730,6 +754,15 @@ describe('IGSN Multi-Value Size Storage', function () {
         expect($sizes)->toHaveCount(2)
             ->and($sizes)->toContain('3 Drilled Length [m]')
             ->and($sizes)->toContain('123 Core Diameter [mm]');
+
+        // Verify structured columns
+        $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();
+        expect($drilledLength->numeric_value)->toBe('3.0000')
+            ->and($drilledLength->unit)->toBe('m');
+
+        $coreDiameter = $resource->sizes()->where('type', 'Core Diameter')->first();
+        expect($coreDiameter->numeric_value)->toBe('123.0000')
+            ->and($coreDiameter->unit)->toBe('mm');
     });
 });
 

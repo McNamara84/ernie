@@ -2526,10 +2526,16 @@ describe('IGSN Size Export', function () {
         \App\Models\Size::create([
             'resource_id' => $resource->id,
             'value' => '0.9 Drilled Length [m]',
+            'numeric_value' => 0.9,
+            'unit' => 'm',
+            'type' => 'Drilled Length',
         ]);
         \App\Models\Size::create([
             'resource_id' => $resource->id,
             'value' => '146 Core Diameter [mm]',
+            'numeric_value' => 146,
+            'unit' => 'mm',
+            'type' => 'Core Diameter',
         ]);
 
         $person = Person::create([
@@ -2581,10 +2587,16 @@ describe('IGSN Size Export', function () {
         \App\Models\Size::create([
             'resource_id' => $resource->id,
             'value' => '3 Drilled Length [m]',
+            'numeric_value' => 3,
+            'unit' => 'm',
+            'type' => 'Drilled Length',
         ]);
         \App\Models\Size::create([
             'resource_id' => $resource->id,
             'value' => '123 Core Diameter [mm]',
+            'numeric_value' => 123,
+            'unit' => 'mm',
+            'type' => 'Core Diameter',
         ]);
 
         $person = Person::create([

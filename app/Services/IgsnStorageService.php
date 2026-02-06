@@ -520,7 +520,8 @@ class IgsnStorageService
      * Create size entries from parsed size/size_unit pairs.
      *
      * Supports multiple size specifications per resource.
-     * Each entry in the _sizes array is a combined string like "0.9 Drilled Length [m]".
+     * Each entry in the _sizes array is a structured array with
+     * numeric_value, unit, type, and value (combined export string).
      *
      * @param  array<string, mixed>  $data
      */
@@ -532,15 +533,26 @@ class IgsnStorageService
             return;
         }
 
-        foreach ($sizes as $sizeString) {
-            if (empty($sizeString)) {
+        foreach ($sizes as $sizeEntry) {
+            if (empty($sizeEntry)) {
                 continue;
             }
 
-            Size::create([
-                'resource_id' => $resource->id,
-                'value' => (string) $sizeString,
-            ]);
+            // Support both structured arrays (from parser) and plain strings (legacy)
+            if (is_array($sizeEntry)) {
+                Size::create([
+                    'resource_id' => $resource->id,
+                    'value' => (string) ($sizeEntry['value'] ?? ''),
+                    'numeric_value' => is_numeric($sizeEntry['numeric_value'] ?? null) ? (float) $sizeEntry['numeric_value'] : null,
+                    'unit' => $sizeEntry['unit'] ?? null,
+                    'type' => $sizeEntry['type'] ?? null,
+                ]);
+            } else {
+                Size::create([
+                    'resource_id' => $resource->id,
+                    'value' => (string) $sizeEntry,
+                ]);
+            }
         }
     }
 

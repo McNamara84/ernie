@@ -150,11 +150,21 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_sizes'])
-            ->toHaveCount(2)
-            ->sequence(
-                fn ($size) => $size->toBe('0.9 Drilled Length [m]'),
-                fn ($size) => $size->toBe('146 Core Diameter [mm]'),
-            );
+            ->toHaveCount(2);
+
+        // First size entry
+        $first = $result['rows'][0]['_sizes'][0];
+        expect($first['numeric_value'])->toBe('0.9')
+            ->and($first['unit'])->toBe('m')
+            ->and($first['type'])->toBe('Drilled Length')
+            ->and($first['value'])->toBe('0.9 Drilled Length [m]');
+
+        // Second size entry
+        $second = $result['rows'][0]['_sizes'][1];
+        expect($second['numeric_value'])->toBe('146')
+            ->and($second['unit'])->toBe('mm')
+            ->and($second['type'])->toBe('Core Diameter')
+            ->and($second['value'])->toBe('146 Core Diameter [mm]');
     });
 
     it('parses a single size value with unit', function () {
@@ -166,8 +176,13 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_sizes'])
-            ->toHaveCount(1)
-            ->and($result['rows'][0]['_sizes'][0])->toBe('851.88 Total Cored Length [m]');
+            ->toHaveCount(1);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('851.88')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('Total Cored Length')
+            ->and($entry['value'])->toBe('851.88 Total Cored Length [m]');
     });
 
     it('parses size without unit', function () {
@@ -179,8 +194,13 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_sizes'])
-            ->toHaveCount(1)
-            ->and($result['rows'][0]['_sizes'][0])->toBe('250');
+            ->toHaveCount(1);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('250')
+            ->and($entry['unit'])->toBeNull()
+            ->and($entry['type'])->toBeNull()
+            ->and($entry['value'])->toBe('250');
     });
 
     it('handles empty size field', function () {
@@ -203,8 +223,13 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_sizes'])
-            ->toHaveCount(1)
-            ->and($result['rows'][0]['_sizes'][0])->toBe('0 core length [m]');
+            ->toHaveCount(1);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('0')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('core length')
+            ->and($entry['value'])->toBe('0 core length [m]');
     });
 
     it('handles no size column at all', function () {
@@ -216,6 +241,21 @@ CSV;
         $result = $this->parser->parse($csv);
 
         expect($result['rows'][0]['_sizes'])->toBeEmpty();
+    });
+
+    it('parses unit string without brackets as type only', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|5|meters
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('5')
+            ->and($entry['unit'])->toBeNull()
+            ->and($entry['type'])->toBe('meters')
+            ->and($entry['value'])->toBe('5 meters');
     });
 });
 

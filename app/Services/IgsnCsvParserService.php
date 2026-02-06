@@ -416,15 +416,19 @@ class IgsnCsvParserService
     }
 
     /**
-     * Parse size data from CSV row.
+     * Parse size data from CSV row into structured arrays.
      *
-     * Combines size values with their corresponding units into DataCite size strings.
+     * Decomposes size values and their corresponding units into numeric value, unit, and type.
      * Supports multiple size specifications separated by semicolons.
+     *
      * Example: size="0.9; 146" + size_unit="Drilled Length [m]; Core Diameter [mm]"
-     *   → ["0.9 Drilled Length [m]", "146 Core Diameter [mm]"]
+     *   → [
+     *       ['numeric_value' => '0.9', 'unit' => 'm', 'type' => 'Drilled Length', 'value' => '0.9 Drilled Length [m]'],
+     *       ['numeric_value' => '146', 'unit' => 'mm', 'type' => 'Core Diameter', 'value' => '146 Core Diameter [mm]'],
+     *     ]
      *
      * @param  array<string, mixed>  $data  Parsed data (size/size_unit already split into arrays)
-     * @return list<string>
+     * @return list<array{numeric_value: string, unit: string|null, type: string|null, value: string}>
      */
     private function parseSizes(array $data): array
     {
@@ -445,11 +449,44 @@ class IgsnCsvParserService
                 continue;
             }
 
-            $unit = trim((string) ($units[$i] ?? ''));
-            $result[] = $unit !== '' ? "{$sizeValue} {$unit}" : $sizeValue;
+            $unitString = trim((string) ($units[$i] ?? ''));
+            $parsed = $this->parseUnitString($unitString);
+
+            // Build the combined export value string
+            $exportValue = $unitString !== '' ? "{$sizeValue} {$unitString}" : $sizeValue;
+
+            $result[] = [
+                'numeric_value' => $sizeValue,
+                'unit' => $parsed['unit'],
+                'type' => $parsed['type'],
+                'value' => $exportValue,
+            ];
         }
 
         return $result;
+    }
+
+    /**
+     * Parse a unit string like "Drilled Length [m]" into type and unit components.
+     *
+     * @return array{type: string|null, unit: string|null}
+     */
+    private function parseUnitString(string $unitString): array
+    {
+        if ($unitString === '') {
+            return ['type' => null, 'unit' => null];
+        }
+
+        // Match pattern: "Type [unit]" e.g., "Drilled Length [m]"
+        if (preg_match('/^(.+?)\s*\[([^\]]+)\]$/', $unitString, $matches)) {
+            return [
+                'type' => trim($matches[1]),
+                'unit' => trim($matches[2]),
+            ];
+        }
+
+        // No bracket pattern found — treat the whole string as type
+        return ['type' => $unitString, 'unit' => null];
     }
 
     /**
