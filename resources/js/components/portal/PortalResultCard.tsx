@@ -93,6 +93,7 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
                 href={resource.landingPageUrl!}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`View ${resource.title} (opens in new tab)`}
                 className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
             >
                 {rowContent}
