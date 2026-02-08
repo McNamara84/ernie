@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\JsonValidationException;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
-use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
-use App\Services\DataCiteSyncResult;
-use App\Services\JsonSchemaValidator;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
+use App\Services\JsonSchemaValidator;
 use App\Services\ResourceCacheService;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
@@ -27,7 +27,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -201,6 +200,60 @@ class ResourceController extends Controller
         return redirect()
             ->route('resources')
             ->with('success', 'Resource deleted successfully.');
+    }
+
+    /**
+     * Delete all resources (datasets and IGSNs) from the database.
+     *
+     * This is a destructive admin-only operation for cleaning up test data.
+     * It deletes all resources with their cascading relations and cleans up
+     * orphaned persons, institutions, and publishers. Settings tables,
+     * user accounts, and lookup data are preserved.
+     *
+     * Authorization is enforced by both route middleware ('can:delete-all-resources')
+     * and an explicit check in this method for defense in depth.
+     */
+    public function destroyAll(Request $request): RedirectResponse
+    {
+        if ($request->user()?->cannot('delete-all-resources')) {
+            abort(403, 'You are not authorized to perform this action.');
+        }
+
+        $request->validate([
+            'confirmation' => ['required', 'string', 'in:delete'],
+        ]);
+
+        DB::transaction(function (): void {
+            // Delete all resources in chunks, triggering ResourceObserver per delete
+            // for proper cache invalidation. DB cascading FKs handle child tables.
+            Resource::query()->chunkById(100, function ($resources): void {
+                foreach ($resources as $resource) {
+                    $resource->delete();
+                }
+            });
+
+            // Clean up orphaned persons (not referenced by any resource_creators or resource_contributors)
+            Person::whereDoesntHave('resourceCreators')
+                ->whereDoesntHave('resourceContributors')
+                ->delete();
+
+            // Clean up orphaned institutions (not referenced by any resource_creators or resource_contributors)
+            Institution::whereDoesntHave('resourceCreators')
+                ->whereDoesntHave('resourceContributors')
+                ->delete();
+
+            // Clean up orphaned publishers (no longer referenced by any resource)
+            Publisher::whereDoesntHave('resources')->delete();
+        });
+
+        Log::info('All resources deleted by admin', [
+            'user_id' => $request->user()?->id,
+            'user_email' => $request->user()?->email,
+        ]);
+
+        return redirect()
+            ->route('logs.index')
+            ->with('success', 'All resources have been deleted successfully.');
     }
 
     /**

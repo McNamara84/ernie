@@ -253,6 +253,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
+    Route::delete('resources/all', [ResourceController::class, 'destroyAll'])
+        ->middleware('can:delete-all-resources')
+        ->name('resources.destroy-all');
+
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
 
@@ -315,7 +319,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Count Data Resources (non-IGSN)
         $dataResourceCount = Resource::where(function ($query) use ($physicalObjectTypeId) {
             $query->whereNull('resource_type_id')
-                  ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
         })->count();
 
         // Count IGSN Resources
@@ -331,7 +335,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $query->whereHas('resource', function ($q) use ($physicalObjectTypeId) {
                     $q->where(function ($subQ) use ($physicalObjectTypeId) {
                         $subQ->whereNull('resource_type_id')
-                             ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                            ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
                     });
                 });
             })

@@ -126,6 +126,11 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === UserRole::ADMIN;
         });
 
+        // Delete all resources (bulk cleanup) - Admin only
+        Gate::define('delete-all-resources', function (User $user): bool {
+            return $user->role === UserRole::ADMIN;
+        });
+
         // Manage landing pages (create, update, delete)
         // Beginners can only view landing pages, not manage them
         Gate::define('manage-landing-pages', function (User $user): bool {

@@ -4,6 +4,10 @@
         "date": "2026-02-06",
         "features": [
             {
+                "title": "Delete All Test Datasets",
+                "description": "Administrators can now delete all resources (datasets and IGSNs) at once from the Logs page using the 'Delete all Test Datasets' button. A confirmation dialog requires typing 'delete' before execution. This bulk operation cleans up all resource data including orphaned persons, institutions, and publishers, while preserving all settings, lookup tables, and user accounts."
+            },
+            {
                 "title": "Public Data Portal",
                 "description": "A new publicly accessible portal page at /portal allows visitors to discover and explore all published research datasets. The portal features a collapsible filter sidebar with full-text search (across titles, DOIs, authors, and descriptions) and resource type filtering (All, DOI Resources, or IGSN Samples). An interactive Leaflet map displays geographic locations as points, bounding boxes, and polygons with auto-zoom to fit visible data. Clicking a map marker shows a popup with the resource title, authors, year, and a link to the landing page. Results are displayed in a responsive card grid with citation-style author formatting (e.g., 'Smith et al.' for 3+ authors) and pagination. All search and filter parameters are stored in the URL for easy bookmarking and sharing."
             },
