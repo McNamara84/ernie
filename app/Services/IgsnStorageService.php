@@ -155,25 +155,20 @@ class IgsnStorageService
         $this->physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
         $this->mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
         $this->collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
-        $defaultPublisher = Publisher::getDefault();
 
-        if ($defaultPublisher === null) {
-            // Fallback: create or update default publisher if seeder has not been run
-            // or if an incomplete record exists from an older seed.
-            // Note: no unique constraint on `name` exists, so this is not fully
-            // race-safe under concurrent requests, but sufficient for the rare
-            // fallback case when no default publisher has been seeded.
-            $defaultPublisher = Publisher::updateOrCreate(
-                ['name' => 'GFZ Data Services'],
-                [
-                    'identifier' => 'https://doi.org/10.17616/R3VQ0S',
-                    'identifier_scheme' => 're3data',
-                    'scheme_uri' => 'https://re3data.org/',
-                    'language' => 'en',
-                    'is_default' => true,
-                ]
-            );
-        }
+        // Always ensure the GFZ default publisher exists with all required fields.
+        // This handles both the case where no default publisher exists (seeder not run)
+        // and the case where an incomplete record exists from an older seed.
+        $defaultPublisher = Publisher::updateOrCreate(
+            ['name' => 'GFZ Data Services'],
+            [
+                'identifier' => 'https://doi.org/10.17616/R3VQ0S',
+                'identifier_scheme' => 're3data',
+                'scheme_uri' => 'https://re3data.org/',
+                'language' => 'en',
+                'is_default' => true,
+            ]
+        );
 
         $this->defaultPublisherId = $defaultPublisher->id;
 
