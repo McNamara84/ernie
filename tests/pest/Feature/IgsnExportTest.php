@@ -2558,8 +2558,8 @@ describe('IGSN Size Export', function () {
 
         expect($json['data']['attributes'])->toHaveKey('sizes')
             ->and($json['data']['attributes']['sizes'])->toHaveCount(2)
-            ->and($json['data']['attributes']['sizes'][0])->toBe('0.9 m')
-            ->and($json['data']['attributes']['sizes'][1])->toBe('146 mm');
+            ->and($json['data']['attributes']['sizes'][0])->toBe('0.9 Drilled Length [m]')
+            ->and($json['data']['attributes']['sizes'][1])->toBe('146 Core Diameter [mm]');
     });
 
     it('exports multiple sizes to XML', function () {
@@ -2617,8 +2617,8 @@ describe('IGSN Size Export', function () {
 
         expect($xml)->toContain('<sizes>')
             ->and($xml)->toContain('</sizes>')
-            ->and($xml)->toContain('<size>3 m</size>')
-            ->and($xml)->toContain('<size>123 mm</size>');
+            ->and($xml)->toContain('<size>3 Drilled Length [m]</size>')
+            ->and($xml)->toContain('<size>123 Core Diameter [mm]</size>');
     });
 });
 
