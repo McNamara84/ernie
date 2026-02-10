@@ -280,7 +280,7 @@ CSV;
             ->and($entry['type'])->toBe('Total Cored Length');
     });
 
-    it('preserves integer zero correctly', function () {
+    it('preserves small decimal values correctly', function () {
         $csv = <<<'CSV'
 igsn|title|name|size|size_unit
 10.58052/IGSN.1234|Title|Name|57.2|Total Cored Length [m]
@@ -292,6 +292,20 @@ CSV;
         expect($entry['numeric_value'])->toBe('57.2')
             ->and($entry['unit'])->toBe('m')
             ->and($entry['type'])->toBe('Total Cored Length');
+    });
+
+    it('preserves integer zero correctly', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|0|Drilled Length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('0')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('Drilled Length');
     });
 });
 

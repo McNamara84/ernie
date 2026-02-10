@@ -63,7 +63,9 @@ class Size extends Model
 
         if ($this->numeric_value !== null) {
             // Format: strip trailing zeros (3.0000 → 3, 0.9000 → 0.9)
-            $parts[] = rtrim(rtrim($this->numeric_value, '0'), '.');
+            $formatted = rtrim(rtrim($this->numeric_value, '0'), '.');
+            // rtrim turns "0.0000" into "" – restore the zero
+            $parts[] = $formatted === '' ? '0' : $formatted;
         }
 
         if ($this->type !== null && $this->type !== '') {

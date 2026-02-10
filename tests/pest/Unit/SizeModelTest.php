@@ -106,6 +106,26 @@ describe('Size export_string accessor', function () {
         expect($size->export_string)->toBe('15 pages');
     });
 
+    it('formats zero numeric_value correctly', function () {
+        $size = new Size([
+            'numeric_value' => 0,
+            'type' => null,
+            'unit' => null,
+        ]);
+
+        expect($size->export_string)->toBe('0');
+    });
+
+    it('formats zero numeric_value with type and unit', function () {
+        $size = new Size([
+            'numeric_value' => 0,
+            'type' => 'Drilled Length',
+            'unit' => 'm',
+        ]);
+
+        expect($size->export_string)->toBe('0 Drilled Length [m]');
+    });
+
     it('returns empty string when all fields are null', function () {
         $size = new Size([
             'numeric_value' => null,
