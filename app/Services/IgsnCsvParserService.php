@@ -46,10 +46,9 @@ class IgsnCsvParserService
     private const SEMICOLON_MULTI_VALUE_FIELDS = [
         'sample_other_names',
         'classification',
-        'contributor',
-        'contributorType',
-        'identifier',
-        'identifierType',
+        // contributor, contributorType, identifier, identifierType are intentionally
+        // NOT listed here – they are processed by parseContributors() with proper
+        // positional alignment to avoid index mismatches (Issue #485).
         'relatedIdentifier',
         'relatedIdentifierType',
         'relationtype',
@@ -237,7 +236,9 @@ class IgsnCsvParserService
      */
     private function parseContributors(array $data): array
     {
-        $names = $this->splitMultiValue($data['contributor'] ?? '', '; ');
+        // All fields use splitMultiValuePreservePositions() to maintain positional
+        // alignment between names, types, and identifiers (Issue #485).
+        $names = $this->splitMultiValuePreservePositions($data['contributor'] ?? '', '; ');
         $types = $this->splitMultiValuePreservePositions($data['contributorType'] ?? '', '; ');
         $identifiers = $this->splitMultiValuePreservePositions($data['identifier'] ?? '', '; ');
         $identifierTypes = $this->splitMultiValuePreservePositions($data['identifierType'] ?? $data['identifiertype'] ?? '', '; ');
@@ -246,16 +247,19 @@ class IgsnCsvParserService
         $count = max(count($names), 1);
 
         for ($i = 0; $i < $count; $i++) {
-            $name = $names[$i] ?? '';
+            $name = trim($names[$i] ?? '');
             if ($name === '') {
                 continue;
             }
 
+            $type = trim($types[$i] ?? '');
+            $identifierType = trim($identifierTypes[$i] ?? '');
+
             $contributors[] = [
                 'name' => $name,
-                'type' => $types[$i] ?? 'Other',
+                'type' => $type !== '' ? $type : 'Other',
                 'identifier' => $this->normalizeIdentifier($identifiers[$i] ?? ''),
-                'identifierType' => $identifierTypes[$i] ?? null,
+                'identifierType' => $identifierType !== '' ? $identifierType : null,
             ];
         }
 
