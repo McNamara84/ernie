@@ -38,9 +38,10 @@ class PublisherFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'name' => 'GFZ Data Services',
-            'identifier' => 'https://doi.org/10.17616/R3B596',
+            'identifier' => 'https://doi.org/10.17616/R3VQ0S',
             'identifier_scheme' => 're3data',
             'scheme_uri' => 'https://re3data.org/',
+            'language' => 'en',
             'is_default' => true,
         ]);
     }

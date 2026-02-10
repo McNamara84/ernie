@@ -319,6 +319,10 @@ class DataCiteXmlExporter
         if (! $publisherModel) {
             // Ultimate fallback if no default publisher exists in database
             $publisher = $this->dom->createElement('publisher', htmlspecialchars('GFZ Data Services'));
+            $publisher->setAttribute('publisherIdentifier', 'https://doi.org/10.17616/R3VQ0S');
+            $publisher->setAttribute('publisherIdentifierScheme', 're3data');
+            $publisher->setAttribute('schemeURI', 'https://re3data.org/');
+            $publisher->setAttributeNS(self::XML_NAMESPACE, 'xml:lang', 'en');
             $this->root->appendChild($publisher);
 
             return;

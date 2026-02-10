@@ -20,10 +20,11 @@ class PublisherSeeder extends Seeder
     public function run(): void
     {
         // GFZ Data Services as default publisher
-        Publisher::firstOrCreate(
+        // Use updateOrCreate to ensure existing records get updated with
+        // all identifier fields (fixes incomplete publishers from older seeds)
+        Publisher::updateOrCreate(
             ['name' => 'GFZ Data Services'],
             [
-                'name' => 'GFZ Data Services',
                 'identifier' => 'https://doi.org/10.17616/R3VQ0S',
                 'identifier_scheme' => 're3data',
                 'scheme_uri' => 'https://re3data.org/',

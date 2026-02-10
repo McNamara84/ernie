@@ -220,7 +220,13 @@ class DataCiteJsonExporter
 
         if (! $publisher) {
             // Ultimate fallback if no default publisher exists in database
-            return ['name' => 'GFZ Data Services'];
+            return [
+                'name' => 'GFZ Data Services',
+                'publisherIdentifier' => 'https://doi.org/10.17616/R3VQ0S',
+                'publisherIdentifierScheme' => 're3data',
+                'schemeUri' => 'https://re3data.org/',
+                'lang' => 'en',
+            ];
         }
 
         $data = [
