@@ -367,10 +367,11 @@ class IgsnStorageService
     private function findPersonWithNameVerification(string $familyName, ?string $givenName, ?string $orcid): Person
     {
         // 1. If ORCID provided, check if it matches a person with the correct name
+        // Query without scheme filter to also catch records where scheme is NULL,
+        // since PersonService::findOrCreate() searches by name_identifier without
+        // scheme constraint. Name verification below prevents cross-linking.
         if (! empty($orcid)) {
-            $personByOrcid = Person::where('name_identifier', $orcid)
-                ->where('name_identifier_scheme', 'ORCID')
-                ->first();
+            $personByOrcid = Person::where('name_identifier', $orcid)->first();
 
             if ($personByOrcid instanceof Person) {
                 // Verify the found person matches the expected name (family + given)
