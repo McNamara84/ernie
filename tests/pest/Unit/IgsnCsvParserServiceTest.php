@@ -279,6 +279,54 @@ CSV;
             ->and($result['rows'][0]['_contributors'][0]['identifier'])->toBe('https://orcid.org/0000-0001-2345-6789')
             ->and($result['rows'][0]['_contributors'][1]['identifier'])->toBe('https://orcid.org/0000-0002-3456-7890');
     });
+
+    it('handles more contributors than identifiers without misalignment (Issue #485)', function () {
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier
+10.58052/IGSN.1234|Title|Name|Greenwood, Andrew; Hetényi, György; Pistone, Mattia; Ziberna, Luca; Zanetti, Alberto; Giovannelli, Donato; Venier, Marco|ProjectLeader; ProjectLeader; Other; Other; Other; Other; Other|https://orcid.org/0000-0001-9699-561X; https://orcid.org/0000-0001-9036-4761
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        expect($result['errors'])->toBeEmpty();
+
+        $contributors = $result['rows'][0]['_contributors'];
+        expect($contributors)->toHaveCount(7)
+            ->and($contributors[0]['name'])->toBe('Greenwood, Andrew')
+            ->and($contributors[0]['type'])->toBe('ProjectLeader')
+            ->and($contributors[0]['identifier'])->toBe('https://orcid.org/0000-0001-9699-561X')
+            ->and($contributors[1]['name'])->toBe('Hetényi, György')
+            ->and($contributors[1]['type'])->toBe('ProjectLeader')
+            ->and($contributors[1]['identifier'])->toBe('https://orcid.org/0000-0001-9036-4761')
+            ->and($contributors[2]['name'])->toBe('Pistone, Mattia')
+            ->and($contributors[2]['identifier'])->toBeNull()
+            ->and($contributors[3]['name'])->toBe('Ziberna, Luca')
+            ->and($contributors[3]['identifier'])->toBeNull()
+            ->and($contributors[4]['name'])->toBe('Zanetti, Alberto')
+            ->and($contributors[4]['identifier'])->toBeNull()
+            ->and($contributors[5]['name'])->toBe('Giovannelli, Donato')
+            ->and($contributors[5]['identifier'])->toBeNull()
+            ->and($contributors[6]['name'])->toBe('Venier, Marco')
+            ->and($contributors[6]['identifier'])->toBeNull();
+    });
+
+    it('skips empty contributor positions while preserving alignment (Issue #485)', function () {
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier|identifierType
+10.58052/IGSN.1234|Title|Name|John Doe; ; Jane Smith|ContactPerson; ; DataManager|0000-0001-2345-6789; ; 0000-0002-3456-7890|ORCID; ; ORCID
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $contributors = $result['rows'][0]['_contributors'];
+        expect($contributors)->toHaveCount(2)
+            ->and($contributors[0]['name'])->toBe('John Doe')
+            ->and($contributors[0]['type'])->toBe('ContactPerson')
+            ->and($contributors[0]['identifier'])->toBe('https://orcid.org/0000-0001-2345-6789')
+            ->and($contributors[1]['name'])->toBe('Jane Smith')
+            ->and($contributors[1]['type'])->toBe('DataManager')
+            ->and($contributors[1]['identifier'])->toBe('https://orcid.org/0000-0002-3456-7890');
+    });
 });
 
 describe('Creator (Collector) Parsing', function () {

@@ -703,6 +703,106 @@ CSV;
     });
 });
 
+describe('IGSN Contributor Name Verification (Issue #485)', function () {
+    it('does not cross-link contributors when a different person has the same ORCID', function () {
+        // Scenario: Pre-existing person "Venier, Marco" with ORCID-V.
+        // A new CSV has "Zanetti, Alberto" but due to column misalignment in an earlier
+        // bug, the wrong ORCID might be passed. The name verification should prevent
+        // "Zanetti" from being linked to Venier's Person record.
+
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier
+10.58052/IGSN.FIRST|Title1|Name1|Zanetti, Alberto; Venier, Marco|Other; Other|https://orcid.org/0000-0001-1111-1111; https://orcid.org/0000-0002-2222-2222
+CSV;
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csv);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = \App\Models\Resource::whereHas('igsnMetadata')->first();
+        $contributors = $resource->contributors()->with('contributorable')->orderBy('position')->get();
+
+        expect($contributors)->toHaveCount(2);
+
+        // Each contributor should have a distinct Person
+        $person0 = $contributors[0]->contributorable;
+        $person1 = $contributors[1]->contributorable;
+
+        expect($person0->family_name)->toBe('Zanetti');
+        expect($person0->given_name)->toBe('Alberto');
+        expect($person1->family_name)->toBe('Venier');
+        expect($person1->given_name)->toBe('Marco');
+
+        // They must be different Person records
+        expect($person0->id)->not->toBe($person1->id);
+    });
+
+    it('prevents ORCID-based cross-linking with pre-existing persons', function () {
+        // Pre-create "Venier, Marco" with a specific ORCID
+        \App\Models\Person::create([
+            'family_name' => 'Venier',
+            'given_name' => 'Marco',
+            'name_identifier' => 'https://orcid.org/0000-0002-2222-2222',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        // CSV assigns Venier's ORCID to Zanetti (simulating misaligned data)
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier
+10.58052/IGSN.CROSS|Title|Name|Zanetti, Alberto|Other|https://orcid.org/0000-0002-2222-2222
+CSV;
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csv);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = \App\Models\Resource::whereHas('igsnMetadata')->first();
+        $contributors = $resource->contributors()->with('contributorable')->get();
+
+        expect($contributors)->toHaveCount(1);
+
+        // The contributor should be "Zanetti", NOT "Venier"
+        $person = $contributors->first()->contributorable;
+        expect($person->family_name)->toBe('Zanetti');
+        expect($person->given_name)->toBe('Alberto');
+
+        // Venier's person record should remain untouched
+        $venier = \App\Models\Person::where('family_name', 'Venier')->first();
+        expect($venier)->not->toBeNull();
+        expect($venier->name_identifier)->toBe('https://orcid.org/0000-0002-2222-2222');
+    });
+
+    it('correctly links contributor when ORCID matches the same person name', function () {
+        // Pre-create "Zanetti, Alberto" with ORCID
+        $existingPerson = \App\Models\Person::create([
+            'family_name' => 'Zanetti',
+            'given_name' => 'Alberto',
+            'name_identifier' => 'https://orcid.org/0000-0003-3333-3333',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        // CSV correctly assigns Zanetti's ORCID to Zanetti
+        $csv = <<<'CSV'
+igsn|title|name|contributor|contributorType|identifier
+10.58052/IGSN.MATCH|Title|Name|Zanetti, Alberto|Other|https://orcid.org/0000-0003-3333-3333
+CSV;
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('test.csv', $csv);
+
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = \App\Models\Resource::whereHas('igsnMetadata')->first();
+        $contributors = $resource->contributors()->with('contributorable')->get();
+
+        expect($contributors)->toHaveCount(1);
+
+        // Should reuse the existing person record (ORCID + name match)
+        $person = $contributors->first()->contributorable;
+        expect($person->id)->toBe($existingPerson->id);
+        expect($person->family_name)->toBe('Zanetti');
+    });
+});
+
 describe('IGSN Multi-Value Size Storage', function () {
     it('stores multiple size entries from CSV with semicolon-separated values', function () {
         $csvContent = file_get_contents(getDiveChildrenCsvPath());
