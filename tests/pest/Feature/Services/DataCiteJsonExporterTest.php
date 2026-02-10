@@ -45,7 +45,8 @@ describe('DataCiteJsonExporter - JSON Structure', function () {
             ->and($attributes)->toHaveKey('titles')
             ->and($attributes)->toHaveKey('creators')
             ->and($attributes)->toHaveKey('publisher')
-            ->and($attributes)->toHaveKey('types');
+            ->and($attributes)->toHaveKey('types')
+            ->and($attributes)->not->toHaveKey('schemaVersion');
     });
 });
 

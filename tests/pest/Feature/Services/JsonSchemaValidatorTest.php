@@ -17,7 +17,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             expect($validator->validate($validData))->toBeTrue();
@@ -28,7 +27,7 @@ describe('JsonSchemaValidator', function () {
 
             $invalidData = [
                 'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
-                // Missing: creators, titles, publisher, publicationYear, types, schemaVersion
+                // Missing: creators, titles, publisher, publicationYear, types
             ];
 
             $validator->validate($invalidData);
@@ -101,7 +100,6 @@ describe('JsonSchemaValidator', function () {
                     'publisher' => 'Test Publisher',
                     'publicationYear' => '2026',
                     'types' => ['resourceType' => $resourceType, 'resourceTypeGeneral' => $resourceType],
-                    'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 ];
 
                 expect($validator->validate($data))->toBeTrue("Expected {$resourceType} to be valid");
@@ -118,7 +116,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'contributors' => [
                     ['name' => 'Translator Person', 'contributorType' => 'Translator'],
                 ],
@@ -146,7 +143,6 @@ describe('JsonSchemaValidator', function () {
                     'publisher' => 'Test Publisher',
                     'publicationYear' => '2026',
                     'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                    'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                     'relatedIdentifiers' => [
                         [
                             'relatedIdentifier' => '10.5880/other',
@@ -170,7 +166,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'relatedIdentifiers' => [
                     [
                         'relatedIdentifier' => 'CSTR:12345',
@@ -193,7 +188,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'relatedIdentifiers' => [
                     [
                         'relatedIdentifier' => 'RRID:AB_12345',
@@ -216,7 +210,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'dates' => [
                     ['date' => '2020-01-01/2025-12-31', 'dateType' => 'Coverage'],
                 ],
@@ -240,7 +233,6 @@ describe('JsonSchemaValidator', function () {
                 ],
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             expect($validator->validate($data))->toBeTrue();
@@ -256,7 +248,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'subjects' => [
                     [
                         'subject' => 'Geology',
@@ -279,7 +270,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'InvalidType', 'resourceTypeGeneral' => 'InvalidType'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             $validator->validate($data);
@@ -295,7 +285,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'contributors' => [
                     ['name' => 'Test', 'contributorType' => 'InvalidContributorType'],
                 ],
@@ -330,7 +319,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'GFZ Data Services',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Seismic Data', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
                 'subjects' => [['subject' => 'Seismology']],
                 'contributors' => [['name' => 'Smith, Jane', 'contributorType' => 'DataCurator']],
                 'dates' => [['date' => '2026-01-15', 'dateType' => 'Created']],
@@ -380,7 +368,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             expect($validator->isValid($validData))->toBeTrue();
@@ -425,7 +412,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             // Non-strict mode (default) - should pass
@@ -442,7 +428,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             // Strict mode - should fail because identifiers are required
@@ -461,7 +446,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             // Strict mode with identifiers - should pass
@@ -477,7 +461,6 @@ describe('JsonSchemaValidator', function () {
                 'publisher' => 'Test Publisher',
                 'publicationYear' => '2026',
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
-                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
             ];
 
             $errors = null;
