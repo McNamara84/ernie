@@ -338,12 +338,13 @@ class IgsnStorageService
             ? $contributorType->id
             : ContributorType::where('slug', 'Other')->value('id');
 
-        // Find or create person using PersonService's expected format
-        $person = $this->personService->findOrCreate([
-            'lastName' => $nameParts['familyName'],
-            'firstName' => $nameParts['givenName'],
-            'orcid' => $contributor['identifier'],
-        ]);
+        // Find or create person with name verification to prevent cross-linking
+        // when CSV identifier columns are misaligned with contributor names (Issue #485)
+        $person = $this->findPersonWithNameVerification(
+            $nameParts['familyName'],
+            $nameParts['givenName'],
+            $contributor['identifier'],
+        );
 
         ResourceContributor::create([
             'resource_id' => $resource->id,
@@ -351,6 +352,52 @@ class IgsnStorageService
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
             'position' => $position,
+        ]);
+    }
+
+    /**
+     * Find or create a person with name verification.
+     *
+     * When an ORCID is provided, first verify that the ORCID-matched person
+     * actually has the expected name. This prevents cross-linking when CSV
+     * identifier columns are misaligned with contributor name columns.
+     *
+     * @return Person The matched or newly created person
+     */
+    private function findPersonWithNameVerification(string $familyName, ?string $givenName, ?string $orcid): Person
+    {
+        // 1. If ORCID provided, check if it matches a person with the correct name
+        // Query without scheme filter to also catch records where scheme is NULL,
+        // since PersonService::findOrCreate() searches by name_identifier without
+        // scheme constraint. Name verification below prevents cross-linking.
+        if (! empty($orcid)) {
+            $personByOrcid = Person::where('name_identifier', $orcid)->first();
+
+            if ($personByOrcid instanceof Person) {
+                // Verify the found person matches the expected name (family + given)
+                $familyMatch = mb_strtolower(trim($personByOrcid->family_name ?? ''), 'UTF-8')
+                    === mb_strtolower(trim($familyName), 'UTF-8');
+                $givenMatch = $givenName === null
+                    || mb_strtolower(trim($personByOrcid->given_name ?? ''), 'UTF-8')
+                        === mb_strtolower(trim($givenName), 'UTF-8');
+
+                if ($familyMatch && $givenMatch) {
+                    return $personByOrcid;
+                }
+                // ORCID found a different person → misaligned identifier, discard ORCID
+                // to prevent PersonService from cross-linking via the same ORCID lookup
+                $orcid = null;
+            }
+        }
+
+        // 2. Use PersonService for name-based lookup (or create new person)
+        // Normalize empty given name to null to avoid mismatches between '' and NULL
+        $normalizedGivenName = ($givenName !== null && trim($givenName) !== '') ? $givenName : null;
+
+        return $this->personService->findOrCreate([
+            'lastName' => $familyName,
+            'firstName' => $normalizedGivenName,
+            'orcid' => $orcid,
         ]);
     }
 
