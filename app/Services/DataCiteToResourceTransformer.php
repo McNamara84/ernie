@@ -875,7 +875,7 @@ class DataCiteToResourceTransformer
             if (preg_match('/^([\d.]+)\s*(.+)$/', $size, $matches)) {
                 Size::create([
                     'resource_id' => $resource->id,
-                    'numeric_value' => (float) $matches[1],
+                    'numeric_value' => $matches[1],
                     'unit' => $matches[2],
                 ]);
             } else {
