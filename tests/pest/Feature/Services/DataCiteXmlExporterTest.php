@@ -151,10 +151,10 @@ describe('DataCiteXmlExporter - Required Fields', function () {
     });
 
     test('hardcoded fallback includes all DataCite 4.6 publisher attributes', function () {
-        // Ensure no publishers exist in DB
-        Publisher::query()->delete();
-
+        // Create resource first (factory seeds a default publisher via firstOrCreate),
+        // then delete ALL publishers so the exporter's hardcoded fallback branch is exercised.
         $resource = Resource::factory()->create(['publisher_id' => null]);
+        Publisher::query()->delete();
 
         $xml = $this->exporter->export($resource);
 

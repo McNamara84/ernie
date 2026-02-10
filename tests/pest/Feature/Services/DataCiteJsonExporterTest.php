@@ -417,10 +417,11 @@ describe('DataCiteJsonExporter - Publisher', function () {
     });
 
     test('hardcoded fallback includes all DataCite 4.6 publisher fields', function () {
-        // Ensure no publishers exist in DB and resource has no publisher
-        Publisher::query()->delete();
-
+        // Create resource first (factory seeds a default publisher via firstOrCreate),
+        // then delete ALL publishers and clear the resource's publisher_id so the
+        // exporter's hardcoded fallback branch is actually exercised.
         $resource = Resource::factory()->create(['publisher_id' => null]);
+        Publisher::query()->delete();
 
         $result = $this->exporter->export($resource);
         $publisherData = $result['data']['attributes']['publisher'];
@@ -433,7 +434,7 @@ describe('DataCiteJsonExporter - Publisher', function () {
             ->toHaveKey('lang', 'en');
     });
 
-    test('exports full publisher for IGSN resource created via CSV import', function () {
+    test('exports full publisher when resource has GFZ publisher assigned', function () {
         $publisher = Publisher::factory()->gfz()->create();
         $resource = Resource::factory()->create(['publisher_id' => $publisher->id]);
 

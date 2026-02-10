@@ -158,15 +158,18 @@ class IgsnStorageService
         $defaultPublisher = Publisher::getDefault();
 
         if ($defaultPublisher === null) {
-            // Fallback: create default publisher if seeder has not been run
-            $defaultPublisher = Publisher::create([
-                'name' => 'GFZ Data Services',
-                'identifier' => 'https://doi.org/10.17616/R3VQ0S',
-                'identifier_scheme' => 're3data',
-                'scheme_uri' => 'https://re3data.org/',
-                'language' => 'en',
-                'is_default' => true,
-            ]);
+            // Fallback: create default publisher if seeder has not been run.
+            // Uses firstOrCreate to be idempotent and race-safe under concurrent requests.
+            $defaultPublisher = Publisher::firstOrCreate(
+                ['name' => 'GFZ Data Services'],
+                [
+                    'identifier' => 'https://doi.org/10.17616/R3VQ0S',
+                    'identifier_scheme' => 're3data',
+                    'scheme_uri' => 'https://re3data.org/',
+                    'language' => 'en',
+                    'is_default' => true,
+                ]
+            );
         }
 
         $this->defaultPublisherId = $defaultPublisher->id;
