@@ -368,7 +368,9 @@ class IgsnStorageService
     {
         // 1. If ORCID provided, check if it matches a person with the correct name
         if (! empty($orcid)) {
-            $personByOrcid = Person::where('name_identifier', $orcid)->first();
+            $personByOrcid = Person::where('name_identifier', $orcid)
+                ->where('name_identifier_scheme', 'ORCID')
+                ->first();
 
             if ($personByOrcid instanceof Person) {
                 // Verify the found person matches the expected name (family + given)
@@ -388,9 +390,12 @@ class IgsnStorageService
         }
 
         // 2. Use PersonService for name-based lookup (or create new person)
+        // Normalize empty given name to null to avoid mismatches between '' and NULL
+        $normalizedGivenName = ($givenName !== null && trim($givenName) !== '') ? $givenName : null;
+
         return $this->personService->findOrCreate([
             'lastName' => $familyName,
-            'firstName' => $givenName,
+            'firstName' => $normalizedGivenName,
             'orcid' => $orcid,
         ]);
     }
