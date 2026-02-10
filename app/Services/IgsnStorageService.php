@@ -158,9 +158,12 @@ class IgsnStorageService
         $defaultPublisher = Publisher::getDefault();
 
         if ($defaultPublisher === null) {
-            // Fallback: create default publisher if seeder has not been run.
-            // Uses firstOrCreate to be idempotent and race-safe under concurrent requests.
-            $defaultPublisher = Publisher::firstOrCreate(
+            // Fallback: create or update default publisher if seeder has not been run
+            // or if an incomplete record exists from an older seed.
+            // Note: no unique constraint on `name` exists, so this is not fully
+            // race-safe under concurrent requests, but sufficient for the rare
+            // fallback case when no default publisher has been seeded.
+            $defaultPublisher = Publisher::updateOrCreate(
                 ['name' => 'GFZ Data Services'],
                 [
                     'identifier' => 'https://doi.org/10.17616/R3VQ0S',
