@@ -584,10 +584,6 @@
             },
             "uniqueItems": true
         },
-        "schemaVersion": {
-            "type": "string",
-            "const": "http://datacite.org/schema/kernel-4"
-        },
         "container": {
             "type": "object",
             "properties": {
@@ -598,5 +594,5 @@
         }
     },
 
-    "required": ["creators", "titles", "publisher", "publicationYear", "types", "schemaVersion"]
+    "required": ["creators", "titles", "publisher", "publicationYear", "types"]
 }

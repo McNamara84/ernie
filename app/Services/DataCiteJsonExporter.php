@@ -60,7 +60,6 @@ class DataCiteJsonExporter
             'publicationYear' => (string) $resource->publication_year,
             'types' => $this->buildTypes($resource),
             'creators' => $this->buildCreators($resource),
-            'schemaVersion' => 'http://datacite.org/schema/kernel-4',
         ];
 
         // Add identifiers only if DOI is present (required for registration, optional for export)
