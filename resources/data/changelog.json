@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-06",
+        "date": "2026-02-10",
         "features": [
             {
                 "title": "Delete All Test Datasets",
@@ -135,6 +135,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "IGSN Contributor Parsing Cross-Linking Bug",
+                "description": "Fixed a bug where IGSN CSV uploads with more contributor names than identifiers caused positional misalignment, leading to contributors being linked to wrong person records. For example, 'Venier, Marco' appeared duplicated while 'Zanetti, Alberto' was missing in the DataCite export. The fix ensures all contributor fields (names, types, identifiers) use the same positional split strategy and adds name verification to prevent ORCID-based cross-linking when identifiers are misaligned."
+            },
             {
                 "title": "IGSN CSV Parser: Missing relatedIdentifier from Duplicate Columns",
                 "description": "Fixed an issue where IGSN CSV files with duplicate column headers (e.g., multiple 'relatedIdentifier' columns) would only retain the last column's value, causing related identifiers to be lost. The parser now detects duplicate headers and merges their values, so all related identifiers are correctly imported."
