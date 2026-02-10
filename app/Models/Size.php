@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Stores size information for a Resource in 3NF.
  * The structured columns `numeric_value`, `unit`, and `type` store the decomposed
- * parts. The export string (e.g., "3 m") is built dynamically via the
- * `export_string` accessor.
+ * parts. The export string (e.g., "3 Drilled Length [m]") is built dynamically
+ * via the `export_string` accessor.
  *
  * @property int $id
  * @property int $resource_id
@@ -49,9 +49,13 @@ class Size extends Model
     }
 
     /**
-     * Build DataCite export string from numeric_value and unit.
+     * Build DataCite export string from numeric_value, type, and unit.
      *
-     * Examples: "3 m", "87 mm", "15 pages", "250"
+     * When a type is present, the unit is shown in brackets after the type:
+     *   "851.88 Total Cored Length [m]", "3 Drilled Length [m]"
+     *
+     * Without a type, unit is appended directly (backward compatible):
+     *   "1.5 GB", "15 pages", "250"
      */
     public function getExportStringAttribute(): string
     {
@@ -62,7 +66,16 @@ class Size extends Model
             $parts[] = rtrim(rtrim($this->numeric_value, '0'), '.');
         }
 
-        if ($this->unit !== null && $this->unit !== '') {
+        if ($this->type !== null && $this->type !== '') {
+            if ($this->unit !== null && $this->unit !== '') {
+                // Type with unit in brackets: "Drilled Length [m]"
+                $parts[] = $this->type . ' [' . $this->unit . ']';
+            } else {
+                // Type only: "meters"
+                $parts[] = $this->type;
+            }
+        } elseif ($this->unit !== null && $this->unit !== '') {
+            // Unit only (backward compatible for non-IGSN sizes): "GB"
             $parts[] = $this->unit;
         }
 

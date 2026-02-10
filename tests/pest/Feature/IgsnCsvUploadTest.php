@@ -720,8 +720,8 @@ describe('IGSN Multi-Value Size Storage', function () {
 
         // Verify by export_string accessor
         $exportStrings = $sizes->map->export_string->toArray();
-        expect($exportStrings)->toContain('0.9 m')
-            ->and($exportStrings)->toContain('146 mm');
+        expect($exportStrings)->toContain('0.9 Drilled Length [m]')
+            ->and($exportStrings)->toContain('146 Core Diameter [mm]');
 
         // Verify structured columns for first size
         $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();
@@ -751,8 +751,8 @@ describe('IGSN Multi-Value Size Storage', function () {
         expect($sizes)->toHaveCount(2);
 
         $exportStrings = $sizes->map->export_string->toArray();
-        expect($exportStrings)->toContain('3 m')
-            ->and($exportStrings)->toContain('123 mm');
+        expect($exportStrings)->toContain('3 Drilled Length [m]')
+            ->and($exportStrings)->toContain('123 Core Diameter [mm]');
 
         // Verify structured columns
         $drilledLength = $resource->sizes()->where('type', 'Drilled Length')->first();

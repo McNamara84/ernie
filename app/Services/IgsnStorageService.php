@@ -540,7 +540,7 @@ class IgsnStorageService
 
             Size::create([
                 'resource_id' => $resource->id,
-                'numeric_value' => is_numeric($sizeEntry['numeric_value'] ?? null) ? (float) $sizeEntry['numeric_value'] : null,
+                'numeric_value' => is_numeric($sizeEntry['numeric_value'] ?? null) ? $sizeEntry['numeric_value'] : null,
                 'unit' => $sizeEntry['unit'] ?? null,
                 'type' => $sizeEntry['type'] ?? null,
             ]);

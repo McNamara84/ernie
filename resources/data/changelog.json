@@ -1,6 +1,20 @@
 [
     {
         "version": "1.0.0dev",
+        "date": "2026-02-10",
+        "fixes": [
+            {
+                "title": "Size Export Format Includes Type Label",
+                "description": "DataCite export now includes the size type label with the unit in brackets (e.g., '851.88 Total Cored Length [m]' instead of just '851.88 m'). This applies to both JSON and XML exports."
+            },
+            {
+                "title": "Fixed Number Precision in IGSN CSV Size Parsing",
+                "description": "Removed unnecessary float conversion when storing size values from IGSN CSV uploads, preventing potential decimal point shifts (e.g., '562' being stored as '56.2')."
+            }
+        ]
+    },
+    {
+        "version": "1.0.0dev",
         "date": "2026-02-06",
         "features": [
             {

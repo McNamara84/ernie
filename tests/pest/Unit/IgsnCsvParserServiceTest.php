@@ -251,6 +251,48 @@ CSV;
             ->and($entry['unit'])->toBeNull()
             ->and($entry['type'])->toBe('meters');
     });
+
+    it('preserves integer values without decimal shift', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|562|Drilled Length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('562')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('Drilled Length');
+    });
+
+    it('preserves large decimal values from DIVE CSV', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|851.88|Total Cored Length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('851.88')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('Total Cored Length');
+    });
+
+    it('preserves integer zero correctly', function () {
+        $csv = <<<'CSV'
+igsn|title|name|size|size_unit
+10.58052/IGSN.1234|Title|Name|57.2|Total Cored Length [m]
+CSV;
+
+        $result = $this->parser->parse($csv);
+
+        $entry = $result['rows'][0]['_sizes'][0];
+        expect($entry['numeric_value'])->toBe('57.2')
+            ->and($entry['unit'])->toBe('m')
+            ->and($entry['type'])->toBe('Total Cored Length');
+    });
 });
 
 describe('Contributor Parsing', function () {
