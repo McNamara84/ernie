@@ -371,8 +371,14 @@ class IgsnStorageService
             $personByOrcid = Person::where('name_identifier', $orcid)->first();
 
             if ($personByOrcid instanceof Person) {
-                // Verify the found person matches the expected family name
-                if (strtolower(trim($personByOrcid->family_name ?? '')) === strtolower(trim($familyName))) {
+                // Verify the found person matches the expected name (family + given)
+                $familyMatch = mb_strtolower(trim($personByOrcid->family_name ?? ''), 'UTF-8')
+                    === mb_strtolower(trim($familyName), 'UTF-8');
+                $givenMatch = $givenName === null
+                    || mb_strtolower(trim($personByOrcid->given_name ?? ''), 'UTF-8')
+                        === mb_strtolower(trim($givenName), 'UTF-8');
+
+                if ($familyMatch && $givenMatch) {
                     return $personByOrcid;
                 }
                 // ORCID found a different person → misaligned identifier, discard ORCID

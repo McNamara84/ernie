@@ -704,11 +704,9 @@ CSV;
 });
 
 describe('IGSN Contributor Name Verification (Issue #485)', function () {
-    it('does not cross-link contributors when a different person has the same ORCID', function () {
-        // Scenario: Pre-existing person "Venier, Marco" with ORCID-V.
-        // A new CSV has "Zanetti, Alberto" but due to column misalignment in an earlier
-        // bug, the wrong ORCID might be passed. The name verification should prevent
-        // "Zanetti" from being linked to Venier's Person record.
+    it('creates distinct persons for contributors with unique ORCIDs', function () {
+        // Verify that two contributors with different ORCIDs are stored as
+        // separate Person records, each correctly linked to their own ORCID.
 
         $csv = <<<'CSV'
 igsn|title|name|contributor|contributorType|identifier
@@ -730,8 +728,10 @@ CSV;
 
         expect($person0->family_name)->toBe('Zanetti');
         expect($person0->given_name)->toBe('Alberto');
+        expect($person0->name_identifier)->toBe('https://orcid.org/0000-0001-1111-1111');
         expect($person1->family_name)->toBe('Venier');
         expect($person1->given_name)->toBe('Marco');
+        expect($person1->name_identifier)->toBe('https://orcid.org/0000-0002-2222-2222');
 
         // They must be different Person records
         expect($person0->id)->not->toBe($person1->id);

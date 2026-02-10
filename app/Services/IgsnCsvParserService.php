@@ -252,11 +252,14 @@ class IgsnCsvParserService
                 continue;
             }
 
+            $type = trim($types[$i] ?? '');
+            $identifierType = trim($identifierTypes[$i] ?? '');
+
             $contributors[] = [
                 'name' => $name,
-                'type' => $types[$i] ?? 'Other',
+                'type' => $type !== '' ? $type : 'Other',
                 'identifier' => $this->normalizeIdentifier($identifiers[$i] ?? ''),
-                'identifierType' => $identifierTypes[$i] ?? null,
+                'identifierType' => $identifierType !== '' ? $identifierType : null,
             ];
         }
 
