@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-10",
+        "date": "2026-02-11",
         "features": [
             {
                 "title": "Delete All Test Datasets",
@@ -135,6 +135,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Creator Affiliation ROR Mapping",
+                "description": "Fixed incorrect mapping of creator affiliation ROR identifiers in DataCite JSON and XML export. Previously, the ROR URL was placed in the 'name' element instead of the 'affiliationIdentifier' element. The export now correctly includes 'affiliationIdentifier', 'affiliationIdentifierScheme', and 'schemeURI' fields. A defense-in-depth approach detects and corrects ROR URLs accidentally stored in the name field, and resolves organization names from the local ROR data dump when only an identifier is provided."
+            },
             {
                 "title": "IGSN Publisher Export",
                 "description": "Fixed an issue where IGSNs imported via CSV were exported with incomplete publisher metadata. The DataCite JSON and XML exports now always include the full publisher element with all required fields (name, publisher identifier, identifier scheme, scheme URI, and language). Additionally, the PublisherSeeder now uses updateOrCreate to ensure existing publisher records receive all required identifier fields, and the IgsnStorageService creates a default publisher automatically if none exists in the database."
