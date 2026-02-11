@@ -6,6 +6,7 @@ namespace App\Services\Entities;
 
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\RorLookupService;
 
 /**
  * Service for handling affiliation data on creators and contributors.
@@ -18,6 +19,10 @@ use App\Models\ResourceCreator;
  */
 class AffiliationService
 {
+    public function __construct(
+        private readonly RorLookupService $rorLookupService,
+    ) {}
+
     /**
      * Sync affiliations for a ResourceCreator.
      *
@@ -56,9 +61,11 @@ class AffiliationService
      * Parse affiliations from request data into database-ready format.
      *
      * Filters out invalid entries and normalizes ROR identifiers.
+     * Detects ROR URLs accidentally placed in the name field and corrects them.
+     * Resolves organization names from ROR data when only an identifier is provided.
      *
      * @param  array<string, mixed>  $data  Request data containing 'affiliations' key
-     * @return array<int, array{name: string, identifier: string|null, identifier_scheme: string|null}>
+     * @return array<int, array{name: string, identifier: string|null, identifier_scheme: string|null, scheme_uri: string|null}>
      */
     public function parseAffiliationsFromData(array $data): array
     {
@@ -84,8 +91,13 @@ class AffiliationService
     /**
      * Parse a single affiliation entry.
      *
+     * Handles three scenarios:
+     * 1. Normal: name + optional rorId → stored correctly
+     * 2. Defense: name contains a ROR URL (frontend bug) → move to identifier, resolve name
+     * 3. No name but rorId present → resolve name from ROR data
+     *
      * @param  mixed  $affiliation  The affiliation data
-     * @return array{name: string, identifier: string|null, identifier_scheme: string|null}|null
+     * @return array{name: string, identifier: string|null, identifier_scheme: string|null, scheme_uri: string|null}|null
      */
     private function parseAffiliation(mixed $affiliation): ?array
     {
@@ -94,17 +106,29 @@ class AffiliationService
         }
 
         $value = isset($affiliation['value']) ? trim((string) $affiliation['value']) : '';
+        $rorId = $this->extractRorId($affiliation);
 
-        if ($value === '') {
-            return null;
+        // Defense-in-depth: detect ROR URL accidentally placed in the name field
+        if ($rorId === null && $value !== '' && $this->rorLookupService->isRorUrl($value)) {
+            $rorId = $value;
+            $value = '';
         }
 
-        $rorId = $this->extractRorId($affiliation);
+        // Resolve organization name from ROR data when only an identifier is provided
+        if ($rorId !== null && $value === '') {
+            $value = $this->rorLookupService->resolve($rorId) ?? '';
+        }
+
+        // Skip entirely empty entries (no name and no identifier)
+        if ($value === '' && $rorId === null) {
+            return null;
+        }
 
         return [
             'name' => $value,
             'identifier' => $rorId,
             'identifier_scheme' => $rorId !== null ? 'ROR' : null,
+            'scheme_uri' => $rorId !== null ? 'https://ror.org/' : null,
         ];
     }
 

@@ -454,6 +454,7 @@ class ResourceStorageService
             'name' => trim($affiliationName),
             'identifier' => $affiliationRor,
             'identifier_scheme' => $affiliationRor ? 'ROR' : null,
+            'scheme_uri' => $affiliationRor ? 'https://ror.org/' : null,
         ]);
     }
 

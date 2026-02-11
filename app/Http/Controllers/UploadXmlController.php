@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\UploadErrorCode;
 use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
+use App\Services\RorLookupService;
 use App\Services\UploadLogService;
 use App\Support\GcmdUriHelper;
 use App\Support\MslLaboratoryService;
@@ -15,9 +16,7 @@ use App\Support\UriHelper;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use JsonException;
 use Saloon\XmlWrangler\Data\Element;
 use Saloon\XmlWrangler\Exceptions\XmlReaderException;
 use Saloon\XmlWrangler\XmlReader;
@@ -67,15 +66,9 @@ class UploadXmlController extends Controller
         'sponsor',
     ];
 
-    /**
-     * @var array<string, array{value: string, rorId: string}>
-     */
-    private array $affiliationMap = [];
-
-    private bool $affiliationMapLoaded = false;
-
     public function __construct(
         private readonly UploadLogService $uploadLogService,
+        private readonly RorLookupService $rorLookupService,
     ) {}
 
     public function __invoke(UploadXmlRequest $request): JsonResponse
@@ -1501,28 +1494,7 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        $canonical = $this->canonicaliseRorId($identifier);
-
-        if ($canonical === null) {
-            return null;
-        }
-
-        if (! $this->affiliationMapLoaded) {
-            $this->loadAffiliationMap();
-        }
-
-        $resolved = $this->affiliationMap[$canonical] ?? null;
-
-        if ($resolved !== null) {
-            return $resolved;
-        }
-
-        $label = is_string($fallback) && $fallback !== '' ? $fallback : $canonical;
-
-        return [
-            'value' => $label,
-            'rorId' => $canonical,
-        ];
+        return $this->rorLookupService->resolveWithFallback($identifier, $fallback);
     }
 
     private function isRorIdentifier(string $identifier, ?string $scheme): bool
@@ -1534,91 +1506,6 @@ class UploadXmlController extends Controller
 
         // Also accept if identifier contains ror.org (URL format)
         return Str::contains(Str::lower($identifier), 'ror.org');
-    }
-
-    private function canonicaliseRorId(string $identifier): ?string
-    {
-        $trimmed = trim($identifier);
-
-        if ($trimmed === '') {
-            return null;
-        }
-
-        // If already a full URL with ror.org host, extract and normalize
-        if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
-            $rorId = trim($matches[1]);
-
-            return $rorId !== '' ? 'https://ror.org/'.Str::lower($rorId) : null;
-        }
-
-        // Check if it's a URL with a different host (e.g., "http://example.com/ror.org/someid")
-        // Only extract path if the host is actually ror.org
-        $host = UriHelper::getHost($trimmed);
-        if ($host !== null && Str::lower($host) === 'ror.org') {
-            $path = UriHelper::getPath($trimmed);
-            if ($path !== null) {
-                $path = trim($path, '/');
-
-                return $path !== '' ? 'https://ror.org/'.Str::lower($path) : null;
-            }
-        }
-
-        // If it's a URL with a different host, don't process it as a ROR ID
-        if ($host !== null) {
-            return null;
-        }
-
-        // Otherwise, treat as bare ROR ID and prepend URL
-        $path = Str::lower(trim($trimmed, '/'));
-
-        return $path !== '' ? 'https://ror.org/'.$path : null;
-    }
-
-    private function loadAffiliationMap(): void
-    {
-        $this->affiliationMapLoaded = true;
-
-        try {
-            $disk = Storage::disk('local');
-
-            if (! $disk->exists('ror/ror-affiliations.json')) {
-                return;
-            }
-
-            $contents = $disk->get('ror/ror-affiliations.json');
-
-            if (! is_string($contents)) {
-                return;
-            }
-
-            $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-
-            if (! is_array($decoded)) {
-                return;
-            }
-
-            foreach ($decoded as $entry) {
-                if (! is_array($entry)) {
-                    continue;
-                }
-
-                $label = isset($entry['prefLabel']) && is_string($entry['prefLabel'])
-                    ? trim($entry['prefLabel'])
-                    : '';
-                $rorId = isset($entry['rorId']) && is_string($entry['rorId']) ? $this->canonicaliseRorId($entry['rorId']) : null;
-
-                if ($label === '' || $rorId === null) {
-                    continue;
-                }
-
-                $this->affiliationMap[$rorId] = [
-                    'value' => $label,
-                    'rorId' => $rorId,
-                ];
-            }
-        } catch (JsonException) {
-            // Ignore invalid cache contents and fall back to raw affiliation labels.
-        }
     }
 
     /**

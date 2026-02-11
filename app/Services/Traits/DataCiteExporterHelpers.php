@@ -138,6 +138,9 @@ trait DataCiteExporterHelpers
     /**
      * Transform an affiliation to DataCite format.
      *
+     * Includes defense-in-depth: always emits schemeURI for known identifier
+     * schemes, even if scheme_uri was not persisted in the database.
+     *
      * @return array<string, string|null>
      */
     protected function transformAffiliation(Affiliation $affiliation): array
@@ -148,11 +151,13 @@ trait DataCiteExporterHelpers
 
         if ($affiliation->identifier) {
             $data['affiliationIdentifier'] = $affiliation->identifier;
-            $data['affiliationIdentifierScheme'] = $affiliation->identifier_scheme ?? 'ROR';
 
-            if ($affiliation->scheme_uri) {
-                $data['schemeURI'] = $affiliation->scheme_uri;
-            }
+            $scheme = $affiliation->identifier_scheme ?? 'ROR';
+            $data['affiliationIdentifierScheme'] = $scheme;
+
+            // Always include schemeURI – fall back to computed value for older records
+            $data['schemeURI'] = $affiliation->scheme_uri
+                ?? $this->getSchemeUri($scheme);
         }
 
         return $data;
