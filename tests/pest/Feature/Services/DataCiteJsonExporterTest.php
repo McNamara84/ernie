@@ -415,6 +415,39 @@ describe('DataCiteJsonExporter - Publisher', function () {
             ->toHaveKey('publisherIdentifier', 'https://ror.org/99999999')
             ->toHaveKey('lang', 'fr');
     });
+
+    test('hardcoded fallback includes all DataCite 4.6 publisher fields', function () {
+        // Create resource first (factory seeds a default publisher via firstOrCreate),
+        // then delete ALL publishers and clear the resource's publisher_id so the
+        // exporter's hardcoded fallback branch is actually exercised.
+        $resource = Resource::factory()->create(['publisher_id' => null]);
+        Publisher::query()->delete();
+
+        $result = $this->exporter->export($resource);
+        $publisherData = $result['data']['attributes']['publisher'];
+
+        expect($publisherData)
+            ->toHaveKey('name', 'GFZ Data Services')
+            ->toHaveKey('publisherIdentifier', 'https://doi.org/10.17616/R3VQ0S')
+            ->toHaveKey('publisherIdentifierScheme', 're3data')
+            ->toHaveKey('schemeUri', 'https://re3data.org/')
+            ->toHaveKey('lang', 'en');
+    });
+
+    test('exports full publisher when resource has GFZ publisher assigned', function () {
+        $publisher = Publisher::factory()->gfz()->create();
+        $resource = Resource::factory()->create(['publisher_id' => $publisher->id]);
+
+        $result = $this->exporter->export($resource);
+        $publisherData = $result['data']['attributes']['publisher'];
+
+        expect($publisherData)
+            ->toHaveKey('name', 'GFZ Data Services')
+            ->toHaveKey('publisherIdentifier', 'https://doi.org/10.17616/R3VQ0S')
+            ->toHaveKey('publisherIdentifierScheme', 're3data')
+            ->toHaveKey('schemeUri', 'https://re3data.org/')
+            ->toHaveKey('lang', 'en');
+    });
 });
 
 describe('DataCiteJsonExporter - Optional Fields', function () {

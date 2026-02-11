@@ -5,6 +5,7 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -138,6 +139,22 @@ describe('DataCiteXmlExporter - Required Fields', function () {
 
     test('exports required publisher with all DataCite 4.6 attributes', function () {
         $resource = Resource::factory()->create();
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<publisher')
+            ->and($xml)->toContain('publisherIdentifier="https://doi.org/10.17616/R3VQ0S"')
+            ->and($xml)->toContain('publisherIdentifierScheme="re3data"')
+            ->and($xml)->toContain('schemeURI="https://re3data.org/"')
+            ->and($xml)->toContain('xml:lang="en"')
+            ->and($xml)->toContain('GFZ Data Services</publisher>');
+    });
+
+    test('hardcoded fallback includes all DataCite 4.6 publisher attributes', function () {
+        // Create resource first (factory seeds a default publisher via firstOrCreate),
+        // then delete ALL publishers so the exporter's hardcoded fallback branch is exercised.
+        $resource = Resource::factory()->create(['publisher_id' => null]);
+        Publisher::query()->delete();
 
         $xml = $this->exporter->export($resource);
 

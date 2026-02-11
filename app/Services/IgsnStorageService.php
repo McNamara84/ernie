@@ -155,7 +155,22 @@ class IgsnStorageService
         $this->physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
         $this->mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
         $this->collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
-        $this->defaultPublisherId = Publisher::getDefault()?->id;
+
+        // Always ensure the GFZ default publisher exists with all required fields.
+        // This handles both the case where no default publisher exists (seeder not run)
+        // and the case where an incomplete record exists from an older seed.
+        $defaultPublisher = Publisher::updateOrCreate(
+            ['name' => 'GFZ Data Services'],
+            [
+                'identifier' => 'https://doi.org/10.17616/R3VQ0S',
+                'identifier_scheme' => 're3data',
+                'scheme_uri' => 'https://re3data.org/',
+                'language' => 'en',
+                'is_default' => true,
+            ]
+        );
+
+        $this->defaultPublisherId = $defaultPublisher->id;
 
         if ($this->physicalObjectTypeId === null) {
             throw new \RuntimeException('ResourceType "physical-object" not found. Please run seeders.');

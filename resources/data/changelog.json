@@ -136,6 +136,10 @@
         ],
         "fixes": [
             {
+                "title": "IGSN Publisher Export",
+                "description": "Fixed an issue where IGSNs imported via CSV were exported with incomplete publisher metadata. The DataCite JSON and XML exports now always include the full publisher element with all required fields (name, publisher identifier, identifier scheme, scheme URI, and language). Additionally, the PublisherSeeder now uses updateOrCreate to ensure existing publisher records receive all required identifier fields, and the IgsnStorageService creates a default publisher automatically if none exists in the database."
+            },
+            {
                 "title": "IGSN Contributor Parsing Cross-Linking Bug",
                 "description": "Fixed a bug where IGSN CSV uploads with more contributor names than identifiers caused positional misalignment, leading to contributors being linked to wrong person records. For example, 'Venier, Marco' appeared duplicated while 'Zanetti, Alberto' was missing in the DataCite export. The fix ensures all contributor fields (names, types, identifiers) use the same positional split strategy and adds name verification to prevent ORCID-based cross-linking when identifiers are misaligned."
             },
