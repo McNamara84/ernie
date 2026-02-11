@@ -894,7 +894,7 @@ describe('IGSN Creator Export', function () {
         expect($creator['nameIdentifiers'])->toHaveCount(1);
         expect($creator['nameIdentifiers'][0]['nameIdentifier'])->toBe('https://orcid.org/0000-0001-9404-882X');
         expect($creator['nameIdentifiers'][0]['nameIdentifierScheme'])->toBe('ORCID');
-        expect($creator['nameIdentifiers'][0]['schemeUri'])->toBe('https://orcid.org');
+        expect($creator['nameIdentifiers'][0]['schemeUri'])->toBe('https://orcid.org/');
     });
 
     it('exports creator in DataCite XML with correct structure', function () {
@@ -949,7 +949,7 @@ describe('IGSN Creator Export', function () {
         expect($xml)->toContain('<givenName>John</givenName>');
         expect($xml)->toContain('<familyName>Doe</familyName>');
         expect($xml)->toContain('nameIdentifierScheme="ORCID"');
-        expect($xml)->toContain('schemeURI="https://orcid.org"');
+        expect($xml)->toContain('schemeURI="https://orcid.org/"');
     });
 
     it('exports all three name fields (name, givenName, familyName) in JSON', function () {
