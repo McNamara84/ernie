@@ -110,7 +110,7 @@ class AffiliationService
 
         // Defense-in-depth: detect ROR URL accidentally placed in the name field
         if ($rorId === null && $value !== '' && $this->rorLookupService->isRorUrl($value)) {
-            $rorId = $value;
+            $rorId = $this->rorLookupService->canonicalise($value);
             $value = '';
         }
 
@@ -151,6 +151,10 @@ class AffiliationService
 
         $trimmedRorId = trim((string) $rawRorId);
 
-        return $trimmedRorId === '' ? null : $trimmedRorId;
+        if ($trimmedRorId === '') {
+            return null;
+        }
+
+        return $this->rorLookupService->canonicalise($trimmedRorId);
     }
 }

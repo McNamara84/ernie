@@ -902,7 +902,7 @@ describe('DataCiteXmlExporter - Affiliations', function () {
         expect($affiliationElements->length)->toBe(1);
 
         $affiliation = $affiliationElements->item(0);
-        expect($affiliation->getAttribute('schemeURI'))->toBe('https://ror.org');
+        expect($affiliation->getAttribute('schemeURI'))->toBe('https://ror.org/');
     });
 
     test('does not export affiliations element when none exist', function () {

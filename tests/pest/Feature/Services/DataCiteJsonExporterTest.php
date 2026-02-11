@@ -1043,7 +1043,7 @@ describe('DataCiteJsonExporter - Affiliations', function () {
         expect($affiliations)->toHaveCount(1)
             ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394')
             ->and($affiliations[0])->toHaveKey('affiliationIdentifierScheme', 'ROR')
-            ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org');
+            ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org/');
     });
 
     test('does not export empty affiliations array', function () {

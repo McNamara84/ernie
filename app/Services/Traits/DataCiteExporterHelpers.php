@@ -127,10 +127,10 @@ trait DataCiteExporterHelpers
     protected function getSchemeUri(string $scheme): string
     {
         return match (strtoupper($scheme)) {
-            'ORCID' => 'https://orcid.org',
-            'ROR' => 'https://ror.org',
-            'ISNI' => 'https://isni.org',
-            'GRID' => 'https://www.grid.ac',
+            'ORCID' => 'https://orcid.org/',
+            'ROR' => 'https://ror.org/',
+            'ISNI' => 'https://isni.org/',
+            'GRID' => 'https://www.grid.ac/',
             default => '',
         };
     }
@@ -155,9 +155,12 @@ trait DataCiteExporterHelpers
             $scheme = $affiliation->identifier_scheme ?? 'ROR';
             $data['affiliationIdentifierScheme'] = $scheme;
 
-            // Always include schemeURI – fall back to computed value for older records
-            $data['schemeURI'] = $affiliation->scheme_uri
-                ?? $this->getSchemeUri($scheme);
+            // Include schemeURI when available – fall back to computed value for older records
+            $schemeUri = $affiliation->scheme_uri ?? $this->getSchemeUri($scheme);
+
+            if ($schemeUri !== '') {
+                $data['schemeURI'] = $schemeUri;
+            }
         }
 
         return $data;
