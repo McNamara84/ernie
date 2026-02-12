@@ -152,7 +152,7 @@ trait DataCiteExporterHelpers
         // Defense-in-depth: if name looks like a ROR URL and an identifier is
         // already present, resolve the real label or blank the name so the URL
         // is never exported as an affiliation name.
-        if ($affiliation->identifier && is_string($name) && preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', $name)) {
+        if ($affiliation->identifier && preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', $name)) {
             /** @var \App\Services\RorLookupService $rorLookup */
             $rorLookup = app(\App\Services\RorLookupService::class);
             $name = $rorLookup->resolve($name) ?? '';
