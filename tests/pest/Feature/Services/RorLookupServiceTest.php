@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\RorLookupService;
+use Illuminate\Support\Facades\Storage;
 
 describe('RorLookupService', function () {
     test('canonicalises full ROR URL', function () {
@@ -50,10 +51,11 @@ describe('RorLookupService', function () {
     });
 
     test('resolve returns null when ROR data file does not exist', function () {
+        Storage::fake('local');
+
         $service = new RorLookupService;
 
-        // On test environments without the ROR data dump, resolve should return null
-        $result = $service->resolve('https://ror.org/nonexistent');
+        $result = $service->resolve('https://ror.org/04z8jg394');
 
         expect($result)->toBeNull();
     });

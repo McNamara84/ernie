@@ -62,7 +62,8 @@ class AffiliationService
      *
      * Filters out invalid entries and normalizes ROR identifiers.
      * Detects ROR URLs accidentally placed in the name field and corrects them.
-     * Resolves organization names from ROR data when only an identifier is provided.
+     * Attempts to resolve organization names from ROR data when only an identifier
+     * is provided; the name may remain blank if the lookup fails.
      *
      * @param  array<string, mixed>  $data  Request data containing 'affiliations' key
      * @return array<int, array{name: string, identifier: string|null, identifier_scheme: string|null, scheme_uri: string|null}>
@@ -114,7 +115,7 @@ class AffiliationService
             $value = '';
         }
 
-        // Resolve organization name from ROR data when only an identifier is provided
+        // Attempt to resolve organization name from ROR data when only an identifier is provided
         if ($rorId !== null && $value === '') {
             $value = $this->rorLookupService->resolve($rorId) ?? '';
         }
