@@ -308,7 +308,12 @@ class EditorDataTransformer
             return $dateValue;
         }
 
-        // Legacy date-only values: normalize via Carbon to ensure Y-m-d format
+        // Preserve partial date precision (YYYY, YYYY-MM) instead of expanding via Carbon
+        if (preg_match('/^\d{4}$/', $dateValue) || preg_match('/^\d{4}-\d{2}$/', $dateValue)) {
+            return $dateValue;
+        }
+
+        // Full date values: normalize via Carbon to ensure Y-m-d format
         try {
             return Carbon::parse($dateValue)->format('Y-m-d');
         } catch (\Exception) {

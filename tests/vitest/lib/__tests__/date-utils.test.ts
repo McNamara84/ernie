@@ -115,7 +115,7 @@ describe('date-utils', () => {
         it('parses datetime with seconds', () => {
             expect(parseDateTime('2022-10-06T09:35:00+01:00')).toEqual({
                 date: '2022-10-06',
-                time: '09:35',
+                time: '09:35:00',
                 timezone: '+01:00',
             });
         });
@@ -123,7 +123,7 @@ describe('date-utils', () => {
         it('parses datetime with fractional seconds', () => {
             expect(parseDateTime('2022-10-06T09:35:00.000+01:00')).toEqual({
                 date: '2022-10-06',
-                time: '09:35',
+                time: '09:35:00.000',
                 timezone: '+01:00',
             });
         });
@@ -224,6 +224,35 @@ describe('date-utils', () => {
 
         it('trims whitespace from all components', () => {
             expect(buildDateTime('  2022-10-06  ', '  09:35  ', '  +01:00  ')).toBe('2022-10-06T09:35+01:00');
+        });
+
+        it('preserves seconds in time component', () => {
+            expect(buildDateTime('2022-10-06', '09:35:00', '+01:00')).toBe('2022-10-06T09:35:00+01:00');
+        });
+
+        it('preserves fractional seconds in time component', () => {
+            expect(buildDateTime('2022-10-06', '09:35:00.000', '+01:00')).toBe('2022-10-06T09:35:00.000+01:00');
+        });
+
+        it('round-trips datetime with full precision', () => {
+            const original = '2022-10-06T09:35:00.000+01:00';
+            const parsed = parseDateTime(original);
+            const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
+            expect(rebuilt).toBe(original);
+        });
+
+        it('round-trips datetime with seconds', () => {
+            const original = '2022-10-06T09:35:00+01:00';
+            const parsed = parseDateTime(original);
+            const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
+            expect(rebuilt).toBe(original);
+        });
+
+        it('round-trips datetime without seconds', () => {
+            const original = '2022-10-06T09:35+01:00';
+            const parsed = parseDateTime(original);
+            const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
+            expect(rebuilt).toBe(original);
         });
     });
 });

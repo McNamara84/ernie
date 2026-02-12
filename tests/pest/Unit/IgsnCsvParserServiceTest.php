@@ -1019,6 +1019,31 @@ describe('ISO 8601 Datetime Parsing (Issue #508)', function () {
 
         expect($dates['start'])->toBe('2022-10-06T09:35+05:30');
     });
+
+    it('rejects out-of-range timezone hours (UTC+99)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+99');
+
+        // Should not apply invalid timezone — return datetime without offset
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects out-of-range timezone hours (UTC+15)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+15');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('accepts maximum valid timezone (UTC+14)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+14');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+14:00');
+    });
+
+    it('rejects invalid minutes in timezone (UTC+5:99)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+5:99');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
 });
 
 describe('Duplicate Column Headers (Issue #487)', function () {

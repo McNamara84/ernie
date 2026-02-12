@@ -28,7 +28,7 @@ export interface DateEntry {
  */
 export interface ParsedDateTime {
     date: string; // 'YYYY-MM-DD'
-    time: string | null; // 'HH:mm' or 'HH:mm:ss'
+    time: string | null; // 'HH:mm', 'HH:mm:ss', or 'HH:mm:ss.fff' (full precision preserved)
     timezone: string | null; // '+01:00', '-05:00', 'Z', etc.
 }
 
@@ -128,13 +128,11 @@ export function parseDateTime(isoString: string | null | undefined): ParsedDateT
         }
     }
 
-    // Remove fractional seconds (e.g., .000)
-    timePart = timePart.replace(/\.\d+$/, '');
+    // Preserve full time precision (including seconds and fractional seconds)
+    // The <input type="time"> will handle display truncation to HH:mm natively
+    const time = timePart || null;
 
-    // Trim to HH:mm (drop seconds if present for display)
-    const time = timePart.length >= 5 ? timePart.substring(0, 5) : timePart;
-
-    return { date: datePart, time: time || null, timezone };
+    return { date: datePart, time, timezone };
 }
 
 /**

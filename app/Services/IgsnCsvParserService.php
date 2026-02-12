@@ -766,19 +766,25 @@ class IgsnCsvParserService
 
         // Parse UTC±N or UTC±NN (e.g., "UTC+1", "UTC-05", "UTC+10")
         if (preg_match('/^UTC([+-])(\d{1,2})$/i', $timezone, $matches)) {
+            $hours = (int) $matches[2];
+            if ($hours > 14) {
+                return null;
+            }
             $sign = $matches[1];
-            $hours = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
 
-            return "{$sign}{$hours}:00";
+            return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':00';
         }
 
         // Parse UTC±H:MM (e.g., "UTC+5:30", "UTC+5:45")
         if (preg_match('/^UTC([+-])(\d{1,2}):(\d{2})$/i', $timezone, $matches)) {
+            $hours = (int) $matches[2];
+            $minutes = (int) $matches[3];
+            if ($hours > 14 || $minutes > 59) {
+                return null;
+            }
             $sign = $matches[1];
-            $hours = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-            $minutes = $matches[3];
 
-            return "{$sign}{$hours}:{$minutes}";
+            return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . $matches[3];
         }
 
         return null;

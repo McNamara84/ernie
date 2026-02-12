@@ -788,6 +788,164 @@ describe('IGSN Collection Date Export', function () {
         expect($xml)->toContain('dateType="Collected"');
         expect($xml)->toContain('2021-04-12/2021-05-05</date>');
     });
+
+    it('exports ISO 8601 datetime with timezone in DataCite JSON (Issue #508)', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DT-TEST-001',
+            'publication_year' => 2023,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample with ISO 8601 Datetime',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Store datetime values with timezone (as they would come from CSV import)
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2023-05-15T09:35+02:00',
+            'end_date' => '2023-05-15T11:20+02:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $attributes = $json['data']['attributes'];
+
+        expect($attributes['dates'])->toHaveCount(1);
+        expect($attributes['dates'][0]['dateType'])->toBe('Collected');
+        expect($attributes['dates'][0]['date'])
+            ->toBe('2023-05-15T09:35+02:00/2023-05-15T11:20+02:00');
+    });
+
+    it('exports ISO 8601 datetime with timezone in DataCite XML (Issue #508)', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DT-TEST-002',
+            'publication_year' => 2023,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample with ISO 8601 Datetime XML',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2023-05-15T09:35+02:00',
+            'end_date' => '2023-05-15T11:20+02:00',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+
+        $xml = method_exists($response->baseResponse, 'streamedContent')
+            ? $response->streamedContent()
+            : $response->getContent();
+
+        expect($xml)->toContain('dateType="Collected"');
+        expect($xml)->toContain('2023-05-15T09:35+02:00/2023-05-15T11:20+02:00</date>');
+    });
+
+    it('exports open-ended ISO 8601 datetime in DataCite JSON (Issue #508)', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+        $collectedDateType = \App\Models\DateType::where('slug', 'Collected')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-DT-TEST-003',
+            'publication_year' => 2023,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test Sample Open-Ended Datetime',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = \App\Models\Person::factory()->create();
+        \App\Models\ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Core',
+            'material' => 'Rock',
+            'upload_status' => 'pending',
+        ]);
+
+        // Open-ended: only start datetime, no end
+        \App\Models\ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $collectedDateType->id,
+            'start_date' => '2023-05-15T09:35+02:00',
+            'end_date' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+
+        expect($json['data']['attributes']['dates'][0]['date'])
+            ->toBe('2023-05-15T09:35+02:00');
+    });
 });
 
 describe('IGSN Creator Export', function () {
