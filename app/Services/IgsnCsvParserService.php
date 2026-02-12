@@ -751,7 +751,7 @@ class IgsnCsvParserService
     {
         $timezone = trim($timezone);
 
-        if ($timezone === '' ) {
+        if ($timezone === '') {
             return null;
         }
 
