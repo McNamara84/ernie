@@ -37,13 +37,13 @@ class RorLookupService
      */
     public function resolve(string $rorId): ?string
     {
-        $this->ensureLoaded();
-
         $canonical = $this->canonicalise($rorId);
 
         if ($canonical === null) {
             return null;
         }
+
+        $this->ensureLoaded();
 
         return $this->affiliationMap[$canonical] ?? null;
     }
