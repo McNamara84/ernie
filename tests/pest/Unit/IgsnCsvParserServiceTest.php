@@ -912,6 +912,200 @@ describe('Collection Date Parsing', function () {
     });
 });
 
+describe('ISO 8601 Datetime Parsing (Issue #508)', function () {
+    it('preserves datetime with timezone offset', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35+01:00', '');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+01:00')
+            ->and($dates['end'])->toBeNull();
+    });
+
+    it('preserves datetime with seconds and timezone', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35:00+01:00', '');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35:00+01:00');
+    });
+
+    it('preserves datetime with fractional seconds and timezone', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35:00.000+01:00', '');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35:00.000+01:00');
+    });
+
+    it('preserves datetime with Z (UTC) timezone', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35Z', '');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35Z');
+    });
+
+    it('preserves datetime with negative timezone offset', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T14:30-05:00', '');
+
+        expect($dates['start'])->toBe('2022-10-06T14:30-05:00');
+    });
+
+    it('preserves datetime without timezone (no fallback)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('preserves datetime for both start and end dates', function () {
+        $dates = $this->parser->parseCollectionDates(
+            '2022-10-06T09:35+01:00',
+            '2022-10-07T16:45+01:00'
+        );
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+01:00')
+            ->and($dates['end'])->toBe('2022-10-07T16:45+01:00');
+    });
+
+    it('applies timezone fallback when datetime has no timezone', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+1');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+01:00');
+    });
+
+    it('applies UTC fallback as Z', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35Z');
+    });
+
+    it('applies negative timezone fallback', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-5');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35-05:00');
+    });
+
+    it('applies double-digit timezone fallback', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+10');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+10:00');
+    });
+
+    it('does not apply timezone fallback when datetime already has timezone', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35+01:00', '', 'UTC+5');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+01:00');
+    });
+
+    it('does not apply timezone fallback to date-only values', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06', '', 'UTC+1');
+
+        expect($dates['start'])->toBe('2022-10-06');
+    });
+
+    it('does not apply timezone fallback to year-only values', function () {
+        $dates = $this->parser->parseCollectionDates('2022', '', 'UTC+1');
+
+        expect($dates['start'])->toBe('2022');
+    });
+
+    it('ignores unparseable timezone fallback', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'invalid');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('applies ISO offset fallback directly', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '+05:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+05:30');
+    });
+
+    it('applies timezone with half-hour offset', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+5:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+05:30');
+    });
+
+    it('rejects out-of-range timezone hours (UTC+99)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+99');
+
+        // Should not apply invalid timezone — return datetime without offset
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects out-of-range timezone hours (UTC+15)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+15');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('accepts maximum valid timezone (UTC+14)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+14');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+14:00');
+    });
+
+    it('rejects invalid minutes in timezone (UTC+5:99)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+5:99');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects negative timezone out of range (UTC-13)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-13');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects negative timezone out of range (UTC-14)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-14');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('accepts maximum valid negative timezone (UTC-12)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-12');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35-12:00');
+    });
+
+    it('rejects minutes at positive boundary (UTC+14:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+14:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects minutes at negative boundary (UTC-12:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-12:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects direct ISO offset at positive boundary (+14:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '+14:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects direct ISO offset at negative boundary (-12:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '-12:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects direct ISO offset out of negative range (-13:00)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '-13:00');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('accepts direct ISO offset at valid boundary (+14:00)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '+14:00');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+14:00');
+    });
+
+    it('accepts direct ISO offset at valid negative boundary (-12:00)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '-12:00');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35-12:00');
+    });
+});
+
 describe('Duplicate Column Headers (Issue #487)', function () {
     it('merges duplicate relatedIdentifier columns into combined values', function () {
         $csv = <<<'CSV'

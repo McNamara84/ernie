@@ -693,18 +693,126 @@ class IgsnCsvParserService
     /**
      * Parse collection date range.
      *
+     * Accepts an optional timezone string (e.g., "UTC+1", "UTC-5", "UTC") which
+     * is used as a fallback when the date string contains a time component but
+     * no timezone offset.
+     *
      * @return array{start: string|null, end: string|null}
      */
-    public function parseCollectionDates(string $startDate, string $endDate): array
+    public function parseCollectionDates(string $startDate, string $endDate, string $timezone = ''): array
     {
         return [
-            'start' => $this->normalizeDate($startDate),
-            'end' => $this->normalizeDate($endDate),
+            'start' => $this->normalizeDateWithTimezoneFallback($startDate, $timezone),
+            'end' => $this->normalizeDateWithTimezoneFallback($endDate, $timezone),
         ];
     }
 
     /**
-     * Normalize a date string. Preserves YYYY, YYYY-MM, or YYYY-MM-DD format.
+     * Normalize a date string and apply timezone fallback if needed.
+     *
+     * If the normalized date contains a time component ("T") but no timezone offset,
+     * the fallback timezone is appended. This handles CSV files where the timezone is
+     * provided in a separate column (collection_date_time_zone).
+     */
+    private function normalizeDateWithTimezoneFallback(string $date, string $timezone): ?string
+    {
+        $normalized = $this->normalizeDate($date);
+
+        if ($normalized === null || $timezone === '') {
+            return $normalized;
+        }
+
+        // Only apply fallback if date has time but no timezone offset
+        if (str_contains($normalized, 'T') && ! $this->hasTimezoneOffset($normalized)) {
+            $offset = $this->parseTimezoneToOffset($timezone);
+            if ($offset !== null) {
+                return $normalized . $offset;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Check if a datetime string already contains a timezone offset.
+     */
+    private function hasTimezoneOffset(string $datetime): bool
+    {
+        // Check for Z (UTC), +HH:MM, -HH:MM, +HHMM, -HHMM at end of string
+        return (bool) preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/', $datetime);
+    }
+
+    /**
+     * Convert a timezone descriptor (e.g., "UTC+1", "UTC-05", "UTC") to ISO 8601 offset.
+     *
+     * @return string|null The ISO 8601 offset (e.g., "+01:00", "-05:00", "Z") or null if unparseable
+     */
+    private function parseTimezoneToOffset(string $timezone): ?string
+    {
+        $timezone = trim($timezone);
+
+        if ($timezone === '') {
+            return null;
+        }
+
+        // Already an ISO 8601 offset (e.g., "+01:00", "-05:00", "Z")
+        if (preg_match('/^([+-])(\d{2}):(\d{2})$/', $timezone, $matches)) {
+            $sign = $matches[1];
+            $hours = (int) $matches[2];
+            $minutes = (int) $matches[3];
+            $maxHours = $sign === '-' ? 12 : 14;
+            if ($hours > $maxHours || $minutes > 59) {
+                return null;
+            }
+            if ($hours === $maxHours && $minutes !== 0) {
+                return null;
+            }
+
+            return $timezone;
+        }
+
+        if ($timezone === 'Z' || strcasecmp($timezone, 'UTC') === 0 || strcasecmp($timezone, 'UTC+0') === 0 || strcasecmp($timezone, 'UTC-0') === 0) {
+            return 'Z';
+        }
+
+        // Parse UTC±N or UTC±NN (e.g., "UTC+1", "UTC-05", "UTC+10")
+        if (preg_match('/^UTC([+-])(\d{1,2})$/i', $timezone, $matches)) {
+            $sign = $matches[1];
+            $hours = (int) $matches[2];
+            $maxHours = $sign === '-' ? 12 : 14;
+            if ($hours > $maxHours) {
+                return null;
+            }
+
+            return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':00';
+        }
+
+        // Parse UTC±H:MM (e.g., "UTC+5:30", "UTC+5:45")
+        if (preg_match('/^UTC([+-])(\d{1,2}):(\d{2})$/i', $timezone, $matches)) {
+            $sign = $matches[1];
+            $hours = (int) $matches[2];
+            $minutes = (int) $matches[3];
+            $maxHours = $sign === '-' ? 12 : 14;
+            if ($hours > $maxHours || $minutes > 59) {
+                return null;
+            }
+            // At the maximum boundary hours, only :00 minutes are valid
+            // (ISO 8601: max is +14:00 and -12:00)
+            if ($hours === $maxHours && $minutes !== 0) {
+                return null;
+            }
+
+            return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . $matches[3];
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalize a date string.
+     *
+     * Preserves YYYY, YYYY-MM, YYYY-MM-DD, and ISO 8601 datetime formats
+     * including time and timezone offsets.
      */
     private function normalizeDate(string $date): ?string
     {
@@ -729,7 +837,15 @@ class IgsnCsvParserService
             return $date;
         }
 
-        // Try to parse other formats
+        // ISO 8601 datetime with optional seconds, fractional seconds, and timezone
+        // Matches: 2022-10-06T09:35+01:00, 2022-10-06T09:35:00+01:00,
+        //          2022-10-06T09:35:00.000+01:00, 2022-10-06T09:35Z,
+        //          2022-10-06T09:35 (no timezone – timezone fallback applied later)
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/', $date)) {
+            return $date;
+        }
+
+        // Try to parse other formats (fallback: date-only)
         $timestamp = strtotime($date);
         if ($timestamp !== false) {
             return date('Y-m-d', $timestamp);

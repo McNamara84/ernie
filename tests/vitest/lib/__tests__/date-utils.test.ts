@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
+import { buildDateTime, hasValidDateValue, normalizeTimeForInput, parseDateTime, serializeDateEntry } from '@/lib/date-utils';
 
 describe('date-utils', () => {
     describe('hasValidDateValue', () => {
@@ -76,6 +76,225 @@ describe('date-utils', () => {
             expect(serializeDateEntry({ startDate: '2024-06', endDate: '' })).toBe('2024-06');
             // Full ISO date
             expect(serializeDateEntry({ startDate: '2024-06-15', endDate: '' })).toBe('2024-06-15');
+        });
+    });
+
+    describe('parseDateTime', () => {
+        it('parses date-only string', () => {
+            expect(parseDateTime('2022-10-06')).toEqual({
+                date: '2022-10-06',
+                time: null,
+                timezone: null,
+            });
+        });
+
+        it('parses datetime with positive timezone offset', () => {
+            expect(parseDateTime('2022-10-06T09:35+01:00')).toEqual({
+                date: '2022-10-06',
+                time: '09:35',
+                timezone: '+01:00',
+            });
+        });
+
+        it('parses datetime with negative timezone offset', () => {
+            expect(parseDateTime('2022-10-06T14:30-05:00')).toEqual({
+                date: '2022-10-06',
+                time: '14:30',
+                timezone: '-05:00',
+            });
+        });
+
+        it('parses datetime with Z timezone', () => {
+            expect(parseDateTime('2022-10-06T09:35Z')).toEqual({
+                date: '2022-10-06',
+                time: '09:35',
+                timezone: 'Z',
+            });
+        });
+
+        it('parses datetime with seconds', () => {
+            expect(parseDateTime('2022-10-06T09:35:00+01:00')).toEqual({
+                date: '2022-10-06',
+                time: '09:35:00',
+                timezone: '+01:00',
+            });
+        });
+
+        it('parses datetime with fractional seconds', () => {
+            expect(parseDateTime('2022-10-06T09:35:00.000+01:00')).toEqual({
+                date: '2022-10-06',
+                time: '09:35:00.000',
+                timezone: '+01:00',
+            });
+        });
+
+        it('parses datetime without timezone', () => {
+            expect(parseDateTime('2022-10-06T09:35')).toEqual({
+                date: '2022-10-06',
+                time: '09:35',
+                timezone: null,
+            });
+        });
+
+        it('returns empty result for null input', () => {
+            expect(parseDateTime(null)).toEqual({
+                date: '',
+                time: null,
+                timezone: null,
+            });
+        });
+
+        it('returns empty result for undefined input', () => {
+            expect(parseDateTime(undefined)).toEqual({
+                date: '',
+                time: null,
+                timezone: null,
+            });
+        });
+
+        it('returns empty result for empty string', () => {
+            expect(parseDateTime('')).toEqual({
+                date: '',
+                time: null,
+                timezone: null,
+            });
+        });
+
+        it('normalizes compact timezone offset to colon format', () => {
+            expect(parseDateTime('2022-10-06T09:35+0100')).toEqual({
+                date: '2022-10-06',
+                time: '09:35',
+                timezone: '+01:00',
+            });
+        });
+
+        it('handles year-only string (no T separator)', () => {
+            expect(parseDateTime('2022')).toEqual({
+                date: '2022',
+                time: null,
+                timezone: null,
+            });
+        });
+
+        it('handles year-month string', () => {
+            expect(parseDateTime('2022-10')).toEqual({
+                date: '2022-10',
+                time: null,
+                timezone: null,
+            });
+        });
+    });
+
+    describe('buildDateTime', () => {
+        it('returns date only when no time or timezone', () => {
+            expect(buildDateTime('2022-10-06')).toBe('2022-10-06');
+        });
+
+        it('appends time when provided', () => {
+            expect(buildDateTime('2022-10-06', '09:35')).toBe('2022-10-06T09:35');
+        });
+
+        it('appends time and timezone', () => {
+            expect(buildDateTime('2022-10-06', '09:35', '+01:00')).toBe('2022-10-06T09:35+01:00');
+        });
+
+        it('appends Z timezone', () => {
+            expect(buildDateTime('2022-10-06', '09:35', 'Z')).toBe('2022-10-06T09:35Z');
+        });
+
+        it('ignores timezone when no time provided', () => {
+            expect(buildDateTime('2022-10-06', null, '+01:00')).toBe('2022-10-06');
+        });
+
+        it('ignores empty timezone', () => {
+            expect(buildDateTime('2022-10-06', '09:35', '')).toBe('2022-10-06T09:35');
+        });
+
+        it('ignores null timezone', () => {
+            expect(buildDateTime('2022-10-06', '09:35', null)).toBe('2022-10-06T09:35');
+        });
+
+        it('returns empty string for empty date', () => {
+            expect(buildDateTime('')).toBe('');
+        });
+
+        it('returns empty string for whitespace-only date', () => {
+            expect(buildDateTime('   ')).toBe('');
+        });
+
+        it('trims whitespace from all components', () => {
+            expect(buildDateTime('  2022-10-06  ', '  09:35  ', '  +01:00  ')).toBe('2022-10-06T09:35+01:00');
+        });
+
+        it('preserves seconds in time component', () => {
+            expect(buildDateTime('2022-10-06', '09:35:00', '+01:00')).toBe('2022-10-06T09:35:00+01:00');
+        });
+
+        it('preserves fractional seconds in time component', () => {
+            expect(buildDateTime('2022-10-06', '09:35:00.000', '+01:00')).toBe('2022-10-06T09:35:00.000+01:00');
+        });
+
+        it('round-trips datetime with full precision', () => {
+            const original = '2022-10-06T09:35:00.000+01:00';
+            const parsed = parseDateTime(original);
+            const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
+            expect(rebuilt).toBe(original);
+        });
+
+        it('round-trips datetime with seconds', () => {
+            const original = '2022-10-06T09:35:00+01:00';
+            const parsed = parseDateTime(original);
+            const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
+            expect(rebuilt).toBe(original);
+        });
+
+        it('round-trips datetime without seconds', () => {
+            const original = '2022-10-06T09:35+01:00';
+            const parsed = parseDateTime(original);
+            const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
+            expect(rebuilt).toBe(original);
+        });
+
+        it('ignores time for partial year-only date (YYYY)', () => {
+            expect(buildDateTime('2022', '09:35', '+01:00')).toBe('2022');
+        });
+
+        it('ignores time for partial year-month date (YYYY-MM)', () => {
+            expect(buildDateTime('2022-10', '09:35', '+01:00')).toBe('2022-10');
+        });
+
+        it('returns partial year date as-is without time', () => {
+            expect(buildDateTime('2022')).toBe('2022');
+        });
+
+        it('returns partial year-month date as-is without time', () => {
+            expect(buildDateTime('2022-10')).toBe('2022-10');
+        });
+    });
+
+    describe('normalizeTimeForInput', () => {
+        it('returns empty string for null', () => {
+            expect(normalizeTimeForInput(null)).toBe('');
+        });
+
+        it('returns empty string for empty string', () => {
+            expect(normalizeTimeForInput('')).toBe('');
+        });
+
+        it('passes through HH:mm unchanged', () => {
+            expect(normalizeTimeForInput('09:35')).toBe('09:35');
+        });
+
+        it('passes through HH:mm:ss unchanged', () => {
+            expect(normalizeTimeForInput('09:35:00')).toBe('09:35:00');
+        });
+
+        it('strips fractional seconds from HH:mm:ss.fff', () => {
+            expect(normalizeTimeForInput('09:35:00.000')).toBe('09:35:00');
+        });
+
+        it('strips fractional seconds with variable precision', () => {
+            expect(normalizeTimeForInput('14:22:33.123456')).toBe('14:22:33');
         });
     });
 });

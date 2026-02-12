@@ -1,6 +1,16 @@
 [
     {
         "version": "1.0.0dev",
+        "date": "2026-02-12",
+        "features": [
+            {
+                "title": "Date and Time Support for Collection Dates",
+                "description": "Date fields now support full ISO 8601 datetime values including time and timezone information. Previously, datetime strings like '2022-10-06T09:35+01:00' from IGSN CSV uploads were silently truncated to '2022-10-06'. The system now preserves the complete datetime including timezone offset throughout the entire pipeline: CSV import, database storage, editor form, and DataCite export. The editor form has been extended with optional time and timezone inputs that appear when a date is selected. The separate 'collection_date_time_zone' CSV column is used as a fallback when datetime values contain a time component but no timezone offset."
+            }
+        ]
+    },
+    {
+        "version": "1.0.0dev",
         "date": "2026-02-11",
         "features": [
             {

@@ -994,3 +994,94 @@ describe('IGSN Exclusion from Resources', function () {
         expect($resourceTypeSlugs)->not->toContain('physical-object');
     });
 });
+
+describe('ISO 8601 Datetime Collection Dates (Issue #508)', function () {
+    it('stores full ISO 8601 datetime with timezone from CSV upload', function () {
+        $csvContent = file_get_contents(
+            base_path('tests/pest/dataset-examples/20260212_TEST_datetime-collection-dates.csv')
+        );
+        $file = UploadedFile::fake()->createWithContent('datetime-test.csv', $csvContent);
+
+        $response = $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $response->assertStatus(200)
+            ->assertJson(['success' => true, 'created' => 2]);
+
+        // Row 1: datetime with timezone already in the date string
+        $resource1 = Resource::where('doi', 'TEST-DT-CORE-001')->first();
+        expect($resource1)->not->toBeNull();
+
+        $date1 = ResourceDate::where('resource_id', $resource1->id)->first();
+        expect($date1->start_date)->toBe('2023-05-15T09:35+02:00')
+            ->and($date1->end_date)->toBe('2023-05-15T11:20+02:00');
+    });
+
+    it('applies timezone fallback when datetime has no timezone offset', function () {
+        $csvContent = file_get_contents(
+            base_path('tests/pest/dataset-examples/20260212_TEST_datetime-collection-dates.csv')
+        );
+        $file = UploadedFile::fake()->createWithContent('datetime-test.csv', $csvContent);
+
+        $response = $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $response->assertStatus(200);
+
+        // Row 2: datetime without timezone — UTC+2 fallback should be applied
+        $resource2 = Resource::where('doi', 'TEST-DT-CORE-002')->first();
+        expect($resource2)->not->toBeNull();
+
+        $date2 = ResourceDate::where('resource_id', $resource2->id)->first();
+        expect($date2->start_date)->toBe('2023-05-15T14:00+02:00')
+            ->and($date2->end_date)->toBe('2023-05-15T15:30+02:00');
+    });
+
+    it('exports ISO 8601 datetime range in DataCite JSON format', function () {
+        // Upload the CSV
+        $csvContent = file_get_contents(
+            base_path('tests/pest/dataset-examples/20260212_TEST_datetime-collection-dates.csv')
+        );
+        $file = UploadedFile::fake()->createWithContent('datetime-test.csv', $csvContent);
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::where('doi', 'TEST-DT-CORE-001')->first();
+
+        $response = $this->actingAs($this->user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $json = json_decode($response->streamedContent(), true);
+        $attributes = $json['data']['attributes'];
+
+        expect($attributes)->toHaveKey('dates');
+        expect($attributes['dates'][0]['dateType'])->toBe('Collected');
+        expect($attributes['dates'][0]['date'])
+            ->toBe('2023-05-15T09:35+02:00/2023-05-15T11:20+02:00');
+    });
+
+    it('exports ISO 8601 datetime range in DataCite XML format', function () {
+        // Upload the CSV
+        $csvContent = file_get_contents(
+            base_path('tests/pest/dataset-examples/20260212_TEST_datetime-collection-dates.csv')
+        );
+        $file = UploadedFile::fake()->createWithContent('datetime-test.csv', $csvContent);
+        $this->actingAs($this->user)
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
+
+        $resource = Resource::where('doi', 'TEST-DT-CORE-001')->first();
+
+        $response = $this->actingAs($this->user)
+            ->get(route('resources.export-datacite-xml', $resource));
+
+        $response->assertOk();
+
+        $xml = method_exists($response->baseResponse, 'streamedContent')
+            ? $response->streamedContent()
+            : $response->getContent();
+
+        expect($xml)->toContain('dateType="Collected"');
+        expect($xml)->toContain('2023-05-15T09:35+02:00/2023-05-15T11:20+02:00</date>');
+    });
+});
