@@ -146,11 +146,11 @@ class AffiliationService
 
         $rawRorId = $affiliation['rorId'];
 
-        if ($rawRorId === null) {
+        if (! is_string($rawRorId)) {
             return null;
         }
 
-        $trimmedRorId = trim((string) $rawRorId);
+        $trimmedRorId = trim($rawRorId);
 
         if ($trimmedRorId === '') {
             return null;
