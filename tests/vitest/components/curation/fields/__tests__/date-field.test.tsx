@@ -12,7 +12,8 @@ describe('DateField', () => {
     const mockOnRemove = vi.fn();
     const mockOnStartTimeChange = vi.fn();
     const mockOnEndTimeChange = vi.fn();
-    const mockOnTimezoneChange = vi.fn();
+    const mockOnStartTimezoneChange = vi.fn();
+    const mockOnEndTimezoneChange = vi.fn();
 
     const defaultOptions = [
         { value: 'created', label: 'Created' },
@@ -35,10 +36,12 @@ describe('DateField', () => {
         isFirst: true,
         startTime: null as string | null,
         endTime: null as string | null,
-        timezone: null as string | null,
+        startTimezone: null as string | null,
+        endTimezone: null as string | null,
         onStartTimeChange: mockOnStartTimeChange,
         onEndTimeChange: mockOnEndTimeChange,
-        onTimezoneChange: mockOnTimezoneChange,
+        onStartTimezoneChange: mockOnStartTimezoneChange,
+        onEndTimezoneChange: mockOnEndTimezoneChange,
     };
 
     beforeEach(() => {

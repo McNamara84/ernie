@@ -257,7 +257,8 @@ export default function DataCiteForm({
                         endDate: parsedEnd.date || null,
                         startTime: parsedStart.time,
                         endTime: parsedEnd.time,
-                        timezone: parsedStart.timezone ?? parsedEnd.timezone,
+                        startTimezone: parsedStart.timezone,
+                        endTimezone: parsedEnd.timezone,
                     };
                 });
         }
@@ -1414,7 +1415,7 @@ export default function DataCiteForm({
         setDates((prev) => {
             const next = [...prev];
             // When timezone select is set to "none", clear it to null
-            const resolvedValue = field === 'timezone' && value === 'none' ? null : value;
+            const resolvedValue = (field === 'startTimezone' || field === 'endTimezone') && value === 'none' ? null : value;
             next[index] = { ...next[index], [field]: resolvedValue };
             return next;
         });
@@ -1427,7 +1428,7 @@ export default function DataCiteForm({
         const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
         setDates((prev) => [
             ...prev,
-            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType, startTime: null, endTime: null, timezone: null },
+            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType, startTime: null, endTime: null, startTimezone: null, endTimezone: null },
         ]);
     };
 
@@ -1647,8 +1648,8 @@ export default function DataCiteForm({
                 })),
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
-                startDate: buildDateTime(date.startDate ?? '', date.startTime, date.timezone) || null,
-                endDate: buildDateTime(date.endDate ?? '', date.endTime, date.timezone) || null,
+                startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
+                endDate: buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null,
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
             gcmdKeywords: gcmdKeywords.map((kw) => ({
@@ -2161,7 +2162,8 @@ export default function DataCiteForm({
                                             dateType={entry.dateType}
                                             startTime={entry.startTime}
                                             endTime={entry.endTime}
-                                            timezone={entry.timezone}
+                                            startTimezone={entry.startTimezone}
+                                            endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions.filter(
                                                 (dt) => dt.value === entry.dateType || !dates.some((d) => d.dateType === dt.value),
@@ -2170,7 +2172,8 @@ export default function DataCiteForm({
                                             onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
                                             onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
                                             onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}
-                                            onTimezoneChange={(val) => handleDateChange(index, 'timezone', val)}
+                                            onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}
+                                            onEndTimezoneChange={(val) => handleDateChange(index, 'endTimezone', val)}
                                             onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}

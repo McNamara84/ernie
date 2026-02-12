@@ -48,7 +48,8 @@ export interface DateEntry {
     dateType: string;
     startTime: string | null;
     endTime: string | null;
-    timezone: string | null;
+    startTimezone: string | null;
+    endTimezone: string | null;
 }
 
 // ============================================================================

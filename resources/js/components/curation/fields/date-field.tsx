@@ -25,14 +25,16 @@ interface DateFieldProps {
     dateType: string;
     startTime: string | null;
     endTime: string | null;
-    timezone: string | null;
+    startTimezone: string | null;
+    endTimezone: string | null;
     options: Option[];
     dateTypeDescription?: string;
     onStartDateChange: (value: string) => void;
     onEndDateChange: (value: string) => void;
     onStartTimeChange: (value: string) => void;
     onEndTimeChange: (value: string) => void;
-    onTimezoneChange: (value: string) => void;
+    onStartTimezoneChange: (value: string) => void;
+    onEndTimezoneChange: (value: string) => void;
     onTypeChange: (value: string) => void;
     onAdd: () => void;
     onRemove: () => void;
@@ -48,14 +50,16 @@ export function DateField({
     dateType,
     startTime,
     endTime,
-    timezone,
+    startTimezone,
+    endTimezone,
     options,
     dateTypeDescription,
     onStartDateChange,
     onEndDateChange,
     onStartTimeChange,
     onEndTimeChange,
-    onTimezoneChange,
+    onStartTimezoneChange,
+    onEndTimezoneChange,
     onTypeChange,
     onAdd,
     onRemove,
@@ -68,12 +72,12 @@ export function DateField({
     const isDateRange = dateType === 'valid';
 
     // Check if any time/timezone is set to determine whether to show time fields
-    const hasTimeInfo = Boolean(startTime || endTime || timezone);
+    const hasTimeInfo = Boolean(startTime || endTime || startTimezone || endTimezone);
 
     // Track previous dateType to detect actual transitions from 'valid' to non-'valid'
     const prevDateTypeRef = useRef<string>(dateType);
 
-    // Clear endDate and endTime when switching away from 'valid' date type to prevent stale data
+    // Clear endDate, endTime, and endTimezone when switching away from 'valid' date type to prevent stale data
     useEffect(() => {
         const prevDateType = prevDateTypeRef.current;
 
@@ -82,11 +86,12 @@ export function DateField({
         if (prevDateType === 'valid' && dateType !== 'valid') {
             if (endDate) onEndDateChange('');
             if (endTime) onEndTimeChange('');
+            if (endTimezone) onEndTimezoneChange('none');
         }
 
         // Update the ref for the next render
         prevDateTypeRef.current = dateType;
-    }, [dateType, endDate, endTime, onEndDateChange, onEndTimeChange]);
+    }, [dateType, endDate, endTime, endTimezone, onEndDateChange, onEndTimeChange, onEndTimezoneChange]);
 
     return (
         <div className={cn('space-y-3', className)}>
@@ -152,12 +157,7 @@ export function DateField({
 
             {/* Time/Timezone row: shown when a date is selected */}
             {(startDate || hasTimeInfo) && (
-                <div
-                    className={cn(
-                        'grid gap-4 pl-4 border-l-2 border-muted',
-                        isDateRange ? 'md:grid-cols-[1fr_1fr_1fr]' : 'md:grid-cols-[1fr_1fr]',
-                    )}
-                >
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 pl-4 border-l-2 border-muted">
                     <div className="space-y-2">
                         <Label htmlFor={`${id}-startTime`} className="text-xs text-muted-foreground">
                             {isDateRange ? 'Start Time' : 'Time'} (optional)
@@ -170,26 +170,12 @@ export function DateField({
                             className="h-9"
                         />
                     </div>
-                    {isDateRange && (
-                        <div className="space-y-2">
-                            <Label htmlFor={`${id}-endTime`} className="text-xs text-muted-foreground">
-                                End Time (optional)
-                            </Label>
-                            <Input
-                                id={`${id}-endTime`}
-                                type="time"
-                                value={endTime ?? ''}
-                                onChange={(e) => onEndTimeChange(e.target.value)}
-                                className="h-9"
-                            />
-                        </div>
-                    )}
                     <div className="space-y-2">
-                        <Label htmlFor={`${id}-timezone`} className="text-xs text-muted-foreground">
-                            Timezone (optional)
+                        <Label htmlFor={`${id}-startTimezone`} className="text-xs text-muted-foreground">
+                            {isDateRange ? 'Start Timezone' : 'Timezone'} (optional)
                         </Label>
-                        <Select value={timezone ?? ''} onValueChange={onTimezoneChange}>
-                            <SelectTrigger id={`${id}-timezone`} className="h-9">
+                        <Select value={startTimezone ?? 'none'} onValueChange={onStartTimezoneChange}>
+                            <SelectTrigger id={`${id}-startTimezone`} className="h-9">
                                 <SelectValue placeholder="No timezone" />
                             </SelectTrigger>
                             <SelectContent>
@@ -202,6 +188,40 @@ export function DateField({
                             </SelectContent>
                         </Select>
                     </div>
+                    {isDateRange && (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor={`${id}-endTime`} className="text-xs text-muted-foreground">
+                                    End Time (optional)
+                                </Label>
+                                <Input
+                                    id={`${id}-endTime`}
+                                    type="time"
+                                    value={endTime ?? ''}
+                                    onChange={(e) => onEndTimeChange(e.target.value)}
+                                    className="h-9"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor={`${id}-endTimezone`} className="text-xs text-muted-foreground">
+                                    End Timezone (optional)
+                                </Label>
+                                <Select value={endTimezone ?? 'none'} onValueChange={onEndTimezoneChange}>
+                                    <SelectTrigger id={`${id}-endTimezone`} className="h-9">
+                                        <SelectValue placeholder="No timezone" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No timezone</SelectItem>
+                                        {TIMEZONE_OPTIONS.map((tz) => (
+                                            <SelectItem key={tz.value} value={tz.value}>
+                                                {tz.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
         </div>
