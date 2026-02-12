@@ -65,7 +65,7 @@ class RorLookupService
         $resolvedName = $this->resolve($rorId);
 
         $label = $resolvedName
-            ?? (is_string($fallbackName) && $fallbackName !== '' ? $fallbackName : $canonical);
+            ?? (is_string($fallbackName) && $fallbackName !== '' ? $fallbackName : '');
 
         return [
             'value' => $label,

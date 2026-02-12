@@ -84,12 +84,15 @@ describe('RorLookupService', function () {
         expect($result)->toBeNull();
     });
 
-    test('resolveWithFallback uses canonical URL as last-resort label', function () {
+    test('resolveWithFallback returns empty value when no name can be resolved', function () {
+        Storage::fake('local');
+
         $service = new RorLookupService;
 
         $result = $service->resolveWithFallback('04z8jg394');
 
         expect($result)->not->toBeNull()
-            ->and($result['rorId'])->toBe('https://ror.org/04z8jg394');
+            ->and($result['rorId'])->toBe('https://ror.org/04z8jg394')
+            ->and($result['value'])->toBe('');
     });
 });
