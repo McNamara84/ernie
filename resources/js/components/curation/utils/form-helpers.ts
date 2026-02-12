@@ -158,11 +158,11 @@ export const normaliseInitialAffiliations = (affiliations?: (InitialAffiliationI
             }
 
             return {
-                value: rawValue || rawRorId,
+                value: rawValue,
                 rorId: rawRorId || null,
             } satisfies AffiliationTag;
         })
-        .filter((item): item is AffiliationTag => Boolean(item && item.value));
+        .filter((item): item is AffiliationTag => Boolean(item && (item.value || item.rorId)));
 };
 
 // ============================================================================

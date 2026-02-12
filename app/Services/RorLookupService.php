@@ -17,6 +17,7 @@ use JsonException;
  *
  * This service is used by:
  * - AffiliationService (name resolution when storing affiliations)
+ * - ResourceStorageService (canonicalising MSL lab affiliation ROR IDs)
  * - UploadXmlController (resolving ROR identifiers from uploaded XML)
  */
 class RorLookupService

@@ -173,9 +173,9 @@ describe('normaliseInitialAffiliations', () => {
         expect(result).toEqual([{ value: 'University E', rorId: 'https://ror.org/789' }]);
     });
 
-    it('uses rorId as value when value is empty', () => {
+    it('preserves entry with only rorId without using URL as value', () => {
         const result = normaliseInitialAffiliations([{ rorId: 'https://ror.org/123' }]);
-        expect(result).toEqual([{ value: 'https://ror.org/123', rorId: 'https://ror.org/123' }]);
+        expect(result).toEqual([{ value: '', rorId: 'https://ror.org/123' }]);
     });
 
     it('filters out empty affiliations', () => {
