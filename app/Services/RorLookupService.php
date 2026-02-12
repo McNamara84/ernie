@@ -93,9 +93,10 @@ class RorLookupService
 
         // If already a full URL with ror.org host, extract and normalize
         if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
-            $rorId = trim($matches[1]);
+            $rorId = Str::lower(trim($matches[1], '/'));
 
-            return $rorId !== '' ? 'https://ror.org/' . Str::lower($rorId) : null;
+            // Only accept a single alphanumeric segment (valid ROR ID format)
+            return preg_match('/^[a-z0-9]+$/', $rorId) ? 'https://ror.org/' . $rorId : null;
         }
 
         // If it looks like a URL with a non-ROR host, don't process it
@@ -106,15 +107,18 @@ class RorLookupService
         // Otherwise, treat as bare ROR ID and prepend URL
         $path = Str::lower(trim($trimmed, '/'));
 
-        return $path !== '' ? 'https://ror.org/' . $path : null;
+        // Only accept a single alphanumeric segment (valid ROR ID format)
+        return preg_match('/^[a-z0-9]+$/', $path) ? 'https://ror.org/' . $path : null;
     }
 
     /**
      * Check if a string looks like a ROR URL.
+     *
+     * Accepts an optional trailing slash to align with canonicalise().
      */
     public function isRorUrl(string $value): bool
     {
-        return (bool) preg_match('#^https?://ror\.org/[a-z0-9]+$#i', trim($value));
+        return (bool) preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', trim($value));
     }
 
     /**
