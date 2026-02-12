@@ -262,6 +262,7 @@ class EditorDataTransformer
      * Transform resource dates to frontend format.
      *
      * Excludes 'coverage', 'created', and 'updated' dates as they are handled separately.
+     * Preserves full ISO 8601 datetime+timezone values for dates that include time components.
      *
      * @return array<int, array{dateType: string, startDate: string, endDate: string}>
      */
@@ -276,35 +277,43 @@ class EditorDataTransformer
                 return ! in_array($slug, ['coverage', 'created', 'updated'], true);
             })
             ->map(function (ResourceDate $date): array {
-                // Convert datetime to date-only format (YYYY-MM-DD) for HTML date inputs
-                $startDate = '';
-                if ($date->start_date) {
-                    try {
-                        $startDate = Carbon::parse($date->start_date)->format('Y-m-d');
-                    } catch (\Exception) {
-                        $startDate = '';
-                    }
-                }
-
-                $endDate = '';
-                if ($date->end_date) {
-                    try {
-                        $endDate = Carbon::parse($date->end_date)->format('Y-m-d');
-                    } catch (\Exception) {
-                        $endDate = '';
-                    }
-                }
-
                 return [
                     // Use null-safe operator to handle missing dateType relationship
                     // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
                     'dateType' => $date->dateType?->slug ?? '',
-                    'startDate' => $startDate,
-                    'endDate' => $endDate,
+                    'startDate' => $this->formatStoredDate($date->start_date),
+                    'endDate' => $this->formatStoredDate($date->end_date),
                 ];
             })
             ->values()
             ->toArray();
+    }
+
+    /**
+     * Format a stored date value for frontend consumption.
+     *
+     * Preserves full ISO 8601 datetime+timezone values (e.g., "2022-10-06T09:35+01:00")
+     * instead of stripping time information. For legacy date-only values, formats as Y-m-d.
+     *
+     * @see https://github.com/McNamara84/ernie/issues/508
+     */
+    private function formatStoredDate(?string $dateValue): string
+    {
+        if (empty($dateValue)) {
+            return '';
+        }
+
+        // If it contains a time component, preserve the full ISO 8601 value
+        if (str_contains($dateValue, 'T')) {
+            return $dateValue;
+        }
+
+        // Legacy date-only values: normalize via Carbon to ensure Y-m-d format
+        try {
+            return Carbon::parse($dateValue)->format('Y-m-d');
+        } catch (\Exception) {
+            return '';
+        }
     }
 
     /**

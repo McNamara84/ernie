@@ -15,7 +15,7 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import { hasValidDateValue } from '@/lib/date-utils';
+import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import type { MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
@@ -245,12 +245,21 @@ export default function DataCiteForm({
             const autoManagedTypes: readonly string[] = AUTO_MANAGED_DATE_TYPES;
             return initialDates
                 .filter((date) => !autoManagedTypes.includes(date.dateType.toLowerCase()))
-                .map((date) => ({
-                    id: crypto.randomUUID(),
-                    dateType: date.dateType,
-                    startDate: date.startDate,
-                    endDate: date.endDate,
-                }));
+                .map((date) => {
+                    // Parse ISO 8601 datetime values to separate date, time, and timezone
+                    const parsedStart = parseDateTime(date.startDate);
+                    const parsedEnd = parseDateTime(date.endDate);
+
+                    return {
+                        id: crypto.randomUUID(),
+                        dateType: date.dateType,
+                        startDate: parsedStart.date || null,
+                        endDate: parsedEnd.date || null,
+                        startTime: parsedStart.time,
+                        endTime: parsedEnd.time,
+                        timezone: parsedStart.timezone ?? parsedEnd.timezone,
+                    };
+                });
         }
         // Start with empty dates array - 'created' and 'updated' are auto-managed
         return [];
@@ -1404,7 +1413,9 @@ export default function DataCiteForm({
     const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
         setDates((prev) => {
             const next = [...prev];
-            next[index] = { ...next[index], [field]: value };
+            // When timezone select is set to "none", clear it to null
+            const resolvedValue = field === 'timezone' && value === 'none' ? null : value;
+            next[index] = { ...next[index], [field]: resolvedValue };
             return next;
         });
     };
@@ -1414,7 +1425,10 @@ export default function DataCiteForm({
         // Find the first unused date type or default to 'other'
         const usedTypes = new Set(dates.map((d) => d.dateType));
         const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
-        setDates((prev) => [...prev, { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType }]);
+        setDates((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType, startTime: null, endTime: null, timezone: null },
+        ]);
     };
 
     const removeDate = (index: number) => {
@@ -1633,8 +1647,8 @@ export default function DataCiteForm({
                 })),
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
-                startDate: date.startDate || null,
-                endDate: date.endDate || null,
+                startDate: buildDateTime(date.startDate ?? '', date.startTime, date.timezone) || null,
+                endDate: buildDateTime(date.endDate ?? '', date.endTime, date.timezone) || null,
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
             gcmdKeywords: gcmdKeywords.map((kw) => ({
@@ -2145,12 +2159,18 @@ export default function DataCiteForm({
                                             startDate={entry.startDate}
                                             endDate={entry.endDate}
                                             dateType={entry.dateType}
+                                            startTime={entry.startTime}
+                                            endTime={entry.endTime}
+                                            timezone={entry.timezone}
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions.filter(
                                                 (dt) => dt.value === entry.dateType || !dates.some((d) => d.dateType === dt.value),
                                             )}
                                             onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
                                             onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
+                                            onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
+                                            onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}
+                                            onTimezoneChange={(val) => handleDateChange(index, 'timezone', val)}
                                             onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}

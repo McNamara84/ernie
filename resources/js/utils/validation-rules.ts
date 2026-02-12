@@ -236,6 +236,7 @@ export function validateEmail(email: string): {
 
 /**
  * Date Validation
+ * Supports both date-only (YYYY-MM-DD) and ISO 8601 datetime with timezone.
  * Minimum date: 01.01.1900
  * Maximum date: today (no future dates allowed for 'Created' field)
  */
@@ -254,7 +255,11 @@ export function validateDate(
         return { isValid: false, error: 'Date is required' };
     }
 
-    const date = new Date(dateString);
+    // Extract date portion for comparison (handle ISO 8601 datetime strings)
+    const trimmed = dateString.trim();
+    const datePart = trimmed.includes('T') ? trimmed.split('T')[0] : trimmed;
+
+    const date = new Date(datePart);
 
     if (isNaN(date.getTime())) {
         return { isValid: false, error: 'Invalid date format' };

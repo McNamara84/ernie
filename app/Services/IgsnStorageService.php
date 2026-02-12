@@ -485,7 +485,8 @@ class IgsnStorageService
     {
         $dates = $this->parser->parseCollectionDates(
             $data['collection_start_date'] ?? '',
-            $data['collection_end_date'] ?? ''
+            $data['collection_end_date'] ?? '',
+            $data['collection_date_time_zone'] ?? ''
         );
 
         if ($dates['start'] === null) {
