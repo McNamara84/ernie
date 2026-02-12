@@ -1046,6 +1046,32 @@ describe('DataCiteJsonExporter - Affiliations', function () {
             ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org/');
     });
 
+    test('does not export ROR URL as affiliation name for legacy records', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        // Simulate legacy bug: ROR URL stored in name field
+        $creator->affiliations()->create([
+            'name' => 'https://ror.org/04z8jg394',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $affiliations = $result['data']['attributes']['creators'][0]['affiliation'];
+
+        expect($affiliations)->toHaveCount(1)
+            ->and($affiliations[0]['name'])->not->toContain('ror.org')
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394');
+    });
+
     test('does not export empty affiliations array', function () {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);

@@ -138,15 +138,28 @@ trait DataCiteExporterHelpers
     /**
      * Transform an affiliation to DataCite format.
      *
-     * Includes defense-in-depth: always emits schemeURI for known identifier
-     * schemes, even if scheme_uri was not persisted in the database.
+     * Includes defense-in-depth:
+     * - Always emits schemeURI for known identifier schemes, even if not persisted.
+     * - Detects legacy records where a ROR URL was stored in the name field and
+     *   attempts to resolve the correct organization name from the ROR data dump.
      *
      * @return array<string, string|null>
      */
     protected function transformAffiliation(Affiliation $affiliation): array
     {
+        $name = $affiliation->name;
+
+        // Defense-in-depth: if name looks like a ROR URL and an identifier is
+        // already present, resolve the real label or blank the name so the URL
+        // is never exported as an affiliation name.
+        if ($affiliation->identifier && is_string($name) && preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', $name)) {
+            /** @var \App\Services\RorLookupService $rorLookup */
+            $rorLookup = app(\App\Services\RorLookupService::class);
+            $name = $rorLookup->resolve($name) ?? '';
+        }
+
         $data = [
-            'name' => $affiliation->name,
+            'name' => $name,
         ];
 
         if ($affiliation->identifier) {
