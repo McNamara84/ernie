@@ -236,7 +236,10 @@ export function validateEmail(email: string): {
 
 /**
  * Date Validation
- * Supports both date-only (YYYY-MM-DD) and ISO 8601 datetime with timezone.
+ * Validates the date portion of a date string. For ISO 8601 datetime strings
+ * (containing 'T'), only the date portion (before 'T') is extracted and validated.
+ * Time and timezone components are not validated here — time inputs are constrained
+ * by browser-native `<input type="time">` controls.
  * Minimum date: 01.01.1900
  * Maximum date: today (no future dates allowed for 'Created' field)
  */

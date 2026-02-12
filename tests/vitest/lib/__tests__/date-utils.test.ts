@@ -254,6 +254,22 @@ describe('date-utils', () => {
             const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
             expect(rebuilt).toBe(original);
         });
+
+        it('ignores time for partial year-only date (YYYY)', () => {
+            expect(buildDateTime('2022', '09:35', '+01:00')).toBe('2022');
+        });
+
+        it('ignores time for partial year-month date (YYYY-MM)', () => {
+            expect(buildDateTime('2022-10', '09:35', '+01:00')).toBe('2022-10');
+        });
+
+        it('returns partial year date as-is without time', () => {
+            expect(buildDateTime('2022')).toBe('2022');
+        });
+
+        it('returns partial year-month date as-is without time', () => {
+            expect(buildDateTime('2022-10')).toBe('2022-10');
+        });
     });
 
     describe('normalizeTimeForInput', () => {

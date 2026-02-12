@@ -208,8 +208,8 @@ export function DateField({
                 </div>
             </div>
 
-            {/* Time/Timezone row: shown when any date is selected or time info exists */}
-            {(startDate || endDate || hasTimeInfo) && (
+            {/* Time/Timezone row: shown when a full-precision date is set (not partial YYYY or YYYY-MM) */}
+            {((startDate && !isPartialDate(startDate)) || (endDate && !isPartialDate(endDate)) || hasTimeInfo) && (
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 pl-4 border-l-2 border-muted">
                     <div className="space-y-2">
                         <Label htmlFor={`${id}-startTime`} className="text-xs text-muted-foreground">

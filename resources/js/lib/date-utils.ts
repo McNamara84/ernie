@@ -27,7 +27,7 @@ export interface DateEntry {
  * Parsed components of an ISO 8601 datetime string.
  */
 export interface ParsedDateTime {
-    date: string; // 'YYYY-MM-DD'
+    date: string; // 'YYYY-MM-DD', 'YYYY-MM', or 'YYYY' (partial precision preserved)
     time: string | null; // 'HH:mm', 'HH:mm:ss', or 'HH:mm:ss.fff' (full precision preserved)
     timezone: string | null; // '+01:00', '-05:00', 'Z', etc.
 }
@@ -138,9 +138,13 @@ export function parseDateTime(isoString: string | null | undefined): ParsedDateT
 /**
  * Build an ISO 8601 datetime string from date, time, and timezone components.
  *
- * @param date - Date string (YYYY-MM-DD)
- * @param time - Optional time string (HH:mm or HH:mm:ss)
- * @param timezone - Optional timezone offset (e.g., '+01:00', 'Z')
+ * Time and timezone are only appended when `date` is full-precision (YYYY-MM-DD).
+ * Partial-precision dates (YYYY, YYYY-MM) are returned as-is, since appending
+ * a time component would produce an invalid ISO 8601 string (e.g., "2022T09:35").
+ *
+ * @param date - Date string (YYYY-MM-DD, YYYY-MM, or YYYY)
+ * @param time - Optional time string (HH:mm or HH:mm:ss) — ignored for partial dates
+ * @param timezone - Optional timezone offset (e.g., '+01:00', 'Z') — ignored for partial dates
  * @returns Combined ISO 8601 string
  *
  * @example
@@ -149,6 +153,9 @@ export function parseDateTime(isoString: string | null | undefined): ParsedDateT
  *
  * buildDateTime('2022-10-06')
  * // '2022-10-06'
+ *
+ * buildDateTime('2022', '09:35', '+01:00')
+ * // '2022' (time/timezone ignored for partial date)
  */
 export function buildDateTime(date: string, time?: string | null, timezone?: string | null): string {
     if (!date || date.trim() === '') {
@@ -157,7 +164,10 @@ export function buildDateTime(date: string, time?: string | null, timezone?: str
 
     let result = date.trim();
 
-    if (time && time.trim() !== '') {
+    // Only append time/timezone to full-precision dates (YYYY-MM-DD)
+    const isFullDate = /^\d{4}-\d{2}-\d{2}$/.test(result);
+
+    if (isFullDate && time && time.trim() !== '') {
         result += `T${time.trim()}`;
 
         if (timezone && timezone.trim() !== '') {
