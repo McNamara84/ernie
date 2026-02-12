@@ -905,7 +905,7 @@ class OldDatasetController extends Controller
             }
         }
 
-        $hosts = array_values(array_unique(array_filter($hosts, static fn ($value) => $value !== null && $value !== '')));
+        $hosts = array_values(array_unique(array_filter($hosts, static fn ($value) => is_string($value) && $value !== '')));
 
         return $hosts;
     }

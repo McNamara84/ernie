@@ -31,6 +31,7 @@ class ResourceStorageService
         protected PersonService $personService,
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
+        protected RorLookupService $rorLookupService,
     ) {}
 
     /**
@@ -450,10 +451,16 @@ class ResourceStorageService
             return;
         }
 
+        // Canonicalize ROR identifier to ensure consistent HTTPS + lowercase format
+        $canonicalRor = is_string($affiliationRor) && $affiliationRor !== ''
+            ? $this->rorLookupService->canonicalise($affiliationRor)
+            : null;
+
         $resourceContributor->affiliations()->create([
             'name' => trim($affiliationName),
-            'identifier' => $affiliationRor,
-            'identifier_scheme' => $affiliationRor ? 'ROR' : null,
+            'identifier' => $canonicalRor,
+            'identifier_scheme' => $canonicalRor ? 'ROR' : null,
+            'scheme_uri' => $canonicalRor ? 'https://ror.org/' : null,
         ]);
     }
 

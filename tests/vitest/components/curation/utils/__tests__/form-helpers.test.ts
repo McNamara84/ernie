@@ -173,9 +173,9 @@ describe('normaliseInitialAffiliations', () => {
         expect(result).toEqual([{ value: 'University E', rorId: 'https://ror.org/789' }]);
     });
 
-    it('uses rorId as value when value is empty', () => {
+    it('preserves entry with only rorId without using URL as value', () => {
         const result = normaliseInitialAffiliations([{ rorId: 'https://ror.org/123' }]);
-        expect(result).toEqual([{ value: 'https://ror.org/123', rorId: 'https://ror.org/123' }]);
+        expect(result).toEqual([{ value: '', rorId: 'https://ror.org/123' }]);
     });
 
     it('filters out empty affiliations', () => {
@@ -293,7 +293,7 @@ describe('serializeAffiliations', () => {
         expect(result[0].value).toBe('Valid University');
     });
 
-    it('uses rorId as value when value is empty but rorId exists', () => {
+    it('keeps affiliation with only rorId and sends empty value', () => {
         const entry = {
             id: '1',
             type: 'person' as const,
@@ -309,7 +309,29 @@ describe('serializeAffiliations', () => {
         };
 
         const result = serializeAffiliations(entry);
-        expect(result).toEqual([{ value: 'https://ror.org/123', rorId: 'https://ror.org/123' }]);
+        expect(result).toEqual([{ value: '', rorId: 'https://ror.org/123' }]);
+    });
+
+    it('does not use ROR URL as name fallback', () => {
+        const entry = {
+            id: '1',
+            type: 'person' as const,
+            orcid: '',
+            firstName: 'John',
+            lastName: 'Doe',
+            email: '',
+            website: '',
+            isContact: false,
+            affiliations: [{ value: '', rorId: 'https://ror.org/04z8jg394' }],
+            affiliationsInput: '',
+            orcidVerified: false,
+        };
+
+        const result = serializeAffiliations(entry);
+        expect(result).toHaveLength(1);
+        expect(result[0].value).toBe('');
+        expect(result[0].value).not.toBe('https://ror.org/04z8jg394');
+        expect(result[0].rorId).toBe('https://ror.org/04z8jg394');
     });
 });
 

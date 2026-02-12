@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Observers\ResourceObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\RorLookupService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
         // Bind DataCiteServiceInterface to the real implementation
         // This binding is overridden by TestingServiceProvider in testing environment
         $this->app->bind(DataCiteServiceInterface::class, DataCiteRegistrationService::class);
+
+        // RorLookupService is a singleton so the ROR JSON file is loaded at most once per request
+        $this->app->singleton(RorLookupService::class);
     }
 
     /**

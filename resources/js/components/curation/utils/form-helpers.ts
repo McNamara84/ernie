@@ -87,6 +87,10 @@ export const normalizeTitleTypeSlug = (value: string | null | undefined): string
 /**
  * Serialize and normalize affiliations from an author or contributor entry.
  * Deduplicates and filters out empty affiliations.
+ *
+ * Important: The ROR URL is never used as a fallback for the affiliation name.
+ * If only a ROR ID is provided without a name, the backend will resolve the
+ * organization name from the local ROR data dump.
  */
 export const serializeAffiliations = (entry: AuthorEntry | ContributorEntry): SerializedAffiliation[] => {
     const seen = new Set<string>();
@@ -100,7 +104,7 @@ export const serializeAffiliations = (entry: AuthorEntry | ContributorEntry): Se
                 return null;
             }
 
-            const value = rawValue || rawRorId;
+            const value = rawValue;
             const rorId = rawRorId || null;
             const key = `${value}|${rorId ?? ''}`;
 
@@ -154,11 +158,11 @@ export const normaliseInitialAffiliations = (affiliations?: (InitialAffiliationI
             }
 
             return {
-                value: rawValue || rawRorId,
+                value: rawValue,
                 rorId: rawRorId || null,
             } satisfies AffiliationTag;
         })
-        .filter((item): item is AffiliationTag => Boolean(item && item.value));
+        .filter((item): item is AffiliationTag => Boolean(item && (item.value || item.rorId)));
 };
 
 // ============================================================================

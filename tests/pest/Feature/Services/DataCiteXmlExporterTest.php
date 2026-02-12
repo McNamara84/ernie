@@ -820,3 +820,135 @@ describe('DataCiteXmlExporter - Edge Cases', function () {
         expect($xml)->toContain('Datenanalyse für Klimaforschung – 日本語テスト');
     });
 });
+
+describe('DataCiteXmlExporter - Affiliations', function () {
+    test('exports affiliation with name only (no ROR)', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'University of Potsdam',
+            'identifier' => null,
+            'identifier_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<affiliation>University of Potsdam</affiliation>');
+    });
+
+    test('exports affiliation with name and ROR identifier', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'University of Lausanne',
+            'identifier' => 'https://ror.org/019whta54',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+        $affiliationElements = $dom->getElementsByTagName('affiliation');
+
+        expect($affiliationElements->length)->toBe(1);
+
+        $affiliation = $affiliationElements->item(0);
+        expect($affiliation->textContent)->toBe('University of Lausanne')
+            ->and($affiliation->getAttribute('affiliationIdentifier'))->toBe('https://ror.org/019whta54')
+            ->and($affiliation->getAttribute('affiliationIdentifierScheme'))->toBe('ROR')
+            ->and($affiliation->getAttribute('schemeURI'))->toBe('https://ror.org/');
+    });
+
+    test('exports schemeURI fallback for ROR affiliations without scheme_uri in DB', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'GFZ Potsdam',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+        $affiliationElements = $dom->getElementsByTagName('affiliation');
+
+        expect($affiliationElements->length)->toBe(1);
+
+        $affiliation = $affiliationElements->item(0);
+        expect($affiliation->getAttribute('schemeURI'))->toBe('https://ror.org/');
+    });
+
+    test('does not export affiliations element when none exist', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->not->toContain('<affiliation');
+    });
+
+    test('exports multiple affiliations for one creator', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'GFZ Potsdam',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+        $creator->affiliations()->create([
+            'name' => 'University of Potsdam',
+            'identifier' => null,
+            'identifier_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+        $affiliationElements = $dom->getElementsByTagName('affiliation');
+
+        expect($affiliationElements->length)->toBe(2);
+    });
+});

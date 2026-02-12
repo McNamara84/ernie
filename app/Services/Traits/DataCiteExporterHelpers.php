@@ -127,10 +127,10 @@ trait DataCiteExporterHelpers
     protected function getSchemeUri(string $scheme): string
     {
         return match (strtoupper($scheme)) {
-            'ORCID' => 'https://orcid.org',
-            'ROR' => 'https://ror.org',
-            'ISNI' => 'https://isni.org',
-            'GRID' => 'https://www.grid.ac',
+            'ORCID' => 'https://orcid.org/',
+            'ROR' => 'https://ror.org/',
+            'ISNI' => 'https://isni.org/',
+            'GRID' => 'https://www.grid.ac/',
             default => '',
         };
     }
@@ -138,20 +138,41 @@ trait DataCiteExporterHelpers
     /**
      * Transform an affiliation to DataCite format.
      *
+     * Includes defense-in-depth:
+     * - Always emits schemeURI for known identifier schemes, even if not persisted.
+     * - Detects legacy records where a ROR URL was stored in the name field and
+     *   attempts to resolve the correct organization name from the ROR data dump.
+     *
      * @return array<string, string|null>
      */
     protected function transformAffiliation(Affiliation $affiliation): array
     {
+        $name = $affiliation->name;
+
+        // Defense-in-depth: if name looks like a ROR URL and an identifier is
+        // already present, resolve the real label or blank the name so the URL
+        // is never exported as an affiliation name.
+        if ($affiliation->identifier && preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', $name)) {
+            /** @var \App\Services\RorLookupService $rorLookup */
+            $rorLookup = app(\App\Services\RorLookupService::class);
+            $name = $rorLookup->resolve($name) ?? '';
+        }
+
         $data = [
-            'name' => $affiliation->name,
+            'name' => $name,
         ];
 
         if ($affiliation->identifier) {
             $data['affiliationIdentifier'] = $affiliation->identifier;
-            $data['affiliationIdentifierScheme'] = $affiliation->identifier_scheme ?? 'ROR';
 
-            if ($affiliation->scheme_uri) {
-                $data['schemeURI'] = $affiliation->scheme_uri;
+            $scheme = $affiliation->identifier_scheme ?? 'ROR';
+            $data['affiliationIdentifierScheme'] = $scheme;
+
+            // Include schemeURI when available – fall back to computed value for older records
+            $schemeUri = $affiliation->scheme_uri ?? $this->getSchemeUri($scheme);
+
+            if ($schemeUri !== '') {
+                $data['schemeURI'] = $schemeUri;
             }
         }
 

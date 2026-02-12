@@ -963,3 +963,191 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         expect($creators[2]['name'])->toBe('Third, Contributor');
     });
 });
+
+describe('DataCiteJsonExporter - Affiliations', function () {
+    test('exports affiliation with name only (no ROR)', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'University of Potsdam',
+            'identifier' => null,
+            'identifier_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $affiliations = $result['data']['attributes']['creators'][0]['affiliation'];
+
+        expect($affiliations)->toHaveCount(1)
+            ->and($affiliations[0])->toHaveKey('name', 'University of Potsdam')
+            ->and($affiliations[0])->not->toHaveKey('affiliationIdentifier')
+            ->and($affiliations[0])->not->toHaveKey('affiliationIdentifierScheme')
+            ->and($affiliations[0])->not->toHaveKey('schemeURI');
+    });
+
+    test('exports affiliation with name and ROR identifier', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'University of Lausanne',
+            'identifier' => 'https://ror.org/019whta54',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $affiliations = $result['data']['attributes']['creators'][0]['affiliation'];
+
+        expect($affiliations)->toHaveCount(1)
+            ->and($affiliations[0])->toHaveKey('name', 'University of Lausanne')
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/019whta54')
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifierScheme', 'ROR')
+            ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org/');
+    });
+
+    test('exports schemeURI fallback for ROR affiliations without scheme_uri in DB', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        // Simulate older record without scheme_uri
+        $creator->affiliations()->create([
+            'name' => 'GFZ Potsdam',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => null,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $affiliations = $result['data']['attributes']['creators'][0]['affiliation'];
+
+        expect($affiliations)->toHaveCount(1)
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394')
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifierScheme', 'ROR')
+            ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org/');
+    });
+
+    test('does not export ROR URL as affiliation name for legacy records', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        // Simulate legacy bug: ROR URL stored in name field
+        $creator->affiliations()->create([
+            'name' => 'https://ror.org/04z8jg394',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $affiliations = $result['data']['attributes']['creators'][0]['affiliation'];
+
+        expect($affiliations)->toHaveCount(1)
+            ->and($affiliations[0]['name'])->not->toContain('ror.org')
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394');
+    });
+
+    test('does not export empty affiliations array', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $creator = $result['data']['attributes']['creators'][0];
+
+        expect($creator)->not->toHaveKey('affiliation');
+    });
+
+    test('exports multiple affiliations for one creator', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $creator->affiliations()->create([
+            'name' => 'GFZ Potsdam',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+        $creator->affiliations()->create([
+            'name' => 'University of Potsdam',
+            'identifier' => null,
+            'identifier_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $affiliations = $result['data']['attributes']['creators'][0]['affiliation'];
+
+        expect($affiliations)->toHaveCount(2)
+            ->and($affiliations[0])->toHaveKey('name', 'GFZ Potsdam')
+            ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394')
+            ->and($affiliations[1])->toHaveKey('name', 'University of Potsdam')
+            ->and($affiliations[1])->not->toHaveKey('affiliationIdentifier');
+    });
+
+    test('exports contributor affiliations correctly', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create(['given_name' => 'John', 'family_name' => 'Smith']);
+        $contributorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector']
+        );
+        $contributor = ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_id' => $person->id,
+            'contributorable_type' => Person::class,
+            'contributor_type_id' => $contributorType->id,
+            'position' => 1,
+        ]);
+
+        $contributor->affiliations()->create([
+            'name' => 'GFZ Potsdam',
+            'identifier' => 'https://ror.org/04z8jg394',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $contributors = $result['data']['attributes']['contributors'];
+
+        expect($contributors[0])->toHaveKey('affiliation')
+            ->and($contributors[0]['affiliation'][0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394')
+            ->and($contributors[0]['affiliation'][0])->toHaveKey('name', 'GFZ Potsdam');
+    });
+});

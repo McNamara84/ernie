@@ -10,7 +10,7 @@ use App\Services\Entities\AffiliationService;
 
 describe('AffiliationService', function () {
     beforeEach(function () {
-        $this->service = new AffiliationService;
+        $this->service = app(AffiliationService::class);
     });
 
     describe('parseAffiliationsFromData', function () {
@@ -29,11 +29,13 @@ describe('AffiliationService', function () {
                 'name' => 'University of Example',
                 'identifier' => 'https://ror.org/12345',
                 'identifier_scheme' => 'ROR',
+                'scheme_uri' => 'https://ror.org/',
             ]);
             expect($result[1])->toBe([
                 'name' => 'Another Institution',
                 'identifier' => null,
                 'identifier_scheme' => null,
+                'scheme_uri' => null,
             ]);
         });
 
@@ -41,7 +43,7 @@ describe('AffiliationService', function () {
             $data = [
                 'affiliations' => [
                     ['value' => '', 'rorId' => null],
-                    ['value' => '  ', 'rorId' => 'https://ror.org/12345'],
+                    ['value' => '  ', 'rorId' => null],
                     ['value' => 'Valid Institution'],
                 ],
             ];
@@ -50,6 +52,24 @@ describe('AffiliationService', function () {
 
             expect($result)->toHaveCount(1);
             expect($result[0]['name'])->toBe('Valid Institution');
+        });
+
+        it('keeps entry with empty name when ROR ID is present', function () {
+            $data = [
+                'affiliations' => [
+                    ['value' => '  ', 'rorId' => 'https://ror.org/12345'],
+                ],
+            ];
+
+            $result = $this->service->parseAffiliationsFromData($data);
+
+            expect($result)->toHaveCount(1);
+            expect($result[0])->toBe([
+                'name' => '',
+                'identifier' => 'https://ror.org/12345',
+                'identifier_scheme' => 'ROR',
+                'scheme_uri' => 'https://ror.org/',
+            ]);
         });
 
         it('handles missing affiliations key', function () {
