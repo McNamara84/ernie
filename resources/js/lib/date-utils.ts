@@ -228,3 +228,16 @@ export function serializeDateEntry(date: Pick<DateEntry, 'startDate' | 'endDate'
     // Should never happen if hasValidDateValue was checked first
     return '';
 }
+
+/**
+ * Normalize a time string for browser `<input type="time" step="1">` compatibility.
+ *
+ * Browsers with step=1 accept HH:mm:ss but not fractional seconds.
+ * This strips fractional parts (e.g., "09:35:00.000" → "09:35:00")
+ * and returns '' for null/empty values.
+ */
+export function normalizeTimeForInput(time: string | null): string {
+    if (!time) return '';
+    // Remove fractional seconds (.NNN) — browsers don't support them even with step=1
+    return time.replace(/\.\d+$/, '');
+}

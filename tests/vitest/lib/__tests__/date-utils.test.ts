@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDateTime, hasValidDateValue, parseDateTime, serializeDateEntry } from '@/lib/date-utils';
+import { buildDateTime, hasValidDateValue, normalizeTimeForInput, parseDateTime, serializeDateEntry } from '@/lib/date-utils';
 
 describe('date-utils', () => {
     describe('hasValidDateValue', () => {
@@ -253,6 +253,32 @@ describe('date-utils', () => {
             const parsed = parseDateTime(original);
             const rebuilt = buildDateTime(parsed.date, parsed.time, parsed.timezone);
             expect(rebuilt).toBe(original);
+        });
+    });
+
+    describe('normalizeTimeForInput', () => {
+        it('returns empty string for null', () => {
+            expect(normalizeTimeForInput(null)).toBe('');
+        });
+
+        it('returns empty string for empty string', () => {
+            expect(normalizeTimeForInput('')).toBe('');
+        });
+
+        it('passes through HH:mm unchanged', () => {
+            expect(normalizeTimeForInput('09:35')).toBe('09:35');
+        });
+
+        it('passes through HH:mm:ss unchanged', () => {
+            expect(normalizeTimeForInput('09:35:00')).toBe('09:35:00');
+        });
+
+        it('strips fractional seconds from HH:mm:ss.fff', () => {
+            expect(normalizeTimeForInput('09:35:00.000')).toBe('09:35:00');
+        });
+
+        it('strips fractional seconds with variable precision', () => {
+            expect(normalizeTimeForInput('14:22:33.123456')).toBe('14:22:33');
         });
     });
 });

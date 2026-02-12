@@ -7,10 +7,19 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TIMEZONE_OPTIONS } from '@/lib/date-utils';
+import { normalizeTimeForInput, TIMEZONE_OPTIONS } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 
 import { SelectField } from './select-field';
+
+/**
+ * Check if a date string is partial-precision (YYYY or YYYY-MM).
+ * These cannot be reliably rendered in a calendar DatePicker without data loss.
+ */
+function isPartialDate(date: string | null): boolean {
+    if (!date) return false;
+    return /^\d{4}$/.test(date) || /^\d{4}-\d{2}$/.test(date);
+}
 
 interface Option {
     value: string;
@@ -109,25 +118,69 @@ export function DateField({
                             {dateType === 'created' && <span className="text-destructive"> *</span>}
                         </Label>
                     )}
-                    <DatePicker
-                        id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
-                        value={startDate ? parseISO(startDate) : undefined}
-                        onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                        placeholder="Select date"
-                        dateFormat="yyyy-MM-dd"
-                        required={dateType === 'created'}
-                    />
+                    {isPartialDate(startDate) ? (
+                        <div className="flex gap-2">
+                            <Input
+                                id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
+                                value={startDate ?? ''}
+                                readOnly
+                                className="h-9 bg-muted"
+                                title="Partial-precision date (year or year-month)"
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                aria-label="Clear date"
+                                onClick={() => onStartDateChange('')}
+                            >
+                                <Minus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <DatePicker
+                            id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
+                            value={startDate ? parseISO(startDate) : undefined}
+                            onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                            placeholder="Select date"
+                            dateFormat="yyyy-MM-dd"
+                            required={dateType === 'created'}
+                        />
+                    )}
                 </div>
                 {isDateRange && (
                     <div className="space-y-2">
                         {isFirst && <Label htmlFor={`${id}-endDate`}>End Date</Label>}
-                        <DatePicker
-                            id={`${id}-endDate`}
-                            value={endDate ? parseISO(endDate) : undefined}
-                            onChange={(date) => onEndDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                            placeholder="Select date"
-                            dateFormat="yyyy-MM-dd"
-                        />
+                        {isPartialDate(endDate) ? (
+                            <div className="flex gap-2">
+                                <Input
+                                    id={`${id}-endDate`}
+                                    value={endDate ?? ''}
+                                    readOnly
+                                    className="h-9 bg-muted"
+                                    title="Partial-precision date (year or year-month)"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9 shrink-0"
+                                    aria-label="Clear end date"
+                                    onClick={() => onEndDateChange('')}
+                                >
+                                    <Minus className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <DatePicker
+                                id={`${id}-endDate`}
+                                value={endDate ? parseISO(endDate) : undefined}
+                                onChange={(date) => onEndDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                placeholder="Select date"
+                                dateFormat="yyyy-MM-dd"
+                            />
+                        )}
                     </div>
                 )}
                 <div>
@@ -155,8 +208,8 @@ export function DateField({
                 </div>
             </div>
 
-            {/* Time/Timezone row: shown when a date is selected */}
-            {(startDate || hasTimeInfo) && (
+            {/* Time/Timezone row: shown when any date is selected or time info exists */}
+            {(startDate || endDate || hasTimeInfo) && (
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 pl-4 border-l-2 border-muted">
                     <div className="space-y-2">
                         <Label htmlFor={`${id}-startTime`} className="text-xs text-muted-foreground">
@@ -165,7 +218,8 @@ export function DateField({
                         <Input
                             id={`${id}-startTime`}
                             type="time"
-                            value={startTime ?? ''}
+                            step="1"
+                            value={normalizeTimeForInput(startTime)}
                             onChange={(e) => onStartTimeChange(e.target.value)}
                             className="h-9"
                         />
@@ -197,7 +251,8 @@ export function DateField({
                                 <Input
                                     id={`${id}-endTime`}
                                     type="time"
-                                    value={endTime ?? ''}
+                                    step="1"
+                                    value={normalizeTimeForInput(endTime)}
                                     onChange={(e) => onEndTimeChange(e.target.value)}
                                     className="h-9"
                                 />

@@ -756,7 +756,18 @@ class IgsnCsvParserService
         }
 
         // Already an ISO 8601 offset (e.g., "+01:00", "-05:00", "Z")
-        if (preg_match('/^[+-]\d{2}:\d{2}$/', $timezone)) {
+        if (preg_match('/^([+-])(\d{2}):(\d{2})$/', $timezone, $matches)) {
+            $sign = $matches[1];
+            $hours = (int) $matches[2];
+            $minutes = (int) $matches[3];
+            $maxHours = $sign === '-' ? 12 : 14;
+            if ($hours > $maxHours || $minutes > 59) {
+                return null;
+            }
+            if ($hours === $maxHours && $minutes !== 0) {
+                return null;
+            }
+
             return $timezone;
         }
 
@@ -766,23 +777,30 @@ class IgsnCsvParserService
 
         // Parse UTC±N or UTC±NN (e.g., "UTC+1", "UTC-05", "UTC+10")
         if (preg_match('/^UTC([+-])(\d{1,2})$/i', $timezone, $matches)) {
+            $sign = $matches[1];
             $hours = (int) $matches[2];
-            if ($hours > 14) {
+            $maxHours = $sign === '-' ? 12 : 14;
+            if ($hours > $maxHours) {
                 return null;
             }
-            $sign = $matches[1];
 
             return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':00';
         }
 
         // Parse UTC±H:MM (e.g., "UTC+5:30", "UTC+5:45")
         if (preg_match('/^UTC([+-])(\d{1,2}):(\d{2})$/i', $timezone, $matches)) {
+            $sign = $matches[1];
             $hours = (int) $matches[2];
             $minutes = (int) $matches[3];
-            if ($hours > 14 || $minutes > 59) {
+            $maxHours = $sign === '-' ? 12 : 14;
+            if ($hours > $maxHours || $minutes > 59) {
                 return null;
             }
-            $sign = $matches[1];
+            // At the maximum boundary hours, only :00 minutes are valid
+            // (ISO 8601: max is +14:00 and -12:00)
+            if ($hours === $maxHours && $minutes !== 0) {
+                return null;
+            }
 
             return "{$sign}" . str_pad((string) $hours, 2, '0', STR_PAD_LEFT) . ':' . $matches[3];
         }

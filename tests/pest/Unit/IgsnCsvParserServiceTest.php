@@ -1044,6 +1044,66 @@ describe('ISO 8601 Datetime Parsing (Issue #508)', function () {
 
         expect($dates['start'])->toBe('2022-10-06T09:35');
     });
+
+    it('rejects negative timezone out of range (UTC-13)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-13');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects negative timezone out of range (UTC-14)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-14');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('accepts maximum valid negative timezone (UTC-12)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-12');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35-12:00');
+    });
+
+    it('rejects minutes at positive boundary (UTC+14:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC+14:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects minutes at negative boundary (UTC-12:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', 'UTC-12:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects direct ISO offset at positive boundary (+14:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '+14:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects direct ISO offset at negative boundary (-12:30)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '-12:30');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('rejects direct ISO offset out of negative range (-13:00)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '-13:00');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35');
+    });
+
+    it('accepts direct ISO offset at valid boundary (+14:00)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '+14:00');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35+14:00');
+    });
+
+    it('accepts direct ISO offset at valid negative boundary (-12:00)', function () {
+        $dates = $this->parser->parseCollectionDates('2022-10-06T09:35', '', '-12:00');
+
+        expect($dates['start'])->toBe('2022-10-06T09:35-12:00');
+    });
 });
 
 describe('Duplicate Column Headers (Issue #487)', function () {
