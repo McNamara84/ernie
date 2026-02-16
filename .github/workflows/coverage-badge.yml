@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install Node dependencies
@@ -75,37 +75,41 @@ jobs:
         id: verify_coverage
         run: |
           if [ ! -f "coverage/coverage-summary.json" ]; then
-            echo "Coverage report not found!"
+            echo "::warning::Vitest coverage report not found. Creating fallback badge."
             echo "Listing coverage directory contents:"
             ls -la coverage/ 2>/dev/null || echo "Coverage directory does not exist"
             echo "exists=false" >> $GITHUB_OUTPUT
-            exit 1
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            cat coverage/coverage-summary.json | head -c 500
           fi
-          echo "exists=true" >> $GITHUB_OUTPUT
-          cat coverage/coverage-summary.json | head -c 500
 
       - name: Create Vitest coverage badge
-        if: steps.verify_coverage.outputs.exists == 'true'
         run: |
           mkdir -p output
-          COVERAGE=$(node -e "
-            const data = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json'));
-            const pct = data.total?.lines?.pct;
-            if (typeof pct === 'number' && !isNaN(pct)) {
-              console.log(Math.round(pct));
-            } else {
-              console.log(0);
-            }
-          ")
-          echo "Coverage: $COVERAGE%"
-          COLOR=red
-          if [ $COVERAGE -ge 90 ]; then COLOR=brightgreen
-          elif [ $COVERAGE -ge 80 ]; then COLOR=green
-          elif [ $COVERAGE -ge 70 ]; then COLOR=yellow
-          elif [ $COVERAGE -ge 50 ]; then COLOR=orange
+          if [ "${{ steps.verify_coverage.outputs.exists }}" == "true" ]; then
+            COVERAGE=$(node -e "
+              const data = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json'));
+              const pct = data.total?.lines?.pct;
+              if (typeof pct === 'number' && !isNaN(pct)) {
+                console.log(Math.round(pct));
+              } else {
+                console.log(0);
+              }
+            ")
+            echo "Coverage: $COVERAGE%"
+            COLOR=red
+            if [ $COVERAGE -ge 90 ]; then COLOR=brightgreen
+            elif [ $COVERAGE -ge 80 ]; then COLOR=green
+            elif [ $COVERAGE -ge 70 ]; then COLOR=yellow
+            elif [ $COVERAGE -ge 50 ]; then COLOR=orange
+            fi
+            npx --yes badge-maker "Vitest Coverage" "$COVERAGE%" ":$COLOR" > output/vitest-coverage.svg
+            echo "Badge created with color: $COLOR"
+          else
+            echo "Creating fallback badge (N/A)"
+            npx --yes badge-maker "Vitest Coverage" "N/A" ":lightgrey" > output/vitest-coverage.svg
           fi
-          npx --yes badge-maker "Vitest Coverage" "$COVERAGE%" ":$COLOR" > output/vitest-coverage.svg
-          echo "Badge created with color: $COLOR"
 
       - name: Git push to image-data branch
         uses: peaceiris/actions-gh-pages@v3
