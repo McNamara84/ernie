@@ -39,8 +39,8 @@ describe('IGSN Template Restriction on Creation', function () {
 
         // Create a regular Dataset resource (not PhysicalObject)
         $datasetType = ResourceType::firstOrCreate(
-            ['slug' => 'Dataset'],
-            ['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]
+            ['slug' => 'dataset'],
+            ['name' => 'Dataset', 'slug' => 'dataset', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $datasetType->id]);
 
@@ -62,8 +62,8 @@ describe('IGSN Template Restriction on Creation', function () {
 
         // Create a PhysicalObject resource (IGSN)
         $physicalObjectType = ResourceType::firstOrCreate(
-            ['slug' => 'PhysicalObject'],
-            ['name' => 'PhysicalObject', 'slug' => 'PhysicalObject', 'is_active' => true]
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
 
@@ -81,8 +81,8 @@ describe('IGSN Template Restriction on Creation', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
-            ['slug' => 'PhysicalObject'],
-            ['name' => 'PhysicalObject', 'slug' => 'PhysicalObject', 'is_active' => true]
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
 
@@ -102,8 +102,8 @@ describe('IGSN Template Restriction on Update', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $datasetType = ResourceType::firstOrCreate(
-            ['slug' => 'Dataset'],
-            ['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]
+            ['slug' => 'dataset'],
+            ['name' => 'Dataset', 'slug' => 'dataset', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $datasetType->id]);
         LandingPage::factory()->create([
@@ -128,8 +128,8 @@ describe('IGSN Template Restriction on Update', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
-            ['slug' => 'PhysicalObject'],
-            ['name' => 'PhysicalObject', 'slug' => 'PhysicalObject', 'is_active' => true]
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
         $landingPage = LandingPage::factory()->create([
@@ -153,8 +153,8 @@ describe('IGSN Template Preview Session', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $datasetType = ResourceType::firstOrCreate(
-            ['slug' => 'Dataset'],
-            ['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]
+            ['slug' => 'dataset'],
+            ['name' => 'Dataset', 'slug' => 'dataset', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $datasetType->id]);
 
@@ -174,8 +174,8 @@ describe('IGSN Template Preview Session', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
-            ['slug' => 'PhysicalObject'],
-            ['name' => 'PhysicalObject', 'slug' => 'PhysicalObject', 'is_active' => true]
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
 
@@ -194,8 +194,8 @@ describe('IGSN Landing Page without FTP URL', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
-            ['slug' => 'PhysicalObject'],
-            ['name' => 'PhysicalObject', 'slug' => 'PhysicalObject', 'is_active' => true]
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
 
