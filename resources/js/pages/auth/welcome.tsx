@@ -7,6 +7,7 @@ import WelcomeController from '@/actions/App/Http/Controllers/Auth/WelcomeContro
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { type WelcomePasswordInput, welcomePasswordSchema } from '@/lib/validations/user';
@@ -45,8 +46,8 @@ export default function Welcome({ email, userId }: WelcomeProps) {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
                     <div className="grid gap-2">
-                        <FormLabel>Email</FormLabel>
-                        <Input type="email" autoComplete="email" value={email} className="mt-1 block w-full bg-muted" readOnly />
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" type="email" autoComplete="email" value={email} className="mt-1 block w-full bg-muted" readOnly />
                     </div>
 
                     <FormField

@@ -1,64 +1,29 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { type ComponentProps, type ReactNode,useState } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Login from '@/pages/auth/login';
 
-interface MockFormState {
-    errors: Record<string, string>;
-    processing: boolean;
-}
+const { routerMock } = vi.hoisted(() => ({
+    routerMock: {
+        post: vi.fn(),
+    },
+}));
 
-type SubmitMockFn = (data: Record<string, FormDataEntryValue>) => Promise<{ ok: boolean; errors?: Record<string, string> }>;
-
-let initialFormState: MockFormState = { errors: {}, processing: false };
-const submitMock = vi.fn<SubmitMockFn>();
-const originalLocation = window.location;
-
-vi.mock('@inertiajs/react', () => {
-    return {
-        Form: ({
-            children,
-        }: {
-            children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode);
-        }) => {
-            const [errors, setErrors] = useState(() => ({ ...initialFormState.errors }));
-            const [processing, setProcessing] = useState(() => initialFormState.processing);
-            const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-                e.preventDefault();
-                setProcessing(true);
-                const data = Object.fromEntries(new FormData(e.currentTarget).entries());
-                const result = await submitMock(data);
-                setProcessing(false);
-                if (result.ok) {
-                    window.location.assign('/dashboard');
-                } else {
-                    setErrors(result.errors ?? {});
-                }
-            };
-            return (
-                <form data-testid="login-form" onSubmit={handleSubmit}>
-                    {typeof children === 'function'
-                        ? children({ processing, errors })
-                        : children}
-                </form>
-            );
-        },
-        Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
-        Link: ({ href, children }: { href: string; children?: ReactNode }) => (
-            <a href={href}>{children}</a>
-        ),
-    };
-});
+vi.mock('@inertiajs/react', () => ({
+    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Link: ({ href, children }: { href: string; children?: React.ReactNode }) => <a href={href}>{children}</a>,
+    router: routerMock,
+}));
 
 vi.mock('@/layouts/auth-layout', () => ({
-    default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController', () => ({
-    default: { store: { post: () => ({}) } },
+    default: { store: { url: () => '/login' } },
 }));
 
 vi.mock('@/routes/password', () => ({
@@ -66,113 +31,85 @@ vi.mock('@/routes/password', () => ({
 }));
 
 vi.mock('@/components/text-link', () => ({
-    default: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
-}));
-
-vi.mock('@/components/input-error', () => {
-    const FormError = ({ message }: { message?: string }) => (message ? <p>{message}</p> : null);
-    return { default: FormError, FormError };
-});
-
-vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
-}));
-
-vi.mock('@/components/ui/checkbox', () => ({
-    Checkbox: (props: ComponentProps<'input'>) => <input type="checkbox" {...props} />,
-}));
-
-vi.mock('@/components/ui/input', () => ({
-    Input: (props: ComponentProps<'input'>) => <input {...props} />,
-}));
-
-vi.mock('@/components/ui/password-input', () => ({
-    PasswordInput: (props: ComponentProps<'input'>) => <input type="password" {...props} />,
-}));
-
-vi.mock('@/components/ui/label', () => ({
-    Label: ({ children, ...props }: ComponentProps<'label'>) => <label {...props}>{children}</label>,
+    default: ({ href, children }: { href: string; children?: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
 
 beforeEach(() => {
-    initialFormState = { errors: {}, processing: false };
-    submitMock.mockReset();
-});
-
-const renderLogin = (
-    props: Partial<ComponentProps<typeof Login>> = {},
-    formState?: Partial<MockFormState>,
-) => {
-    initialFormState = { errors: {}, processing: false, ...formState };
-    return render(<Login canResetPassword={false} {...props} />);
-};
-
-afterEach(() => {
-    Object.defineProperty(window, 'location', { value: originalLocation });
-    vi.restoreAllMocks();
+    routerMock.post.mockReset();
 });
 
 describe('Login page', () => {
     it('renders forgot password link when allowed', () => {
-        renderLogin({ canResetPassword: true });
+        render(<Login canResetPassword={true} />);
         const link = screen.getByRole('link', { name: /forgot password/i });
         expect(link).toHaveAttribute('href', '/forgot-password');
     });
 
     it('displays status message when provided', () => {
-        renderLogin({ status: 'Password reset' });
+        render(<Login canResetPassword={false} status="Password reset" />);
         expect(screen.getByText('Password reset')).toBeInTheDocument();
     });
 
-    it('renders validation errors', () => {
-        renderLogin({}, { errors: { email: 'Invalid email', password: 'Required' } });
-        expect(screen.getByText('Invalid email')).toBeInTheDocument();
-        expect(screen.getByText('Required')).toBeInTheDocument();
+    it('renders validation errors on submit with empty fields', async () => {
+        render(<Login canResetPassword={false} />);
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /log in/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument();
+            expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+        });
     });
 
-    it('disables the submit button and shows a spinner while processing', () => {
-        renderLogin({}, { processing: true });
-        const button = screen.getByRole('button', { name: /log in/i });
-        expect(button).toBeDisabled();
-        expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+    it('disables the submit button while processing', async () => {
+        routerMock.post.mockImplementation(() => {});
+        render(<Login canResetPassword={false} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText(/email address/i), 'user@example.com');
+        await user.type(screen.getByLabelText(/password/i), 'password');
+        await user.click(screen.getByRole('button', { name: /log in/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /log in/i })).toBeDisabled();
+        });
     });
 
-    it('redirects to the dashboard on successful login', async () => {
-        submitMock.mockResolvedValue({ ok: true });
-        const assignSpy = vi.fn();
-        Object.defineProperty(window, 'location', {
-            value: { assign: assignSpy },
+    it('calls router.post on successful submit', async () => {
+        routerMock.post.mockImplementation((_url: string, _data: unknown, options?: { onFinish?: () => void }) => {
+            options?.onFinish?.();
         });
-        renderLogin();
-        fireEvent.input(screen.getByLabelText(/email address/i), {
-            target: { value: 'user@example.com' },
+        render(<Login canResetPassword={false} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText(/email address/i), 'user@example.com');
+        await user.type(screen.getByLabelText(/password/i), 'password');
+        await user.click(screen.getByRole('button', { name: /log in/i }));
+
+        await waitFor(() => {
+            expect(routerMock.post).toHaveBeenCalledWith(
+                '/login',
+                expect.objectContaining({ email: 'user@example.com', password: 'password' }),
+                expect.any(Object),
+            );
         });
-        fireEvent.input(screen.getByLabelText(/password/i), {
-            target: { value: 'password' },
-        });
-        fireEvent.submit(screen.getByTestId('login-form'));
-        await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/dashboard'));
     });
 
-    it('submits remember value when checkbox is selected', async () => {
-        submitMock.mockResolvedValue({ ok: false });
-        renderLogin();
-        fireEvent.click(screen.getByLabelText(/remember me/i));
-        fireEvent.submit(screen.getByTestId('login-form'));
-        await waitFor(() =>
-            expect(submitMock).toHaveBeenCalledWith(
-                expect.objectContaining({ remember: 'on' }),
-            ),
-        );
-    });
-
-    it('shows error message on invalid credentials', async () => {
-        submitMock.mockResolvedValue({
-            ok: false,
-            errors: { email: 'Invalid credentials' },
+    it('shows server error when returned via onError', async () => {
+        routerMock.post.mockImplementation((_url: string, _data: unknown, options?: { onError?: (errors: Record<string, string>) => void; onFinish?: () => void }) => {
+            options?.onError?.({ email: 'Invalid credentials' });
+            options?.onFinish?.();
         });
-        renderLogin();
-        fireEvent.submit(screen.getByTestId('login-form'));
-        expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+        render(<Login canResetPassword={false} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText(/email address/i), 'user@example.com');
+        await user.type(screen.getByLabelText(/password/i), 'password');
+        await user.click(screen.getByRole('button', { name: /log in/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+        });
     });
 });

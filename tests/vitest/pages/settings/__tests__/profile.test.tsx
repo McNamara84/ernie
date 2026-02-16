@@ -1,14 +1,17 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Profile from '@/pages/settings/profile';
 
-let processing = false;
-let formErrors: Record<string, string> = {};
-let recentlySuccessful = false;
-const authUser = { name: 'John Doe', email: 'john@example.com', email_verified_at: null };
+const { authUser, routerMock } = vi.hoisted(() => ({
+    authUser: { name: 'John Doe', email: 'john@example.com', email_verified_at: null },
+    routerMock: {
+        patch: vi.fn(),
+    },
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -17,10 +20,8 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    Form: ({ children }: { children: (args: { processing: boolean; recentlySuccessful: boolean; errors: typeof formErrors }) => React.ReactNode }) => (
-        <form>{children({ processing, recentlySuccessful, errors: formErrors })}</form>
-    ),
     usePage: () => ({ props: { auth: { user: authUser } } }),
+    router: routerMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -44,14 +45,12 @@ vi.mock('@/routes/verification', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
-    default: { update: { patch: () => ({}) } },
+    default: { update: { url: () => '/settings/profile' } },
 }));
 
 describe('Profile settings page', () => {
     beforeEach(() => {
-        processing = false;
-        formErrors = {};
-        recentlySuccessful = false;
+        routerMock.patch.mockReset();
     });
 
     it('renders profile form with user data and verification link', () => {
@@ -70,17 +69,34 @@ describe('Profile settings page', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows validation errors', () => {
-        formErrors = { name: 'Name is required', email: 'Email is invalid' };
+    it('shows validation errors on submit with invalid data', async () => {
         render(<Profile mustVerifyEmail={false} />);
-        expect(screen.getByText(/name is required/i)).toBeInTheDocument();
-        expect(screen.getByText(/email is invalid/i)).toBeInTheDocument();
+        const user = userEvent.setup();
+
+        // Clear name to trigger Zod min(2) validation
+        await user.clear(screen.getByLabelText(/name/i));
+
+        // Submit the form
+        await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/name must be at least 2 characters/i)).toBeInTheDocument();
+        });
     });
 
-    it('disables save button when processing', () => {
-        processing = true;
+    it('disables save button when processing', async () => {
+        // Mock router.patch to not call onFinish, keeping processing=true
+        routerMock.patch.mockImplementation(() => {});
+
         render(<Profile mustVerifyEmail={false} />);
-        expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+        const user = userEvent.setup();
+
+        // Submit with valid default data so Zod passes
+        await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+        });
     });
 });
 

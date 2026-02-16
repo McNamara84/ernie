@@ -1,77 +1,69 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ResetPassword from '@/pages/auth/reset-password';
 
-type FormErrors = {
-    email?: string;
-    password?: string;
-    password_confirmation?: string;
-};
+const { routerMock } = vi.hoisted(() => ({
+    routerMock: {
+        post: vi.fn(),
+    },
+}));
 
-type FormState = {
-    errors: FormErrors;
-    processing: boolean;
-};
+vi.mock('@inertiajs/react', () => ({
+    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+    router: routerMock,
+}));
 
-function createInertiaMock({ errors, processing }: FormState) {
-    return {
-        Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-        Form: ({
-            children,
-        }: {
-            children: (args: { processing: boolean; errors: FormErrors }) => React.ReactNode;
-        }) => <form>{children({ processing, errors })}</form>,
-        Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
-    };
-}
-
-const inertiaMock = vi.hoisted(() => createInertiaMock({ errors: {}, processing: false }));
-
-vi.mock('@inertiajs/react', () => inertiaMock);
+vi.mock('@/layouts/auth-layout', () => ({
+    default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+}));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/NewPasswordController', () => ({
-    default: {
-        store: {
-            post: () => ({}),
-        },
-    },
+    default: { store: { url: () => '/reset-password' } },
 }));
 
 describe('ResetPassword page', () => {
     const token = 'token123';
     const email = 'user@example.com';
 
-    const setup = (state: Partial<FormState> = {}) => {
-        Object.assign(inertiaMock, createInertiaMock({ errors: {}, processing: false, ...state }));
-        render(<ResetPassword token={token} email={email} />);
-    };
+    beforeEach(() => {
+        routerMock.post.mockReset();
+    });
 
     it('renders fields and submit button with preset email', () => {
-        setup();
+        render(<ResetPassword token={token} email={email} />);
         expect(screen.getByLabelText(/email/i)).toHaveValue(email);
         expect(screen.getByLabelText('Password')).toBeInTheDocument();
         expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /reset password/i })).toBeInTheDocument();
     });
 
-    it('displays validation errors', () => {
-        setup({
-            errors: {
-                email: 'Email is required',
-                password: 'Password is required',
-                password_confirmation: 'Confirmation is required',
-            },
+    it('displays validation errors on submit with empty password', async () => {
+        render(<ResetPassword token={token} email={email} />);
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
         });
-        expect(screen.getByText(/email is required/i)).toBeInTheDocument();
-        expect(screen.getByText(/password is required/i)).toBeInTheDocument();
-        expect(screen.getByText(/confirmation is required/i)).toBeInTheDocument();
     });
 
-    it('disables submit button when processing', () => {
-        setup({ processing: true });
-        expect(screen.getByRole('button', { name: /reset password/i })).toBeDisabled();
+    it('disables submit button when processing', async () => {
+        routerMock.post.mockImplementation(() => {});
+        render(<ResetPassword token={token} email={email} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText('Password'), 'newpassword');
+        await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
+        await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /reset password/i })).toBeDisabled();
+        });
     });
 });
