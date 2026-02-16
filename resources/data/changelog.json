@@ -140,6 +140,10 @@
         ],
         "fixes": [
             {
+                "title": "IGSN Landing Page Preview and Publish",
+                "description": "Fixed a bug where the IGSN landing page preview and publish functionality always failed with the error 'The IGSN template can only be used with Physical Object resources'. The resource type validation incorrectly compared the resource type name against 'PhysicalObject' (camelCase without space) instead of using the slug 'physical-object', which prevented IGSN resources from using the IGSN landing page template. Both preview and publish/update are now working correctly."
+            },
+            {
                 "title": "Creator Affiliation ROR Mapping",
                 "description": "Fixed incorrect mapping of creator affiliation ROR identifiers in DataCite JSON and XML export. Previously, the ROR URL was placed in the 'name' element instead of the 'affiliationIdentifier' element. The export now correctly includes 'affiliationIdentifier', 'affiliationIdentifierScheme', and 'schemeURI' fields. A defense-in-depth approach detects and corrects ROR URLs accidentally stored in the name field, and resolves organization names from the local ROR data dump when only an identifier is provided."
             },
