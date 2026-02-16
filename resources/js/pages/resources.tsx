@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
@@ -1095,17 +1096,17 @@ function ResourcesPage({
                                     </Badge>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table data-testid="resources-table" className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <Table data-testid="resources-table">
                                         <caption className="sr-only">
                                             List of resources with metadata including title, type, DOI, contributors, language, and version
                                         </caption>
-                                        <thead className="bg-gray-50 dark:bg-gray-800">
-                                            <tr>
-                                                <th
-                                                    className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                        <TableHeader className="bg-gray-50 dark:bg-gray-800">
+                                            <TableRow>
+                                                <TableHead
+                                                    className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
                                                     Actions
-                                                </th>
+                                                </TableHead>
                                                 {resourceColumns.map((column) => {
                                                     const isColumnSorted =
                                                         column.sortOptions?.some((option) => option.key === sortState.key) ?? false;
@@ -1116,9 +1117,9 @@ function ResourcesPage({
                                                         : 'none';
 
                                                     return (
-                                                        <th
+                                                <TableHead
                                                             key={column.key}
-                                                            className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
+                                                            className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
@@ -1159,25 +1160,25 @@ function ResourcesPage({
                                                                     {column.label}
                                                                 </div>
                                                             )}
-                                                        </th>
+                                                        </TableHead>
                                                     );
                                                 })}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {loading && sortedResources.length === 0 && <LoadingSkeleton />}
                                             {sortedResources.map((resource, index) => {
                                                 const isLast = index === sortedResources.length - 1;
                                                 const resourceLabel =
                                                     resource.doi ?? resource.title ?? (resource.id !== undefined ? `#${resource.id}` : 'entry');
                                                 return (
-                                                    <tr
+                                                    <TableRow
                                                         key={deriveResourceRowKey(resource)}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastResourceElementRef : null}
                                                     >
-                                                        <td
-                                                            className={`px-6 py-1.5 align-middle text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                        <TableCell
+                                                            className={`align-middle text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                         >
                                                             <div className="flex flex-col gap-0.5">
                                                                 <div className="flex items-center gap-1">
@@ -1259,23 +1260,23 @@ function ResourcesPage({
                                                                     </Button>
                                                                 </div>
                                                             </div>
-                                                        </td>
+                                                        </TableCell>
                                                         {resourceColumns.map((column) => (
-                                                            <td
+                                                            <TableCell
                                                                 key={column.key}
-                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                                className={`text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
                                                             >
                                                                 {column.render
                                                                     ? column.render(resource)
                                                                     : formatValue(column.key, resource[column.key])}
-                                                            </td>
+                                                            </TableCell>
                                                         ))}
-                                                    </tr>
+                                                    </TableRow>
                                                 );
                                             })}
                                             {loading && sortedResources.length > 0 && <LoadingSkeleton />}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
 
                                     {!loading && !pagination.has_more && sortedResources.length > 0 && (
                                         <div className="py-4 text-center text-sm text-muted-foreground">

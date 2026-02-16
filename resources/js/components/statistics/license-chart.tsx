@@ -1,4 +1,7 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useMemo } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type LicenseData = {
     name: string;
@@ -29,32 +32,22 @@ export default function LicenseChart({ data }: LicenseChartProps) {
         count: item.count,
     }));
 
+    const chartConfig = useMemo(
+        () =>
+            ({
+                count: { label: 'Count' },
+            }) satisfies ChartConfig,
+        [],
+    );
+
     return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
             <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" className="text-xs" angle={-45} textAnchor="end" height={80} />
-                <YAxis className="text-xs" />
-                <Tooltip
-                    content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                            return (
-                                <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                    <div className="grid gap-2">
-                                        <div className="flex flex-col">
-                                            <span className="text-[0.70rem] text-muted-foreground uppercase">License</span>
-                                            <span className="font-bold">{payload[0].payload.fullName}</span>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Count</span>
-                                            <span className="font-bold text-muted-foreground">{payload[0].payload.count}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        }
-                        return null;
-                    }}
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={80} />
+                <YAxis tickLine={false} axisLine={false} />
+                <ChartTooltip
+                    content={<ChartTooltipContent labelKey="fullName" nameKey="fullName" />}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {chartData.map((entry, index) => (
@@ -62,6 +55,6 @@ export default function LicenseChart({ data }: LicenseChartProps) {
                     ))}
                 </Bar>
             </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
     );
 }

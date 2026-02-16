@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -248,36 +249,36 @@ export default function EditorSettings({
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="text-left">
-                                                <th className="border-b p-2">ID</th>
-                                                <th className="border-b p-2">Identifier</th>
-                                                <th className="border-b p-2">Name</th>
-                                                <th className="border-b p-2 text-center">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Identifier</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead className="text-center">
                                                     ERNIE
                                                     <br />
                                                     active
-                                                </th>
-                                                <th className="border-b p-2 text-center">
+                                                </TableHead>
+                                                <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
-                                                </th>
-                                                <th className="border-b p-2 text-center">
+                                                </TableHead>
+                                                <TableHead className="text-center">
                                                     Resource
                                                     <br />
                                                     Types
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {data.licenses.map((license, index) => (
-                                                <tr key={license.id}>
-                                                    <td className="border-b p-2">{license.id}</td>
-                                                    <td className="border-b p-2">{license.identifier}</td>
-                                                    <td className="border-b p-2">{license.name}</td>
-                                                    <td className="border-b p-2 text-center">
+                                                <TableRow key={license.id}>
+                                                    <TableCell>{license.id}</TableCell>
+                                                    <TableCell>{license.identifier}</TableCell>
+                                                    <TableCell>{license.name}</TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
                                                             ERNIE active
                                                         </Label>
@@ -286,8 +287,8 @@ export default function EditorSettings({
                                                             checked={license.active}
                                                             onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
                                                             ELMO active
                                                         </Label>
@@ -296,8 +297,8 @@ export default function EditorSettings({
                                                             checked={license.elmo_active}
                                                             onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <LicenseResourceTypePopover
                                                             licenseId={license.id}
                                                             licenseName={license.name}
@@ -308,11 +309,11 @@ export default function EditorSettings({
                                                             excludedIds={license.excluded_resource_type_ids}
                                                             onExcludedChange={(ids) => handleLicenseExcludedResourceTypesChange(index, ids)}
                                                         />
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </CardContent>
                         </Card>
@@ -327,28 +328,28 @@ export default function EditorSettings({
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="text-left">
-                                                <th className="border-b p-2">ID</th>
-                                                <th className="border-b p-2">Name</th>
-                                                <th className="border-b p-2 text-center">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead className="text-center">
                                                     ERNIE
                                                     <br />
                                                     active
-                                                </th>
-                                                <th className="border-b p-2 text-center">
+                                                </TableHead>
+                                                <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {data.resourceTypes.map((type, index) => (
-                                                <tr key={type.id}>
-                                                    <td className="border-b p-2">{type.id}</td>
-                                                    <td className="border-b p-2">
+                                                <TableRow key={type.id}>
+                                                    <TableCell>{type.id}</TableCell>
+                                                    <TableCell>
                                                         <Label htmlFor={`rt-${type.id}`} className="sr-only">
                                                             Name
                                                         </Label>
@@ -357,8 +358,8 @@ export default function EditorSettings({
                                                             value={type.name}
                                                             onChange={(e) => handleTypeChange(index, e.target.value)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`active-${type.id}`} className="sr-only">
                                                             ERNIE active
                                                         </Label>
@@ -367,8 +368,8 @@ export default function EditorSettings({
                                                             checked={type.active}
                                                             onCheckedChange={(checked) => handleActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`elmo-active-${type.id}`} className="sr-only">
                                                             ELMO active
                                                         </Label>
@@ -377,11 +378,11 @@ export default function EditorSettings({
                                                             checked={type.elmo_active}
                                                             onCheckedChange={(checked) => handleElmoActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </CardContent>
                         </Card>
@@ -393,29 +394,29 @@ export default function EditorSettings({
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="text-left">
-                                                <th className="border-b p-2">ID</th>
-                                                <th className="border-b p-2">Name</th>
-                                                <th className="border-b p-2">Slug</th>
-                                                <th className="border-b p-2 text-center">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Slug</TableHead>
+                                                <TableHead className="text-center">
                                                     ERNIE
                                                     <br />
                                                     active
-                                                </th>
-                                                <th className="border-b p-2 text-center">
+                                                </TableHead>
+                                                <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {data.titleTypes.map((type, index) => (
-                                                <tr key={type.id}>
-                                                    <td className="border-b p-2">{type.id}</td>
-                                                    <td className="border-b p-2">
+                                                <TableRow key={type.id}>
+                                                    <TableCell>{type.id}</TableCell>
+                                                    <TableCell>
                                                         <Label htmlFor={`tt-name-${type.id}`} className="sr-only">
                                                             Name
                                                         </Label>
@@ -424,8 +425,8 @@ export default function EditorSettings({
                                                             value={type.name}
                                                             onChange={(e) => handleTitleTypeChange(index, 'name', e.target.value)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2">
+                                                    </TableCell>
+                                                    <TableCell>
                                                         <Label htmlFor={`tt-slug-${type.id}`} className="sr-only">
                                                             Slug
                                                         </Label>
@@ -434,8 +435,8 @@ export default function EditorSettings({
                                                             value={type.slug}
                                                             onChange={(e) => handleTitleTypeChange(index, 'slug', e.target.value)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`tt-active-${type.id}`} className="sr-only">
                                                             ERNIE active
                                                         </Label>
@@ -444,8 +445,8 @@ export default function EditorSettings({
                                                             checked={type.active}
                                                             onCheckedChange={(checked) => handleTitleActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`tt-elmo-active-${type.id}`} className="sr-only">
                                                             ELMO active
                                                         </Label>
@@ -454,11 +455,11 @@ export default function EditorSettings({
                                                             checked={type.elmo_active}
                                                             onCheckedChange={(checked) => handleTitleElmoActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </CardContent>
                         </Card>
@@ -470,31 +471,31 @@ export default function EditorSettings({
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="text-left">
-                                                <th className="border-b p-2">ID</th>
-                                                <th className="border-b p-2">Code</th>
-                                                <th className="border-b p-2">Name</th>
-                                                <th className="border-b p-2 text-center">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Code</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead className="text-center">
                                                     ERNIE
                                                     <br />
                                                     active
-                                                </th>
-                                                <th className="border-b p-2 text-center">
+                                                </TableHead>
+                                                <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {data.languages.map((language, index) => (
-                                                <tr key={language.id}>
-                                                    <td className="border-b p-2">{language.id}</td>
-                                                    <td className="border-b p-2">{language.code}</td>
-                                                    <td className="border-b p-2">{language.name}</td>
-                                                    <td className="border-b p-2 text-center">
+                                                <TableRow key={language.id}>
+                                                    <TableCell>{language.id}</TableCell>
+                                                    <TableCell>{language.code}</TableCell>
+                                                    <TableCell>{language.name}</TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`lang-active-${language.id}`} className="sr-only">
                                                             ERNIE active
                                                         </Label>
@@ -503,8 +504,8 @@ export default function EditorSettings({
                                                             checked={language.active}
                                                             onCheckedChange={(checked) => handleLanguageActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`lang-elmo-active-${language.id}`} className="sr-only">
                                                             ELMO active
                                                         </Label>
@@ -513,11 +514,11 @@ export default function EditorSettings({
                                                             checked={language.elmo_active}
                                                             onCheckedChange={(checked) => handleLanguageElmoActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </CardContent>
                         </Card>
@@ -529,31 +530,31 @@ export default function EditorSettings({
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full border-collapse">
-                                        <thead>
-                                            <tr className="text-left">
-                                                <th className="border-b p-2">ID</th>
-                                                <th className="border-b p-2">Name</th>
-                                                <th className="border-b p-2">Slug</th>
-                                                <th className="border-b p-2 text-center">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Slug</TableHead>
+                                                <TableHead className="text-center">
                                                     ERNIE
                                                     <br />
                                                     active
-                                                </th>
-                                                <th className="border-b p-2 text-center">
+                                                </TableHead>
+                                                <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {data.dateTypes.map((dateType, index) => (
-                                                <tr key={dateType.id}>
-                                                    <td className="border-b p-2">{dateType.id}</td>
-                                                    <td className="border-b p-2">{dateType.name}</td>
-                                                    <td className="border-b p-2">{dateType.slug}</td>
-                                                    <td className="border-b p-2 text-center">
+                                                <TableRow key={dateType.id}>
+                                                    <TableCell>{dateType.id}</TableCell>
+                                                    <TableCell>{dateType.name}</TableCell>
+                                                    <TableCell>{dateType.slug}</TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`dt-active-${dateType.id}`} className="sr-only">
                                                             ERNIE active
                                                         </Label>
@@ -562,8 +563,8 @@ export default function EditorSettings({
                                                             checked={dateType.active}
                                                             onCheckedChange={(checked) => handleDateTypeActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                    <td className="border-b p-2 text-center">
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Label htmlFor={`dt-elmo-active-${dateType.id}`} className="sr-only">
                                                             ELMO active
                                                         </Label>
@@ -572,11 +573,11 @@ export default function EditorSettings({
                                                             checked={dateType.elmo_active}
                                                             onCheckedChange={(checked) => handleDateTypeElmoActiveChange(index, checked === true)}
                                                         />
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             </CardContent>
                         </Card>

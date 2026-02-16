@@ -1,4 +1,7 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type RelatedWorksData = {
     topDatasets: Array<{
@@ -77,12 +80,13 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
             {/* Histogram */}
             <div>
                 <h4 className="mb-4 text-sm font-medium">Distribution by Range</h4>
-                <ResponsiveContainer width="100%" height={300}>
+                <ChartContainer config={{ datasets: { label: 'Datasets' } } satisfies ChartConfig} className="h-[300px] w-full">
                     <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                             dataKey="range"
-                            className="text-xs"
+                            tickLine={false}
+                            axisLine={false}
                             label={{
                                 value: 'Related Works Range',
                                 position: 'insideBottom',
@@ -90,18 +94,19 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
                             }}
                         />
                         <YAxis
-                            className="text-xs"
+                            tickLine={false}
+                            axisLine={false}
                             label={{
                                 value: 'Number of Datasets',
                                 angle: -90,
                                 position: 'insideLeft',
                             }}
                         />
-                        <Tooltip
+                        <ChartTooltip
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                     return (
-                                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                        <div className="rounded-lg border border-border/50 bg-background p-2 shadow-xl">
                                             <div className="grid gap-2">
                                                 <div className="flex flex-col">
                                                     <span className="text-[0.70rem] text-muted-foreground uppercase">Range</span>
@@ -124,35 +129,35 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
                             ))}
                         </Bar>
                     </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
             </div>
 
             {/* Top Datasets Table */}
             <div>
                 <h4 className="mb-4 text-sm font-medium">Top 20 Datasets with Most Related Works</h4>
                 <div className="max-h-[400px] overflow-y-auto rounded-md border">
-                    <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-muted">
-                            <tr>
-                                <th className="p-2 text-left font-medium">Rank</th>
-                                <th className="p-2 text-left font-medium">Identifier</th>
-                                <th className="p-2 text-left font-medium">Title</th>
-                                <th className="p-2 text-right font-medium">Related Works</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted">
+                            <TableRow>
+                                <TableHead>Rank</TableHead>
+                                <TableHead>Identifier</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead className="text-right">Related Works</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {data.topDatasets.map((dataset, index) => (
-                                <tr key={dataset.id} className="border-t">
-                                    <td className="p-2">{index + 1}</td>
-                                    <td className="p-2 font-mono text-xs">{dataset.identifier}</td>
-                                    <td className="p-2">
+                                <TableRow key={dataset.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell className="font-mono text-xs">{dataset.identifier}</TableCell>
+                                    <TableCell>
                                         {dataset.title ? (dataset.title.length > 60 ? dataset.title.substring(0, 57) + '...' : dataset.title) : '-'}
-                                    </td>
-                                    <td className="p-2 text-right font-bold">{dataset.count}</td>
-                                </tr>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold">{dataset.count}</TableCell>
+                                </TableRow>
                             ))}
-                        </tbody>
-                    </table>
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
         </div>

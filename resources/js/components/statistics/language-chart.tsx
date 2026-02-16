@@ -1,4 +1,7 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useMemo } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type LanguageData = {
     language: string;
@@ -28,39 +31,28 @@ export default function LanguageChart({ data }: LanguageChartProps) {
         count: item.count,
     }));
 
+    const chartConfig = useMemo(
+        () =>
+            ({
+                count: { label: 'Count' },
+                ...Object.fromEntries(chartData.map((item, i) => [item.language, { label: item.language, color: COLORS[i % COLORS.length] }])),
+            }) satisfies ChartConfig,
+        [chartData],
+    );
+
     return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
             <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="language" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip
-                    content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                            return (
-                                <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                    <div className="grid gap-2">
-                                        <div className="flex flex-col">
-                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Language</span>
-                                            <span className="font-bold">{payload[0].payload.language}</span>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Count</span>
-                                            <span className="font-bold text-muted-foreground">{payload[0].payload.count}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        }
-                        return null;
-                    }}
-                />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="language" tickLine={false} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent nameKey="language" />} />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                 </Bar>
             </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
     );
 }

@@ -111,14 +111,16 @@ export function PortalFilters({
                                     className="pl-9 pr-8"
                                 />
                                 {searchInput && (
-                                    <button
+                                    <Button
                                         type="button"
+                                        variant="ghost"
+                                        size="icon"
                                         onClick={handleClearSearch}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 hover:bg-muted"
+                                        className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2"
                                         aria-label="Clear search"
                                     >
                                         <X className="h-3 w-3" />
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                             <Button type="submit" size="sm">

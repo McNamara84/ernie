@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type DatasetEntry = {
     id: number;
@@ -132,25 +133,19 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                                     <p className="text-sm text-muted-foreground">No datasets found with this relation type.</p>
                                 ) : (
                                     <div className="max-h-[300px] overflow-y-auto rounded-md border">
-                                        <table className="w-full text-sm">
-                                            <thead className="sticky top-0 bg-muted">
-                                                <tr>
-                                                    <th scope="col" className="p-2 text-left font-medium">
-                                                        #
-                                                    </th>
-                                                    <th scope="col" className="p-2 text-left font-medium">
-                                                        Identifier
-                                                    </th>
-                                                    <th scope="col" className="p-2 text-right font-medium">
-                                                        Count
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
+                                        <Table>
+                                            <TableHeader className="sticky top-0 bg-muted">
+                                                <TableRow>
+                                                    <TableHead>#</TableHead>
+                                                    <TableHead>Identifier</TableHead>
+                                                    <TableHead className="text-right">Count</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
                                                 {datasets.map((dataset, index) => (
-                                                    <tr key={dataset.id} className="border-t hover:bg-muted/50" title={dataset.title || undefined}>
-                                                        <td className="p-2 text-muted-foreground">{index + 1}</td>
-                                                        <td className="p-2">
+                                                    <TableRow key={dataset.id} className="hover:bg-muted/50" title={dataset.title || undefined}>
+                                                        <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                                                        <TableCell>
                                                             <div className="flex flex-col">
                                                                 <span className="font-mono text-xs">{dataset.identifier}</span>
                                                                 {dataset.title && (
@@ -159,12 +154,12 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                        </td>
-                                                        <td className="p-2 text-right font-bold">{dataset.count}</td>
-                                                    </tr>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-bold">{dataset.count}</TableCell>
+                                                    </TableRow>
                                                 ))}
-                                            </tbody>
-                                        </table>
+                                            </TableBody>
+                                        </Table>
                                     </div>
                                 )}
                             </CardContent>

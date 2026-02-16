@@ -1,15 +1,18 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
-import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { type UpdateProfileInput, updateProfileSchema } from '@/lib/validations/user';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -23,6 +26,33 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
     const { auth } = usePage<SharedData>().props;
+    const [processing, setProcessing] = useState(false);
+    const [recentlySuccessful, setRecentlySuccessful] = useState(false);
+
+    const form = useForm<UpdateProfileInput>({
+        resolver: zodResolver(updateProfileSchema),
+        defaultValues: {
+            name: auth.user.name,
+            email: auth.user.email,
+        },
+    });
+
+    const onSubmit = (data: UpdateProfileInput) => {
+        setProcessing(true);
+        router.patch(ProfileController.update.url(), data, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setRecentlySuccessful(true);
+                setTimeout(() => setRecentlySuccessful(false), 2000);
+            },
+            onError: (errors) => {
+                Object.entries(errors).forEach(([key, message]) => {
+                    form.setError(key as keyof UpdateProfileInput, { message });
+                });
+            },
+            onFinish: () => setProcessing(false),
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -32,88 +62,75 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                 <div className="space-y-6">
                     <HeadingSmall title="Profile information" description="Update your name and email address" />
 
-                    <Form
-                        {...ProfileController.update.patch()}
-                        options={{
-                            preserveScroll: true,
-                        }}
-                        className="space-y-6"
-                    >
-                        {({ processing, recentlySuccessful, errors }) => (
-                            <>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Name</Label>
-
-                                    <Input
-                                        id="name"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.name}
-                                        name="name"
-                                        required
-                                        autoComplete="name"
-                                        placeholder="Full name"
-                                    />
-
-                                    <FormError className="mt-2" message={errors.name} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email address</Label>
-
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        className="mt-1 block w-full"
-                                        defaultValue={auth.user.email}
-                                        name="email"
-                                        required
-                                        autoComplete="username"
-                                        placeholder="Email address"
-                                    />
-
-                                    <FormError className="mt-2" message={errors.email} />
-                                </div>
-
-                                {mustVerifyEmail && auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="-mt-4 text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                            >
-                                                Click here to resend the verification email.
-                                            </Link>
-                                        </p>
-
-                                        {status === 'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been sent to your email address.
-                                            </div>
-                                        )}
-                                    </div>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem className="grid gap-2">
+                                        <FormLabel>Name</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} className="mt-1 block w-full" autoComplete="name" placeholder="Full name" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
                                 )}
+                            />
 
-                                <div className="flex items-center gap-4">
-                                    <Button disabled={processing}>Save</Button>
+                            <FormField
+                                control={form.control}
+                                name="email"
+                                render={({ field }) => (
+                                    <FormItem className="grid gap-2">
+                                        <FormLabel>Email address</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} type="email" className="mt-1 block w-full" autoComplete="username" placeholder="Email address" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
-                                    <AnimatePresence>
-                                        {recentlySuccessful && (
-                                            <motion.p
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                transition={{ ease: 'easeInOut' }}
-                                                className="text-sm text-neutral-600"
-                                            >
-                                                Saved
-                                            </motion.p>
-                                        )}
-                                    </AnimatePresence>
+                            {mustVerifyEmail && auth.user.email_verified_at === null && (
+                                <div>
+                                    <p className="-mt-4 text-sm text-muted-foreground">
+                                        Your email address is unverified.{' '}
+                                        <Link
+                                            href={send()}
+                                            as="button"
+                                            className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                        >
+                                            Click here to resend the verification email.
+                                        </Link>
+                                    </p>
+
+                                    {status === 'verification-link-sent' && (
+                                        <div className="mt-2 text-sm font-medium text-green-600">
+                                            A new verification link has been sent to your email address.
+                                        </div>
+                                    )}
                                 </div>
-                            </>
-                        )}
+                            )}
+
+                            <div className="flex items-center gap-4">
+                                <Button disabled={processing}>Save</Button>
+
+                                <AnimatePresence>
+                                    {recentlySuccessful && (
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ ease: 'easeInOut' }}
+                                            className="text-sm text-neutral-600"
+                                        >
+                                            Saved
+                                        </motion.p>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </form>
                     </Form>
                 </div>
 

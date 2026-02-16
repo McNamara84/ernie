@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PlaceholderData = {
     totalPlaceholders: number;
@@ -91,22 +92,22 @@ export default function DataQualityIndicators({ placeholders, quality }: DataQua
                             {placeholders.totalPlaceholders !== 1 ? 'ies' : 'y'}:
                         </p>
                         <div className="rounded-md border">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted">
-                                    <tr>
-                                        <th className="p-2 text-left font-medium">Pattern</th>
-                                        <th className="p-2 text-right font-medium">Occurrences</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            <Table>
+                                <TableHeader className="bg-muted">
+                                    <TableRow>
+                                        <TableHead>Pattern</TableHead>
+                                        <TableHead className="text-right">Occurrences</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                     {placeholders.patterns.map((pattern) => (
-                                        <tr key={pattern.pattern} className="border-t">
-                                            <td className="p-2 font-mono text-xs">"{pattern.pattern}"</td>
-                                            <td className="p-2 text-right font-bold">{pattern.count}</td>
-                                        </tr>
+                                        <TableRow key={pattern.pattern}>
+                                            <TableCell className="font-mono text-xs">"{pattern.pattern}"</TableCell>
+                                            <TableCell className="text-right font-bold">{pattern.count}</TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     </div>
                 </div>

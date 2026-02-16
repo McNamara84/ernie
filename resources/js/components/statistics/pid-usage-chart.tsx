@@ -1,4 +1,7 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PidUsageData = {
     type: string;
@@ -53,19 +56,19 @@ export default function PidUsageChart({ data }: PidUsageChartProps) {
 
     return (
         <div className="space-y-4">
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={{ value: { label: 'Count' } } satisfies ChartConfig} className="mx-auto h-[300px] w-full">
                 <PieChart>
                     <Pie data={chartData} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value">
                         {chartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                     </Pie>
-                    <Tooltip
+                    <ChartTooltip
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                                 const data = payload[0].payload;
                                 return (
-                                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                    <div className="rounded-lg border border-border/50 bg-background p-2 shadow-xl">
                                         <div className="grid gap-2">
                                             <div className="flex flex-col">
                                                 <span className="text-[0.70rem] text-muted-foreground uppercase">Identifier Type</span>
@@ -87,31 +90,31 @@ export default function PidUsageChart({ data }: PidUsageChartProps) {
                         }}
                     />
                 </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
 
             {/* Legend Table */}
             <div className="max-h-[300px] overflow-y-auto rounded-md border">
-                <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-muted">
-                        <tr>
-                            <th className="p-2 text-left font-medium">Type</th>
-                            <th className="p-2 text-right font-medium">Count</th>
-                            <th className="p-2 text-right font-medium">Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <Table>
+                    <TableHeader className="sticky top-0 bg-muted">
+                        <TableRow>
+                            <TableHead>Type</TableHead>
+                            <TableHead className="text-right">Count</TableHead>
+                            <TableHead className="text-right">Percentage</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
                         {data.map((item, index) => (
-                            <tr key={item.type} className="border-t">
-                                <td className="flex items-center gap-2 p-2">
+                            <TableRow key={item.type}>
+                                <TableCell className="flex items-center gap-2">
                                     <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                                     {item.type}
-                                </td>
-                                <td className="p-2 text-right">{item.count.toLocaleString()}</td>
-                                <td className="p-2 text-right">{item.percentage.toFixed(2)}%</td>
-                            </tr>
+                                </TableCell>
+                                <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{item.percentage.toFixed(2)}%</TableCell>
+                            </TableRow>
                         ))}
-                    </tbody>
-                </table>
+                    </TableBody>
+                </Table>
             </div>
         </div>
     );

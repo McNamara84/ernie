@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -1147,9 +1148,9 @@ export default function OldDatasets({
                                     </Badge>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead className="bg-gray-50 dark:bg-gray-800">
-                                            <tr>
+                                    <Table>
+                                        <TableHeader className="bg-gray-50 dark:bg-gray-800">
+                                            <TableRow>
                                                 {datasetColumns.map((column) => {
                                                     const isColumnSorted =
                                                         column.sortOptions?.some((option) => option.key === sortState.key) ?? false;
@@ -1160,9 +1161,9 @@ export default function OldDatasets({
                                                         : 'none';
 
                                                     return (
-                                                        <th
+                                                        <TableHead
                                                             key={column.key}
-                                                            className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
+                                                            className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
@@ -1203,40 +1204,40 @@ export default function OldDatasets({
                                                                     {column.label}
                                                                 </div>
                                                             )}
-                                                        </th>
+                                                        </TableHead>
                                                     );
                                                 })}
-                                                <th
-                                                    className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                <TableHead
+                                                    className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
                                                     Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {(isSorting || (loading && sortedDatasets.length === 0)) && <LoadingSkeleton />}
                                             {sortedDatasets.map((dataset, index) => {
                                                 const isLast = index === sortedDatasets.length - 1;
                                                 const datasetLabel =
                                                     dataset.identifier ?? dataset.title ?? (dataset.id !== undefined ? `#${dataset.id}` : 'entry');
                                                 return (
-                                                    <tr
+                                                    <TableRow
                                                         key={deriveDatasetRowKey(dataset)}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastDatasetElementRef : null}
                                                     >
                                                         {datasetColumns.map((column) => (
-                                                            <td
+                                                            <TableCell
                                                                 key={column.key}
-                                                                className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                                className={`text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
                                                             >
                                                                 {column.render
                                                                     ? column.render(dataset)
                                                                     : formatValue(column.key, dataset[column.key])}
-                                                            </td>
+                                                            </TableCell>
                                                         ))}
-                                                        <td
-                                                            className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                        <TableCell
+                                                            className={`text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                         >
                                                             <div className="flex items-center gap-1">
                                                                 <Button
@@ -1261,13 +1262,13 @@ export default function OldDatasets({
                                                                     <Trash2 aria-hidden="true" className="size-4" />
                                                                 </Button>
                                                             </div>
-                                                        </td>
-                                                    </tr>
+                                                        </TableCell>
+                                                    </TableRow>
                                                 );
                                             })}
                                             {loading && sortedDatasets.length > 0 && <LoadingSkeleton />}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
 
                                     {!loading && !pagination.has_more && sortedDatasets.length > 0 && (
                                         <div className="py-4 text-center text-sm text-muted-foreground">
