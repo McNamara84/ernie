@@ -104,11 +104,11 @@ jobs:
             elif [ $COVERAGE -ge 70 ]; then COLOR=yellow
             elif [ $COVERAGE -ge 50 ]; then COLOR=orange
             fi
-            npx --yes badge-maker "Vitest Coverage" "$COVERAGE%" ":$COLOR" > output/vitest-coverage.svg
+            npx --yes --package=badge-maker@5.0.2 badge-maker "Vitest Coverage" "$COVERAGE%" ":$COLOR" > output/vitest-coverage.svg
             echo "Badge created with color: $COLOR"
           else
             echo "Creating fallback badge (N/A)"
-            npx --yes badge-maker "Vitest Coverage" "N/A" ":lightgrey" > output/vitest-coverage.svg
+            npx --yes --package=badge-maker@5.0.2 badge-maker "Vitest Coverage" "N/A" ":lightgrey" > output/vitest-coverage.svg
           fi
 
       - name: Git push to image-data branch
