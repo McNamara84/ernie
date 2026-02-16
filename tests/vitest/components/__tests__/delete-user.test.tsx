@@ -1,17 +1,25 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DeleteUser from '@/components/delete-user';
 
-const onErrorMock = vi.fn();
-const resetAndClearErrorsMock = vi.fn();
+const { routerMock } = vi.hoisted(() => ({
+    routerMock: {
+        delete: vi.fn(),
+    },
+}));
+
+vi.mock('@inertiajs/react', () => ({
+    router: routerMock,
+}));
 
 vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
     default: {
-        destroy: { delete: () => ({ action: '/delete', method: 'post' }) },
+        destroy: { url: () => '/profile' },
     },
 }));
 
@@ -58,33 +66,11 @@ vi.mock('@/components/ui/label', () => ({
     ),
 }));
 
-vi.mock('@inertiajs/react', () => ({
-    Form: ({
-        children,
-        onError,
-    }: {
-        children: (args: {
-            resetAndClearErrors: () => void;
-            processing: boolean;
-            errors: Record<string, string>;
-        }) => React.ReactNode;
-        onError: (errors: Record<string, string>) => void;
-    }) => {
-        onErrorMock.mockImplementation(onError);
-        return (
-            <div>
-                {children({ resetAndClearErrors: resetAndClearErrorsMock, processing: false, errors: {} })}
-            </div>
-        );
-    },
-}));
-
-vi.mock('@/components/input-error', () => {
-    const FormError = ({ message }: { message?: string }) => (message ? <div>{message}</div> : null);
-    return { default: FormError, FormError };
-});
-
 describe('DeleteUser', () => {
+    beforeEach(() => {
+        routerMock.delete.mockReset();
+    });
+
     it('renders warning and delete button', () => {
         render(<DeleteUser />);
         const buttons = screen.getAllByRole('button', { name: 'Delete account' });
@@ -94,19 +80,39 @@ describe('DeleteUser', () => {
         ).toBeInTheDocument();
     });
 
-    it('focuses password input when onError is called', () => {
+    it('shows validation error when submitting without password', async () => {
         render(<DeleteUser />);
-        const input = screen.getByPlaceholderText('Password') as HTMLInputElement;
-        expect(document.activeElement).not.toBe(input);
-        onErrorMock({});
-        expect(document.activeElement).toBe(input);
+        const user = userEvent.setup();
+
+        // Find the delete submit button inside the dialog (second one)
+        const deleteButtons = screen.getAllByRole('button', { name: 'Delete account' });
+        const submitButton = deleteButtons[deleteButtons.length - 1];
+        await user.click(submitButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/password is required to confirm deletion/i)).toBeInTheDocument();
+        });
     });
 
-    it('resets form when cancel is clicked', () => {
+    it('calls router.delete when form is submitted with valid password', async () => {
+        routerMock.delete.mockImplementation((_url: string, options?: { onFinish?: () => void }) => {
+            options?.onFinish?.();
+        });
         render(<DeleteUser />);
-        const cancelButton = screen.getByRole('button', { name: 'Cancel' });
-        fireEvent.click(cancelButton);
-        expect(resetAndClearErrorsMock).toHaveBeenCalled();
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Password'), 'mypassword');
+        const deleteButtons = screen.getAllByRole('button', { name: 'Delete account' });
+        const submitButton = deleteButtons[deleteButtons.length - 1];
+        await user.click(submitButton);
+
+        await waitFor(() => {
+            expect(routerMock.delete).toHaveBeenCalledWith(
+                '/profile',
+                expect.objectContaining({
+                    data: expect.objectContaining({ password: 'mypassword' }),
+                }),
+            );
+        });
     });
 });
-

@@ -1,5 +1,7 @@
 import type { PieLabel } from 'recharts';
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip } from '@/components/ui/chart';
 
 type IsSupplementToData = {
     withIsSupplementTo: number;
@@ -35,7 +37,7 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
 
     return (
         <div className="space-y-4">
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={{ value: { label: 'Datasets' } } satisfies ChartConfig} className="mx-auto h-[300px] w-full">
                 <PieChart>
                     <Pie
                         data={chartData}
@@ -53,12 +55,12 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
                             <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                     </Pie>
-                    <Tooltip
+                    <ChartTooltip
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                                 const data = payload[0].payload;
                                 return (
-                                    <div className="rounded-lg border bg-background p-3 shadow-sm">
+                                    <div className="rounded-lg border border-border/50 bg-background p-3 shadow-xl">
                                         <div className="grid gap-2">
                                             <div className="flex flex-col">
                                                 <span className="text-[0.70rem] text-muted-foreground uppercase">Category</span>
@@ -79,9 +81,9 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
                             return null;
                         }}
                     />
-                    <Legend />
+                    <ChartLegend content={<ChartLegendContent />} />
                 </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
 
             {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-2">

@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CsvRow {
@@ -436,23 +437,23 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                         </div>
 
                         <div className="flex-1 overflow-y-auto rounded-md border">
-                            <table className="w-full text-sm">
-                                <thead className="sticky top-0 bg-muted/50">
-                                    <tr className="border-b">
-                                        <th className="p-2 text-left">#</th>
-                                        <th className="p-2 text-left">Status</th>
-                                        <th className="p-2 text-left">Type</th>
-                                        <th className="p-2 text-left">Name</th>
-                                        <th className="p-2 text-left">ORCID</th>
-                                        <th className="p-2 text-left">Email</th>
-                                        <th className="p-2 text-left">Affiliations</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-muted/50">
+                                    <TableRow>
+                                        <TableHead>#</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>ORCID</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Affiliations</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                     {mappedData.map((row, index) => (
-                                        <tr key={index} className={row.errors && row.errors.length > 0 ? 'bg-red-50' : ''}>
-                                            <td className="p-2">{index + 1}</td>
-                                            <td className="p-2">
+                                        <TableRow key={index} className={row.errors && row.errors.length > 0 ? 'bg-red-50' : ''}>
+                                            <TableCell>{index + 1}</TableCell>
+                                            <TableCell>
                                                 {row.errors && row.errors.length > 0 ? (
                                                     <div className="flex items-start gap-1">
                                                         <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
@@ -461,22 +462,22 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                                                 ) : (
                                                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                                                 )}
-                                            </td>
-                                            <td className="p-2">{row.type || 'person'}</td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>{row.type || 'person'}</TableCell>
+                                            <TableCell>
                                                 {row.type === 'institution'
                                                     ? row.organizationName
                                                     : `${row.firstName || ''} ${row.lastName || ''}`.trim() || '-'}
-                                            </td>
-                                            <td className="p-2 font-mono text-xs">{row.orcid || '-'}</td>
-                                            <td className="p-2 text-xs">{row.email || '-'}</td>
-                                            <td className="p-2 text-xs">
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">{row.orcid || '-'}</TableCell>
+                                            <TableCell className="text-xs">{row.email || '-'}</TableCell>
+                                            <TableCell className="text-xs">
                                                 {row.affiliations && row.affiliations.length > 0 ? row.affiliations.join(', ') : '-'}
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
 
                         <div className="flex justify-between border-t pt-4">

@@ -1,9 +1,10 @@
-import { Form } from '@inertiajs/react';
-import { useRef } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { router } from '@inertiajs/react';
+import { useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import HeadingSmall from '@/components/heading-small';
-import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -15,11 +16,41 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { type DeleteAccountInput, deleteAccountSchema } from '@/lib/validations/user';
 
 export default function DeleteUser() {
+    const [processing, setProcessing] = useState(false);
     const passwordInput = useRef<HTMLInputElement>(null);
+
+    const form = useForm<DeleteAccountInput>({
+        resolver: zodResolver(deleteAccountSchema),
+        defaultValues: {
+            password: '',
+        },
+    });
+
+    const onSubmit = (data: DeleteAccountInput) => {
+        setProcessing(true);
+        router.delete(ProfileController.destroy.url(), {
+            data,
+            preserveScroll: true,
+            onError: (errors) => {
+                Object.entries(errors).forEach(([key, message]) => {
+                    form.setError(key as keyof DeleteAccountInput, { message });
+                });
+                passwordInput.current?.focus();
+            },
+            onSuccess: () => form.reset(),
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    const handleCancel = () => {
+        form.reset();
+        form.clearErrors();
+    };
 
     return (
         <div className="space-y-6">
@@ -43,47 +74,43 @@ export default function DeleteUser() {
                             </DialogDescription>
                         </DialogHeader>
 
-                        <Form
-                            {...ProfileController.destroy.delete()}
-                            options={{
-                                preserveScroll: true,
-                            }}
-                            onError={() => passwordInput.current?.focus()}
-                            resetOnSuccess
-                            className="space-y-6"
-                        >
-                            {({ resetAndClearErrors, processing, errors }) => (
-                                <>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="password" className="sr-only">
-                                            Password
-                                        </Label>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="password"
+                                    render={({ field }) => (
+                                        <FormItem className="grid gap-2">
+                                            <FormLabel className="sr-only">Password</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    ref={(e) => {
+                                                        field.ref(e);
+                                                        (passwordInput as React.MutableRefObject<HTMLInputElement | null>).current = e;
+                                                    }}
+                                                    type="password"
+                                                    placeholder="Password"
+                                                    autoComplete="current-password"
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                                        <Input
-                                            id="password"
-                                            type="password"
-                                            name="password"
-                                            ref={passwordInput}
-                                            placeholder="Password"
-                                            autoComplete="current-password"
-                                        />
-
-                                        <FormError message={errors.password} />
-                                    </div>
-
-                                    <DialogFooter className="gap-2">
-                                        <DialogClose asChild>
-                                            <Button variant="secondary" onClick={() => resetAndClearErrors()}>
-                                                Cancel
-                                            </Button>
-                                        </DialogClose>
-
-                                        <Button type="submit" variant="destructive" disabled={processing}>
-                                            Delete account
+                                <DialogFooter className="gap-2">
+                                    <DialogClose asChild>
+                                        <Button variant="secondary" onClick={handleCancel}>
+                                            Cancel
                                         </Button>
-                                    </DialogFooter>
-                                </>
-                            )}
+                                    </DialogClose>
+
+                                    <Button type="submit" variant="destructive" disabled={processing}>
+                                        Delete account
+                                    </Button>
+                                </DialogFooter>
+                            </form>
                         </Form>
                     </DialogContent>
                 </Dialog>

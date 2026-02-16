@@ -1,4 +1,7 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 type ResourceTypeData = {
     type: string;
@@ -36,44 +39,23 @@ export default function ResourceTypeChart({ data }: ResourceTypeChartProps) {
 
     return (
         <div className="space-y-4">
-            <ResponsiveContainer width="100%" height={250}>
+            <ChartContainer config={{ value: { label: 'Count' } } satisfies ChartConfig} className="mx-auto h-[250px] w-full">
                 <PieChart>
                     <Pie data={chartData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value">
                         {chartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                     </Pie>
-                    <Tooltip
-                        content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                                const data = payload[0].payload;
-                                return (
-                                    <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                        <div className="grid gap-2">
-                                            <div className="flex flex-col">
-                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Type</span>
-                                                <span className="font-bold">{data.name}</span>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Count</span>
-                                                <span className="font-bold text-muted-foreground">{data.value.toLocaleString()}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            }
-                            return null;
-                        }}
-                    />
+                    <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
                 </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
 
             <div className="rounded-md border">
-                <table className="w-full text-sm">
-                    <tbody>
+                <Table>
+                    <TableBody>
                         {data.map((item, index) => (
-                            <tr key={item.type} className="border-t first:border-t-0">
-                                <td className="flex items-center gap-2 p-2">
+                            <TableRow key={item.type}>
+                                <TableCell className="flex items-center gap-2">
                                     <div
                                         className="h-3 w-3 rounded-sm"
                                         style={{
@@ -81,12 +63,12 @@ export default function ResourceTypeChart({ data }: ResourceTypeChartProps) {
                                         }}
                                     />
                                     {item.type}
-                                </td>
-                                <td className="p-2 text-right">{item.count.toLocaleString()}</td>
-                            </tr>
+                                </TableCell>
+                                <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
+                            </TableRow>
                         ))}
-                    </tbody>
-                </table>
+                    </TableBody>
+                </Table>
             </div>
         </div>
     );

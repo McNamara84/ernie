@@ -108,7 +108,7 @@ describe('EditorSettings page', () => {
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
         screen.getAllByRole('table').forEach((table) => {
-            expect(table.parentElement).toHaveClass('overflow-x-auto');
+            expect(table.parentElement).toHaveClass('overflow-auto');
         });
         const saveButtons = screen.getAllByRole('button', { name: 'Save' });
         expect(saveButtons).toHaveLength(2);

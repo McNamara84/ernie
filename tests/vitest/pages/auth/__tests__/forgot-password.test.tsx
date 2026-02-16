@@ -1,41 +1,33 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ForgotPassword from '@/pages/auth/forgot-password';
 
-let formErrors: { email?: string };
-let formProcessing: boolean;
+const { routerMock } = vi.hoisted(() => ({
+    routerMock: {
+        post: vi.fn(),
+    },
+}));
 
 function resolveHref(href: unknown): string {
-    if (typeof href === 'string') {
-        return href;
-    }
-
+    if (typeof href === 'string') return href;
     if (href && typeof href === 'object' && 'url' in href && typeof (href as { url?: unknown }).url === 'string') {
         return (href as { url: string }).url;
     }
-
     return '';
 }
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Form: ({ children }: { children: (args: { processing: boolean; errors: typeof formErrors }) => React.ReactNode }) => (
-        <form>{children({ processing: formProcessing, errors: formErrors })}</form>
-    ),
-    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => (
-        <a href={resolveHref(href)}>{children}</a>
-    ),
+    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => <a href={resolveHref(href)}>{children}</a>,
+    router: routerMock,
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/PasswordResetLinkController', () => ({
-    default: {
-        store: {
-            post: () => ({}),
-        },
-    },
+    default: { store: { url: () => '/forgot-password' } },
 }));
 
 function createRoute(path: string) {
@@ -52,10 +44,19 @@ vi.mock('@/routes', () => ({
     changelog: createRoute('/changelog'),
 }));
 
+vi.mock('@/layouts/auth-layout', () => ({
+    default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock('@/components/text-link', () => ({
+    default: ({ href, children }: { href: string | { url: string }; children?: React.ReactNode }) => (
+        <a href={typeof href === 'string' ? href : href?.url}>{children}</a>
+    ),
+}));
+
 describe('ForgotPassword page', () => {
     beforeEach(() => {
-        formErrors = {};
-        formProcessing = false;
+        routerMock.post.mockReset();
     });
 
     it('renders email field and submit button', () => {
@@ -69,16 +70,28 @@ describe('ForgotPassword page', () => {
         expect(screen.getByText(/link sent/i)).toBeInTheDocument();
     });
 
-    it('displays validation error', () => {
-        formErrors.email = 'Email is required';
+    it('displays validation error on submit with empty email', async () => {
         render(<ForgotPassword />);
-        expect(screen.getByText(/email is required/i)).toBeInTheDocument();
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /email password reset link/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/please enter a valid email address/i)).toBeInTheDocument();
+        });
     });
 
-    it('disables submit button when processing', () => {
-        formProcessing = true;
+    it('disables submit button when processing', async () => {
+        routerMock.post.mockImplementation(() => {});
         render(<ForgotPassword />);
-        expect(screen.getByRole('button', { name: /email password reset link/i })).toBeDisabled();
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText(/email address/i), 'user@example.com');
+        await user.click(screen.getByRole('button', { name: /email password reset link/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /email password reset link/i })).toBeDisabled();
+        });
     });
 
     it('links back to login page', () => {
@@ -86,4 +99,3 @@ describe('ForgotPassword page', () => {
         expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/login');
     });
 });
-

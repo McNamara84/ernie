@@ -140,16 +140,16 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                 {/* Contact all button if multiple contact persons */}
                 {contactPersons.length > 1 && (
                     <div className="mt-4 border-t border-gray-200 pt-4">
-                        <button
+                        <Button
                             onClick={() => {
                                 setSelectedPerson(null);
                                 setIsModalOpen(true);
                             }}
-                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-gfz-primary-foreground transition-colors hover:opacity-90"
+                            className="w-full bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
                         >
                             <Mail className="h-4 w-4" />
                             Contact all ({contactPersons.length})
-                        </button>
+                        </Button>
                     </div>
                 )}
             </div>

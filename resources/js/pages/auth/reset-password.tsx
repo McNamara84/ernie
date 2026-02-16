@@ -1,12 +1,15 @@
-import { Form, Head } from '@inertiajs/react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 import NewPasswordController from '@/actions/App/Http/Controllers/Auth/NewPasswordController';
-import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
+import { type ResetPasswordInput, resetPasswordSchema } from '@/lib/validations/user';
 
 interface ResetPasswordProps {
     token: string;
@@ -14,56 +17,81 @@ interface ResetPasswordProps {
 }
 
 export default function ResetPassword({ token, email }: ResetPasswordProps) {
+    const [processing, setProcessing] = useState(false);
+    const form = useForm<ResetPasswordInput>({
+        resolver: zodResolver(resetPasswordSchema),
+        defaultValues: {
+            email,
+            password: '',
+            password_confirmation: '',
+        },
+    });
+
+    const onSubmit = (data: ResetPasswordInput) => {
+        setProcessing(true);
+        router.post(NewPasswordController.store.url(), { ...data, token }, {
+            onError: (errors) => {
+                Object.entries(errors).forEach(([key, message]) => {
+                    form.setError(key as keyof ResetPasswordInput, { message });
+                });
+            },
+            onFinish: () => setProcessing(false),
+        });
+    };
+
     return (
         <AuthLayout title="Reset password" description="Please enter your new password below">
             <Head title="Reset password" />
 
-            <Form
-                {...NewPasswordController.store.post()}
-                transform={(data) => ({ ...data, token, email })}
-                resetOnSuccess={['password', 'password_confirmation']}
-            >
-                {({ processing, errors }) => (
-                    <div className="grid gap-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input id="email" type="email" name="email" autoComplete="email" value={email} className="mt-1 block w-full" readOnly />
-                            <FormError message={errors.email} className="mt-2" />
-                        </div>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem className="grid gap-2">
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                    <Input {...field} type="email" autoComplete="email" className="mt-1 block w-full" readOnly />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                name="password"
-                                autoComplete="new-password"
-                                className="mt-1 block w-full"
-                                autoFocus
-                                placeholder="Password"
-                            />
-                            <FormError message={errors.password} />
-                        </div>
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem className="grid gap-2">
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                    <Input {...field} type="password" autoComplete="new-password" className="mt-1 block w-full" autoFocus placeholder="Password" />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">Confirm password</Label>
-                            <Input
-                                id="password_confirmation"
-                                type="password"
-                                name="password_confirmation"
-                                autoComplete="new-password"
-                                className="mt-1 block w-full"
-                                placeholder="Confirm password"
-                            />
-                            <FormError message={errors.password_confirmation} className="mt-2" />
-                        </div>
+                    <FormField
+                        control={form.control}
+                        name="password_confirmation"
+                        render={({ field }) => (
+                            <FormItem className="grid gap-2">
+                                <FormLabel>Confirm password</FormLabel>
+                                <FormControl>
+                                    <Input {...field} type="password" autoComplete="new-password" className="mt-1 block w-full" placeholder="Confirm password" />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                        <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                            {processing && <Spinner size="sm" />}
-                            Reset password
-                        </Button>
-                    </div>
-                )}
+                    <Button type="submit" className="mt-4 w-full" disabled={processing}>
+                        {processing && <Spinner size="sm" />}
+                        Reset password
+                    </Button>
+                </form>
             </Form>
         </AuthLayout>
     );

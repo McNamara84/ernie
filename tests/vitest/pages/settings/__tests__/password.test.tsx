@@ -1,19 +1,20 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Password from '@/pages/settings/password';
 
-let formErrors: Record<string, string> = {};
-let processing = false;
-let recentlySuccessful = false;
+const { routerMock } = vi.hoisted(() => ({
+    routerMock: {
+        put: vi.fn(),
+    },
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Form: ({ children }: { children: (args: { errors: typeof formErrors; processing: boolean; recentlySuccessful: boolean }) => React.ReactNode }) => (
-        <form>{children({ errors: formErrors, processing, recentlySuccessful })}</form>
-    ),
+    router: routerMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -29,14 +30,12 @@ vi.mock('@/routes/password', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Settings/PasswordController', () => ({
-    default: { update: { put: () => ({}) } },
+    default: { update: { url: () => '/settings/password' } },
 }));
 
 describe('Password settings page', () => {
     beforeEach(() => {
-        formErrors = {};
-        processing = false;
-        recentlySuccessful = false;
+        routerMock.put.mockReset();
     });
 
     it('renders fields for updating password', () => {
@@ -47,24 +46,33 @@ describe('Password settings page', () => {
         expect(screen.getByRole('button', { name: /save password/i })).toBeInTheDocument();
     });
 
-    it('shows validation errors', () => {
-        formErrors = {
-            current_password: 'Current password is required',
-            password: 'Password is required',
-            password_confirmation: 'Confirmation is required',
-        };
+    it('shows validation errors on submit with empty fields', async () => {
         render(<Password />);
-        expect(screen.getByText(/current password is required/i)).toBeInTheDocument();
-        expect(screen.getByText(/^password is required$/i)).toBeInTheDocument();
-        expect(screen.getByText(/confirmation is required/i)).toBeInTheDocument();
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /save password/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/current password is required/i)).toBeInTheDocument();
+            expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument();
+        });
     });
 
-    it('disables button when processing and shows success message', () => {
-        processing = true;
-        recentlySuccessful = true;
+    it('disables button when processing and shows success message', async () => {
+        routerMock.put.mockImplementation((_url: string, _data: unknown, options?: { onSuccess?: () => void; onFinish?: () => void }) => {
+            options?.onSuccess?.();
+            options?.onFinish?.();
+        });
         render(<Password />);
-        expect(screen.getByRole('button', { name: /save password/i })).toBeDisabled();
-        expect(screen.getByText(/saved/i)).toBeInTheDocument();
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText(/current password/i), 'oldpassword');
+        await user.type(screen.getByLabelText(/^new password$/i), 'newpassword');
+        await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
+        await user.click(screen.getByRole('button', { name: /save password/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/saved/i)).toBeInTheDocument();
+        });
     });
 });
-

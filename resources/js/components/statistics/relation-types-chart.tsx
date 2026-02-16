@@ -1,4 +1,7 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type RelationType = {
     type: string;
@@ -35,6 +38,10 @@ const COLORS = [
     '#64748b', // slate-500
 ];
 
+const chartConfig = {
+    occurrences: { label: 'Occurrences' },
+} satisfies ChartConfig;
+
 export default function RelationTypesChart({ data, limit = 15 }: RelationTypesChartProps) {
     // Take top N relation types by count
     const displayData = data.slice(0, limit);
@@ -51,20 +58,21 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
             {/* Bar Chart */}
             <div>
                 <h4 className="mb-4 text-sm font-medium">Top {limit} Relation Types by Occurrences</h4>
-                <ResponsiveContainer width="100%" height={400}>
+                <ChartContainer config={chartConfig} className="h-[400px] w-full">
                     <BarChart data={chartData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                             type="number"
-                            className="text-xs"
+                            tickLine={false}
+                            axisLine={false}
                             label={{
                                 value: 'Number of Occurrences',
                                 position: 'insideBottom',
                                 offset: -5,
                             }}
                         />
-                        <YAxis type="category" dataKey="type" className="text-xs" width={120} />
-                        <Tooltip
+                        <YAxis type="category" dataKey="type" width={120} tickLine={false} axisLine={false} />
+                        <ChartTooltip
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                     const item = payload[0].payload;
@@ -100,45 +108,45 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
                             ))}
                         </Bar>
                     </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
             </div>
 
             {/* Detailed Table */}
             <div>
                 <h4 className="mb-4 text-sm font-medium">All Relation Types - Detailed View</h4>
                 <div className="max-h-[500px] overflow-y-auto rounded-md border">
-                    <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-muted">
-                            <tr>
-                                <th className="p-2 text-left font-medium">Rank</th>
-                                <th className="p-2 text-left font-medium">Relation Type</th>
-                                <th className="p-2 text-right font-medium">Occurrences</th>
-                                <th className="p-2 text-right font-medium">Datasets</th>
-                                <th className="p-2 text-right font-medium">% of Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted">
+                            <TableRow>
+                                <TableHead>Rank</TableHead>
+                                <TableHead>Relation Type</TableHead>
+                                <TableHead className="text-right">Occurrences</TableHead>
+                                <TableHead className="text-right">Datasets</TableHead>
+                                <TableHead className="text-right">% of Total</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {data.map((item, index) => (
-                                <tr
+                                <TableRow
                                     key={item.type}
-                                    className={`border-t ${item.type === 'IsSupplementTo' ? 'bg-emerald-50 font-semibold dark:bg-emerald-950' : ''}`}
+                                    className={item.type === 'IsSupplementTo' ? 'bg-emerald-50 font-semibold dark:bg-emerald-950' : ''}
                                 >
-                                    <td className="p-2">{index + 1}</td>
-                                    <td className="p-2 font-mono text-xs">
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell className="font-mono text-xs">
                                         {item.type}
                                         {item.type === 'IsSupplementTo' && (
                                             <span className="ml-2 rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                                                 TARGET
                                             </span>
                                         )}
-                                    </td>
-                                    <td className="p-2 text-right">{item.count.toLocaleString()}</td>
-                                    <td className="p-2 text-right">{item.datasetCount.toLocaleString()}</td>
-                                    <td className="p-2 text-right font-bold">{item.percentage}%</td>
-                                </tr>
+                                    </TableCell>
+                                    <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">{item.datasetCount.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-bold">{item.percentage}%</TableCell>
+                                </TableRow>
                             ))}
-                        </tbody>
-                    </table>
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
         </div>

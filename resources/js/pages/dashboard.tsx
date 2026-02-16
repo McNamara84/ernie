@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
@@ -275,19 +276,19 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             <CardTitle>Environment</CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground">
-                            <table className="w-full">
-                                <tbody>
-                                    <tr>
-                                        <td className="py-1">ERNIE Version</td>
-                                        <td className="py-1 text-right">
+                            <Table>
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell className="py-1">ERNIE Version</TableCell>
+                                        <TableCell className="py-1 text-right">
                                             <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`}>
                                                 <Badge className="w-16 bg-[#003da6] text-white">{latestVersion}</Badge>
                                             </Link>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-1">PHP Version</td>
-                                        <td className="py-1 text-right">
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell className="py-1">PHP Version</TableCell>
+                                        <TableCell className="py-1 text-right">
                                             <a
                                                 href={`https://www.php.net/releases/${phpVersion.split('.').slice(0, 2).join('.')}/en.php`}
                                                 target="_blank"
@@ -298,11 +299,11 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                                     {phpVersion}
                                                 </Badge>
                                             </a>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-1">Laravel Version</td>
-                                        <td className="py-1 text-right">
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell className="py-1">Laravel Version</TableCell>
+                                        <TableCell className="py-1 text-right">
                                             <a
                                                 href={`https://laravel.com/docs/${laravelVersion.split('.')[0]}.x/releases`}
                                                 target="_blank"
@@ -313,10 +314,10 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                                     {laravelVersion}
                                                 </Badge>
                                             </a>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
                 </div>

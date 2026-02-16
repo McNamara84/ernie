@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -196,13 +197,12 @@ export default function AuthorItem({
                                     )}
                                 </Label>
                                 <div className="flex gap-2">
-                                    <input
+                                    <Input
                                         id={`${author.id}-orcid`}
                                         type="text"
                                         value={author.orcid || ''}
                                         onChange={(event) => handlePersonFieldChange('orcid', event.target.value)}
                                         placeholder="0000-0000-0000-0000"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                         inputMode="text"
                                         pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
                                     />

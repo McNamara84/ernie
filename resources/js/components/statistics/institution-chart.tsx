@@ -1,4 +1,7 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useMemo } from 'react';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart';
 
 type InstitutionData = {
     name: string;
@@ -38,31 +41,39 @@ export default function InstitutionChart({ data }: InstitutionChartProps) {
         color: COLORS[index % COLORS.length],
     }));
 
+    const chartConfig = useMemo(
+        () =>
+            ({
+                datasets: { label: 'Datasets' },
+            }) satisfies ChartConfig,
+        [],
+    );
+
     return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ChartContainer config={chartConfig} className="h-[400px] w-full">
             <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" className="text-xs" />
-                <YAxis type="category" dataKey="name" width={200} className="text-xs" />
-                <Tooltip
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" width={200} tickLine={false} axisLine={false} />
+                <ChartTooltip
                     content={({ active, payload }) => {
                         if (active && payload && payload.length) {
-                            const data = payload[0].payload;
+                            const item = payload[0].payload;
                             return (
-                                <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                <div className="rounded-lg border border-border/50 bg-background p-2 shadow-xl">
                                     <div className="grid gap-2">
                                         <div className="flex flex-col">
                                             <span className="text-[0.70rem] text-muted-foreground uppercase">Institution</span>
-                                            <span className="font-bold">{data.fullName}</span>
+                                            <span className="font-bold">{item.fullName}</span>
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets</span>
-                                            <span className="font-bold text-muted-foreground">{data.datasets}</span>
+                                            <span className="font-bold text-muted-foreground">{item.datasets}</span>
                                         </div>
-                                        {data.rorId && (
+                                        {item.rorId && (
                                             <div className="flex flex-col">
                                                 <span className="text-[0.70rem] text-muted-foreground uppercase">ROR ID</span>
-                                                <span className="text-xs text-muted-foreground">{data.rorId}</span>
+                                                <span className="text-xs text-muted-foreground">{item.rorId}</span>
                                             </div>
                                         )}
                                     </div>
@@ -78,6 +89,6 @@ export default function InstitutionChart({ data }: InstitutionChartProps) {
                     ))}
                 </Bar>
             </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
     );
 }

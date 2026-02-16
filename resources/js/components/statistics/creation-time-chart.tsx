@@ -1,4 +1,6 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type CreationTimeChartProps = {
     data: Array<{
@@ -6,6 +8,13 @@ type CreationTimeChartProps = {
         count: number;
     }>;
 };
+
+const chartConfig = {
+    count: {
+        label: 'Datasets Created',
+        color: '#3b82f6',
+    },
+} satisfies ChartConfig;
 
 export default function CreationTimeChart({ data }: CreationTimeChartProps) {
     // Create array with all 24 hours
@@ -18,28 +27,21 @@ export default function CreationTimeChart({ data }: CreationTimeChartProps) {
     });
 
     return (
-        <ResponsiveContainer width="100%" height={350}>
+        <ChartContainer config={chartConfig} className="h-[350px] w-full">
             <LineChart data={hourlyData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="hour" className="text-xs" tick={{ fill: 'hsl(var(--foreground))' }} angle={-45} textAnchor="end" height={80} />
-                <YAxis className="text-xs" tick={{ fill: 'hsl(var(--foreground))' }} />
-                <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '6px',
-                    }}
-                />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="hour" tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={80} />
+                <YAxis tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                     type="monotone"
                     dataKey="count"
-                    stroke="#3b82f6"
+                    stroke="var(--color-count)"
                     strokeWidth={2}
-                    dot={{ fill: '#3b82f6', r: 4 }}
+                    dot={{ fill: 'var(--color-count)', r: 4 }}
                     activeDot={{ r: 6 }}
-                    name="Datasets Created"
                 />
             </LineChart>
-        </ResponsiveContainer>
+        </ChartContainer>
     );
 }

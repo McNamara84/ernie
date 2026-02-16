@@ -1,14 +1,37 @@
-import { Form, Head } from '@inertiajs/react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 import ConfirmablePasswordController from '@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController';
-import { FormError } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
+import { type ConfirmPasswordInput, confirmPasswordSchema } from '@/lib/validations/user';
 
 export default function ConfirmPassword() {
+    const [processing, setProcessing] = useState(false);
+    const form = useForm<ConfirmPasswordInput>({
+        resolver: zodResolver(confirmPasswordSchema),
+        defaultValues: {
+            password: '',
+        },
+    });
+
+    const onSubmit = (data: ConfirmPasswordInput) => {
+        setProcessing(true);
+        router.post(ConfirmablePasswordController.store.url(), data, {
+            onError: (errors) => {
+                Object.entries(errors).forEach(([key, message]) => {
+                    form.setError(key as keyof ConfirmPasswordInput, { message });
+                });
+            },
+            onFinish: () => setProcessing(false),
+        });
+    };
+
     return (
         <AuthLayout
             title="Confirm your password"
@@ -16,24 +39,29 @@ export default function ConfirmPassword() {
         >
             <Head title="Confirm password" />
 
-            <Form {...ConfirmablePasswordController.store.post()} resetOnSuccess={['password']}>
-                {({ processing, errors }) => (
-                    <div className="space-y-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input id="password" type="password" name="password" placeholder="Password" autoComplete="current-password" autoFocus />
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem className="grid gap-2">
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                    <Input {...field} type="password" placeholder="Password" autoComplete="current-password" autoFocus />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                            <FormError message={errors.password} />
-                        </div>
-
-                        <div className="flex items-center">
-                            <Button className="w-full" disabled={processing}>
-                                {processing && <Spinner size="sm" />}
-                                Confirm password
-                            </Button>
-                        </div>
+                    <div className="flex items-center">
+                        <Button className="w-full" disabled={processing}>
+                            {processing && <Spinner size="sm" />}
+                            Confirm password
+                        </Button>
                     </div>
-                )}
+                </form>
             </Form>
         </AuthLayout>
     );

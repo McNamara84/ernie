@@ -1,5 +1,7 @@
 import type { PieLabel } from 'recharts';
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart } from 'recharts';
+
+import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip } from '@/components/ui/chart';
 
 type CoverageData = {
     withNoRelatedWorks: number;
@@ -53,7 +55,7 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
             {/* Pie Chart */}
             <div>
                 <h4 className="mb-4 text-sm font-medium">Related Works Coverage Distribution</h4>
-                <ResponsiveContainer width="100%" height={300}>
+                <ChartContainer config={{ value: { label: 'Datasets' } } satisfies ChartConfig} className="mx-auto h-[300px] w-full">
                     <PieChart>
                         <Pie
                             data={chartData}
@@ -72,12 +74,12 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                         </Pie>
-                        <Tooltip
+                        <ChartTooltip
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
                                     const item = payload[0].payload;
                                     return (
-                                        <div className="rounded-lg border bg-background p-3 shadow-sm">
+                                        <div className="rounded-lg border border-border/50 bg-background p-3 shadow-xl">
                                             <div className="grid gap-2">
                                                 <div className="flex flex-col">
                                                     <span className="text-[0.70rem] text-muted-foreground uppercase">Category</span>
@@ -98,9 +100,9 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                                 return null;
                             }}
                         />
-                        <Legend />
+                        <ChartLegend content={<ChartLegendContent />} />
                     </PieChart>
-                </ResponsiveContainer>
+                </ChartContainer>
             </div>
 
             {/* Summary Cards */}
