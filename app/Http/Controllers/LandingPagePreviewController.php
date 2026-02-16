@@ -43,7 +43,7 @@ class LandingPagePreviewController extends Controller
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true)) {
             $resource->loadMissing('resourceType');
-            if ($resource->resourceType?->name !== 'PhysicalObject') {
+            if ($resource->resourceType?->slug !== 'physical-object') {
                 return response()->json([
                     'message' => 'The IGSN template can only be used with Physical Object resources.',
                     'error' => 'invalid_template_for_resource_type',
