@@ -140,6 +140,10 @@
         ],
         "fixes": [
             {
+                "title": "DOI Duplicate Detection Modal Now Opens Correctly",
+                "description": "Fixed a critical bug where the DOI duplicate detection modal never appeared when entering a DOI that already exists in the database. The root cause was that the DOI validation API route was registered in the API middleware group which lacks session authentication, causing all validation requests to silently fail with 401 Unauthorized. The route has been moved to the web middleware group. Additionally, a pre-submit DOI duplicate check now runs before saving to prevent bypassing the check by clicking Save without blurring the DOI field. The backend now enforces DOI uniqueness via a validation rule (returning 422 with a clear error message instead of a 500 database error). DOIs are also normalized to lowercase on save for consistent duplicate detection."
+            },
+            {
                 "title": "IGSN Landing Page Preview and Publish",
                 "description": "Fixed a bug where the IGSN landing page preview and publish functionality always failed with the error 'The IGSN template can only be used with Physical Object resources'. The resource type validation incorrectly compared the resource type name against 'PhysicalObject' (camelCase without space) instead of using the slug 'physical-object', which prevented IGSN resources from using the IGSN landing page template. Both preview and publish/update are now working correctly."
             },
