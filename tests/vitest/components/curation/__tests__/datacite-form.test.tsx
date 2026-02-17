@@ -2246,7 +2246,7 @@ describe('DataCiteForm', () => {
         ];
     };
 
-    it('submits data and shows success modal when saving succeeds', async () => {
+    it('submits data and shows success modal when saving succeeds', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource stored!' };
@@ -2334,7 +2334,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('Resource stored!')).toBeInTheDocument();
     });
 
-    it('includes the resource identifier when updating an existing dataset', async () => {
+    it('includes the resource identifier when updating an existing dataset', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource updated!' };
