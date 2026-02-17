@@ -84,35 +84,31 @@ jobs:
             cat coverage/coverage-summary.json | head -c 500
           fi
 
+      - name: Install badge-maker
+        run: npm install --no-save badge-maker@5.0.2
+
       - name: Create Vitest coverage badge
         run: |
           mkdir -p output
           if [ "${{ steps.verify_coverage.outputs.exists }}" == "true" ]; then
-            COVERAGE=$(node -e "
-              const data = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json'));
-              const pct = data.total?.lines?.pct;
-              if (typeof pct === 'number' && !isNaN(pct)) {
-                console.log(Math.round(pct));
-              } else {
-                console.log(0);
-              }
-            ")
-            echo "Coverage: $COVERAGE%"
-            COLOR=red
-            if [ $COVERAGE -ge 90 ]; then COLOR=brightgreen
-            elif [ $COVERAGE -ge 80 ]; then COLOR=green
-            elif [ $COVERAGE -ge 70 ]; then COLOR=yellow
-            elif [ $COVERAGE -ge 50 ]; then COLOR=orange
-            fi
-            npx --yes --package=badge-maker@5.0.2 node -e "
+            node -e "
+              const fs = require('fs');
               const { makeBadge } = require('badge-maker');
-              const svg = makeBadge({ label: 'Vitest Coverage', message: '${COVERAGE}%', color: '${COLOR}' });
-              require('fs').writeFileSync('output/vitest-coverage.svg', svg);
+              const data = JSON.parse(fs.readFileSync('coverage/coverage-summary.json'));
+              const pct = data.total?.lines?.pct;
+              const coverage = typeof pct === 'number' && !isNaN(pct) ? Math.round(pct) : 0;
+              let color = 'red';
+              if (coverage >= 90) color = 'brightgreen';
+              else if (coverage >= 80) color = 'green';
+              else if (coverage >= 70) color = 'yellow';
+              else if (coverage >= 50) color = 'orange';
+              const svg = makeBadge({ label: 'Vitest Coverage', message: coverage + '%', color });
+              fs.writeFileSync('output/vitest-coverage.svg', svg);
+              console.log('Badge created: ' + coverage + '% (' + color + ')');
             "
-            echo "Badge created with color: $COLOR"
           else
             echo "Creating fallback badge (N/A)"
-            npx --yes --package=badge-maker@5.0.2 node -e "
+            node -e "
               const { makeBadge } = require('badge-maker');
               const svg = makeBadge({ label: 'Vitest Coverage', message: 'N/A', color: 'lightgrey' });
               require('fs').writeFileSync('output/vitest-coverage.svg', svg);
