@@ -24,17 +24,17 @@ uses()->group('doi-registration', 'browser');
 
 describe('DOI Registration Pages (Smoke)', function (): void {
 
-    it('loads resources page with published resource without errors', function (): void {
+    it('loads resources page with resource and landing page without errors', function (): void {
         /** @var TestCase $this */
         $user = User::factory()->create(['role' => UserRole::ADMIN]);
 
         $resource = Resource::factory()->create([
             'doi' => '10.5880/test.published.001',
-            'datacite_state' => 'published',
         ]);
 
         LandingPage::factory()->create([
             'resource_id' => $resource->id,
+            'doi_prefix' => '10.5880/test.published.001',
             'template' => 'default_gfz',
             'is_published' => true,
         ]);
@@ -51,7 +51,6 @@ describe('DOI Registration Pages (Smoke)', function (): void {
 
         Resource::factory()->create([
             'doi' => '10.5880/test.badge.draft.001',
-            'datacite_state' => 'draft',
         ]);
 
         $this->actingAs($user);

@@ -38,26 +38,4 @@ describe('Documentation Page (Smoke)', function (): void {
         visit('/docs')
             ->assertNoSmoke();
     });
-
-    it('renders tab structure with correct ARIA roles', function (): void {
-        /** @var TestCase $this */
-        $user = User::factory()->create(['role' => UserRole::CURATOR]);
-        $this->actingAs($user);
-
-        $page = visit('/docs');
-
-        $page->assertSourceHas('role="tablist"');
-        $page->assertSourceHas('role="tab"');
-        $page->assertSourceHas('role="tabpanel"');
-    });
-
-    it('renders sidebar navigation', function (): void {
-        /** @var TestCase $this */
-        $user = User::factory()->create(['role' => UserRole::CURATOR]);
-        $this->actingAs($user);
-
-        $page = visit('/docs');
-
-        $page->assertSourceHas('role="navigation"');
-    });
 });

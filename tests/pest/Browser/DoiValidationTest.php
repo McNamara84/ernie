@@ -109,14 +109,14 @@ describe('DOI Validation API Endpoints', function (): void {
             'role' => UserRole::CURATOR,
         ]);
 
-        // Create sequential DOIs - the service returns lowercase suggestions
-        Resource::factory()->create(['doi' => '10.5880/GFZ.1.2026.001']);
-        Resource::factory()->create(['doi' => '10.5880/GFZ.1.2026.002']);
-        Resource::factory()->create(['doi' => '10.5880/GFZ.1.2026.003']);
+        // Create sequential DOIs - stored in lowercase to match normalizeDoi() behavior
+        Resource::factory()->create(['doi' => '10.5880/gfz.1.2026.001']);
+        Resource::factory()->create(['doi' => '10.5880/gfz.1.2026.002']);
+        Resource::factory()->create(['doi' => '10.5880/gfz.1.2026.003']);
 
         $response = $this->actingAs($user)
             ->postJson('/api/v1/doi/validate', [
-                'doi' => '10.5880/GFZ.1.2026.001',
+                'doi' => '10.5880/gfz.1.2026.001',
             ]);
 
         $response->assertOk()

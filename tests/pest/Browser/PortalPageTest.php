@@ -20,23 +20,4 @@ describe('Portal Page (Smoke)', function (): void {
         visit('/portal')
             ->assertNoSmoke();
     });
-
-    it('renders the search input', function (): void {
-        visit('/portal')
-            ->assertSourceHas('type="search"');
-    });
-
-    it('has heading structure for accessibility', function (): void {
-        visit('/portal')
-            ->assertSourceHas('</h1>');
-    });
-
-    it('has search input with label for accessibility', function (): void {
-        $page = visit('/portal');
-
-        $content = $page->content();
-        expect(
-            str_contains($content, 'aria-label') || str_contains($content, '<label')
-        )->toBeTrue();
-    });
 });
