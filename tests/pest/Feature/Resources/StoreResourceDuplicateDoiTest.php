@@ -52,46 +52,45 @@ beforeEach(function () {
     ]);
 });
 
-function makePayload(array $overrides = []): array
-{
-    return array_merge([
-        'resourceId' => null,
-        'doi' => null,
-        'year' => 2026,
-        'resourceType' => ResourceType::first()->id,
-        'version' => null,
-        'language' => 'en',
-        'titles' => [
-            ['title' => 'Test Resource', 'titleType' => 'main-title'],
-        ],
-        'licenses' => ['cc-by-4'],
-        'authors' => [
-            [
-                'type' => 'person',
-                'position' => 0,
-                'firstName' => 'Jane',
-                'lastName' => 'Doe',
-                'affiliations' => [],
-            ],
-        ],
-        'descriptions' => [
-            ['descriptionType' => 'abstract', 'description' => 'Test abstract'],
-        ],
-    ], $overrides);
-}
-
 describe('Store Resource - DOI Uniqueness Validation', function () {
-    test('rejects duplicate DOI with 422 error', function () {
+    $makePayload = function (array $overrides = []): array {
+        return array_merge([
+            'resourceId' => null,
+            'doi' => null,
+            'year' => 2026,
+            'resourceType' => ResourceType::first()->id,
+            'version' => null,
+            'language' => 'en',
+            'titles' => [
+                ['title' => 'Test Resource', 'titleType' => 'main-title'],
+            ],
+            'licenses' => ['cc-by-4'],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'affiliations' => [],
+                ],
+            ],
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'Test abstract'],
+            ],
+        ], $overrides);
+    };
+
+    test('rejects duplicate DOI with 422 error', function () use ($makePayload) {
         // First, save a resource with a DOI
         $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => '10.5880/fidgeo.2026.053',
             ]))
             ->assertStatus(201);
 
         // Second, try to save another resource with the same DOI
         $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => '10.5880/fidgeo.2026.053',
                 'titles' => [
                     ['title' => 'Second Resource', 'titleType' => 'main-title'],
@@ -102,10 +101,10 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
             ->assertJsonValidationErrors(['doi']);
     });
 
-    test('allows same DOI when updating the same resource', function () {
+    test('allows same DOI when updating the same resource', function () use ($makePayload) {
         // First, save a resource with a DOI
         $createResponse = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => '10.5880/fidgeo.2026.100',
             ]));
 
@@ -114,7 +113,7 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
 
         // Update the same resource — should succeed
         $updateResponse = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'resourceId' => $resourceId,
                 'doi' => '10.5880/fidgeo.2026.100',
                 'titles' => [
@@ -125,9 +124,9 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
         $updateResponse->assertOk();
     });
 
-    test('normalizes DOI to lowercase before saving', function () {
+    test('normalizes DOI to lowercase before saving', function () use ($makePayload) {
         $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => '10.5880/FidGeo.2026.055',
             ]));
 
@@ -137,17 +136,17 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
         expect($resource->doi)->toBe('10.5880/fidgeo.2026.055');
     });
 
-    test('detects duplicate DOI case-insensitively', function () {
+    test('detects duplicate DOI case-insensitively', function () use ($makePayload) {
         // Save with lowercase DOI
         $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => '10.5880/fidgeo.2026.060',
             ]))
             ->assertStatus(201);
 
         // Try to save with different case — should be rejected
         $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => '10.5880/FIDGEO.2026.060',
                 'titles' => [
                     ['title' => 'Another Resource', 'titleType' => 'main-title'],
@@ -158,26 +157,26 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
             ->assertJsonValidationErrors(['doi']);
     });
 
-    test('allows saving resource without DOI', function () {
+    test('allows saving resource without DOI', function () use ($makePayload) {
         $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => null,
             ]));
 
         $response->assertStatus(201);
     });
 
-    test('allows multiple resources without DOI', function () {
+    test('allows multiple resources without DOI', function () use ($makePayload) {
         // First resource without DOI
         $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => null,
             ]))
             ->assertStatus(201);
 
         // Second resource without DOI
         $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), makePayload([
+            ->postJson(route('editor.resources.store'), $makePayload([
                 'doi' => null,
                 'titles' => [
                     ['title' => 'Second Resource', 'titleType' => 'main-title'],

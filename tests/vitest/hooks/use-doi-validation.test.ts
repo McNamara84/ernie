@@ -439,7 +439,7 @@ describe('useDoiValidation', () => {
     });
 
     describe('checkDoiBeforeSave', () => {
-        it('should return null for empty DOI', async () => {
+        it('should return null for empty DOI and reset state', async () => {
             const { result } = renderHook(() => useDoiValidation());
 
             let conflict: unknown;
@@ -449,9 +449,14 @@ describe('useDoiValidation', () => {
 
             expect(conflict).toBeNull();
             expect(axios.post).not.toHaveBeenCalled();
+            // Empty DOI should reset all validation state
+            expect(result.current.isValid).toBeNull();
+            expect(result.current.error).toBeNull();
+            expect(result.current.conflictData).toBeNull();
+            expect(result.current.showConflictModal).toBe(false);
         });
 
-        it('should return null when DOI is available', async () => {
+        it('should return null when DOI is available and set isValid to true', async () => {
             const mockResponse: DoiValidationResponse = {
                 is_valid_format: true,
                 exists: false,
@@ -459,7 +464,8 @@ describe('useDoiValidation', () => {
 
             vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
 
-            const { result } = renderHook(() => useDoiValidation());
+            const onSuccess = vi.fn();
+            const { result } = renderHook(() => useDoiValidation({ onSuccess }));
 
             let conflict: unknown;
             await act(async () => {
@@ -467,7 +473,11 @@ describe('useDoiValidation', () => {
             });
 
             expect(conflict).toBeNull();
+            expect(result.current.isValid).toBe(true);
             expect(result.current.showConflictModal).toBe(false);
+            expect(result.current.conflictData).toBeNull();
+            expect(result.current.error).toBeNull();
+            expect(onSuccess).toHaveBeenCalled();
         });
 
         it('should return conflict data and show modal when DOI exists', async () => {
@@ -545,7 +555,7 @@ describe('useDoiValidation', () => {
             );
         });
 
-        it('should return null when format is invalid', async () => {
+        it('should return null when format is invalid and set error state', async () => {
             const mockResponse: DoiValidationResponse = {
                 is_valid_format: false,
                 exists: false,
@@ -562,6 +572,8 @@ describe('useDoiValidation', () => {
             });
 
             expect(conflict).toBeNull();
+            expect(result.current.isValid).toBe(false);
+            expect(result.current.error).toBe('Invalid DOI format');
             expect(result.current.showConflictModal).toBe(false);
         });
     });

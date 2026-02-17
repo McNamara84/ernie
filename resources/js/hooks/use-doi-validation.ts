@@ -271,7 +271,8 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
     /**
      * Synchronous (non-debounced) DOI duplicate check for use before form submission.
      * Returns conflict data if the DOI already exists, or null if available.
-     * Also updates internal state (conflictData, showConflictModal) when a conflict is found.
+     * Also updates internal state (conflictData, showConflictModal, isValid, error)
+     * to keep hook state consistent for consumers.
      */
     const checkDoiBeforeSave = useCallback(
         async (doi: string): Promise<DoiConflictData | null> => {
@@ -289,9 +290,15 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             setIsValidating(false);
 
             const trimmedDoi = doi.trim();
-            if (!trimmedDoi) return null;
+            if (!trimmedDoi) {
+                resetValidation();
+                return null;
+            }
 
             setIsValidating(true);
+            // Clear previous conflict/error state before check
+            setError(null);
+            setConflictData(null);
             try {
                 const response = await axios.post<DoiValidationResponse>(
                     '/api/v1/doi/validate',
@@ -304,7 +311,10 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 const data = response.data;
 
                 if (!data.is_valid_format) {
-                    return null; // Format errors are handled by field-level validation
+                    // Mirror validateDoi: set error state for invalid format
+                    setIsValid(false);
+                    setError(data.error || null);
+                    return null;
                 }
 
                 if (data.exists) {
@@ -325,6 +335,11 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     return conflict;
                 }
 
+                // DOI is valid and available — update state accordingly
+                setIsValid(true);
+                setConflictData(null);
+                setShowConflictModal(false);
+                onSuccess?.();
                 return null;
             } catch {
                 // If validation request fails (network error etc.), don't block save
@@ -334,7 +349,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setIsValidating(false);
             }
         },
-        [excludeResourceId, onConflict],
+        [excludeResourceId, onConflict, onSuccess, resetValidation],
     );
 
     return {

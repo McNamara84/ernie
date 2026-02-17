@@ -743,11 +743,25 @@ class StoreResourceRequest extends FormRequest
      *
      * Reuses the normalization logic from DoiSuggestionService to ensure consistent
      * DOI handling across the entire system (validation, storage, duplicate checks).
+     *
+     * Non-string, non-numeric inputs are returned as-is so that the `string` validation
+     * rule can reject them properly instead of silently coercing them to null.
      */
-    private function normalizeDoiInput(mixed $input): ?string
+    private function normalizeDoiInput(mixed $input): mixed
     {
-        if ($input === null || ! is_string($input)) {
+        if ($input === null) {
             return null;
+        }
+
+        // Allow numeric scalars to be cast to string for normalization
+        if (is_numeric($input)) {
+            $input = (string) $input;
+        }
+
+        // Non-string types (arrays, objects, booleans) are returned as-is
+        // so that Laravel's `string` validation rule rejects them
+        if (! is_string($input)) {
+            return $input;
         }
 
         $normalized = app(DoiSuggestionService::class)->normalizeDoi($input);
