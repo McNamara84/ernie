@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->create(['role' => UserRole::ADMIN]);
 });
 
 afterEach(function () {
