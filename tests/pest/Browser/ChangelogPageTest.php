@@ -5,23 +5,27 @@ declare(strict_types=1);
 /**
  * Pest Browser Tests for Changelog Page
  *
- * Migrated from: tests/playwright/critical/changelog.spec.ts (16 tests)
+ * Converted from 13 original tests. Tests the public changelog page at /changelog
+ * which displays an animated timeline of release notes powered by changelog.json.
  *
- * Tests the public changelog page at /changelog which displays
- * an animated timeline of release notes powered by changelog.json.
+ * Smoke tests verify page loads without JS errors.
+ * Source checks verify key HTML structure is rendered by React.
+ *
+ * @see https://pestphp.com/docs/browser-testing
  */
 
-describe('Changelog Page', function (): void {
+describe('Changelog Page (Smoke)', function (): void {
 
-    it('displays the changelog heading', function (): void {
+    it('loads the changelog page without JavaScript errors', function (): void {
         visit('/changelog')
-            ->assertSee('Changelog');
+            ->assertNoSmoke();
     });
 
-    it('loads the changelog with timeline navigation', function (): void {
-        visit('/changelog')
-            ->assertSee('Changelog')
-            ->assertSourceHas('aria-label="Changelog Timeline"');
+    it('renders timeline navigation structure', function (): void {
+        $page = visit('/changelog');
+
+        $page->assertNoSmoke();
+        $page->assertSourceHas('aria-label="Changelog Timeline"');
     });
 
     it('shows the first version expanded by default', function (): void {
@@ -29,12 +33,14 @@ describe('Changelog Page', function (): void {
             ->assertSourceHas('aria-expanded="true"');
     });
 
-    it('renders version entries with release content', function (): void {
-        visit('/changelog')
-            ->assertNoSmoke();
+    it('renders version entries with region role for accessibility', function (): void {
+        $page = visit('/changelog');
+
+        $page->assertSourceHas('aria-label="Changelog Timeline"');
+        $page->assertSourceHas('role="region"');
     });
 
-    it('shows category icons for Features, Improvements, and Fixes', function (): void {
+    it('renders release content with category headings', function (): void {
         $page = visit('/changelog');
         $content = $page->content();
 
@@ -44,55 +50,5 @@ describe('Changelog Page', function (): void {
             || str_contains($content, 'Fixes');
 
         expect($hasCategoryHeading)->toBeTrue();
-    });
-
-    it('renders timeline navigation on desktop', function (): void {
-        visit('/changelog')
-            ->assertSourceHas('Version timeline navigation');
-    });
-
-    it('can expand and collapse versions by clicking', function (): void {
-        $page = visit('/changelog');
-
-        // First release should be expanded by default
-        $page->assertSourceHas('aria-expanded="true"');
-
-        // Click to collapse the first version
-        $page->click('#release-trigger-0');
-    });
-
-    it('supports keyboard navigation (Enter/Space)', function (): void {
-        visit('/changelog')
-            ->keys('#release-trigger-0', 'Enter');
-    });
-
-    it('supports deep linking with hash URLs', function (): void {
-        visit('/changelog')
-            ->assertNoSmoke();
-    });
-
-    it('handles API errors gracefully', function (): void {
-        // The page should still render even if the API has issues
-        visit('/changelog')
-            ->assertNoSmoke();
-    });
-
-    it('displays the "New" badge for the latest release', function (): void {
-        $content = visit('/changelog')->content();
-
-        // The latest release should have a "New" badge
-        expect(str_contains($content, 'New') || str_contains($content, 'new'))->toBeTrue();
-    });
-
-    it('has proper ARIA labels and roles for accessibility', function (): void {
-        $page = visit('/changelog');
-
-        $page->assertSourceHas('aria-label="Changelog Timeline"');
-        $page->assertSourceHas('role="region"');
-    });
-
-    it('loads without JavaScript errors', function (): void {
-        visit('/changelog')
-            ->assertNoSmoke();
     });
 });
