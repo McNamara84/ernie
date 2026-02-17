@@ -111,9 +111,11 @@ describe('URL accessors', function () {
     });
 
     test('preview_url returns null without token', function () {
-        $landingPage = LandingPage::factory()->create(['preview_token' => null]);
+        $landingPage = LandingPage::factory()->create();
+        // Bypass boot event that auto-generates token by updating directly
+        $landingPage->forceFill(['preview_token' => null])->saveQuietly();
 
-        expect($landingPage->preview_url)->toBeNull();
+        expect($landingPage->fresh()->preview_url)->toBeNull();
     });
 
     test('contact_url appends /contact to public path', function () {

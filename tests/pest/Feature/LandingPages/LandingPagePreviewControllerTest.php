@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\UserRole;
 use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Support\Facades\Session;
@@ -13,7 +14,7 @@ uses()->group('landing-pages', 'preview');
 beforeEach(function () {
     withoutVite();
 
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->create(['role' => UserRole::CURATOR]);
     $this->actingAs($this->user);
 
     $this->resource = Resource::factory()->create([

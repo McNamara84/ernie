@@ -27,19 +27,15 @@ describe('fullName accessor', function () {
     });
 
     test('returns given name only when family name is absent', function () {
-        $person = Person::factory()->create([
-            'given_name' => 'Ada',
-            'family_name' => null,
-        ]);
+        // family_name is NOT NULL in DB, so use in-memory model to test accessor
+        $person = new Person(['given_name' => 'Ada', 'family_name' => null]);
 
         expect($person->fullName)->toBe('Ada');
     });
 
     test('returns empty string when both names are null', function () {
-        $person = Person::factory()->create([
-            'given_name' => null,
-            'family_name' => null,
-        ]);
+        // Both columns may be NOT NULL in DB, so use in-memory model to test accessor
+        $person = new Person(['given_name' => null, 'family_name' => null]);
 
         expect($person->fullName)->toBe('');
     });

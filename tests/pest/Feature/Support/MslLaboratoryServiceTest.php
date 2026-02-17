@@ -131,8 +131,8 @@ describe('clearCache', function () {
 
         $this->service->clearCache();
 
-        fakeLabResponse([defaultLab()]);
-
+        // After clearing cache, the next call should make a new HTTP request
+        // Don't re-fake to avoid resetting the request counter
         $this->service->findByLabId('test123');
         Http::assertSentCount(2);
     });

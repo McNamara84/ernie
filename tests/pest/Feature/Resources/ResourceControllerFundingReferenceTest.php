@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\FundingReference;
 use App\Models\Language;
 use App\Models\Resource;
@@ -14,46 +15,55 @@ beforeEach(function () {
     $this->user = User::factory()->create();
     $this->resourceType = ResourceType::create([
         'name' => 'Dataset',
-        'slug' => 'dataset',
+        'slug' => 'Dataset',
+        'is_active' => true,
+        'is_elmo_active' => true,
     ]);
     $this->language = Language::create([
         'code' => 'en',
         'name' => 'English',
-        'is_active' => true,
-        'is_elmo_active' => true,
+        'active' => true,
+        'elmo_active' => true,
     ]);
     $this->right = Right::create([
         'identifier' => 'cc-by-4',
         'name' => 'Creative Commons Attribution 4.0',
+        'is_active' => true,
+        'is_elmo_active' => true,
     ]);
-    $this->titleType = TitleType::create([
-        'name' => 'Main Title',
-        'slug' => 'main-title',
+    $this->titleType = TitleType::firstOrCreate(
+        ['slug' => 'MainTitle'],
+        ['name' => 'Main Title', 'is_active' => true, 'is_elmo_active' => true]
+    );
+    DescriptionType::create([
+        'name' => 'Abstract',
+        'slug' => 'Abstract',
+        'is_active' => true,
     ]);
 });
 
 function getValidPayload(array $overrides = []): array
 {
     return array_merge([
-        'publicationYear' => 2024,
+        'year' => 2024,
         'resourceType' => (string) test()->resourceType->id,
         'language' => 'en',
         'titles' => [
-            ['value' => 'Test Resource', 'titleType' => 'main-title'],
+            ['title' => 'Test Resource', 'titleType' => 'main-title'],
         ],
-        'rights' => ['cc-by-4'],
-        'creators' => [
+        'licenses' => ['cc-by-4'],
+        'authors' => [
             [
                 'type' => 'person',
-                'givenName' => 'John',
-                'familyName' => 'Doe',
+                'firstName' => 'John',
+                'lastName' => 'Doe',
                 'position' => 0,
                 'affiliations' => [],
             ],
         ],
         'descriptions' => [
             [
-                'descriptionType' => 'Abstract',
+                'descriptionType' => 'abstract',
                 'description' => 'This is a test abstract.',
             ],
         ],
@@ -256,22 +266,7 @@ describe('validation', function () {
     });
 
     test('validates funder identifier type', function () {
-        $payload = [
-            'publicationYear' => 2024,
-            'resourceType' => (string) $this->resourceType->id,
-            'language' => 'en',
-            'titles' => [
-                ['value' => 'Test Resource', 'titleType' => 'main-title'],
-            ],
-            'creators' => [
-                [
-                    'type' => 'person',
-                    'givenName' => 'John',
-                    'familyName' => 'Doe',
-                    'position' => 0,
-                    'affiliations' => [],
-                ],
-            ],
+        $payload = getValidPayload([
             'fundingReferences' => [
                 [
                     'funderName' => 'Test Funder',
@@ -282,7 +277,7 @@ describe('validation', function () {
                     'awardTitle' => '',
                 ],
             ],
-        ];
+        ]);
 
         $this->actingAs($this->user)
             ->postJson(route('editor.resources.store'), $payload)
@@ -291,22 +286,7 @@ describe('validation', function () {
     });
 
     test('validates award uri format', function () {
-        $payload = [
-            'publicationYear' => 2024,
-            'resourceType' => (string) $this->resourceType->id,
-            'language' => 'en',
-            'titles' => [
-                ['value' => 'Test Resource', 'titleType' => 'main-title'],
-            ],
-            'creators' => [
-                [
-                    'type' => 'person',
-                    'givenName' => 'John',
-                    'familyName' => 'Doe',
-                    'position' => 0,
-                    'affiliations' => [],
-                ],
-            ],
+        $payload = getValidPayload([
             'fundingReferences' => [
                 [
                     'funderName' => 'Test Funder',
@@ -317,7 +297,7 @@ describe('validation', function () {
                     'awardTitle' => '',
                 ],
             ],
-        ];
+        ]);
 
         $this->actingAs($this->user)
             ->postJson(route('editor.resources.store'), $payload)

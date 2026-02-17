@@ -60,7 +60,9 @@ describe('ernie', function () {
 
 describe('elmo', function () {
     test('returns active and elmo-active licenses', function () {
-        $response = $this->getJson('/api/v1/licenses/elmo');
+        $response = $this->getJson('/api/v1/licenses/elmo', [
+            'X-API-Key' => config('services.ernie.api_key'),
+        ]);
 
         $response->assertOk()
             ->assertJsonCount(1);
@@ -71,7 +73,9 @@ describe('elmo', function () {
 
 describe('elmoForResourceType', function () {
     test('returns 404 for unknown resource type', function () {
-        $response = $this->getJson('/api/v1/licenses/elmo/nonexistent-type');
+        $response = $this->getJson('/api/v1/licenses/elmo/nonexistent-type', [
+            'X-API-Key' => config('services.ernie.api_key'),
+        ]);
 
         $response->assertNotFound()
             ->assertJson(['message' => 'Resource type not found.']);
@@ -80,7 +84,9 @@ describe('elmoForResourceType', function () {
     test('returns licenses for valid resource type', function () {
         ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
-        $response = $this->getJson('/api/v1/licenses/elmo/dataset');
+        $response = $this->getJson('/api/v1/licenses/elmo/dataset', [
+            'X-API-Key' => config('services.ernie.api_key'),
+        ]);
 
         $response->assertOk();
     });

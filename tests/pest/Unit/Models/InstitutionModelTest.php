@@ -10,49 +10,55 @@ describe('Institution model with identifiers', function () {
     test('can create institution with labid', function () {
         $institution = Institution::create([
             'name' => 'Test Laboratory',
-            'identifier' => 'abc123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'abc123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
         $this->assertDatabaseHas('institutions', [
             'name' => 'Test Laboratory',
-            'identifier' => 'abc123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'abc123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
-        expect($institution->identifier)->toBe('abc123')
-            ->and($institution->identifier_type)->toBe('labid');
+        expect($institution->name_identifier)->toBe('abc123')
+            ->and($institution->name_identifier_scheme)->toBe('labid');
     });
 
     test('can create institution with ror', function () {
         $institution = Institution::create([
             'name' => 'Test University',
-            'identifier' => 'https://ror.org/test123',
-            'identifier_type' => 'ROR',
+            'name_identifier' => 'https://ror.org/test123',
+            'name_identifier_scheme' => 'ROR',
         ]);
 
         $this->assertDatabaseHas('institutions', [
             'name' => 'Test University',
-            'identifier' => 'https://ror.org/test123',
-            'identifier_type' => 'ROR',
+            'name_identifier' => 'https://ror.org/test123',
+            'name_identifier_scheme' => 'ROR',
         ]);
 
-        expect($institution->identifier)->toBe('https://ror.org/test123')
-            ->and($institution->identifier_type)->toBe('ROR');
+        expect($institution->name_identifier)->toBe('https://ror.org/test123')
+            ->and($institution->name_identifier_scheme)->toBe('ROR');
     });
 
-    test('can create institution with legacy ror_id', function () {
+    test('ror_id accessor returns name_identifier for ROR institutions', function () {
         $institution = Institution::create([
-            'name' => 'Legacy University',
-            'ror_id' => 'https://ror.org/legacy',
-        ]);
-
-        $this->assertDatabaseHas('institutions', [
-            'name' => 'Legacy University',
-            'ror_id' => 'https://ror.org/legacy',
+            'name' => 'ROR University',
+            'name_identifier' => 'https://ror.org/legacy',
+            'name_identifier_scheme' => 'ROR',
         ]);
 
         expect($institution->ror_id)->toBe('https://ror.org/legacy');
+    });
+
+    test('ror_id accessor returns null for non-ROR institutions', function () {
+        $institution = Institution::create([
+            'name' => 'Lab',
+            'name_identifier' => 'lab123',
+            'name_identifier_scheme' => 'labid',
+        ]);
+
+        expect($institution->ror_id)->toBeNull();
     });
 
     test('can create institution without identifier', function () {
@@ -62,12 +68,12 @@ describe('Institution model with identifiers', function () {
 
         $this->assertDatabaseHas('institutions', [
             'name' => 'Simple Institution',
-            'identifier' => null,
-            'identifier_type' => null,
+            'name_identifier' => null,
+            'name_identifier_scheme' => null,
         ]);
 
-        expect($institution->identifier)->toBeNull()
-            ->and($institution->identifier_type)->toBeNull();
+        expect($institution->name_identifier)->toBeNull()
+            ->and($institution->name_identifier_scheme)->toBeNull();
     });
 });
 
@@ -75,8 +81,8 @@ describe('Institution type checks', function () {
     test('isLaboratory returns true for labid', function () {
         $lab = Institution::create([
             'name' => 'Test Lab',
-            'identifier' => 'lab123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'lab123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
         expect($lab->isLaboratory())->toBeTrue();
@@ -85,14 +91,14 @@ describe('Institution type checks', function () {
     test('isLaboratory returns false for non-labid', function () {
         $institution = Institution::create([
             'name' => 'Test University',
-            'identifier' => 'https://ror.org/test',
-            'identifier_type' => 'ROR',
+            'name_identifier' => 'https://ror.org/test',
+            'name_identifier_scheme' => 'ROR',
         ]);
 
         expect($institution->isLaboratory())->toBeFalse();
     });
 
-    test('isLaboratory returns false when no identifier type', function () {
+    test('isLaboratory returns false when no identifier scheme', function () {
         $institution = Institution::create([
             'name' => 'Simple Institution',
         ]);
@@ -100,85 +106,85 @@ describe('Institution type checks', function () {
         expect($institution->isLaboratory())->toBeFalse();
     });
 
-    test('isRorInstitution returns true for ROR', function () {
+    test('hasRor returns true for ROR', function () {
         $institution = Institution::create([
             'name' => 'ROR University',
-            'identifier' => 'https://ror.org/test',
-            'identifier_type' => 'ROR',
+            'name_identifier' => 'https://ror.org/test',
+            'name_identifier_scheme' => 'ROR',
         ]);
 
-        expect($institution->isRorInstitution())->toBeTrue();
+        expect($institution->hasRor())->toBeTrue();
     });
 
-    test('isRorInstitution returns false for non-ROR', function () {
+    test('hasRor returns false for non-ROR', function () {
         $lab = Institution::create([
             'name' => 'Test Lab',
-            'identifier' => 'lab123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'lab123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
-        expect($lab->isRorInstitution())->toBeFalse();
+        expect($lab->hasRor())->toBeFalse();
     });
 
-    test('isRorInstitution returns false when no identifier type', function () {
+    test('hasRor returns false when no identifier scheme', function () {
         $institution = Institution::create([
             'name' => 'Simple Institution',
         ]);
 
-        expect($institution->isRorInstitution())->toBeFalse();
+        expect($institution->hasRor())->toBeFalse();
     });
 });
 
 describe('Institution constraints', function () {
-    test('unique constraint on identifier and type', function () {
+    test('unique constraint on name and name_identifier', function () {
         Institution::create([
             'name' => 'First Lab',
-            'identifier' => 'same123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'same123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
         expect(fn () => Institution::create([
-            'name' => 'Second Lab',
-            'identifier' => 'same123',
-            'identifier_type' => 'labid',
+            'name' => 'First Lab',
+            'name_identifier' => 'same123',
+            'name_identifier_scheme' => 'labid',
         ]))->toThrow(\Illuminate\Database\QueryException::class);
     });
 
-    test('same identifier with different type is allowed', function () {
-        $lab = Institution::create([
-            'name' => 'Lab',
-            'identifier' => 'abc123',
-            'identifier_type' => 'labid',
+    test('same name_identifier with different name is allowed', function () {
+        $first = Institution::create([
+            'name' => 'Lab A',
+            'name_identifier' => 'abc123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
-        $other = Institution::create([
-            'name' => 'Other',
-            'identifier' => 'abc123',
-            'identifier_type' => 'ISNI',
+        $second = Institution::create([
+            'name' => 'Lab B',
+            'name_identifier' => 'abc123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
-        expect($lab->id)->not->toBe($other->id);
+        expect($first->id)->not->toBe($second->id);
     });
 });
 
 describe('Institution updates', function () {
-    test('can update institution identifier', function () {
+    test('can update institution name_identifier', function () {
         $institution = Institution::create([
             'name' => 'Test Lab',
-            'identifier' => 'old123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'old123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
-        $institution->update(['identifier' => 'new456']);
+        $institution->update(['name_identifier' => 'new456']);
 
-        expect($institution->fresh()->identifier)->toBe('new456');
+        expect($institution->fresh()->name_identifier)->toBe('new456');
     });
 
     test('can update institution name', function () {
         $institution = Institution::create([
             'name' => 'Old Name',
-            'identifier' => 'lab123',
-            'identifier_type' => 'labid',
+            'name_identifier' => 'lab123',
+            'name_identifier_scheme' => 'labid',
         ]);
 
         $institution->update(['name' => 'New Name']);
@@ -186,14 +192,14 @@ describe('Institution updates', function () {
         expect($institution->fresh()->name)->toBe('New Name');
     });
 
-    test('fillable includes new fields', function () {
+    test('fillable includes correct fields', function () {
         $institution = new Institution;
         $fillable = $institution->getFillable();
 
         expect($fillable)
-            ->toContain('identifier')
-            ->toContain('identifier_type')
             ->toContain('name')
-            ->toContain('ror_id');
+            ->toContain('name_identifier')
+            ->toContain('name_identifier_scheme')
+            ->toContain('name_identifier_scheme_uri');
     });
 });

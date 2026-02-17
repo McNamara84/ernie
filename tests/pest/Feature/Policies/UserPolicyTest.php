@@ -8,24 +8,28 @@ use App\Models\User;
 describe('viewAny', function () {
     test('admin can view user management', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $this->actingAs($admin);
 
         expect($admin->can('viewAny', User::class))->toBeTrue();
     });
 
     test('group leader can view user management', function () {
         $leader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+        $this->actingAs($leader);
 
         expect($leader->can('viewAny', User::class))->toBeTrue();
     });
 
     test('curator cannot view user management', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+        $this->actingAs($curator);
 
         expect($curator->can('viewAny', User::class))->toBeFalse();
     });
 
     test('beginner cannot view user management', function () {
         $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($beginner);
 
         expect($beginner->can('viewAny', User::class))->toBeFalse();
     });
@@ -34,6 +38,7 @@ describe('viewAny', function () {
 describe('view', function () {
     test('user can view own profile', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($user);
 
         expect($user->can('view', $user))->toBeTrue();
     });
@@ -41,6 +46,7 @@ describe('view', function () {
     test('admin can view other users', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $other = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($admin);
 
         expect($admin->can('view', $other))->toBeTrue();
     });
@@ -48,6 +54,7 @@ describe('view', function () {
     test('beginner cannot view other users', function () {
         $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
         $other = User::factory()->create(['role' => UserRole::CURATOR]);
+        $this->actingAs($beginner);
 
         expect($beginner->can('view', $other))->toBeFalse();
     });
@@ -56,18 +63,21 @@ describe('view', function () {
 describe('create', function () {
     test('admin can create users', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $this->actingAs($admin);
 
         expect($admin->can('create', User::class))->toBeTrue();
     });
 
     test('group leader can create users', function () {
         $leader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+        $this->actingAs($leader);
 
         expect($leader->can('create', User::class))->toBeTrue();
     });
 
     test('curator cannot create users', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+        $this->actingAs($curator);
 
         expect($curator->can('create', User::class))->toBeFalse();
     });
@@ -76,6 +86,7 @@ describe('create', function () {
 describe('update', function () {
     test('user can update own profile', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($user);
 
         expect($user->can('update', $user))->toBeTrue();
     });
@@ -83,6 +94,7 @@ describe('update', function () {
     test('admin can update other users', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $other = User::factory()->create(['role' => UserRole::CURATOR]);
+        $this->actingAs($admin);
 
         expect($admin->can('update', $other))->toBeTrue();
     });
@@ -90,6 +102,7 @@ describe('update', function () {
     test('curator cannot update other users', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
         $other = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($curator);
 
         expect($curator->can('update', $other))->toBeFalse();
     });
@@ -99,6 +112,7 @@ describe('changeRole', function () {
     test('admin can change role to any role', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($admin);
 
         foreach (UserRole::cases() as $role) {
             $response = app(\App\Policies\UserPolicy::class)->changeRole($admin, $target, $role);
@@ -109,6 +123,7 @@ describe('changeRole', function () {
     test('group leader can change role to curator or beginner only', function () {
         $leader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
         $target = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($leader);
 
         $curatorResponse = app(\App\Policies\UserPolicy::class)->changeRole($leader, $target, UserRole::CURATOR);
         expect($curatorResponse->allowed())->toBeTrue();
@@ -125,6 +140,7 @@ describe('changeRole', function () {
 
     test('user cannot change own role', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->changeRole($admin, $admin, UserRole::CURATOR);
 
@@ -133,8 +149,10 @@ describe('changeRole', function () {
     });
 
     test('cannot change role of user id 1', function () {
-        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        // Create the system admin first to claim id=1
         $systemAdmin = User::factory()->create(['id' => 1, 'role' => UserRole::ADMIN]);
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->changeRole($admin, $systemAdmin, UserRole::CURATOR);
 
@@ -145,6 +163,7 @@ describe('changeRole', function () {
     test('curator cannot change any roles', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
         $target = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($curator);
 
         $response = app(\App\Policies\UserPolicy::class)->changeRole($curator, $target, UserRole::CURATOR);
 
@@ -156,6 +175,7 @@ describe('deactivate', function () {
     test('admin can deactivate active user', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create(['role' => UserRole::CURATOR, 'is_active' => true]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->deactivate($admin, $target);
 
@@ -164,6 +184,7 @@ describe('deactivate', function () {
 
     test('cannot deactivate yourself', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN, 'is_active' => true]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->deactivate($admin, $admin);
 
@@ -172,8 +193,9 @@ describe('deactivate', function () {
     });
 
     test('cannot deactivate user id 1', function () {
-        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $systemAdmin = User::factory()->create(['id' => 1, 'role' => UserRole::ADMIN, 'is_active' => true]);
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->deactivate($admin, $systemAdmin);
 
@@ -183,6 +205,7 @@ describe('deactivate', function () {
     test('cannot deactivate already inactive user', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create(['role' => UserRole::CURATOR, 'is_active' => false]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->deactivate($admin, $target);
 
@@ -193,6 +216,7 @@ describe('deactivate', function () {
     test('curator cannot deactivate users', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
         $target = User::factory()->create(['role' => UserRole::BEGINNER, 'is_active' => true]);
+        $this->actingAs($curator);
 
         $response = app(\App\Policies\UserPolicy::class)->deactivate($curator, $target);
 
@@ -204,6 +228,7 @@ describe('reactivate', function () {
     test('admin can reactivate inactive user', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create(['role' => UserRole::CURATOR, 'is_active' => false]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->reactivate($admin, $target);
 
@@ -213,6 +238,7 @@ describe('reactivate', function () {
     test('cannot reactivate already active user', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create(['role' => UserRole::CURATOR, 'is_active' => true]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->reactivate($admin, $target);
 
@@ -223,6 +249,7 @@ describe('reactivate', function () {
     test('curator cannot reactivate users', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
         $target = User::factory()->create(['role' => UserRole::BEGINNER, 'is_active' => false]);
+        $this->actingAs($curator);
 
         $response = app(\App\Policies\UserPolicy::class)->reactivate($curator, $target);
 
@@ -234,6 +261,7 @@ describe('resetPassword', function () {
     test('admin can reset password of other user', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create(['role' => UserRole::CURATOR]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->resetPassword($admin, $target);
 
@@ -241,8 +269,9 @@ describe('resetPassword', function () {
     });
 
     test('cannot reset password of user id 1 unless you are user id 1', function () {
-        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $systemAdmin = User::factory()->create(['id' => 1, 'role' => UserRole::ADMIN]);
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $this->actingAs($admin);
 
         $response = app(\App\Policies\UserPolicy::class)->resetPassword($admin, $systemAdmin);
 
@@ -251,6 +280,7 @@ describe('resetPassword', function () {
 
     test('user id 1 can reset own password', function () {
         $systemAdmin = User::factory()->create(['id' => 1, 'role' => UserRole::ADMIN]);
+        $this->actingAs($systemAdmin);
 
         $response = app(\App\Policies\UserPolicy::class)->resetPassword($systemAdmin, $systemAdmin);
 
@@ -260,6 +290,7 @@ describe('resetPassword', function () {
     test('curator cannot reset passwords', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
         $target = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $this->actingAs($curator);
 
         $response = app(\App\Policies\UserPolicy::class)->resetPassword($curator, $target);
 
@@ -271,6 +302,7 @@ describe('delete and restore', function () {
     test('nobody can delete users', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create();
+        $this->actingAs($admin);
 
         expect($admin->can('delete', $target))->toBeFalse();
     });
@@ -278,6 +310,7 @@ describe('delete and restore', function () {
     test('nobody can restore users', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create();
+        $this->actingAs($admin);
 
         expect($admin->can('restore', $target))->toBeFalse();
     });
@@ -285,6 +318,7 @@ describe('delete and restore', function () {
     test('nobody can force delete users', function () {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
         $target = User::factory()->create();
+        $this->actingAs($admin);
 
         expect($admin->can('forceDelete', $target))->toBeFalse();
     });

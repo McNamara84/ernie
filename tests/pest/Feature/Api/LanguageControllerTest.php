@@ -5,9 +5,9 @@ declare(strict_types=1);
 use App\Models\Language;
 
 beforeEach(function () {
-    Language::create(['code' => 'en', 'name' => 'English', 'is_active' => true, 'is_elmo_active' => true]);
-    Language::create(['code' => 'de', 'name' => 'German', 'is_active' => true, 'is_elmo_active' => false]);
-    Language::create(['code' => 'fr', 'name' => 'French', 'is_active' => false, 'is_elmo_active' => false]);
+    Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::create(['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => false]);
+    Language::create(['code' => 'fr', 'name' => 'French', 'active' => false, 'elmo_active' => false]);
 });
 
 describe('index', function () {
@@ -49,7 +49,9 @@ describe('ernie', function () {
 
 describe('elmo', function () {
     test('returns only active and elmo-active languages', function () {
-        $response = $this->getJson('/api/v1/languages/elmo');
+        $response = $this->getJson('/api/v1/languages/elmo', [
+            'X-API-Key' => config('services.ernie.api_key'),
+        ]);
 
         $response->assertOk()
             ->assertJsonCount(1);
