@@ -80,6 +80,8 @@ export interface UseDoiValidationResult {
     validateDoi: (doi: string) => void;
     /** Function to reset the validation state */
     resetValidation: () => void;
+    /** Synchronous DOI duplicate check for use before form submission (no debounce) */
+    checkDoiBeforeSave: (doi: string) => Promise<DoiConflictData | null>;
 }
 
 /**
@@ -266,6 +268,67 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation],
     );
 
+    /**
+     * Synchronous (non-debounced) DOI duplicate check for use before form submission.
+     * Returns conflict data if the DOI already exists, or null if available.
+     * Also updates internal state (conflictData, showConflictModal) when a conflict is found.
+     */
+    const checkDoiBeforeSave = useCallback(
+        async (doi: string): Promise<DoiConflictData | null> => {
+            // Cancel any pending debounced request
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+
+            const trimmedDoi = doi.trim();
+            if (!trimmedDoi) return null;
+
+            try {
+                const response = await axios.post<DoiValidationResponse>(
+                    '/api/v1/doi/validate',
+                    {
+                        doi: trimmedDoi,
+                        exclude_resource_id: excludeResourceId,
+                    },
+                );
+
+                const data = response.data;
+
+                if (!data.is_valid_format) {
+                    return null; // Format errors are handled by field-level validation
+                }
+
+                if (data.exists) {
+                    const suggestedDoi = data.suggested_doi ?? null;
+                    const conflict: DoiConflictData = {
+                        existingDoi: trimmedDoi,
+                        existingResourceId: data.existing_resource?.id,
+                        existingResourceTitle: data.existing_resource?.title ?? undefined,
+                        lastAssignedDoi: data.last_assigned_doi ?? trimmedDoi,
+                        suggestedDoi: suggestedDoi ?? '',
+                        hasSuggestion: suggestedDoi !== null,
+                    };
+
+                    setConflictData(conflict);
+                    setShowConflictModal(true);
+                    setIsValid(false);
+                    onConflict?.(conflict);
+                    return conflict;
+                }
+
+                return null;
+            } catch {
+                // If validation request fails (network error etc.), don't block save
+                // Let the backend unique constraint handle it
+                return null;
+            }
+        },
+        [excludeResourceId, onConflict],
+    );
+
     return {
         isValidating,
         isValid,
@@ -275,6 +338,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         setShowConflictModal,
         validateDoi,
         resetValidation,
+        checkDoiBeforeSave,
     };
 }
 

@@ -361,6 +361,7 @@ export default function DataCiteForm({
         setShowConflictModal,
         validateDoi,
         resetValidation: resetDoiValidation,
+        checkDoiBeforeSave,
     } = useDoiValidation({
         excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
         onSuccess: () => {
@@ -1486,6 +1487,17 @@ export default function DataCiteForm({
             return;
         }
 
+        // Pre-submit DOI duplicate check: verify the DOI is still available before saving
+        const doiValue = form.doi?.trim();
+        if (doiValue) {
+            const conflict = await checkDoiBeforeSave(doiValue);
+            if (conflict) {
+                // DOI already exists — show conflict modal instead of saving
+                setIsSaving(false);
+                return;
+            }
+        }
+
         const serializedAuthors: SerializedAuthor[] = authors.map((author, index) => {
             const affiliations = serializeAffiliations(author);
 
@@ -1750,6 +1762,20 @@ export default function DataCiteForm({
                 if (response) {
                     const defaultError = 'Unable to save resource. Please review the highlighted issues.';
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
+
+                    // Fallback: If the backend returns a DOI uniqueness error (race condition),
+                    // trigger DOI validation to show the conflict modal instead of a generic error
+                    if (response.status === 422 && parsed?.errors?.doi) {
+                        const doiErrors = parsed.errors.doi;
+                        const isDuplicateError = doiErrors.some(
+                            (msg) => msg.includes('already') || msg.includes('taken') || msg.includes('unique'),
+                        );
+                        if (isDuplicateError && form.doi) {
+                            validateDoi(form.doi);
+                            return;
+                        }
+                    }
+
                     const messages = parsed?.errors
                         ? Object.values(parsed.errors)
                               .flat()

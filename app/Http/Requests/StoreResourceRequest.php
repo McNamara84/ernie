@@ -31,7 +31,13 @@ class StoreResourceRequest extends FormRequest
     {
         return [
             'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
-            'doi' => ['nullable', 'string', 'max:255'],
+            'doi' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('resources', 'doi')
+                    ->ignore($this->input('resourceId')),
+            ],
             'year' => ['required', 'integer', 'between:1000,9999'],
             'resourceType' => ['required', 'integer', Rule::exists('resource_types', 'id')],
             'version' => ['nullable', 'string', 'max:50'],
@@ -708,7 +714,7 @@ class StoreResourceRequest extends FormRequest
         }
 
         $this->merge([
-            'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
+            'doi' => $this->filled('doi') ? strtolower(trim((string) $this->input('doi'))) : null,
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
             'resourceType' => $this->filled('resourceType') ? (int) $this->input('resourceType') : null,
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
