@@ -18,7 +18,7 @@ pest()->extend(Tests\TestCase::class)
         // This is needed because tests run without the Vite dev server or build artifacts
         $this->withoutVite();
     })
-    ->in('pest/Feature', 'pest/Debug', 'pest/Browser');
+    ->in('pest/Feature', 'pest/Unit', 'pest/Debug', 'pest/Browser');
 
 /*
 |--------------------------------------------------------------------------

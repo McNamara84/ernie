@@ -40,11 +40,9 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), ['file' => $file]);
+            ->postJson('/dashboard/upload-xml', ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data)
             ->toHaveKey('fundingReferences')
@@ -99,11 +97,9 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-multiple.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), ['file' => $file]);
+            ->postJson('/dashboard/upload-xml', ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data['fundingReferences'])->toHaveCount(3);
         expect($data['fundingReferences'][0]['funderName'])->toBe('Deutsche Forschungsgemeinschaft');
@@ -141,11 +137,9 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-minimal.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), ['file' => $file]);
+            ->postJson('/dashboard/upload-xml', ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data['fundingReferences'])->toHaveCount(1);
 
@@ -180,11 +174,9 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-no-funding.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), ['file' => $file]);
+            ->postJson('/dashboard/upload-xml', ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data)
             ->toHaveKey('fundingReferences')
@@ -235,11 +227,9 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-all-types.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), ['file' => $file]);
+            ->postJson('/dashboard/upload-xml', ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data['fundingReferences'])->toHaveCount(5);
 

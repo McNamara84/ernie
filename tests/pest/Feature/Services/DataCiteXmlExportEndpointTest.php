@@ -10,6 +10,10 @@ use App\Models\User;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $this->titleType = TitleType::firstOrCreate(
+        ['slug' => 'main-title'],
+        ['name' => 'Main Title', 'slug' => 'main-title']
+    );
 });
 
 describe('DataCite XML Export - HTTP Endpoint', function () {
@@ -30,11 +34,10 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
             'publication_year' => 2024,
         ]);
 
-        $titleType = TitleType::where('slug', 'main-title')->first();
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Test Resource for XML Export',
-            'title_type_id' => $titleType?->id,
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
@@ -60,11 +63,10 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
             'publication_year' => 2024,
         ]);
 
-        $titleType = TitleType::where('slug', 'main-title')->first();
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Test Headers',
-            'title_type_id' => $titleType?->id,
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $person = Person::factory()->create([
@@ -96,13 +98,14 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
             'publication_year' => 2024,
         ]);
 
-        $language = Language::factory()->create(['iso_code' => 'en']);
+        $language = Language::factory()->create(['code' => 'en-test']);
         $resource->language()->associate($language);
         $resource->save();
 
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Test XML Structure',
+            'title_type_id' => $this->titleType->id,
             'language' => 'en',
         ]);
 
@@ -154,13 +157,14 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
             'version' => '1.2',
         ]);
 
-        $language = Language::factory()->create(['iso_code' => 'en']);
+        $language = Language::factory()->create(['code' => 'en-comp']);
         $resource->language()->associate($language);
         $resource->save();
 
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Complete Test Resource',
+            'title_type_id' => $this->titleType->id,
             'language' => 'en',
         ]);
 
@@ -215,6 +219,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Filename Test',
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
@@ -237,6 +242,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Title with & Special <Characters> "Quotes"',
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $person = Person::factory()->create([
@@ -282,6 +288,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         Title::create([
             'resource_id' => $resource->id,
             'value' => 'Schema Validation Test',
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $person = Person::factory()->create();
@@ -322,6 +329,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         Title::create([
             'resource_id' => $resource1->id,
             'value' => 'First Resource',
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $resource2 = Resource::factory()->create([
@@ -332,6 +340,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         Title::create([
             'resource_id' => $resource2->id,
             'value' => 'Second Resource',
+            'title_type_id' => $this->titleType->id,
         ]);
 
         $response1 = $this->get(route('resources.export-datacite-xml', $resource1));

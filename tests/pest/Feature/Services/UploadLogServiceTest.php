@@ -17,7 +17,7 @@ describe('logFailure', function () {
     test('logs upload failure with structured data', function () {
         $error = UploadError::fromCode(UploadErrorCode::XML_PARSE_ERROR);
 
-        Log::shouldReceive('error')
+        Log::shouldReceive('warning')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return str_contains($message, 'xml')
@@ -35,7 +35,7 @@ describe('logFailure', function () {
     test('includes custom context in log entry', function () {
         $error = UploadError::fromCode(UploadErrorCode::FILE_TOO_LARGE);
 
-        Log::shouldReceive('warning')
+        Log::shouldReceive('info')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['max_size'] === '10MB';
@@ -47,7 +47,7 @@ describe('logFailure', function () {
     test('includes row-level error details', function () {
         $error = UploadError::forRow(UploadErrorCode::DUPLICATE_IGSN, 5, 'IGSN-001', 'Already exists');
 
-        Log::shouldReceive('error')
+        Log::shouldReceive('warning')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['error_row'] === 5
@@ -61,7 +61,7 @@ describe('logFailure', function () {
 
 describe('logSimpleFailure', function () {
     test('creates error from code and logs it', function () {
-        Log::shouldReceive('warning')
+        Log::shouldReceive('info')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['error_code'] === 'file_too_large';
@@ -71,7 +71,7 @@ describe('logSimpleFailure', function () {
     });
 
     test('allows custom message override', function () {
-        Log::shouldReceive('warning')
+        Log::shouldReceive('info')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['error_message'] === 'File exceeds 50MB limit';

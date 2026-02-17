@@ -50,10 +50,9 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200)
-            ->assertJsonStructure(['mslLaboratories']);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['identifier'])->toBe('9ba34c109b827b177aab36e0266b1643')
             ->and($mslLabs[0]['name'])->toBe('HelTec - Helmholtz Laboratory');
@@ -90,9 +89,9 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toHaveCount(2)
             ->and($mslLabs[0]['identifier'])->toBe('lab1id123')
             ->and($mslLabs[1]['identifier'])->toBe('lab2id456');
@@ -127,13 +126,13 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['identifier'])->toBe('msllab123');
 
-        $contributors = $response->json('contributors');
+        $contributors = $data['contributors'];
         foreach ($contributors as $contributor) {
             expect($contributor['institutionName'] ?? '')->not->toBe('MSL Laboratory');
         }
@@ -173,9 +172,9 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['affiliation_name'])->toBe('')
             ->and($mslLabs[0]['affiliation_ror'])->toBe('');
@@ -206,9 +205,9 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['name'])->toBe('HelTec - Helmholtz Laboratory')
             ->and($mslLabs[0]['affiliation_name'])->toBe('GFZ German Research Centre')
@@ -239,12 +238,12 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toBeEmpty();
 
-        $contributors = $response->json('contributors');
+        $contributors = $data['contributors'];
         $contributorNames = array_column($contributors, 'institutionName');
         expect($contributorNames)->toContain('Regular Hosting Institution');
     });
@@ -268,9 +267,9 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toBeArray()->toBeEmpty();
     });
 
@@ -311,9 +310,9 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
+        $data = getXmlUploadData($response);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['identifier'])->toBe('testlab123')
             ->and($mslLabs[0]['affiliation_ror'])->toBe('https://ror.org/04z8jg394');

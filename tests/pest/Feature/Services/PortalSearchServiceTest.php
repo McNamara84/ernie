@@ -24,13 +24,17 @@ beforeEach(function () {
 
 function createPublishedSearchResource(array $overrides = []): Resource
 {
+    // Extract title from overrides since it's stored in a separate table, not on resources
+    $title = $overrides['title'] ?? 'Test Resource';
+    $factoryOverrides = array_diff_key($overrides, ['title' => true]);
+
     $resource = Resource::factory()->create(array_merge([
         'resource_type_id' => test()->resourceType->id,
-    ], $overrides));
+    ], $factoryOverrides));
 
     Title::create([
         'resource_id' => $resource->id,
-        'value' => $overrides['title'] ?? 'Test Resource',
+        'value' => $title,
         'title_type_id' => test()->titleType->id,
     ]);
 
