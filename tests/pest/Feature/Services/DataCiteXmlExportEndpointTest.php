@@ -14,6 +14,10 @@ beforeEach(function () {
         ['slug' => 'main-title'],
         ['name' => 'Main Title', 'slug' => 'main-title']
     );
+    $this->language = Language::firstOrCreate(
+        ['code' => 'en'],
+        ['name' => 'English', 'code' => 'en']
+    );
 });
 
 describe('DataCite XML Export - HTTP Endpoint', function () {
@@ -93,13 +97,14 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     });
 
     test('exports valid XML structure', function () {
+        $this->actingAs($this->user);
+
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-STRUCTURE',
             'publication_year' => 2024,
         ]);
 
-        $language = Language::factory()->create(['code' => 'en-test']);
-        $resource->language()->associate($language);
+        $resource->language()->associate($this->language);
         $resource->save();
 
         Title::create([
@@ -123,7 +128,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
             'position' => 1,
         ]);
 
-        $response = $this->get(route('resources.export-datacite-xml', $resource));
+        $response = $this->actingAs($this->user)->get(route('resources.export-datacite-xml', $resource));
 
         $response->assertStatus(200);
 
@@ -151,14 +156,15 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     });
 
     test('exports complete resource with all optional fields', function () {
+        $this->actingAs($this->user);
+
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-COMPLETE',
             'publication_year' => 2024,
             'version' => '1.2',
         ]);
 
-        $language = Language::factory()->create(['code' => 'en-comp']);
-        $resource->language()->associate($language);
+        $resource->language()->associate($this->language);
         $resource->save();
 
         Title::create([
@@ -185,17 +191,23 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         $resource->subjects()->create(['value' => 'datacite']);
 
         // Add description
-        $abstractType = \App\Models\DescriptionType::where('slug', 'Abstract')->first();
+        $abstractType = \App\Models\DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract', 'slug' => 'Abstract']
+        );
         $resource->descriptions()->create([
-            'description' => 'A comprehensive test resource',
-            'description_type_id' => $abstractType?->id,
+            'value' => 'A comprehensive test resource',
+            'description_type_id' => $abstractType->id,
         ]);
 
         // Add date
-        $collectedType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedType = \App\Models\DateType::firstOrCreate(
+            ['slug' => 'Collected'],
+            ['name' => 'Collected', 'slug' => 'Collected']
+        );
         $resource->dates()->create([
             'date_value' => '2024-01-01/2024-12-31',
-            'date_type_id' => $collectedType?->id,
+            'date_type_id' => $collectedType->id,
         ]);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
@@ -214,6 +226,8 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     });
 
     test('filename includes resource ID and timestamp', function () {
+        $this->actingAs($this->user);
+
         $resource = Resource::factory()->create();
 
         Title::create([
@@ -234,6 +248,8 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     });
 
     test('handles special characters in resource data', function () {
+        $this->actingAs($this->user);
+
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-SPECIAL',
             'publication_year' => 2024,
@@ -280,6 +296,8 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     });
 
     test('validates against DataCite schema', function () {
+        $this->actingAs($this->user);
+
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-VALIDATION',
             'publication_year' => 2024,
@@ -321,6 +339,8 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     });
 
     test('exports different resources with unique content', function () {
+        $this->actingAs($this->user);
+
         $resource1 = Resource::factory()->create([
             'doi' => '10.82433/UNIQUE-1',
             'publication_year' => 2023,

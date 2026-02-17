@@ -66,39 +66,43 @@ describe('ORCID validation', function () {
 
 describe('ORCID record fetching', function () {
     test('fetches orcid record successfully', function () {
-        $mockPersonData = [
-            'name' => [
-                'given-names' => ['value' => 'Albert'],
-                'family-name' => ['value' => 'Einstein'],
-                'credit-name' => ['value' => 'Prof. Albert Einstein'],
-            ],
-            'emails' => [
-                'email' => [
-                    ['email' => 'albert@example.com'],
+        $mockFullRecord = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Albert'],
+                    'family-name' => ['value' => 'Einstein'],
+                    'credit-name' => ['value' => 'Prof. Albert Einstein'],
+                ],
+                'emails' => [
+                    'email' => [
+                        ['email' => 'albert@example.com'],
+                    ],
                 ],
             ],
-            'employments' => [
-                'affiliation-group' => [
-                    [
-                        'summaries' => [
-                            [
-                                'employment-summary' => [
-                                    'organization' => ['name' => 'Princeton University'],
-                                    'role-title' => 'Professor',
-                                    'department-name' => 'Physics',
+            'activities-summary' => [
+                'employments' => [
+                    'affiliation-group' => [
+                        [
+                            'summaries' => [
+                                [
+                                    'employment-summary' => [
+                                        'organization' => ['name' => 'Princeton University'],
+                                        'role-title' => 'Professor',
+                                        'department-name' => 'Physics',
+                                    ],
                                 ],
                             ],
                         ],
                     ],
                 ],
-            ],
-            'educations' => [
-                'affiliation-group' => [],
+                'educations' => [
+                    'affiliation-group' => [],
+                ],
             ],
         ];
 
         Http::fake([
-            'pub.orcid.org/v3.0/0000-0001-2345-6789/person' => Http::response($mockPersonData, 200),
+            'pub.orcid.org/v3.0/0000-0001-2345-6789' => Http::response($mockFullRecord, 200),
         ]);
 
         $result = $this->service->fetchOrcidRecord('0000-0001-2345-6789');
@@ -126,7 +130,7 @@ describe('ORCID record fetching', function () {
 
     test('returns error for non existing orcid on fetch', function () {
         Http::fake([
-            'pub.orcid.org/v3.0/0000-0001-2345-6789/person' => Http::response(null, 404),
+            'pub.orcid.org/v3.0/0000-0001-2345-6789' => Http::response(null, 404),
         ]);
 
         $result = $this->service->fetchOrcidRecord('0000-0001-2345-6789');
@@ -137,18 +141,22 @@ describe('ORCID record fetching', function () {
     });
 
     test('caches orcid records', function () {
-        $mockPersonData = [
-            'name' => [
-                'given-names' => ['value' => 'John'],
-                'family-name' => ['value' => 'Doe'],
+        $mockFullRecord = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'John'],
+                    'family-name' => ['value' => 'Doe'],
+                ],
+                'emails' => ['email' => []],
             ],
-            'emails' => ['email' => []],
-            'employments' => ['affiliation-group' => []],
-            'educations' => ['affiliation-group' => []],
+            'activities-summary' => [
+                'employments' => ['affiliation-group' => []],
+                'educations' => ['affiliation-group' => []],
+            ],
         ];
 
         Http::fake([
-            'pub.orcid.org/v3.0/0000-0001-2345-6789/person' => Http::response($mockPersonData, 200),
+            'pub.orcid.org/v3.0/0000-0001-2345-6789' => Http::response($mockFullRecord, 200),
         ]);
 
         $result1 = $this->service->fetchOrcidRecord('0000-0001-2345-6789');
@@ -171,23 +179,58 @@ describe('ORCID search', function () {
             'result' => [
                 [
                     'orcid-identifier' => ['path' => '0000-0001-2345-6789'],
-                    'given-names' => 'Albert',
-                    'family-names' => 'Einstein',
-                    'credit-name' => 'Prof. Albert Einstein',
-                    'institution-name' => ['Princeton University'],
                 ],
                 [
                     'orcid-identifier' => ['path' => '0000-0001-9876-5432'],
-                    'given-names' => 'Albert',
-                    'family-names' => 'Einstein',
-                    'credit-name' => null,
-                    'institution-name' => [],
                 ],
+            ],
+        ];
+
+        $mockRecord1 = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Albert'],
+                    'family-name' => ['value' => 'Einstein'],
+                    'credit-name' => ['value' => 'Prof. Albert Einstein'],
+                ],
+                'emails' => ['email' => []],
+            ],
+            'activities-summary' => [
+                'employments' => [
+                    'affiliation-group' => [
+                        [
+                            'summaries' => [
+                                [
+                                    'employment-summary' => [
+                                        'organization' => ['name' => 'Princeton University'],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'educations' => ['affiliation-group' => []],
+            ],
+        ];
+
+        $mockRecord2 = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Albert'],
+                    'family-name' => ['value' => 'Einstein'],
+                ],
+                'emails' => ['email' => []],
+            ],
+            'activities-summary' => [
+                'employments' => ['affiliation-group' => []],
+                'educations' => ['affiliation-group' => []],
             ],
         ];
 
         Http::fake([
             'pub.orcid.org/v3.0/search*' => Http::response($mockSearchResults, 200),
+            'pub.orcid.org/v3.0/0000-0001-2345-6789' => Http::response($mockRecord1, 200),
+            'pub.orcid.org/v3.0/0000-0001-9876-5432' => Http::response($mockRecord2, 200),
         ]);
 
         $result = $this->service->searchOrcid('Albert Einstein', 10);
