@@ -105,6 +105,12 @@ export default defineConfig(() => {
                     'resources/js/types/**/*.d.ts',
                     'resources/js/**/*.d.ts',
                 ],
+                thresholds: {
+                    lines: 50,
+                    functions: 40,
+                    branches: 50,
+                    statements: 50,
+                },
             },
         },
     };

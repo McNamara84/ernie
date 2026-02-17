@@ -1,0 +1,125 @@
+name: Pest Browser E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  browser:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    name: Pest Browser E2E
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Cache Vite build output
+        uses: actions/cache@v4
+        with:
+          path: public/build
+          key: ${{ runner.os }}-vite-${{ hashFiles('resources/**', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vite-
+
+      - name: Build assets
+        run: npm run build
+        env:
+          NODE_ENV: production
+          APP_ENV: local
+          APP_URL: http://127.0.0.1:8000
+          ASSET_URL: http://127.0.0.1:8000
+          VITE_APP_URL: http://127.0.0.1:8000
+
+      - name: Prepare application
+        run: |
+          cp .env.example .env
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+          sed -i '/^DB_HOST=/d' .env
+          sed -i '/^DB_PORT=/d' .env
+          sed -i '/^DB_DATABASE=/d' .env
+          sed -i '/^DB_USERNAME=/d' .env
+          sed -i '/^DB_PASSWORD=/d' .env
+          sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+          sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env
+          sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
+          sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+          sed -i 's/^BROADCAST_CONNECTION=.*/BROADCAST_CONNECTION=log/' .env
+          sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/^APP_DEBUG=.*/APP_DEBUG=true/' .env
+          sed -i 's/^APP_URL=.*/APP_URL=http:\/\/127.0.0.1:8000/' .env
+          sed -i 's/^ASSET_URL=.*/ASSET_URL=http:\/\/127.0.0.1:8000/' .env
+          echo "SESSION_PATH=/" >> .env
+          mkdir -p database
+          touch database/database.sqlite
+          chmod 666 database/database.sqlite
+          php artisan key:generate
+          php artisan migrate:fresh --seed --force
+          # Prepare ROR test data
+          mkdir -p storage/app/private/ror
+          cat > storage/app/private/ror/ror-affiliations.json << 'EOF'
+          [
+            {"prefLabel":"Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences","rorId":"https://ror.org/04z8jg394","otherLabel":["GFZ","GeoForschungsZentrum Potsdam"]},
+            {"prefLabel":"University of Potsdam","rorId":"https://ror.org/03yqp9m85","otherLabel":["Universität Potsdam","UP"]},
+            {"prefLabel":"ETH Zurich","rorId":"https://ror.org/05a28rw58","otherLabel":["ETH Zürich"]},
+            {"prefLabel":"Massachusetts Institute of Technology","rorId":"https://ror.org/042nb2s44","otherLabel":["MIT"]}
+          ]
+          EOF
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Pest Browser tests
+        run: ./vendor/bin/pest tests/pest/Browser/ --no-coverage
+        env:
+          APP_ENV: testing
+          APP_DEBUG: true
+          APP_URL: http://127.0.0.1:8000
+          ASSET_URL: http://127.0.0.1:8000
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+          SESSION_DRIVER: file
+          SESSION_PATH: /
+          CACHE_DRIVER: file
+          QUEUE_CONNECTION: sync
+          BROADCAST_DRIVER: log
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pest-browser-artifacts
+          path: |
+            storage/logs/laravel.log
+            tests/pest/Browser/.screenshots/
+          retention-days: 7

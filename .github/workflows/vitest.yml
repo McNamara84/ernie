@@ -39,12 +39,12 @@ jobs:
       - name: TypeScript Check
         run: npm run types
 
-      - name: Run Vitest
+      - name: Run Vitest with coverage
         env:
           # Bypass Laravel's environment check so Vitest can run without a full PHP app environment
           LARAVEL_BYPASS_ENV_CHECK: 1
           # Set consistent URL generation for tests
           VITE_APP_URL: ""
           APP_URL: ""
-        run: npm test -- --run
+        run: npx vitest run --coverage
 
