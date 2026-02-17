@@ -53,9 +53,8 @@ function createProps(overrides: Partial<PortalPageProps> = {}): PortalPageProps 
             last_page: 1,
             per_page: 25,
             total: 0,
-            from: null,
-            to: null,
-            has_more: false,
+            from: 0,
+            to: 0,
         },
         filters: {
             query: null,

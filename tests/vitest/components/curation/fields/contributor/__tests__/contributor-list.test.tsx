@@ -35,19 +35,10 @@ vi.mock('@/components/curation/fields/contributor-csv-import', () => ({
 }));
 
 import ContributorList from '@/components/curation/fields/contributor/contributor-list';
+import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
 
 const defaultProps = {
-    contributors: [] as Array<{
-        id: string;
-        type: 'person' | 'institution';
-        givenName?: string;
-        familyName?: string;
-        institutionName?: string;
-        roles: Array<{ value: string }>;
-        rolesInput: string;
-        affiliations: Array<{ id: string; value: string; rorId: string | null }>;
-        affiliationsInput: string;
-    }>,
+    contributors: [] as ContributorEntry[],
     onAdd: vi.fn(),
     onRemove: vi.fn(),
     onContributorChange: vi.fn(),
@@ -78,12 +69,13 @@ describe('ContributorList', () => {
     });
 
     it('renders contributor items when contributors exist', () => {
-        const contributors = [
+        const contributors: ContributorEntry[] = [
             {
                 id: 'c1',
                 type: 'person' as const,
-                givenName: 'John',
-                familyName: 'Doe',
+                orcid: '',
+                firstName: 'John',
+                lastName: 'Doe',
                 roles: [],
                 rolesInput: '',
                 affiliations: [],
@@ -100,12 +92,13 @@ describe('ContributorList', () => {
     });
 
     it('renders multiple contributors', () => {
-        const contributors = [
+        const contributors: ContributorEntry[] = [
             {
                 id: 'c1',
                 type: 'person' as const,
-                givenName: 'John',
-                familyName: 'Doe',
+                orcid: '',
+                firstName: 'John',
+                lastName: 'Doe',
                 roles: [],
                 rolesInput: '',
                 affiliations: [],

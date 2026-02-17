@@ -47,7 +47,7 @@ describe('usePortalFilters', () => {
     it('hasActiveFilters is true when type is not all', () => {
         const { result } = renderHook(() =>
             usePortalFilters({
-                filters: { query: null, type: 'Dataset' },
+                filters: { query: null, type: 'doi' },
                 currentPage: 1,
             }),
         );
@@ -82,11 +82,11 @@ describe('usePortalFilters', () => {
         );
 
         act(() => {
-            result.current.setType('Dataset');
+            result.current.setType('doi');
         });
 
         expect(routerMock.get).toHaveBeenCalledWith(
-            expect.stringContaining('type=Dataset'),
+            expect.stringContaining('type=doi'),
             {},
             expect.objectContaining({ preserveState: true }),
         );
@@ -95,7 +95,7 @@ describe('usePortalFilters', () => {
     it('clearFilters navigates to /portal without params', () => {
         const { result } = renderHook(() =>
             usePortalFilters({
-                filters: { query: 'test', type: 'Dataset' },
+                filters: { query: 'test', type: 'doi' },
                 currentPage: 2,
             }),
         );
@@ -110,7 +110,7 @@ describe('usePortalFilters', () => {
     it('setSearch preserves existing type filter', () => {
         const { result } = renderHook(() =>
             usePortalFilters({
-                filters: { query: null, type: 'Software' },
+                filters: { query: null, type: 'igsn' },
                 currentPage: 1,
             }),
         );
@@ -120,7 +120,7 @@ describe('usePortalFilters', () => {
         });
 
         expect(routerMock.get).toHaveBeenCalledWith(
-            expect.stringMatching(/q=ocean.*type=Software|type=Software.*q=ocean/),
+            expect.stringMatching(/q=ocean.*type=igsn|type=igsn.*q=ocean/),
             {},
             expect.any(Object),
         );

@@ -22,7 +22,7 @@ beforeEach(function () {
     $this->titleType = TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']);
 });
 
-function createPublishedResource(array $overrides = []): Resource
+function createPublishedSearchResource(array $overrides = []): Resource
 {
     $resource = Resource::factory()->create(array_merge([
         'resource_type_id' => test()->resourceType->id,
@@ -45,7 +45,7 @@ function createPublishedResource(array $overrides = []): Resource
 
 describe('search', function () {
     test('returns only published resources', function () {
-        createPublishedResource();
+        createPublishedSearchResource();
 
         $unpublished = Resource::factory()->create(['resource_type_id' => $this->resourceType->id]);
         Title::create([
@@ -65,7 +65,7 @@ describe('search', function () {
 
     test('paginates results with default per page', function () {
         for ($i = 0; $i < 25; $i++) {
-            createPublishedResource(['title' => "Resource $i"]);
+            createPublishedSearchResource(['title' => "Resource $i"]);
         }
 
         $results = $this->service->search();
@@ -76,7 +76,7 @@ describe('search', function () {
 
     test('respects custom per page up to max', function () {
         for ($i = 0; $i < 10; $i++) {
-            createPublishedResource();
+            createPublishedSearchResource();
         }
 
         $results = $this->service->search(['per_page' => 5]);
@@ -89,8 +89,8 @@ describe('search', function () {
 
 describe('type filter', function () {
     test('filters by doi type', function () {
-        createPublishedResource();
-        createPublishedResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Resource']);
+        createPublishedSearchResource();
+        createPublishedSearchResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Resource']);
 
         $results = $this->service->search(['type' => 'doi']);
 
@@ -98,8 +98,8 @@ describe('type filter', function () {
     });
 
     test('filters by igsn type', function () {
-        createPublishedResource();
-        createPublishedResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Resource']);
+        createPublishedSearchResource();
+        createPublishedSearchResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Resource']);
 
         $results = $this->service->search(['type' => 'igsn']);
 
@@ -107,8 +107,8 @@ describe('type filter', function () {
     });
 
     test('returns all types when filter is all', function () {
-        createPublishedResource();
-        createPublishedResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Resource']);
+        createPublishedSearchResource();
+        createPublishedSearchResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Resource']);
 
         $results = $this->service->search(['type' => 'all']);
 
@@ -118,8 +118,8 @@ describe('type filter', function () {
 
 describe('search query', function () {
     test('searches by doi', function () {
-        createPublishedResource(['doi' => '10.5880/test.2024.001']);
-        createPublishedResource(['doi' => '10.5880/other.2024.002', 'title' => 'Other']);
+        createPublishedSearchResource(['doi' => '10.5880/test.2024.001']);
+        createPublishedSearchResource(['doi' => '10.5880/other.2024.002', 'title' => 'Other']);
 
         $results = $this->service->search(['query' => 'test.2024']);
 
@@ -127,8 +127,8 @@ describe('search query', function () {
     });
 
     test('searches by title', function () {
-        createPublishedResource(['title' => 'Seismic Data Analysis']);
-        createPublishedResource(['title' => 'Climate Change Report']);
+        createPublishedSearchResource(['title' => 'Seismic Data Analysis']);
+        createPublishedSearchResource(['title' => 'Climate Change Report']);
 
         $results = $this->service->search(['query' => 'Seismic']);
 
@@ -136,7 +136,7 @@ describe('search query', function () {
     });
 
     test('searches by creator family name', function () {
-        $resource = createPublishedResource();
+        $resource = createPublishedSearchResource();
         $person = Person::create([
             'given_name' => 'Albert',
             'family_name' => 'Einstein',
@@ -148,7 +148,7 @@ describe('search query', function () {
             'position' => 0,
         ]);
 
-        createPublishedResource(['title' => 'Other']);
+        createPublishedSearchResource(['title' => 'Other']);
 
         $results = $this->service->search(['query' => 'Einstein']);
 
@@ -156,7 +156,7 @@ describe('search query', function () {
     });
 
     test('searches by institution name', function () {
-        $resource = createPublishedResource();
+        $resource = createPublishedSearchResource();
         $institution = Institution::create(['name' => 'GFZ Helmholtz Centre']);
         ResourceCreator::create([
             'resource_id' => $resource->id,
@@ -165,7 +165,7 @@ describe('search query', function () {
             'position' => 0,
         ]);
 
-        createPublishedResource(['title' => 'Other']);
+        createPublishedSearchResource(['title' => 'Other']);
 
         $results = $this->service->search(['query' => 'Helmholtz']);
 
@@ -173,8 +173,8 @@ describe('search query', function () {
     });
 
     test('ignores empty search query', function () {
-        createPublishedResource();
-        createPublishedResource(['title' => 'Another']);
+        createPublishedSearchResource();
+        createPublishedSearchResource(['title' => 'Another']);
 
         $results = $this->service->search(['query' => '']);
         expect($results->total())->toBe(2);
@@ -186,14 +186,14 @@ describe('search query', function () {
 
 describe('getMapData', function () {
     test('returns only resources with geo locations', function () {
-        $withGeo = createPublishedResource(['title' => 'With Geo']);
+        $withGeo = createPublishedSearchResource(['title' => 'With Geo']);
         GeoLocation::create([
             'resource_id' => $withGeo->id,
             'point_latitude' => 52.38,
             'point_longitude' => 13.06,
         ]);
 
-        createPublishedResource(['title' => 'Without Geo']);
+        createPublishedSearchResource(['title' => 'Without Geo']);
 
         $mapData = $this->service->getMapData();
 
@@ -204,7 +204,7 @@ describe('getMapData', function () {
 
 describe('transformForPortal', function () {
     test('transforms resource with all fields', function () {
-        $resource = createPublishedResource([
+        $resource = createPublishedSearchResource([
             'doi' => '10.5880/test.2024.001',
             'publication_year' => 2024,
         ]);
@@ -244,7 +244,7 @@ describe('transformForPortal', function () {
     });
 
     test('identifies IGSN resources', function () {
-        $resource = createPublishedResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Sample']);
+        $resource = createPublishedSearchResource(['resource_type_id' => $this->igsnType->id, 'title' => 'IGSN Sample']);
         $resource->load(['titles.titleType', 'creators.creatorable', 'resourceType', 'geoLocations', 'landingPage']);
 
         $transformed = $this->service->transformForPortal($resource);
