@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\DataCiteController;
-use App\Http\Controllers\Api\DoiValidationController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\DateTypeController;
@@ -69,12 +68,6 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyContr
 Route::get('/v1/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
 
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
-
-// DOI validation endpoint - requires authentication and rate limiting
-// Allows 60 requests per minute per user to prevent abuse
-Route::middleware(['auth', 'throttle:doi-validation'])->group(function () {
-    Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
-});
 
 // Thesaurus settings API routes (check, update, update-status) are in web.php
 // because they require session-based authentication via can:manage-thesauri gate

@@ -80,6 +80,8 @@ export interface UseDoiValidationResult {
     validateDoi: (doi: string) => void;
     /** Function to reset the validation state */
     resetValidation: () => void;
+    /** Synchronous DOI duplicate check for use before form submission (no debounce) */
+    checkDoiBeforeSave: (doi: string) => Promise<DoiConflictData | null>;
 }
 
 /**
@@ -266,6 +268,90 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation],
     );
 
+    /**
+     * Synchronous (non-debounced) DOI duplicate check for use before form submission.
+     * Returns conflict data if the DOI already exists, or null if available.
+     * Also updates internal state (conflictData, showConflictModal, isValid, error)
+     * to keep hook state consistent for consumers.
+     */
+    const checkDoiBeforeSave = useCallback(
+        async (doi: string): Promise<DoiConflictData | null> => {
+            // Cancel any pending debounced request
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+                debounceTimeoutRef.current = null;
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+            }
+
+            // Reset isValidating that may have been set by a cancelled validateDoi call
+            setIsValidating(false);
+
+            const trimmedDoi = doi.trim();
+            if (!trimmedDoi) {
+                resetValidation();
+                return null;
+            }
+
+            setIsValidating(true);
+            // Clear previous conflict/error state before check
+            setError(null);
+            setConflictData(null);
+            try {
+                const response = await axios.post<DoiValidationResponse>(
+                    '/api/v1/doi/validate',
+                    {
+                        doi: trimmedDoi,
+                        exclude_resource_id: excludeResourceId,
+                    },
+                );
+
+                const data = response.data;
+
+                if (!data.is_valid_format) {
+                    // Mirror validateDoi: set error state for invalid format
+                    setIsValid(false);
+                    setError(data.error || null);
+                    return null;
+                }
+
+                if (data.exists) {
+                    const suggestedDoi = data.suggested_doi ?? null;
+                    const conflict: DoiConflictData = {
+                        existingDoi: trimmedDoi,
+                        existingResourceId: data.existing_resource?.id,
+                        existingResourceTitle: data.existing_resource?.title ?? undefined,
+                        lastAssignedDoi: data.last_assigned_doi ?? trimmedDoi,
+                        suggestedDoi: suggestedDoi ?? '',
+                        hasSuggestion: suggestedDoi !== null,
+                    };
+
+                    setConflictData(conflict);
+                    setShowConflictModal(true);
+                    setIsValid(false);
+                    onConflict?.(conflict);
+                    return conflict;
+                }
+
+                // DOI is valid and available — update state accordingly
+                setIsValid(true);
+                setConflictData(null);
+                setShowConflictModal(false);
+                onSuccess?.();
+                return null;
+            } catch {
+                // If validation request fails (network error etc.), don't block save
+                // Let the backend unique constraint handle it
+                return null;
+            } finally {
+                setIsValidating(false);
+            }
+        },
+        [excludeResourceId, onConflict, onSuccess, resetValidation],
+    );
+
     return {
         isValidating,
         isValid,
@@ -275,6 +361,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         setShowConflictModal,
         validateDoi,
         resetValidation,
+        checkDoiBeforeSave,
     };
 }
 

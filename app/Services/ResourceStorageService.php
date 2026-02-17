@@ -55,8 +55,16 @@ class ResourceStorageService
                     ->value('id');
             }
 
+            $doi = $data['doi'] ?? null;
+            if ($doi !== null && $doi !== '') {
+                $doi = app(DoiSuggestionService::class)->normalizeDoi($doi);
+                if ($doi === '') {
+                    $doi = null;
+                }
+            }
+
             $attributes = [
-                'doi' => $data['doi'] ?? null,
+                'doi' => $doi,
                 'publication_year' => $data['year'],
                 'resource_type_id' => $data['resourceType'],
                 'version' => $data['version'] ?? null,

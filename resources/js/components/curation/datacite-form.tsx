@@ -361,6 +361,7 @@ export default function DataCiteForm({
         setShowConflictModal,
         validateDoi,
         resetValidation: resetDoiValidation,
+        checkDoiBeforeSave,
     } = useDoiValidation({
         excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
         onSuccess: () => {
@@ -1486,6 +1487,17 @@ export default function DataCiteForm({
             return;
         }
 
+        // Pre-submit DOI duplicate check: verify the DOI is still available before saving
+        const doiValue = form.doi?.trim();
+        if (doiValue) {
+            const conflict = await checkDoiBeforeSave(doiValue);
+            if (conflict) {
+                // DOI already exists — show conflict modal instead of saving
+                setIsSaving(false);
+                return;
+            }
+        }
+
         const serializedAuthors: SerializedAuthor[] = authors.map((author, index) => {
             const affiliations = serializeAffiliations(author);
 
@@ -1750,6 +1762,19 @@ export default function DataCiteForm({
                 if (response) {
                     const defaultError = 'Unable to save resource. Please review the highlighted issues.';
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
+
+                    // Fallback: If the backend returns a DOI validation error (e.g. race condition
+                    // where another user saved the same DOI between our pre-submit check and the save),
+                    // re-run the DOI duplicate check to show the conflict modal if applicable.
+                    if (response.status === 422 && parsed?.errors?.doi && form.doi) {
+                        const conflict = await checkDoiBeforeSave(form.doi);
+                        if (conflict) {
+                            // Conflict modal is now shown by checkDoiBeforeSave — skip generic error rendering
+                            return;
+                        }
+                        // Not a duplicate — fall through to normal validation error rendering
+                    }
+
                     const messages = parsed?.errors
                         ? Object.values(parsed.errors)
                               .flat()

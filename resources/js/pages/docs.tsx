@@ -869,11 +869,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>Once your landing page is public, you can register a DOI through DataCite.</p>
 
                         <h4>DOI Duplicate Detection</h4>
-                        <p>The system automatically validates DOIs when you enter them:</p>
+                        <p>The system automatically validates DOIs when you enter them and when you save:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Shows conflicting resource if DOI exists</li>
                             <li>Suggests the next available DOI</li>
-                            <li>One-click copy for suggested DOI</li>
+                            <li>One-click copy or accept suggested DOI</li>
+                            <li>Save is blocked until the DOI conflict is resolved</li>
                         </ul>
 
                         <h4>Test vs Production</h4>
