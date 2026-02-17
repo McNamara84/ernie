@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\TitleType;
+use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -31,7 +32,13 @@ class StoreResourceRequest extends FormRequest
     {
         return [
             'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
-            'doi' => ['nullable', 'string', 'max:255'],
+            'doi' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('resources', 'doi')
+                    ->ignore($this->input('resourceId')),
+            ],
             'year' => ['required', 'integer', 'between:1000,9999'],
             'resourceType' => ['required', 'integer', Rule::exists('resource_types', 'id')],
             'version' => ['nullable', 'string', 'max:50'],
@@ -708,7 +715,7 @@ class StoreResourceRequest extends FormRequest
         }
 
         $this->merge([
-            'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
+            'doi' => $this->normalizeDoiInput($this->input('doi')),
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
             'resourceType' => $this->filled('resourceType') ? (int) $this->input('resourceType') : null,
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
@@ -729,6 +736,37 @@ class StoreResourceRequest extends FormRequest
         ]);
 
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
+    }
+
+    /**
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     *
+     * Reuses the normalization logic from DoiSuggestionService to ensure consistent
+     * DOI handling across the entire system (validation, storage, duplicate checks).
+     *
+     * Non-string, non-numeric inputs are returned as-is so that the `string` validation
+     * rule can reject them properly instead of silently coercing them to null.
+     */
+    private function normalizeDoiInput(mixed $input): mixed
+    {
+        if ($input === null) {
+            return null;
+        }
+
+        // Allow numeric scalars to be cast to string for normalization
+        if (is_numeric($input)) {
+            $input = (string) $input;
+        }
+
+        // Non-string types (arrays, objects, booleans) are returned as-is
+        // so that Laravel's `string` validation rule rejects them
+        if (! is_string($input)) {
+            return $input;
+        }
+
+        $normalized = app(DoiSuggestionService::class)->normalizeDoi($input);
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     /** @return array<int, callable(Validator): void> */
