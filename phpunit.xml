@@ -4,12 +4,15 @@
          bootstrap="vendor/autoload.php"
          colors="true"
 >
-        <testsuites>
-            <testsuite name="Unit">
+    <testsuites>
+        <testsuite name="Unit">
             <directory>tests/pest/Unit</directory>
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/pest/Feature</directory>
+        </testsuite>
+        <testsuite name="Arch">
+            <directory>tests/pest/Arch</directory>
         </testsuite>
     </testsuites>
     <coverage includeUncoveredFiles="true">
@@ -25,6 +28,13 @@
             <directory suffix=".php">database</directory>
             <directory suffix=".php">routes</directory>
         </include>
+        <exclude>
+            <!-- Metaworks legacy DB: only reachable from GFZ VPN, cannot be tested in CI -->
+            <file>app/Models/OldDataset.php</file>
+            <file>app/Http/Controllers/OldDatasetController.php</file>
+            <file>app/Http/Controllers/OldDataStatisticsController.php</file>
+            <file>app/Services/OldDatasetEditorLoader.php</file>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
