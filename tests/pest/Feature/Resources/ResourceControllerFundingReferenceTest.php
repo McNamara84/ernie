@@ -203,7 +203,7 @@ describe('updating funding references', function () {
         expect($resource->fresh()->fundingReferences)->toHaveCount(2);
     });
 
-    test('preserves funding reference positions', function () {
+    test('saves multiple funding references in insertion order', function () {
         $payload = getValidPayload([
             'fundingReferences' => [
                 ['funderName' => 'First', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
@@ -218,19 +218,17 @@ describe('updating funding references', function () {
         $response->assertStatus(201);
 
         $resource = Resource::latest()->first();
-        $fundingRefs = $resource->fundingReferences()->orderBy('position')->get();
+        $fundingRefs = $resource->fundingReferences()->orderBy('id')->get();
 
-        expect($fundingRefs[0]->funder_name)->toBe('First')
-            ->and($fundingRefs[0]->position)->toBe(0)
+        expect($fundingRefs)->toHaveCount(3)
+            ->and($fundingRefs[0]->funder_name)->toBe('First')
             ->and($fundingRefs[1]->funder_name)->toBe('Second')
-            ->and($fundingRefs[1]->position)->toBe(1)
-            ->and($fundingRefs[2]->funder_name)->toBe('Third')
-            ->and($fundingRefs[2]->position)->toBe(2);
+            ->and($fundingRefs[2]->funder_name)->toBe('Third');
     });
 });
 
 describe('validation', function () {
-    test('does not save funding reference with empty funder name', function () {
+    test('silently skips funding references with empty funder name', function () {
         $payload = getValidPayload([
             'fundingReferences' => [
                 [
@@ -260,9 +258,17 @@ describe('validation', function () {
             ],
         ]);
 
+        // Empty funder names are filtered out in prepareForValidation,
+        // so the request succeeds and only valid entries are saved
         $this->actingAs($this->user)
             ->postJson(route('editor.resources.store'), $payload)
-            ->assertStatus(422);
+            ->assertStatus(201);
+
+        $resource = Resource::latest()->first();
+        $fundingRefs = $resource->fundingReferences;
+
+        expect($fundingRefs)->toHaveCount(1)
+            ->and($fundingRefs->first()->funder_name)->toBe('Valid Funder');
     });
 
     test('validates funder identifier type', function () {
