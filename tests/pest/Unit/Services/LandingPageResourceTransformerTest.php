@@ -12,7 +12,7 @@ use App\Models\Title;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
-uses()->group('landing-pages');
+covers(LandingPageResourceTransformer::class);
 
 test('transforms a resource into landing page payload structure', function () {
     $transformer = new LandingPageResourceTransformer;

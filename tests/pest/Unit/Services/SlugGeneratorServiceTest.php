@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Services\SlugGeneratorService;
 
+covers(SlugGeneratorService::class);
+
 describe('SlugGeneratorService', function () {
     beforeEach(function () {
         $this->service = new SlugGeneratorService;

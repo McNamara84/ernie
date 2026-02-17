@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\ResourceDate;
+
+covers(ResourceDate::class);
 
 describe('ResourceDate', function () {
     describe('isRange()', function () {

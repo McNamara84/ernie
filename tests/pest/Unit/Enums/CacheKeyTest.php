@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Enums\CacheKey;
 
+covers(CacheKey::class);
+
 it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LIST->key())->toBe('resources:list');
     expect(CacheKey::RESOURCE_DETAIL->key())->toBe('resources:detail');

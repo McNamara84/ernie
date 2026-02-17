@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Support\UrlNormalizer;
 
+covers(UrlNormalizer::class);
+
 it('normalizes missing colon in app url scheme', function () {
     expect(UrlNormalizer::normalizeAppUrl('https//ernie.rz-vm182.gfz.de'))
         ->toBe('https://ernie.rz-vm182.gfz.de');
