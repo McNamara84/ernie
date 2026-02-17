@@ -2,22 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit;
-
 use App\Models\Institution;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-/**
- * Unit tests for Institution Model with identifier fields
- * Tests the extended Institution model with identifier and identifier_type support
- */
-class InstitutionModelTest extends TestCase
-{
-    use RefreshDatabase;
+uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-    public function test_can_create_institution_with_labid(): void
-    {
+describe('Institution model with identifiers', function () {
+    test('can create institution with labid', function () {
         $institution = Institution::create([
             'name' => 'Test Laboratory',
             'identifier' => 'abc123',
@@ -30,12 +20,11 @@ class InstitutionModelTest extends TestCase
             'identifier_type' => 'labid',
         ]);
 
-        $this->assertEquals('abc123', $institution->identifier);
-        $this->assertEquals('labid', $institution->identifier_type);
-    }
+        expect($institution->identifier)->toBe('abc123')
+            ->and($institution->identifier_type)->toBe('labid');
+    });
 
-    public function test_can_create_institution_with_ror(): void
-    {
+    test('can create institution with ror', function () {
         $institution = Institution::create([
             'name' => 'Test University',
             'identifier' => 'https://ror.org/test123',
@@ -48,12 +37,11 @@ class InstitutionModelTest extends TestCase
             'identifier_type' => 'ROR',
         ]);
 
-        $this->assertEquals('https://ror.org/test123', $institution->identifier);
-        $this->assertEquals('ROR', $institution->identifier_type);
-    }
+        expect($institution->identifier)->toBe('https://ror.org/test123')
+            ->and($institution->identifier_type)->toBe('ROR');
+    });
 
-    public function test_can_create_institution_with_legacy_ror_id(): void
-    {
+    test('can create institution with legacy ror_id', function () {
         $institution = Institution::create([
             'name' => 'Legacy University',
             'ror_id' => 'https://ror.org/legacy',
@@ -64,11 +52,10 @@ class InstitutionModelTest extends TestCase
             'ror_id' => 'https://ror.org/legacy',
         ]);
 
-        $this->assertEquals('https://ror.org/legacy', $institution->ror_id);
-    }
+        expect($institution->ror_id)->toBe('https://ror.org/legacy');
+    });
 
-    public function test_can_create_institution_without_identifier(): void
-    {
+    test('can create institution without identifier', function () {
         $institution = Institution::create([
             'name' => 'Simple Institution',
         ]);
@@ -79,148 +66,134 @@ class InstitutionModelTest extends TestCase
             'identifier_type' => null,
         ]);
 
-        $this->assertNull($institution->identifier);
-        $this->assertNull($institution->identifier_type);
-    }
+        expect($institution->identifier)->toBeNull()
+            ->and($institution->identifier_type)->toBeNull();
+    });
+});
 
-    public function test_is_laboratory_returns_true_for_labid(): void
-    {
+describe('Institution type checks', function () {
+    test('isLaboratory returns true for labid', function () {
         $lab = Institution::create([
             'name' => 'Test Lab',
             'identifier' => 'lab123',
             'identifier_type' => 'labid',
         ]);
 
-        $this->assertTrue($lab->isLaboratory());
-    }
+        expect($lab->isLaboratory())->toBeTrue();
+    });
 
-    public function test_is_laboratory_returns_false_for_non_labid(): void
-    {
+    test('isLaboratory returns false for non-labid', function () {
         $institution = Institution::create([
             'name' => 'Test University',
             'identifier' => 'https://ror.org/test',
             'identifier_type' => 'ROR',
         ]);
 
-        $this->assertFalse($institution->isLaboratory());
-    }
+        expect($institution->isLaboratory())->toBeFalse();
+    });
 
-    public function test_is_laboratory_returns_false_when_no_identifier_type(): void
-    {
+    test('isLaboratory returns false when no identifier type', function () {
         $institution = Institution::create([
             'name' => 'Simple Institution',
         ]);
 
-        $this->assertFalse($institution->isLaboratory());
-    }
+        expect($institution->isLaboratory())->toBeFalse();
+    });
 
-    public function test_is_ror_institution_returns_true_for_ror(): void
-    {
+    test('isRorInstitution returns true for ROR', function () {
         $institution = Institution::create([
             'name' => 'ROR University',
             'identifier' => 'https://ror.org/test',
             'identifier_type' => 'ROR',
         ]);
 
-        $this->assertTrue($institution->isRorInstitution());
-    }
+        expect($institution->isRorInstitution())->toBeTrue();
+    });
 
-    public function test_is_ror_institution_returns_false_for_non_ror(): void
-    {
+    test('isRorInstitution returns false for non-ROR', function () {
         $lab = Institution::create([
             'name' => 'Test Lab',
             'identifier' => 'lab123',
             'identifier_type' => 'labid',
         ]);
 
-        $this->assertFalse($lab->isRorInstitution());
-    }
+        expect($lab->isRorInstitution())->toBeFalse();
+    });
 
-    public function test_is_ror_institution_returns_false_when_no_identifier_type(): void
-    {
+    test('isRorInstitution returns false when no identifier type', function () {
         $institution = Institution::create([
             'name' => 'Simple Institution',
         ]);
 
-        $this->assertFalse($institution->isRorInstitution());
-    }
+        expect($institution->isRorInstitution())->toBeFalse();
+    });
+});
 
-    public function test_unique_constraint_on_identifier_and_type(): void
-    {
-        // Create first institution
+describe('Institution constraints', function () {
+    test('unique constraint on identifier and type', function () {
         Institution::create([
             'name' => 'First Lab',
             'identifier' => 'same123',
             'identifier_type' => 'labid',
         ]);
 
-        // Try to create duplicate - should fail
-        $this->expectException(\Illuminate\Database\QueryException::class);
-
-        Institution::create([
+        expect(fn () => Institution::create([
             'name' => 'Second Lab',
             'identifier' => 'same123',
             'identifier_type' => 'labid',
-        ]);
-    }
+        ]))->toThrow(\Illuminate\Database\QueryException::class);
+    });
 
-    public function test_same_identifier_different_type_is_allowed(): void
-    {
-        // Create with labid
+    test('same identifier with different type is allowed', function () {
         $lab = Institution::create([
             'name' => 'Lab',
             'identifier' => 'abc123',
             'identifier_type' => 'labid',
         ]);
 
-        // Create with different type (hypothetical scenario)
         $other = Institution::create([
             'name' => 'Other',
             'identifier' => 'abc123',
             'identifier_type' => 'ISNI',
         ]);
 
-        $this->assertNotEquals($lab->id, $other->id);
-    }
+        expect($lab->id)->not->toBe($other->id);
+    });
+});
 
-    public function test_can_update_institution_identifier(): void
-    {
+describe('Institution updates', function () {
+    test('can update institution identifier', function () {
         $institution = Institution::create([
             'name' => 'Test Lab',
             'identifier' => 'old123',
             'identifier_type' => 'labid',
         ]);
 
-        $institution->update([
-            'identifier' => 'new456',
-        ]);
+        $institution->update(['identifier' => 'new456']);
 
-        $this->assertEquals('new456', $institution->fresh()->identifier);
-    }
+        expect($institution->fresh()->identifier)->toBe('new456');
+    });
 
-    public function test_can_update_institution_name(): void
-    {
+    test('can update institution name', function () {
         $institution = Institution::create([
             'name' => 'Old Name',
             'identifier' => 'lab123',
             'identifier_type' => 'labid',
         ]);
 
-        $institution->update([
-            'name' => 'New Name',
-        ]);
+        $institution->update(['name' => 'New Name']);
 
-        $this->assertEquals('New Name', $institution->fresh()->name);
-    }
+        expect($institution->fresh()->name)->toBe('New Name');
+    });
 
-    public function test_fillable_includes_new_fields(): void
-    {
+    test('fillable includes new fields', function () {
         $institution = new Institution;
         $fillable = $institution->getFillable();
 
-        $this->assertContains('identifier', $fillable);
-        $this->assertContains('identifier_type', $fillable);
-        $this->assertContains('name', $fillable);
-        $this->assertContains('ror_id', $fillable);
-    }
-}
+        expect($fillable)
+            ->toContain('identifier')
+            ->toContain('identifier_type')
+            ->toContain('name')
+            ->toContain('ror_id');
+    });
+});

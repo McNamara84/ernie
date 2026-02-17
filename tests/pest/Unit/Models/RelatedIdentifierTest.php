@@ -2,25 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit;
-
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-/**
- * Unit tests for RelatedIdentifier model
- */
-class RelatedIdentifierTest extends TestCase
-{
-    use RefreshDatabase;
+uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-    /**
-     * Test RelatedIdentifier belongs to Resource
-     */
-    public function test_belongs_to_resource(): void
-    {
+describe('RelatedIdentifier model', function () {
+    test('belongs to resource', function () {
         $resource = Resource::factory()->create();
         $relatedIdentifier = RelatedIdentifier::create([
             'resource_id' => $resource->id,
@@ -30,15 +18,12 @@ class RelatedIdentifierTest extends TestCase
             'position' => 0,
         ]);
 
-        $this->assertInstanceOf(Resource::class, $relatedIdentifier->resource);
-        $this->assertEquals($resource->id, $relatedIdentifier->resource->id);
-    }
+        expect($relatedIdentifier->resource)
+            ->toBeInstanceOf(Resource::class)
+            ->and($relatedIdentifier->resource->id)->toBe($resource->id);
+    });
 
-    /**
-     * Test fillable attributes
-     */
-    public function test_fillable_attributes(): void
-    {
+    test('fillable attributes', function () {
         $relatedIdentifier = new RelatedIdentifier([
             'resource_id' => 1,
             'identifier' => '10.5678/example',
@@ -47,18 +32,14 @@ class RelatedIdentifierTest extends TestCase
             'position' => 5,
         ]);
 
-        $this->assertEquals(1, $relatedIdentifier->resource_id);
-        $this->assertEquals('10.5678/example', $relatedIdentifier->identifier);
-        $this->assertEquals('DOI', $relatedIdentifier->identifier_type);
-        $this->assertEquals('IsSupplementTo', $relatedIdentifier->relation_type);
-        $this->assertEquals(5, $relatedIdentifier->position);
-    }
+        expect($relatedIdentifier->resource_id)->toBe(1)
+            ->and($relatedIdentifier->identifier)->toBe('10.5678/example')
+            ->and($relatedIdentifier->identifier_type)->toBe('DOI')
+            ->and($relatedIdentifier->relation_type)->toBe('IsSupplementTo')
+            ->and($relatedIdentifier->position)->toBe(5);
+    });
 
-    /**
-     * Test casts for position field
-     */
-    public function test_position_is_cast_to_integer(): void
-    {
+    test('position is cast to integer', function () {
         $resource = Resource::factory()->create();
         $relatedIdentifier = RelatedIdentifier::create([
             'resource_id' => $resource->id,
@@ -68,15 +49,12 @@ class RelatedIdentifierTest extends TestCase
             'position' => '3',
         ]);
 
-        $this->assertIsInt($relatedIdentifier->position);
-        $this->assertEquals(3, $relatedIdentifier->position);
-    }
+        expect($relatedIdentifier->position)
+            ->toBeInt()
+            ->toBe(3);
+    });
 
-    /**
-     * Test creating related identifier with all identifier types
-     */
-    public function test_supports_all_identifier_types(): void
-    {
+    test('supports all identifier types', function () {
         $resource = Resource::factory()->create();
 
         $identifierTypes = [
@@ -94,46 +72,29 @@ class RelatedIdentifierTest extends TestCase
                 'position' => $index,
             ]);
 
-            $this->assertEquals($type, $identifier->identifier_type);
+            expect($identifier->identifier_type)->toBe($type);
         }
 
-        $this->assertCount(19, $resource->relatedIdentifiers()->get());
-    }
+        expect($resource->relatedIdentifiers()->get())->toHaveCount(19);
+    });
 
-    /**
-     * Test creating related identifier with all relation types
-     */
-    public function test_supports_all_relation_types(): void
-    {
+    test('supports all relation types', function () {
         $resource = Resource::factory()->create();
 
         $relationTypes = [
-            // Citation Relations (2)
             'Cites', 'IsCitedBy',
-            // Supplement Relations (2)
             'IsSupplementTo', 'IsSupplementedBy',
-            // Part Relations (2)
             'HasPart', 'IsPartOf',
-            // Version Relations (6)
             'IsNewVersionOf', 'IsPreviousVersionOf', 'IsVersionOf', 'HasVersion',
             'IsVariantFormOf', 'IsOriginalFormOf',
-            // Derivation Relations (2)
             'IsDerivedFrom', 'IsSourceOf',
-            // Documentation Relations (4)
             'Documents', 'IsDocumentedBy', 'Describes', 'IsDescribedBy',
-            // Review Relations (2)
             'Reviews', 'IsReviewedBy',
-            // Reference Relations (2)
             'References', 'IsReferencedBy',
-            // Requirement Relations (2)
             'Requires', 'IsRequiredBy',
-            // Compilation Relations (2)
             'Compiles', 'IsCompiledBy',
-            // Collection Relations (2)
             'Collects', 'IsCollectedBy',
-            // Obsolescence Relations (2)
             'Obsoletes', 'IsObsoletedBy',
-            // Identity Relations (3)
             'IsIdenticalTo', 'IsAlternateIdentifier', 'IsMetadataFor',
         ];
 
@@ -146,21 +107,15 @@ class RelatedIdentifierTest extends TestCase
                 'position' => $index,
             ]);
 
-            $this->assertEquals($type, $identifier->relation_type);
+            expect($identifier->relation_type)->toBe($type);
         }
 
-        // Test that all 33 relation types were created
-        $this->assertCount(33, $resource->relatedIdentifiers()->get());
-    }
+        expect($resource->relatedIdentifiers()->get())->toHaveCount(33);
+    });
 
-    /**
-     * Test ordering by position
-     */
-    public function test_ordered_by_position(): void
-    {
+    test('ordered by position', function () {
         $resource = Resource::factory()->create();
 
-        // Create in random order
         RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.3333/third',
@@ -187,8 +142,8 @@ class RelatedIdentifierTest extends TestCase
 
         $ordered = $resource->relatedIdentifiers()->get();
 
-        $this->assertEquals('10.1111/first', $ordered[0]->identifier);
-        $this->assertEquals('10.2222/second', $ordered[1]->identifier);
-        $this->assertEquals('10.3333/third', $ordered[2]->identifier);
-    }
-}
+        expect($ordered[0]->identifier)->toBe('10.1111/first')
+            ->and($ordered[1]->identifier)->toBe('10.2222/second')
+            ->and($ordered[2]->identifier)->toBe('10.3333/third');
+    });
+});

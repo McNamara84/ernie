@@ -2,40 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
-
 use App\Models\FundingReference;
 use App\Models\Resource;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-/**
- * Feature tests for Funding Reference functionality (DataCite #19)
- * Tests database operations for funding references
- */
-class FundingReferenceTest extends TestCase
-{
-    use RefreshDatabase;
+uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-    private Resource $resource;
+beforeEach(function () {
+    $this->resource = Resource::factory()->create();
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->resource = Resource::factory()->create();
-    }
-
-    /**
-     * Test creating funding references for a resource
-     */
-    public function test_can_create_funding_reference(): void
-    {
+describe('FundingReference model CRUD', function () {
+    test('can create funding reference', function () {
         $fundingRef = FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Deutsche Forschungsgemeinschaft (DFG)',
             'funder_identifier' => 'https://ror.org/018mejw64',
-            // funder_identifier_type_id would be set via relationship
             'award_number' => 'ERC-2021-STG-101234567',
             'award_uri' => 'https://cordis.europa.eu/project/id/101234567',
             'award_title' => 'Innovative Research in AI Systems',
@@ -50,14 +31,10 @@ class FundingReferenceTest extends TestCase
             'award_title' => 'Innovative Research in AI Systems',
         ]);
 
-        $this->assertInstanceOf(FundingReference::class, $fundingRef);
-    }
+        expect($fundingRef)->toBeInstanceOf(FundingReference::class);
+    });
 
-    /**
-     * Test creating funding reference with minimal data (only required fields)
-     */
-    public function test_can_create_funding_reference_with_minimal_data(): void
-    {
+    test('can create funding reference with minimal data', function () {
         $fundingRef = FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Example Funder',
@@ -68,17 +45,13 @@ class FundingReferenceTest extends TestCase
             'funder_name' => 'Example Funder',
         ]);
 
-        $this->assertNull($fundingRef->funder_identifier);
-        $this->assertNull($fundingRef->award_number);
-        $this->assertNull($fundingRef->award_uri);
-        $this->assertNull($fundingRef->award_title);
-    }
+        expect($fundingRef->funder_identifier)->toBeNull()
+            ->and($fundingRef->award_number)->toBeNull()
+            ->and($fundingRef->award_uri)->toBeNull()
+            ->and($fundingRef->award_title)->toBeNull();
+    });
 
-    /**
-     * Test creating multiple funding references
-     */
-    public function test_can_create_multiple_funding_references(): void
-    {
+    test('can create multiple funding references', function () {
         FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'European Research Council',
@@ -96,27 +69,23 @@ class FundingReferenceTest extends TestCase
             'funder_name' => 'German Research Foundation',
         ]);
 
-        $this->assertCount(3, $this->resource->fresh()->fundingReferences);
-
         $fundingRefs = $this->resource->fresh()->fundingReferences;
-        $funderNames = $fundingRefs->pluck('funder_name')->toArray();
-        $this->assertContains('European Research Council', $funderNames);
-        $this->assertContains('National Science Foundation', $funderNames);
-        $this->assertContains('German Research Foundation', $funderNames);
-    }
+        expect($fundingRefs)->toHaveCount(3);
 
-    /**
-     * Test updating funding references
-     */
-    public function test_can_update_funding_references(): void
-    {
+        $funderNames = $fundingRefs->pluck('funder_name')->toArray();
+        expect($funderNames)
+            ->toContain('European Research Council')
+            ->toContain('National Science Foundation')
+            ->toContain('German Research Foundation');
+    });
+
+    test('can update funding references', function () {
         FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Old Funder Name',
             'funder_identifier' => 'https://ror.org/old',
         ]);
 
-        // Delete old and create new (simulating update in ResourceController)
         FundingReference::where('resource_id', $this->resource->id)->delete();
 
         FundingReference::create([
@@ -134,13 +103,9 @@ class FundingReferenceTest extends TestCase
             'funder_name' => 'New Funder Name',
             'award_number' => 'NEW-123',
         ]);
-    }
+    });
 
-    /**
-     * Test deleting all funding references
-     */
-    public function test_can_delete_all_funding_references(): void
-    {
+    test('can delete all funding references', function () {
         FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Funder to Remove',
@@ -151,36 +116,31 @@ class FundingReferenceTest extends TestCase
             'funder_name' => 'Another Funder to Remove',
         ]);
 
-        $this->assertCount(2, $this->resource->fresh()->fundingReferences);
+        expect($this->resource->fresh()->fundingReferences)->toHaveCount(2);
 
         FundingReference::where('resource_id', $this->resource->id)->delete();
 
-        $this->assertCount(0, $this->resource->fresh()->fundingReferences);
+        expect($this->resource->fresh()->fundingReferences)->toHaveCount(0);
         $this->assertDatabaseMissing('funding_references', [
             'resource_id' => $this->resource->id,
         ]);
-    }
+    });
+});
 
-    /**
-     * Test relationship between Resource and FundingReferences
-     */
-    public function test_resource_funding_reference_relationship(): void
-    {
+describe('FundingReference relationships', function () {
+    test('resource has many funding references', function () {
         FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Test Funder',
         ]);
 
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Collection::class, $this->resource->fundingReferences);
-        $this->assertCount(1, $this->resource->fundingReferences);
-        $this->assertEquals('Test Funder', $this->resource->fundingReferences->first()->funder_name);
-    }
+        expect($this->resource->fundingReferences)
+            ->toBeInstanceOf(\Illuminate\Database\Eloquent\Collection::class)
+            ->toHaveCount(1);
+        expect($this->resource->fundingReferences->first()->funder_name)->toBe('Test Funder');
+    });
 
-    /**
-     * Test cascade delete when resource is deleted
-     */
-    public function test_funding_references_deleted_when_resource_deleted(): void
-    {
+    test('funding references deleted when resource deleted', function () {
         FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Test Funder',
@@ -195,5 +155,5 @@ class FundingReferenceTest extends TestCase
         $this->assertDatabaseMissing('funding_references', [
             'resource_id' => $this->resource->id,
         ]);
-    }
-}
+    });
+});

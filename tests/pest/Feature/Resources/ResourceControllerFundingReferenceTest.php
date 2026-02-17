@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
-
 use App\Models\FundingReference;
 use App\Models\Language;
 use App\Models\Resource;
@@ -11,89 +9,60 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-/**
- * Feature tests for Resource Controller Funding Reference operations
- * Tests saving and loading funding references via the ResourceController
- */
-class ResourceControllerFundingReferenceTest extends TestCase
+beforeEach(function () {
+    $this->user = User::factory()->create();
+    $this->resourceType = ResourceType::create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+    $this->language = Language::create([
+        'code' => 'en',
+        'name' => 'English',
+        'is_active' => true,
+        'is_elmo_active' => true,
+    ]);
+    $this->right = Right::create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+    $this->titleType = TitleType::create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+});
+
+function getValidPayload(array $overrides = []): array
 {
-    use RefreshDatabase;
-
-    private User $user;
-
-    private ResourceType $resourceType;
-
-    private Language $language;
-
-    private Right $right;
-
-    private TitleType $titleType;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->user = User::factory()->create();
-        $this->resourceType = ResourceType::create([
-            'name' => 'Dataset',
-            'slug' => 'dataset',
-        ]);
-        $this->language = Language::create([
-            'code' => 'en',
-            'name' => 'English',
-            'is_active' => true,
-            'is_elmo_active' => true,
-        ]);
-        $this->right = Right::create([
-            'identifier' => 'cc-by-4',
-            'name' => 'Creative Commons Attribution 4.0',
-        ]);
-        $this->titleType = TitleType::create([
-            'name' => 'Main Title',
-            'slug' => 'main-title',
-        ]);
-    }
-
-    /**
-     * Helper to get valid resource payload
-     */
-    private function getValidPayload(array $overrides = []): array
-    {
-        return array_merge([
-            'publicationYear' => 2024,
-            'resourceType' => (string) $this->resourceType->id,
-            'language' => 'en',
-            'titles' => [
-                ['value' => 'Test Resource', 'titleType' => 'main-title'],
+    return array_merge([
+        'publicationYear' => 2024,
+        'resourceType' => (string) test()->resourceType->id,
+        'language' => 'en',
+        'titles' => [
+            ['value' => 'Test Resource', 'titleType' => 'main-title'],
+        ],
+        'rights' => ['cc-by-4'],
+        'creators' => [
+            [
+                'type' => 'person',
+                'givenName' => 'John',
+                'familyName' => 'Doe',
+                'position' => 0,
+                'affiliations' => [],
             ],
-            'rights' => ['cc-by-4'],
-            'creators' => [
-                [
-                    'type' => 'person',
-                    'givenName' => 'John',
-                    'familyName' => 'Doe',
-                    'position' => 0,
-                    'affiliations' => [],
-                ],
+        ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'This is a test abstract.',
             ],
-            'descriptions' => [
-                [
-                    'descriptionType' => 'Abstract',
-                    'description' => 'This is a test abstract.',
-                ],
-            ],
-        ], $overrides);
-    }
+        ],
+    ], $overrides);
+}
 
-    /**
-     * Test saving funding references when creating a new resource
-     */
-    public function test_can_save_funding_references_when_creating_resource(): void
-    {
-        $payload = $this->getValidPayload([
+describe('creating funding references', function () {
+    test('can save funding references when creating resource', function () {
+        $payload = getValidPayload([
             'fundingReferences' => [
                 [
                     'funderName' => 'European Research Council',
@@ -133,17 +102,41 @@ class ResourceControllerFundingReferenceTest extends TestCase
             'award_number' => 'DFG-2024-789',
         ]);
 
-        // Check that the resource has 2 funding references
         $resource = Resource::latest()->first();
-        $this->assertCount(2, $resource->fundingReferences);
-    }
+        expect($resource->fundingReferences)->toHaveCount(2);
+    });
 
-    /**
-     * Test updating funding references on existing resource
-     */
-    public function test_can_update_funding_references_on_existing_resource(): void
-    {
-        // Create resource with one funding reference
+    test('can save funding reference with only funder name', function () {
+        $payload = getValidPayload([
+            'fundingReferences' => [
+                [
+                    'funderName' => 'Minimal Funder',
+                    'funderIdentifier' => '',
+                    'funderIdentifierType' => null,
+                    'awardNumber' => '',
+                    'awardUri' => '',
+                    'awardTitle' => '',
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('funding_references', [
+            'funder_name' => 'Minimal Funder',
+            'funder_identifier' => null,
+            'award_number' => null,
+            'award_uri' => null,
+            'award_title' => null,
+        ]);
+    });
+});
+
+describe('updating funding references', function () {
+    test('can update funding references on existing resource', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->resourceType->id,
         ]);
@@ -154,8 +147,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
             'funder_identifier' => 'https://ror.org/old',
         ]);
 
-        // Update with different funding references
-        $payload = $this->getValidPayload([
+        $payload = getValidPayload([
             'resourceId' => $resource->id,
             'fundingReferences' => [
                 [
@@ -182,13 +174,11 @@ class ResourceControllerFundingReferenceTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Old funding reference should be deleted
         $this->assertDatabaseMissing('funding_references', [
             'resource_id' => $resource->id,
             'funder_name' => 'Old Funder',
         ]);
 
-        // New funding references should exist
         $this->assertDatabaseHas('funding_references', [
             'resource_id' => $resource->id,
             'funder_name' => 'New Funder 1',
@@ -200,24 +190,15 @@ class ResourceControllerFundingReferenceTest extends TestCase
             'funder_name' => 'New Funder 2',
         ]);
 
-        $this->assertCount(2, $resource->fresh()->fundingReferences);
-    }
+        expect($resource->fresh()->fundingReferences)->toHaveCount(2);
+    });
 
-    /**
-     * Test saving only minimal required data (funderName)
-     */
-    public function test_can_save_funding_reference_with_only_funder_name(): void
-    {
-        $payload = $this->getValidPayload([
+    test('preserves funding reference positions', function () {
+        $payload = getValidPayload([
             'fundingReferences' => [
-                [
-                    'funderName' => 'Minimal Funder',
-                    'funderIdentifier' => '',
-                    'funderIdentifierType' => null,
-                    'awardNumber' => '',
-                    'awardUri' => '',
-                    'awardTitle' => '',
-                ],
+                ['funderName' => 'First', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
+                ['funderName' => 'Second', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
+                ['funderName' => 'Third', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
             ],
         ]);
 
@@ -226,21 +207,21 @@ class ResourceControllerFundingReferenceTest extends TestCase
 
         $response->assertStatus(201);
 
-        $this->assertDatabaseHas('funding_references', [
-            'funder_name' => 'Minimal Funder',
-            'funder_identifier' => null,
-            'award_number' => null,
-            'award_uri' => null,
-            'award_title' => null,
-        ]);
-    }
+        $resource = Resource::latest()->first();
+        $fundingRefs = $resource->fundingReferences()->orderBy('position')->get();
 
-    /**
-     * Test that empty funder names are not saved
-     */
-    public function test_does_not_save_funding_reference_with_empty_funder_name(): void
-    {
-        $payload = $this->getValidPayload([
+        expect($fundingRefs[0]->funder_name)->toBe('First')
+            ->and($fundingRefs[0]->position)->toBe(0)
+            ->and($fundingRefs[1]->funder_name)->toBe('Second')
+            ->and($fundingRefs[1]->position)->toBe(1)
+            ->and($fundingRefs[2]->funder_name)->toBe('Third')
+            ->and($fundingRefs[2]->position)->toBe(2);
+    });
+});
+
+describe('validation', function () {
+    test('does not save funding reference with empty funder name', function () {
+        $payload = getValidPayload([
             'fundingReferences' => [
                 [
                     'funderName' => '',
@@ -251,7 +232,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
                     'awardTitle' => '',
                 ],
                 [
-                    'funderName' => '   ',  // Whitespace only
+                    'funderName' => '   ',
                     'funderIdentifier' => '',
                     'funderIdentifierType' => null,
                     'awardNumber' => '',
@@ -269,17 +250,12 @@ class ResourceControllerFundingReferenceTest extends TestCase
             ],
         ]);
 
-        $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), $payload);
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertStatus(422);
+    });
 
-        $response->assertStatus(422);
-    }
-
-    /**
-     * Test validation: funder identifier type must be in allowed list
-     */
-    public function test_validates_funder_identifier_type(): void
-    {
+    test('validates funder identifier type', function () {
         $payload = [
             'publicationYear' => 2024,
             'resourceType' => (string) $this->resourceType->id,
@@ -300,7 +276,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
                 [
                     'funderName' => 'Test Funder',
                     'funderIdentifier' => 'https://example.org/invalid',
-                    'funderIdentifierType' => 'InvalidType',  // Not in allowed list
+                    'funderIdentifierType' => 'InvalidType',
                     'awardNumber' => '',
                     'awardUri' => '',
                     'awardTitle' => '',
@@ -308,18 +284,13 @@ class ResourceControllerFundingReferenceTest extends TestCase
             ],
         ];
 
-        $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), $payload);
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['fundingReferences.0.funderIdentifierType']);
+    });
 
-        $response->assertStatus(422);  // Unprocessable Entity
-        $response->assertJsonValidationErrors(['fundingReferences.0.funderIdentifierType']);
-    }
-
-    /**
-     * Test validation: award URI must be valid URL
-     */
-    public function test_validates_award_uri_format(): void
-    {
+    test('validates award uri format', function () {
         $payload = [
             'publicationYear' => 2024,
             'resourceType' => (string) $this->resourceType->id,
@@ -342,47 +313,15 @@ class ResourceControllerFundingReferenceTest extends TestCase
                     'funderIdentifier' => '',
                     'funderIdentifierType' => null,
                     'awardNumber' => 'TEST-123',
-                    'awardUri' => 'not-a-valid-url',  // Invalid URL
+                    'awardUri' => 'not-a-valid-url',
                     'awardTitle' => '',
                 ],
             ],
         ];
 
-        $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), $payload);
-
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['fundingReferences.0.awardUri']);
-    }
-
-    /**
-     * Test that positions are correctly saved
-     */
-    public function test_preserves_funding_reference_positions(): void
-    {
-        $payload = $this->getValidPayload([
-            'fundingReferences' => [
-                ['funderName' => 'First', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
-                ['funderName' => 'Second', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
-                ['funderName' => 'Third', 'funderIdentifier' => '', 'funderIdentifierType' => null, 'awardNumber' => '', 'awardUri' => '', 'awardTitle' => ''],
-            ],
-        ]);
-
-        $response = $this->actingAs($this->user)
-            ->postJson(route('editor.resources.store'), $payload);
-
-        $response->assertStatus(201);
-
-        $resource = Resource::latest()->first();
-        $fundingRefs = $resource->fundingReferences()->orderBy('position')->get();
-
-        $this->assertEquals('First', $fundingRefs[0]->funder_name);
-        $this->assertEquals(0, $fundingRefs[0]->position);
-
-        $this->assertEquals('Second', $fundingRefs[1]->funder_name);
-        $this->assertEquals(1, $fundingRefs[1]->position);
-
-        $this->assertEquals('Third', $fundingRefs[2]->funder_name);
-        $this->assertEquals(2, $fundingRefs[2]->position);
-    }
-}
+        $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['fundingReferences.0.awardUri']);
+    });
+});

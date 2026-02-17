@@ -2,35 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
-
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-/**
- * Feature tests for Related Work functionality
- * Tests database operations for related identifiers
- */
-class RelatedWorkTest extends TestCase
-{
-    use RefreshDatabase;
+uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-    private Resource $resource;
+beforeEach(function () {
+    $this->resource = Resource::factory()->create();
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->resource = Resource::factory()->create();
-    }
-
-    /**
-     * Test creating related identifiers for a resource
-     */
-    public function test_can_create_related_identifiers(): void
-    {
+describe('RelatedIdentifier CRUD', function () {
+    test('can create related identifiers', function () {
         $relatedId = RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.5678/related.dataset',
@@ -47,15 +29,11 @@ class RelatedWorkTest extends TestCase
             'position' => 0,
         ]);
 
-        $this->assertInstanceOf(RelatedIdentifier::class, $relatedId);
-    }
+        expect($relatedId)->toBeInstanceOf(RelatedIdentifier::class);
+    });
 
-    /**
-     * Test updating related identifiers
-     */
-    public function test_can_update_related_identifiers(): void
-    {
-        $relatedId = RelatedIdentifier::create([
+    test('can update related identifiers', function () {
+        RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.1111/old',
             'identifier_type' => 'DOI',
@@ -63,7 +41,6 @@ class RelatedWorkTest extends TestCase
             'position' => 0,
         ]);
 
-        // Delete old and create new (simulating update)
         RelatedIdentifier::where('resource_id', $this->resource->id)->delete();
 
         RelatedIdentifier::create([
@@ -81,13 +58,9 @@ class RelatedWorkTest extends TestCase
         $this->assertDatabaseHas('resource_related_identifiers', [
             'identifier' => '10.2222/new',
         ]);
-    }
+    });
 
-    /**
-     * Test deleting all related identifiers
-     */
-    public function test_can_delete_all_related_identifiers(): void
-    {
+    test('can delete all related identifiers', function () {
         RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.1111/to.remove',
@@ -101,13 +74,9 @@ class RelatedWorkTest extends TestCase
         $this->assertDatabaseMissing('resource_related_identifiers', [
             'resource_id' => $this->resource->id,
         ]);
-    }
+    });
 
-    /**
-     * Test related identifiers maintain correct positions
-     */
-    public function test_maintains_positions(): void
-    {
+    test('maintains positions', function () {
         RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.1111/first',
@@ -133,13 +102,9 @@ class RelatedWorkTest extends TestCase
             'identifier' => '10.2222/second',
             'position' => 1,
         ]);
-    }
+    });
 
-    /**
-     * Test allows same identifier with different relation types
-     */
-    public function test_allows_same_identifier_with_different_relation_types(): void
-    {
+    test('allows same identifier with different relation types', function () {
         RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.1234/same',
@@ -156,14 +121,12 @@ class RelatedWorkTest extends TestCase
             'position' => 1,
         ]);
 
-        $this->assertEquals(2, RelatedIdentifier::where('resource_id', $this->resource->id)->count());
-    }
+        expect(RelatedIdentifier::where('resource_id', $this->resource->id)->count())->toBe(2);
+    });
+});
 
-    /**
-     * Test relationship between Resource and RelatedIdentifier models
-     */
-    public function test_resource_has_many_related_identifiers(): void
-    {
+describe('RelatedIdentifier relationships', function () {
+    test('resource has many related identifiers', function () {
         RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.1111/first',
@@ -180,20 +143,15 @@ class RelatedWorkTest extends TestCase
             'position' => 1,
         ]);
 
-        // Refresh the model to load relationships
         $this->resource->refresh();
-
         $relatedIdentifiers = $this->resource->relatedIdentifiers()->get();
-        $this->assertCount(2, $relatedIdentifiers);
-        $this->assertEquals('10.1111/first', $relatedIdentifiers[0]->identifier);
-        $this->assertEquals('10.2222/second', $relatedIdentifiers[1]->identifier);
-    }
 
-    /**
-     * Test deleting a resource cascades to related identifiers
-     */
-    public function test_deleting_resource_cascades_to_related_identifiers(): void
-    {
+        expect($relatedIdentifiers)->toHaveCount(2);
+        expect($relatedIdentifiers[0]->identifier)->toBe('10.1111/first');
+        expect($relatedIdentifiers[1]->identifier)->toBe('10.2222/second');
+    });
+
+    test('deleting resource cascades to related identifiers', function () {
         RelatedIdentifier::create([
             'resource_id' => $this->resource->id,
             'identifier' => '10.1111/test',
@@ -211,5 +169,5 @@ class RelatedWorkTest extends TestCase
         $this->assertDatabaseMissing('resource_related_identifiers', [
             'resource_id' => $this->resource->id,
         ]);
-    }
-}
+    });
+});

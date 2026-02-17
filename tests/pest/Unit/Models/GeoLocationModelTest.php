@@ -1,52 +1,36 @@
 <?php
 
-namespace Tests\Feature;
+declare(strict_types=1);
 
 use App\Models\GeoLocation;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-/**
- * Tests for GeoLocation model (DataCite #18)
- *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/geolocation/
- */
-class GeoLocationTest extends TestCase
-{
-    use RefreshDatabase;
+uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-    private Resource $resource;
+beforeEach(function () {
+    $resourceType = ResourceType::create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
 
-    protected function setUp(): void
-    {
-        parent::setUp();
+    $language = Language::create([
+        'code' => 'en',
+        'name' => 'English',
+    ]);
 
-        // Create required related records directly
-        $resourceType = ResourceType::create([
-            'name' => 'Dataset',
-            'slug' => 'dataset',
-        ]);
+    $this->resource = Resource::create([
+        'doi' => '10.5880/TEST.GEO.001',
+        'publication_year' => 2025,
+        'version' => '1.0',
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+    ]);
+});
 
-        $language = Language::create([
-            'code' => 'en',
-            'name' => 'English',
-        ]);
-
-        // Create a test resource
-        $this->resource = Resource::create([
-            'doi' => '10.5880/TEST.GEO.001',
-            'publication_year' => 2025,
-            'version' => '1.0',
-            'resource_type_id' => $resourceType->id,
-            'language_id' => $language->id,
-        ]);
-    }
-
-    public function test_resource_can_have_geo_location_point(): void
-    {
+describe('GeoLocation model CRUD', function () {
+    test('resource can have geo location point', function () {
         $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
             'point_longitude' => 11.527029,
@@ -60,13 +44,12 @@ class GeoLocationTest extends TestCase
             'point_latitude' => '48.16796100',
         ]);
 
-        $this->assertEquals(1, $this->resource->fresh()->geoLocations->count());
-        $this->assertTrue($geoLocation->hasPoint());
-        $this->assertFalse($geoLocation->hasBox());
-    }
+        expect($this->resource->fresh()->geoLocations)->toHaveCount(1);
+        expect($geoLocation->hasPoint())->toBeTrue();
+        expect($geoLocation->hasBox())->toBeFalse();
+    });
 
-    public function test_resource_can_have_geo_location_box(): void
-    {
+    test('resource can have geo location box', function () {
         $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
             'west_bound_longitude' => 11.400000,
@@ -80,12 +63,11 @@ class GeoLocationTest extends TestCase
             'resource_id' => $this->resource->id,
         ]);
 
-        $this->assertTrue($geoLocation->hasBox());
-        $this->assertFalse($geoLocation->hasPoint());
-    }
+        expect($geoLocation->hasBox())->toBeTrue();
+        expect($geoLocation->hasPoint())->toBeFalse();
+    });
 
-    public function test_resource_can_have_geo_location_place(): void
-    {
+    test('resource can have geo location place', function () {
         $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
             'place' => 'Potsdam, Germany',
@@ -97,11 +79,10 @@ class GeoLocationTest extends TestCase
             'place' => 'Potsdam, Germany',
         ]);
 
-        $this->assertTrue($geoLocation->hasPlace());
-    }
+        expect($geoLocation->hasPlace())->toBeTrue();
+    });
 
-    public function test_resource_can_have_complete_geo_location(): void
-    {
+    test('resource can have complete geo location', function () {
         $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
             'place' => 'GFZ Potsdam',
@@ -115,14 +96,13 @@ class GeoLocationTest extends TestCase
 
         $freshGeoLocation = GeoLocation::find($geoLocation->id);
 
-        $this->assertTrue($freshGeoLocation->hasPoint());
-        $this->assertTrue($freshGeoLocation->hasBox());
-        $this->assertTrue($freshGeoLocation->hasPlace());
-        $this->assertEquals('GFZ Potsdam', $freshGeoLocation->place);
-    }
+        expect($freshGeoLocation->hasPoint())->toBeTrue()
+            ->and($freshGeoLocation->hasBox())->toBeTrue()
+            ->and($freshGeoLocation->hasPlace())->toBeTrue()
+            ->and($freshGeoLocation->place)->toBe('GFZ Potsdam');
+    });
 
-    public function test_resource_can_have_multiple_geo_locations(): void
-    {
+    test('resource can have multiple geo locations', function () {
         GeoLocation::create([
             'resource_id' => $this->resource->id,
             'point_longitude' => 11.527029,
@@ -137,11 +117,10 @@ class GeoLocationTest extends TestCase
             'place' => 'Berlin, Germany',
         ]);
 
-        $this->assertEquals(2, $this->resource->fresh()->geoLocations->count());
-    }
+        expect($this->resource->fresh()->geoLocations)->toHaveCount(2);
+    });
 
-    public function test_resource_can_have_polygon_geo_location(): void
-    {
+    test('resource can have polygon geo location', function () {
         $polygonPoints = [
             ['longitude' => 13.0, 'latitude' => 52.0],
             ['longitude' => 14.0, 'latitude' => 52.0],
@@ -158,12 +137,11 @@ class GeoLocationTest extends TestCase
 
         $freshGeoLocation = GeoLocation::find($geoLocation->id);
 
-        $this->assertTrue($freshGeoLocation->hasPolygon());
-        $this->assertCount(4, $freshGeoLocation->polygon_points);
-    }
+        expect($freshGeoLocation->hasPolygon())->toBeTrue();
+        expect($freshGeoLocation->polygon_points)->toHaveCount(4);
+    });
 
-    public function test_deleting_resource_cascades_to_geo_locations(): void
-    {
+    test('deleting resource cascades to geo locations', function () {
         $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
             'point_longitude' => 11.527029,
@@ -175,25 +153,25 @@ class GeoLocationTest extends TestCase
         $this->resource->delete();
 
         $this->assertDatabaseMissing('geo_locations', ['id' => $geoLocation->id]);
-    }
+    });
+});
 
-    public function test_geo_location_factory_creates_valid_point(): void
-    {
+describe('GeoLocation factory', function () {
+    test('factory creates valid point', function () {
         $geoLocation = GeoLocation::factory()->withPoint()->create([
             'resource_id' => $this->resource->id,
         ]);
 
-        $this->assertTrue($geoLocation->hasPoint());
-        $this->assertNotNull($geoLocation->point_longitude);
-        $this->assertNotNull($geoLocation->point_latitude);
-    }
+        expect($geoLocation->hasPoint())->toBeTrue();
+        expect($geoLocation->point_longitude)->not->toBeNull();
+        expect($geoLocation->point_latitude)->not->toBeNull();
+    });
 
-    public function test_geo_location_factory_creates_valid_box(): void
-    {
+    test('factory creates valid box', function () {
         $geoLocation = GeoLocation::factory()->withBox()->create([
             'resource_id' => $this->resource->id,
         ]);
 
-        $this->assertTrue($geoLocation->hasBox());
-    }
-}
+        expect($geoLocation->hasBox())->toBeTrue();
+    });
+});

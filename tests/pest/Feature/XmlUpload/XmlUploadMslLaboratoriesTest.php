@@ -2,59 +2,35 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
-
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Tests\TestCase;
 
-/**
- * Feature tests for MSL Laboratories in XML Upload
- * Tests extracting MSL labs from DataCite XML files
- */
-class XmlUploadMslLaboratoriesTest extends TestCase
-{
-    use RefreshDatabase;
+beforeEach(function () {
+    Storage::fake('local');
 
-    private $user;
+    $this->user = \App\Models\User::factory()->create();
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Storage::fake('local');
+    Http::fake([
+        'raw.githubusercontent.com/*' => Http::response([
+            [
+                'identifier' => '9ba34c109b827b177aab36e0266b1643',
+                'name' => 'HelTec - Helmholtz Laboratory',
+                'affiliation_name' => 'GFZ German Research Centre',
+                'affiliation_ror' => 'https://ror.org/04z8jg394',
+            ],
+        ], 200),
+    ]);
+});
 
-        // Create authenticated user
-        $this->user = \App\Models\User::factory()->create();
-
-        // Mock MSL Laboratory Service
-        Http::fake([
-            'raw.githubusercontent.com/*' => Http::response([
-                [
-                    'identifier' => '9ba34c109b827b177aab36e0266b1643',
-                    'name' => 'HelTec - Helmholtz Laboratory',
-                    'affiliation_name' => 'GFZ German Research Centre',
-                    'affiliation_ror' => 'https://ror.org/04z8jg394',
-                ],
-            ], 200),
-        ]);
-    }
-
-    public function test_extracts_msl_laboratory_from_datacite_xml(): void
-    {
+describe('XML Upload - MSL Laboratories', function () {
+    test('extracts msl laboratory from datacite xml', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -74,31 +50,22 @@ XML;
             'file' => $file,
         ]);
 
-        $response->assertStatus(200);
-        $response->assertJsonStructure([
-            'mslLaboratories',
-        ]);
+        $response->assertStatus(200)
+            ->assertJsonStructure(['mslLaboratories']);
 
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertCount(1, $mslLabs);
-        $this->assertEquals('9ba34c109b827b177aab36e0266b1643', $mslLabs[0]['identifier']);
-        $this->assertEquals('HelTec - Helmholtz Laboratory', $mslLabs[0]['name']);
-    }
+        expect($mslLabs)->toHaveCount(1)
+            ->and($mslLabs[0]['identifier'])->toBe('9ba34c109b827b177aab36e0266b1643')
+            ->and($mslLabs[0]['name'])->toBe('HelTec - Helmholtz Laboratory');
+    });
 
-    public function test_extracts_multiple_msl_laboratories(): void
-    {
+    test('extracts multiple msl laboratories', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -126,25 +93,18 @@ XML;
         $response->assertStatus(200);
 
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertCount(2, $mslLabs);
-        $this->assertEquals('lab1id123', $mslLabs[0]['identifier']);
-        $this->assertEquals('lab2id456', $mslLabs[1]['identifier']);
-    }
+        expect($mslLabs)->toHaveCount(2)
+            ->and($mslLabs[0]['identifier'])->toBe('lab1id123')
+            ->and($mslLabs[1]['identifier'])->toBe('lab2id456');
+    });
 
-    public function test_msl_laboratories_not_in_regular_contributors(): void
-    {
+    test('msl laboratories not in regular contributors', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -169,19 +129,15 @@ XML;
 
         $response->assertStatus(200);
 
-        // MSL lab should be in mslLaboratories
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertCount(1, $mslLabs);
-        $this->assertEquals('msllab123', $mslLabs[0]['identifier']);
+        expect($mslLabs)->toHaveCount(1)
+            ->and($mslLabs[0]['identifier'])->toBe('msllab123');
 
-        // MSL lab should NOT be in regular contributors
         $contributors = $response->json('contributors');
         foreach ($contributors as $contributor) {
-            $this->assertNotEquals('MSL Laboratory', $contributor['institutionName'] ?? '');
+            expect($contributor['institutionName'] ?? '')->not->toBe('MSL Laboratory');
         }
 
-        // Regular contributor should be in contributors
-        // DataCollector is parsed as person, so we need to check lastName
         $found = false;
         foreach ($contributors as $contributor) {
             if (($contributor['lastName'] ?? '') === 'Regular Contributor') {
@@ -189,23 +145,16 @@ XML;
                 break;
             }
         }
-        $this->assertTrue($found, 'Regular Contributor should be in contributors list');
-    }
+        expect($found)->toBeTrue('Regular Contributor should be in contributors list');
+    });
 
-    public function test_handles_msl_laboratory_without_affiliation(): void
-    {
+    test('handles msl laboratory without affiliation', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -227,25 +176,18 @@ XML;
         $response->assertStatus(200);
 
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertCount(1, $mslLabs);
-        $this->assertEquals('', $mslLabs[0]['affiliation_name']);
-        $this->assertEquals('', $mslLabs[0]['affiliation_ror']);
-    }
+        expect($mslLabs)->toHaveCount(1)
+            ->and($mslLabs[0]['affiliation_name'])->toBe('')
+            ->and($mslLabs[0]['affiliation_ror'])->toBe('');
+    });
 
-    public function test_enriches_msl_laboratory_from_vocabulary(): void
-    {
+    test('enriches msl laboratory from vocabulary', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -267,35 +209,25 @@ XML;
         $response->assertStatus(200);
 
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertCount(1, $mslLabs);
+        expect($mslLabs)->toHaveCount(1)
+            ->and($mslLabs[0]['name'])->toBe('HelTec - Helmholtz Laboratory')
+            ->and($mslLabs[0]['affiliation_name'])->toBe('GFZ German Research Centre')
+            ->and($mslLabs[0]['affiliation_ror'])->toBe('https://ror.org/04z8jg394');
+    });
 
-        // Should be enriched from vocabulary (mocked)
-        $this->assertEquals('HelTec - Helmholtz Laboratory', $mslLabs[0]['name']);
-        $this->assertEquals('GFZ German Research Centre', $mslLabs[0]['affiliation_name']);
-        $this->assertEquals('https://ror.org/04z8jg394', $mslLabs[0]['affiliation_ror']);
-    }
-
-    public function test_ignores_hosting_institution_without_labid(): void
-    {
+    test('ignores hosting institution without labid', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
     <contributors>
         <contributor contributorType="HostingInstitution">
             <contributorName>Regular Hosting Institution</contributorName>
-            <!-- No labid identifier -->
         </contributor>
     </contributors>
 </resource>
@@ -309,30 +241,21 @@ XML;
 
         $response->assertStatus(200);
 
-        // Should not be in mslLaboratories (no labid)
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertEmpty($mslLabs);
+        expect($mslLabs)->toBeEmpty();
 
-        // Should be in regular contributors
         $contributors = $response->json('contributors');
         $contributorNames = array_column($contributors, 'institutionName');
-        $this->assertContains('Regular Hosting Institution', $contributorNames);
-    }
+        expect($contributorNames)->toContain('Regular Hosting Institution');
+    });
 
-    public function test_handles_empty_xml_with_no_msl_laboratories(): void
-    {
+    test('handles empty xml with no msl laboratories', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -348,24 +271,16 @@ XML;
         $response->assertStatus(200);
 
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertIsArray($mslLabs);
-        $this->assertEmpty($mslLabs);
-    }
+        expect($mslLabs)->toBeArray()->toBeEmpty();
+    });
 
-    public function test_extracts_msl_laboratory_with_ror_without_scheme(): void
-    {
+    test('extracts msl laboratory with ror without scheme', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
     <identifier identifierType="DOI">10.1234/test</identifier>
-    <creators>
-        <creator>
-            <creatorName>Test Author</creatorName>
-        </creator>
-    </creators>
-    <titles>
-        <title>Test Dataset</title>
-    </titles>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
     <publisher>Test Publisher</publisher>
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -399,9 +314,8 @@ XML;
         $response->assertStatus(200);
 
         $mslLabs = $response->json('mslLaboratories');
-        $this->assertCount(1, $mslLabs);
-        $this->assertEquals('testlab123', $mslLabs[0]['identifier']);
-        // Should recognize ROR even without affiliationIdentifierScheme
-        $this->assertEquals('https://ror.org/04z8jg394', $mslLabs[0]['affiliation_ror']);
-    }
-}
+        expect($mslLabs)->toHaveCount(1)
+            ->and($mslLabs[0]['identifier'])->toBe('testlab123')
+            ->and($mslLabs[0]['affiliation_ror'])->toBe('https://ror.org/04z8jg394');
+    });
+});

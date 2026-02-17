@@ -2,35 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
-
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Tests\TestCase;
 
-/**
- * Feature tests for XML Upload with Funding References
- * Tests the complete XML import workflow
- */
-class XmlUploadFundingReferenceTest extends TestCase
-{
-    use RefreshDatabase;
+beforeEach(function () {
+    $this->user = User::factory()->create();
+});
 
-    private User $user;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->user = User::factory()->create();
-    }
-
-    /**
-     * Test uploading XML file with single funding reference
-     */
-    public function test_can_extract_single_funding_reference_from_xml(): void
-    {
+describe('XML Upload - Funding References', function () {
+    test('can extract single funding reference from xml', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
@@ -60,33 +40,27 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), [
-                'file' => $file,
-            ]);
+            ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
         $response->assertOk();
 
         $data = $response->json();
 
-        $this->assertArrayHasKey('fundingReferences', $data);
-        $this->assertIsArray($data['fundingReferences']);
-        $this->assertCount(1, $data['fundingReferences']);
+        expect($data)
+            ->toHaveKey('fundingReferences')
+            ->and($data['fundingReferences'])->toHaveCount(1);
 
         $fundingRef = $data['fundingReferences'][0];
 
-        $this->assertEquals('European Research Council', $fundingRef['funderName']);
-        $this->assertEquals('https://doi.org/10.13039/501100000780', $fundingRef['funderIdentifier']);
-        $this->assertEquals('Crossref Funder ID', $fundingRef['funderIdentifierType']);
-        $this->assertEquals('ERC-2021-STG-123456', $fundingRef['awardNumber']);
-        $this->assertEquals('https://cordis.europa.eu/project/id/123456', $fundingRef['awardUri']);
-        $this->assertEquals('Innovative Research in AI', $fundingRef['awardTitle']);
-    }
+        expect($fundingRef['funderName'])->toBe('European Research Council')
+            ->and($fundingRef['funderIdentifier'])->toBe('https://doi.org/10.13039/501100000780')
+            ->and($fundingRef['funderIdentifierType'])->toBe('Crossref Funder ID')
+            ->and($fundingRef['awardNumber'])->toBe('ERC-2021-STG-123456')
+            ->and($fundingRef['awardUri'])->toBe('https://cordis.europa.eu/project/id/123456')
+            ->and($fundingRef['awardTitle'])->toBe('Innovative Research in AI');
+    });
 
-    /**
-     * Test uploading XML file with multiple funding references
-     */
-    public function test_can_extract_multiple_funding_references_from_xml(): void
-    {
+    test('can extract multiple funding references from xml', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
@@ -125,38 +99,22 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-multiple.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), [
-                'file' => $file,
-            ]);
+            ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
         $response->assertOk();
 
         $data = $response->json();
 
-        $this->assertArrayHasKey('fundingReferences', $data);
-        $this->assertCount(3, $data['fundingReferences']);
+        expect($data['fundingReferences'])->toHaveCount(3);
+        expect($data['fundingReferences'][0]['funderName'])->toBe('Deutsche Forschungsgemeinschaft');
+        expect($data['fundingReferences'][0]['funderIdentifierType'])->toBe('ROR');
+        expect($data['fundingReferences'][1]['funderName'])->toBe('National Science Foundation');
+        expect($data['fundingReferences'][1]['awardUri'])->toBe('https://www.nsf.gov/awardsearch/showAward?AWD_ID=123456');
+        expect($data['fundingReferences'][2]['funderName'])->toBe('European Commission');
+        expect($data['fundingReferences'][2]['funderIdentifierType'])->toBe('ISNI');
+    });
 
-        // Check first funding reference
-        $this->assertEquals('Deutsche Forschungsgemeinschaft', $data['fundingReferences'][0]['funderName']);
-        $this->assertEquals('ROR', $data['fundingReferences'][0]['funderIdentifierType']);
-        $this->assertEquals('DFG-2024-456', $data['fundingReferences'][0]['awardNumber']);
-
-        // Check second funding reference
-        $this->assertEquals('National Science Foundation', $data['fundingReferences'][1]['funderName']);
-        $this->assertEquals('Crossref Funder ID', $data['fundingReferences'][1]['funderIdentifierType']);
-        $this->assertEquals('https://www.nsf.gov/awardsearch/showAward?AWD_ID=123456', $data['fundingReferences'][1]['awardUri']);
-        $this->assertEquals('Advanced Computing Research', $data['fundingReferences'][1]['awardTitle']);
-
-        // Check third funding reference
-        $this->assertEquals('European Commission', $data['fundingReferences'][2]['funderName']);
-        $this->assertEquals('ISNI', $data['fundingReferences'][2]['funderIdentifierType']);
-    }
-
-    /**
-     * Test uploading XML file with minimal funding reference (only funderName)
-     */
-    public function test_can_extract_minimal_funding_reference_from_xml(): void
-    {
+    test('can extract minimal funding reference from xml', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
@@ -183,31 +141,24 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-minimal.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), [
-                'file' => $file,
-            ]);
+            ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
         $response->assertOk();
 
         $data = $response->json();
 
-        $this->assertCount(1, $data['fundingReferences']);
+        expect($data['fundingReferences'])->toHaveCount(1);
 
         $fundingRef = $data['fundingReferences'][0];
+        expect($fundingRef['funderName'])->toBe('Example Funder Without Details')
+            ->and($fundingRef['funderIdentifier'])->toBeNull()
+            ->and($fundingRef['funderIdentifierType'])->toBeNull()
+            ->and($fundingRef['awardNumber'])->toBeNull()
+            ->and($fundingRef['awardUri'])->toBeNull()
+            ->and($fundingRef['awardTitle'])->toBeNull();
+    });
 
-        $this->assertEquals('Example Funder Without Details', $fundingRef['funderName']);
-        $this->assertNull($fundingRef['funderIdentifier']);
-        $this->assertNull($fundingRef['funderIdentifierType']);
-        $this->assertNull($fundingRef['awardNumber']);
-        $this->assertNull($fundingRef['awardUri']);
-        $this->assertNull($fundingRef['awardTitle']);
-    }
-
-    /**
-     * Test uploading XML file without funding references
-     */
-    public function test_xml_without_funding_references_returns_empty_array(): void
-    {
+    test('xml without funding references returns empty array', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
@@ -229,24 +180,18 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-no-funding.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), [
-                'file' => $file,
-            ]);
+            ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
         $response->assertOk();
 
         $data = $response->json();
 
-        $this->assertArrayHasKey('fundingReferences', $data);
-        $this->assertIsArray($data['fundingReferences']);
-        $this->assertCount(0, $data['fundingReferences']);
-    }
+        expect($data)
+            ->toHaveKey('fundingReferences')
+            ->and($data['fundingReferences'])->toBeArray()->toBeEmpty();
+    });
 
-    /**
-     * Test all supported funder identifier types
-     */
-    public function test_supports_all_funder_identifier_types(): void
-    {
+    test('supports all funder identifier types', function () {
         $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
@@ -290,22 +235,21 @@ XML;
         $file = UploadedFile::fake()->createWithContent('test-all-types.xml', $xmlContent);
 
         $response = $this->actingAs($this->user)
-            ->post(route('dashboard.upload-xml'), [
-                'file' => $file,
-            ]);
+            ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
         $response->assertOk();
 
         $data = $response->json();
 
-        $this->assertCount(5, $data['fundingReferences']);
+        expect($data['fundingReferences'])->toHaveCount(5);
 
         $types = array_column($data['fundingReferences'], 'funderIdentifierType');
 
-        $this->assertContains('ROR', $types);
-        $this->assertContains('Crossref Funder ID', $types);
-        $this->assertContains('ISNI', $types);
-        $this->assertContains('GRID', $types);
-        $this->assertContains('Other', $types);
-    }
-}
+        expect($types)
+            ->toContain('ROR')
+            ->toContain('Crossref Funder ID')
+            ->toContain('ISNI')
+            ->toContain('GRID')
+            ->toContain('Other');
+    });
+});
