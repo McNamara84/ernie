@@ -25,6 +25,14 @@
             <directory suffix=".php">database</directory>
             <directory suffix=".php">routes</directory>
         </include>
+        <exclude>
+            <!-- Old metaworks database code (VPN-only, not testable in CI) -->
+            <file>app/Http/Controllers/OldDatasetController.php</file>
+            <file>app/Http/Controllers/OldDataStatisticsController.php</file>
+            <file>app/Models/OldDataset.php</file>
+            <file>app/Services/OldDatasetEditorLoader.php</file>
+            <file>app/Services/OldDatasetKeywordTransformer.php</file>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>

@@ -104,6 +104,11 @@ export default defineConfig(() => {
                     // Type definitions (no executable code)
                     'resources/js/types/**/*.d.ts',
                     'resources/js/**/*.d.ts',
+                    // Old metaworks database UI (VPN-only backend, not testable in CI)
+                    'resources/js/pages/old-statistics.tsx',
+                    'resources/js/pages/old-datasets.tsx',
+                    'resources/js/components/old-datasets-filters.tsx',
+                    'resources/js/types/old-datasets.ts',
                 ],
                 thresholds: {
                     lines: 50,
