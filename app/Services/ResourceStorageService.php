@@ -57,7 +57,10 @@ class ResourceStorageService
 
             $doi = $data['doi'] ?? null;
             if ($doi !== null && $doi !== '') {
-                $doi = strtolower(trim($doi));
+                $doi = app(DoiSuggestionService::class)->normalizeDoi($doi);
+                if ($doi === '') {
+                    $doi = null;
+                }
             }
 
             $attributes = [

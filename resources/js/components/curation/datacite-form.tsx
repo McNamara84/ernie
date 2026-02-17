@@ -1763,17 +1763,16 @@ export default function DataCiteForm({
                     const defaultError = 'Unable to save resource. Please review the highlighted issues.';
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
 
-                    // Fallback: If the backend returns a DOI uniqueness error (race condition),
-                    // trigger DOI validation to show the conflict modal instead of a generic error
-                    if (response.status === 422 && parsed?.errors?.doi) {
-                        const doiErrors = parsed.errors.doi;
-                        const isDuplicateError = doiErrors.some(
-                            (msg) => msg.includes('already') || msg.includes('taken') || msg.includes('unique'),
-                        );
-                        if (isDuplicateError && form.doi) {
-                            validateDoi(form.doi);
+                    // Fallback: If the backend returns a DOI validation error (e.g. race condition
+                    // where another user saved the same DOI between our pre-submit check and the save),
+                    // re-run the DOI duplicate check to show the conflict modal if applicable.
+                    if (response.status === 422 && parsed?.errors?.doi && form.doi) {
+                        const conflict = await checkDoiBeforeSave(form.doi);
+                        if (conflict) {
+                            // Conflict modal is now shown by checkDoiBeforeSave — skip generic error rendering
                             return;
                         }
+                        // Not a duplicate — fall through to normal validation error rendering
                     }
 
                     const messages = parsed?.errors

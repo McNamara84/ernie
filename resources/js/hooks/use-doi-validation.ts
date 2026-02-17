@@ -278,14 +278,20 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             // Cancel any pending debounced request
             if (debounceTimeoutRef.current) {
                 clearTimeout(debounceTimeoutRef.current);
+                debounceTimeoutRef.current = null;
             }
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
+                abortControllerRef.current = null;
             }
+
+            // Reset isValidating that may have been set by a cancelled validateDoi call
+            setIsValidating(false);
 
             const trimmedDoi = doi.trim();
             if (!trimmedDoi) return null;
 
+            setIsValidating(true);
             try {
                 const response = await axios.post<DoiValidationResponse>(
                     '/api/v1/doi/validate',
@@ -324,6 +330,8 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 // If validation request fails (network error etc.), don't block save
                 // Let the backend unique constraint handle it
                 return null;
+            } finally {
+                setIsValidating(false);
             }
         },
         [excludeResourceId, onConflict],

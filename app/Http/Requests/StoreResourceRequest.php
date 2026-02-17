@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\TitleType;
+use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -714,7 +715,7 @@ class StoreResourceRequest extends FormRequest
         }
 
         $this->merge([
-            'doi' => $this->filled('doi') ? strtolower(trim((string) $this->input('doi'))) : null,
+            'doi' => $this->normalizeDoiInput($this->input('doi')),
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
             'resourceType' => $this->filled('resourceType') ? (int) $this->input('resourceType') : null,
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
@@ -735,6 +736,23 @@ class StoreResourceRequest extends FormRequest
         ]);
 
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
+    }
+
+    /**
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     *
+     * Reuses the normalization logic from DoiSuggestionService to ensure consistent
+     * DOI handling across the entire system (validation, storage, duplicate checks).
+     */
+    private function normalizeDoiInput(mixed $input): ?string
+    {
+        if ($input === null || ! is_string($input)) {
+            return null;
+        }
+
+        $normalized = app(DoiSuggestionService::class)->normalizeDoi($input);
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     /** @return array<int, callable(Validator): void> */
