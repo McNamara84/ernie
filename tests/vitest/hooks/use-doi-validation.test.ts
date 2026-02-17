@@ -437,4 +437,132 @@ describe('useDoiValidation', () => {
             expect(result.current.conflictData?.suggestedDoi).toBe('10.5880/test.2026.004');
         });
     });
+
+    describe('checkDoiBeforeSave', () => {
+        it('should return null for empty DOI', async () => {
+            const { result } = renderHook(() => useDoiValidation());
+
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('');
+            });
+
+            expect(conflict).toBeNull();
+            expect(axios.post).not.toHaveBeenCalled();
+        });
+
+        it('should return null when DOI is available', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: true,
+                exists: false,
+            };
+
+            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+
+            const { result } = renderHook(() => useDoiValidation());
+
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('10.5880/test.2026.001');
+            });
+
+            expect(conflict).toBeNull();
+            expect(result.current.showConflictModal).toBe(false);
+        });
+
+        it('should return conflict data and show modal when DOI exists', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: true,
+                exists: true,
+                existing_resource: {
+                    id: 789,
+                    title: 'Blocking Resource',
+                },
+                last_assigned_doi: '10.5880/test.2026.005',
+                suggested_doi: '10.5880/test.2026.006',
+            };
+
+            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+
+            const onConflict = vi.fn();
+            const { result } = renderHook(() =>
+                useDoiValidation({ onConflict }),
+            );
+
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('10.5880/test.2026.005');
+            });
+
+            expect(conflict).toEqual({
+                existingDoi: '10.5880/test.2026.005',
+                existingResourceId: 789,
+                existingResourceTitle: 'Blocking Resource',
+                lastAssignedDoi: '10.5880/test.2026.005',
+                suggestedDoi: '10.5880/test.2026.006',
+                hasSuggestion: true,
+            });
+            expect(result.current.showConflictModal).toBe(true);
+            expect(result.current.conflictData).not.toBeNull();
+            expect(onConflict).toHaveBeenCalled();
+        });
+
+        it('should return null on network error (does not block save)', async () => {
+            vi.mocked(axios.post).mockRejectedValueOnce(new Error('Network Error'));
+
+            const { result } = renderHook(() => useDoiValidation());
+
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('10.5880/test.2026.001');
+            });
+
+            expect(conflict).toBeNull();
+        });
+
+        it('should pass excludeResourceId to API', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: true,
+                exists: false,
+            };
+
+            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+
+            const { result } = renderHook(() =>
+                useDoiValidation({ excludeResourceId: 42 }),
+            );
+
+            await act(async () => {
+                await result.current.checkDoiBeforeSave('10.5880/test.2026.001');
+            });
+
+            expect(axios.post).toHaveBeenCalledWith(
+                '/api/v1/doi/validate',
+                {
+                    doi: '10.5880/test.2026.001',
+                    exclude_resource_id: 42,
+                },
+            );
+        });
+
+        it('should return null when format is invalid', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: false,
+                exists: false,
+                error: 'Invalid DOI format',
+            };
+
+            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+
+            const { result } = renderHook(() => useDoiValidation());
+
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('invalid-doi');
+            });
+
+            expect(conflict).toBeNull();
+            expect(result.current.showConflictModal).toBe(false);
+        });
+    });
 });
