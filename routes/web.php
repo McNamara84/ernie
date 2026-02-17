@@ -250,6 +250,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');
 
+    // DOI duplicate check endpoint - used by the editor form to validate DOI uniqueness
+    // Rate limited to 60 requests per minute per user to prevent abuse
+    Route::post('api/v1/doi/validate', [App\Http\Controllers\Api\DoiValidationController::class, 'validate'])
+        ->middleware('throttle:doi-validation')
+        ->name('api.doi.validate');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
