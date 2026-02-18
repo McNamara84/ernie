@@ -1,7 +1,7 @@
 [
     {
-        "version": "1.0.0dev",
-        "date": "2026-02-16",
+        "version": "1.0.0rc2",
+        "date": "2026-02-18",
         "features": [
             {
                 "title": "Date and Time Support for Collection Dates",
