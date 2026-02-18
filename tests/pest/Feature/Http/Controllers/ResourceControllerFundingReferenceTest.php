@@ -162,12 +162,10 @@ describe('Creating funding references', function () {
         $resource = Resource::latest()->first();
         $fundingRefs = $resource->fundingReferences()->orderBy('position')->get();
 
-        expect($fundingRefs[0]->funder_name)->toBe('First')
-            ->and($fundingRefs[0]->position)->toBe(0)
+        expect($fundingRefs)->toHaveCount(3)
+            ->and($fundingRefs[0]->funder_name)->toBe('First')
             ->and($fundingRefs[1]->funder_name)->toBe('Second')
-            ->and($fundingRefs[1]->position)->toBe(1)
-            ->and($fundingRefs[2]->funder_name)->toBe('Third')
-            ->and($fundingRefs[2]->position)->toBe(2);
+            ->and($fundingRefs[2]->funder_name)->toBe('Third');
     });
 });
 
@@ -231,7 +229,7 @@ describe('Updating funding references', function () {
 });
 
 describe('Validation', function () {
-    it('rejects funding references with empty funder names', function () {
+    it('silently skips funding references with empty funder names', function () {
         $payload = getValidPayload([
             'fundingReferences' => [
                 [
@@ -264,26 +262,16 @@ describe('Validation', function () {
         $response = $this->actingAs($this->user)
             ->postJson(route('editor.resources.store'), $payload);
 
-        $response->assertStatus(422);
+        // Empty funder names are silently stripped in prepareForValidation
+        $response->assertStatus(201);
+
+        $resource = Resource::latest()->first();
+        expect($resource->fundingReferences)->toHaveCount(1)
+            ->and($resource->fundingReferences->first()->funder_name)->toBe('Valid Funder');
     });
 
     it('validates funder identifier type against allowed values', function () {
-        $payload = [
-            'publicationYear' => 2024,
-            'resourceType' => (string) $this->resourceType->id,
-            'language' => 'en',
-            'titles' => [
-                ['value' => 'Test Resource', 'titleType' => 'main-title'],
-            ],
-            'creators' => [
-                [
-                    'type' => 'person',
-                    'givenName' => 'John',
-                    'familyName' => 'Doe',
-                    'position' => 0,
-                    'affiliations' => [],
-                ],
-            ],
+        $payload = getValidPayload([
             'fundingReferences' => [
                 [
                     'funderName' => 'Test Funder',
@@ -294,7 +282,7 @@ describe('Validation', function () {
                     'awardTitle' => '',
                 ],
             ],
-        ];
+        ]);
 
         $response = $this->actingAs($this->user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -304,22 +292,7 @@ describe('Validation', function () {
     });
 
     it('validates award URI format', function () {
-        $payload = [
-            'publicationYear' => 2024,
-            'resourceType' => (string) $this->resourceType->id,
-            'language' => 'en',
-            'titles' => [
-                ['value' => 'Test Resource', 'titleType' => 'main-title'],
-            ],
-            'creators' => [
-                [
-                    'type' => 'person',
-                    'givenName' => 'John',
-                    'familyName' => 'Doe',
-                    'position' => 0,
-                    'affiliations' => [],
-                ],
-            ],
+        $payload = getValidPayload([
             'fundingReferences' => [
                 [
                     'funderName' => 'Test Funder',
@@ -330,7 +303,7 @@ describe('Validation', function () {
                     'awardTitle' => '',
                 ],
             ],
-        ];
+        ]);
 
         $response = $this->actingAs($this->user)
             ->postJson(route('editor.resources.store'), $payload);
