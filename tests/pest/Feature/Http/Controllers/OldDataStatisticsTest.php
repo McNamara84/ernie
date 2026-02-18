@@ -2,12 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\OldDataStatisticsController;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-
-covers(OldDataStatisticsController::class);
 
 /**
  * Mock the metaworks database connection to prevent actual database queries.

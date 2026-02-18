@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Http\Controllers\OldDataStatisticsController;
 
-covers(OldDataStatisticsController::class);
-
 describe('Cache configuration', function () {
     it('uses properly prefixed cache keys', function () {
         $expectedPrefix = 'old_data_stats_';
