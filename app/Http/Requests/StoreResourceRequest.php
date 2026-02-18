@@ -28,7 +28,7 @@ class StoreResourceRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, ValidationRule|Rule|string>>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
