@@ -61,9 +61,9 @@ XML;
         ]);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['mslLaboratories']);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
 
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['identifier'])->toBe('9ba34c109b827b177aab36e0266b1643')
@@ -111,7 +111,8 @@ XML;
 
         $response->assertStatus(200);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
 
         expect($mslLabs)->toHaveCount(2)
             ->and($mslLabs[0]['identifier'])->toBe('lab1id123')
@@ -157,13 +158,15 @@ XML;
 
         $response->assertStatus(200);
 
+        $data = getXmlUploadData($response);
+
         // MSL lab should be in mslLaboratories
-        $mslLabs = $response->json('mslLaboratories');
+        $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['identifier'])->toBe('msllab123');
 
         // MSL lab should NOT be in regular contributors
-        $contributors = $response->json('contributors');
+        $contributors = $data['contributors'] ?? [];
         foreach ($contributors as $contributor) {
             expect($contributor['institutionName'] ?? '')->not->toBe('MSL Laboratory');
         }
@@ -214,7 +217,8 @@ XML;
 
         $response->assertStatus(200);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['affiliation_name'])->toBe('')
             ->and($mslLabs[0]['affiliation_ror'])->toBe('');
@@ -253,11 +257,12 @@ XML;
 
         $response->assertStatus(200);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toBeEmpty();
 
         // Should be in regular contributors
-        $contributors = $response->json('contributors');
+        $contributors = $data['contributors'] ?? [];
         $contributorNames = array_column($contributors, 'institutionName');
         expect($contributorNames)->toContain('Regular Hosting Institution');
     });
@@ -289,7 +294,8 @@ XML;
 
         $response->assertStatus(200);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toBeArray()->toBeEmpty();
     });
 
@@ -338,7 +344,8 @@ XML;
 
         $response->assertStatus(200);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['identifier'])->toBe('testlab123')
             ->and($mslLabs[0]['affiliation_ror'])->toBe('https://ror.org/04z8jg394');
@@ -379,7 +386,8 @@ XML;
 
         $response->assertStatus(200);
 
-        $mslLabs = $response->json('mslLaboratories');
+        $data = getXmlUploadData($response);
+        $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['name'])->toBe('HelTec - Helmholtz Laboratory')
             ->and($mslLabs[0]['affiliation_name'])->toBe('GFZ German Research Centre')

@@ -51,7 +51,7 @@ function mockMetaworksConnection(): void
 }
 
 beforeEach(function () {
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->admin()->create();
 });
 
 afterEach(function () {

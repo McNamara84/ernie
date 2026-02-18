@@ -45,9 +45,7 @@ XML;
         $response = $this->actingAs($this->user)
             ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data)->toHaveKey('fundingReferences')
             ->and($data['fundingReferences'])->toBeArray()->toHaveCount(1);
@@ -105,9 +103,7 @@ XML;
         $response = $this->actingAs($this->user)
             ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data)->toHaveKey('fundingReferences')
             ->and($data['fundingReferences'])->toHaveCount(3);
@@ -159,9 +155,7 @@ XML;
         $response = $this->actingAs($this->user)
             ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data['fundingReferences'])->toHaveCount(1);
 
@@ -201,9 +195,7 @@ XML;
         $response = $this->actingAs($this->user)
             ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data)->toHaveKey('fundingReferences')
             ->and($data['fundingReferences'])->toBeArray()->toBeEmpty();
@@ -257,9 +249,7 @@ XML;
         $response = $this->actingAs($this->user)
             ->post(route('dashboard.upload-xml'), ['file' => $file]);
 
-        $response->assertOk();
-
-        $data = $response->json();
+        $data = getXmlUploadData($response);
 
         expect($data['fundingReferences'])->toHaveCount(5);
 

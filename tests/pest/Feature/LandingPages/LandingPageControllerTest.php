@@ -12,7 +12,7 @@ covers(LandingPageController::class);
 uses()->group('landing-pages');
 
 beforeEach(function () {
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->curator()->create();
     $this->actingAs($this->user);
 
     $this->resource = Resource::factory()->create([

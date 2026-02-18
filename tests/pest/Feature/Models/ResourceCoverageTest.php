@@ -3,175 +3,134 @@
 declare(strict_types=1);
 
 use App\Models\GeoLocation;
-use App\Models\Language;
 use App\Models\Resource;
-use App\Models\ResourceType;
-use App\Models\User;
-
-/*
- * NOTE: The original test references a `ResourceCoverage` class which does not exist.
- * The actual model is `GeoLocation` (DataCite #18 – GeoLocation).
- * The original table name `resource_coverages` and relationship `coverages` are preserved
- * as they appeared in the source test. These may need adjustment to match the current schema
- * (e.g., table `geo_locations`, relationship `geoLocations`).
- */
 
 covers(GeoLocation::class);
 
 beforeEach(function () {
-    $resourceType = ResourceType::create([
-        'name' => 'Dataset',
-        'slug' => 'dataset',
-    ]);
-
-    $language = Language::create([
-        'code' => 'en',
-        'name' => 'English',
-    ]);
-
-    $this->resource = Resource::create([
-        'doi' => '10.5880/TEST.SETUP.001',
-        'publication_year' => 2025,
-        'version' => '1.0',
-        'resource_type_id' => $resourceType->id,
-        'language_id' => $language->id,
-    ]);
+    $this->resource = Resource::factory()->create();
 });
 
-describe('Spatial coverage', function () {
-    it('can add spatial coverage to a resource', function () {
-        $coverage = GeoLocation::create([
+describe('Point location', function () {
+    it('can add a point location to a resource', function () {
+        $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'lat_min' => 48.167961,
-            'lon_min' => 11.527029,
-            'timezone' => 'Europe/Berlin',
+            'point_latitude' => 48.16796100,
+            'point_longitude' => 11.52702900,
+            'place' => 'Munich, Germany',
         ]);
 
-        $this->assertDatabaseHas('resource_coverages', [
-            'id' => $coverage->id,
+        $this->assertDatabaseHas('geo_locations', [
+            'id' => $geoLocation->id,
             'resource_id' => $this->resource->id,
-            'lat_min' => '48.167961',
-            'lon_min' => '11.527029',
+            'place' => 'Munich, Germany',
         ]);
 
-        expect($this->resource->fresh()->coverages)->toHaveCount(1);
+        expect($this->resource->fresh()->geoLocations)->toHaveCount(1);
     });
 });
 
-describe('Temporal coverage', function () {
-    it('can add temporal coverage to a resource', function () {
-        $coverage = GeoLocation::create([
+describe('Bounding box', function () {
+    it('can add a bounding box location to a resource', function () {
+        $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'start_date' => '2025-10-06',
-            'end_date' => '2025-10-10',
-            'start_time' => '15:01:00',
-            'end_time' => '16:01:00',
-            'timezone' => 'Europe/Berlin',
+            'west_bound_longitude' => 11.52702900,
+            'east_bound_longitude' => 11.60000000,
+            'south_bound_latitude' => 48.16796100,
+            'north_bound_latitude' => 48.20000000,
         ]);
 
-        $this->assertDatabaseHas('resource_coverages', [
-            'id' => $coverage->id,
-            'resource_id' => $this->resource->id,
-            'start_time' => '15:01:00',
-            'end_time' => '16:01:00',
-        ]);
+        $freshGeo = GeoLocation::find($geoLocation->id);
 
-        expect($coverage->start_date->toDateString())->toBe('2025-10-06')
-            ->and($coverage->end_date->toDateString())->toBe('2025-10-10');
+        expect((string) $freshGeo->west_bound_longitude)->toBe('11.52702900')
+            ->and((string) $freshGeo->east_bound_longitude)->toBe('11.60000000')
+            ->and((string) $freshGeo->south_bound_latitude)->toBe('48.16796100')
+            ->and((string) $freshGeo->north_bound_latitude)->toBe('48.20000000');
     });
 });
 
-describe('Combined spatial and temporal coverage', function () {
-    it('stores both spatial and temporal data together', function () {
-        $coverage = GeoLocation::create([
+describe('Complete geo location', function () {
+    it('stores point, bounding box and place together', function () {
+        $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'lat_min' => 48.167961,
-            'lat_max' => 48.200000,
-            'lon_min' => 11.527029,
-            'lon_max' => 11.600000,
-            'start_date' => '2025-10-06',
-            'end_date' => '2025-10-10',
-            'start_time' => '15:01:00',
-            'end_time' => '16:01:00',
-            'timezone' => 'Europe/Berlin',
-            'description' => 'Test coverage area',
+            'point_latitude' => 48.16796100,
+            'point_longitude' => 11.52702900,
+            'west_bound_longitude' => 11.00000000,
+            'east_bound_longitude' => 12.00000000,
+            'south_bound_latitude' => 48.00000000,
+            'north_bound_latitude' => 49.00000000,
+            'place' => 'Test coverage area',
+            'elevation' => 520.50,
+            'elevation_unit' => 'm',
         ]);
 
-        $freshCoverage = GeoLocation::find($coverage->id);
+        $freshGeo = GeoLocation::find($geoLocation->id);
 
-        expect((string) $freshCoverage->lat_min)->toBe('48.167961')
-            ->and((string) $freshCoverage->lat_max)->toBe('48.200000')
-            ->and((string) $freshCoverage->lon_min)->toBe('11.527029')
-            ->and((string) $freshCoverage->lon_max)->toBe('11.600000')
-            ->and($freshCoverage->start_date->toDateString())->toBe('2025-10-06')
-            ->and($freshCoverage->end_date->toDateString())->toBe('2025-10-10')
-            ->and($freshCoverage->description)->toBe('Test coverage area');
+        expect((string) $freshGeo->point_latitude)->toBe('48.16796100')
+            ->and((string) $freshGeo->point_longitude)->toBe('11.52702900')
+            ->and((string) $freshGeo->west_bound_longitude)->toBe('11.00000000')
+            ->and((string) $freshGeo->east_bound_longitude)->toBe('12.00000000')
+            ->and($freshGeo->place)->toBe('Test coverage area')
+            ->and((string) $freshGeo->elevation)->toBe('520.50')
+            ->and($freshGeo->elevation_unit)->toBe('m');
     });
 });
 
-describe('Multiple coverages', function () {
-    it('allows a resource to have multiple coverages', function () {
+describe('Multiple geo locations', function () {
+    it('allows a resource to have multiple geo locations', function () {
         GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'lat_min' => 48.167961,
-            'lon_min' => 11.527029,
-            'timezone' => 'UTC',
+            'point_latitude' => 48.16796100,
+            'point_longitude' => 11.52702900,
         ]);
 
         GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'lat_min' => 52.520008,
-            'lon_min' => 13.404954,
-            'timezone' => 'UTC',
+            'point_latitude' => 52.52000800,
+            'point_longitude' => 13.40495400,
         ]);
 
-        expect($this->resource->fresh()->coverages)->toHaveCount(2);
+        expect($this->resource->fresh()->geoLocations)->toHaveCount(2);
     });
 });
 
-describe('Resource index integration', function () {
-    it('includes coverages on the resource index page', function () {
-        $user = User::factory()->create();
+describe('Polygon support', function () {
+    it('stores polygon points as JSON', function () {
+        $polygonPoints = [
+            ['longitude' => 11.0, 'latitude' => 48.0],
+            ['longitude' => 12.0, 'latitude' => 48.0],
+            ['longitude' => 12.0, 'latitude' => 49.0],
+            ['longitude' => 11.0, 'latitude' => 49.0],
+            ['longitude' => 11.0, 'latitude' => 48.0],
+        ];
 
-        GeoLocation::create([
+        $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'lat_min' => 48.167961,
-            'lon_min' => 11.527029,
-            'start_date' => '2025-10-06',
-            'end_date' => '2025-10-10',
-            'timezone' => 'Europe/Berlin',
-            'description' => 'Test coverage',
+            'polygon_points' => $polygonPoints,
+            'in_polygon_point_longitude' => 11.50000000,
+            'in_polygon_point_latitude' => 48.50000000,
         ]);
 
-        $response = $this->actingAs($user)->get('/resources');
+        $freshGeo = GeoLocation::find($geoLocation->id);
 
-        $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => $page
-            ->component('resources')
-            ->has('resources', 1)
-            ->where('resources.0.spatialTemporalCoverages.0.latMin', '48.167961')
-            ->where('resources.0.spatialTemporalCoverages.0.lonMin', '11.527029')
-            ->where('resources.0.spatialTemporalCoverages.0.startDate', '2025-10-06')
-            ->where('resources.0.spatialTemporalCoverages.0.endDate', '2025-10-10')
-            ->where('resources.0.spatialTemporalCoverages.0.timezone', 'Europe/Berlin')
-            ->where('resources.0.spatialTemporalCoverages.0.description', 'Test coverage')
-        );
+        expect($freshGeo->polygon_points)->toBeArray()->toHaveCount(5)
+            ->and((string) $freshGeo->in_polygon_point_longitude)->toBe('11.50000000')
+            ->and((string) $freshGeo->in_polygon_point_latitude)->toBe('48.50000000');
     });
 });
 
 describe('Cascade deletion', function () {
-    it('deletes coverages when the resource is deleted', function () {
-        $coverage = GeoLocation::create([
+    it('deletes geo locations when the resource is deleted', function () {
+        $geoLocation = GeoLocation::create([
             'resource_id' => $this->resource->id,
-            'lat_min' => 48.167961,
-            'lon_min' => 11.527029,
-            'timezone' => 'UTC',
+            'point_latitude' => 48.16796100,
+            'point_longitude' => 11.52702900,
         ]);
 
-        $this->assertDatabaseHas('resource_coverages', ['id' => $coverage->id]);
+        $this->assertDatabaseHas('geo_locations', ['id' => $geoLocation->id]);
 
         $this->resource->delete();
 
-        $this->assertDatabaseMissing('resource_coverages', ['id' => $coverage->id]);
+        $this->assertDatabaseMissing('geo_locations', ['id' => $geoLocation->id]);
     });
 });

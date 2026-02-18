@@ -19,25 +19,25 @@ covers(ResourceController::class);
 function getValidPayload(array $overrides = []): array
 {
     return array_merge([
-        'publicationYear' => 2024,
+        'year' => 2024,
         'resourceType' => (string) test()->resourceType->id,
         'language' => 'en',
         'titles' => [
-            ['value' => 'Test Resource', 'titleType' => 'main-title'],
+            ['title' => 'Test Resource', 'titleType' => 'main-title'],
         ],
-        'rights' => ['cc-by-4'],
-        'creators' => [
+        'licenses' => ['cc-by-4'],
+        'authors' => [
             [
                 'type' => 'person',
-                'givenName' => 'John',
-                'familyName' => 'Doe',
+                'firstName' => 'John',
+                'lastName' => 'Doe',
                 'position' => 0,
                 'affiliations' => [],
             ],
         ],
         'descriptions' => [
             [
-                'descriptionType' => 'Abstract',
+                'descriptionType' => 'abstract',
                 'description' => 'This is a test abstract.',
             ],
         ],
