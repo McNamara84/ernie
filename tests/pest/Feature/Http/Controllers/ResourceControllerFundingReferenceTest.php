@@ -7,6 +7,7 @@ use App\Models\FundingReference;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\DescriptionType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
@@ -63,6 +64,10 @@ beforeEach(function () {
     $this->titleType = TitleType::create([
         'name' => 'Main Title',
         'slug' => 'MainTitle',
+    ]);
+    $this->descriptionType = DescriptionType::create([
+        'name' => 'Abstract',
+        'slug' => 'Abstract',
     ]);
 });
 

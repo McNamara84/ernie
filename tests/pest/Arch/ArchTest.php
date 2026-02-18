@@ -56,6 +56,7 @@ describe('Services', function () {
             'App\Services\MslKeywordTransformer',
             'App\Services\OldDatasetKeywordTransformer',
             'App\Services\DataCiteXmlValidator',
+            'App\Services\DataCiteServiceInterface',
         ]);
 
     arch('services are not extending controllers')
