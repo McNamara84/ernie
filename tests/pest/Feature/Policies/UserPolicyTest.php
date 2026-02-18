@@ -157,14 +157,14 @@ describe('changeRole', function () {
     });
 
     it('denies changing role of user ID 1 (system admin)', function () {
-        $systemAdmin = User::factory()->admin()->create();
-        $systemAdmin->id = 1;
-        $systemAdmin->save();
+        // $this->admin is the first factory-created user and already has ID 1
+        $actingAdmin = User::factory()->admin()->create();
+        $this->actingAs($actingAdmin);
 
-        $this->actingAs($this->admin);
-        $response = $this->policy->changeRole($this->admin, $systemAdmin, UserRole::BEGINNER);
+        $response = $this->policy->changeRole($actingAdmin, $this->admin, UserRole::BEGINNER);
 
-        expect($response->denied())->toBeTrue()
+        expect($this->admin->id)->toBe(1)
+            ->and($response->denied())->toBeTrue()
             ->and($response->message())->toContain('system administrator');
     });
 
@@ -226,14 +226,14 @@ describe('deactivate', function () {
     });
 
     it('denies deactivating user ID 1', function () {
-        $systemAdmin = User::factory()->admin()->create();
-        $systemAdmin->id = 1;
-        $systemAdmin->save();
+        // $this->admin is the first factory-created user and already has ID 1
+        $actingAdmin = User::factory()->admin()->create();
+        $this->actingAs($actingAdmin);
 
-        $this->actingAs($this->admin);
-        $response = $this->policy->deactivate($this->admin, $systemAdmin);
+        $response = $this->policy->deactivate($actingAdmin, $this->admin);
 
-        expect($response->denied())->toBeTrue()
+        expect($this->admin->id)->toBe(1)
+            ->and($response->denied())->toBeTrue()
             ->and($response->message())->toContain('system administrator');
     });
 
@@ -316,14 +316,13 @@ describe('resetPassword', function () {
     });
 
     it('denies non-system-admin from resetting system admin password', function () {
-        $systemAdmin = User::factory()->admin()->create();
-        $systemAdmin->id = 1;
-        $systemAdmin->save();
-
+        // $this->admin is the first factory-created user and already has ID 1
         $this->actingAs($this->groupLeader);
-        $response = $this->policy->resetPassword($this->groupLeader, $systemAdmin);
 
-        expect($response->denied())->toBeTrue()
+        $response = $this->policy->resetPassword($this->groupLeader, $this->admin);
+
+        expect($this->admin->id)->toBe(1)
+            ->and($response->denied())->toBeTrue()
             ->and($response->message())->toContain('system administrator');
     });
 });
