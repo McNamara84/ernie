@@ -51,7 +51,7 @@ describe('Services', function () {
             'App\Services\DataCiteJsonExporter',
             'App\Services\DataCiteXmlExporter',
             'App\Services\DataCiteToResourceTransformer',
-            'App\Services\EditorDataTransformer',
+            'App\Services\Editor\EditorDataTransformer',
             'App\Services\LandingPageResourceTransformer',
             'App\Services\MslKeywordTransformer',
             'App\Services\OldDatasetKeywordTransformer',

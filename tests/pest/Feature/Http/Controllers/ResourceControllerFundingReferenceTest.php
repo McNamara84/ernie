@@ -62,7 +62,7 @@ beforeEach(function () {
     ]);
     $this->titleType = TitleType::create([
         'name' => 'Main Title',
-        'slug' => 'main-title',
+        'slug' => 'MainTitle',
     ]);
 });
 
