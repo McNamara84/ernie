@@ -58,6 +58,7 @@ describe('Services', function () {
             'App\Services\DataCiteXmlValidator',
             'App\Services\DataCiteServiceInterface',
             'App\Services\Traits\DataCiteExporterHelpers',
+            'App\Services\OldDatasetEditorLoader',
         ]);
 
     arch('services are not extending controllers')
