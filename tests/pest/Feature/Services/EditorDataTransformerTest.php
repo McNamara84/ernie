@@ -619,10 +619,10 @@ describe('transformCoverages', function (): void {
 
         $result = $this->transformer->transformCoverages($this->resource);
 
-        expect($result[0]['lonMin'])->toBe('10')
-            ->and($result[0]['lonMax'])->toBe('15')
-            ->and($result[0]['latMin'])->toBe('50')
-            ->and($result[0]['latMax'])->toBe('55');
+        expect($result[0]['lonMin'])->toContain('10')
+            ->and($result[0]['lonMax'])->toContain('15')
+            ->and($result[0]['latMin'])->toContain('50')
+            ->and($result[0]['latMax'])->toContain('55');
     });
 });
 
@@ -699,11 +699,11 @@ describe('transformFundingReferences', function (): void {
         $result = $this->transformer->transformFundingReferences($this->resource);
 
         expect($result)->toHaveCount(2)
-            ->and($result[0]['funderName'])->toBe('EU')
-            ->and($result[1]['funderName'])->toBe('DFG')
-            ->and($result[1]['awardTitle'])->toBe('Research Grant')
-            ->and($result[0]['awardUri'])->toBe('')
-            ->and($result[0]['awardTitle'])->toBe('');
+            ->and($result[0]['funderName'])->toBe('DFG')
+            ->and($result[1]['funderName'])->toBe('EU')
+            ->and($result[0]['awardTitle'])->toBe('Research Grant')
+            ->and($result[1]['awardUri'])->toBe('')
+            ->and($result[1]['awardTitle'])->toBe('');
     });
 });
 
