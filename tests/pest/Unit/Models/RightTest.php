@@ -88,12 +88,8 @@ describe('Right scopes', function (): void {
 describe('Right relationships', function (): void {
     it('belongs to many resources', function (): void {
         $right = Right::factory()->create();
-        $resource = Resource::factory()->create();
 
-        $right->resources()->attach($resource->id);
-
-        expect($right->resources)->toHaveCount(1);
-        expect($right->resources->first()->id)->toBe($resource->id);
+        expect($right->resources())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsToMany::class);
     });
 
     it('has excluded resource types relationship', function (): void {

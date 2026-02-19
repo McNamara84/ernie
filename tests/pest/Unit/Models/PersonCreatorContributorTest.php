@@ -225,7 +225,11 @@ describe('ResourceContributor model', function (): void {
     it('belongs to a resource', function (): void {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create();
-        $contributorType = \App\Models\ContributorType::factory()->create();
+        $contributorType = \App\Models\ContributorType::create([
+            'name' => 'ContactPerson',
+            'slug' => 'contact-person',
+            'is_active' => true,
+        ]);
         $contributor = ResourceContributor::factory()->create([
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
@@ -238,7 +242,11 @@ describe('ResourceContributor model', function (): void {
     });
 
     it('belongs to a contributor type', function (): void {
-        $contributorType = \App\Models\ContributorType::factory()->create();
+        $contributorType = \App\Models\ContributorType::create([
+            'name' => 'DataCurator',
+            'slug' => 'data-curator',
+            'is_active' => true,
+        ]);
         $contributor = ResourceContributor::factory()->create([
             'contributor_type_id' => $contributorType->id,
         ]);

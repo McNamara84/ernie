@@ -17,12 +17,21 @@ use App\Services\Traits\DataCiteExporterHelpers;
 covers(DataCiteExporterHelpers::class);
 
 /**
- * Create a test class that uses the trait so we can test its methods directly.
+ * Create a test class that uses the trait so we can test its protected methods directly.
+ * The __call method delegates to the protected trait methods.
  */
 beforeEach(function (): void {
     $this->helper = new class
     {
         use DataCiteExporterHelpers;
+
+        /**
+         * @param  array<int, mixed>  $arguments
+         */
+        public function __call(string $name, array $arguments): mixed
+        {
+            return $this->{$name}(...$arguments);
+        }
     };
 });
 
@@ -404,14 +413,16 @@ describe('transformFundingReference()', function (): void {
     });
 
     it('includes funder identifier and type', function (): void {
-        $funding = FundingReference::factory()->create([
-            'funder_name' => 'DFG',
-            'funder_identifier' => 'https://doi.org/10.13039/501100001659',
-            'scheme_uri' => 'https://www.crossref.org/fundref/',
-            'award_number' => null,
-            'award_uri' => null,
-            'award_title' => null,
-        ]);
+        $resource = Resource::factory()->create();
+        $funding = new FundingReference();
+        $funding->resource_id = $resource->id;
+        $funding->funder_name = 'DFG';
+        $funding->funder_identifier = 'https://doi.org/10.13039/501100001659';
+        $funding->scheme_uri = 'https://www.crossref.org/fundref/';
+        $funding->award_number = null;
+        $funding->award_uri = null;
+        $funding->award_title = null;
+        $funding->save();
         $funding->load('funderIdentifierType');
 
         $result = $this->helper->transformFundingReference($funding);
@@ -507,9 +518,10 @@ describe('buildPersonContributorData()', function (): void {
             'family_name' => 'Curie',
             'name_identifier' => null,
         ]);
-        $contributorType = ContributorType::factory()->create([
+        $contributorType = ContributorType::create([
             'slug' => 'ContactPerson',
             'name' => 'Contact Person',
+            'is_active' => true,
         ]);
         $contributor = ResourceContributor::factory()->create([
             'contributorable_type' => Person::class,
@@ -531,9 +543,10 @@ describe('buildInstitutionContributorData()', function (): void {
             'name' => 'MIT',
             'name_identifier' => null,
         ]);
-        $contributorType = ContributorType::factory()->create([
+        $contributorType = ContributorType::create([
             'slug' => 'HostingInstitution',
             'name' => 'Hosting Institution',
+            'is_active' => true,
         ]);
         $contributor = ResourceContributor::factory()->create([
             'contributorable_type' => Institution::class,
