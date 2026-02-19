@@ -227,7 +227,7 @@ describe('SlugGeneratorService', function () {
                 ->toBe('its-a-test');
         });
 
-        it('uses custom minLength of 0 to never truncate', function () {
+        it('uses a large minLength to effectively disable truncation', function () {
             $title = 'A Very Long Scientific Dataset Title That Should Not Be Truncated At All';
             $slug = $this->service->generateFromTitle($title, 1000);
 
