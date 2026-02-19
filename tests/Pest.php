@@ -18,7 +18,7 @@ pest()->extend(Tests\TestCase::class)
         // This is needed because tests run without the Vite dev server or build artifacts
         $this->withoutVite();
     })
-    ->in('pest/Feature', 'Feature', 'pest/Debug', 'pest/Browser');
+    ->in('pest/Feature', 'pest/Unit', 'pest/Arch', 'pest/Debug', 'pest/Browser');
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +51,22 @@ expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });
 
+expect()->extend('toBeValidDoi', function () {
+    return $this->toBeString()
+        ->toMatch('/^10\.\d{4,}\/[\w.\-\/]+$/');
+});
+
+expect()->extend('toBeValidDataCiteJson', function () {
+    return $this->toBeArray()
+        ->toHaveKey('data')
+        ->and($this->value['data'])->toBeArray()
+        ->toHaveKeys(['type', 'attributes']);
+});
+
+expect()->extend('toBeSuccessfulResponse', function () {
+    return $this->status()->toBeBetween(200, 299);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Functions
@@ -63,8 +79,3 @@ expect()->extend('toBeOne', function () {
 */
 
 require_once __DIR__.'/pest/Helpers.php';
-
-function something()
-{
-    // ..
-}
