@@ -66,16 +66,17 @@ describe('registerDoi', function () {
             ->toThrow(\RuntimeException::class, 'must have a landing page');
     });
 
-    it('uses public_url from landing page when available', function () {
+    it('uses public_url from landing page accessor', function () {
         $resource = Resource::factory()->create();
         LandingPage::factory()->create([
             'resource_id' => $resource->id,
-            'public_url' => 'https://dataservices.gfz.de/dataset/123',
+            'doi_prefix' => '10.5880/gfz.2025.12345',
+            'slug' => 'test-dataset',
         ]);
 
         $result = $this->service->registerDoi($resource, '10.83279');
 
-        expect($result['data']['attributes']['url'])->toBe('https://dataservices.gfz.de/dataset/123');
+        expect($result['data']['attributes']['url'])->toContain('10.5880/gfz.2025.12345/test-dataset');
     });
 
     it('accepts all three valid prefixes', function (string $prefix) {
@@ -119,16 +120,17 @@ describe('updateMetadata', function () {
             ->toThrow(\RuntimeException::class, 'must have a landing page');
     });
 
-    it('uses public_url from landing page when available', function () {
+    it('uses public_url from landing page accessor', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/test.2025.001']);
         LandingPage::factory()->create([
             'resource_id' => $resource->id,
-            'public_url' => 'https://dataservices.gfz.de/dataset/456',
+            'doi_prefix' => '10.5880/gfz.2025.67890',
+            'slug' => 'another-dataset',
         ]);
 
         $result = $this->service->updateMetadata($resource);
 
-        expect($result['data']['attributes']['url'])->toBeString();
+        expect($result['data']['attributes']['url'])->toContain('10.5880/gfz.2025.67890/another-dataset');
     });
 });
 

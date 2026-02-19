@@ -41,9 +41,11 @@ describe('casts', function () {
     });
 
     it('casts description_json to array', function () {
-        $model = new IgsnMetadata(['description_json' => '{"key": "value"}']);
+        $model = new IgsnMetadata;
+        $model->description_json = ['key' => 'value'];
 
-        expect($model->description_json)->toBeArray();
+        expect($model->description_json)->toBeArray()
+            ->and($model->description_json)->toBe(['key' => 'value']);
     });
 
     it('casts csv_row_number to integer', function () {

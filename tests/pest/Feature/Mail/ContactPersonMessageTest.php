@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
 
@@ -15,7 +16,12 @@ beforeEach(function () {
         'resource_id' => $this->resource->id,
         'value' => 'Seismic Activity Dataset 2025',
     ]);
-    $this->resource->load('titles');
+    LandingPage::factory()->published()->create([
+        'resource_id' => $this->resource->id,
+        'doi_prefix' => '10.5880/gfz.2025.001',
+        'slug' => 'seismic-activity-dataset',
+    ]);
+    $this->resource->load('titles', 'landingPage');
 
     $this->contactMessage = ContactMessage::factory()->create([
         'resource_id' => $this->resource->id,

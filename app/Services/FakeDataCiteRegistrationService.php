@@ -74,14 +74,11 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             'doi' => $doi,
         ]);
 
-        // Get public URL safely (may fail in test environment)
-        $publicUrl = route('landing-page.show', ['resource' => $resource->id]);
-        if ($resource->landingPage->public_url) {
-            $publicUrl = $resource->landingPage->public_url;
-            \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Got public URL', [
-                'url' => $publicUrl,
-            ]);
-        }
+        // Use the landing page's computed public_url accessor
+        $publicUrl = $resource->landingPage->public_url;
+        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Got public URL', [
+            'url' => $publicUrl,
+        ]);
 
         // Return DataCite API response format
         return [
@@ -124,11 +121,8 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             );
         }
 
-        // Get public URL safely (may fail in test environment)
-        $publicUrl = route('landing-page.show', ['resource' => $resource->id]);
-        if ($resource->landingPage->public_url) {
-            $publicUrl = $resource->landingPage->public_url;
-        }
+        // Use the landing page's computed public_url accessor
+        $publicUrl = $resource->landingPage->public_url;
 
         // Return DataCite API response format
         return [

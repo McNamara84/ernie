@@ -69,7 +69,7 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
                 'messageContent' => $this->contactMessage->message,
                 'datasetTitle' => $datasetTitle,
                 'datasetDoi' => $this->resource->doi,
-                'datasetUrl' => route('landing-page.show', $this->resource->id),
+                'datasetUrl' => $this->resource->landingPage?->public_url ?? url('/'),
                 'recipientName' => $this->recipientName,
                 'isCopyToSender' => $this->isCopyToSender,
             ],
