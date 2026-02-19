@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Services\OldDatasetKeywordTransformer;
 
-covers(OldDatasetKeywordTransformer::class);
+// Note: covers() is intentionally omitted because OldDatasetKeywordTransformer
+// is excluded from the <source> coverage configuration in phpunit.xml
+// (metaworks legacy DB: only reachable from GFZ VPN, cannot be tested in CI)
 
 // =========================================================================
 // transform()
