@@ -184,4 +184,51 @@ describe('SlugGeneratorService', function () {
             expect($slug)->toMatch('/^[a-z0-9-]+$/');
         });
     });
+
+    describe('edge cases', function () {
+        it('handles title that is exactly at minimum length', function () {
+            // Craft a title that, when slugified, is exactly 40 chars
+            $title = 'abcdefghij-klmnopqrst-uvwx-yz1234567890';
+            $slug = $this->service->generateFromTitle($title, 40);
+
+            expect($slug)->toBe('abcdefghij-klmnopqrst-uvwx-yz1234567890');
+        });
+
+        it('preserves numbers in titles', function () {
+            $title = '2024 Seismic Activity Report 12345';
+            $slug = $this->service->generateFromTitle($title, 100);
+
+            expect($slug)->toBe('2024-seismic-activity-report-12345');
+        });
+
+        it('handles Polish characters', function () {
+            expect($this->service->generateFromTitle('Łódź źródło'))->toStartWith('lodz-zrodlo');
+        });
+
+        it('handles Czech characters', function () {
+            expect($this->service->generateFromTitle('Příliš žluťoučký'))->toStartWith('prilis-zlutoucky');
+        });
+
+        it('handles ellipsis and smart quotes', function () {
+            expect($this->service->generateFromTitle("Test\u{2026}more\u{201C}data\u{201D}"))
+                ->toBe('testmoredata');
+        });
+
+        it('handles en-dash and em-dash', function () {
+            expect($this->service->generateFromTitle("Test\u{2013}section\u{2014}part"))
+                ->toBe('test-section-part');
+        });
+
+        it('handles single quotes', function () {
+            expect($this->service->generateFromTitle("It\u{2018}s a \u{2019}test"))
+                ->toBe('its-a-test');
+        });
+
+        it('uses custom minLength of 0 to never truncate', function () {
+            $title = 'A Very Long Scientific Dataset Title That Should Not Be Truncated At All';
+            $slug = $this->service->generateFromTitle($title, 1000);
+
+            expect($slug)->toBe('a-very-long-scientific-dataset-title-that-should-not-be-truncated-at-all');
+        });
+    });
 });
