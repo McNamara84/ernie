@@ -9,6 +9,8 @@ use App\Models\Resource;
 use App\Models\Institution;
 use App\Models\Affiliation;
 
+covers(Person::class, ResourceCreator::class, ResourceContributor::class);
+
 describe('Person model', function (): void {
     it('has correct fillable attributes', function (): void {
         $person = new Person();

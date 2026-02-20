@@ -108,6 +108,21 @@ describe('content', function () {
             'isCopyToSender' => true,
         ]);
     });
+
+    it('falls back to site root URL when resource has no landing page', function () {
+        $resource = Resource::factory()->create();
+        $resource->load('titles', 'landingPage');
+
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $content = $mailable->content();
+
+        expect($content->with['datasetUrl'])->toBe(url('/'));
+    });
 });
 
 describe('attachments', function () {
