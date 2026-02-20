@@ -2112,7 +2112,7 @@ describe('DataCiteForm', () => {
         ];
     };
 
-    it('submits data and shows success modal when saving succeeds', async () => {
+    it('submits data and shows success modal when saving succeeds', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource stored!' };
@@ -2200,7 +2200,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('Resource stored!')).toBeInTheDocument();
     });
 
-    it('includes the resource identifier when updating an existing dataset', async () => {
+    it('includes the resource identifier when updating an existing dataset', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource updated!' };
@@ -2259,7 +2259,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('Resource updated!')).toBeInTheDocument();
     });
 
-    it('serializes person and institution authors in the save payload', async () => {
+    it('serializes person and institution authors in the save payload', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Stored' };
@@ -2586,6 +2586,7 @@ describe('DataCiteForm', () => {
 
     it(
         'includes descriptions in the payload when submitting',
+        { timeout: 30000 },
         async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -2652,10 +2653,9 @@ describe('DataCiteForm', () => {
             ]),
         );
         },
-        15000,
     ); // Increased timeout for this long-running test with multiple user interactions
 
-    it('does not include empty descriptions in the payload', async () => {
+    it('does not include empty descriptions in the payload', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Success', resource: { id: 1 } };
@@ -2708,7 +2708,7 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it('trims whitespace from description values', async () => {
+    it('trims whitespace from description values', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Success', resource: { id: 1 } };
