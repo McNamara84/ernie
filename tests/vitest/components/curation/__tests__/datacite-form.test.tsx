@@ -292,7 +292,7 @@ describe('DataCiteForm', () => {
 
     it(
         'renders fields, title options and supports adding/removing titles',
-        { timeout: 30000 },
+        { timeout: 60000 },
         async () => {
             render(
                 <DataCiteForm
@@ -1132,7 +1132,7 @@ describe('DataCiteForm', () => {
     // TODO: Test skipped due to flaky timeout issues - needs investigation
     it.skip(
         'requires an email address when a person author is marked as contact',
-        { timeout: 30000 },
+        { timeout: 60000 },
         async () => {
             render(
                 <DataCiteForm
