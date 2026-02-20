@@ -218,65 +218,67 @@ describe('Changelog', () => {
     });
 
     describe('keyboard navigation', () => {
+        // Use fake timers to prevent the debounced updateActiveRelease (400ms)
+        // from overriding the synchronous setActive() in handleNavigate.
+        // The IntersectionObserver mock fires isIntersecting:true for all elements,
+        // so without fake timers the debounced callback picks index 0 again.
+        beforeEach(() => {
+            vi.useFakeTimers({ shouldAdvanceTime: false });
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
         it('moves to next release with ArrowDown', async () => {
             render(<Changelog />);
-            await screen.findByRole('button', { name: /version 0.1.0/i });
-
-            // First release is active (expanded)
-            expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
 
             await act(async () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
             });
 
-            await vi.waitFor(() => {
-                expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
-            });
+            expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
         });
 
         it('moves to previous release with ArrowUp', async () => {
             render(<Changelog />);
-            const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
-
-            // Ensure first release is active
-            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
 
             // Navigate to second release first
             await act(async () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
             });
-            await vi.waitFor(() => {
-                expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
-            });
+            expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
 
             // Navigate back up
             await act(async () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
             });
-            await vi.waitFor(() => {
-                expect(firstButton).toHaveAttribute('aria-expanded', 'true');
-            });
+            expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
         });
 
         it('moves down with j key', async () => {
             render(<Changelog />);
-            const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
-
-            // Ensure first release is active
-            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
 
             await act(async () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', bubbles: true }));
             });
 
-            await vi.waitFor(() => {
-                expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
-            });
+            expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
         });
 
         it('goes to first release with Home', async () => {
             render(<Changelog />);
-            await screen.findByRole('button', { name: /version 0.1.0/i });
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toBeInTheDocument();
+            });
 
             // Navigate down twice to reach the last release
             await act(async () => {
@@ -291,13 +293,10 @@ describe('Changelog', () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
             });
 
-            await vi.waitFor(() => {
-                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
-            });
+            expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
         });
 
         it('goes to last release with End', async () => {
-            vi.useFakeTimers({ shouldAdvanceTime: false });
             render(<Changelog />);
             await vi.waitFor(() => {
                 expect(screen.getByRole('button', { name: /version 0.1.0/i })).toBeInTheDocument();
@@ -307,10 +306,7 @@ describe('Changelog', () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
             });
 
-            // handleNavigate sets active synchronously; do NOT advance timers
-            // so the debounced updateActiveRelease (400ms) never overrides it.
             expect(screen.getByRole('button', { name: /version 0.2.0/i })).toHaveAttribute('aria-expanded', 'true');
-            vi.useRealTimers();
         });
     });
 
