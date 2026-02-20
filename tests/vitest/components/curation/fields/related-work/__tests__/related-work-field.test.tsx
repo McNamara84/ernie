@@ -14,6 +14,7 @@ vi.mock('@/components/curation/fields/related-work/related-work-quick-add', () =
         identifier,
         onIdentifierChange,
         relationType,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onRelationTypeChange,
         onToggleAdvanced,
     }: {
@@ -52,8 +53,10 @@ vi.mock('@/components/curation/fields/related-work/related-work-advanced-add', (
         identifier,
         onIdentifierChange,
         identifierType,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onIdentifierTypeChange,
         relationType,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onRelationTypeChange,
     }: {
         onAdd: (data: { identifier: string; identifierType: string; relationType: string }) => void;

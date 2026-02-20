@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -387,7 +387,6 @@ describe('ContributorList', () => {
         });
 
         it('ignores person field changes on institution entries', async () => {
-            const user = userEvent.setup();
             const instContrib = createInstitutionContributor({ id: 'c1' });
 
             render(

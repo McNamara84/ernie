@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ResourcesFilters } from '@/components/resources-filters';
-import type { ResourceFilterOptions, ResourceFilterState } from '@/types/resources';
+import type { ResourceFilterOptions } from '@/types/resources';
 
 const defaultFilterOptions: ResourceFilterOptions = {
     resource_types: [

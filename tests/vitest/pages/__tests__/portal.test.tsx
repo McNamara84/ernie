@@ -34,6 +34,7 @@ vi.mock('@/hooks/use-portal-filters', () => ({
 
 vi.mock('@/components/portal/PortalFilters', () => ({
     PortalFilters: ({
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         filters,
         totalResults,
         onSearchChange,

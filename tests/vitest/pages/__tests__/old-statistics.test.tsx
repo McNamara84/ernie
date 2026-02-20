@@ -154,13 +154,14 @@ describe('OldStatistics', () => {
     describe('conditional rendering', () => {
         it('does not render oldest dataset card when null', () => {
             const stats = createMinimalStatistics();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             stats.overview.oldestDataset = null as any;
             render(<OldStatistics statistics={stats} lastUpdated="2024-12-01 14:30:00" />);
 
             // Look for stats cards — there should be fewer without the oldest dataset card
             const statsCards = screen.getAllByTestId('mock-stats-card');
             const statsWithOldest = createMinimalStatistics();
-            const { rerender } = render(
+            render(
                 <OldStatistics statistics={statsWithOldest} lastUpdated="2024-12-01 14:30:00" />,
             );
 

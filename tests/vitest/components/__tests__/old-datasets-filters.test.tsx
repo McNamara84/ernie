@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { OldDatasetsFilters } from '@/components/old-datasets-filters';
-import type { FilterOptions, FilterState } from '@/types/old-datasets';
+import type { FilterOptions } from '@/types/old-datasets';
 
 const defaultFilterOptions: FilterOptions = {
     resource_types: ['Dataset', 'Text', 'Software'],

@@ -13,7 +13,7 @@
  * const paginated = createMockPaginatedResponse(igsns);
  */
 
-import type { PortalCreator, PortalFilters, PortalGeoLocation, PortalPagination, PortalResource } from '@/types/portal';
+import type { PortalFilters, PortalPagination, PortalResource } from '@/types/portal';
 import type { ResourceFilterOptions, ResourceFilterState, ResourceSortState } from '@/types/resources';
 
 // ============================================================================

@@ -5,9 +5,8 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SortableTableHeader, type SortDirection,useSortState } from '@/components/ui/sortable-table-header';
 import { Table, TableBody, TableHeader, TableRow } from '@/components/ui/table';
-
-import { SortableTableHeader, useSortState, type SortDirection, type SortState } from '@/components/ui/sortable-table-header';
 
 // Wrapper to render TableHead within a proper table structure
 function renderInTable(ui: React.ReactElement) {

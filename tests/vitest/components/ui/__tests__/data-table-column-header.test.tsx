@@ -1,6 +1,6 @@
+import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import type { PropsWithChildren } from 'react';
 import { describe, expect, it } from 'vitest';
 
@@ -43,6 +43,7 @@ function TableWrapper({
                                 <th key={h.id}>
                                     {h.isPlaceholder ? null : h.column.columnDef.header
                                         ? typeof h.column.columnDef.header === 'function'
+                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             ? (h.column.columnDef.header as any)(h.getContext())
                                             : h.column.columnDef.header
                                         : null}
@@ -123,6 +124,7 @@ describe('SimpleSortableHeader', () => {
                                         {h.isPlaceholder
                                             ? null
                                             : typeof h.column.columnDef.header === 'function'
+                                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                               ? (h.column.columnDef.header as any)(h.getContext())
                                               : h.column.columnDef.header}
                                     </th>
