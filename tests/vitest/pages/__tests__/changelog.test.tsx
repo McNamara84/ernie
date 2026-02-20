@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -132,6 +132,9 @@ describe('Changelog', () => {
         // Mock scrollTo and scrollIntoView
         window.scrollTo = vi.fn();
         Element.prototype.scrollIntoView = vi.fn();
+
+        // Reset hash between tests (handleNavigate uses pushState which persists)
+        window.history.replaceState(null, '', window.location.pathname);
         
         // Mock IntersectionObserver with callback execution
         global.IntersectionObserver = vi.fn().mockImplementation(function (this: IntersectionObserver, callback: IntersectionObserverCallback) {
@@ -211,6 +214,197 @@ describe('Changelog', () => {
 
         await vi.waitFor(() => {
             expect(fetchSpy).toHaveBeenCalledWith('/api/changelog');
+        });
+    });
+
+    describe('keyboard navigation', () => {
+        it('moves to next release with ArrowDown', async () => {
+            render(<Changelog />);
+            await screen.findByRole('button', { name: /version 0.1.0/i });
+
+            // First release is active (expanded)
+            expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+            });
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+        });
+
+        it('moves to previous release with ArrowUp', async () => {
+            render(<Changelog />);
+            const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+
+            // Ensure first release is active
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+
+            // Navigate to second release first
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+            });
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            // Navigate back up
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+            });
+            await vi.waitFor(() => {
+                expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            });
+        });
+
+        it('moves down with j key', async () => {
+            render(<Changelog />);
+            const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+
+            // Ensure first release is active
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', bubbles: true }));
+            });
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.1/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+        });
+
+        it('goes to first release with Home', async () => {
+            render(<Changelog />);
+            await screen.findByRole('button', { name: /version 0.1.0/i });
+
+            // Navigate down twice to reach the last release
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+            });
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+            });
+
+            // Then Home
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+            });
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+        });
+
+        it('goes to last release with End', async () => {
+            render(<Changelog />);
+            await screen.findByRole('button', { name: /version 0.1.0/i });
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+            });
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.2.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+        });
+    });
+
+    describe('isNewRelease badge', () => {
+        it('shows New badge for releases within 14 days', async () => {
+            const today = new Date().toISOString().split('T')[0];
+            (global.fetch as unknown as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: () =>
+                    Promise.resolve([
+                        {
+                            version: '2.0.0',
+                            date: today,
+                            features: [{ title: 'Fresh Feature', description: 'Just added.' }],
+                        },
+                    ]),
+            });
+
+            render(<Changelog />);
+            await screen.findByRole('button', { name: /version 2.0.0/i });
+
+            expect(screen.getByText('New')).toBeInTheDocument();
+        });
+
+        it('does not show New badge for releases older than 14 days', async () => {
+            (global.fetch as unknown as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: () =>
+                    Promise.resolve([
+                        {
+                            version: '1.0.0',
+                            date: '2020-01-01',
+                            features: [{ title: 'Old Feature', description: 'Long ago.' }],
+                        },
+                    ]),
+            });
+
+            render(<Changelog />);
+            await screen.findByRole('button', { name: /version 1.0.0/i });
+
+            expect(screen.queryByText('New')).not.toBeInTheDocument();
+        });
+
+        it('does not show New badge for releases at index > 2 even if recent', async () => {
+            const today = new Date().toISOString().split('T')[0];
+            (global.fetch as unknown as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: () =>
+                    Promise.resolve([
+                        { version: '4.0.0', date: today, features: [{ title: 'F1', description: 'D1' }] },
+                        { version: '3.0.0', date: today, features: [{ title: 'F2', description: 'D2' }] },
+                        { version: '2.0.0', date: today, features: [{ title: 'F3', description: 'D3' }] },
+                        { version: '1.0.0', date: today, features: [{ title: 'F4', description: 'D4' }] },
+                    ]),
+            });
+
+            render(<Changelog />);
+            await screen.findByRole('button', { name: /version 1.0.0/i });
+
+            // First 3 releases (index 0,1,2) get the badge; 4th (index 3) does not
+            const badges = screen.getAllByText('New');
+            expect(badges).toHaveLength(3);
+        });
+    });
+
+    describe('section icons', () => {
+        it('renders sparkles icon for features section', async () => {
+            const user = userEvent.setup();
+            render(<Changelog />);
+            // First release should be expanded by default; click to ensure it's open
+            const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+            if (firstButton.getAttribute('aria-expanded') !== 'true') {
+                await user.click(firstButton);
+            }
+
+            expect(await screen.findByTestId('sparkles-icon')).toBeInTheDocument();
+        });
+
+        it('renders bug icon for fixes section', async () => {
+            const user = userEvent.setup();
+            render(<Changelog />);
+            const fixesButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+            await user.click(fixesButton);
+
+            expect(await screen.findByTestId('bug-icon')).toBeInTheDocument();
+        });
+
+        it('renders trending-up icon for improvements section', async () => {
+            const user = userEvent.setup();
+            render(<Changelog />);
+            const improvementsButton = await screen.findByRole('button', { name: /version 0.2.0/i });
+            // Ensure it's collapsed first, then open it
+            if (improvementsButton.getAttribute('aria-expanded') === 'true') {
+                await user.click(improvementsButton); // collapse
+            }
+            await user.click(improvementsButton); // expand
+
+            expect(await screen.findByTestId('trending-up-icon')).toBeInTheDocument();
         });
     });
 });

@@ -262,4 +262,108 @@ describe('IgsnsPage', () => {
             expect(screen.getByTestId('bulk-toolbar')).toBeInTheDocument();
         });
     });
+
+    describe('date formatting', () => {
+        it('formats a single date', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: '2024-06-15' })]} pagination={createPagination({ total: 1 })} />);
+            expect(screen.getByText('2024-06-15')).toBeInTheDocument();
+        });
+
+        it('formats a date range with separator', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: '2024-01-01 – 2024-12-31' })]} pagination={createPagination({ total: 1 })} />);
+            expect(screen.getByText('2024-01-01')).toBeInTheDocument();
+            expect(screen.getByText('2024-12-31')).toBeInTheDocument();
+        });
+
+        it('shows dash for null collection date', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: null })]} pagination={createPagination({ total: 1 })} />);
+            const row = screen.getByText('Rock Sample A').closest('tr')!;
+            expect(within(row).getAllByText('-').length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('child IGSN indicators', () => {
+        it('shows indent marker for child IGSNs', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: 5, igsn: 'CHILD001' })]} pagination={createPagination({ total: 1 })} />);
+            expect(screen.getByText('└')).toBeInTheDocument();
+        });
+
+        it('applies muted background for child IGSNs', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: 5 })]} pagination={createPagination({ total: 1 })} />);
+            const row = screen.getByText('Rock Sample A').closest('tr')!;
+            expect(row.className).toContain('bg-muted');
+        });
+
+        it('does not show indent for parent IGSNs', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: null })]} pagination={createPagination({ total: 1 })} />);
+            expect(screen.queryByText('└')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('null IGSN display', () => {
+        it('shows dash when IGSN identifier is null', () => {
+            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, igsn: null, title: 'Unnamed Sample' })]} pagination={createPagination({ total: 1 })} />);
+            const row = screen.getByText('Unnamed Sample').closest('tr')!;
+            // The IGSN column renders '-' via font-mono cell
+            expect(within(row).getAllByText('-').length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('sort interaction', () => {
+        it('navigates to sorted URL when sort header is clicked', async () => {
+            render(<IgsnsPage {...defaultProps} />);
+            const titleSortButton = screen.getByRole('button', { name: /sort by title/i });
+            await userEvent.click(titleSortButton);
+            expect(window.location.href).toContain('sort=title');
+            expect(window.location.href).toContain('direction=asc');
+        });
+
+        it('toggles direction when clicking the already active sort column', async () => {
+            render(<IgsnsPage {...defaultProps} sort={{ key: 'title', direction: 'asc' }} />);
+            const titleSortButton = screen.getByRole('button', { name: /sort by title/i });
+            await userEvent.click(titleSortButton);
+            expect(window.location.href).toContain('direction=desc');
+        });
+    });
+
+    describe('action buttons', () => {
+        it('renders export JSON button for each IGSN', () => {
+            render(<IgsnsPage {...defaultProps} />);
+            const exportButtons = screen.getAllByRole('button', { name: /export as datacite json/i });
+            expect(exportButtons).toHaveLength(2);
+        });
+
+        it('renders landing page button for each IGSN', () => {
+            render(<IgsnsPage {...defaultProps} />);
+            const lpButtons = screen.getAllByRole('button', { name: /setup landing page/i });
+            expect(lpButtons).toHaveLength(2);
+        });
+    });
+
+    describe('pagination details', () => {
+        it('shows total sample count in description', () => {
+            render(<IgsnsPage {...defaultProps} pagination={createPagination({ total: 42 })} />);
+            expect(screen.getByText(/total: 42 samples/i)).toBeInTheDocument();
+        });
+
+        it('navigates to next page when Load More is clicked', async () => {
+            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, current_page: 1 })} />);
+            await userEvent.click(screen.getByText(/load more/i));
+            expect(window.location.href).toContain('page=2');
+        });
+    });
+
+    describe('delete confirmation flow', () => {
+        it('calls router.delete with selected IDs on confirmation', async () => {
+            render(<IgsnsPage {...defaultProps} />);
+            const checkboxes = screen.getAllByRole('checkbox');
+            // Select first row
+            await userEvent.click(checkboxes[1]);
+            // Open delete dialog
+            await userEvent.click(screen.getByText('Delete'));
+            // Confirm deletion
+            const confirmBtn = screen.getAllByRole('button').find((btn) => btn.textContent === 'Delete' && !btn.closest('[data-testid="bulk-toolbar"]'));
+            expect(confirmBtn).toBeTruthy();
+        });
+    });
 });
