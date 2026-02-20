@@ -297,16 +297,20 @@ describe('Changelog', () => {
         });
 
         it('goes to last release with End', async () => {
+            vi.useFakeTimers({ shouldAdvanceTime: false });
             render(<Changelog />);
-            await screen.findByRole('button', { name: /version 0.1.0/i });
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toBeInTheDocument();
+            });
 
             await act(async () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
             });
 
-            await vi.waitFor(() => {
-                expect(screen.getByRole('button', { name: /version 0.2.0/i })).toHaveAttribute('aria-expanded', 'true');
-            });
+            // handleNavigate sets active synchronously; do NOT advance timers
+            // so the debounced updateActiveRelease (400ms) never overrides it.
+            expect(screen.getByRole('button', { name: /version 0.2.0/i })).toHaveAttribute('aria-expanded', 'true');
+            vi.useRealTimers();
         });
     });
 
