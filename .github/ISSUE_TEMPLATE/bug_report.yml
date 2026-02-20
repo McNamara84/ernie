@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug or unexpected behaviour in ERNIE
+description: Report a bug or unexpected behavior in ERNIE
 title: "[BUG] "
 labels: ["bug"]
 body:
@@ -21,7 +21,7 @@ body:
     id: steps-to-reproduce
     attributes:
       label: Steps to Reproduce
-      description: Step-by-step instructions to reproduce the behaviour.
+      description: Step-by-step instructions to reproduce the behavior.
       placeholder: |
         1. Go to '...'
         2. Click on '...'
@@ -34,15 +34,15 @@ body:
     id: errors
     attributes:
       label: Error(s)
-      description: Paste any error messages, console output, or unexpected behaviour here.
+      description: Paste any error messages, console output, or unexpected behavior here.
       render: shell
     validations:
       required: false
 
   - type: textarea
-    id: expected-behaviour
+    id: expected-behavior
     attributes:
-      label: Expected Behaviour
+      label: Expected Behavior
       description: What did you expect to happen?
       placeholder: I expected...
     validations:

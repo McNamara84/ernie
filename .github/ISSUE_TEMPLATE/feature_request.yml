@@ -13,8 +13,6 @@ body:
     attributes:
       label: User Story
       description: Describe the feature from a user's perspective.
-      placeholder: |
-        As a [role], I want [goal], so that [benefit].
       value: |
         As a **…**, I want **…**, so that **…**.
     validations:
