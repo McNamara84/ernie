@@ -19,6 +19,7 @@
  */
 
 import React from 'react';
+import { vi } from 'vitest';
 
 import type { User } from '@/types';
 

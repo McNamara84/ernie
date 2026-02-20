@@ -125,10 +125,10 @@ const createInstitutionContributor = (overrides: Partial<ContributorEntry> = {})
 } as ContributorEntry);
 
 describe('ContributorList', () => {
-    let onAdd: ReturnType<typeof vi.fn>;
-    let onRemove: ReturnType<typeof vi.fn>;
-    let onContributorChange: ReturnType<typeof vi.fn>;
-    let onBulkAdd: ReturnType<typeof vi.fn>;
+    let onAdd = vi.fn<() => void>();
+    let onRemove = vi.fn<(index: number) => void>();
+    let onContributorChange = vi.fn<(index: number, contributor: ContributorEntry) => void>();
+    let onBulkAdd = vi.fn<(contributors: ContributorEntry[]) => void>();
 
     const defaultProps = {
         affiliationSuggestions: [],
@@ -137,10 +137,10 @@ describe('ContributorList', () => {
     };
 
     beforeEach(() => {
-        onAdd = vi.fn();
-        onRemove = vi.fn();
-        onContributorChange = vi.fn();
-        onBulkAdd = vi.fn();
+        onAdd = vi.fn<() => void>();
+        onRemove = vi.fn<(index: number) => void>();
+        onContributorChange = vi.fn<(index: number, contributor: ContributorEntry) => void>();
+        onBulkAdd = vi.fn<(contributors: ContributorEntry[]) => void>();
     });
 
     describe('empty state', () => {

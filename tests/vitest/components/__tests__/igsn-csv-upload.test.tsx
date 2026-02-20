@@ -11,7 +11,7 @@ vi.mock('@/routes/dashboard', () => ({
 
 // Mock CSRF
 const { mockBuildCsrfHeaders } = vi.hoisted(() => ({
-    mockBuildCsrfHeaders: vi.fn(() => ({ 'X-CSRF-TOKEN': 'test-token', 'X-Requested-With': 'XMLHttpRequest' })),
+    mockBuildCsrfHeaders: vi.fn<() => Record<string, string>>(() => ({ 'X-CSRF-TOKEN': 'test-token', 'X-Requested-With': 'XMLHttpRequest' })),
 }));
 vi.mock('@/lib/csrf-token', () => ({
     buildCsrfHeaders: mockBuildCsrfHeaders,

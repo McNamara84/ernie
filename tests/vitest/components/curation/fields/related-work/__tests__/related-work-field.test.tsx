@@ -136,10 +136,10 @@ vi.mock('@/lib/identifier-type-detection', () => ({
 }));
 
 describe('RelatedWorkField', () => {
-    let onChange: ReturnType<typeof vi.fn>;
+    let onChange = vi.fn<(relatedWorks: RelatedIdentifier[]) => void>();
 
     beforeEach(() => {
-        onChange = vi.fn();
+        onChange = vi.fn<(relatedWorks: RelatedIdentifier[]) => void>();
         vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 

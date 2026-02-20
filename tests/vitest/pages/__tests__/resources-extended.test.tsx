@@ -121,7 +121,7 @@ function renderPage(propsOverrides: Record<string, unknown> = {}) {
         sort: defaultSort,
         ...propsOverrides,
     };
-    return render(<ResourcesPage {...(props as never)} />);
+    return render(<ResourcesPage {...(props as any)} />);
 }
 
 // ---------------------------------------------------------------------------

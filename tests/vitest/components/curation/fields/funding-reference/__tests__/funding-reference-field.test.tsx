@@ -75,10 +75,10 @@ const createFunding = (overrides: Partial<FundingReferenceEntry> = {}): FundingR
 });
 
 describe('FundingReferenceField', () => {
-    let onChange: ReturnType<typeof vi.fn>;
+    let onChange = vi.fn<(fundings: FundingReferenceEntry[]) => void>();
 
     beforeEach(() => {
-        onChange = vi.fn();
+        onChange = vi.fn<(fundings: FundingReferenceEntry[]) => void>();
         vi.clearAllMocks();
         mockLoadRorFunders.mockResolvedValue([]);
     });

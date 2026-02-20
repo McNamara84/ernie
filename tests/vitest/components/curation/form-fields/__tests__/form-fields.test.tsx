@@ -17,13 +17,13 @@ function FormWrapper({
     children,
     defaultValues = { testField: '' },
 }: {
-    children: (control: ReturnType<typeof useForm>['control']) => React.ReactNode;
+    children: (control: any) => React.ReactNode;
     defaultValues?: Record<string, string>;
 }) {
     const form = useForm({ defaultValues });
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(vi.fn())}>{children(form.control)}</form>
+            <form onSubmit={form.handleSubmit(vi.fn())}>{children(form.control as any)}</form>
         </Form>
     );
 }

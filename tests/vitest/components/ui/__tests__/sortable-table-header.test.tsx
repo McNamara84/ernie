@@ -193,7 +193,7 @@ describe('useSortState', () => {
 
     it('uses default direction "asc" when clicking a new key', () => {
         const { result } = renderHook(() =>
-            useSortState({ initialKey: 'name', initialDirection: 'desc' }),
+            useSortState<string>({ initialKey: 'name', initialDirection: 'desc' }),
         );
 
         act(() => {
@@ -205,7 +205,7 @@ describe('useSortState', () => {
 
     it('uses custom defaultDirections for new keys', () => {
         const { result } = renderHook(() =>
-            useSortState({
+            useSortState<string>({
                 initialKey: 'name',
                 initialDirection: 'asc',
                 defaultDirections: { created_at: 'desc' },
@@ -238,7 +238,7 @@ describe('useSortState', () => {
 
     it('allows manual setSortState', () => {
         const { result } = renderHook(() =>
-            useSortState({ initialKey: 'name', initialDirection: 'asc' }),
+            useSortState<string>({ initialKey: 'name', initialDirection: 'asc' }),
         );
 
         act(() => {

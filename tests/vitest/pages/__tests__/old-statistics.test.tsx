@@ -154,7 +154,7 @@ describe('OldStatistics', () => {
     describe('conditional rendering', () => {
         it('does not render oldest dataset card when null', () => {
             const stats = createMinimalStatistics();
-            stats.overview.oldestDataset = null;
+            stats.overview.oldestDataset = null as any;
             render(<OldStatistics statistics={stats} lastUpdated="2024-12-01 14:30:00" />);
 
             // Look for stats cards — there should be fewer without the oldest dataset card
