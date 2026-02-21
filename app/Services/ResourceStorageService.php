@@ -496,16 +496,18 @@ class ResourceStorageService
         $descriptions = $data['descriptions'] ?? [];
 
         foreach ($descriptions as $description) {
-            $descTypeKey = Str::kebab((string) ($description['descriptionType'] ?? ''));
+            $rawType = (string) ($description['descriptionType'] ?? '');
+            $descTypeKey = Str::kebab($rawType);
             $descTypeId = $descriptionTypeLookup[$descTypeKey] ?? null;
 
             if ($descTypeId === null) {
                 // Throw validation exception for unknown description type to prevent silent data loss.
                 // This matches the date type handling behavior for consistency.
-                Log::warning('Unknown description type slug: '.($description['descriptionType'] ?? 'empty'));
+                $displayType = $rawType !== '' ? $rawType : 'empty';
+                Log::warning('Unknown description type slug: '.$displayType);
 
                 throw ValidationException::withMessages([
-                    'descriptions' => ["Unknown description type: {$description['descriptionType']}. Please select a valid description type."],
+                    'descriptions' => ["Unknown description type: {$displayType}. Please select a valid description type."],
                 ]);
             }
 

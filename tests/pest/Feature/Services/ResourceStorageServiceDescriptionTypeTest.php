@@ -3,10 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Description;
-use App\Models\DescriptionType;
 use App\Models\ResourceType;
 use App\Models\Right;
-use App\Models\TitleType;
 use App\Models\User;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,44 +17,38 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
         $this->service = app(ResourceStorageService::class);
         $this->user = User::factory()->create();
 
-        // Seed required lookup tables
-        if (TitleType::where('slug', 'MainTitle')->doesntExist()) {
-            $this->artisan('db:seed', ['--class' => 'TitleTypeSeeder']);
-        }
-        if (ResourceType::count() === 0) {
-            $this->artisan('db:seed', ['--class' => 'ResourceTypeSeeder']);
-        }
-        $this->artisan('db:seed', ['--class' => 'DescriptionTypeSeeder']);
+        // Seed required lookup tables unconditionally (RefreshDatabase ensures empty DB)
+        $this->seed(\Database\Seeders\TitleTypeSeeder::class);
+        $this->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        $this->seed(\Database\Seeders\DescriptionTypeSeeder::class);
+        Right::create(['identifier' => 'CC-BY-4.0', 'name' => 'Creative Commons Attribution 4.0']);
 
         $this->resourceType = ResourceType::first();
-    });
 
-    /**
-     * Helper to build minimal valid resource data with a specific description type.
-     *
-     * @param  array<int, array{descriptionType: string, description: string}>  $descriptions
-     * @return array<string, mixed>
-     */
-    function buildResourceData(ResourceType $resourceType, array $descriptions): array
-    {
-        return [
-            'resourceId' => null,
-            'year' => 2024,
-            'resourceType' => $resourceType->id,
-            'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
-            ],
-            'authors' => [
-                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
-            ],
-            'descriptions' => $descriptions,
-        ];
-    }
+        // Closure helper to build valid resource data with specific descriptions.
+        // Using a closure instead of a named function avoids global namespace
+        // pollution and potential redeclare errors in watch mode.
+        $this->buildResourceData = function (array $descriptions): array {
+            return [
+                'resourceId' => null,
+                'year' => 2024,
+                'resourceType' => $this->resourceType->id,
+                'titles' => [
+                    ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+                ],
+                'licenses' => ['CC-BY-4.0'],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+                ],
+                'descriptions' => $descriptions,
+            ];
+        };
+    });
 
     // --- Multi-word description types (previously broken) ---
 
     it('stores description with kebab-case type "technical-info"', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'technical-info', 'description' => 'Technical details about the dataset.'],
         ]);
 
@@ -69,7 +61,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     });
 
     it('stores description with kebab-case type "series-information"', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'series-information', 'description' => 'Part of a series.'],
         ]);
 
@@ -82,7 +74,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     });
 
     it('stores description with kebab-case type "table-of-contents"', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'table-of-contents', 'description' => '1. Introduction 2. Methods'],
         ]);
 
@@ -97,7 +89,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     // --- Single-word description types (always worked) ---
 
     it('stores description with type "abstract"', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'abstract', 'description' => 'An abstract.'],
         ]);
 
@@ -108,7 +100,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     });
 
     it('stores description with type "methods"', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'methods', 'description' => 'We used XRD analysis.'],
         ]);
 
@@ -119,7 +111,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     });
 
     it('stores description with type "other"', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'other', 'description' => 'Additional notes.'],
         ]);
 
@@ -132,7 +124,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     // --- All six types at once ---
 
     it('stores all six description types simultaneously', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'abstract', 'description' => 'Abstract text.'],
             ['descriptionType' => 'methods', 'description' => 'Methods text.'],
             ['descriptionType' => 'series-information', 'description' => 'Series text.'],
@@ -152,7 +144,7 @@ describe('ResourceStorageService – Description Type Mapping (Issue #547)', fun
     // --- Error handling ---
 
     it('throws ValidationException for unknown description type', function () {
-        $data = buildResourceData($this->resourceType, [
+        $data = ($this->buildResourceData)([
             ['descriptionType' => 'nonexistent-type', 'description' => 'This should fail.'],
         ]);
 
