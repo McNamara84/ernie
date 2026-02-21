@@ -4,6 +4,10 @@
         "date": "2026-02-21",
         "fixes": [
             {
+                "title": "Contributor Roles Not Saved",
+                "description": "Fixed a bug where contributor roles were lost after saving a dataset in the data editor. The root cause was a field name mismatch: the backend sent 'contributorType' but the frontend expected 'roles'. Additionally, the database schema only supported a single role per contributor. The fix introduces a pivot table to support multiple contributor types per contributor. When exporting to DataCite XML/JSON, contributors with multiple roles are now emitted as separate entries (one per role), conforming to the DataCite Schema 4.6 which allows only one contributorType per contributor element."
+            },
+            {
                 "title": "TechnicalInfo Description Type Save",
                 "description": "Fixed an issue where descriptions with multi-word types (TechnicalInfo, SeriesInformation, TableOfContents) could not be saved in the editor. The root cause was a format mismatch between the request normalization (kebab-case) and the database lookup (lowercased PascalCase) in the storage service."
             }
