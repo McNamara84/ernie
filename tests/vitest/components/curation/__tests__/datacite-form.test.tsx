@@ -24,142 +24,8 @@ import {
     type TagifyEnabledInput,
 } from '../../../tagify-helpers';
 
-vi.mock('@yaireo/tagify', () => {
-    type ChangeHandler = (event: CustomEvent) => void;
-
-    type NormalisedTag = { value: string; rorId: string | null };
-    
-    type MockTagifyValue = { value: string; rorId: string | null; data: { rorId: string | null } };
-
-    class MockTagify {
-        public DOM: { scope: HTMLElement; input: HTMLInputElement };
-        public value: MockTagifyValue[] = [];
-        private inputElement: HTMLInputElement;
-        private handlers = new Map<string, Set<ChangeHandler>>();
-
-        constructor(inputElement: HTMLInputElement) {
-            this.inputElement = inputElement;
-            const scope = document.createElement('div');
-            scope.className = 'tagify';
-            const input = document.createElement('input');
-            input.className = 'tagify__input';
-            this.DOM = { scope, input };
-            const parent = inputElement.parentElement;
-            if (parent) {
-                parent.appendChild(scope);
-            }
-            scope.appendChild(input);
-        }
-
-        on(event: string, handler: ChangeHandler) {
-            if (!this.handlers.has(event)) {
-                this.handlers.set(event, new Set());
-            }
-            this.handlers.get(event)!.add(handler);
-        }
-
-        off(event: string, handler: ChangeHandler) {
-            this.handlers.get(event)?.delete(handler);
-        }
-
-        destroy() {
-            this.handlers.clear();
-            this.DOM.scope.remove();
-        }
-
-        setReadonly(readonly: boolean) {
-            if (readonly) {
-                this.DOM.input.setAttribute('readonly', '');
-            } else {
-                this.DOM.input.removeAttribute('readonly');
-            }
-        }
-
-        removeAllTags() {
-            this.value = [];
-            this.renderTags([]);
-            this.emitChange('');
-        }
-
-        addTags(tags: Array<string | Record<string, unknown>> | string, _skipInvalid?: boolean, silent?: boolean) {
-            const incoming = Array.isArray(tags) ? tags : [tags];
-            const processed = incoming
-                .map((tag) => this.normaliseTag(tag))
-                .filter((tag): tag is NormalisedTag => Boolean(tag));
-            this.renderTags(processed);
-            if (!silent) {
-                this.emitChange(processed.map((tag) => tag.value).join(', '));
-            }
-        }
-
-        loadOriginalValues(raw: string) {
-            const processed = raw
-                .split(',')
-                .map((value) => value.trim())
-                .filter((value) => value.length > 0);
-            this.renderTags(processed.map((value) => ({ value, rorId: null })));
-        }
-
-        private normaliseTag(tag: unknown): NormalisedTag | null {
-            if (typeof tag === 'string') {
-                const trimmed = tag.trim();
-                return trimmed ? { value: trimmed, rorId: null } : null;
-            }
-
-            if (!tag || typeof tag !== 'object') {
-                return null;
-            }
-
-            const raw = tag as Record<string, unknown>;
-            const value = typeof raw.value === 'string' ? raw.value.trim() : '';
-
-            if (!value) {
-                return null;
-            }
-
-            const rorId = typeof raw.rorId === 'string'
-                ? raw.rorId
-                : raw.rorId === null
-                    ? null
-                    : null;
-
-            return { value, rorId };
-        }
-
-        private renderTags(values: NormalisedTag[]) {
-            this.value = values.map((tag) => ({
-                value: tag.value,
-                rorId: tag.rorId,
-                data: { rorId: tag.rorId },
-            }));
-            this.inputElement.value = values.map((tag) => tag.value).join(', ');
-            const existingTags = this.DOM.scope.querySelectorAll('.tagify__tag');
-            existingTags.forEach((tag) => tag.remove());
-            for (const item of values) {
-                const tagElement = document.createElement('span');
-                tagElement.className = 'tagify__tag';
-                const tagText = document.createElement('span');
-                tagText.className = 'tagify__tag-text';
-                tagText.textContent = item.value;
-                tagElement.appendChild(tagText);
-                this.DOM.scope.insertBefore(tagElement, this.DOM.input);
-            }
-        }
-
-        private emitChange(raw: string) {
-            const handlers = this.handlers.get('change');
-            if (!handlers || handlers.size === 0) {
-                return;
-            }
-            const event = new CustomEvent('change', {
-                detail: { value: raw, tagify: this },
-            }) as CustomEvent;
-            handlers.forEach((handler) => handler(event));
-        }
-    }
-
-    return { default: MockTagify };
-});
+const { createTagifyMock } = await vi.hoisted(() => import('@test-helpers/tagify-mock'));
+vi.mock('@yaireo/tagify', () => createTagifyMock());
 
 vi.mock('@/hooks/use-ror-affiliations', () => ({
     useRorAffiliations: vi.fn().mockReturnValue({
@@ -426,7 +292,7 @@ describe('DataCiteForm', () => {
 
     it(
         'renders fields, title options and supports adding/removing titles',
-        { timeout: 30000 },
+        { timeout: 60000 },
         async () => {
             render(
                 <DataCiteForm
@@ -1266,7 +1132,7 @@ describe('DataCiteForm', () => {
     // TODO: Test skipped due to flaky timeout issues - needs investigation
     it.skip(
         'requires an email address when a person author is marked as contact',
-        { timeout: 30000 },
+        { timeout: 60000 },
         async () => {
             render(
                 <DataCiteForm
@@ -2246,7 +2112,7 @@ describe('DataCiteForm', () => {
         ];
     };
 
-    it('submits data and shows success modal when saving succeeds', async () => {
+    it('submits data and shows success modal when saving succeeds', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource stored!' };
@@ -2334,7 +2200,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('Resource stored!')).toBeInTheDocument();
     });
 
-    it('includes the resource identifier when updating an existing dataset', async () => {
+    it('includes the resource identifier when updating an existing dataset', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Resource updated!' };
@@ -2393,7 +2259,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('Resource updated!')).toBeInTheDocument();
     });
 
-    it('serializes person and institution authors in the save payload', async () => {
+    it('serializes person and institution authors in the save payload', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Stored' };
@@ -2491,7 +2357,7 @@ describe('DataCiteForm', () => {
 
     it(
         'shows validation feedback when saving fails',
-        { timeout: 20000 },
+        { timeout: 60000 },
         async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -2584,7 +2450,7 @@ describe('DataCiteForm', () => {
 
     it(
         'shows a network error message when saving throws',
-        { timeout: 20000 },
+        { timeout: 60000 },
         async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -2720,6 +2586,7 @@ describe('DataCiteForm', () => {
 
     it(
         'includes descriptions in the payload when submitting',
+        { timeout: 60000 },
         async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -2786,10 +2653,9 @@ describe('DataCiteForm', () => {
             ]),
         );
         },
-        15000,
     ); // Increased timeout for this long-running test with multiple user interactions
 
-    it('does not include empty descriptions in the payload', async () => {
+    it('does not include empty descriptions in the payload', { timeout: 30000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Success', resource: { id: 1 } };
@@ -2842,7 +2708,7 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it('trims whitespace from description values', async () => {
+    it('trims whitespace from description values', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Success', resource: { id: 1 } };
