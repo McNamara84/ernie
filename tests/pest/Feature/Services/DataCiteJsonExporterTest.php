@@ -1121,7 +1121,8 @@ describe('DataCiteJsonExporter - Affiliations', function () {
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
             'position' => 1,
-        ])->contributorTypes()->sync([$contributorType->id]);
+        ]);
+        $contributor->contributorTypes()->sync([$contributorType->id]);
 
         $contributor->affiliations()->create([
             'name' => 'GFZ Potsdam',
