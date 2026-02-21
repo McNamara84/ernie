@@ -385,7 +385,7 @@ class ResourceStorageService
 
         if (! is_array($roles) || $roles === []) {
             // No roles provided — default to "Other"
-            $otherType = ContributorType::where('slug', 'other')->first();
+            $otherType = ContributorType::where('slug', 'Other')->first();
             if ($otherType) {
                 $resourceContributor->contributorTypes()->sync([$otherType->id]);
             }
@@ -400,7 +400,7 @@ class ResourceStorageService
             }
 
             $contributorType = ContributorType::where('name', $role)
-                ->orWhere('slug', Str::slug($role))
+                ->orWhere('slug', $role)
                 ->first();
 
             if ($contributorType) {
@@ -412,7 +412,7 @@ class ResourceStorageService
             $resourceContributor->contributorTypes()->sync($typeIds);
         } else {
             // Fallback to "Other" if no valid roles were found
-            $otherType = ContributorType::where('slug', 'other')->first();
+            $otherType = ContributorType::where('slug', 'Other')->first();
             if ($otherType) {
                 $resourceContributor->contributorTypes()->sync([$otherType->id]);
             }
@@ -453,7 +453,7 @@ class ResourceStorageService
         ]);
 
         // Attach HostingInstitution contributor type via pivot table
-        $contributorType = ContributorType::where('slug', 'hosting-institution')->first();
+        $contributorType = ContributorType::where('slug', 'HostingInstitution')->first();
         if ($contributorType) {
             $resourceContributor->contributorTypes()->sync([$contributorType->id]);
         }

@@ -550,7 +550,7 @@ class DataCiteJsonExporter
             // Regular contributor - emit one entry per role (DataCite allows only one contributorType per element)
             $types = $contributor->contributorTypes;
             if ($types->isEmpty()) {
-                $types = collect([ContributorType::where('slug', 'other')->first()])->filter();
+                $types = collect([ContributorType::where('slug', 'Other')->first()])->filter();
             }
 
             foreach ($types as $type) {
