@@ -1,5 +1,15 @@
 [
     {
+        "version": "1.0.0dev",
+        "date": "2026-02-21",
+        "fixes": [
+            {
+                "title": "TechnicalInfo Description Type Save",
+                "description": "Fixed an issue where descriptions with multi-word types (TechnicalInfo, SeriesInformation, TableOfContents) could not be saved in the editor. The root cause was a format mismatch between the request normalization (kebab-case) and the database lookup (lowercased PascalCase) in the storage service."
+            }
+        ]
+    },
+    {
         "version": "1.0.0rc2",
         "date": "2026-02-18",
         "features": [
