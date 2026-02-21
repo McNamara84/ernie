@@ -417,6 +417,7 @@ trait DataCiteExporterHelpers
 
         // Add contributor type - use first type slug for DataCite-compliant PascalCase values
         $firstType = $contributor->contributorTypes->first();
+        // @phpstan-ignore nullsafe.neverNull (collection may be empty at runtime for legacy data)
         $data['contributorType'] = $firstType?->slug ?? 'Other';
 
         return $data;
@@ -433,6 +434,7 @@ trait DataCiteExporterHelpers
 
         // Add contributor type - use first type slug for DataCite-compliant PascalCase values
         $firstType = $contributor->contributorTypes->first();
+        // @phpstan-ignore nullsafe.neverNull (collection may be empty at runtime for legacy data)
         $data['contributorType'] = $firstType?->slug ?? 'Other';
 
         return $data;

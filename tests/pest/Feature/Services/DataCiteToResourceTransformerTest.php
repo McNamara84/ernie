@@ -34,7 +34,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates resource from minimal DataCite data', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -64,7 +64,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates resource with all basic fields', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -102,7 +102,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates main title without titleType attribute', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -129,7 +129,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates multiple titles with different types', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -156,7 +156,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates person creators with ORCID', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -190,7 +190,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates organizational creators (institutions)', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -215,7 +215,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates creators with affiliations', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -250,7 +250,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('reuses existing person by ORCID', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             // Create existing person with ORCID
             $existingPerson = Person::create([
@@ -294,7 +294,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates contributors with type', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -320,12 +320,12 @@ describe('DataCiteToResourceTransformer', function (): void {
 
             expect($resource->contributors)->toHaveCount(1)
                 ->and($firstContributor)->not->toBeNull()
-                ->and($firstContributor->contributor_type_id)->toBe($editorType->id);
+                ->and($firstContributor->contributorTypes->pluck('id')->contains($editorType->id))->toBeTrue();
         });
 
         it('defaults to Other for unknown contributor type', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -351,7 +351,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
             expect($resource->contributors)->toHaveCount(1)
                 ->and($firstContributor)->not->toBeNull()
-                ->and($firstContributor->contributor_type_id)->toBe($otherType->id);
+                ->and($firstContributor->contributorTypes->pluck('id')->contains($otherType->id))->toBeTrue();
         });
 
     });
@@ -360,7 +360,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('resolves Dataset type correctly', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -383,7 +383,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('converts PascalCase types to kebab-case slugs', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -409,7 +409,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('defaults to Other for missing type', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -434,7 +434,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('creates new publisher if not exists', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -456,7 +456,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('reuses existing publisher', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $existingPublisher = Publisher::create([
                 'name' => 'Existing Publisher',
@@ -482,7 +482,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('handles publisher as object (DataCite 4.5+)', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -509,7 +509,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('enriches GFZ Data Services publisher with full DataCite 4.6 metadata', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             // Simulate importing an older record that only has the publisher name
             $doiData = [
@@ -541,7 +541,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('enriches GFZ Data Services publisher when provided as string', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             // Older DataCite format: publisher as simple string
             $doiData = [
@@ -567,7 +567,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('preserves non-GFZ publisher metadata from DataCite', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             // External publisher with their own metadata
             $doiData = [
@@ -599,7 +599,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('uses default publisher when not provided', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             // Get or create default publisher
             $defaultPublisher = Publisher::where('is_default', true)->first()
@@ -631,7 +631,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('resolves language from ISO code', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -656,7 +656,7 @@ describe('DataCiteToResourceTransformer', function (): void {
 
         it('allows null language', function (): void {
             $user = User::factory()->create();
-            $transformer = new DataCiteToResourceTransformer();
+            $transformer = new DataCiteToResourceTransformer;
 
             $doiData = [
                 'attributes' => [
@@ -689,7 +689,7 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
     it('preserves imported Created date from DataCite response', function (): void {
         $user = User::factory()->create();
-        $transformer = new DataCiteToResourceTransformer();
+        $transformer = new DataCiteToResourceTransformer;
 
         $doiData = [
             'attributes' => [
@@ -718,7 +718,7 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
     it('adds fallback Created date with current date when not in DataCite response', function (): void {
         $user = User::factory()->create();
-        $transformer = new DataCiteToResourceTransformer();
+        $transformer = new DataCiteToResourceTransformer;
         $today = now()->format('Y-m-d');
 
         $doiData = [
@@ -748,7 +748,7 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
     it('adds fallback Created date when dates array is empty', function (): void {
         $user = User::factory()->create();
-        $transformer = new DataCiteToResourceTransformer();
+        $transformer = new DataCiteToResourceTransformer;
         $today = now()->format('Y-m-d');
 
         $doiData = [
@@ -776,7 +776,7 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
     it('does not duplicate Created date when already present', function (): void {
         $user = User::factory()->create();
-        $transformer = new DataCiteToResourceTransformer();
+        $transformer = new DataCiteToResourceTransformer;
 
         $doiData = [
             'attributes' => [

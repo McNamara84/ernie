@@ -227,9 +227,8 @@ describe('DataCiteXmlExporter - Creators & Contributors', function () {
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
-            'contributor_type_id' => $contactPersonType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contactPersonType->id]);
 
         $xml = $this->exporter->export($resource);
 

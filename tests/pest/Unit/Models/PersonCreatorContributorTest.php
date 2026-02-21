@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Models\Person;
-use App\Models\ResourceCreator;
-use App\Models\ResourceContributor;
-use App\Models\Resource;
 use App\Models\Institution;
-use App\Models\Affiliation;
+use App\Models\Person;
+use App\Models\Resource;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 
 covers(Person::class, ResourceCreator::class, ResourceContributor::class);
 
 describe('Person model', function (): void {
     it('has correct fillable attributes', function (): void {
-        $person = new Person();
+        $person = new Person;
 
         expect($person->getFillable())->toBe([
             'given_name',
@@ -25,7 +24,7 @@ describe('Person model', function (): void {
     });
 
     it('uses the persons table', function (): void {
-        $person = new Person();
+        $person = new Person;
 
         expect($person->getTable())->toBe('persons');
     });
@@ -110,7 +109,7 @@ describe('Person relationships', function (): void {
 
 describe('ResourceCreator model', function (): void {
     it('has correct fillable attributes', function (): void {
-        $creator = new ResourceCreator();
+        $creator = new ResourceCreator;
 
         expect($creator->getFillable())->toBe([
             'resource_id',
@@ -124,14 +123,14 @@ describe('ResourceCreator model', function (): void {
     });
 
     it('casts position to integer', function (): void {
-        $creator = new ResourceCreator();
+        $creator = new ResourceCreator;
         $casts = $creator->getCasts();
 
         expect($casts['position'])->toBe('integer');
     });
 
     it('casts is_contact to boolean', function (): void {
-        $creator = new ResourceCreator();
+        $creator = new ResourceCreator;
         $casts = $creator->getCasts();
 
         expect($casts['is_contact'])->toBe('boolean');
@@ -188,19 +187,18 @@ describe('ResourceCreator model', function (): void {
 
 describe('ResourceContributor model', function (): void {
     it('has correct fillable attributes', function (): void {
-        $contributor = new ResourceContributor();
+        $contributor = new ResourceContributor;
 
         expect($contributor->getFillable())->toBe([
             'resource_id',
             'contributorable_type',
             'contributorable_id',
-            'contributor_type_id',
             'position',
         ]);
     });
 
     it('casts position to integer', function (): void {
-        $contributor = new ResourceContributor();
+        $contributor = new ResourceContributor;
         $casts = $contributor->getCasts();
 
         expect($casts['position'])->toBe('integer');
@@ -236,25 +234,46 @@ describe('ResourceContributor model', function (): void {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
-            'contributor_type_id' => $contributorType->id,
         ]);
+        $contributor->contributorTypes()->sync([$contributorType->id]);
 
         expect($contributor->resource)->toBeInstanceOf(Resource::class);
         expect($contributor->resource->id)->toBe($resource->id);
     });
 
-    it('belongs to a contributor type', function (): void {
+    it('has contributor types via pivot table', function (): void {
         $contributorType = \App\Models\ContributorType::create([
             'name' => 'DataCurator',
             'slug' => 'data-curator',
             'is_active' => true,
         ]);
-        $contributor = ResourceContributor::factory()->create([
-            'contributor_type_id' => $contributorType->id,
-        ]);
+        $contributor = ResourceContributor::factory()->create();
+        $contributor->contributorTypes()->sync([$contributorType->id]);
+        $contributor->load('contributorTypes');
 
-        expect($contributor->contributorType)->toBeInstanceOf(\App\Models\ContributorType::class);
-        expect($contributor->contributorType->id)->toBe($contributorType->id);
+        expect($contributor->contributorTypes)->toHaveCount(1);
+        expect($contributor->contributorTypes->first())->toBeInstanceOf(\App\Models\ContributorType::class);
+        expect($contributor->contributorTypes->first()->id)->toBe($contributorType->id);
+    });
+
+    it('supports multiple contributor types', function (): void {
+        $type1 = \App\Models\ContributorType::create([
+            'name' => 'DataCurator',
+            'slug' => 'data-curator',
+            'is_active' => true,
+        ]);
+        $type2 = \App\Models\ContributorType::create([
+            'name' => 'Editor',
+            'slug' => 'editor',
+            'is_active' => true,
+        ]);
+        $contributor = ResourceContributor::factory()->create();
+        $contributor->contributorTypes()->sync([$type1->id, $type2->id]);
+        $contributor->load('contributorTypes');
+
+        expect($contributor->contributorTypes)->toHaveCount(2);
+        expect($contributor->contributorTypes->pluck('slug')->sort()->values()->all())
+            ->toBe(['data-curator', 'editor']);
     });
 
     it('has affiliations morphMany relationship', function (): void {

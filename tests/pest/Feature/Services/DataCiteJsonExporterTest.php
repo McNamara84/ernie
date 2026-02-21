@@ -186,9 +186,8 @@ describe('DataCiteJsonExporter - Contributors', function () {
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
-            'contributor_type_id' => $contactPersonType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contactPersonType->id]);
 
         $result = $this->exporter->export($resource);
         $contributors = $result['data']['attributes']['contributors'];
@@ -543,16 +542,14 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $contributor1->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
         ResourceContributor::create([
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $contributor2->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 2,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -593,9 +590,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $contributor->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -640,9 +636,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -687,9 +682,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -740,9 +734,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $personWithoutOrcid->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -794,9 +787,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $personWithBareOrcid->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -839,9 +831,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Institution::class,
             'contributorable_id' => $institution->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -891,16 +882,14 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $contributor1->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
         ResourceContributor::create([
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $contributor2->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 2,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $contributors = $result['data']['attributes']['contributors'];
@@ -949,9 +938,8 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $contributor->id,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $result = $this->exporter->export($resource);
         $creators = $result['data']['attributes']['creators'];
@@ -1132,9 +1120,8 @@ describe('DataCiteJsonExporter - Affiliations', function () {
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
-        ]);
+        ])->contributorTypes()->sync([$contributorType->id]);
 
         $contributor->affiliations()->create([
             'name' => 'GFZ Potsdam',
