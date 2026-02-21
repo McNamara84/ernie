@@ -488,24 +488,26 @@ class ResourceStorageService
         $descriptionTypeLookup = DescriptionType::query()
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (DescriptionType $type): array => [
-                // Use lowercase slug as key for case-insensitive matching
-                Str::lower($type->slug) => $type->id,
+                // Use kebab-case slug as key to match StoreResourceRequest normalization
+                Str::kebab($type->slug) => $type->id,
             ])
             ->all();
 
         $descriptions = $data['descriptions'] ?? [];
 
         foreach ($descriptions as $description) {
-            $descTypeKey = Str::lower((string) ($description['descriptionType'] ?? ''));
+            $rawType = (string) ($description['descriptionType'] ?? '');
+            $descTypeKey = Str::kebab($rawType);
             $descTypeId = $descriptionTypeLookup[$descTypeKey] ?? null;
 
             if ($descTypeId === null) {
                 // Throw validation exception for unknown description type to prevent silent data loss.
                 // This matches the date type handling behavior for consistency.
-                Log::warning('Unknown description type slug: '.($description['descriptionType'] ?? 'empty'));
+                $displayType = $rawType !== '' ? $rawType : 'empty';
+                Log::warning('Unknown description type slug: '.$displayType);
 
                 throw ValidationException::withMessages([
-                    'descriptions' => ["Unknown description type: {$description['descriptionType']}. Please select a valid description type."],
+                    'descriptions' => ["Unknown description type: {$displayType}. Please select a valid description type."],
                 ]);
             }
 
