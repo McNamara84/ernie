@@ -19,24 +19,34 @@ class ResourceContributorFactory extends Factory
     protected $model = ResourceContributor::class;
 
     /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (ResourceContributor $contributor): void {
+            // Assign default "Other" contributor type via pivot table if none assigned yet
+            if ($contributor->contributorTypes()->count() === 0) {
+                $otherType = ContributorType::where('slug', 'other')->first()
+                    ?? ContributorType::create([
+                        'name' => 'Other',
+                        'slug' => 'other',
+                    ]);
+                $contributor->contributorTypes()->sync([$otherType->id]);
+            }
+        });
+    }
+
+    /**
      * Define the model's default state.
      *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
-        // Get or create a default contributor type
-        $contributorType = ContributorType::where('slug', 'other')->first()
-            ?? ContributorType::create([
-                'name' => 'Other',
-                'slug' => 'other',
-            ]);
-
         return [
             'resource_id' => Resource::factory(),
             'contributorable_type' => Person::class,
             'contributorable_id' => Person::factory(),
-            'contributor_type_id' => $contributorType->id,
             'position' => 1,
         ];
     }
@@ -72,13 +82,19 @@ class ResourceContributorFactory extends Factory
     }
 
     /**
-     * Set the contributor type.
+     * Set the contributor type(s) via the pivot table.
+     * Must be called after create(), not during state definition.
+     *
+     * Usage: $contributor = ResourceContributor::factory()->create();
+     *        $contributor->contributorTypes()->sync([$type->id]);
+     *
+     * @deprecated Use afterCreating() or manual sync instead
      */
     public function withType(ContributorType $type): static
     {
-        return $this->state(fn (array $attributes) => [
-            'contributor_type_id' => $type->id,
-        ]);
+        return $this->afterCreating(function (ResourceContributor $contributor) use ($type): void {
+            $contributor->contributorTypes()->sync([$type->id]);
+        });
     }
 
     /**

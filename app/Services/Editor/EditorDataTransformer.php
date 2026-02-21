@@ -189,8 +189,7 @@ class EditorDataTransformer
             /** @var \App\Models\ResourceContributor $contributor */
             $data = [
                 'position' => $contributor->position,
-                // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
-                'contributorType' => $contributor->contributorType?->name ?? 'Other',
+                'roles' => $contributor->contributorTypes->pluck('name')->values()->toArray(),
             ];
 
             if ($contributor->contributorable_type === Person::class) {

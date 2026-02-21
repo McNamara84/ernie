@@ -187,7 +187,7 @@ class EditorController extends Controller
                 'creators.affiliations',
                 'contributors.contributorable',
                 'contributors.affiliations',
-                'contributors.contributorType',
+                'contributors.contributorTypes',
                 'descriptions',
                 'dates',
                 'subjects',

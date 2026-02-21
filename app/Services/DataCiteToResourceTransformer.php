@@ -343,9 +343,11 @@ class DataCiteToResourceTransformer
                 'resource_id' => $resource->id,
                 'contributorable_type' => $entityType,
                 'contributorable_id' => $entity->id,
-                'contributor_type_id' => $contributorTypeId,
                 'position' => $position + 1,
             ]);
+
+            // Attach contributor type via pivot table
+            $resourceContributor->contributorTypes()->sync([$contributorTypeId]);
 
             // Add affiliations
             $this->transformAffiliations($contributorData['affiliation'] ?? [], $resourceContributor);
