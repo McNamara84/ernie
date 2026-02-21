@@ -488,15 +488,15 @@ class ResourceStorageService
         $descriptionTypeLookup = DescriptionType::query()
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (DescriptionType $type): array => [
-                // Use lowercase slug as key for case-insensitive matching
-                Str::lower($type->slug) => $type->id,
+                // Use kebab-case slug as key to match StoreResourceRequest normalization
+                Str::kebab($type->slug) => $type->id,
             ])
             ->all();
 
         $descriptions = $data['descriptions'] ?? [];
 
         foreach ($descriptions as $description) {
-            $descTypeKey = Str::lower((string) ($description['descriptionType'] ?? ''));
+            $descTypeKey = Str::kebab((string) ($description['descriptionType'] ?? ''));
             $descTypeId = $descriptionTypeLookup[$descTypeKey] ?? null;
 
             if ($descTypeId === null) {
