@@ -223,8 +223,15 @@ erDiagram
         bigint resource_id FK
         varchar contributorable_type "Person|Institution"
         bigint contributorable_id
-        bigint contributor_type_id FK
         int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resource_contributor_contributor_type {
+        bigint id PK
+        bigint resource_contributor_id FK
+        bigint contributor_type_id FK
         timestamp created_at
         timestamp updated_at
     }
@@ -551,7 +558,8 @@ erDiagram
     titles }o--|| title_types : "type"
     dates }o--|| date_types : "type"
     descriptions }o--|| description_types : "type"
-    resource_contributors }o--|| contributor_types : "type"
+    resource_contributors ||--o{ resource_contributor_contributor_type : "has roles"
+    resource_contributor_contributor_type }o--|| contributor_types : "type"
     related_identifiers }o--|| identifier_types : "identifier type"
     related_identifiers }o--|| relation_types : "relation type"
     funding_references }o--o| funder_identifier_types : "identifier type"
