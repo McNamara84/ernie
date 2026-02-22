@@ -237,6 +237,65 @@ describe('DataCiteXmlExporter - Creators & Contributors', function () {
             ->and($xml)->toContain('<contributorName nameType="Personal">Doe, Jane</contributorName>');
     });
 
+    test('exports contributor with multiple roles as separate XML elements', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create([
+            'given_name' => 'Alice',
+            'family_name' => 'Wonder',
+        ]);
+
+        $dataCollectorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector', 'is_active' => true]
+        );
+        $projectLeaderType = ContributorType::firstOrCreate(
+            ['slug' => 'ProjectLeader'],
+            ['name' => 'Project Leader', 'is_active' => true]
+        );
+
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_id' => $person->id,
+            'contributorable_type' => Person::class,
+            'position' => 1,
+        ])->contributorTypes()->sync([$dataCollectorType->id, $projectLeaderType->id]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<contributor contributorType="DataCollector">')
+            ->and($xml)->toContain('<contributor contributorType="ProjectLeader">')
+            ->and(substr_count($xml, '<contributorName nameType="Personal">Wonder, Alice</contributorName>'))->toBe(2);
+    });
+
+    test('exports institution contributor with multiple roles as separate XML elements', function () {
+        $resource = Resource::factory()->create();
+        $institution = Institution::factory()->create([
+            'name' => 'GFZ Potsdam',
+        ]);
+
+        $hostingType = ContributorType::firstOrCreate(
+            ['slug' => 'HostingInstitution'],
+            ['name' => 'Hosting Institution', 'is_active' => true]
+        );
+        $distributorType = ContributorType::firstOrCreate(
+            ['slug' => 'Distributor'],
+            ['name' => 'Distributor', 'is_active' => true]
+        );
+
+        ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_id' => $institution->id,
+            'contributorable_type' => Institution::class,
+            'position' => 1,
+        ])->contributorTypes()->sync([$hostingType->id, $distributorType->id]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<contributor contributorType="HostingInstitution">')
+            ->and($xml)->toContain('<contributor contributorType="Distributor">')
+            ->and(substr_count($xml, '<contributorName nameType="Organizational">GFZ Potsdam</contributorName>'))->toBe(2);
+    });
+
     test('exports multiple creators in correct order', function () {
         $resource = Resource::factory()->create();
 
