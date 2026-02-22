@@ -533,6 +533,7 @@ class DataCiteJsonExporter
     private function buildContributors(Resource $resource): ?array
     {
         $contributors = [];
+        $fallbackOtherType = ContributorType::where('slug', 'Other')->first();
 
         foreach ($resource->contributors as $contributor) {
             // Check if this is an MSL Laboratory
@@ -550,8 +551,7 @@ class DataCiteJsonExporter
             // Regular contributor - emit one entry per role (DataCite allows only one contributorType per element)
             $types = $contributor->contributorTypes;
             if ($types->isEmpty()) {
-                $fallbackType = ContributorType::where('slug', 'Other')->first();
-                $types = $fallbackType ? collect([$fallbackType]) : collect();
+                $types = $fallbackOtherType ? collect([$fallbackOtherType]) : collect();
             }
 
             // If still empty (no 'Other' type in DB), emit with hardcoded 'Other' fallback

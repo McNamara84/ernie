@@ -393,20 +393,26 @@ class ResourceStorageService
             return;
         }
 
-        $typeIds = [];
-        foreach ($roles as $role) {
-            if (! is_string($role) || trim($role) === '') {
-                continue;
+        // Filter to valid, non-empty role strings
+        $validRoles = array_values(array_filter(
+            $roles,
+            fn (mixed $role): bool => is_string($role) && trim($role) !== '',
+        ));
+
+        if ($validRoles === []) {
+            $otherType = ContributorType::where('slug', 'Other')->first();
+            if ($otherType) {
+                $resourceContributor->contributorTypes()->sync([$otherType->id]);
             }
 
-            $contributorType = ContributorType::where('name', $role)
-                ->orWhere('slug', $role)
-                ->first();
-
-            if ($contributorType) {
-                $typeIds[] = $contributorType->id;
-            }
+            return;
         }
+
+        // Resolve all needed ContributorType IDs in a single query
+        $typeIds = ContributorType::where(function ($query) use ($validRoles): void {
+            $query->whereIn('name', $validRoles)
+                ->orWhereIn('slug', $validRoles);
+        })->pluck('id')->all();
 
         if ($typeIds !== []) {
             $resourceContributor->contributorTypes()->sync($typeIds);

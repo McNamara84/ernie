@@ -476,6 +476,7 @@ class DataCiteXmlExporter
 
         $contributors = $this->dom->createElement('contributors');
         $hasContributors = false;
+        $fallbackOtherType = ContributorType::where('slug', 'Other')->first();
 
         foreach ($resource->contributors as $contributor) {
             $contributorElement = null;
@@ -498,8 +499,7 @@ class DataCiteXmlExporter
             // Regular contributor - emit one element per role (DataCite allows only one contributorType per element)
             $types = $contributor->contributorTypes;
             if ($types->isEmpty()) {
-                $fallbackType = ContributorType::where('slug', 'Other')->first();
-                $types = $fallbackType ? collect([$fallbackType]) : collect();
+                $types = $fallbackOtherType ? collect([$fallbackOtherType]) : collect();
             }
 
             // If still empty (no 'Other' type in DB), emit with hardcoded 'Other' fallback
