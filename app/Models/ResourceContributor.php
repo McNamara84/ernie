@@ -17,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * Links a Resource to its contributors (Persons or Institutions).
  *
  * @property int $id
- * @property int $id
  * @property int $resource_id
  * @property string $contributorable_type
  * @property int $contributorable_id

@@ -550,7 +550,20 @@ class DataCiteJsonExporter
             // Regular contributor - emit one entry per role (DataCite allows only one contributorType per element)
             $types = $contributor->contributorTypes;
             if ($types->isEmpty()) {
-                $types = collect([ContributorType::where('slug', 'Other')->first()])->filter();
+                $fallbackType = ContributorType::where('slug', 'Other')->first();
+                $types = $fallbackType ? collect([$fallbackType]) : collect();
+            }
+
+            // If still empty (no 'Other' type in DB), emit with hardcoded 'Other' fallback
+            if ($types->isEmpty()) {
+                $contributorType = 'Other';
+                if ($contributor->contributorable_type === Person::class) {
+                    $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
+                } elseif ($contributor->contributorable_type === Institution::class) {
+                    $contributors[] = $this->buildInstitutionContributor($contributor, $contributorType);
+                }
+
+                continue;
             }
 
             foreach ($types as $type) {
