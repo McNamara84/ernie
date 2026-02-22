@@ -513,6 +513,7 @@ class DataCiteXmlExporter
                 }
                 if ($contributorElement) {
                     $contributors->appendChild($contributorElement);
+                    $hasContributors = true;
                 }
 
                 continue;

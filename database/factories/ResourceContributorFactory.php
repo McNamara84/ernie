@@ -25,7 +25,7 @@ class ResourceContributorFactory extends Factory
     {
         return $this->afterCreating(function (ResourceContributor $contributor): void {
             // Assign default "Other" contributor type via pivot table if none assigned yet
-            if ($contributor->contributorTypes()->count() === 0) {
+            if (! $contributor->relationLoaded('contributorTypes') || $contributor->contributorTypes->isEmpty()) {
                 $otherType = ContributorType::where('slug', 'Other')->first()
                     ?? ContributorType::create([
                         'name' => 'Other',
