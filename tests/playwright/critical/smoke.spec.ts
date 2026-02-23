@@ -50,7 +50,7 @@ test.describe('Critical E2E Workflows', () => {
     // With session-based workflow, only xmlSession parameter is passed
     expect(currentUrl).toMatch(/xmlSession=xml_upload_/);
     
-    // Verify editor page loaded successfully by checking for DOI field label
-    await expect(page.getByText('DOI', { exact: true })).toBeVisible();
+    // Verify editor page loaded successfully by checking for DOI input field
+    await expect(page.locator('#doi')).toBeVisible();
   });
 });
