@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope>
+    
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 file:///C:/xampp/htdocs/elmo/schemas/DataCite/DataCiteSchema45.xsd">
+  <identifier identifierType="DOI"/>
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Anti, Tanja</creatorName>
+      <givenName>Tanja</givenName>
+      <familyName>Anti</familyName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+    </creator>
+    <creator>
+      <creatorName nameType="Organizational">gfz</creatorName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+    </creator>
+  </creators>
+  <titles>
+    <title xml:lang="en">Tanjas Test 20260220</title>
+    <title titleType="TranslatedTitle">Tanjas Test 20260220 übersetzung</title>
+  </titles>
+  <publisher xml:lang="en">GFZ Data Services</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+  <subjects>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/f3261de5-34c1-4980-af22-f9d7e7206d12" xml:lang="en">Platforms</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/c12d28c9-5a4c-4897-b82b-67ed59d14e75" xml:lang="en">Platforms &gt; Space-based Platforms &gt; Interplanetary Spacecraft &gt; LANDER</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/35262ef6-69c8-4f7b-9191-808b8687a40d" xml:lang="en">Instruments &gt; Solar/Space Observing Instruments &gt; Radio Wave Detectors &gt; RADIO TELESCOPES</subject>
+  </subjects>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Anti, Tanja</contributorName>
+      <givenName>Tanja</givenName>
+      <familyName>Anti</familyName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+    </contributor>
+    <contributor contributorType="ProjectLeader">
+      <contributorName nameType="Personal">test, tesg</contributorName>
+      <givenName>tesg</givenName>
+      <familyName>test</familyName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/02twk3504">GF Machining Solutions (Sweden)</affiliation>
+    </contributor>
+    <contributor contributorType="Translator">
+      <contributorName nameType="Personal">arhz , </contributorName>
+      <givenName/>
+      <familyName>arhz </familyName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/059c3mv67">Cambridge Health Alliance</affiliation>
+    </contributor>
+    <contributor contributorType="DataManager">
+      <contributorName nameType="Personal">a re`htshtrdjh, haerh herhe </contributorName>
+      <givenName>haerh herhe </givenName>
+      <familyName>a re`htshtrdjh</familyName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/041t5sq72">JTEKT (United States)</affiliation>
+    </contributor>
+    <contributor contributorType="Sponsor">
+      <contributorName nameType="Organizational">snhnn </contributorName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/00fpw9a48">Hamburgische Schiffbau-Versuchsanstalt (Germany)</affiliation>
+    </contributor>
+    <contributor contributorType="Other">
+      <contributorName nameType="Organizational">snhnn </contributorName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/00fpw9a48">Hamburgische Schiffbau-Versuchsanstalt (Germany)</affiliation>
+    </contributor>
+  </contributors>
+  <dates>
+    <date dateType="Created">2026-02-20</date>
+  </dates>
+  <language>en</language>
+  <rightsList>
+    <rights rightsURI="https://creativecommons.org/licenses/by/4.0/legalcode" rightsIdentifier="CC-BY-4.0" rightsIdentifierScheme="SPDX" schemeURI="https://spdx.org/licenses/" xml:lang="en">Creative Commons Attribution 4.0 International</rights>
+  </rightsList>
+  <descriptions>
+    <description descriptionType="Methods" xml:lang="en">MethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethodeMethode</description>
+    <description descriptionType="TechnicalInfo" xml:lang="en">Technical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical informationTechnical information</description>
+    <description descriptionType="Abstract" xml:lang="en">hrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hah</description>
+    <description descriptionType="Other" xml:lang="en">otherotherotherotherotherotherotherotherotherotherotherotherotherotherotherother</description>
+  </descriptions>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPlace>spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description </geoLocationPlace>
+      <geoLocationPoint>
+        <pointLongitude>15.1835</pointLongitude>
+        <pointLatitude>55.3233</pointLatitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+
+
+    
+<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd file:///C:/xampp/htdocs/msl-mde/schemas/ISO/gmd.xsd">
+  <fileIdentifier>
+    <gco:CharacterString>doi:N/A</gco:CharacterString>
+  </fileIdentifier>
+  <language>
+    <LanguageCode codeList="http://www.loc.gov/standards/iso639-1/" codeListValue="en">en</LanguageCode>
+  </language>
+  <characterSet>
+    <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode" codeListValue="utf8"/>
+  </characterSet>
+  <hierarchyLevel>
+    <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset">dataset</MD_ScopeCode>
+  </hierarchyLevel>
+  <contact>
+    <CI_ResponsibleParty>
+      <organisationName>
+        <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+      </organisationName>
+      <contactInfo>
+        <CI_Contact>
+          <address>
+            <CI_Address>
+              <electronicMailAddress>
+                <gco:CharacterString>datapub@gfz.de</gco:CharacterString>
+              </electronicMailAddress>
+            </CI_Address>
+          </address>
+          <onlineResource>
+            <CI_OnlineResource>
+              <linkage>
+                <URL>https://www.gfz.de/</URL>
+              </linkage>
+              <name>
+                <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+              </name>
+              <description>
+                <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+              </description>
+              <function>
+                <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">information</CI_OnLineFunctionCode>
+              </function>
+            </CI_OnlineResource>
+          </onlineResource>
+        </CI_Contact>
+      </contactInfo>
+      <role>
+        <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+      </role>
+    </CI_ResponsibleParty>
+  </contact>
+  <dateStamp>
+    <gco:Date>2026-02-20</gco:Date>
+  </dateStamp>
+  <referenceSystemInfo>
+    <MD_ReferenceSystem>
+      <referenceSystemIdentifier>
+        <RS_Identifier>
+          <code>
+            <gco:CharacterString>urn:ogc:def:crs:EPSG:4326</gco:CharacterString>
+          </code>
+        </RS_Identifier>
+      </referenceSystemIdentifier>
+    </MD_ReferenceSystem>
+  </referenceSystemInfo>
+  <identificationInfo>
+    <MD_DataIdentification>
+      <citation>
+        <CI_Citation>
+          <title>
+            <gco:CharacterString>Tanjas Test 20260220</gco:CharacterString>
+          </title>
+          <alternateTitle>
+            <gco:CharacterString>Tanjas Test 20260220 übersetzung</gco:CharacterString>
+          </alternateTitle>
+          <date>
+            <CI_Date>
+              <date>
+                <gco:Date>2026-02-20</gco:Date>
+              </date>
+              <dateType>
+                <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation">creation</CI_DateTypeCode>
+              </dateType>
+            </CI_Date>
+          </date>
+        </CI_Citation>
+      </citation>
+      <abstract>
+        <gco:CharacterString>hrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hahhrehre hah</gco:CharacterString>
+      </abstract>
+      <pointOfContact>
+        <CI_ResponsibleParty>
+          <individualName>
+            <gco:CharacterString>Anti, Tanja</gco:CharacterString>
+          </individualName>
+          <organisationName>
+            <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+          </organisationName>
+          <contactInfo>
+            <CI_Contact>
+              <address>
+                <CI_Address>
+                  <electronicMailAddress>
+                    <gco:CharacterString>anti@gfz.de</gco:CharacterString>
+                  </electronicMailAddress>
+                </CI_Address>
+              </address>
+            </CI_Contact>
+          </contactInfo>
+          <role>
+            <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+          </role>
+        </CI_ResponsibleParty>
+      </pointOfContact>
+      <descriptiveKeywords/>
+      <descriptiveKeywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Platforms</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Earth Platforms Keywords</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2025-05-09</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Platforms &gt; Space-based Platforms &gt; Interplanetary Spacecraft &gt; LANDER</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Earth Platforms Keywords</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2025-05-09</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Instruments &gt; Solar/Space Observing Instruments &gt; Radio Wave Detectors &gt; RADIO TELESCOPES</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Instruments</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2025-05-09</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+      </descriptiveKeywords>
+      <resourceConstraints xlink:href="https://creativecommons.org/licenses/by/4.0/legalcode">
+        <MD_Constraints>
+          <useLimitation>
+            <gco:CharacterString>Creative Commons Attribution 4.0 International</gco:CharacterString>
+          </useLimitation>
+        </MD_Constraints>
+      </resourceConstraints>
+      <resourceConstraints>
+        <MD_LegalConstraints>
+          <accessConstraints>
+            <MD_RestrictionCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_RestrictionCode" codeListValue="otherRestrictions"/>
+          </accessConstraints>
+          <otherConstraints>
+            <gco:CharacterString>Creative Commons Attribution 4.0 International</gco:CharacterString>
+          </otherConstraints>
+        </MD_LegalConstraints>
+      </resourceConstraints>
+      <resourceConstraints>
+        <MD_SecurityConstraints>
+          <classification>
+            <MD_ClassificationCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_ClassificationCode" codeListValue="unclassified"/>
+          </classification>
+        </MD_SecurityConstraints>
+      </resourceConstraints>
+      <language>
+        <gco:CharacterString>en</gco:CharacterString>
+      </language>
+      <characterSet>
+        <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode" codeListValue="utf8"/>
+      </characterSet>
+      <topicCategory>
+        <MD_TopicCategoryCode>geoscientificInformation</MD_TopicCategoryCode>
+      </topicCategory>
+      <extent>
+        <EX_Extent>
+          <description>
+            <gco:CharacterString>spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description spacial description </gco:CharacterString>
+          </description>
+          <geographicElement>
+            <EX_GeographicBoundingBox>
+              <westBoundLongitude>
+                <gco:Decimal>15.1835</gco:Decimal>
+              </westBoundLongitude>
+              <eastBoundLongitude>
+                <gco:Decimal>15.1835</gco:Decimal>
+              </eastBoundLongitude>
+              <southBoundLatitude>
+                <gco:Decimal>55.3233</gco:Decimal>
+              </southBoundLatitude>
+              <northBoundLatitude>
+                <gco:Decimal>55.3233</gco:Decimal>
+              </northBoundLatitude>
+            </EX_GeographicBoundingBox>
+          </geographicElement>
+          <temporalElement>
+            <EX_TemporalExtent>
+              <extent>
+                <gml:TimePeriod gml:id="timePeriod-1">
+                  <gml:beginPosition>2026-02-19</gml:beginPosition>
+                  <gml:endPosition>2026-02-20</gml:endPosition>
+                </gml:TimePeriod>
+              </extent>
+            </EX_TemporalExtent>
+          </temporalElement>
+        </EX_Extent>
+      </extent>
+    </MD_DataIdentification>
+  </identificationInfo>
+  <distributionInfo>
+    <MD_Distribution>
+      <transferOptions>
+        <MD_DigitalTransferOptions>
+          <onLine>
+            <CI_OnlineResource>
+              <linkage>
+                <URL>http://doi.org/N/A</URL>
+              </linkage>
+              <protocol>
+                <gco:CharacterString>WWW:LINK-1.0-http--link</gco:CharacterString>
+              </protocol>
+              <name>
+                <gco:CharacterString>Download</gco:CharacterString>
+              </name>
+              <description>
+                <gco:CharacterString>Download</gco:CharacterString>
+              </description>
+              <function>
+                <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">information</CI_OnLineFunctionCode>
+              </function>
+            </CI_OnlineResource>
+          </onLine>
+        </MD_DigitalTransferOptions>
+      </transferOptions>
+    </MD_Distribution>
+  </distributionInfo>
+  <dataQualityInfo>
+    <DQ_DataQuality>
+      <scope>
+        <DQ_Scope>
+          <level>
+            <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset"/>
+          </level>
+        </DQ_Scope>
+      </scope>
+    </DQ_DataQuality>
+  </dataQualityInfo>
+</MD_Metadata>
+
+
+</envelope>
