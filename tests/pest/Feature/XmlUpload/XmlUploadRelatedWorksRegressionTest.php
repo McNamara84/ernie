@@ -46,3 +46,40 @@ test('xml upload preserves related works for editor prefill', function () {
             ->where('relatedWorks.3.relation_type', 'IsDocumentedBy')
         );
 });
+
+test('xml upload skips related works with invalid type values', function () {
+        $this->actingAs(User::factory()->create());
+        withoutVite();
+
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <titles>
+        <title>Test</title>
+    </titles>
+    <publicationYear>2026</publicationYear>
+    <relatedIdentifiers>
+        <relatedIdentifier relatedIdentifierType="URL" relationType="IsSupplementTo">https://example.org/valid</relatedIdentifier>
+        <relatedIdentifier relatedIdentifierType="NOT_A_TYPE" relationType="IsSupplementTo">https://example.org/invalid-type</relatedIdentifier>
+        <relatedIdentifier relatedIdentifierType="URL" relationType="NOT_A_RELATION">https://example.org/invalid-relation</relatedIdentifier>
+    </relatedIdentifiers>
+</resource>
+XML;
+
+        $file = UploadedFile::fake()->createWithContent('invalid-related-types.xml', $xml);
+
+        $uploadResponse = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+                ->assertOk();
+
+        $sessionKey = $uploadResponse->json('sessionKey');
+
+        $this->get(route('editor', ['xmlSession' => $sessionKey]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                        ->component('editor')
+                        ->has('relatedWorks', 1)
+                        ->where('relatedWorks.0.identifier', 'https://example.org/valid')
+                        ->where('relatedWorks.0.identifier_type', 'URL')
+                        ->where('relatedWorks.0.relation_type', 'IsSupplementTo')
+                );
+});
