@@ -51,8 +51,8 @@ test.describe('XML Upload', () => {
     expect(sessionKey).toMatch(/^xml_upload_/);
     
     // Verify editor page loaded successfully with form fields
-    // Check for DOI label which is always visible in the form
-    await expect(page.getByText('DOI', { exact: true })).toBeVisible();
+    // Check for DOI input field (id="doi"), which is unique and stable
+    await expect(page.locator('#doi')).toBeVisible();
     
     // Verify form has loaded by checking for Year field (has id="year")
     await expect(page.locator('#year')).toBeVisible();
