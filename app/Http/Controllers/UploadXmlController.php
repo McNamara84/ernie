@@ -86,6 +86,7 @@ class UploadXmlController extends Controller
         'Cites', 'IsCitedBy', 'References', 'IsReferencedBy',
         'Documents', 'IsDocumentedBy', 'Describes', 'IsDescribedBy',
         'IsNewVersionOf', 'IsPreviousVersionOf', 'HasVersion', 'IsVersionOf',
+        'HasTranslation', 'IsTranslationOf',
         'Continues', 'IsContinuedBy', 'Obsoletes', 'IsObsoletedBy',
         'IsVariantFormOf', 'IsOriginalFormOf', 'IsIdenticalTo',
         'HasPart', 'IsPartOf', 'Compiles', 'IsCompiledBy',
