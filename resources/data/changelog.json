@@ -4,6 +4,10 @@
         "date": "2026-02-23",
         "fixes": [
             {
+                "title": "Related Works Lost After XML Upload",
+                "description": "Fixed an issue where related identifiers from uploaded DataCite XML files were not carried into the editor prefill and were therefore lost on subsequent save. The XML upload pipeline now extracts related works, validates identifier and relation types against supported values, and passes valid entries to the editor session payload. Unsupported type combinations are skipped and logged as warnings instead of breaking the upload."
+            },
+            {
                 "title": "Validation Error List Shown on Every Save Attempt",
                 "description": "Fixed an issue where the list of missing or incorrectly filled fields was only shown on the first save attempt. The validation summary is now consistently displayed at the top of the form on every attempt. The save button is now always clickable — when required fields are missing, clicking it displays the full error list and scrolls to the first problematic section."
             },
