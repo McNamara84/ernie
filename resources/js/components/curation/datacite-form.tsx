@@ -1822,7 +1822,7 @@ export default function DataCiteForm({
     }, [errorMessage, validationErrors]);
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
             <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
             <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
                 <AccordionItem value="resource-info">

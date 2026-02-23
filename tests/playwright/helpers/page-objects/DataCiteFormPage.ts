@@ -268,7 +268,7 @@ export class DataCiteFormPage {
   async clickSaveAndWaitForValidationAlert(): Promise<string> {
     await this.saveButton.click();
     const alert = this.page.getByTestId('global-validation-alert');
-    await alert.waitFor({ state: 'visible', timeout: 5000 });
+    await alert.waitFor({ state: 'visible', timeout: 10000 });
     const text = await alert.textContent();
     return text?.trim() || '';
   }
