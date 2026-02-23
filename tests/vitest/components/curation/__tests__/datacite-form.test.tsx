@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -521,7 +521,7 @@ describe('DataCiteForm', () => {
     });
 
     it(
-        'disables saving until required fields are provided',
+        'save button is always enabled regardless of required fields (Issue #538)',
         { timeout: 60000 },
         async () => {
             render(
@@ -534,42 +534,94 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                />,
             );
 
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-        const saveButton = screen.getByRole('button', { name: 'Save to database' });
+            const saveButton = screen.getByRole('button', { name: 'Save to database' });
 
-        expect(saveButton).toBeDisabled();
-        expect(saveButton).toHaveAttribute('aria-disabled', 'true');
-
-        const titleInput = screen.getByRole('textbox', { name: /Title/ });
-        await user.type(titleInput, 'Sample Title');
-        await user.type(screen.getByLabelText('Year', { exact: false }), '2024');
-
-        await user.click(screen.getByLabelText('Resource Type', { exact: false }));
-        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
-
-        await user.click(screen.getByLabelText('Language of Data', { exact: false }));
-        await user.click(await screen.findByRole('option', { name: 'English' }));
-
-        const licenseTrigger = screen.getAllByLabelText(/^License/, {
-            selector: 'button',
-        })[0];
-        await user.click(licenseTrigger);
-        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
-
-        await fillRequiredAuthor(user, 'Doe');
-        await fillRequiredContributor(user);
-        await fillRequiredAbstract(user);
-
-
-        await waitFor(() => {
+            // Save button should always be enabled, even when required fields are empty
             expect(saveButton).toBeEnabled();
             expect(saveButton).toHaveAttribute('aria-disabled', 'false');
-        });
-    },
+        },
+    );
+
+    it(
+        'shows validation error list when saving with missing required fields (Issue #538)',
+        { timeout: 60000 },
+        async () => {
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            // Submit the form without filling any required fields
+            const formElement = container.querySelector('form')!;
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
+
+            // ValidationAlert should show with the error summary
+            await waitFor(() => {
+                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+            });
+
+            // Individual missing field messages should be listed
+            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+            expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
+            expect(screen.getByText('Resource Type is required')).toBeInTheDocument();
+            expect(screen.getByText('Primary License is required')).toBeInTheDocument();
+        },
+    );
+
+    it(
+        'shows validation error list on every save attempt, not just the first (Issue #538)',
+        { timeout: 60000 },
+        async () => {
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const formElement = container.querySelector('form')!;
+
+            // First save attempt
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
+            await waitFor(() => {
+                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+            });
+            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+
+            // Second save attempt — error list must still appear
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
+            await waitFor(() => {
+                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+            });
+            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+            expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
+        },
     );
 
     it('supports managing person and institution authors with affiliations', async () => {
@@ -2524,9 +2576,9 @@ describe('DataCiteForm', () => {
         expect(getAccordionTrigger(/Descriptions/i)).toBeInTheDocument();
     });
 
-    it('disables save button when Abstract is not filled', async () => {
+    it('shows Abstract validation error when saving without Abstract (Issue #538)', async () => {
         const user = userEvent.setup();
-        render(
+        const { container } = render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
@@ -2548,11 +2600,20 @@ describe('DataCiteForm', () => {
         await fillRequiredContributor(user);
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
-        // Should still be disabled because Abstract is not filled
-        expect(saveButton).toBeDisabled();
+        // Save button should be enabled even without Abstract
+        expect(saveButton).toBeEnabled();
+
+        // Submit the form — should show validation error about missing Abstract
+        const formElement = container.querySelector('form')!;
+        await act(async () => {
+            fireEvent.submit(formElement);
+        });
+        await waitFor(() => {
+            expect(screen.getByText('Abstract is required')).toBeInTheDocument();
+        });
     });
 
-    it('enables save button when Abstract is filled', async () => {
+    it('save button remains enabled when Abstract is filled', async () => {
         const user = userEvent.setup();
         render(
             <DataCiteForm

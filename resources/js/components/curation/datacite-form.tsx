@@ -137,6 +137,9 @@ export default function DataCiteForm({
     const datesRef = useRef<HTMLDivElement | null>(null);
     const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
 
+    // Ref to track pending validation scroll timeout (prevents race conditions on rapid save clicks)
+    const validationScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
     const hasInitialMslTriggers = useRef<boolean>(false);
@@ -1439,9 +1442,21 @@ export default function DataCiteForm({
 
     useEffect(() => {
         if (errorMessage && errorRef.current) {
+            errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             errorRef.current.focus();
         }
+
     }, [errorMessage]);
+
+    // Cleanup pending validation scroll timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (validationScrollTimeoutRef.current) {
+                clearTimeout(validationScrollTimeoutRef.current);
+                validationScrollTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     const saveUrl = useMemo(() => '/editor/resources', []);
 
@@ -1468,10 +1483,26 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setValidationErrors([]);
 
-        // Check if required fields are filled - if not, scroll to first invalid section
+        // Check if required fields are filled - if not, show error list and scroll to first invalid section
         if (!areRequiredFieldsFilled) {
+            // Clear any pending scroll timeout from a previous save attempt
+            if (validationScrollTimeoutRef.current) {
+                clearTimeout(validationScrollTimeoutRef.current);
+                validationScrollTimeoutRef.current = null;
+            }
+
+            setValidationErrors(missingRequiredFields);
+            setErrorMessage('Please complete all required fields before saving.');
             setIsSaving(false);
-            scrollToFirstInvalidSection();
+
+            // Scroll to error list first (via useEffect on errorMessage), then to first invalid section.
+            // Use requestAnimationFrame to wait for the DOM update + a short delay for the scroll animation.
+            requestAnimationFrame(() => {
+                validationScrollTimeoutRef.current = setTimeout(() => {
+                    validationScrollTimeoutRef.current = null;
+                    scrollToFirstInvalidSection();
+                }, 600);
+            });
             return;
         }
 
@@ -1818,8 +1849,8 @@ export default function DataCiteForm({
     }, [errorMessage, validationErrors]);
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" />
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
             <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>
@@ -2265,32 +2296,19 @@ export default function DataCiteForm({
                                 <Button
                                     type="submit"
                                     data-testid="save-resource-button"
-                                    disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
+                                    disabled={isSaving || hasLegacyKeywords}
                                     aria-busy={isSaving}
-                                    aria-disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
+                                    aria-disabled={isSaving || hasLegacyKeywords}
                                 >
                                     {isSaving ? 'Saving…' : 'Save to database'}
                                 </Button>
                             </span>
                         </TooltipTrigger>
-                        {(!areRequiredFieldsFilled || hasLegacyKeywords) && !isSaving && (
+                        {hasLegacyKeywords && !isSaving && (
                             <TooltipContent side="top" align="end" className="max-w-sm">
                                 <div className="space-y-2">
-                                    <p className="text-sm font-semibold">
-                                        {hasLegacyKeywords ? 'Cannot save: Legacy keywords detected' : 'Cannot save: Required fields missing'}
-                                    </p>
-                                    {hasLegacyKeywords ? (
-                                        <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                                    ) : (
-                                        <>
-                                            <p className="text-xs text-muted-foreground">Please complete the following required fields:</p>
-                                            <ul className="list-disc space-y-1 pl-4 text-xs">
-                                                {missingRequiredFields.map((field, idx) => (
-                                                    <li key={idx}>{field}</li>
-                                                ))}
-                                            </ul>
-                                        </>
-                                    )}
+                                    <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
+                                    <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
                                 </div>
                             </TooltipContent>
                         )}

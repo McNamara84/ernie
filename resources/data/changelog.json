@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-21",
+        "date": "2026-02-23",
         "fixes": [
+            {
+                "title": "Validation Error List Shown on Every Save Attempt",
+                "description": "Fixed an issue where the list of missing or incorrectly filled fields was only shown on the first save attempt. The validation summary is now consistently displayed at the top of the form on every attempt. The save button is now always clickable — when required fields are missing, clicking it displays the full error list and scrolls to the first problematic section."
+            },
             {
                 "title": "Contributor Roles Not Saved",
                 "description": "Fixed a bug where contributor roles were lost after saving a dataset in the data editor. The root cause was a field name mismatch: the backend sent 'contributorType' but the frontend expected 'roles'. Additionally, the database schema only supported a single role per contributor. The fix introduces a pivot table to support multiple contributor types per contributor. When exporting to DataCite XML/JSON, contributors with multiple roles are now emitted as separate entries (one per role), conforming to the DataCite Schema 4.6 which allows only one contributorType per contributor element."
