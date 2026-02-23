@@ -224,31 +224,27 @@ test.describe('DataCite Form Validation UX', () => {
   });
   
   test.describe('Save Button Tooltip', () => {
-    test('shows disabled Save button when required fields are missing', async () => {
+    test('shows enabled Save button even when required fields are missing', async () => {
       await formPage.clearAllFields();
       
-      // Save button should be disabled
+      // Save button should always be enabled (Issue #538)
       const isDisabled = await formPage.isSaveButtonDisabled();
-      expect(isDisabled).toBeTruthy();
+      expect(isDisabled).toBeFalsy();
     });
     
-    test('displays tooltip with missing required fields on hover', async () => {
+    test('displays validation error list when clicking Save with missing required fields', async () => {
       await formPage.clearAllFields();
       
-      // Hover over disabled Save button
-      await formPage.hoverSaveButton();
-      
-      // Tooltip should appear with missing fields list
-      const tooltipText = await formPage.getSaveButtonTooltipText();
+      // Click Save — should show validation errors in ValidationAlert
+      const alertText = await formPage.clickSaveAndWaitForValidationAlert();
       
       // Should mention required fields
-      expect(tooltipText.toLowerCase()).toContain('required');
+      expect(alertText.toLowerCase()).toContain('required');
       
       // Should list specific missing fields
-      expect(tooltipText).toContain('Main Title');
-      expect(tooltipText).toContain('Year');
-      expect(tooltipText).toContain('Resource Type');
-      // Note: Language has a default value and is not in the missing fields list
+      expect(alertText).toContain('Main Title');
+      expect(alertText).toContain('Year');
+      expect(alertText).toContain('Resource Type');
     });
     
     test('enables Save button when all required fields are filled', async ({ page }) => {
@@ -301,11 +297,10 @@ test.describe('DataCite Form Validation UX', () => {
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(300);
       
-      // Try to submit (should trigger auto-scroll)
-      // Note: Save button might be disabled, so we test the scroll logic indirectly
-      // by checking if first invalid section opens when validation fails
+      // Click Save to trigger auto-scroll to first invalid section
+      await formPage.clickSave();
+      await page.waitForTimeout(1000);
       
-      // Since Save is disabled, we verify the accordion state management instead
       // Resource Info should be the first invalid section (verify via badge)
       const status = await formPage.getAccordionStatusBadge(formPage.resourceInfoAccordion);
       expect(status).toContain('incomplete');
@@ -333,12 +328,16 @@ test.describe('DataCite Form Validation UX', () => {
   });
   
   test.describe('Complete Form Submission Flow', () => {
-    test('prevents submission when validation errors exist', async () => {
+    test('shows validation errors when submitting with missing required fields', async () => {
       await formPage.clearAllFields();
       
-      // Save button should be disabled - preventing submission
+      // Save button should be enabled (Issue #538)
       const isDisabled = await formPage.isSaveButtonDisabled();
-      expect(isDisabled).toBeTruthy();
+      expect(isDisabled).toBeFalsy();
+      
+      // Click Save — should show validation error list instead of submitting
+      const alertText = await formPage.clickSaveAndWaitForValidationAlert();
+      expect(alertText.toLowerCase()).toContain('required');
     });
     
     test('allows submission when all validations pass', async ({ page }) => {

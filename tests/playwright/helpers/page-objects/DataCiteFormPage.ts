@@ -260,6 +260,35 @@ export class DataCiteFormPage {
   async clickSave() {
     await this.saveButton.click();
   }
+
+  /**
+   * Click Save and wait for the validation error alert to appear.
+   * Returns the text content of the ValidationAlert.
+   */
+  async clickSaveAndWaitForValidationAlert(): Promise<string> {
+    await this.saveButton.click();
+    const alert = this.page.locator('[role="alert"]').first();
+    await alert.waitFor({ state: 'visible', timeout: 5000 });
+    const text = await alert.textContent();
+    return text?.trim() || '';
+  }
+
+  /**
+   * Check whether the ValidationAlert (role="alert") is visible
+   */
+  async isValidationAlertVisible(): Promise<boolean> {
+    const alert = this.page.locator('[role="alert"]').first();
+    return await alert.isVisible();
+  }
+
+  /**
+   * Get the text content of the ValidationAlert
+   */
+  async getValidationAlertText(): Promise<string> {
+    const alert = this.page.locator('[role="alert"]').first();
+    const text = await alert.textContent();
+    return text?.trim() || '';
+  }
   
   /**
    * Fill all required fields with valid data
