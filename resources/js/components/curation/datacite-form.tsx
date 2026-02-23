@@ -137,6 +137,9 @@ export default function DataCiteForm({
     const datesRef = useRef<HTMLDivElement | null>(null);
     const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
 
+    // Ref to track pending validation scroll timeout (prevents race conditions on rapid save clicks)
+    const validationScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
     const hasInitialMslTriggers = useRef<boolean>(false);
@@ -1442,6 +1445,14 @@ export default function DataCiteForm({
             errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             errorRef.current.focus();
         }
+
+        // Cleanup pending validation scroll timeout when errorMessage changes
+        return () => {
+            if (validationScrollTimeoutRef.current) {
+                clearTimeout(validationScrollTimeoutRef.current);
+                validationScrollTimeoutRef.current = null;
+            }
+        };
     }, [errorMessage]);
 
     const saveUrl = useMemo(() => '/editor/resources', []);
@@ -1471,11 +1482,24 @@ export default function DataCiteForm({
 
         // Check if required fields are filled - if not, show error list and scroll to first invalid section
         if (!areRequiredFieldsFilled) {
+            // Clear any pending scroll timeout from a previous save attempt
+            if (validationScrollTimeoutRef.current) {
+                clearTimeout(validationScrollTimeoutRef.current);
+                validationScrollTimeoutRef.current = null;
+            }
+
             setValidationErrors(missingRequiredFields);
             setErrorMessage('Please complete all required fields before saving.');
             setIsSaving(false);
-            // Scroll to error list first (via useEffect on errorMessage), then to first invalid section
-            setTimeout(() => scrollToFirstInvalidSection(), 800);
+
+            // Scroll to error list first (via useEffect on errorMessage), then to first invalid section.
+            // Use requestAnimationFrame to wait for the DOM update + a short delay for the scroll animation.
+            requestAnimationFrame(() => {
+                validationScrollTimeoutRef.current = setTimeout(() => {
+                    validationScrollTimeoutRef.current = null;
+                    scrollToFirstInvalidSection();
+                }, 600);
+            });
             return;
         }
 

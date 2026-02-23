@@ -534,16 +534,16 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                />,
             );
 
-        const saveButton = screen.getByRole('button', { name: 'Save to database' });
+            const saveButton = screen.getByRole('button', { name: 'Save to database' });
 
-        // Save button should always be enabled, even when required fields are empty
-        expect(saveButton).toBeEnabled();
-        expect(saveButton).toHaveAttribute('aria-disabled', 'false');
-    },
+            // Save button should always be enabled, even when required fields are empty
+            expect(saveButton).toBeEnabled();
+            expect(saveButton).toHaveAttribute('aria-disabled', 'false');
+        },
     );
 
     it(
@@ -560,27 +560,27 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                />,
             );
 
-        // Submit the form without filling any required fields
-        const formElement = container.querySelector('form')!;
-        await act(async () => {
-            fireEvent.submit(formElement);
-        });
+            // Submit the form without filling any required fields
+            const formElement = container.querySelector('form')!;
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
 
-        // ValidationAlert should show with the error summary
-        await waitFor(() => {
-            expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
-        });
+            // ValidationAlert should show with the error summary
+            await waitFor(() => {
+                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+            });
 
-        // Individual missing field messages should be listed
-        expect(screen.getByText('Main Title is required')).toBeInTheDocument();
-        expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
-        expect(screen.getByText('Resource Type is required')).toBeInTheDocument();
-        expect(screen.getByText('Primary License is required')).toBeInTheDocument();
-    },
+            // Individual missing field messages should be listed
+            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+            expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
+            expect(screen.getByText('Resource Type is required')).toBeInTheDocument();
+            expect(screen.getByText('Primary License is required')).toBeInTheDocument();
+        },
     );
 
     it(
@@ -597,31 +597,31 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                />,
             );
 
-        const formElement = container.querySelector('form')!;
+            const formElement = container.querySelector('form')!;
 
-        // First save attempt
-        await act(async () => {
-            fireEvent.submit(formElement);
-        });
-        await waitFor(() => {
-            expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
-        });
-        expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+            // First save attempt
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
+            await waitFor(() => {
+                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+            });
+            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
 
-        // Second save attempt — error list must still appear
-        await act(async () => {
-            fireEvent.submit(formElement);
-        });
-        await waitFor(() => {
-            expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
-        });
-        expect(screen.getByText('Main Title is required')).toBeInTheDocument();
-        expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
-    },
+            // Second save attempt — error list must still appear
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
+            await waitFor(() => {
+                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+            });
+            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+            expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
+        },
     );
 
     it('supports managing person and institution authors with affiliations', async () => {
