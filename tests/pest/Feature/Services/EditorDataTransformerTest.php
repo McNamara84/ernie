@@ -40,7 +40,7 @@ describe('transformResource', function (): void {
     it('returns all expected top-level keys', function (): void {
         $this->resource->load([
             'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
-            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
             'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
             'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
             'fundingReferences', 'language',
@@ -59,7 +59,7 @@ describe('transformResource', function (): void {
     it('returns correct scalar values', function (): void {
         $this->resource->load([
             'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
-            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
             'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
             'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
             'fundingReferences', 'language',
@@ -76,7 +76,7 @@ describe('transformResource', function (): void {
         $resource = Resource::factory()->create(['doi' => null]);
         $resource->load([
             'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
-            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
             'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
             'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
             'fundingReferences', 'language',
@@ -91,7 +91,7 @@ describe('transformResource', function (): void {
         $resource = Resource::factory()->create(['version' => null]);
         $resource->load([
             'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
-            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
             'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
             'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
             'fundingReferences', 'language',
@@ -188,7 +188,7 @@ describe('transformCreators', function (): void {
             'position' => 1,
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -207,7 +207,7 @@ describe('transformCreators', function (): void {
             'position' => 1,
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -227,7 +227,7 @@ describe('transformCreators', function (): void {
             'resource_id' => $this->resource->id,
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -247,7 +247,7 @@ describe('transformCreators', function (): void {
             'position' => 1,
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -270,7 +270,7 @@ describe('transformCreators', function (): void {
             'scheme_uri' => 'https://ror.org',
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -286,7 +286,7 @@ describe('transformCreators', function (): void {
             'position' => 1,
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -303,7 +303,7 @@ describe('transformCreators', function (): void {
             'position' => 1,
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 
@@ -327,7 +327,7 @@ describe('transformCreators', function (): void {
             'scheme_uri' => 'https://ror.org',
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorType']);
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
 
         $result = $this->transformer->transformCreators($this->resource);
 

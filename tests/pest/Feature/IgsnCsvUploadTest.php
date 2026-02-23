@@ -2,18 +2,11 @@
 
 use App\Models\ContributorType;
 use App\Models\DateType;
-use App\Models\FundingReference;
-use App\Models\IgsnClassification;
-use App\Models\IgsnGeologicalAge;
-use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Models\ResourceDate;
-use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
-use App\Services\IgsnCsvParserService;
-use App\Services\IgsnStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -689,7 +682,7 @@ CSV;
             ->post('/dashboard/upload-igsn-csv', ['file' => $file]);
 
         $resource = Resource::whereHas('igsnMetadata')->first();
-        $contributors = $resource->contributors;
+        $contributors = $resource->contributors()->with('contributorTypes')->get();
 
         // DIVE has 7 contributors (6 ProjectLeaders + 1 SiteManager → falls back to Other)
         expect($contributors->count())->toBe(7);
@@ -698,7 +691,9 @@ CSV;
         $projectLeaderType = ContributorType::where('slug', 'ProjectLeader')->first();
         expect($projectLeaderType)->not->toBeNull();
 
-        $projectLeaders = $contributors->where('contributor_type_id', $projectLeaderType->id);
+        $projectLeaders = $contributors->filter(
+            fn ($c) => $c->contributorTypes->contains('id', $projectLeaderType->id)
+        );
         expect($projectLeaders->count())->toBe(6);
     });
 });

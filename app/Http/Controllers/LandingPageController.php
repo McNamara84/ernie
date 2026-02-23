@@ -59,7 +59,7 @@ class LandingPageController extends Controller
                         'creators.creatorable',
                         'creators.affiliations',
                         'contributors.contributorable',
-                        'contributors.contributorType',
+                        'contributors.contributorTypes',
                         'contributors.affiliations',
                         'rights',
                         'descriptions',

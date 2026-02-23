@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\ContributorType;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -475,6 +476,7 @@ class DataCiteXmlExporter
 
         $contributors = $this->dom->createElement('contributors');
         $hasContributors = false;
+        $fallbackOtherType = ContributorType::where('slug', 'Other')->first();
 
         foreach ($resource->contributors as $contributor) {
             $contributorElement = null;
@@ -494,18 +496,43 @@ class DataCiteXmlExporter
                 }
             }
 
-            // Regular contributor - get type from contributorType relation
-            $contributorType = $contributor->contributorType->slug ?? 'Other';
-
-            if ($contributor->contributorable_type === Person::class) {
-                $contributorElement = $this->buildPersonContributor($contributor, $contributorType);
-            } elseif ($contributor->contributorable_type === Institution::class) {
-                $contributorElement = $this->buildInstitutionContributor($contributor, $contributorType);
+            // Regular contributor - emit one element per role (DataCite allows only one contributorType per element)
+            $types = $contributor->contributorTypes;
+            if ($types->isEmpty()) {
+                $types = $fallbackOtherType ? collect([$fallbackOtherType]) : collect();
             }
 
-            if ($contributorElement) {
-                $contributors->appendChild($contributorElement);
-                $hasContributors = true;
+            // If still empty (no 'Other' type in DB), emit with hardcoded 'Other' fallback
+            if ($types->isEmpty()) {
+                $contributorElement = null;
+                $contributorType = 'Other';
+                if ($contributor->contributorable_type === Person::class) {
+                    $contributorElement = $this->buildPersonContributor($contributor, $contributorType);
+                } elseif ($contributor->contributorable_type === Institution::class) {
+                    $contributorElement = $this->buildInstitutionContributor($contributor, $contributorType);
+                }
+                if ($contributorElement) {
+                    $contributors->appendChild($contributorElement);
+                    $hasContributors = true;
+                }
+
+                continue;
+            }
+
+            foreach ($types as $type) {
+                $contributorElement = null;
+                $contributorType = $type->slug ?? 'Other';
+
+                if ($contributor->contributorable_type === Person::class) {
+                    $contributorElement = $this->buildPersonContributor($contributor, $contributorType);
+                } elseif ($contributor->contributorable_type === Institution::class) {
+                    $contributorElement = $this->buildInstitutionContributor($contributor, $contributorType);
+                }
+
+                if ($contributorElement) {
+                    $contributors->appendChild($contributorElement);
+                    $hasContributors = true;
+                }
             }
         }
 

@@ -500,7 +500,7 @@ class ResourceController extends Controller
                 'contributors' => function ($query): void {
                     $query
                         ->with([
-                            'contributorType',
+                            'contributorTypes',
                             'contributorable', // Eager load Person or Institution
                             'affiliations', // Eager load affiliations
                         ])
@@ -1201,9 +1201,9 @@ class ResourceController extends Controller
                     'Relation contributorable not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
-            if (! $firstContributor->relationLoaded('contributorType')) {
+            if (! $firstContributor->relationLoaded('contributorTypes')) {
                 throw new \RuntimeException(
-                    'Relation contributorType not loaded on ResourceContributor. N+1 query detected!'
+                    'Relation contributorTypes not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
             // Also check affiliations relation (note: affiliations are polymorphic and store

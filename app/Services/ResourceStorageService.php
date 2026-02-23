@@ -335,7 +335,7 @@ class ResourceStorageService
                 $resourceContributor = $this->storePersonContributor($resource, $contributor, $position);
             }
 
-            $this->syncContributorType($resourceContributor, $contributor);
+            $this->syncContributorTypes($resourceContributor, $contributor);
             $this->affiliationService->syncForContributor($resourceContributor, $contributor);
         }
     }
@@ -347,14 +347,10 @@ class ResourceStorageService
     {
         $person = $this->personService->findOrCreate($data);
 
-        // Get default contributor type
-        $contributorType = ContributorType::where('slug', 'other')->first();
-
         return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
-            'contributor_type_id' => $contributorType?->id,
             'position' => $position,
         ]);
     }
@@ -370,42 +366,62 @@ class ResourceStorageService
             $data['identifierType'] ?? null
         );
 
-        // Get default contributor type
-        $contributorType = ContributorType::where('slug', 'other')->first();
-
         return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $institution->id,
             'contributorable_type' => Institution::class,
-            'contributor_type_id' => $contributorType?->id,
             'position' => $position,
         ]);
     }
 
     /**
+     * Sync all contributor types (roles) for a resource contributor via the pivot table.
+     *
      * @param  array<string, mixed>  $data
      */
-    private function syncContributorType(ResourceContributor $resourceContributor, array $data): void
+    private function syncContributorTypes(ResourceContributor $resourceContributor, array $data): void
     {
         $roles = $data['roles'] ?? [];
 
         if (! is_array($roles) || $roles === []) {
+            // No roles provided — default to "Other"
+            $otherType = ContributorType::where('slug', 'Other')->first();
+            if ($otherType) {
+                $resourceContributor->contributorTypes()->sync([$otherType->id]);
+            }
+
             return;
         }
 
-        // Get the first role and find the matching contributor type
-        $firstRole = array_first($roles);
-        if (! is_string($firstRole) || trim($firstRole) === '') {
+        // Filter to valid, non-empty role strings
+        $validRoles = array_values(array_filter(
+            $roles,
+            fn (mixed $role): bool => is_string($role) && trim($role) !== '',
+        ));
+
+        if ($validRoles === []) {
+            $otherType = ContributorType::where('slug', 'Other')->first();
+            if ($otherType) {
+                $resourceContributor->contributorTypes()->sync([$otherType->id]);
+            }
+
             return;
         }
 
-        $contributorType = ContributorType::where('name', $firstRole)
-            ->orWhere('slug', Str::slug($firstRole))
-            ->first();
+        // Resolve all needed ContributorType IDs in a single query
+        $typeIds = ContributorType::where(function ($query) use ($validRoles): void {
+            $query->whereIn('name', $validRoles)
+                ->orWhereIn('slug', $validRoles);
+        })->pluck('id')->all();
 
-        if ($contributorType) {
-            $resourceContributor->contributor_type_id = $contributorType->id;
-            $resourceContributor->save();
+        if ($typeIds !== []) {
+            $resourceContributor->contributorTypes()->sync($typeIds);
+        } else {
+            // Fallback to "Other" if no valid roles were found
+            $otherType = ContributorType::where('slug', 'Other')->first();
+            if ($otherType) {
+                $resourceContributor->contributorTypes()->sync([$otherType->id]);
+            }
         }
     }
 
@@ -434,17 +450,21 @@ class ResourceStorageService
     {
         $institution = $this->institutionService->findOrCreateMslLaboratory($data);
 
-        // Get HostingInstitution contributor type
-        $contributorType = ContributorType::where('slug', 'hosting-institution')->first();
-
         // Create ResourceContributor link
-        return ResourceContributor::query()->create([
+        $resourceContributor = ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $institution->id,
             'contributorable_type' => Institution::class,
-            'contributor_type_id' => $contributorType?->id,
             'position' => $position,
         ]);
+
+        // Attach HostingInstitution contributor type via pivot table
+        $contributorType = ContributorType::where('slug', 'HostingInstitution')->first();
+        if ($contributorType) {
+            $resourceContributor->contributorTypes()->sync([$contributorType->id]);
+        }
+
+        return $resourceContributor;
     }
 
     /**

@@ -363,11 +363,10 @@ class IgsnStorageService
 
         ResourceContributor::create([
             'resource_id' => $resource->id,
-            'contributor_type_id' => $contributorTypeId,
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
             'position' => $position,
-        ]);
+        ])->contributorTypes()->sync(array_filter([$contributorTypeId]));
     }
 
     /**

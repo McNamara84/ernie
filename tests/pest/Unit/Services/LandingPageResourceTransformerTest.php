@@ -111,7 +111,7 @@ test('transformation is null-safe for optional relationships', function () {
         'contributorable_type' => Person::class,
         'contributorable_id' => $person->id,
     ]);
-    $contributor->setRelation('contributorType', null);
+    $contributor->setRelation('contributorTypes', new EloquentCollection);
     $contributor->setRelation('contributorable', $person);
     $contributor->setRelation('affiliations', new EloquentCollection);
 
@@ -141,9 +141,8 @@ test('transformation is null-safe for optional relationships', function () {
         ]);
 
     expect($data['contributors'][0])
-        ->toMatchArray([
-            'contributor_type' => null,
-        ]);
+        ->toHaveKey('contributor_types')
+        ->and($data['contributors'][0]['contributor_types'])->toBeArray();
 });
 
 test('transforms rights to licenses with correct field mapping', function () {

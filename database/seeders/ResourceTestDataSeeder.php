@@ -1329,13 +1329,16 @@ class ResourceTestDataSeeder extends Seeder
             );
         }
 
-        return ResourceContributor::create([
+        $contributor = ResourceContributor::create([
             'resource_id' => $resource->id,
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
-            'contributor_type_id' => $type->id,
             'position' => $position,
         ]);
+
+        $contributor->contributorTypes()->sync([$type->id]);
+
+        return $contributor;
     }
 
     /**

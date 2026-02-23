@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\ContributorType;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -532,6 +533,7 @@ class DataCiteJsonExporter
     private function buildContributors(Resource $resource): ?array
     {
         $contributors = [];
+        $fallbackOtherType = ContributorType::where('slug', 'Other')->first();
 
         foreach ($resource->contributors as $contributor) {
             // Check if this is an MSL Laboratory
@@ -546,14 +548,32 @@ class DataCiteJsonExporter
                 }
             }
 
-            // Regular contributor - use contributorType slug for DataCite compliance
-            // DataCite expects PascalCase values like "ProjectLeader" not "Project Leader"
-            $contributorType = $contributor->contributorType->slug ?? 'Other';
+            // Regular contributor - emit one entry per role (DataCite allows only one contributorType per element)
+            $types = $contributor->contributorTypes;
+            if ($types->isEmpty()) {
+                $types = $fallbackOtherType ? collect([$fallbackOtherType]) : collect();
+            }
 
-            if ($contributor->contributorable_type === Person::class) {
-                $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
-            } elseif ($contributor->contributorable_type === Institution::class) {
-                $contributors[] = $this->buildInstitutionContributor($contributor, $contributorType);
+            // If still empty (no 'Other' type in DB), emit with hardcoded 'Other' fallback
+            if ($types->isEmpty()) {
+                $contributorType = 'Other';
+                if ($contributor->contributorable_type === Person::class) {
+                    $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
+                } elseif ($contributor->contributorable_type === Institution::class) {
+                    $contributors[] = $this->buildInstitutionContributor($contributor, $contributorType);
+                }
+
+                continue;
+            }
+
+            foreach ($types as $type) {
+                $contributorType = $type->slug ?? 'Other';
+
+                if ($contributor->contributorable_type === Person::class) {
+                    $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
+                } elseif ($contributor->contributorable_type === Institution::class) {
+                    $contributors[] = $this->buildInstitutionContributor($contributor, $contributorType);
+                }
             }
         }
 

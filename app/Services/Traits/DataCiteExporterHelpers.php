@@ -36,7 +36,7 @@ trait DataCiteExporterHelpers
             'creators.creatorable',
             'creators.affiliations',
             'contributors.contributorable',
-            'contributors.contributorType',
+            'contributors.contributorTypes',
             'contributors.affiliations',
             'descriptions.descriptionType',
             'dates.dateType',
@@ -415,8 +415,10 @@ trait DataCiteExporterHelpers
     {
         $data = $this->buildPersonCreatorData($contributor, $person);
 
-        // Add contributor type - use slug for DataCite-compliant PascalCase values
-        $data['contributorType'] = $contributor->contributorType->slug ?? 'Other';
+        // Add contributor type - use first type slug for DataCite-compliant PascalCase values
+        $firstType = $contributor->contributorTypes->first();
+        // @phpstan-ignore nullsafe.neverNull (collection may be empty at runtime for legacy data)
+        $data['contributorType'] = $firstType?->slug ?? 'Other';
 
         return $data;
     }
@@ -430,8 +432,10 @@ trait DataCiteExporterHelpers
     {
         $data = $this->buildInstitutionCreatorData($contributor, $institution);
 
-        // Add contributor type - use slug for DataCite-compliant PascalCase values
-        $data['contributorType'] = $contributor->contributorType->slug ?? 'Other';
+        // Add contributor type - use first type slug for DataCite-compliant PascalCase values
+        $firstType = $contributor->contributorTypes->first();
+        // @phpstan-ignore nullsafe.neverNull (collection may be empty at runtime for legacy data)
+        $data['contributorType'] = $firstType?->slug ?? 'Other';
 
         return $data;
     }

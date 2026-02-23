@@ -208,7 +208,7 @@ describe('getSchemeUri()', function (): void {
 
 describe('formatDateValue()', function (): void {
     it('formats a single date using date_value', function (): void {
-        $date = new ResourceDate();
+        $date = new ResourceDate;
         $date->date_value = '2024-01-15';
         $date->start_date = null;
         $date->end_date = null;
@@ -219,7 +219,7 @@ describe('formatDateValue()', function (): void {
     });
 
     it('formats a single date using start_date as fallback', function (): void {
-        $date = new ResourceDate();
+        $date = new ResourceDate;
         $date->date_value = null;
         $date->start_date = '2024-06-01';
         $date->end_date = null;
@@ -230,7 +230,7 @@ describe('formatDateValue()', function (): void {
     });
 
     it('formats a closed date range', function (): void {
-        $date = new ResourceDate();
+        $date = new ResourceDate;
         $date->date_value = null;
         $date->start_date = '2024-01-01';
         $date->end_date = '2024-12-31';
@@ -241,7 +241,7 @@ describe('formatDateValue()', function (): void {
     });
 
     it('formats an open-ended range as single date', function (): void {
-        $date = new ResourceDate();
+        $date = new ResourceDate;
         $date->date_value = null;
         $date->start_date = '2024-01-01';
         $date->end_date = '';
@@ -254,7 +254,7 @@ describe('formatDateValue()', function (): void {
     });
 
     it('returns null when no date values are set', function (): void {
-        $date = new ResourceDate();
+        $date = new ResourceDate;
         $date->date_value = null;
         $date->start_date = null;
         $date->end_date = null;
@@ -267,7 +267,7 @@ describe('formatDateValue()', function (): void {
 
 describe('transformGeoLocationPoint()', function (): void {
     it('returns null when coordinates are missing', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->point_longitude = null;
         $geo->point_latitude = null;
 
@@ -277,7 +277,7 @@ describe('transformGeoLocationPoint()', function (): void {
     });
 
     it('transforms point coordinates to float', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->point_longitude = '13.0650';
         $geo->point_latitude = '52.3938';
 
@@ -290,7 +290,7 @@ describe('transformGeoLocationPoint()', function (): void {
     });
 
     it('returns null when only longitude is set', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->point_longitude = '13.0650';
         $geo->point_latitude = null;
 
@@ -302,7 +302,7 @@ describe('transformGeoLocationPoint()', function (): void {
 
 describe('transformGeoLocationBox()', function (): void {
     it('returns null when any coordinate is missing', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->west_bound_longitude = '12.0';
         $geo->east_bound_longitude = '14.0';
         $geo->south_bound_latitude = null;
@@ -314,7 +314,7 @@ describe('transformGeoLocationBox()', function (): void {
     });
 
     it('transforms box coordinates to float', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->west_bound_longitude = '12.0';
         $geo->east_bound_longitude = '14.0';
         $geo->south_bound_latitude = '51.0';
@@ -333,7 +333,7 @@ describe('transformGeoLocationBox()', function (): void {
 
 describe('transformGeoLocationPolygon()', function (): void {
     it('returns null when polygon_points is null', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->polygon_points = null;
 
         $result = $this->helper->transformGeoLocationPolygon($geo);
@@ -342,7 +342,7 @@ describe('transformGeoLocationPolygon()', function (): void {
     });
 
     it('returns null when fewer than 3 points', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->polygon_points = [
             ['longitude' => 12.0, 'latitude' => 51.0],
             ['longitude' => 14.0, 'latitude' => 53.0],
@@ -354,7 +354,7 @@ describe('transformGeoLocationPolygon()', function (): void {
     });
 
     it('transforms polygon points', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->polygon_points = [
             ['longitude' => 12.0, 'latitude' => 51.0],
             ['longitude' => 14.0, 'latitude' => 51.0],
@@ -376,7 +376,7 @@ describe('transformGeoLocationPolygon()', function (): void {
     });
 
     it('includes in-polygon point when available', function (): void {
-        $geo = new GeoLocation();
+        $geo = new GeoLocation;
         $geo->polygon_points = [
             ['longitude' => 12.0, 'latitude' => 51.0],
             ['longitude' => 14.0, 'latitude' => 51.0],
@@ -398,7 +398,7 @@ describe('transformGeoLocationPolygon()', function (): void {
 
 describe('transformFundingReference()', function (): void {
     it('transforms minimal funding reference', function (): void {
-        $funding = new FundingReference();
+        $funding = new FundingReference;
         $funding->funder_name = 'Deutsche Forschungsgemeinschaft';
         $funding->funder_identifier = null;
         $funding->award_number = null;
@@ -414,7 +414,7 @@ describe('transformFundingReference()', function (): void {
 
     it('includes funder identifier and type', function (): void {
         $resource = Resource::factory()->create();
-        $funding = new FundingReference();
+        $funding = new FundingReference;
         $funding->resource_id = $resource->id;
         $funding->funder_name = 'DFG';
         $funding->funder_identifier = 'https://doi.org/10.13039/501100001659';
@@ -434,7 +434,7 @@ describe('transformFundingReference()', function (): void {
     });
 
     it('includes award information', function (): void {
-        $funding = new FundingReference();
+        $funding = new FundingReference;
         $funding->funder_name = 'NSF';
         $funding->funder_identifier = null;
         $funding->award_number = 'EAR-1234567';
@@ -526,9 +526,9 @@ describe('buildPersonContributorData()', function (): void {
         $contributor = ResourceContributor::factory()->create([
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
-            'contributor_type_id' => $contributorType->id,
         ]);
-        $contributor->load('affiliations', 'contributorType');
+        $contributor->contributorTypes()->sync([$contributorType->id]);
+        $contributor->load('affiliations', 'contributorTypes');
 
         $result = $this->helper->buildPersonContributorData($contributor, $person);
 
@@ -551,9 +551,9 @@ describe('buildInstitutionContributorData()', function (): void {
         $contributor = ResourceContributor::factory()->create([
             'contributorable_type' => Institution::class,
             'contributorable_id' => $institution->id,
-            'contributor_type_id' => $contributorType->id,
         ]);
-        $contributor->load('affiliations', 'contributorType');
+        $contributor->contributorTypes()->sync([$contributorType->id]);
+        $contributor->load('affiliations', 'contributorTypes');
 
         $result = $this->helper->buildInstitutionContributorData($contributor, $institution);
 
@@ -565,7 +565,7 @@ describe('buildInstitutionContributorData()', function (): void {
 
 describe('transformAffiliation()', function (): void {
     it('transforms simple affiliation with name only', function (): void {
-        $affiliation = new Affiliation();
+        $affiliation = new Affiliation;
         $affiliation->name = 'University of Potsdam';
         $affiliation->identifier = null;
         $affiliation->identifier_scheme = null;
@@ -577,7 +577,7 @@ describe('transformAffiliation()', function (): void {
     });
 
     it('transforms affiliation with ROR identifier', function (): void {
-        $affiliation = new Affiliation();
+        $affiliation = new Affiliation;
         $affiliation->name = 'GFZ Potsdam';
         $affiliation->identifier = 'https://ror.org/04z8jg394';
         $affiliation->identifier_scheme = 'ROR';
@@ -592,7 +592,7 @@ describe('transformAffiliation()', function (): void {
     });
 
     it('defaults identifier scheme to ROR when not set', function (): void {
-        $affiliation = new Affiliation();
+        $affiliation = new Affiliation;
         $affiliation->name = 'GFZ Potsdam';
         $affiliation->identifier = 'https://ror.org/04z8jg394';
         $affiliation->identifier_scheme = null;

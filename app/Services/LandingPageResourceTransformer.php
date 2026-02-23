@@ -30,7 +30,7 @@ final class LandingPageResourceTransformer
             'creators.creatorable',
             'creators.affiliations',
             'contributors.contributorable',
-            'contributors.contributorType',
+            'contributors.contributorTypes',
             'contributors.affiliations',
             'titles.titleType',
             'descriptions.descriptionType',
@@ -128,13 +128,12 @@ final class LandingPageResourceTransformer
                 /** @var Person|Institution|null $contributorable */
                 $contributorable = $contributor->contributorable;
 
-                /** @var ContributorType|null $contributorType */
-                $contributorType = $contributor->contributorType;
-
                 return [
                     'id' => $contributor->id,
                     'position' => $contributor->position,
-                    'contributor_type' => $contributorType !== null ? $contributorType->name : null,
+                    'contributor_types' => $contributor->contributorTypes->map(
+                        static fn (ContributorType $type): string => $type->name
+                    )->values()->all(),
                     'affiliations' => $contributor->affiliations
                         ->map(static fn (Affiliation $affiliation): array => [
                             'id' => $affiliation->id,
