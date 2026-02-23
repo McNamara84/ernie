@@ -262,30 +262,30 @@ export class DataCiteFormPage {
   }
 
   /**
-   * Click Save and wait for the validation error alert to appear.
+   * Click Save and wait for the global validation error alert to appear.
    * Returns the text content of the ValidationAlert.
    */
   async clickSaveAndWaitForValidationAlert(): Promise<string> {
     await this.saveButton.click();
-    const alert = this.page.locator('[role="alert"]').first();
+    const alert = this.page.getByTestId('global-validation-alert');
     await alert.waitFor({ state: 'visible', timeout: 5000 });
     const text = await alert.textContent();
     return text?.trim() || '';
   }
 
   /**
-   * Check whether the ValidationAlert (role="alert") is visible
+   * Check whether the global ValidationAlert is visible
    */
   async isValidationAlertVisible(): Promise<boolean> {
-    const alert = this.page.locator('[role="alert"]').first();
+    const alert = this.page.getByTestId('global-validation-alert');
     return await alert.isVisible();
   }
 
   /**
-   * Get the text content of the ValidationAlert
+   * Get the text content of the global ValidationAlert
    */
   async getValidationAlertText(): Promise<string> {
-    const alert = this.page.locator('[role="alert"]').first();
+    const alert = this.page.getByTestId('global-validation-alert');
     const text = await alert.textContent();
     return text?.trim() || '';
   }
