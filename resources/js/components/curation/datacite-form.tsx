@@ -1446,14 +1446,17 @@ export default function DataCiteForm({
             errorRef.current.focus();
         }
 
-        // Cleanup pending validation scroll timeout when errorMessage changes
+    }, [errorMessage]);
+
+    // Cleanup pending validation scroll timeout on unmount
+    useEffect(() => {
         return () => {
             if (validationScrollTimeoutRef.current) {
                 clearTimeout(validationScrollTimeoutRef.current);
                 validationScrollTimeoutRef.current = null;
             }
         };
-    }, [errorMessage]);
+    }, []);
 
     const saveUrl = useMemo(() => '/editor/resources', []);
 
