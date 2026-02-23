@@ -32,7 +32,7 @@ class EditorController extends Controller
     private const XML_SESSION_REQUIRED_ARRAY_KEYS = [
         'titles', 'licenses', 'authors', 'contributors', 'descriptions',
         'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'coverages',
-        'fundingReferences', 'mslLaboratories',
+        'relatedWorks', 'fundingReferences', 'mslLaboratories',
     ];
 
     /**
@@ -131,7 +131,7 @@ class EditorController extends Controller
                 'freeKeywords' => $sessionData['freeKeywords'] ?? [],
                 'mslKeywords' => $sessionData['mslKeywords'] ?? [],
                 'coverages' => $sessionData['coverages'] ?? [],
-                'relatedWorks' => [], // XML upload doesn't support related works yet
+                'relatedWorks' => $sessionData['relatedWorks'] ?? [],
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
             ]
