@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <envelope>
     
-<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 file:///C:/xampp/htdocs/elmo/schemas/DataCite/DataCiteSchema45.xsd">
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4/metadata.xsd">
   <identifier identifierType="DOI"/>
   <creators>
     <creator>
-      <creatorName nameType="Personal">Anti, Tanja</creatorName>
-      <givenName>Tanja</givenName>
-      <familyName>Anti</familyName>
+      <creatorName nameType="Personal">Sample, Alex</creatorName>
+      <givenName>Alex</givenName>
+      <familyName>Sample</familyName>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
     </creator>
     <creator>
@@ -16,8 +16,8 @@
     </creator>
   </creators>
   <titles>
-    <title xml:lang="en">Tanjas Test 20260220</title>
-    <title titleType="TranslatedTitle">Tanjas Test 20260220 übersetzung</title>
+    <title xml:lang="en">Sample Test 20260220</title>
+    <title titleType="TranslatedTitle">Sample Test 20260220 Translation</title>
   </titles>
   <publisher xml:lang="en">GFZ Data Services</publisher>
   <publicationYear>2026</publicationYear>
@@ -29,9 +29,9 @@
   </subjects>
   <contributors>
     <contributor contributorType="ContactPerson">
-      <contributorName>Anti, Tanja</contributorName>
-      <givenName>Tanja</givenName>
-      <familyName>Anti</familyName>
+      <contributorName>Sample, Alex</contributorName>
+      <givenName>Alex</givenName>
+      <familyName>Sample</familyName>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
     </contributor>
     <contributor contributorType="ProjectLeader">
@@ -87,7 +87,7 @@
 
 
     
-<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd file:///C:/xampp/htdocs/msl-mde/schemas/ISO/gmd.xsd">
+<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd http://www.isotc211.org/2005/gmd">
   <fileIdentifier>
     <gco:CharacterString>doi:N/A</gco:CharacterString>
   </fileIdentifier>
@@ -110,7 +110,7 @@
           <address>
             <CI_Address>
               <electronicMailAddress>
-                <gco:CharacterString>datapub@gfz.de</gco:CharacterString>
+                <gco:CharacterString>datapub@example.test</gco:CharacterString>
               </electronicMailAddress>
             </CI_Address>
           </address>
@@ -156,10 +156,10 @@
       <citation>
         <CI_Citation>
           <title>
-            <gco:CharacterString>Tanjas Test 20260220</gco:CharacterString>
+            <gco:CharacterString>Sample Test 20260220</gco:CharacterString>
           </title>
           <alternateTitle>
-            <gco:CharacterString>Tanjas Test 20260220 übersetzung</gco:CharacterString>
+            <gco:CharacterString>Sample Test 20260220 Translation</gco:CharacterString>
           </alternateTitle>
           <date>
             <CI_Date>
@@ -179,7 +179,7 @@
       <pointOfContact>
         <CI_ResponsibleParty>
           <individualName>
-            <gco:CharacterString>Anti, Tanja</gco:CharacterString>
+            <gco:CharacterString>Sample, Alex</gco:CharacterString>
           </individualName>
           <organisationName>
             <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
@@ -189,7 +189,7 @@
               <address>
                 <CI_Address>
                   <electronicMailAddress>
-                    <gco:CharacterString>anti@gfz.de</gco:CharacterString>
+                    <gco:CharacterString>person@example.test</gco:CharacterString>
                   </electronicMailAddress>
                 </CI_Address>
               </address>
