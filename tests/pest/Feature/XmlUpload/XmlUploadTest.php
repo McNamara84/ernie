@@ -462,9 +462,9 @@ it('ignores related item creators when extracting authors', function () {
         'authors' => [
             [
                 'type' => 'person',
-                'firstName' => 'Holger',
-                'lastName' => 'Ehrmann',
-                'orcid' => '0009-0000-1235-6950',
+              'firstName' => 'Alex',
+              'lastName' => 'Sample',
+              'orcid' => '0000-0000-0000-0001',
                 'affiliations' => [
                     [
                         'value' => 'Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences',
@@ -482,9 +482,9 @@ it('ignores related item creators when extracting authors', function () {
             ],
             [
                 'type' => 'person',
-                'firstName' => 'Sofia',
-                'lastName' => 'Garcia',
-                'orcid' => '0000-0001-5727-2427',
+              'firstName' => 'Casey',
+              'lastName' => 'Example',
+              'orcid' => '0000-0000-0000-0002',
                 'affiliations' => [
                     [
                         'value' => 'ORCID',

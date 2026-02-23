@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <envelope>
     
-<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 file:///C:/xampp/htdocs/elmo/schemas/DataCite/DataCiteSchema45.xsd">
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4/metadata.xsd">
   <identifier identifierType="DOI"/>
   <creators>
     <creator>
-      <creatorName nameType="Personal">Ehrmann, Holger</creatorName>
-      <givenName>Holger</givenName>
-      <familyName>Ehrmann</familyName>
-      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0000-1235-6950</nameIdentifier>
+      <creatorName nameType="Personal">Sample, Alex</creatorName>
+      <givenName>Alex</givenName>
+      <familyName>Sample</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0000-0000-0001</nameIdentifier>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences</affiliation>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/012m9bp23">Fachhochschule Potsdam University of Applied Sciences</affiliation>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/00nmgny79">Bundeswehr</affiliation>
     </creator>
     <creator>
-      <creatorName nameType="Personal">Garcia, Sofia</creatorName>
-      <givenName>Sofia</givenName>
-      <familyName>Garcia</familyName>
-      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0001-5727-2427</nameIdentifier>
+      <creatorName nameType="Personal">Example, Casey</creatorName>
+      <givenName>Casey</givenName>
+      <familyName>Example</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0000-0000-0002</nameIdentifier>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04fa4r544">ORCID</affiliation>
     </creator>
     <creator>
@@ -48,27 +48,27 @@
   </subjects>
   <contributors>
     <contributor contributorType="ContactPerson">
-      <contributorName>Ehrmann, Holger</contributorName>
-      <givenName>Holger</givenName>
-      <familyName>Ehrmann</familyName>
-      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0000-1235-6950</nameIdentifier>
+      <contributorName>Sample, Alex</contributorName>
+      <givenName>Alex</givenName>
+      <familyName>Sample</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0000-0000-0001</nameIdentifier>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences</affiliation>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/012m9bp23">Fachhochschule Potsdam University of Applied Sciences</affiliation>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/00nmgny79">Bundeswehr</affiliation>
     </contributor>
     <contributor contributorType="Researcher">
-      <contributorName nameType="Personal">Mohammed, Ali</contributorName>
-      <givenName>Ali</givenName>
-      <familyName>Mohammed</familyName>
-      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0007-2910-0469</nameIdentifier>
+      <contributorName nameType="Personal">Example, Jordan</contributorName>
+      <givenName>Jordan</givenName>
+      <familyName>Example</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0000-0000-0003</nameIdentifier>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences</affiliation>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/012m9bp23">University of Applied Sciences Potsdam</affiliation>
     </contributor>
     <contributor contributorType="DataCollector">
-      <contributorName nameType="Personal">Mohammed, Ali</contributorName>
-      <givenName>Ali</givenName>
-      <familyName>Mohammed</familyName>
-      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0007-2910-0469</nameIdentifier>
+      <contributorName nameType="Personal">Example, Jordan</contributorName>
+      <givenName>Jordan</givenName>
+      <familyName>Example</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0000-0000-0003</nameIdentifier>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences</affiliation>
       <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/012m9bp23">University of Applied Sciences Potsdam</affiliation>
     </contributor>
