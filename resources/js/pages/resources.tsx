@@ -918,6 +918,8 @@ function ResourcesPage({
                     if (isClickable) {
                         statusClasses += ' cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors';
                     }
+                } else if (status === 'draft') {
+                    statusClasses += ' bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
                 } else {
                     statusClasses += ' bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
                 }

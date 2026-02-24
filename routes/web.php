@@ -362,11 +362,57 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->count('identifier')
             : 0;
 
+        // Draft resources: incomplete non-IGSN resources (Issue #548)
+        // A resource is a draft if it lacks any of: Main Title, publication_year,
+        // resource_type_id, at least one creator, at least one license, or an abstract.
+        $draftQuery = Resource::query()
+            ->where(function ($q) use ($physicalObjectTypeId) {
+                $q->whereNull('resource_type_id')
+                    ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+            })
+            ->where(function ($q) {
+                $q->whereNull('publication_year')
+                    ->orWhereNull('resource_type_id')
+                    ->orWhereDoesntHave('creators')
+                    ->orWhereDoesntHave('rights')
+                    ->orWhere(function ($titleQ) {
+                        // No Main Title with non-empty trimmed value
+                        // (legacy: NULL title_type_id counts as MainTitle)
+                        $titleQ->whereDoesntHave('titles', function ($tq) {
+                            $tq->whereRaw("TRIM(value) != ''")
+                                ->where(function ($typeQ) {
+                                    $typeQ->whereNull('title_type_id')
+                                        ->orWhereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
+                                });
+                        });
+                    })
+                    ->orWhereDoesntHave('descriptions', function ($dq) {
+                        $dq->whereRaw("TRIM(value) != ''")
+                            ->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
+                    });
+            });
+
+        $draftCount = $draftQuery->count();
+
+        $recentDrafts = (clone $draftQuery)
+            ->with('titles.titleType')
+            ->orderBy('updated_at', 'desc')
+            ->take(5)
+            ->get()
+            ->map(fn (Resource $r) => [
+                'id' => $r->id,
+                'title' => $r->mainTitle ?? 'Untitled Draft',
+                'updated_at' => $r->updated_at?->toISOString(),
+            ])
+            ->all();
+
         return Inertia::render('dashboard', [
             'dataResourceCount' => $dataResourceCount,
             'igsnCount' => $igsnCount,
             'dataInstitutionCount' => $dataInstitutionCount,
             'igsnInstitutionCount' => $igsnInstitutionCount,
+            'draftCount' => $draftCount,
+            'recentDrafts' => $recentDrafts,
             'phpVersion' => PHP_VERSION,
             'laravelVersion' => app()->version(),
         ]);
@@ -378,6 +424,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('editor/resources', [ResourceController::class, 'store'])
         ->name('editor.resources.store');
+
+    Route::post('editor/resources/draft', [ResourceController::class, 'storeDraft'])
+        ->name('editor.resources.store-draft');
 
     // GCMD Vocabulary routes for frontend (without API key requirement)
     Route::get('vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])

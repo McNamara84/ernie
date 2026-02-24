@@ -67,8 +67,8 @@ class ResourceStorageService
 
             $attributes = [
                 'doi' => $doi,
-                'publication_year' => $data['year'],
-                'resource_type_id' => $data['resourceType'],
+                'publication_year' => $data['year'] ?? null,
+                'resource_type_id' => $data['resourceType'] ?? null,
                 'version' => $data['version'] ?? null,
                 'language_id' => $languageId,
                 'publisher_id' => Publisher::getDefault()?->id,

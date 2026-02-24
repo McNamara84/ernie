@@ -57,9 +57,18 @@ class Description extends Model
 
     /**
      * Check if this is an abstract.
+     *
+     * Does NOT lazy-load the descriptionType relation to prevent N+1 queries.
+     * Returns false if the relation is not loaded — callers must eager-load
+     * descriptionType (e.g. via baseQuery()) before calling this method.
      */
     public function isAbstract(): bool
     {
+        // Do NOT lazy-load to prevent N+1 queries — return false if relation not loaded
+        if (! $this->relationLoaded('descriptionType')) {
+            return false;
+        }
+
         return $this->descriptionType->slug === 'Abstract';
     }
 }

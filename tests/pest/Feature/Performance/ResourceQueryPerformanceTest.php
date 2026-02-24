@@ -44,9 +44,10 @@ it('loads 50 resources with minimal queries using eager loading', function () {
     $queryCount = count($queries);
 
     // Assert: Query count should meet optimization goal of 10-15 queries
-    // Allow up to 17 for 50 resources (extra session/auth queries at scale)
+    // Allow up to 18 for 50 resources (extra session/auth queries at scale)
     // This test creates 50 resources with 3 creators each = 150 creator entries
-    expect($queryCount)->toBeLessThanOrEqual(17, "Expected at most 17 queries, but got {$queryCount}");
+    // +1 for descriptions eager loading (draft status detection)
+    expect($queryCount)->toBeLessThanOrEqual(18, "Expected at most 18 queries, but got {$queryCount}");
     $response->assertStatus(200);
 });
 
@@ -109,8 +110,8 @@ it('serializes resources efficiently with eager loaded relations', function () {
     $queries = DB::getQueryLog();
     $queryCount = count($queries);
 
-    // Assert: Should meet optimization goal
-    expect($queryCount)->toBeLessThanOrEqual(16, "Expected at most 16 queries for eager loading, got {$queryCount}");
+    // Assert: Should meet optimization goal (+1 for descriptions eager loading)
+    expect($queryCount)->toBeLessThanOrEqual(17, "Expected at most 17 queries for eager loading, got {$queryCount}");
     $response->assertStatus(200);
 });
 
@@ -131,8 +132,8 @@ it('handles resources without creators efficiently', function () {
     $queries = DB::getQueryLog();
     $queryCount = count($queries);
 
-    // Assert: Should still use minimal queries even without creators
-    expect($queryCount)->toBeLessThanOrEqual(16);
+    // Assert: Should still use minimal queries even without creators (+1 for descriptions eager loading)
+    expect($queryCount)->toBeLessThanOrEqual(17);
     $response->assertStatus(200);
 });
 
@@ -168,9 +169,9 @@ it('maintains performance with pagination', function () {
 
     $queriesPage2 = DB::getQueryLog();
 
-    // Assert: Both pages should meet optimization goal
-    expect(count($queriesPage1))->toBeLessThanOrEqual(16);
-    expect(count($queriesPage2))->toBeLessThanOrEqual(16);
+    // Assert: Both pages should meet optimization goal (+1 for descriptions eager loading)
+    expect(count($queriesPage1))->toBeLessThanOrEqual(17);
+    expect(count($queriesPage2))->toBeLessThanOrEqual(17);
 
     // Query counts should be nearly identical (allow max 2 queries difference for session overhead)
     expect(abs(count($queriesPage1) - count($queriesPage2)))->toBeLessThanOrEqual(2);

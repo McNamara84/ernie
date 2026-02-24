@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, Circle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Circle, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -16,6 +16,7 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
+import { store, storeDraft } from '@/routes/editor/resources';
 import type { MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
@@ -854,6 +855,7 @@ export default function DataCiteForm({
     const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('Successfully saved resource.');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -955,6 +957,12 @@ export default function DataCiteForm({
 
         return mainTitleFilled && yearFilled && resourceTypeSelected && languageSelected && primaryLicenseFilled && authorsValid && abstractFilled;
     }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
+
+    // Draft save only requires a Main Title (Issue #548)
+    const isDraftSaveable = useMemo(() => {
+        const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
+        return Boolean(mainTitleEntry?.title.trim());
+    }, [titles]);
 
     // Check if there are any legacy MSL keywords that need to be replaced
     const hasLegacyKeywords = useMemo(() => {
@@ -1458,9 +1466,7 @@ export default function DataCiteForm({
         };
     }, []);
 
-    const saveUrl = useMemo(() => '/editor/resources', []);
-
-    const resolvedResourceId = useMemo(() => {
+    const [resolvedResourceId, setResolvedResourceId] = useState<number | null>(() => {
         if (!initialResourceId) {
             return null;
         }
@@ -1474,61 +1480,13 @@ export default function DataCiteForm({
         const parsed = Number(trimmed);
 
         return Number.isFinite(parsed) ? parsed : null;
-    }, [initialResourceId]);
+    });
 
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    const saveUrl = useMemo(() => store.url(), []);
+    const draftSaveUrl = useMemo(() => storeDraft.url(), []);
 
-        setIsSaving(true);
-        setErrorMessage(null);
-        setValidationErrors([]);
-
-        // Check if required fields are filled - if not, show error list and scroll to first invalid section
-        if (!areRequiredFieldsFilled) {
-            // Clear any pending scroll timeout from a previous save attempt
-            if (validationScrollTimeoutRef.current) {
-                clearTimeout(validationScrollTimeoutRef.current);
-                validationScrollTimeoutRef.current = null;
-            }
-
-            setValidationErrors(missingRequiredFields);
-            setErrorMessage('Please complete all required fields before saving.');
-            setIsSaving(false);
-
-            // Scroll to error list first (via useEffect on errorMessage), then to first invalid section.
-            // Use requestAnimationFrame to wait for the DOM update + a short delay for the scroll animation.
-            requestAnimationFrame(() => {
-                validationScrollTimeoutRef.current = setTimeout(() => {
-                    validationScrollTimeoutRef.current = null;
-                    scrollToFirstInvalidSection();
-                }, 600);
-            });
-            return;
-        }
-
-        // Client-side validation for funding references
-        if (!validateAllFundingReferences(fundingReferences)) {
-            setValidationErrors(['Please fix the validation errors in the Funding References section before submitting.']);
-            setIsSaving(false);
-            // Scroll to funding references section
-            const fundingSection = document.getElementById('funding-references-section');
-            if (fundingSection) {
-                fundingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            return;
-        }
-
-        // Pre-submit DOI duplicate check: verify the DOI is still available before saving
-        const doiValue = form.doi?.trim();
-        if (doiValue) {
-            const conflict = await checkDoiBeforeSave(doiValue);
-            if (conflict) {
-                // DOI already exists — show conflict modal instead of saving
-                setIsSaving(false);
-                return;
-            }
-        }
-
+    // Shared payload builder for both Save & Validate and Save Draft (Issue #548)
+    const buildPayload = useCallback(() => {
         const serializedAuthors: SerializedAuthor[] = authors.map((author, index) => {
             const affiliations = serializeAffiliations(author);
 
@@ -1553,7 +1511,6 @@ export default function DataCiteForm({
             }
 
             const institutionName = author.institutionName.trim();
-            // Get ROR ID from first affiliation that has one
             const rorId = author.affiliations.find((aff) => aff.rorId)?.rorId?.trim() || null;
 
             return {
@@ -1567,7 +1524,6 @@ export default function DataCiteForm({
 
         const serializedContributors: SerializedContributor[] = contributors
             .filter((contributor) => {
-                // Filter out empty contributors
                 if (contributor.type === 'person') {
                     const hasName = contributor.lastName.trim() !== '';
                     const hasRoles = contributor.roles.length > 0;
@@ -1661,7 +1617,6 @@ export default function DataCiteForm({
                 awardUri: string;
                 awardTitle: string;
             }[];
-            // Imported 'created' date from XML/DataCite import (Issue #371)
             importedCreatedDate: string | null;
             resourceId?: number;
         } = {
@@ -1729,13 +1684,90 @@ export default function DataCiteForm({
                 awardUri: funding.awardUri,
                 awardTitle: funding.awardTitle,
             })),
-            // Pass imported 'created' date to backend (Issue #371)
             importedCreatedDate,
         };
 
         if (resolvedResourceId !== null) {
             payload.resourceId = resolvedResourceId;
         }
+
+        return payload;
+    }, [
+        authors,
+        contributors,
+        dates,
+        descriptions,
+        form.doi,
+        form.language,
+        form.resourceType,
+        form.version,
+        form.year,
+        freeKeywords,
+        fundingReferences,
+        gcmdKeywords,
+        importedCreatedDate,
+        licenseEntries,
+        mslLaboratories,
+        relatedWorks,
+        resolvedResourceId,
+        spatialTemporalCoverages,
+        titles,
+    ]);
+
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        setIsSaving(true);
+        setErrorMessage(null);
+        setValidationErrors([]);
+
+        // Check if required fields are filled - if not, show error list and scroll to first invalid section
+        if (!areRequiredFieldsFilled) {
+            // Clear any pending scroll timeout from a previous save attempt
+            if (validationScrollTimeoutRef.current) {
+                clearTimeout(validationScrollTimeoutRef.current);
+                validationScrollTimeoutRef.current = null;
+            }
+
+            setValidationErrors(missingRequiredFields);
+            setErrorMessage('Please complete all required fields before saving.');
+            setIsSaving(false);
+
+            // Scroll to error list first (via useEffect on errorMessage), then to first invalid section.
+            // Use requestAnimationFrame to wait for the DOM update + a short delay for the scroll animation.
+            requestAnimationFrame(() => {
+                validationScrollTimeoutRef.current = setTimeout(() => {
+                    validationScrollTimeoutRef.current = null;
+                    scrollToFirstInvalidSection();
+                }, 600);
+            });
+            return;
+        }
+
+        // Client-side validation for funding references
+        if (!validateAllFundingReferences(fundingReferences)) {
+            setValidationErrors(['Please fix the validation errors in the Funding References section before submitting.']);
+            setIsSaving(false);
+            // Scroll to funding references section
+            const fundingSection = document.getElementById('funding-references-section');
+            if (fundingSection) {
+                fundingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            return;
+        }
+
+        // Pre-submit DOI duplicate check: verify the DOI is still available before saving
+        const doiValue = form.doi?.trim();
+        if (doiValue) {
+            const conflict = await checkDoiBeforeSave(doiValue);
+            if (conflict) {
+                // DOI already exists — show conflict modal instead of saving
+                setIsSaving(false);
+                return;
+            }
+        }
+
+        const payload = buildPayload();
 
         try {
             const response = await axios.post(saveUrl, payload, {
@@ -1822,6 +1854,70 @@ export default function DataCiteForm({
             setErrorMessage('A network error prevented saving the resource. Please try again.');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    // Save draft with relaxed validation — only requires Main Title (Issue #548)
+    const handleSaveDraft = async () => {
+        if (!isDraftSaveable) return;
+
+        setIsSavingDraft(true);
+        setErrorMessage(null);
+        setValidationErrors([]);
+
+        const payload = buildPayload();
+
+        try {
+            const response = await axios.post(draftSaveUrl, payload, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+            });
+
+            interface DraftSaveResponse {
+                message?: string;
+                resource?: { id: number };
+            }
+
+            const data = response.data as DraftSaveResponse | null;
+
+            // Update the resource ID so subsequent saves target the same resource (Issue #548)
+            if (data?.resource?.id && resolvedResourceId === null) {
+                setResolvedResourceId(data.resource.id);
+            }
+
+            setSuccessMessage(data?.message || 'Draft saved successfully.');
+            setShowSuccessModal(true);
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const response = error.response;
+
+                if (response?.status === 419) {
+                    setErrorMessage('Your session has expired. Please refresh the page and try again.');
+                    return;
+                }
+
+                if (response) {
+                    const defaultError = 'Unable to save draft. Please review the highlighted issues.';
+                    const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
+
+                    const messages = parsed?.errors
+                        ? Object.values(parsed.errors)
+                              .flat()
+                              .map((message) => String(message))
+                        : [];
+
+                    setValidationErrors(messages);
+                    setErrorMessage(parsed?.message || defaultError);
+                    return;
+                }
+            }
+
+            console.error('Failed to save draft', error);
+            setErrorMessage('A network error prevented saving the draft. Please try again.');
+        } finally {
+            setIsSavingDraft(false);
         }
     };
 
@@ -2288,7 +2384,34 @@ export default function DataCiteForm({
                         : []
                 }
             />
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                                    Drafts are partial saves — legacy keyword replacement is only
+                                    required for full validation (Save & Validate). */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    data-testid="save-draft-button"
+                                    disabled={!isDraftSaveable || isSavingDraft || isSaving}
+                                    aria-busy={isSavingDraft}
+                                    onClick={handleSaveDraft}
+                                >
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {isSavingDraft ? 'Saving…' : 'Save Draft'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {!isDraftSaveable && !isSavingDraft && (
+                            <TooltipContent side="top" align="end" className="max-w-sm">
+                                <p className="text-sm">Enter a Main Title to save as draft.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -2296,11 +2419,11 @@ export default function DataCiteForm({
                                 <Button
                                     type="submit"
                                     data-testid="save-resource-button"
-                                    disabled={isSaving || hasLegacyKeywords}
+                                    disabled={isSaving || isSavingDraft || hasLegacyKeywords}
                                     aria-busy={isSaving}
-                                    aria-disabled={isSaving || hasLegacyKeywords}
+                                    aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
                                 >
-                                    {isSaving ? 'Saving…' : 'Save to database'}
+                                    {isSaving ? 'Saving…' : 'Save & Validate'}
                                 </Button>
                             </span>
                         </TooltipTrigger>
