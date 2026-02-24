@@ -562,7 +562,6 @@ class ResourceController extends Controller
     }
 
     /**
-    /**
      * Extract filters from the request.
      *
      * @return array<string, mixed>
@@ -699,10 +698,10 @@ class ResourceController extends Controller
                                     ->orWhereDoesntHave('creators')
                                     ->orWhereDoesntHave('rights')
                                     ->orWhere(function ($titleQ) {
-                                        // No Main Title with non-empty value
+                                        // No Main Title with non-empty trimmed value
                                         // (legacy: NULL title_type_id counts as MainTitle)
                                         $titleQ->whereDoesntHave('titles', function ($tQ) {
-                                            $tQ->where('value', '!=', '')
+                                            $tQ->whereRaw("TRIM(value) != ''")
                                                 ->where(function ($typeQ) {
                                                     $typeQ->whereNull('title_type_id')
                                                         ->orWhereHas('titleType', function ($ttQ) {
@@ -712,7 +711,7 @@ class ResourceController extends Controller
                                         });
                                     })
                                     ->orWhereDoesntHave('descriptions', function ($dQ) {
-                                        $dQ->where('value', '!=', '')
+                                        $dQ->whereRaw("TRIM(value) != ''")
                                             ->whereHas('descriptionType', function ($dtQ) {
                                                 $dtQ->where('slug', 'Abstract');
                                             });
@@ -839,8 +838,8 @@ class ResourceController extends Controller
                 break;
 
             case 'publicstatus':
-                // All resources have 'curation' status, so this doesn't really sort
-                // But we keep it for consistency
+                // Status (draft/curation/review/published) is computed at serialization time,
+                // not stored in the DB, so we fall back to sorting by id.
                 $query->orderBy('id', $sortDirection);
                 break;
 
@@ -1400,7 +1399,7 @@ class ResourceController extends Controller
             ->whereHas('creators')
             ->whereHas('rights')
             ->whereHas('titles', function ($tQ) {
-                $tQ->where('value', '!=', '')
+                $tQ->whereRaw("TRIM(value) != ''")
                     ->where(function ($typeQ) {
                         $typeQ->whereNull('title_type_id')
                             ->orWhereHas('titleType', function ($ttQ) {
@@ -1409,7 +1408,7 @@ class ResourceController extends Controller
                     });
             })
             ->whereHas('descriptions', function ($dQ) {
-                $dQ->where('value', '!=', '')
+                $dQ->whereRaw("TRIM(value) != ''")
                     ->whereHas('descriptionType', function ($dtQ) {
                         $dtQ->where('slug', 'Abstract');
                     });

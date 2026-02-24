@@ -3427,4 +3427,182 @@ describe('DataCiteForm', () => {
             });
         });
     });
+
+    describe('Save Draft (Issue #548)', () => {
+        it('disables the draft button when no Main Title is entered', { timeout: 30000 }, async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            expect(draftButton).toBeDisabled();
+        });
+
+        it('enables the draft button when a Main Title is entered', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            expect(draftButton).toBeDisabled();
+
+            // Fill in the Main Title
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'My Draft Dataset');
+
+            expect(draftButton).toBeEnabled();
+        });
+
+        it('disables the draft button when Main Title is only whitespace', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, '   ');
+
+            expect(draftButton).toBeDisabled();
+        });
+
+        it('sends draft save request to the correct endpoint', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            // Fill Main Title
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'Draft Dataset');
+
+            // Click Save Draft
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            await waitFor(() => {
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+            });
+
+            const [url, data] = mockedAxios.post.mock.calls[0];
+            expect(url).toBe('/editor/resources/draft');
+            expect(data.titles).toEqual([
+                { title: 'Draft Dataset', titleType: 'main-title' },
+            ]);
+        });
+
+        it('updates resource ID after first draft save for subsequent saves', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            let callCount = 0;
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockImplementation(() => {
+                callCount++;
+                return Promise.resolve({
+                    data: { message: 'Draft saved.', resource: { id: 42 } },
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {},
+                    config: {},
+                });
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            // Fill Main Title
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'Draft Dataset');
+
+            // First draft save — no resourceId in payload
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            await waitFor(() => {
+                expect(callCount).toBe(1);
+            });
+
+            const firstCallData = mockedAxios.post.mock.calls[0][1];
+            expect(firstCallData.resourceId).toBeUndefined();
+
+            // Close the success modal to re-enable the button
+            const successDialog = await screen.findByRole('dialog');
+            const closeButtons = within(successDialog).getAllByRole('button', { name: /Close/ });
+            await user.click(closeButtons[0]);
+
+            // Second draft save — should include resourceId from first response
+            await user.click(draftButton);
+
+            await waitFor(() => {
+                expect(callCount).toBe(2);
+            });
+
+            const secondCallData = mockedAxios.post.mock.calls[1][1];
+            expect(secondCallData.resourceId).toBe(42);
+        });
+    });
 });

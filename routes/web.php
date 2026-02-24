@@ -376,10 +376,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ->orWhereDoesntHave('creators')
                     ->orWhereDoesntHave('rights')
                     ->orWhere(function ($titleQ) {
-                        // No Main Title with non-empty value
+                        // No Main Title with non-empty trimmed value
                         // (legacy: NULL title_type_id counts as MainTitle)
                         $titleQ->whereDoesntHave('titles', function ($tq) {
-                            $tq->where('value', '!=', '')
+                            $tq->whereRaw("TRIM(value) != ''")
                                 ->where(function ($typeQ) {
                                     $typeQ->whereNull('title_type_id')
                                         ->orWhereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
@@ -387,7 +387,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         });
                     })
                     ->orWhereDoesntHave('descriptions', function ($dq) {
-                        $dq->where('value', '!=', '')
+                        $dq->whereRaw("TRIM(value) != ''")
                             ->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
                     });
             });
