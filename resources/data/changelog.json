@@ -4,6 +4,10 @@
         "date": "2026-02-24",
         "features": [
             {
+                "title": "External Landing Page URLs",
+                "description": "Landing pages can now redirect to external URLs instead of hosting a generated page. When setting up a landing page, curators can select the 'External Landing Page' template, choose a preconfigured domain, and specify a path. The DOI resolves via a 301 redirect to the external URL. Administrators can manage available domains in Editor Settings."
+            },
+            {
                 "title": "Draft Save for Incomplete Datasets",
                 "description": "Curators can now save incomplete datasets as drafts without filling all mandatory fields. The editor form now has two buttons: 'Save Draft' (requires only a Main Title) and 'Save & Validate' (full validation). Draft datasets are marked with an amber badge in the resource list and can be filtered by status. The dashboard welcome card now shows the number of open drafts and links to the 5 most recently edited ones."
             }
