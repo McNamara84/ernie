@@ -387,6 +387,29 @@ describe('External Landing Page Redirect', function () {
         $response = $this->get($landingPage->getPublicPath().'?preview='.$landingPage->preview_token);
 
         $response->assertRedirect('https://data.gfz.de/dataset/preview');
+        // Draft previews use temporary redirect (302) to avoid browser caching
+        $response->assertStatus(302);
+    });
+
+    test('published external page with preview token uses temporary redirect', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-published-preview-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'dataset/published',
+            ]);
+
+        // Even for published pages, preview token access should use 302
+        $response = $this->get($landingPage->getPublicPath().'?preview='.$landingPage->preview_token);
+
+        $response->assertRedirect('https://data.gfz.de/dataset/published');
+        $response->assertStatus(302);
     });
 
     test('external draft does not increment view count with preview token', function () {

@@ -278,9 +278,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         // For external landing pages, open the external URL directly
         if (isExternal) {
             if (computedExternalUrl) {
-                window.open(computedExternalUrl, '_blank');
+                window.open(computedExternalUrl, '_blank', 'noopener,noreferrer');
             } else if (currentConfig?.external_url) {
-                window.open(currentConfig.external_url, '_blank');
+                window.open(currentConfig.external_url, '_blank', 'noopener,noreferrer');
             } else {
                 toast.error('Please select a domain and enter a path to preview the external URL.');
             }
@@ -307,7 +307,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Open preview in new tab
                 const previewUrlFromServer = response.data?.preview_url;
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank');
+                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
             } catch (error) {
                 console.error('Failed to create preview:', error);
 
@@ -325,13 +325,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         // Always use preview URL for the Preview button, even if published,
         // to maintain consistency and distinguish from the Public URL copy action
         if (previewUrl) {
-            window.open(previewUrl, '_blank');
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
             return;
         }
 
         // Fallback to public URL if no preview URL is available
         if (currentConfig.status === 'published' && currentConfig.public_url) {
-            window.open(currentConfig.public_url, '_blank');
+            window.open(currentConfig.public_url, '_blank', 'noopener,noreferrer');
             return;
         }
 

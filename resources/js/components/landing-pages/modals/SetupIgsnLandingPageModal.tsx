@@ -233,7 +233,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
                 const previewUrlFromServer = response.data?.preview_url;
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank');
+                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
             } catch (error) {
                 console.error('Failed to create preview:', error);
 
@@ -249,13 +249,13 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
         // No unsaved changes - use existing saved preview URL
         if (previewUrl) {
-            window.open(previewUrl, '_blank');
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
             return;
         }
 
         // Fallback to public URL if no preview URL is available
         if (currentConfig.status === 'published' && currentConfig.public_url) {
-            window.open(currentConfig.public_url, '_blank');
+            window.open(currentConfig.public_url, '_blank', 'noopener,noreferrer');
             return;
         }
 

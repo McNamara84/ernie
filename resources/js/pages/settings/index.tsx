@@ -97,7 +97,7 @@ export default function EditorSettings({
 
         setIsAddingDomain(true);
         try {
-            const response = await axios.post<{ domain: LandingPageDomainRow; message: string }>('/settings/api/landing-page-domains', {
+            const response = await axios.post<{ domain: LandingPageDomainRow; message: string }>('/api/landing-page-domains', {
                 domain: newDomain.trim(),
             });
             setDomains((prev) => [...prev, response.data.domain].sort((a, b) => a.domain.localeCompare(b.domain)));
@@ -120,7 +120,7 @@ export default function EditorSettings({
         if (!confirm('Are you sure you want to delete this domain? It cannot be deleted if it is used by any landing page.')) return;
 
         try {
-            const response = await axios.delete<{ message: string }>(`/settings/api/landing-page-domains/${domainId}`);
+            const response = await axios.delete<{ message: string }>(`/api/landing-page-domains/${domainId}`);
             setDomains((prev) => prev.filter((d) => d.id !== domainId));
             toast.success(response.data.message);
         } catch (error) {

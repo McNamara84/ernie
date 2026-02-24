@@ -209,7 +209,14 @@ class LandingPagePublicController extends Controller
                 $landingPage->incrementViewCount();
             }
 
-            return redirect()->to($externalUrl, HttpResponse::HTTP_MOVED_PERMANENTLY);
+            // Use 301 (permanent) for published pages accessed without a preview token,
+            // and 302 (temporary) for draft previews. Browsers/proxies cache 301 responses,
+            // which would cause issues when previewing drafts that may change or be removed.
+            $statusCode = ($landingPage->isPublished() && $previewToken === null)
+                ? HttpResponse::HTTP_MOVED_PERMANENTLY
+                : HttpResponse::HTTP_FOUND;
+
+            return redirect()->to($externalUrl, $statusCode);
         }
 
         // Increment view count only for published pages without preview token

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\LandingPageDomain;
+use App\Rules\SafeUrl;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -17,8 +18,11 @@ use Illuminate\Http\Request;
  * the "External Landing Page" template. The external URL is composed from
  * a domain (managed here) and a free-text path.
  *
- * Access is restricted to users with 'access-editor-settings' gate
- * (Admin, Group Leader).
+ * Access:
+ * - Listing (index): available to all authenticated users (used by
+ *   the SetupLandingPageModal for curators via /api/landing-page-domains/list).
+ * - Create/Delete (store, destroy): restricted to users with 'access-editor-settings'
+ *   gate (Admin, Group Leader) via route middleware.
  */
 class LandingPageDomainController extends Controller
 {
@@ -40,7 +44,7 @@ class LandingPageDomainController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'domain' => ['required', 'string', 'url', 'max:2048', 'unique:landing_page_domains,domain'],
+            'domain' => ['required', 'string', new SafeUrl, 'max:2048', 'unique:landing_page_domains,domain'],
         ]);
 
         // Normalize: ensure trailing slash
@@ -55,8 +59,13 @@ class LandingPageDomainController extends Controller
         try {
             $landingPageDomain = LandingPageDomain::create(['domain' => $domain]);
         } catch (QueryException $e) {
-            // Unique constraint violation (MySQL: 23000, SQLite: 23000)
-            if (str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'UNIQUE constraint')) {
+            // Detect unique constraint violation via errorInfo vendor codes
+            // (consistent with LandingPageController pattern):
+            // MySQL: errorInfo[1] = 1062 (ER_DUP_ENTRY)
+            // SQLite: errorInfo[1] = 19 (SQLITE_CONSTRAINT)
+            $errorCode = (int) ($e->errorInfo[1] ?? 0);
+
+            if ($errorCode === 1062 || ($errorCode === 19 && str_contains($e->getMessage(), 'UNIQUE constraint'))) {
                 return response()->json([
                     'message' => 'This domain already exists.',
                     'errors' => ['domain' => ['This domain already exists.']],

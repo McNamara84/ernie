@@ -112,6 +112,16 @@ describe('Domain Creation', function () {
             ->assertJsonValidationErrors(['domain']);
     });
 
+    test('non-http scheme is rejected', function () {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/landing-page-domains', [
+                'domain' => 'ftp://files.example.org/',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['domain']);
+    });
+
     test('empty domain is rejected', function () {
         $response = $this->actingAs($this->admin)
             ->postJson('/api/landing-page-domains', [
