@@ -6,7 +6,9 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\JsonValidationException;
 use App\Http\Requests\RegisterDoiRequest;
+use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\Description;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -179,6 +181,51 @@ class ResourceController extends Controller
         }
 
         return response()->json($response, $status);
+    }
+
+    /**
+     * Store a draft resource with relaxed validation (Issue #548).
+     *
+     * Only requires a Main Title. All other fields are optional.
+     * Does NOT trigger DataCite synchronization.
+     */
+    public function storeDraft(StoreDraftResourceRequest $request): JsonResponse
+    {
+        try {
+            [$resource, $isUpdate] = $this->storageService->store(
+                $request->validated(),
+                $request->user()?->id
+            );
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'message' => 'Unable to save draft. Please review the highlighted issues.',
+                'errors' => $exception->errors(),
+            ], 422);
+        } catch (Throwable $exception) {
+            Log::error('ResourceController::storeDraft failed', [
+                'exception' => $exception->getMessage(),
+                'exception_class' => $exception::class,
+                'user_id' => $request->user()?->id,
+                'resource_id' => $request->input('resourceId'),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+            report($exception);
+
+            return response()->json([
+                'message' => 'Unable to save draft. Please try again later.',
+            ], 500);
+        }
+
+        $message = $isUpdate ? 'Draft updated successfully.' : 'Draft saved successfully.';
+        $status = $isUpdate ? 200 : 201;
+
+        return response()->json([
+            'message' => $message,
+            'resource' => [
+                'id' => $resource->id,
+            ],
+        ], $status);
     }
 
     /**
@@ -414,8 +461,8 @@ class ResourceController extends Controller
             ]);
         }
 
-        // Available publication statuses
-        $statuses = ['curation', 'review', 'published'];
+        // Available publication statuses (draft added in Issue #548)
+        $statuses = ['draft', 'curation', 'review', 'published'];
 
         return response()->json([
             'resource_types' => $resourceTypes,
@@ -482,6 +529,11 @@ class ResourceController extends Controller
                         ->orderBy('id');
                 },
                 'rights:id,identifier,name',
+                // Eager load descriptions with descriptionType for completeness check (Issue #548)
+                'descriptions' => function ($query): void {
+                    $query->select(['id', 'resource_id', 'value', 'description_type_id'])
+                        ->with(['descriptionType:id,slug']);
+                },
                 // Eager load dates with the dateType relation.
                 // Note: date_type_id MUST be included in the select() for the dateType relation
                 // to work, as Eloquent uses it as the foreign key for the belongsTo relation.
@@ -628,20 +680,48 @@ class ResourceController extends Controller
             });
         }
 
-        // Status filter - filter based on DOI and landing page status
-        // Must match logic in serializeResource():
-        // - curation: no DOI OR (has DOI but no landing page)
-        // - review: has DOI AND has landing page with is_published = false
-        // - published: has DOI AND has landing page with is_published = true
+        // Status filter - filter based on completeness, DOI and landing page status
+        // Must match logic in determinePublicStatus():
+        // - draft: missing mandatory fields (type, year, creators, rights, or abstract)
+        // - curation: complete + no DOI OR (has DOI but no landing page)
+        // - review: complete + has DOI AND has landing page with is_published = false
+        // - published: complete + has DOI AND has landing page with is_published = true
         if (! empty($filters['status'])) {
             $statuses = $filters['status'];
             $query->where(function ($q) use ($statuses) {
                 foreach ($statuses as $status) {
-                    if ($status === 'curation') {
-                        // Curation: No DOI OR (has DOI but no landing page)
+                    if ($status === 'draft') {
+                        // Draft: missing any mandatory field
                         $q->orWhere(function ($subQ) {
-                            $subQ->whereNull('doi')
-                                ->orWhereDoesntHave('landingPage');
+                            $subQ->where(function ($inner) {
+                                $inner->whereNull('resource_type_id')
+                                    ->orWhereNull('publication_year')
+                                    ->orWhereDoesntHave('creators')
+                                    ->orWhereDoesntHave('rights')
+                                    ->orWhereDoesntHave('descriptions', function ($dQ) {
+                                        $dQ->whereHas('descriptionType', function ($dtQ) {
+                                            $dtQ->where('slug', 'Abstract');
+                                        });
+                                    });
+                            });
+                        });
+                    } elseif ($status === 'curation') {
+                        // Curation: complete resource with no DOI OR (has DOI but no landing page)
+                        $q->orWhere(function ($subQ) {
+                            // Must be complete first
+                            $subQ->whereNotNull('resource_type_id')
+                                ->whereNotNull('publication_year')
+                                ->whereHas('creators')
+                                ->whereHas('rights')
+                                ->whereHas('descriptions', function ($dQ) {
+                                    $dQ->whereHas('descriptionType', function ($dtQ) {
+                                        $dtQ->where('slug', 'Abstract');
+                                    });
+                                })
+                                ->where(function ($inner) {
+                                    $inner->whereNull('doi')
+                                        ->orWhereDoesntHave('landingPage');
+                                });
                         });
                     } elseif ($status === 'review') {
                         // Review: DOI registered + landing page with is_published = false
@@ -800,11 +880,8 @@ class ResourceController extends Controller
             }
         }
 
-        // Determine publication status based on DOI and landing page status
-        $publicStatus = 'curation'; // Default status
-        if ($resource->doi && $resource->landingPage) {
-            $publicStatus = $resource->landingPage->is_published ? 'published' : 'review';
-        }
+        // Determine publication status (Issue #548: draft status for incomplete resources)
+        $publicStatus = $this->determinePublicStatus($resource);
 
         // Get DataCite dates (Created/Updated) from the dates relation instead of Eloquent timestamps.
         // This preserves the original creation/update dates from imported datasets.
@@ -1131,6 +1208,76 @@ class ResourceController extends Controller
         ];
 
         return response()->json($prefixes);
+    }
+
+    /**
+     * Determine the publication status of a resource (Issue #548).
+     *
+     * Status hierarchy:
+     * - 'draft': missing any mandatory field (takes precedence)
+     * - 'curation': all mandatory fields present, no DOI or no landing page
+     * - 'review': has DOI + landing page with is_published = false
+     * - 'published': has DOI + landing page with is_published = true
+     */
+    private function determinePublicStatus(Resource $resource): string
+    {
+        if (! $this->isResourceComplete($resource)) {
+            return 'draft';
+        }
+
+        if ($resource->doi && $resource->landingPage) {
+            return $resource->landingPage->is_published ? 'published' : 'review';
+        }
+
+        return 'curation';
+    }
+
+    /**
+     * Check whether a resource has all mandatory DataCite fields filled (Issue #548).
+     *
+     * Mandatory fields: Main Title, Publication Year, Resource Type,
+     * at least one Creator, at least one License, and an Abstract description.
+     *
+     * Expects that titles, creators, rights, and descriptions relations are already
+     * eager loaded (which baseQuery() guarantees).
+     */
+    private function isResourceComplete(Resource $resource): bool
+    {
+        // 1. Has Main Title
+        $hasMainTitle = $resource->titles->contains(
+            fn (Title $t): bool => $t->isMainTitle() && trim($t->value) !== ''
+        );
+
+        if (! $hasMainTitle) {
+            return false;
+        }
+
+        // 2. Has publication year
+        if ($resource->publication_year === null) {
+            return false;
+        }
+
+        // 3. Has resource type
+        if ($resource->resource_type_id === null) {
+            return false;
+        }
+
+        // 4. Has at least one creator
+        if ($resource->creators->isEmpty()) {
+            return false;
+        }
+
+        // 5. Has at least one license
+        if ($resource->rights->isEmpty()) {
+            return false;
+        }
+
+        // 6. Has abstract description
+        $hasAbstract = $resource->descriptions->contains(
+            fn (Description $d): bool => $d->isAbstract()
+        );
+
+        return $hasAbstract;
     }
 
     /**

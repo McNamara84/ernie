@@ -88,6 +88,12 @@ type DashboardPageProps = SharedData & {
     igsnCount?: number;
     dataInstitutionCount?: number;
     igsnInstitutionCount?: number;
+    draftCount?: number;
+    recentDrafts?: Array<{
+        id: number;
+        title: string;
+        updated_at: string | null;
+    }>;
     phpVersion?: string;
     laravelVersion?: string;
 };
@@ -99,6 +105,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         igsnCount,
         dataInstitutionCount,
         igsnInstitutionCount,
+        draftCount,
+        recentDrafts,
         phpVersion = '8.4.12',
         laravelVersion = '12.28.1',
     } = usePage<DashboardPageProps>().props;
@@ -253,7 +261,28 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             <CardTitle>Hello {auth.user.name}!</CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground">
-                            Nice to see you today! You still have x datasets to curate. Have fun, your ERNIE!
+                            <p>
+                                Nice to see you today! You still have{' '}
+                                <strong className="font-semibold text-foreground">{draftCount ?? 0}</strong> draft
+                                {(draftCount ?? 0) !== 1 ? 's' : ''} to complete. Have fun, your ERNIE!
+                            </p>
+                            {recentDrafts && recentDrafts.length > 0 && (
+                                <div className="mt-3 space-y-1">
+                                    <p className="text-xs font-medium text-foreground">Recent drafts:</p>
+                                    <ul className="space-y-0.5">
+                                        {recentDrafts.map((draft) => (
+                                            <li key={draft.id}>
+                                                <Link
+                                                    href={editorRoute({ query: { resourceId: draft.id } }).url}
+                                                    className="text-xs text-primary underline-offset-4 hover:underline"
+                                                >
+                                                    {draft.title}
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                     <Card>
