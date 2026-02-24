@@ -104,7 +104,7 @@ it('extracts main title from namespaced DataCite xml wrapped in an envelope elem
 <?xml version="1.0" encoding="UTF-8"?>
 <envelope>
     
-<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 file:///C:/xampp/htdocs/msl-mde/schemas/DataCite/DataCiteSchema45.xsd">
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4/metadata.xsd">
   <identifier identifierType="DOI"/>
   <creators>
     <creator>
@@ -136,7 +136,7 @@ it('extracts main title from namespaced DataCite xml wrapped in an envelope elem
 
 
     
-<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd file:///C:/xampp/htdocs/msl-mde/schemas/ISO/gmd.xsd">
+<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <fileIdentifier/>
   <language>
     <LanguageCode codeList="http://www.loc.gov/standards/iso639-1/" codeListValue="en">en</LanguageCode>
@@ -314,7 +314,7 @@ it('extracts main title from namespaced DataCite xml wrapped in an envelope elem
 
 
     
-<DIF xmlns="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/&#10;&#9;&#9;&#9;&#9;file:///C:/xampp2/htdocs/mde-msl/schemas/GCMD/DIF.xsd">
+<DIF xmlns="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Entry_ID/>
   <Entry_Title>A mandatory Event</Entry_Title>
   <Data_Set_Citation>
@@ -462,9 +462,9 @@ it('ignores related item creators when extracting authors', function () {
         'authors' => [
             [
                 'type' => 'person',
-                'firstName' => 'Holger',
-                'lastName' => 'Ehrmann',
-                'orcid' => '0009-0000-1235-6950',
+                'firstName' => 'Alex',
+                'lastName' => 'Sample',
+                'orcid' => '0000-0000-0000-0001',
                 'affiliations' => [
                     [
                         'value' => 'Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences',
@@ -482,9 +482,9 @@ it('ignores related item creators when extracting authors', function () {
             ],
             [
                 'type' => 'person',
-                'firstName' => 'Sofia',
-                'lastName' => 'Garcia',
-                'orcid' => '0000-0001-5727-2427',
+                'firstName' => 'Casey',
+                'lastName' => 'Example',
+                'orcid' => '0000-0000-0000-0002',
                 'affiliations' => [
                     [
                         'value' => 'ORCID',

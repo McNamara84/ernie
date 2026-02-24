@@ -66,6 +66,38 @@ class UploadXmlController extends Controller
         'sponsor',
     ];
 
+    /**
+     * Canonical DataCite related identifier types supported by ERNIE editor.
+     *
+     * @var string[]
+     */
+    private const RELATED_IDENTIFIER_TYPES = [
+        'DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK',
+        'arXiv', 'bibcode', 'CSTR', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID',
+        'PMID', 'RRID', 'UPC', 'w3id',
+    ];
+
+    /**
+     * Canonical DataCite relation types supported by ERNIE editor.
+     *
+     * @var string[]
+     */
+    private const RELATED_RELATION_TYPES = [
+        'Cites', 'IsCitedBy', 'References', 'IsReferencedBy',
+        'Documents', 'IsDocumentedBy', 'Describes', 'IsDescribedBy',
+        'IsNewVersionOf', 'IsPreviousVersionOf', 'HasVersion', 'IsVersionOf',
+        'HasTranslation', 'IsTranslationOf',
+        'Continues', 'IsContinuedBy', 'Obsoletes', 'IsObsoletedBy',
+        'IsVariantFormOf', 'IsOriginalFormOf', 'IsIdenticalTo',
+        'HasPart', 'IsPartOf', 'Compiles', 'IsCompiledBy',
+        'IsSourceOf', 'IsDerivedFrom',
+        'IsSupplementTo', 'IsSupplementedBy',
+        'Requires', 'IsRequiredBy',
+        'HasMetadata', 'IsMetadataFor',
+        'Reviews', 'IsReviewedBy',
+        'IsPublishedIn', 'Collects', 'IsCollectedBy',
+    ];
+
     public function __construct(
         private readonly UploadLogService $uploadLogService,
         private readonly RorLookupService $rorLookupService,
@@ -171,6 +203,7 @@ class UploadXmlController extends Controller
                 $resourceType = $resourceTypeModel?->id;
             }
 
+            $relatedWorks = $this->extractRelatedWorks($reader, $filename);
             $fundingReferences = $this->extractFundingReferences($reader);
         } catch (XmlReaderException|XmlRuntimeException $e) {
             $error = UploadError::withMessage(
@@ -219,6 +252,7 @@ class UploadXmlController extends Controller
             'descriptions' => $descriptions,
             'dates' => $dates,
             'coverages' => $coverages,
+            'relatedWorks' => $relatedWorks,
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
             'mslKeywords' => $mslKeywords,
@@ -314,6 +348,70 @@ class UploadXmlController extends Controller
         }
 
         return $authors;
+    }
+
+    /**
+     * Extract related identifiers from DataCite XML for editor related works prefill.
+     *
+     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, position: int}>
+     */
+    private function extractRelatedWorks(XmlReader $reader, string $filename): array
+    {
+        $relatedIdentifierElements = $reader
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="relatedIdentifiers"]/*[local-name()="relatedIdentifier"]')
+            ->get();
+
+        /** @var array<string, string> $identifierTypeLookup */
+        $identifierTypeLookup = [];
+        foreach (self::RELATED_IDENTIFIER_TYPES as $name) {
+            $identifierTypeLookup[mb_strtolower($name)] = $name;
+        }
+
+        /** @var array<string, string> $relationTypeLookup */
+        $relationTypeLookup = [];
+        foreach (self::RELATED_RELATION_TYPES as $name) {
+            $relationTypeLookup[mb_strtolower($name)] = $name;
+        }
+
+        $relatedWorks = [];
+
+        foreach ($relatedIdentifierElements as $index => $element) {
+            $identifier = $this->stringValue($element);
+            $identifierTypeRaw = $element->getAttribute('relatedIdentifierType');
+            $relationTypeRaw = $element->getAttribute('relationType');
+
+            if (! is_string($identifier) || $identifier === '') {
+                continue;
+            }
+
+            $identifierType = is_string($identifierTypeRaw)
+                ? ($identifierTypeLookup[mb_strtolower(trim($identifierTypeRaw))] ?? null)
+                : null;
+            $relationType = is_string($relationTypeRaw)
+                ? ($relationTypeLookup[mb_strtolower(trim($relationTypeRaw))] ?? null)
+                : null;
+
+            if ($identifierType === null || $relationType === null) {
+                Log::warning('Skipping related identifier with unsupported type values during XML upload', [
+                    'filename' => $filename,
+                    'index' => $index,
+                    'identifier' => $identifier,
+                    'relatedIdentifierType' => $identifierTypeRaw,
+                    'relationType' => $relationTypeRaw,
+                ]);
+
+                continue;
+            }
+
+            $relatedWorks[] = [
+                'identifier' => $identifier,
+                'identifier_type' => $identifierType,
+                'relation_type' => $relationType,
+                'position' => count($relatedWorks),
+            ];
+        }
+
+        return $relatedWorks;
     }
 
     /**
