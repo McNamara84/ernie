@@ -1,7 +1,13 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-23",
+        "date": "2026-02-24",
+        "features": [
+            {
+                "title": "Draft Save for Incomplete Datasets",
+                "description": "Curators can now save incomplete datasets as drafts without filling all mandatory fields. The editor form now has two buttons: 'Save Draft' (requires only a Main Title) and 'Save & Validate' (full validation). Draft datasets are marked with an amber badge in the resource list and can be filtered by status. The dashboard welcome card now shows the number of open drafts and links to the 5 most recently edited ones."
+            }
+        ],
         "fixes": [
             {
                 "title": "Related Works Lost After XML Upload",
