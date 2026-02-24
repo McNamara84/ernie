@@ -67,7 +67,7 @@ describe('Status Filter', function (): void {
     it('filters resources by status - curation (no DOI)', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         // Create resource in curation (no DOI)
         $curationResource = Resource::factory()->create([
@@ -112,7 +112,7 @@ describe('Status Filter', function (): void {
     it('filters resources by status - curation (DOI without landing page)', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         // Create resource with DOI but no landing page (still curation)
         $curationResource = Resource::factory()->create([
@@ -157,7 +157,7 @@ describe('Status Filter', function (): void {
     it('filters resources by status - review', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         // Create resource in review (DOI + draft landing page)
         $reviewResource = Resource::factory()->create([
@@ -202,7 +202,7 @@ describe('Status Filter', function (): void {
     it('filters resources by status - published', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         // Create published resource (DOI + published landing page)
         $publishedResource = Resource::factory()->create([
@@ -251,7 +251,7 @@ describe('Status Filter', function (): void {
     it('filters resources by multiple status values', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         // Curation resource
         $curationResource = Resource::factory()->create([
@@ -313,7 +313,7 @@ describe('Curator Filter', function (): void {
     it('filters resources by curator - using updatedBy', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         $creator = User::factory()->create(['name' => 'Creator User']);
         $editor = User::factory()->create(['name' => 'Editor User']);
@@ -353,7 +353,7 @@ describe('Curator Filter', function (): void {
     it('filters resources by curator - fallback to createdBy when never updated', function (): void {
         $resourceType = ResourceType::factory()->create();
         $language = Language::factory()->create();
-        $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+        $titleType = TitleType::factory()->create(['slug' => 'MainTitle']);
 
         $creator = User::factory()->create(['name' => 'Creator User']);
 
