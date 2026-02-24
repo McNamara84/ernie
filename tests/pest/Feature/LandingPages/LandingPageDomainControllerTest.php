@@ -140,6 +140,56 @@ describe('Domain Creation', function () {
 
         $response->assertForbidden();
     });
+
+    test('domain with path is rejected', function () {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/landing-page-domains', [
+                'domain' => 'https://example.org/some/path',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['domain']);
+    });
+
+    test('domain with query string is rejected', function () {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/landing-page-domains', [
+                'domain' => 'https://example.org/?q=search',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['domain']);
+    });
+
+    test('domain with fragment is rejected', function () {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/landing-page-domains', [
+                'domain' => 'https://example.org/#section',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['domain']);
+    });
+
+    test('domain with credentials is rejected', function () {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/landing-page-domains', [
+                'domain' => 'https://user:pass@example.org/',
+            ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['domain']);
+    });
+
+    test('domain input is trimmed before validation', function () {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/api/landing-page-domains', [
+                'domain' => '  https://trimmed.org  ',
+            ]);
+
+        $response->assertCreated();
+        expect(LandingPageDomain::first()->domain)->toBe('https://trimmed.org/');
+    });
 });
 
 describe('Domain Deletion', function () {

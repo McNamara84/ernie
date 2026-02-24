@@ -427,8 +427,9 @@ export default function EditorSettings({
                                                                     size="icon"
                                                                     onClick={() => handleDeleteDomain(domain.id)}
                                                                     title="Delete domain"
+                                                                    aria-label="Delete domain"
                                                                 >
-                                                                    <Trash2 className="size-4 text-destructive" />
+                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
                                                                 </Button>
                                                             </TableCell>
                                                         </TableRow>

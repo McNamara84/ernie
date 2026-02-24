@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\LandingPageDomain;
-use App\Rules\SafeUrl;
+use App\Rules\SafeDomainUrl;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -43,15 +43,17 @@ class LandingPageDomainController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'domain' => ['required', 'string', new SafeUrl, 'max:2048', 'unique:landing_page_domains,domain'],
-        ]);
-
-        // Normalize: ensure trailing slash
-        $domain = $validated['domain'];
-        if (! str_ends_with($domain, '/')) {
+        // Normalize before validation: trim whitespace and ensure trailing slash
+        // so that max:2048 and unique checks apply to the stored form.
+        $domain = trim((string) $request->input('domain'));
+        if ($domain !== '' && ! str_ends_with($domain, '/')) {
             $domain .= '/';
         }
+        $request->merge(['domain' => $domain]);
+
+        $validated = $request->validate([
+            'domain' => ['required', 'string', new SafeDomainUrl, 'max:2048', 'unique:landing_page_domains,domain'],
+        ]);
 
         // Use try/catch to handle the race condition where another request
         // inserts the same normalized domain between validation and insert.
