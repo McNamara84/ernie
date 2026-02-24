@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\LandingPageDomain;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,15 +49,21 @@ class LandingPageDomainController extends Controller
             $domain .= '/';
         }
 
-        // Check uniqueness again after normalization
-        if (LandingPageDomain::where('domain', $domain)->exists()) {
-            return response()->json([
-                'message' => 'This domain already exists.',
-                'errors' => ['domain' => ['This domain already exists.']],
-            ], 422);
+        // Use try/catch to handle the race condition where another request
+        // inserts the same normalized domain between validation and insert.
+        // The unique DB constraint on the 'domain' column guarantees atomicity.
+        try {
+            $landingPageDomain = LandingPageDomain::create(['domain' => $domain]);
+        } catch (QueryException $e) {
+            // Unique constraint violation (MySQL: 23000, SQLite: 23000)
+            if (str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'UNIQUE constraint')) {
+                return response()->json([
+                    'message' => 'This domain already exists.',
+                    'errors' => ['domain' => ['This domain already exists.']],
+                ], 422);
+            }
+            throw $e;
         }
-
-        $landingPageDomain = LandingPageDomain::create(['domain' => $domain]);
 
         return response()->json([
             'message' => 'Domain added successfully.',

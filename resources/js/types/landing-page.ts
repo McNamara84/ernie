@@ -379,7 +379,7 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
         description: 'Redirect to an external URL instead of generating a landing page',
         category: 'official',
         version: '1.0',
-        resourceTypes: null, // Available for all non-IGSN resource types (filtered in getTemplateOptions)
+        resourceTypes: null, // Available for all resource types (null = no restrictions)
     },
 } as const;
 

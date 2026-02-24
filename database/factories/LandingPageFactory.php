@@ -94,4 +94,21 @@ class LandingPageFactory extends Factory
             'published_at' => now(),
         ]);
     }
+
+    /**
+     * Indicate that the landing page uses an external URL redirect.
+     *
+     * Requires a LandingPageDomain to exist. Creates one automatically
+     * unless external_domain_id is provided.
+     */
+    public function external(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'template' => 'external',
+            'external_domain_id' => $attributes['external_domain_id']
+                ?? \App\Models\LandingPageDomain::factory(),
+            'external_path' => $attributes['external_path'] ?? 'datasets/' . fake()->slug(),
+            'ftp_url' => null,
+        ]);
+    }
 }

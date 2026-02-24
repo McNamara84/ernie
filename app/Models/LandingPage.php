@@ -337,6 +337,14 @@ class LandingPage extends Model
             if ($externalUrl !== null) {
                 return $externalUrl;
             }
+
+            // Log error: external landing page has no valid external URL.
+            // This should not happen due to validation, but if it does,
+            // fall through to internal URL as a last resort.
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPage::getPublicUrlAttribute: External landing page has no external URL, falling back to internal URL',
+                ['landing_page_id' => $this->id, 'resource_id' => $this->resource_id]
+            );
         }
 
         return url($this->getPublicPath());
@@ -402,7 +410,10 @@ class LandingPage extends Model
         // Domain already includes trailing slash, path should not have leading slash
         $path = ltrim($this->external_path, '/');
 
-        return rtrim($domain->domain, '/') . '/' . $path;
+        $baseUrl = rtrim($domain->domain, '/') . '/';
+
+        // If path is empty, return just the domain with trailing slash
+        return $path !== '' ? $baseUrl . $path : $baseUrl;
     }
 
     /**
