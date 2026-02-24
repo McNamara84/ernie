@@ -271,7 +271,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         if (!isExternal || !externalDomainId) return null;
         const domain = availableDomains.find((d) => d.id === Number(externalDomainId));
         if (!domain) return null;
-        return domain.domain + (externalPath || '');
+        return domain.domain + (externalPath || '').replace(/^\/+/, '');
     }, [isExternal, externalDomainId, externalPath, availableDomains]);
 
     const openPreview = async () => {
@@ -423,7 +423,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                         <Label className="text-xs text-muted-foreground">Resulting URL</Label>
                                         <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
                                             {(availableDomains.find((d) => d.id === Number(externalDomainId))?.domain ?? '') +
-                                                (externalPath || '')}
+                                                (externalPath || '').replace(/^\/+/, '')}
                                         </p>
                                     </div>
                                 )}

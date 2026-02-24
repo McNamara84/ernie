@@ -100,8 +100,8 @@ class LandingPageController extends Controller
         $validated = $request->validate([
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
-            'external_domain_id' => ['required_if:template,external', 'nullable', 'integer', 'exists:landing_page_domains,id'],
-            'external_path' => ['required_if:template,external', 'nullable', 'string', 'max:2048'],
+            'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
+            'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
@@ -311,8 +311,8 @@ class LandingPageController extends Controller
         $validated = $request->validate([
             'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
-            'external_domain_id' => ['required_if:template,external', 'nullable', 'integer', 'exists:landing_page_domains,id'],
-            'external_path' => ['required_if:template,external', 'nullable', 'string', 'max:2048'],
+            'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
+            'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
