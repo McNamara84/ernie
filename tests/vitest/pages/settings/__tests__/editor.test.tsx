@@ -86,6 +86,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         const grid = screen.getByTestId('settings-grid');
@@ -187,6 +188,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -229,6 +231,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -273,6 +276,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -315,6 +319,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -350,6 +355,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -388,6 +394,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -424,6 +431,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -466,6 +474,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -503,6 +512,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
