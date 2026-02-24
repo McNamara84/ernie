@@ -1,9 +1,14 @@
 <?php
 
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\LandingPage;
 use App\Models\Language;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +25,43 @@ beforeEach(function (): void {
         'email_verified_at' => now(),
     ]));
 });
+
+/**
+ * Make a resource "complete" so it doesn't get classified as a draft.
+ * Adds a creator (Person), a license (Right), and an abstract (Description).
+ */
+function makeResourceComplete(Resource $resource): void
+{
+    // Creator
+    $person = Person::create([
+        'family_name' => 'Testauthor',
+        'given_name' => 'Test',
+    ]);
+    ResourceCreator::create([
+        'resource_id' => $resource->id,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $person->id,
+        'position' => 0,
+    ]);
+
+    // License
+    $right = Right::firstOrCreate(
+        ['identifier' => 'cc-by-4'],
+        ['name' => 'Creative Commons Attribution 4.0'],
+    );
+    $resource->rights()->attach($right->id);
+
+    // Abstract description
+    $descriptionType = DescriptionType::firstOrCreate(
+        ['slug' => 'Abstract'],
+        ['name' => 'Abstract'],
+    );
+    Description::create([
+        'resource_id' => $resource->id,
+        'value' => 'Test abstract',
+        'description_type_id' => $descriptionType->id,
+    ]);
+}
 
 describe('Status Filter', function (): void {
     it('filters resources by status - curation (no DOI)', function (): void {
@@ -38,6 +80,7 @@ describe('Status Filter', function (): void {
             'value' => 'Curation Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($curationResource);
 
         // Create resource with DOI (not in curation)
         $publishedResource = Resource::factory()->create([
@@ -50,6 +93,7 @@ describe('Status Filter', function (): void {
             'value' => 'Published Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($publishedResource);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
             'is_published' => true,
@@ -81,6 +125,7 @@ describe('Status Filter', function (): void {
             'value' => 'Curation with DOI',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($curationResource);
 
         // Create resource with DOI and landing page (not curation)
         $reviewResource = Resource::factory()->create([
@@ -93,6 +138,7 @@ describe('Status Filter', function (): void {
             'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($reviewResource);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
             'is_published' => false,
@@ -124,6 +170,7 @@ describe('Status Filter', function (): void {
             'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($reviewResource);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
             'is_published' => false,
@@ -140,6 +187,7 @@ describe('Status Filter', function (): void {
             'value' => 'Curation Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($curationResource);
 
         get(route('resources', ['status' => ['review']]))
             ->assertOk()
@@ -167,6 +215,7 @@ describe('Status Filter', function (): void {
             'value' => 'Published Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($publishedResource);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
             'is_published' => true,
@@ -183,6 +232,7 @@ describe('Status Filter', function (): void {
             'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($reviewResource);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
             'is_published' => false,
@@ -214,6 +264,7 @@ describe('Status Filter', function (): void {
             'value' => 'Curation Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($curationResource);
 
         // Published resource
         $publishedResource = Resource::factory()->create([
@@ -226,6 +277,7 @@ describe('Status Filter', function (): void {
             'value' => 'Published Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($publishedResource);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
             'is_published' => true,
@@ -242,6 +294,7 @@ describe('Status Filter', function (): void {
             'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
+        makeResourceComplete($reviewResource);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
             'is_published' => false,
@@ -358,7 +411,7 @@ describe('Curator Filter', function (): void {
             ->assertOk()
             ->assertJson([
                 'resource_types' => [],
-                'statuses' => ['curation', 'review', 'published'],
+                'statuses' => ['draft', 'curation', 'review', 'published'],
                 'curators' => [
                     'Bob Editor',    // From updatedBy
                     'Charlie Creator', // From createdBy (fallback)

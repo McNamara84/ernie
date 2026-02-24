@@ -436,10 +436,20 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={4} title="Complete Coverage">
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={5} title="Save to Database">
+                            <WorkflowSteps.Step number={5} title="Save">
                                 <p>
-                                    Click <strong>"Save to database"</strong> to persist the curated dataset.
+                                    Choose one of two options:
                                 </p>
+                                <ul>
+                                    <li>
+                                        <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. You can return later to
+                                        complete it. Drafts are shown with an amber badge in the resource list and on the dashboard.
+                                    </li>
+                                    <li>
+                                        <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields
+                                        (title, year, resource type, language, license, authors, abstract) must be filled.
+                                    </li>
+                                </ul>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
