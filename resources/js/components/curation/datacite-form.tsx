@@ -2389,6 +2389,9 @@ export default function DataCiteForm({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span tabIndex={0}>
+                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                                    Drafts are partial saves — legacy keyword replacement is only
+                                    required for full validation (Save & Validate). */}
                                 <Button
                                     type="button"
                                     variant="outline"
