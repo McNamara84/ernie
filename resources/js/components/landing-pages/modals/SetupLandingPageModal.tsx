@@ -157,6 +157,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             if (response.data.landing_page) {
                 const updatedConfig = response.data.landing_page;
                 setCurrentConfig(updatedConfig);
+                setTemplate(updatedConfig.template ?? getDefaultTemplate());
+                setFtpUrl(updatedConfig.ftp_url ?? '');
                 setPreviewUrl(updatedConfig.preview_url ?? '');
                 setIsPublished(updatedConfig.status === 'published');
                 setExternalDomainId(String(updatedConfig.external_domain_id ?? ''));
@@ -231,9 +233,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
+        const isExternalTemplate = template === 'external';
         const baseChanges =
-            template !== currentConfig.template || ftpUrl !== (currentConfig.ftp_url ?? '') || isPublished !== (currentConfig.status === 'published');
-        if (template === 'external') {
+            template !== currentConfig.template ||
+            // ftpUrl is irrelevant for external templates (backend forces it to null)
+            (!isExternalTemplate && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
+            isPublished !== (currentConfig.status === 'published');
+        if (isExternalTemplate) {
             return (
                 baseChanges ||
                 externalDomainId !== String(currentConfig.external_domain_id ?? '') ||

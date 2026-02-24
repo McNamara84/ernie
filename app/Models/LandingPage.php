@@ -330,15 +330,17 @@ class LandingPage extends Model
      */
     public function getPublicUrlAttribute(): string
     {
-        // External landing pages: return the composed external URL
-        // This ensures DataCite receives the external URL for DOI resolution
-        if ($this->isExternal()) {
+        // External landing pages: return the composed external URL only when published.
+        // Draft external pages must use the internal path so that public routes like
+        // showLegacy() redirect to the internal URL where renderLandingPage() can
+        // enforce draft access checks (preview token validation).
+        if ($this->isExternal() && $this->isPublished()) {
             $externalUrl = $this->getExternalUrlAttribute();
             if ($externalUrl !== null) {
                 return $externalUrl;
             }
 
-            // Log error: external landing page has no valid external URL.
+            // Log error: published external landing page has no valid external URL.
             // This should not happen due to validation, but if it does,
             // fall through to internal URL as a last resort.
             \Illuminate\Support\Facades\Log::error(
