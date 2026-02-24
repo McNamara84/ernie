@@ -194,6 +194,10 @@ class LandingPagePublicController extends Controller
 
         // External landing pages: 301 redirect to the configured external URL
         if ($landingPage->isExternal()) {
+            // Eager-load externalDomain to avoid a lazy-load N+1 query
+            // when accessing the external_url attribute below.
+            $landingPage->loadMissing('externalDomain');
+
             $externalUrl = $landingPage->external_url;
 
             if ($externalUrl === null) {

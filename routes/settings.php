@@ -15,7 +15,7 @@ Route::middleware('auth')->group(function () {
         Route::post('settings', [EditorSettingsController::class, 'update'])->name('settings.update');
 
         // Landing Page Domains API (Issue #540)
-        Route::get('api/landing-page-domains', [LandingPageDomainController::class, 'index'])->name('landing-page-domains.index');
+        // Note: GET listing is at /api/landing-page-domains/list in web.php (available to all authenticated users).
         Route::post('api/landing-page-domains', [LandingPageDomainController::class, 'store'])->name('landing-page-domains.store');
         Route::delete('api/landing-page-domains/{landing_page_domain}', [LandingPageDomainController::class, 'destroy'])->name('landing-page-domains.destroy');
     });
