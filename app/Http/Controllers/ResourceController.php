@@ -698,6 +698,11 @@ class ResourceController extends Controller
                                     ->orWhereNull('publication_year')
                                     ->orWhereDoesntHave('creators')
                                     ->orWhereDoesntHave('rights')
+                                    ->orWhereDoesntHave('titles', function ($tQ) {
+                                        $tQ->whereHas('titleType', function ($ttQ) {
+                                            $ttQ->where('slug', 'MainTitle');
+                                        });
+                                    })
                                     ->orWhereDoesntHave('descriptions', function ($dQ) {
                                         $dQ->whereHas('descriptionType', function ($dtQ) {
                                             $dtQ->where('slug', 'Abstract');
@@ -713,6 +718,11 @@ class ResourceController extends Controller
                                 ->whereNotNull('publication_year')
                                 ->whereHas('creators')
                                 ->whereHas('rights')
+                                ->whereHas('titles', function ($tQ) {
+                                    $tQ->whereHas('titleType', function ($ttQ) {
+                                        $ttQ->where('slug', 'MainTitle');
+                                    });
+                                })
                                 ->whereHas('descriptions', function ($dQ) {
                                     $dQ->whereHas('descriptionType', function ($dtQ) {
                                         $dtQ->where('slug', 'Abstract');

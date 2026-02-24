@@ -376,7 +376,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ->orWhereDoesntHave('creators')
                     ->orWhereDoesntHave('rights')
                     ->orWhereDoesntHave('titles', function ($tq) {
-                        $tq->whereHas('titleType', fn ($tt) => $tt->where('slug', 'Main'));
+                        $tq->whereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
                     })
                     ->orWhereDoesntHave('descriptions', function ($dq) {
                         $dq->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
