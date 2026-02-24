@@ -538,7 +538,7 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            const saveButton = screen.getByRole('button', { name: 'Save to database' });
+            const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
 
             // Save button should always be enabled, even when required fields are empty
             expect(saveButton).toBeEnabled();
@@ -1202,7 +1202,7 @@ describe('DataCiteForm', () => {
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            const saveButton = screen.getByRole('button', { name: 'Save to database' });
+            const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
 
             const titleInput = screen.getByRole('textbox', { name: /Title/ });
             await user.type(titleInput, 'Contact Title');
@@ -2189,7 +2189,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -2277,7 +2277,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -2363,7 +2363,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
 
@@ -2450,7 +2450,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
@@ -2529,7 +2529,7 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            const saveButton = screen.getByRole('button', { name: /save to database/i });
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
             await fillRequiredAbstract(user);
@@ -2599,7 +2599,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         // Save button should be enabled even without Abstract
         expect(saveButton).toBeEnabled();
 
@@ -2641,7 +2641,7 @@ describe('DataCiteForm', () => {
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.type(abstractTextarea, 'This is a test abstract');
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
     });
 
@@ -2686,7 +2686,7 @@ describe('DataCiteForm', () => {
         const methodsTextarea = screen.getByRole('textbox', { name: /Methods/i });
         await user.type(methodsTextarea, 'Test methodology');
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -2748,7 +2748,7 @@ describe('DataCiteForm', () => {
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.type(abstractTextarea, 'This is a test abstract');
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -2801,7 +2801,7 @@ describe('DataCiteForm', () => {
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.type(abstractTextarea, '   Test abstract with spaces   ');
 
-        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
