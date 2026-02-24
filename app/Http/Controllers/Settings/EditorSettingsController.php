@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\DateType;
+use App\Models\LandingPageDomain;
 use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -91,6 +92,7 @@ class EditorSettingsController extends Controller
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'thesauri' => $thesauri,
+            'landingPageDomains' => LandingPageDomain::orderBy('domain')->get(['id', 'domain']),
         ]);
     }
 

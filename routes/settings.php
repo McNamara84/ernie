@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\Settings\EditorSettingsController;
 use App\Http\Controllers\Settings\FontSizeController;
 use App\Http\Controllers\Settings\PasswordController;
@@ -12,6 +13,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['can:access-editor-settings'])->group(function () {
         Route::get('settings', [EditorSettingsController::class, 'index'])->name('settings');
         Route::post('settings', [EditorSettingsController::class, 'update'])->name('settings.update');
+
+        // Landing Page Domains API (Issue #540)
+        Route::get('api/landing-page-domains', [LandingPageDomainController::class, 'index'])->name('landing-page-domains.index');
+        Route::post('api/landing-page-domains', [LandingPageDomainController::class, 'store'])->name('landing-page-domains.store');
+        Route::delete('api/landing-page-domains/{landing_page_domain}', [LandingPageDomainController::class, 'destroy'])->name('landing-page-domains.destroy');
     });
 
     // Personal settings (all authenticated users)

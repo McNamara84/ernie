@@ -1,4 +1,18 @@
 /**
+ * Landing Page Domain
+ *
+ * Represents a domain entry for external landing page URLs.
+ * Managed by admins/group leaders on the /settings page.
+ */
+export interface LandingPageDomain {
+    /** Primary key */
+    id: number;
+
+    /** Full domain URL including protocol and trailing slash (e.g., "https://geofon.gfz.de/") */
+    domain: string;
+}
+
+/**
  * Landing Page Configuration Type
  *
  * Represents the database model for landing_pages table
@@ -15,6 +29,18 @@ export interface LandingPageConfig {
 
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
+
+    /** FK to landing_page_domains (only for external template) */
+    external_domain_id?: number | null;
+
+    /** URL path appended to domain (only for external template) */
+    external_path?: string | null;
+
+    /** Computed: composed external URL (domain + path), null for internal pages */
+    external_url?: string | null;
+
+    /** The external domain object (loaded via relationship) */
+    external_domain?: LandingPageDomain | null;
 
     /** Computed: contact form URL for data requests (internal route, not configurable) */
     contact_url?: string;
@@ -346,6 +372,14 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
         category: 'official',
         version: '1.0',
         resourceTypes: ['PhysicalObject'], // Only for IGSNs
+    },
+    external: {
+        key: 'external',
+        name: 'External Landing Page',
+        description: 'Redirect to an external URL instead of generating a landing page',
+        category: 'official',
+        version: '1.0',
+        resourceTypes: null, // Available for all non-IGSN resource types (filtered in getTemplateOptions)
     },
 } as const;
 

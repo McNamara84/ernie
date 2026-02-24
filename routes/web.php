@@ -289,6 +289,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources/{resource}/landing-page', [LandingPageController::class, 'get'])
         ->name('landing-page.get');
 
+    // Landing Page Domains - read-only for all authenticated users (curators need this for the modal dropdown)
+    Route::get('api/landing-page-domains/list', [\App\Http\Controllers\LandingPageDomainController::class, 'index'])
+        ->name('landing-page-domains.list');
+
     // Landing Page Temporary Preview (Session-based)
     Route::post('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'store'])
         ->name('landing-page.preview.store');
