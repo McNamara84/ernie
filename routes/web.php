@@ -375,11 +375,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ->orWhereNull('resource_type_id')
                     ->orWhereDoesntHave('creators')
                     ->orWhereDoesntHave('rights')
-                    ->orWhereDoesntHave('titles', function ($tq) {
-                        $tq->whereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
+                    ->orWhere(function ($titleQ) {
+                        // No Main Title with non-empty value
+                        // (legacy: NULL title_type_id counts as MainTitle)
+                        $titleQ->whereDoesntHave('titles', function ($tq) {
+                            $tq->where('value', '!=', '')
+                                ->where(function ($typeQ) {
+                                    $typeQ->whereNull('title_type_id')
+                                        ->orWhereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
+                                });
+                        });
                     })
                     ->orWhereDoesntHave('descriptions', function ($dq) {
-                        $dq->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
+                        $dq->where('value', '!=', '')
+                            ->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
                     });
             });
 

@@ -1466,7 +1466,7 @@ export default function DataCiteForm({
         };
     }, []);
 
-    const resolvedResourceId = useMemo(() => {
+    const [resolvedResourceId, setResolvedResourceId] = useState<number | null>(() => {
         if (!initialResourceId) {
             return null;
         }
@@ -1480,7 +1480,7 @@ export default function DataCiteForm({
         const parsed = Number(trimmed);
 
         return Number.isFinite(parsed) ? parsed : null;
-    }, [initialResourceId]);
+    });
 
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
@@ -1881,6 +1881,12 @@ export default function DataCiteForm({
             }
 
             const data = response.data as DraftSaveResponse | null;
+
+            // Update the resource ID so subsequent saves target the same resource (Issue #548)
+            if (data?.resource?.id && resolvedResourceId === null) {
+                setResolvedResourceId(data.resource.id);
+            }
+
             setSuccessMessage(data?.message || 'Draft saved successfully.');
             setShowSuccessModal(true);
         } catch (error) {

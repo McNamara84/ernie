@@ -591,7 +591,7 @@ class ResourceController extends Controller
             }
         }
 
-        // Status filter (currently only 'curation' for new resources)
+        // Status filter (draft, curation, review, published)
         if ($request->has('status')) {
             $status = $request->input('status');
             if (is_array($status)) {
@@ -698,53 +698,50 @@ class ResourceController extends Controller
                                     ->orWhereNull('publication_year')
                                     ->orWhereDoesntHave('creators')
                                     ->orWhereDoesntHave('rights')
-                                    ->orWhereDoesntHave('titles', function ($tQ) {
-                                        $tQ->whereHas('titleType', function ($ttQ) {
-                                            $ttQ->where('slug', 'MainTitle');
+                                    ->orWhere(function ($titleQ) {
+                                        // No Main Title with non-empty value
+                                        // (legacy: NULL title_type_id counts as MainTitle)
+                                        $titleQ->whereDoesntHave('titles', function ($tQ) {
+                                            $tQ->where('value', '!=', '')
+                                                ->where(function ($typeQ) {
+                                                    $typeQ->whereNull('title_type_id')
+                                                        ->orWhereHas('titleType', function ($ttQ) {
+                                                            $ttQ->where('slug', 'MainTitle');
+                                                        });
+                                                });
                                         });
                                     })
                                     ->orWhereDoesntHave('descriptions', function ($dQ) {
-                                        $dQ->whereHas('descriptionType', function ($dtQ) {
-                                            $dtQ->where('slug', 'Abstract');
-                                        });
+                                        $dQ->where('value', '!=', '')
+                                            ->whereHas('descriptionType', function ($dtQ) {
+                                                $dtQ->where('slug', 'Abstract');
+                                            });
                                     });
                             });
                         });
                     } elseif ($status === 'curation') {
                         // Curation: complete resource with no DOI OR (has DOI but no landing page)
                         $q->orWhere(function ($subQ) {
-                            // Must be complete first
-                            $subQ->whereNotNull('resource_type_id')
-                                ->whereNotNull('publication_year')
-                                ->whereHas('creators')
-                                ->whereHas('rights')
-                                ->whereHas('titles', function ($tQ) {
-                                    $tQ->whereHas('titleType', function ($ttQ) {
-                                        $ttQ->where('slug', 'MainTitle');
-                                    });
-                                })
-                                ->whereHas('descriptions', function ($dQ) {
-                                    $dQ->whereHas('descriptionType', function ($dtQ) {
-                                        $dtQ->where('slug', 'Abstract');
-                                    });
-                                })
+                            $this->applyCompletenessConstraints($subQ)
                                 ->where(function ($inner) {
                                     $inner->whereNull('doi')
                                         ->orWhereDoesntHave('landingPage');
                                 });
                         });
                     } elseif ($status === 'review') {
-                        // Review: DOI registered + landing page with is_published = false
+                        // Review: complete + DOI + landing page with is_published = false
                         $q->orWhere(function ($subQ) {
-                            $subQ->whereNotNull('doi')
+                            $this->applyCompletenessConstraints($subQ)
+                                ->whereNotNull('doi')
                                 ->whereHas('landingPage', function ($lpQ) {
                                     $lpQ->where('is_published', false);
                                 });
                         });
                     } elseif ($status === 'published') {
-                        // Published: DOI registered + landing page with is_published = true
+                        // Published: complete + DOI + landing page with is_published = true
                         $q->orWhere(function ($subQ) {
-                            $subQ->whereNotNull('doi')
+                            $this->applyCompletenessConstraints($subQ)
+                                ->whereNotNull('doi')
                                 ->whereHas('landingPage', function ($lpQ) {
                                     $lpQ->where('is_published', true);
                                 });
@@ -1282,9 +1279,9 @@ class ResourceController extends Controller
             return false;
         }
 
-        // 6. Has abstract description
+        // 6. Has abstract description with non-empty value
         $hasAbstract = $resource->descriptions->contains(
-            fn (Description $d): bool => $d->isAbstract()
+            fn (Description $d): bool => $d->isAbstract() && trim($d->value) !== ''
         );
 
         return $hasAbstract;
@@ -1307,6 +1304,7 @@ class ResourceController extends Controller
             'titles',
             'rights',
             'dates',
+            'descriptions',
             'resourceType',
             'language',
             'createdBy',
@@ -1329,6 +1327,16 @@ class ResourceController extends Controller
             if (! $firstDate->relationLoaded('dateType')) {
                 throw new \RuntimeException(
                     'Relation dateType not loaded on ResourceDate. N+1 query detected!'
+                );
+            }
+        }
+
+        // Check that descriptionType is loaded on descriptions to prevent N+1 in isResourceComplete()
+        if ($resource->descriptions->isNotEmpty()) {
+            $firstDescription = $resource->descriptions->first();
+            if (! $firstDescription->relationLoaded('descriptionType')) {
+                throw new \RuntimeException(
+                    'Relation descriptionType not loaded on Description. N+1 query detected!'
                 );
             }
         }
@@ -1371,5 +1379,40 @@ class ResourceController extends Controller
                 );
             }
         }
+    }
+
+    /**
+     * Apply resource completeness constraints to a query builder.
+     *
+     * Ensures the resource has all mandatory fields: resource_type_id, publication_year,
+     * at least one creator, at least one license, a Main Title with non-empty value,
+     * and an Abstract description with non-empty value.
+     *
+     * Legacy: NULL title_type_id is treated as MainTitle (consistent with Title::isMainTitle()).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     */
+    private function applyCompletenessConstraints($query)
+    {
+        return $query->whereNotNull('resource_type_id')
+            ->whereNotNull('publication_year')
+            ->whereHas('creators')
+            ->whereHas('rights')
+            ->whereHas('titles', function ($tQ) {
+                $tQ->where('value', '!=', '')
+                    ->where(function ($typeQ) {
+                        $typeQ->whereNull('title_type_id')
+                            ->orWhereHas('titleType', function ($ttQ) {
+                                $ttQ->where('slug', 'MainTitle');
+                            });
+                    });
+            })
+            ->whereHas('descriptions', function ($dQ) {
+                $dQ->where('value', '!=', '')
+                    ->whereHas('descriptionType', function ($dtQ) {
+                        $dtQ->where('slug', 'Abstract');
+                    });
+            });
     }
 }
