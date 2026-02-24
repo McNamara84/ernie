@@ -100,9 +100,10 @@ describe('Landing Page Template Registry', () => {
         it('should include both templates when resourceType is PhysicalObject', () => {
             const options = getTemplateOptions('PhysicalObject');
 
-            expect(options.length).toBe(2);
+            expect(options.length).toBe(3);
             expect(options.map((o) => o.value)).toContain('default_gfz');
             expect(options.map((o) => o.value)).toContain('default_gfz_igsn');
+            expect(options.map((o) => o.value)).toContain('external');
         });
 
         it('should exclude IGSN template for Dataset resourceType', () => {
@@ -110,6 +111,8 @@ describe('Landing Page Template Registry', () => {
             const igsnOption = options.find((opt) => opt.value === 'default_gfz_igsn');
 
             expect(igsnOption).toBeUndefined();
+            // External should still be available
+            expect(options.map((o) => o.value)).toContain('external');
         });
     });
 
