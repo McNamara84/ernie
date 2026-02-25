@@ -88,6 +88,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         // Find headers by their text content (handles different accessible name interpretations)
@@ -128,6 +129,7 @@ describe('EditorSettings page', () => {
                 maxTitles={5}
                 maxLicenses={10}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
 
@@ -158,6 +160,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -180,6 +183,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
@@ -202,6 +206,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
@@ -222,6 +227,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         // Verify Limits card exists with heading
@@ -246,6 +252,7 @@ describe('License settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -270,6 +277,7 @@ describe('Language settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -294,6 +302,7 @@ describe('Date Type settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -316,6 +325,7 @@ describe('Date Type settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                landingPageDomains={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));

@@ -542,6 +542,7 @@ describe('SetupLandingPageModal', () => {
             expect(mockOpen).toHaveBeenCalledWith(
                 expect.stringContaining('10.5880/GFZ.TEST.2025.001/test-resource-title'),
                 '_blank',
+                'noopener,noreferrer',
             );
 
             vi.unstubAllGlobals();

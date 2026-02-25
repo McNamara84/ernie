@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\LandingPageController;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\Resource;
 use App\Models\User;
 
@@ -271,5 +272,143 @@ describe('Landing Page Retrieval', function () {
         $response = $this->getJson("/resources/{$this->resource->id}/landing-page");
 
         $response->assertStatus(404);
+    });
+});
+
+describe('External Landing Page Creation', function () {
+    test('can create external landing page as draft', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'doi/network/GE1',
+            'status' => 'draft',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.external_domain_id', $domain->id)
+            ->assertJsonPath('landing_page.external_path', 'doi/network/GE1')
+            ->assertJsonPath('landing_page.external_url', 'https://geofon.gfz.de/doi/network/GE1');
+
+        $landingPage = $this->resource->fresh()->landingPage;
+        expect($landingPage)
+            ->template->toBe('external')
+            ->ftp_url->toBeNull();
+    });
+
+    test('can create external landing page as published', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/42',
+            'status' => 'published',
+        ]);
+
+        $response->assertStatus(201);
+
+        $landingPage = $this->resource->fresh()->landingPage;
+        expect($landingPage)
+            ->is_published->toBeTrue()
+            ->external_url->toBe('https://data.gfz.de/dataset/42');
+    });
+
+    test('external landing page requires domain_id', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_path' => 'some/path',
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['external_domain_id']);
+    });
+
+    test('external landing page requires path', function () {
+        $domain = LandingPageDomain::factory()->create();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['external_path']);
+    });
+
+    test('external landing page rejects invalid domain_id', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => 99999,
+            'external_path' => 'some/path',
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['external_domain_id']);
+    });
+
+    test('ftp_url is cleared for external landing pages', function () {
+        $domain = LandingPageDomain::factory()->create();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'some/path',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+        ]);
+
+        $response->assertStatus(201);
+        expect($this->resource->fresh()->landingPage->ftp_url)->toBeNull();
+    });
+});
+
+describe('External Landing Page Update', function () {
+    test('can update landing page to external template', function () {
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+        ]);
+
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'status' => 'draft',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.external_url', 'https://data.gfz.de/dataset/123');
+    });
+
+    test('switching from external clears external fields', function () {
+        $domain = LandingPageDomain::factory()->create();
+        $landingPage = LandingPage::factory()->draft()->external()->create([
+            'resource_id' => $this->resource->id,
+            'external_domain_id' => $domain->id,
+            'external_path' => 'old/path',
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+        ]);
+
+        $response->assertOk();
+
+        $updated = $this->resource->fresh()->landingPage;
+        expect($updated)
+            ->template->toBe('default_gfz')
+            ->external_domain_id->toBeNull()
+            ->external_path->toBeNull();
     });
 });

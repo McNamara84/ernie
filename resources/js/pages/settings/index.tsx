@@ -1,4 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
+import axios, { isAxiosError } from 'axios';
+import { Globe, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
@@ -53,6 +57,11 @@ interface DateTypeRow {
     elmo_active: boolean;
 }
 
+interface LandingPageDomainRow {
+    id: number;
+    domain: string;
+}
+
 interface EditorSettingsProps {
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
@@ -62,6 +71,7 @@ interface EditorSettingsProps {
     maxTitles: number;
     maxLicenses: number;
     thesauri: ThesaurusData[];
+    landingPageDomains: LandingPageDomainRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
@@ -75,7 +85,53 @@ export default function EditorSettings({
     maxTitles,
     maxLicenses,
     thesauri,
+    landingPageDomains,
 }: EditorSettingsProps) {
+    // Landing page domains - managed separately via API (not part of main form)
+    const [domains, setDomains] = useState<LandingPageDomainRow[]>(landingPageDomains);
+    const [newDomain, setNewDomain] = useState('');
+    const [isAddingDomain, setIsAddingDomain] = useState(false);
+
+    const handleAddDomain = async () => {
+        if (!newDomain.trim()) return;
+
+        setIsAddingDomain(true);
+        try {
+            const response = await axios.post<{ domain: LandingPageDomainRow; message: string }>('/api/landing-page-domains', {
+                domain: newDomain.trim(),
+            });
+            setDomains((prev) => [...prev, response.data.domain].sort((a, b) => a.domain.localeCompare(b.domain)));
+            setNewDomain('');
+            toast.success(response.data.message);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.data?.errors?.domain) {
+                toast.error(error.response.data.errors.domain[0]);
+            } else if (isAxiosError(error) && error.response?.data?.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Failed to add domain');
+            }
+        } finally {
+            setIsAddingDomain(false);
+        }
+    };
+
+    const handleDeleteDomain = async (domainId: number) => {
+        if (!confirm('Are you sure you want to delete this domain? It cannot be deleted if it is used by any landing page.')) return;
+
+        try {
+            const response = await axios.delete<{ message: string }>(`/api/landing-page-domains/${domainId}`);
+            setDomains((prev) => prev.filter((d) => d.id !== domainId));
+            toast.success(response.data.message);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.data?.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Failed to delete domain');
+            }
+        }
+    };
+
     const { data, setData, post, processing } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
@@ -314,6 +370,78 @@ export default function EditorSettings({
                                             ))}
                                         </TableBody>
                                     </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Landing Page Domains */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Globe className="size-5" />
+                                    Landing Page Domains
+                                </CardTitle>
+                                <CardDescription>
+                                    Manage domains available for external landing pages. These domains can be selected when setting up an external
+                                    landing page for a resource.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {/* Add new domain */}
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="https://example.org/"
+                                            value={newDomain}
+                                            onChange={(e) => setNewDomain(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddDomain();
+                                                }
+                                            }}
+                                        />
+                                        <Button type="button" onClick={handleAddDomain} disabled={isAddingDomain || !newDomain.trim()}>
+                                            {isAddingDomain ? 'Adding...' : 'Add'}
+                                        </Button>
+                                    </div>
+
+                                    {/* Domain list */}
+                                    {domains.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Domain</TableHead>
+                                                        <TableHead className="w-16 text-center">Actions</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {domains.map((domain) => (
+                                                        <TableRow key={domain.id}>
+                                                            <TableCell className="font-mono text-sm">{domain.domain}</TableCell>
+                                                            <TableCell className="text-center">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDeleteDomain(domain.id)}
+                                                                    title="Delete domain"
+                                                                    aria-label="Delete domain"
+                                                                >
+                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            No domains configured yet. Add a domain URL above to get started.
+                                        </p>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

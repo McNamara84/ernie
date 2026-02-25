@@ -865,6 +865,39 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 must always resolve.
                             </p>
                         </div>
+
+                        <h3>External Landing Pages</h3>
+                        <p>
+                            Instead of hosting a generated landing page, you can redirect the DOI to an external URL. This is useful when the dataset
+                            already has a landing page on another platform.
+                        </p>
+
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Select External Template">
+                                <p>
+                                    In the landing page setup modal, choose <strong>"External Landing Page"</strong> from the template dropdown.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Choose Domain & Path">
+                                <p>
+                                    Select a preconfigured domain and enter the path to the external landing page. A preview of the resulting URL is
+                                    shown below the inputs.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Publish">
+                                <p>
+                                    Follow the same publish workflow as for regular landing pages. The DOI will resolve via a 301 redirect to the
+                                    external URL.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Note:</strong> Available domains are managed by administrators in Editor Settings. If you need a domain that
+                                is not listed, contact your administrator.
+                            </p>
+                        </div>
                     </>
                 ),
             },

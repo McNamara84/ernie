@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\Resource;
 use Illuminate\Support\Facades\Cache;
 
@@ -305,5 +306,149 @@ describe('Resource Data Loading', function () {
             ->has('resource.funding_references')
             ->has('resource.related_identifiers')
         );
+    });
+});
+
+describe('External Landing Page Redirect', function () {
+    test('published external landing page returns 301 redirect', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-redirect-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'doi/network/GE1',
+            ]);
+
+        // Use getPublicPath() since public_url returns the external URL for external pages
+        $response = $this->get($landingPage->getPublicPath());
+
+        $response->assertRedirect('https://geofon.gfz.de/doi/network/GE1');
+        $response->assertStatus(301);
+    });
+
+    test('external redirect increments view count for published pages', function () {
+        $domain = LandingPageDomain::factory()->create();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-views-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'test/path',
+                'view_count' => 0,
+            ]);
+
+        $this->get($landingPage->getPublicPath());
+
+        expect($landingPage->fresh()->view_count)->toBe(1);
+    });
+
+    test('external draft is not accessible without preview token', function () {
+        $domain = LandingPageDomain::factory()->create();
+
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-draft-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'test/path',
+            ]);
+
+        $response = $this->get($landingPage->getPublicPath());
+
+        $response->assertStatus(404);
+    });
+
+    test('external draft redirects with valid preview token', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-preview-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'dataset/preview',
+            ]);
+
+        $response = $this->get($landingPage->getPublicPath().'?preview='.$landingPage->preview_token);
+
+        $response->assertRedirect('https://data.gfz.de/dataset/preview');
+        // Draft previews use temporary redirect (302) to avoid browser caching
+        $response->assertStatus(302);
+    });
+
+    test('published external page with preview token uses temporary redirect', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-published-preview-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'dataset/published',
+            ]);
+
+        // Even for published pages, preview token access should use 302
+        $response = $this->get($landingPage->getPublicPath().'?preview='.$landingPage->preview_token);
+
+        $response->assertRedirect('https://data.gfz.de/dataset/published');
+        $response->assertStatus(302);
+    });
+
+    test('external draft does not increment view count with preview token', function () {
+        $domain = LandingPageDomain::factory()->create();
+
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-no-views-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'test/path',
+                'view_count' => 0,
+            ]);
+
+        $this->get($landingPage->getPublicPath().'?preview='.$landingPage->preview_token);
+
+        expect($landingPage->fresh()->view_count)->toBe(0);
+    });
+
+    test('external landing page strips leading slash from path', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://example.org/')->create();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->external()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'external-slash-test',
+                'external_domain_id' => $domain->id,
+                'external_path' => '/leading/slash/path',
+            ]);
+
+        $response = $this->get($landingPage->getPublicPath());
+
+        // Should strip the leading slash to avoid double-slash
+        $response->assertRedirect('https://example.org/leading/slash/path');
     });
 });

@@ -42,6 +42,14 @@ class LandingPagePreviewController extends Controller
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
         ]);
 
+        // External templates don't have a renderable preview — the frontend opens the external URL directly
+        if ($validated['template'] === 'external') {
+            return response()->json([
+                'message' => 'External landing pages do not support session-based previews.',
+                'error' => 'external_not_previewable',
+            ], 422);
+        }
+
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true)) {
             $resource->loadMissing('resourceType');

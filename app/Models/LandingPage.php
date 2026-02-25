@@ -19,6 +19,8 @@ use Illuminate\Support\Str;
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
  * @property string|null $ftp_url Direct download URL for the dataset files
+ * @property int|null $external_domain_id FK to landing_page_domains (only for external landing pages)
+ * @property string|null $external_path URL path appended to domain (only for external landing pages)
  * @property bool $is_published
  * @property string|null $preview_token
  * @property \Illuminate\Support\Carbon|null $published_at
@@ -29,8 +31,10 @@ use Illuminate\Support\Str;
  * @property-read Resource $resource
  * @property-read string $public_url Full public URL for the landing page
  * @property-read string|null $preview_url Full preview URL with token
- * @property-read string $contact_url Internal contact form URL (computed from public_url)
+ * @property-read string $contact_url Internal contact form URL (computed from internal path)
  * @property-read string $status 'published' or 'draft'
+ * @property-read string|null $external_url Composed external URL (domain + path), null for internal pages
+ * @property-read LandingPageDomain|null $externalDomain The domain used for external landing pages
  *
  * ## Slug Immutability
  *
@@ -92,6 +96,8 @@ class LandingPage extends Model
         'slug',
         'template',
         'ftp_url',
+        'external_domain_id',
+        'external_path',
         'is_published',
         'preview_token',
         'published_at',
@@ -121,6 +127,7 @@ class LandingPage extends Model
         'preview_url',
         'contact_url',
         'status',
+        'external_url',
     ];
 
     /**
@@ -283,8 +290,39 @@ class LandingPage extends Model
     }
 
     /**
+     * Get the external domain for this landing page.
+     *
+     * Only set when template='external'. The domain provides the base URL
+     * (e.g., "https://geofon.gfz.de/") which is combined with external_path
+     * to form the full external landing page URL.
+     *
+     * @return BelongsTo<\App\Models\LandingPageDomain, static>
+     */
+    public function externalDomain(): BelongsTo
+    {
+        /** @var BelongsTo<\App\Models\LandingPageDomain, static> $relation */
+        $relation = $this->belongsTo(LandingPageDomain::class, 'external_domain_id');
+
+        return $relation;
+    }
+
+    /**
+     * Check if this landing page redirects to an external URL.
+     */
+    public function isExternal(): bool
+    {
+        return $this->template === 'external';
+    }
+
+    /**
      * Get the public landing page URL.
      *
+     * For external landing pages, this returns the composed external URL
+     * (domain + path) so that DataCite DOI registration receives the
+     * correct target URL. This is critical: when DataCite resolves a DOI,
+     * it must point to the external URL, not the internal redirect URL.
+     *
+     * For internal landing pages:
      * Format: /{DOI}/{SLUG} or /draft-{ID}/{SLUG}
      * Examples:
      * - /10.5880/igets.bu.l1.001/superconducting-gravimeter-data
@@ -292,6 +330,25 @@ class LandingPage extends Model
      */
     public function getPublicUrlAttribute(): string
     {
+        // External landing pages: return the composed external URL only when published.
+        // Draft external pages must use the internal path so that public routes like
+        // showLegacy() redirect to the internal URL where renderLandingPage() can
+        // enforce draft access checks (preview token validation).
+        if ($this->isExternal() && $this->isPublished()) {
+            $externalUrl = $this->getExternalUrlAttribute();
+            if ($externalUrl !== null) {
+                return $externalUrl;
+            }
+
+            // Log error: published external landing page has no valid external URL.
+            // This should not happen due to validation, but if it does,
+            // fall through to internal URL as a last resort.
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPage::getPublicUrlAttribute: External landing page has no external URL, falling back to internal URL',
+                ['landing_page_id' => $this->id, 'resource_id' => $this->resource_id]
+            );
+        }
+
         return url($this->getPublicPath());
     }
 
@@ -328,6 +385,37 @@ class LandingPage extends Model
         }
 
         return url($this->getPublicPath()."?preview={$this->preview_token}");
+    }
+
+    /**
+     * Get the composed external URL (domain + path).
+     *
+     * Returns null for internal (non-external) landing pages or if the
+     * domain relationship is not set.
+     *
+     * Examples:
+     * - https://geofon.gfz.de/doi/network/GE1
+     * - https://data.gfz.de/some/path
+     */
+    public function getExternalUrlAttribute(): ?string
+    {
+        if (! $this->isExternal() || $this->external_domain_id === null || $this->external_path === null) {
+            return null;
+        }
+
+        $domain = $this->externalDomain;
+
+        if ($domain === null) {
+            return null;
+        }
+
+        // Domain already includes trailing slash, path should not have leading slash
+        $path = ltrim($this->external_path, '/');
+
+        $baseUrl = rtrim($domain->domain, '/') . '/';
+
+        // If path is empty, return just the domain with trailing slash
+        return $path !== '' ? $baseUrl . $path : $baseUrl;
     }
 
     /**

@@ -32,7 +32,7 @@ class LandingPageController extends Controller
      *
      * @var list<string>
      */
-    public const ALLOWED_TEMPLATES = ['default_gfz', 'default_gfz_igsn'];
+    public const ALLOWED_TEMPLATES = ['default_gfz', 'default_gfz_igsn', 'external'];
 
     /**
      * Templates restricted to PhysicalObject resources (IGSNs).
@@ -100,6 +100,8 @@ class LandingPageController extends Controller
         $validated = $request->validate([
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
+            'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
@@ -167,12 +169,21 @@ class LandingPageController extends Controller
                 // Note: slug and doi_prefix are set automatically in the model's boot() method.
                 // The model will load titles.titleType if needed for slug generation.
                 // We don't set them here to avoid redundancy and ensure single source of truth.
-                return $resource->landingPage()->create([
+                $createData = [
                     'template' => $validated['template'],
                     'ftp_url' => $validated['ftp_url'] ?? null,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
-                ]);
+                ];
+
+                // Add external landing page fields when template is 'external'
+                if ($validated['template'] === 'external') {
+                    $createData['external_domain_id'] = $validated['external_domain_id'];
+                    $createData['external_path'] = $validated['external_path'];
+                    $createData['ftp_url'] = null; // FTP URL not relevant for external pages
+                }
+
+                return $resource->landingPage()->create($createData);
             });
         } catch (ResourceAlreadyExistsException) {
             // Handle "already exists" condition from inside the transaction.
@@ -256,6 +267,7 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
+        $landingPage->load('externalDomain');
 
         // Determine status string for API response
         $status = $landingPage->is_published ? 'published' : 'draft';
@@ -269,6 +281,10 @@ class LandingPageController extends Controller
                 'slug' => $landingPage->slug,
                 'template' => $landingPage->template,
                 'ftp_url' => $landingPage->ftp_url,
+                'external_domain_id' => $landingPage->external_domain_id,
+                'external_path' => $landingPage->external_path,
+                'external_url' => $landingPage->external_url,
+                'external_domain' => $landingPage->externalDomain,
                 'status' => $status,
                 'preview_token' => $landingPage->preview_token,
                 'preview_url' => $landingPage->preview_url,
@@ -295,6 +311,8 @@ class LandingPageController extends Controller
         $validated = $request->validate([
             'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
+            'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
@@ -341,6 +359,23 @@ class LandingPageController extends Controller
             $landingPage->ftp_url = $validated['ftp_url'];
         }
 
+        // Update external landing page fields
+        $effectiveTemplate = $validated['template'] ?? $landingPage->template;
+        if ($effectiveTemplate === 'external') {
+            if (array_key_exists('external_domain_id', $validated)) {
+                $landingPage->external_domain_id = $validated['external_domain_id'];
+            }
+            if (array_key_exists('external_path', $validated)) {
+                $landingPage->external_path = $validated['external_path'];
+            }
+            // Clear FTP URL for external pages (not relevant)
+            $landingPage->ftp_url = null;
+        } else {
+            // Clear external fields when switching away from external template
+            $landingPage->external_domain_id = null;
+            $landingPage->external_path = null;
+        }
+
         $landingPage->save();
 
         // Handle publication status change: allow publishing a draft
@@ -351,9 +386,12 @@ class LandingPageController extends Controller
         // Invalidate cache
         $this->invalidateCache($resource->id);
 
+        $freshLandingPage = $landingPage->fresh();
+        $freshLandingPage?->load('externalDomain');
+
         return response()->json([
             'message' => 'Landing page updated successfully',
-            'landing_page' => $landingPage->fresh(),
+            'landing_page' => $freshLandingPage,
         ]);
     }
 
@@ -406,6 +444,8 @@ class LandingPageController extends Controller
                 'message' => 'Landing page not found',
             ], 404);
         }
+
+        $landingPage->load('externalDomain');
 
         return response()->json([
             'landing_page' => $landingPage,

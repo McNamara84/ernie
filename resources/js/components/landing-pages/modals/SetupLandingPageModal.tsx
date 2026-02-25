@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from 'axios';
-import { Copy, Eye, Globe } from 'lucide-react';
+import { Copy, ExternalLink, Eye, Globe } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig } from '@/types/landing-page';
+import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain } from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -35,6 +35,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [isSaving, setIsSaving] = useState(false);
     const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(existingConfig ?? null);
 
+    // External landing page state
+    const [externalDomainId, setExternalDomainId] = useState<string>(String(existingConfig?.external_domain_id ?? ''));
+    const [externalPath, setExternalPath] = useState<string>(existingConfig?.external_path ?? '');
+    const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
+
+    const isExternal = template === 'external';
+
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
@@ -45,10 +52,14 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setFtpUrl(existingConfig.ftp_url ?? '');
                 setIsPublished(existingConfig.status === 'published');
                 setPreviewUrl(existingConfig.preview_url ?? '');
+                setExternalDomainId(String(existingConfig.external_domain_id ?? ''));
+                setExternalPath(existingConfig.external_path ?? '');
             } else {
                 // Load from server
                 loadLandingPageConfig();
             }
+            // Load available domains for external landing pages
+            loadAvailableDomains();
         } else if (!isOpen) {
             // Reset state when modal closes
             setCurrentConfig(null);
@@ -56,9 +67,21 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setFtpUrl('');
             setIsPublished(false);
             setPreviewUrl('');
+            setExternalDomainId('');
+            setExternalPath('');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, resource.id]);
+
+    const loadAvailableDomains = async () => {
+        try {
+            const response = await axios.get<{ domains: LandingPageDomain[] }>('/api/landing-page-domains/list');
+            setAvailableDomains(response.data.domains);
+        } catch (error) {
+            console.error('Failed to load landing page domains:', error);
+            // Non-critical: domains will be empty, select will show placeholder
+        }
+    };
 
     const loadLandingPageConfig = async () => {
         setIsLoading(true);
@@ -70,6 +93,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setFtpUrl(config.ftp_url ?? '');
             setIsPublished(config.status === 'published');
             setPreviewUrl(config.preview_url);
+            setExternalDomainId(String(config.external_domain_id ?? ''));
+            setExternalPath(config.external_path ?? '');
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
@@ -78,6 +103,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setFtpUrl('');
                 setIsPublished(false);
                 setPreviewUrl('');
+                setExternalDomainId('');
+                setExternalPath('');
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
@@ -96,11 +123,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setIsSaving(true);
 
         try {
-            const payload = {
+            const payload: Record<string, unknown> = {
                 template,
-                ftp_url: ftpUrl || null,
+                ftp_url: isExternal ? null : ftpUrl || null,
                 status: isPublished ? 'published' : 'draft',
             };
+
+            // Add external fields when template is 'external'
+            if (isExternal) {
+                payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
+                payload.external_path = externalPath || null;
+            }
 
             const url = `/resources/${resource.id}/landing-page`;
 
@@ -124,8 +157,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             if (response.data.landing_page) {
                 const updatedConfig = response.data.landing_page;
                 setCurrentConfig(updatedConfig);
+                setTemplate(updatedConfig.template ?? getDefaultTemplate());
+                setFtpUrl(updatedConfig.ftp_url ?? '');
                 setPreviewUrl(updatedConfig.preview_url ?? '');
                 setIsPublished(updatedConfig.status === 'published');
+                setExternalDomainId(String(updatedConfig.external_domain_id ?? ''));
+                setExternalPath(updatedConfig.external_path ?? '');
             }
 
             // Clear session-based preview if it exists
@@ -196,10 +233,21 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
-        return (
-            template !== currentConfig.template || ftpUrl !== (currentConfig.ftp_url ?? '') || isPublished !== (currentConfig.status === 'published')
-        );
-    }, [currentConfig, template, ftpUrl, isPublished]);
+        const isExternalTemplate = template === 'external';
+        const baseChanges =
+            template !== currentConfig.template ||
+            // ftpUrl is irrelevant for external templates (backend forces it to null)
+            (!isExternalTemplate && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
+            isPublished !== (currentConfig.status === 'published');
+        if (isExternalTemplate) {
+            return (
+                baseChanges ||
+                externalDomainId !== String(currentConfig.external_domain_id ?? '') ||
+                externalPath !== (currentConfig.external_path ?? '')
+            );
+        }
+        return baseChanges;
+    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -222,7 +270,29 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
      * session-based preview to show the new configuration before saving.
      * Otherwise, we open the existing saved preview/public URL.
      */
+    /**
+     * Compute the external URL from the current domain selection and path.
+     */
+    const computedExternalUrl = useMemo(() => {
+        if (!isExternal || !externalDomainId) return null;
+        const domain = availableDomains.find((d) => d.id === Number(externalDomainId));
+        if (!domain) return null;
+        return domain.domain + (externalPath || '').replace(/^\/+/, '');
+    }, [isExternal, externalDomainId, externalPath, availableDomains]);
+
     const openPreview = async () => {
+        // For external landing pages, open the external URL directly
+        if (isExternal) {
+            if (computedExternalUrl) {
+                window.open(computedExternalUrl, '_blank', 'noopener,noreferrer');
+            } else if (currentConfig?.external_url) {
+                window.open(currentConfig.external_url, '_blank', 'noopener,noreferrer');
+            } else {
+                toast.error('Please select a domain and enter a path to preview the external URL.');
+            }
+            return;
+        }
+
         // If there are unsaved changes or no saved config, use session-based preview
         // This allows users to preview template changes before saving
         if (hasUnsavedChanges || !currentConfig) {
@@ -243,7 +313,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Open preview in new tab
                 const previewUrlFromServer = response.data?.preview_url;
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank');
+                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
             } catch (error) {
                 console.error('Failed to create preview:', error);
 
@@ -261,13 +331,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         // Always use preview URL for the Preview button, even if published,
         // to maintain consistency and distinguish from the Public URL copy action
         if (previewUrl) {
-            window.open(previewUrl, '_blank');
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
             return;
         }
 
         // Fallback to public URL if no preview URL is available
         if (currentConfig.status === 'published' && currentConfig.public_url) {
-            window.open(currentConfig.public_url, '_blank');
+            window.open(currentConfig.public_url, '_blank', 'noopener,noreferrer');
             return;
         }
 
@@ -312,18 +382,74 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             <p className="text-sm text-muted-foreground">Choose the design template for your landing page</p>
                         </div>
 
-                        {/* FTP URL */}
-                        <div className="space-y-2">
-                            <Label htmlFor="ftp-url">Download URL (FTP)</Label>
-                            <Input
-                                id="ftp-url"
-                                type="url"
-                                placeholder="https://datapub.gfz-potsdam.de/download/..."
-                                value={ftpUrl}
-                                onChange={(e) => setFtpUrl(e.target.value)}
-                            />
-                            <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
-                        </div>
+                        {/* External Landing Page Fields */}
+                        {isExternal && (
+                            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+                                <div className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+                                    <ExternalLink className="size-4" />
+                                    External URL Configuration
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="external-domain">Domain</Label>
+                                    <Select value={externalDomainId} onValueChange={setExternalDomainId}>
+                                        <SelectTrigger id="external-domain">
+                                            <SelectValue placeholder="Select a domain" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableDomains.map((domain) => (
+                                                <SelectItem key={domain.id} value={String(domain.id)}>
+                                                    {domain.domain}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {availableDomains.length === 0 && (
+                                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                                            No domains configured. An administrator can add domains in Editor Settings.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="external-path">Path</Label>
+                                    <Input
+                                        id="external-path"
+                                        type="text"
+                                        placeholder="/path/to/landing-page"
+                                        value={externalPath}
+                                        onChange={(e) => setExternalPath(e.target.value)}
+                                    />
+                                    <p className="text-sm text-muted-foreground">Path appended to the domain (e.g. /dataset/12345)</p>
+                                </div>
+
+                                {/* External URL Preview */}
+                                {externalDomainId && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Resulting URL</Label>
+                                        <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
+                                            {(availableDomains.find((d) => d.id === Number(externalDomainId))?.domain ?? '') +
+                                                (externalPath || '').replace(/^\/+/, '')}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* FTP URL (hidden for external landing pages) */}
+                        {!isExternal && (
+                            <div className="space-y-2">
+                                <Label htmlFor="ftp-url">Download URL (FTP)</Label>
+                                <Input
+                                    id="ftp-url"
+                                    type="url"
+                                    placeholder="https://datapub.gfz-potsdam.de/download/..."
+                                    value={ftpUrl}
+                                    onChange={(e) => setFtpUrl(e.target.value)}
+                                />
+                                <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
+                            </div>
+                        )}
 
                         {/* Unsaved Changes Warning */}
                         {hasUnsavedChanges && (

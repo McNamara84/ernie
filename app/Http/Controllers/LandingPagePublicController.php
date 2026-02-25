@@ -69,7 +69,7 @@ class LandingPagePublicController extends Controller
         LandingPageResourceTransformer $transformer,
         string $doiPrefix,
         string $slug
-    ): Response {
+    ): Response|RedirectResponse {
         // Validate slug format using shared helper method (defense in depth)
         $this->validateSlugFormat($slug, ['doi_prefix_length' => strlen($doiPrefix)]);
 
@@ -126,7 +126,7 @@ class LandingPagePublicController extends Controller
         LandingPageResourceTransformer $transformer,
         int $resourceId,
         string $slug
-    ): Response {
+    ): Response|RedirectResponse {
         // Validate slug format using shared helper method (defense in depth)
         $this->validateSlugFormat($slug, ['resource_id' => $resourceId]);
 
@@ -167,12 +167,18 @@ class LandingPagePublicController extends Controller
 
     /**
      * Common rendering logic for landing pages.
+     *
+     * For external landing pages (template='external'), this issues a 301
+     * permanent redirect to the composed external URL instead of rendering
+     * an Inertia template. The 301 is used because the DOI is registered
+     * with DataCite pointing to the external URL directly, so this redirect
+     * is only a safety net for users accessing the internal route.
      */
     private function renderLandingPage(
         LandingPage $landingPage,
         LandingPageResourceTransformer $transformer,
         ?string $previewToken
-    ): Response {
+    ): Response|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
         $previewToken = $this->normalizePreviewToken($previewToken);
 
@@ -184,6 +190,37 @@ class LandingPagePublicController extends Controller
             if ($previewToken !== $landingPage->preview_token) {
                 abort(HttpResponse::HTTP_FORBIDDEN, 'Invalid preview token');
             }
+        }
+
+        // External landing pages: 301 redirect to the configured external URL
+        if ($landingPage->isExternal()) {
+            // Eager-load externalDomain to avoid a lazy-load N+1 query
+            // when accessing the external_url attribute below.
+            $landingPage->loadMissing('externalDomain');
+
+            $externalUrl = $landingPage->external_url;
+
+            if ($externalUrl === null) {
+                \Illuminate\Support\Facades\Log::error(
+                    'LandingPagePublicController: External landing page has no external URL',
+                    ['landing_page_id' => $landingPage->id, 'resource_id' => $landingPage->resource_id]
+                );
+                abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'External landing page URL is not configured');
+            }
+
+            // Increment view count for published pages (before redirect)
+            if ($landingPage->isPublished() && $previewToken === null) {
+                $landingPage->incrementViewCount();
+            }
+
+            // Use 301 (permanent) for published pages accessed without a preview token,
+            // and 302 (temporary) for draft previews. Browsers/proxies cache 301 responses,
+            // which would cause issues when previewing drafts that may change or be removed.
+            $statusCode = ($landingPage->isPublished() && $previewToken === null)
+                ? HttpResponse::HTTP_MOVED_PERMANENTLY
+                : HttpResponse::HTTP_FOUND;
+
+            return redirect()->to($externalUrl, $statusCode);
         }
 
         // Increment view count only for published pages without preview token
