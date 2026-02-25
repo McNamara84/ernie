@@ -274,6 +274,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </li>
                         </ul>
 
+                        <h4>Bulk Selection</h4>
+                        <p>
+                            Each settings table provides a <strong>header checkbox</strong> in the &quot;ERNIE active&quot; and &quot;ELMO
+                            active&quot; columns. Use it to select or deselect all options in a column at once. When some options
+                            are selected and others are not, the header checkbox shows an indeterminate state (—).
+                        </p>
+
                         <h4>Thesaurus Management</h4>
                         <p>The Thesauri card allows you to:</p>
                         <ul className="list-inside list-disc space-y-1">
