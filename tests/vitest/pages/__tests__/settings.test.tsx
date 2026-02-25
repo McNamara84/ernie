@@ -49,9 +49,11 @@ vi.mock('@/components/ui/label', () => ({
 }));
 
 vi.mock('@/components/ui/checkbox', () => ({
-    Checkbox: ({ onCheckedChange, ...props }: { onCheckedChange?: (checked: boolean) => void } & React.ComponentProps<'input'>) => (
+    Checkbox: ({ onCheckedChange, checked, indeterminate, ...props }: { onCheckedChange?: (checked: boolean) => void; checked?: boolean; indeterminate?: boolean } & React.ComponentProps<'input'>) => (
         <input
             type="checkbox"
+            checked={checked ?? false}
+            data-indeterminate={indeterminate ? 'true' : undefined}
             {...props}
             onChange={(e) => onCheckedChange?.(e.target.checked)}
         />

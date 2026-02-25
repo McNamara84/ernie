@@ -127,7 +127,7 @@ describe('ThesaurusCard', () => {
             expect(screen.getAllByText('ELMO')).toHaveLength(3);
         });
 
-        it('should render 6 checkboxes (2 per thesaurus)', () => {
+        it('should render 8 checkboxes (2 select-all + 2 per thesaurus)', () => {
             render(
                 <ThesaurusCard
                     thesauri={mockThesauri}
@@ -136,7 +136,8 @@ describe('ThesaurusCard', () => {
                 />,
             );
 
-            expect(screen.getAllByRole('checkbox')).toHaveLength(6);
+            // 2 select-all checkboxes + 6 individual checkboxes
+            expect(screen.getAllByRole('checkbox')).toHaveLength(8);
         });
 
         it('should have correct test ids for each thesaurus row', () => {
@@ -165,9 +166,10 @@ describe('ThesaurusCard', () => {
                 />,
             );
 
-            // Find and click the first ERNIE checkbox (Science Keywords)
+            // Find and click the first individual ERNIE checkbox (Science Keywords)
+            // Index 0 = select-all ERNIE, 1 = select-all ELMO, 2 = first thesaurus ERNIE
             const ernieCheckboxes = screen.getAllByRole('checkbox');
-            await user.click(ernieCheckboxes[0]); // First checkbox is ERNIE for science_keywords
+            await user.click(ernieCheckboxes[2]); // Third checkbox is ERNIE for science_keywords
 
             expect(mockOnActiveChange).toHaveBeenCalledWith('science_keywords', false);
         });
@@ -182,9 +184,10 @@ describe('ThesaurusCard', () => {
                 />,
             );
 
-            // Find and click the second checkbox (ELMO for science_keywords)
+            // Find and click the ELMO checkbox for science_keywords
+            // Index 0 = select-all ERNIE, 1 = select-all ELMO, 2 = first ERNIE, 3 = first ELMO
             const checkboxes = screen.getAllByRole('checkbox');
-            await user.click(checkboxes[1]); // Second checkbox is ELMO for science_keywords
+            await user.click(checkboxes[3]); // Fourth checkbox is ELMO for science_keywords
 
             expect(mockOnElmoActiveChange).toHaveBeenCalledWith('science_keywords', false);
         });
