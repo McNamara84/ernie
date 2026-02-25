@@ -64,6 +64,22 @@ describe('Session Preview Creation', function () {
 
         expect($this->resource->fresh()->landingPage)->toBeNull();
     });
+
+    test('external template returns 422 with external_not_previewable error', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
+            'template' => 'external',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'error' => 'external_not_previewable',
+                'message' => 'External landing pages do not support session-based previews.',
+            ]);
+
+        // Verify no session data was stored
+        $sessionKey = "landing_page_preview.{$this->resource->id}";
+        expect(Session::has($sessionKey))->toBeFalse();
+    });
 });
 
 describe('Session Preview Display', function () {
