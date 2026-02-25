@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-24",
+        "date": "2026-02-25",
         "features": [
+            {
+                "title": "Select or Deselect All in Editor Settings",
+                "description": "Added header checkboxes to all settings tables (Resource Types, Title Types, Licenses, Languages, Date Types, and Thesauri), allowing administrators and group leaders to quickly activate or deactivate all ERNIE/ELMO options in a column at once. The checkbox shows an indeterminate state when only some options are selected."
+            },
             {
                 "title": "External Landing Page URLs",
                 "description": "Landing pages can now redirect to external URLs instead of hosting a generated page. When setting up a landing page, curators can select the 'External Landing Page' template, choose a preconfigured domain, and specify a path. The DOI resolves via a 301 redirect to the external URL. Administrators can manage available domains in Editor Settings."
