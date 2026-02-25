@@ -200,3 +200,228 @@ test('thesaurus settings are auto-created when missing', function () {
         ->where('thesauri.2.type', ThesaurusSetting::TYPE_INSTRUMENTS)
     );
 });
+
+// Issue #365: Select / Deselect All in Editor Settings
+// These tests verify the backend correctly handles bulk-toggled payloads (all active / all inactive).
+
+test('admin can set all resource types to inactive at once', function () {
+    $user = User::factory()->admin()->create();
+    $rt1 = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $rt2 = ResourceType::create(['name' => 'Collection', 'slug' => 'Collection', 'is_active' => true, 'is_elmo_active' => true]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
+    $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => '5']);
+    Setting::create(['key' => 'max_licenses', 'value' => '5']);
+    $this->actingAs($user);
+
+    $this->post(route('settings.update'), [
+        'resourceTypes' => [
+            ['id' => $rt1->id, 'name' => 'Dataset', 'active' => false, 'elmo_active' => false],
+            ['id' => $rt2->id, 'name' => 'Collection', 'active' => false, 'elmo_active' => false],
+        ],
+        'titleTypes' => [
+            ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => true, 'elmo_active' => true],
+        ],
+        'licenses' => [
+            ['id' => $right->id, 'active' => true, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
+        ],
+        'languages' => [
+            ['id' => $language->id, 'active' => true, 'elmo_active' => true],
+        ],
+        'dateTypes' => [
+            ['id' => $dateType->id, 'active' => true],
+        ],
+        'maxTitles' => 5,
+        'maxLicenses' => 5,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('resource_types', ['id' => $rt1->id, 'is_active' => false, 'is_elmo_active' => false]);
+    $this->assertDatabaseHas('resource_types', ['id' => $rt2->id, 'is_active' => false, 'is_elmo_active' => false]);
+});
+
+test('admin can set all resource types to active at once', function () {
+    $user = User::factory()->admin()->create();
+    $rt1 = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => false, 'is_elmo_active' => false]);
+    $rt2 = ResourceType::create(['name' => 'Collection', 'slug' => 'Collection', 'is_active' => false, 'is_elmo_active' => false]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
+    $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => '5']);
+    Setting::create(['key' => 'max_licenses', 'value' => '5']);
+    $this->actingAs($user);
+
+    $this->post(route('settings.update'), [
+        'resourceTypes' => [
+            ['id' => $rt1->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
+            ['id' => $rt2->id, 'name' => 'Collection', 'active' => true, 'elmo_active' => true],
+        ],
+        'titleTypes' => [
+            ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => true, 'elmo_active' => true],
+        ],
+        'licenses' => [
+            ['id' => $right->id, 'active' => true, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
+        ],
+        'languages' => [
+            ['id' => $language->id, 'active' => true, 'elmo_active' => true],
+        ],
+        'dateTypes' => [
+            ['id' => $dateType->id, 'active' => true],
+        ],
+        'maxTitles' => 5,
+        'maxLicenses' => 5,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('resource_types', ['id' => $rt1->id, 'is_active' => true, 'is_elmo_active' => true]);
+    $this->assertDatabaseHas('resource_types', ['id' => $rt2->id, 'is_active' => true, 'is_elmo_active' => true]);
+});
+
+test('admin can set all licenses to inactive at once', function () {
+    $user = User::factory()->admin()->create();
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $lic1 = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
+    $lic2 = Right::create(['identifier' => 'CC0', 'name' => 'Public Domain', 'is_active' => true, 'is_elmo_active' => true]);
+    $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => '5']);
+    Setting::create(['key' => 'max_licenses', 'value' => '5']);
+    $this->actingAs($user);
+
+    $this->post(route('settings.update'), [
+        'resourceTypes' => [
+            ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
+        ],
+        'titleTypes' => [
+            ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => true, 'elmo_active' => true],
+        ],
+        'licenses' => [
+            ['id' => $lic1->id, 'active' => false, 'elmo_active' => false, 'excluded_resource_type_ids' => []],
+            ['id' => $lic2->id, 'active' => false, 'elmo_active' => false, 'excluded_resource_type_ids' => []],
+        ],
+        'languages' => [
+            ['id' => $language->id, 'active' => true, 'elmo_active' => true],
+        ],
+        'dateTypes' => [
+            ['id' => $dateType->id, 'active' => true],
+        ],
+        'maxTitles' => 5,
+        'maxLicenses' => 5,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('rights', ['id' => $lic1->id, 'is_active' => false, 'is_elmo_active' => false]);
+    $this->assertDatabaseHas('rights', ['id' => $lic2->id, 'is_active' => false, 'is_elmo_active' => false]);
+});
+
+test('admin can set all languages to inactive at once', function () {
+    $user = User::factory()->admin()->create();
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
+    $lang1 = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    $lang2 = Language::create(['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => '5']);
+    Setting::create(['key' => 'max_licenses', 'value' => '5']);
+    $this->actingAs($user);
+
+    $this->post(route('settings.update'), [
+        'resourceTypes' => [
+            ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
+        ],
+        'titleTypes' => [
+            ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => true, 'elmo_active' => true],
+        ],
+        'licenses' => [
+            ['id' => $right->id, 'active' => true, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
+        ],
+        'languages' => [
+            ['id' => $lang1->id, 'active' => false, 'elmo_active' => false],
+            ['id' => $lang2->id, 'active' => false, 'elmo_active' => false],
+        ],
+        'dateTypes' => [
+            ['id' => $dateType->id, 'active' => true],
+        ],
+        'maxTitles' => 5,
+        'maxLicenses' => 5,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('languages', ['id' => $lang1->id, 'active' => false, 'elmo_active' => false]);
+    $this->assertDatabaseHas('languages', ['id' => $lang2->id, 'active' => false, 'elmo_active' => false]);
+});
+
+test('admin can set all title types to inactive at once', function () {
+    $user = User::factory()->admin()->create();
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $tt1 = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $tt2 = TitleType::create(['name' => 'Alternative', 'slug' => 'Alternative', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
+    $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => '5']);
+    Setting::create(['key' => 'max_licenses', 'value' => '5']);
+    $this->actingAs($user);
+
+    $this->post(route('settings.update'), [
+        'resourceTypes' => [
+            ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
+        ],
+        'titleTypes' => [
+            ['id' => $tt1->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => false, 'elmo_active' => false],
+            ['id' => $tt2->id, 'name' => 'Alternative', 'slug' => 'Alternative', 'active' => false, 'elmo_active' => false],
+        ],
+        'licenses' => [
+            ['id' => $right->id, 'active' => true, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
+        ],
+        'languages' => [
+            ['id' => $language->id, 'active' => true, 'elmo_active' => true],
+        ],
+        'dateTypes' => [
+            ['id' => $dateType->id, 'active' => true],
+        ],
+        'maxTitles' => 5,
+        'maxLicenses' => 5,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('title_types', ['id' => $tt1->id, 'is_active' => false, 'is_elmo_active' => false]);
+    $this->assertDatabaseHas('title_types', ['id' => $tt2->id, 'is_active' => false, 'is_elmo_active' => false]);
+});
+
+test('admin can set all date types to inactive at once', function () {
+    $user = User::factory()->admin()->create();
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
+    $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
+    $dt1 = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    $dt2 = DateType::create(['name' => 'Accepted', 'slug' => 'Accepted', 'is_active' => true]);
+    Setting::create(['key' => 'max_titles', 'value' => '5']);
+    Setting::create(['key' => 'max_licenses', 'value' => '5']);
+    $this->actingAs($user);
+
+    $this->post(route('settings.update'), [
+        'resourceTypes' => [
+            ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
+        ],
+        'titleTypes' => [
+            ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'MainTitle', 'active' => true, 'elmo_active' => true],
+        ],
+        'licenses' => [
+            ['id' => $right->id, 'active' => true, 'elmo_active' => true, 'excluded_resource_type_ids' => []],
+        ],
+        'languages' => [
+            ['id' => $language->id, 'active' => true, 'elmo_active' => true],
+        ],
+        'dateTypes' => [
+            ['id' => $dt1->id, 'active' => false],
+            ['id' => $dt2->id, 'active' => false],
+        ],
+        'maxTitles' => 5,
+        'maxLicenses' => 5,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    $this->assertDatabaseHas('date_types', ['id' => $dt1->id, 'is_active' => false]);
+    $this->assertDatabaseHas('date_types', ['id' => $dt2->id, 'is_active' => false]);
+});
