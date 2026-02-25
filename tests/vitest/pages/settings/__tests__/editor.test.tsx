@@ -103,7 +103,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }]}
                 licenses={[]}
                 languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
-                dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true, elmo_active: false }]}
+                dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true }]}
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
@@ -125,7 +125,7 @@ describe('EditorSettings page', () => {
 
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(4);
-        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(4);
+        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
         expect(screen.getByLabelText('Slug')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
@@ -166,7 +166,6 @@ describe('EditorSettings page', () => {
                         slug: 'accepted',
                         description: 'Test description',
                         active: true,
-                        elmo_active: false,
                     },
                 ],
                 maxTitles: 10,
@@ -227,8 +226,8 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [
-                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true, elmo_active: true },
-                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false, elmo_active: false },
+                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true },
+                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false },
                 ],
                 maxTitles: 10,
                 maxLicenses: 5,
@@ -246,8 +245,8 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[
-                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true, elmo_active: true },
-                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false, elmo_active: false },
+                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true },
+                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false },
                 ]}
                 maxTitles={10}
                 maxLicenses={5}
@@ -553,7 +552,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 titleTypes: [{ id: 1, name: 'Main', slug: 'main', active: true, elmo_active: false }],
                 licenses: [{ id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] }],
                 languages: [{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }],
-                dateTypes: [{ id: 1, name: 'Created', slug: 'created', description: null, active: true, elmo_active: false }],
+                dateTypes: [{ id: 1, name: 'Created', slug: 'created', description: null, active: true }],
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
@@ -569,7 +568,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 titleTypes={[{ id: 1, name: 'Main', slug: 'main', active: true, elmo_active: false }]}
                 licenses={[{ id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] }]}
                 languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
-                dateTypes={[{ id: 1, name: 'Created', slug: 'created', description: null, active: true, elmo_active: false }]}
+                dateTypes={[{ id: 1, name: 'Created', slug: 'created', description: null, active: true }]}
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
@@ -577,7 +576,7 @@ describe('Select All / Deselect All header checkboxes', () => {
             />,
         );
 
-        // 5 cards × 2 columns = 10 select-all checkboxes
+        // 4 cards × 2 columns + 1 card (Date Types) × 1 column = 9 select-all checkboxes
         expect(screen.getByLabelText('Select all ERNIE active for Resource Types')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ELMO active for Resource Types')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ERNIE active for Title Types')).toBeInTheDocument();
@@ -587,7 +586,6 @@ describe('Select All / Deselect All header checkboxes', () => {
         expect(screen.getByLabelText('Select all ERNIE active for Languages')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ELMO active for Languages')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ERNIE active for Date Types')).toBeInTheDocument();
-        expect(screen.getByLabelText('Select all ELMO active for Date Types')).toBeInTheDocument();
     });
 
     it('selects all resource types ERNIE active when header checkbox is clicked', async () => {
@@ -910,8 +908,8 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [
-                    { id: 1, name: 'Created', slug: 'created', description: null, active: false, elmo_active: false },
-                    { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false, elmo_active: false },
+                    { id: 1, name: 'Created', slug: 'created', description: null, active: false },
+                    { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false },
                 ],
                 maxTitles: 10,
                 maxLicenses: 5,
@@ -929,8 +927,8 @@ describe('Select All / Deselect All header checkboxes', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[
-                    { id: 1, name: 'Created', slug: 'created', description: null, active: false, elmo_active: false },
-                    { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false, elmo_active: false },
+                    { id: 1, name: 'Created', slug: 'created', description: null, active: false },
+                    { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false },
                 ]}
                 maxTitles={10}
                 maxLicenses={5}
@@ -941,8 +939,8 @@ describe('Select All / Deselect All header checkboxes', () => {
 
         await userEvent.click(screen.getByLabelText('Select all ERNIE active for Date Types'));
         expect(setDataMock).toHaveBeenCalledWith('dateTypes', [
-            { id: 1, name: 'Created', slug: 'created', description: null, active: true, elmo_active: false },
-            { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: true, elmo_active: false },
+            { id: 1, name: 'Created', slug: 'created', description: null, active: true },
+            { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: true },
         ]);
     });
 });

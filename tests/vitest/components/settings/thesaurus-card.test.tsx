@@ -206,6 +206,114 @@ describe('ThesaurusCard', () => {
         });
     });
 
+    describe('Select All', () => {
+        it('should render select-all checkboxes with correct aria labels', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.getByLabelText('Select all ERNIE active for Thesauri')).toBeInTheDocument();
+            expect(screen.getByLabelText('Select all ELMO active for Thesauri')).toBeInTheDocument();
+        });
+
+        it('should call onActiveChange for all thesauri when select-all ERNIE is clicked', async () => {
+            const user = userEvent.setup();
+            // All inactive so clicking select-all should activate all
+            const allInactiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: false }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allInactiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ERNIE active for Thesauri'));
+
+            expect(mockOnActiveChange).toHaveBeenCalledTimes(3);
+            expect(mockOnActiveChange).toHaveBeenCalledWith('science_keywords', true);
+            expect(mockOnActiveChange).toHaveBeenCalledWith('platforms', true);
+            expect(mockOnActiveChange).toHaveBeenCalledWith('instruments', true);
+        });
+
+        it('should call onElmoActiveChange for all thesauri when select-all ELMO is clicked', async () => {
+            const user = userEvent.setup();
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ELMO active for Thesauri'));
+
+            // All thesauri have isElmoActive: false, so clicking should select all (true)
+            expect(mockOnElmoActiveChange).toHaveBeenCalledTimes(3);
+            expect(mockOnElmoActiveChange).toHaveBeenCalledWith('science_keywords', true);
+            expect(mockOnElmoActiveChange).toHaveBeenCalledWith('platforms', true);
+            expect(mockOnElmoActiveChange).toHaveBeenCalledWith('instruments', true);
+        });
+
+        it('should show indeterminate state when some thesauri are active', () => {
+            const mixedThesauri = [
+                { ...mockThesauri[0], isActive: true },
+                { ...mockThesauri[1], isActive: false },
+                { ...mockThesauri[2], isActive: true },
+            ];
+
+            render(
+                <ThesaurusCard
+                    thesauri={mixedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const selectAllErnie = screen.getByLabelText('Select all ERNIE active for Thesauri');
+            expect(selectAllErnie).toHaveAttribute('data-indeterminate', 'true');
+        });
+
+        it('should show checked state when all thesauri ERNIE are active', () => {
+            const allActiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: true }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allActiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const selectAllErnie = screen.getByLabelText('Select all ERNIE active for Thesauri');
+            expect(selectAllErnie).not.toHaveAttribute('data-indeterminate', 'true');
+        });
+
+        it('should show indeterminate for ELMO when some thesauri have ELMO active', () => {
+            const mixedElmoThesauri = [
+                { ...mockThesauri[0], isElmoActive: true },
+                { ...mockThesauri[1], isElmoActive: false },
+                { ...mockThesauri[2], isElmoActive: true },
+            ];
+
+            render(
+                <ThesaurusCard
+                    thesauri={mixedElmoThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const selectAllElmo = screen.getByLabelText('Select all ELMO active for Thesauri');
+            expect(selectAllElmo).toHaveAttribute('data-indeterminate', 'true');
+        });
+    });
+
     describe('Update check flow', () => {
         it('should show loading state when checking for updates', async () => {
             const user = userEvent.setup();

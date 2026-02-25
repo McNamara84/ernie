@@ -55,7 +55,6 @@ interface DateTypeRow {
     slug: string;
     description: string | null;
     active: boolean;
-    elmo_active: boolean;
 }
 
 interface LandingPageDomainRow {
@@ -168,7 +167,6 @@ export default function EditorSettings({
             slug: d.slug,
             description: d.description,
             active: d.active,
-            elmo_active: d.elmo_active,
         })),
         maxTitles,
         maxLicenses,
@@ -263,13 +261,6 @@ export default function EditorSettings({
         );
     };
 
-    const handleDateTypeElmoActiveChange = (index: number, value: boolean) => {
-        setData(
-            'dateTypes',
-            data.dateTypes.map((d, i) => (i === index ? { ...d, elmo_active: value } : d)),
-        );
-    };
-
     const handleThesaurusActiveChange = (type: string, isActive: boolean) => {
         setData(
             'thesauri',
@@ -294,7 +285,6 @@ export default function EditorSettings({
     const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
     const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
     const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
-    const dtElmoState = getSelectAllState(data.dateTypes.map((d) => d.elmo_active));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -799,24 +789,6 @@ export default function EditorSettings({
                                                         />
                                                     </div>
                                                 </TableHead>
-                                                <TableHead className="text-center">
-                                                    ELMO
-                                                    <br />
-                                                    active
-                                                    <div className="mt-1">
-                                                        <Checkbox
-                                                            checked={dtElmoState.allChecked}
-                                                            indeterminate={dtElmoState.indeterminate}
-                                                            onCheckedChange={(checked) => {
-                                                                setData(
-                                                                    'dateTypes',
-                                                                    data.dateTypes.map((d) => ({ ...d, elmo_active: checked === true })),
-                                                                );
-                                                            }}
-                                                            aria-label="Select all ELMO active for Date Types"
-                                                        />
-                                                    </div>
-                                                </TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -833,16 +805,6 @@ export default function EditorSettings({
                                                             id={`dt-active-${dateType.id}`}
                                                             checked={dateType.active}
                                                             onCheckedChange={(checked) => handleDateTypeActiveChange(index, checked === true)}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Label htmlFor={`dt-elmo-active-${dateType.id}`} className="sr-only">
-                                                            ELMO active
-                                                        </Label>
-                                                        <Checkbox
-                                                            id={`dt-elmo-active-${dateType.id}`}
-                                                            checked={dateType.elmo_active}
-                                                            onCheckedChange={(checked) => handleDateTypeElmoActiveChange(index, checked === true)}
                                                         />
                                                     </TableCell>
                                                 </TableRow>
