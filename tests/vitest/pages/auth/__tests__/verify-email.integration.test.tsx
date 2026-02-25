@@ -65,4 +65,3 @@ describe('VerifyEmail integration', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/email/verification-notification', expect.objectContaining({ method: 'POST' }));
   });
 });
-

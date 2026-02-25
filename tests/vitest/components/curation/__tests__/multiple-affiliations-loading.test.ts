@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 /**
  * Unit tests for multiple affiliations loading from old datasets.
  * These tests verify that the bug fix for loading multiple affiliations is working correctly.
- * 
+ *
  * Bug: When loading old datasets with multiple affiliations per author/contributor,
  * they were being displayed as a single affiliation tag instead of multiple separate tags.
- * 
+ *
  * Fix: Changed from .join(', ') to .join(',') in mapInitialAuthorToEntry and mapInitialContributorToEntry
  * functions in datacite-form.tsx
  */
@@ -37,7 +37,7 @@ describe('Multiple Affiliations Loading', () => {
         expect(result).toBe(
             'GFZ German Research Centre for Geosciences, Potsdam, Germany,Seismological Research Centre of the OGS',
         );
-        
+
         // Verify it does NOT have space after the joining comma
         expect(result).not.toContain('Germany, Seismological');
     });
@@ -97,7 +97,7 @@ describe('Multiple Affiliations Loading', () => {
 
         // Three affiliations joined with comma (no space)
         expect(result).toBe('University A,University B,University C');
-        
+
         // Verify exactly 2 commas
         const commaCount = (result.match(/,/g) || []).length;
         expect(commaCount).toBe(2);
@@ -128,7 +128,7 @@ describe('Multiple Affiliations Loading', () => {
         // Commas within affiliation names should be preserved
         expect(result).toContain('Geosciences, Potsdam, Germany');
         expect(result).toContain('Technology and Innovation, Berlin, Germany');
-        
+
         // But the joining comma should have no space
         expect(result).toContain('Germany,Institute of Science');
     });

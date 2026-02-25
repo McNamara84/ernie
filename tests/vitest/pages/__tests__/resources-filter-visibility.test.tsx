@@ -71,7 +71,7 @@ describe('ResourcesPage - Filter Visibility', () => {
 
         // Search input should be visible
         expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
-        
+
         // No results message should be shown
         expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
     });
@@ -104,7 +104,7 @@ describe('ResourcesPage - Filter Visibility', () => {
 
         // Search input should be visible
         expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
-        
+
         // Resource should be shown
         expect(screen.getByText('Test Resource')).toBeInTheDocument();
     });
@@ -120,7 +120,7 @@ describe('ResourcesPage - Filter Visibility', () => {
 
         // Message should guide users to adjust filters
         expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
-        
+
         // Filters should still be accessible to modify
         expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
     });

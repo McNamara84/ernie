@@ -213,7 +213,7 @@ describe('CoverageEntry', () => {
             // Preview should show coordinate and date emojis
             expect(screen.getByText(/📍/)).toBeInTheDocument();
             expect(screen.getByText(/🕐/)).toBeInTheDocument();
-            
+
             // Verify description is shown
             expect(screen.getByText('Test description')).toBeInTheDocument();
         });

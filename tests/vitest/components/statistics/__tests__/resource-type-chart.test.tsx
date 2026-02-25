@@ -73,7 +73,7 @@ describe('ResourceTypeChart', () => {
 
         // Should still render the container
         expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
-        
+
         // No table rows
         expect(screen.queryAllByRole('row')).toHaveLength(0);
     });

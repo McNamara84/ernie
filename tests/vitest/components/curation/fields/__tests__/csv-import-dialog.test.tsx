@@ -118,14 +118,14 @@ describe('CsvImportDialog', () => {
 
         it('downloads example CSV for authors when button is clicked', async () => {
             const user = userEvent.setup();
-            
+
             // Store original methods
             const originalAppendChild = document.body.appendChild.bind(document.body);
             const originalRemoveChild = document.body.removeChild.bind(document.body);
-            
+
             const mockClick = vi.fn();
             let createdLink: HTMLAnchorElement | null = null;
-            
+
             // Override methods
             document.body.appendChild = vi.fn((node: Node) => {
                 if (node instanceof HTMLAnchorElement) {
@@ -135,7 +135,7 @@ describe('CsvImportDialog', () => {
                 }
                 return originalAppendChild(node);
             }) as typeof document.body.appendChild;
-            
+
             document.body.removeChild = vi.fn((node: Node) => {
                 if (node === createdLink) {
                     return node;
@@ -559,10 +559,10 @@ describe('CsvImportDialog', () => {
         it('processes affiliations as comma-separated list', async () => {
             const user = userEvent.setup();
             const csvData = [
-                { 
-                    'First Name': 'Max', 
-                    'Last Name': 'Mustermann', 
-                    Affiliations: 'GFZ Potsdam, University of Berlin' 
+                {
+                    'First Name': 'Max',
+                    'Last Name': 'Mustermann',
+                    Affiliations: 'GFZ Potsdam, University of Berlin'
                 },
             ];
 
@@ -599,10 +599,10 @@ describe('CsvImportDialog', () => {
         it('processes isContact field correctly', async () => {
             const user = userEvent.setup();
             const csvData = [
-                { 
-                    'First Name': 'Max', 
-                    'Last Name': 'Mustermann', 
-                    'Contact Person': 'yes' 
+                {
+                    'First Name': 'Max',
+                    'Last Name': 'Mustermann',
+                    'Contact Person': 'yes'
                 },
             ];
 

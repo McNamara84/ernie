@@ -26,4 +26,3 @@ describe('LegalNotice integration', () => {
         expect(document.title).toBe('Legal Notice');
     });
 });
-

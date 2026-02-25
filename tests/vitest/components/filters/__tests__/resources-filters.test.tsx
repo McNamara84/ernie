@@ -111,7 +111,7 @@ describe('ResourcesFilters Component', () => {
 
         // Wait for debounce
         await new Promise(resolve => setTimeout(resolve, 1100));
-        
+
         // Last call should clear the search
         const calls = mockOnFilterChange.mock.calls;
         const lastCall = calls[calls.length - 1][0];
@@ -135,7 +135,7 @@ describe('ResourcesFilters Component', () => {
 
         // Simulate filter change (as would happen from parent component)
         rerender(<ResourcesFilters {...defaultProps} filters={{ search: 'test' }} isLoading={true} />);
-        
+
         // Simulate loading finished
         rerender(<ResourcesFilters {...defaultProps} filters={{ search: 'test' }} isLoading={false} />);
 
@@ -148,7 +148,7 @@ describe('ResourcesFilters Component', () => {
 
     it('displays result count correctly when filtered', () => {
         render(<ResourcesFilters {...defaultProps} resultCount={5} totalCount={100} />);
-        
+
         // The result count shows up when resultCount !== totalCount
         // Look for the span containing "Showing" as direct text
         const spans = screen.getAllByText(/Showing/);
@@ -158,27 +158,27 @@ describe('ResourcesFilters Component', () => {
 
     it('shows clear all button when filters are active', () => {
         render(<ResourcesFilters {...defaultProps} filters={{ search: 'test', status: ['published'] }} />);
-        
+
         expect(screen.getByText(/clear all/i)).toBeInTheDocument();
     });
 
     it('allows removing individual filter badges', async () => {
         const user = userEvent.setup();
         render(<ResourcesFilters {...defaultProps} filters={{ search: 'test', status: ['published'] }} />);
-        
+
         // Find the X button on the search filter badge
         const badges = screen.getAllByRole('button', { name: /remove/i });
         expect(badges.length).toBeGreaterThan(0);
-        
+
         // Click to remove
         await user.click(badges[0]);
-        
+
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
 
     it('disables filters when loading', () => {
         render(<ResourcesFilters {...defaultProps} isLoading={true} />);
-        
+
         const searchInput = screen.getByPlaceholderText(/search title or doi/i);
         expect(searchInput).toBeDisabled();
     });

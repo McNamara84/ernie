@@ -116,13 +116,13 @@ describe('DataCiteForm', () => {
         }: { lastName?: string; role?: string } = {},
     ) => {
         await ensureContributorsOpen(user);
-        
+
         // Check if we need to add the first contributor
         const addFirstContributorButton = screen.queryByRole('button', { name: /Add [Ff]irst [Cc]ontributor/i });
         if (addFirstContributorButton) {
             await user.click(addFirstContributorButton);
         }
-        
+
         const roleInput = await screen.findByTestId('contributor-0-roles-input') as TagifyEnabledInput;
 
         await waitFor(() => {
@@ -150,13 +150,13 @@ describe('DataCiteForm', () => {
         lastName = 'Curator',
     ) => {
         await ensureAuthorsOpen(user);
-        
+
         // Check if we need to add the first author
         const addFirstAuthorButton = screen.queryByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
         if (addFirstAuthorButton) {
             await user.click(addFirstAuthorButton);
         }
-        
+
         // Wait for the author section to be visible
         const lastNameInput = await screen.findByRole('textbox', { name: /^Last name/ }) as HTMLInputElement;
         if (lastNameInput.value) {
@@ -200,11 +200,11 @@ describe('DataCiteForm', () => {
             isLoading: false,
             error: null,
         });
-        
+
         // Mock axios.post for form submission - return axios response format
         // Note: Vocabularies are loaded via fetch, not axios
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn>; isAxiosError: (error: unknown) => boolean };
-        
+
         // Axios response: { data, status, statusText, headers, config, request }
         mockedAxios.post = vi.fn().mockResolvedValue({
             data: { message: 'Success' },
@@ -213,15 +213,15 @@ describe('DataCiteForm', () => {
             headers: {},
             config: {},
         });
-        
+
         // Mock axios.isAxiosError helper - check for truthy isAxiosError flag
         mockedAxios.isAxiosError = (error: unknown) => {
             return error !== null && typeof error === 'object' && 'isAxiosError' in error && !!(error as { isAxiosError?: boolean }).isAxiosError;
         };
-        
+
         // Keep global.fetch mock for backward compatibility with other parts
         global.fetch = vi.fn();
-        
+
         // Mock the controlled vocabulary fetches that DataCiteForm makes on mount
         // (GCMD Science Keywords, Platforms, Instruments, and ROR Funders)
         const emptyVocabularyResponse = {
@@ -229,13 +229,13 @@ describe('DataCiteForm', () => {
             status: 200,
             json: () => Promise.resolve([]),
         } as Response;
-        
+
         (global.fetch as unknown as ReturnType<typeof vi.fn>)
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-instruments
             .mockResolvedValueOnce(emptyVocabularyResponse); // ror-funders
-        
+
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
     });
@@ -277,7 +277,7 @@ describe('DataCiteForm', () => {
         { id: 4, name: 'Rights Holder', slug: 'rights-holder' },
     ];
     const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
-    
+
     const dateTypes: DateType[] = [
         { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.' },
         { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
@@ -316,13 +316,13 @@ describe('DataCiteForm', () => {
         const authorsButtons = screen.getAllByRole('button', { name: /Authors/i });
         const authorsTrigger = authorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
-        
+
         const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
-        
+
         const contributorsButtons = screen.getAllByRole('button', { name: /Contributors/i });
         const contributorsTrigger = contributorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!contributorsTrigger) throw new Error('Contributors accordion trigger not found');
-        
+
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
@@ -397,13 +397,13 @@ describe('DataCiteForm', () => {
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
         await ensureAuthorsOpen(user);
-        
+
         // Add first author
         const addFirstAuthorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
         await user.click(addFirstAuthorButton);
-        
+
         await ensureContributorsOpen(user);
-        
+
         // Add first contributor
         const addFirstContributorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Cc]ontributor/i });
         await user.click(addFirstContributorButton);
@@ -465,7 +465,7 @@ describe('DataCiteForm', () => {
         );
 
         await ensureAuthorsOpen(user);
-        
+
         const message = await screen.findByTestId('author-roles-availability');
         expect(message).toHaveTextContent('The available author role is Author.');
         expect(message).toHaveAttribute('id', 'author-roles-description');
@@ -473,7 +473,7 @@ describe('DataCiteForm', () => {
         // Add first author to make the author-entries-group visible
         const addFirstAuthorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
         await user.click(addFirstAuthorButton);
-        
+
         const group = await screen.findByTestId('author-entries-group');
         expect(group).toHaveAttribute('role', 'list');
         expect(group).toHaveAttribute('aria-describedby', 'author-roles-description');
@@ -696,15 +696,15 @@ describe('DataCiteForm', () => {
         const addAuthorButtons = await screen.findAllByRole('button', { name: /Add.*author/i });
         await user.click(addAuthorButtons[0]);
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
-        
+
         // After adding a second author, only the second author should have the Add button visible on desktop
         const updatedAddButtons = await screen.findAllByRole('button', { name: /Add.*author/i });
         expect(updatedAddButtons.length).toBeGreaterThanOrEqual(1);
-        
+
         const removeAuthorButton = screen.getByRole('button', { name: 'Remove author 2' });
         await user.click(removeAuthorButton);
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
-        
+
         // After removing the second author, the Add button should be visible again
         expect((await screen.findAllByRole('button', { name: /Add.*author/i })).length).toBeGreaterThanOrEqual(1);
     });
@@ -836,7 +836,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
+
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -876,29 +876,29 @@ describe('DataCiteForm', () => {
 
             // Add more authors - button changes to "Add another author"
             const getAddButtons = async () => await screen.findAllByRole('button', { name: /Add.*author/i });
-            
+
             const authorGroup = screen.getByTestId('author-entries-group');
 
             const firstLastNameInput = within(authorGroup).getByRole('textbox', { name: /Last name/i });
             await user.clear(firstLastNameInput);
             await user.type(firstLastNameInput, 'First Author');
-            
+
             await user.click((await getAddButtons())[0]);
-            
+
             await waitFor(() => {
                 expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
             });
-            
+
             const secondLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1];
             await user.clear(secondLastNameInput);
             await user.type(secondLastNameInput, 'Second Author');
-            
+
             await user.click((await getAddButtons())[0]);
-            
+
             await waitFor(() => {
                 expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
             });
-            
+
             const thirdLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[2];
             await user.clear(thirdLastNameInput);
             await user.type(thirdLastNameInput, 'Third Author');
@@ -999,7 +999,7 @@ describe('DataCiteForm', () => {
         expect(within(authorGroup).getByRole('textbox', { name: /Last name/i })).toHaveValue(
             'Third Author',
         );
-        
+
         // Affiliations should be preserved
         const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
         const finalAffiliationValues = getTagifyInstance(finalAffiliationInput).value
@@ -1337,7 +1337,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
+
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1586,7 +1586,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
+
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1597,10 +1597,10 @@ describe('DataCiteForm', () => {
         const affiliationField = screen.getByTestId('author-0-affiliations-field');
         const tags = within(affiliationField).getAllByRole('generic', { hidden: true })
             .filter(el => el.classList.contains('tagify__tag'));
-        
+
         // Should have exactly 2 separate tags
         expect(tags.length).toBe(2);
-        
+
         // Verify the tag contents
         expect(tags[0]).toHaveTextContent('GFZ German Research Centre for Geosciences, Potsdam, Germany');
         expect(tags[1]).toHaveTextContent('Seismological Research Centre of the OGS');
@@ -1652,10 +1652,10 @@ describe('DataCiteForm', () => {
         const affiliationField = screen.getByTestId('contributor-0-affiliations-field');
         const tags = within(affiliationField).getAllByRole('generic', { hidden: true })
             .filter(el => el.classList.contains('tagify__tag'));
-        
+
         // Should have exactly 2 separate tags
         expect(tags.length).toBe(2);
-        
+
         // Verify the tag contents
         expect(tags[0]).toHaveTextContent('Luxembourg Institute of Science and Technology');
         expect(tags[1]).toHaveTextContent('Catchment and Eco-Hydrology Group');
@@ -2114,45 +2114,45 @@ describe('DataCiteForm', () => {
     /**
      * Helper function to get the save operation axios.post call from the mock.
      * The save operation is a POST request to /editor/resources using axios.
-     * 
+     *
      * Returns data in a format compatible with old fetch-based tests:
      * [url, { body: JSON.stringify(data), headers, method: 'POST', credentials: 'same-origin' }]
-     * 
+     *
      * @returns The save call in fetch-compatible format, or null if no save call was found
      * @throws Error if multiple save calls are found (unexpected test scenario)
      */
     const getSaveAxiosCall = () => {
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         const axiosPostMock = mockedAxios.post;
-        
+
         if (!axiosPostMock || !axiosPostMock.mock) {
             return null;
         }
-        
+
         // Find all POST calls to /editor/resources
         const saveCalls = axiosPostMock.mock.calls
             .map((call, index) => ({ call, index }))
             .filter(
                 ({ call }) => call[0] === '/editor/resources'
             );
-        
+
         // Validate: exactly zero or one save call expected in most tests
         if (saveCalls.length === 0) {
             return null;
         }
-        
+
         if (saveCalls.length > 1) {
             throw new Error(
                 `Expected at most one save call, but found ${saveCalls.length}. ` +
                 `This might indicate a test issue or unintended form submissions.`
             );
         }
-        
+
         // Return in fetch-compatible format: [url, options]
         // axios.post(url, data, config) -> [url, { body, headers, method, credentials }]
         const call = axiosPostMock.mock.calls[saveCalls[0].index];
         const [url, data, config] = call;
-        
+
         return [
             url,
             {
@@ -2214,14 +2214,14 @@ describe('DataCiteForm', () => {
         const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
-        
+
         // Note: In real usage, axios interceptors would add CSRF headers automatically.
         // In tests, we verify that axios.post is called with proper structure.
         expect(headers).toMatchObject({
             'Content-Type': 'application/json',
             Accept: 'application/json',
         });
-        
+
         const body = JSON.parse((fetchArgs as RequestInit).body as string);
         expect(body).toMatchObject({
             year: 2024,
@@ -2316,7 +2316,7 @@ describe('DataCiteForm', () => {
 
         const responseData = { message: 'Stored' };
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
-        mockedAxios.post.mockResolvedValue({ 
+        mockedAxios.post.mockResolvedValue({
             data: responseData,
             status: 200,
             statusText: 'OK',
@@ -2358,7 +2358,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
+
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2421,7 +2421,7 @@ describe('DataCiteForm', () => {
         };
 
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
-        mockedAxios.post.mockRejectedValue({ 
+        mockedAxios.post.mockRejectedValue({
             response: {
                 status: 422,
                 data: validationResponse,
@@ -2462,21 +2462,21 @@ describe('DataCiteForm', () => {
             expect.any(Object), // data payload
             expect.any(Object)  // config (headers, etc.)
         );
-        
+
         // Get the save operation axios call
         const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
         const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
-        
+
         // Note: In real usage, axios interceptors add CSRF headers.
         // In tests with mocked axios, we verify basic request structure.
         expect(headers).toMatchObject({
             'Content-Type': 'application/json',
             Accept: 'application/json',
         });
-        
+
         const body = JSON.parse((fetchArgs as RequestInit).body as string);
         expect(body).toMatchObject({
             licenses: ['MIT'],
@@ -2543,7 +2543,7 @@ describe('DataCiteForm', () => {
 
             // Use findAllByRole and filter to find the network error alert specifically
             const alerts = await screen.findAllByRole('alert');
-            const networkErrorAlert = alerts.find(alert => 
+            const networkErrorAlert = alerts.find(alert =>
                 alert.textContent?.includes('A network error prevented saving the resource')
             );
             expect(networkErrorAlert).toBeDefined();
@@ -2883,17 +2883,17 @@ describe('DataCiteForm', () => {
             // Find all comboboxes - one is the date picker, one is the date type select
             const allComboboxes = screen.getAllByRole('combobox');
             // DatePicker comboboxes contain "Select date" text
-            const datePickerComboboxes = allComboboxes.filter(el => 
+            const datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
-            
+
             // Verify 'Created' and 'Updated' are not available in dropdown
-            const dateTypeTriggers = allComboboxes.filter(el => 
+            const dateTypeTriggers = allComboboxes.filter(el =>
                 el.getAttribute('id')?.includes('dateType')
             );
             await user.click(dateTypeTriggers[0]);
-            
+
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
             expect(createdOption).not.toBeInTheDocument();
@@ -2922,7 +2922,7 @@ describe('DataCiteForm', () => {
 
             // Should have 2 date picker comboboxes from initialDates
             let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(el => 
+            let datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes).toHaveLength(2);
@@ -2932,7 +2932,7 @@ describe('DataCiteForm', () => {
             await user.click(removeButton);
 
             allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(el => 
+            datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes).toHaveLength(1);
@@ -2958,7 +2958,7 @@ describe('DataCiteForm', () => {
             const addButton = screen.getByRole('button', { name: 'Add date' });
             await user.click(addButton);
 
-            const dateTypeTriggers = screen.getAllByRole('combobox').filter(el => 
+            const dateTypeTriggers = screen.getAllByRole('combobox').filter(el =>
                 el.getAttribute('id')?.includes('dateType')
             );
             await user.click(dateTypeTriggers[1]);
@@ -2966,7 +2966,7 @@ describe('DataCiteForm', () => {
             // 'Accepted' should not be available since it's already used
             const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
             expect(acceptedOption).not.toBeInTheDocument();
-            
+
             // 'Created' and 'Updated' should also not be available (auto-managed)
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
@@ -3013,7 +3013,7 @@ describe('DataCiteForm', () => {
             // "valid" date type should have both start and end date fields (date range)
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(el => 
+            const datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes).toHaveLength(2);
@@ -3038,7 +3038,7 @@ describe('DataCiteForm', () => {
 
             // Initially, "valid" type should have both date pickers with values displayed
             let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(el => 
+            let datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes).toHaveLength(2);
@@ -3046,7 +3046,7 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
 
             // Open the date type selector and change to "accepted" (since Created is auto-managed)
-            const dateTypeTrigger = allComboboxes.find(el => 
+            const dateTypeTrigger = allComboboxes.find(el =>
                 el.getAttribute('id')?.includes('dateType')
             );
             expect(dateTypeTrigger).toBeDefined();
@@ -3058,7 +3058,7 @@ describe('DataCiteForm', () => {
 
             // After changing to "accepted", should only have 1 date picker
             allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(el => 
+            datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes).toHaveLength(1);
@@ -3089,7 +3089,7 @@ describe('DataCiteForm', () => {
             // Only 'accepted' should be shown, 'created' and 'updated' are auto-managed
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(el => 
+            const datePickerComboboxes = allComboboxes.filter(el =>
                 el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
             );
             expect(datePickerComboboxes).toHaveLength(1);
@@ -3105,7 +3105,7 @@ describe('DataCiteForm', () => {
 
         it('should show toast notification when MSL trigger keyword is added', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3126,7 +3126,7 @@ describe('DataCiteForm', () => {
 
             // Find the free keywords input
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3151,7 +3151,7 @@ describe('DataCiteForm', () => {
 
         it('should show toast notification when MSL keyword is added', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3171,7 +3171,7 @@ describe('DataCiteForm', () => {
             await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3191,7 +3191,7 @@ describe('DataCiteForm', () => {
 
         it('should NOT show toast notification when initial data contains MSL keywords', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3215,7 +3215,7 @@ describe('DataCiteForm', () => {
 
         it('should NOT show toast notification when MSL keyword from old dataset', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3264,7 +3264,7 @@ describe('DataCiteForm', () => {
             }
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3311,7 +3311,7 @@ describe('DataCiteForm', () => {
             await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3330,7 +3330,7 @@ describe('DataCiteForm', () => {
 
         it('should only notify once when multiple MSL keywords are added', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3350,7 +3350,7 @@ describe('DataCiteForm', () => {
             await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3397,7 +3397,7 @@ describe('DataCiteForm', () => {
             await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });

@@ -30,4 +30,3 @@ describe('LegalNotice', () => {
         expect(screen.getByText(/lars-christian klinnert/i)).toBeInTheDocument();
     });
 });
-

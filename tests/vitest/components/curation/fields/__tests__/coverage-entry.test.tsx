@@ -112,7 +112,7 @@ describe('CoverageEntry', () => {
         render(<CoverageEntry {...defaultProps} />);
 
         // Find the chevron button
-        const chevronButton = screen.getAllByRole('button').find(btn => 
+        const chevronButton = screen.getAllByRole('button').find(btn =>
             btn.querySelector('.lucide-chevron-up')
         );
         expect(chevronButton).toBeDefined();
@@ -149,7 +149,7 @@ describe('CoverageEntry', () => {
             ...defaultEntry,
             type: 'box',
         };
-        
+
         render(<CoverageEntry {...defaultProps} entry={entryWithBox} />);
 
         // Card is expanded by default, should show Box tab content
@@ -179,7 +179,7 @@ describe('CoverageEntry', () => {
         render(<CoverageEntry {...defaultProps} entry={entry} />);
 
         // First, collapse the card by clicking the chevron button
-        const chevronButton = screen.getAllByRole('button').find(btn => 
+        const chevronButton = screen.getAllByRole('button').find(btn =>
             btn.querySelector('.lucide-chevron-up')
         );
         expect(chevronButton).toBeDefined();
@@ -196,7 +196,7 @@ describe('CoverageEntry', () => {
         render(<CoverageEntry {...defaultProps} />);
 
         // Card is expanded by default, find the trash/remove button
-        const removeButton = screen.getAllByRole('button').find(btn => 
+        const removeButton = screen.getAllByRole('button').find(btn =>
             btn.querySelector('.lucide-trash2')
         );
 
@@ -218,7 +218,7 @@ describe('CoverageEntry', () => {
 
         // Check that onChange was called
         expect(mockOnChange).toHaveBeenCalled();
-        
+
         // Since typing creates multiple events, let's just check the description field was called
         const descriptionCalls = mockOnChange.mock.calls.filter(call => call[0] === 'description');
         expect(descriptionCalls.length).toBeGreaterThan(0);

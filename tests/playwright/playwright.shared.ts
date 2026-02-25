@@ -6,7 +6,7 @@
 
 /**
  * Test match patterns - organized by priority
- * 
+ *
  * Note: user-management.spec.ts is excluded because logout tests rely on
  * 'button:has-text("Logout")' which doesn't exist. The actual implementation
  * uses a dropdown menu (see resources/js/components/user-menu-content.tsx)

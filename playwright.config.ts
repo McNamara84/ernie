@@ -31,10 +31,10 @@ export default defineConfig({
   expect: {
     timeout: timeoutSettings.expectTimeout,
   },
-  
+
   /* Test match patterns - imported from shared config */
   testMatch: testMatchPatterns,
-  
+
   /* Ignore helper files and documentation */
   testIgnore: testIgnorePatterns,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -44,16 +44,16 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    
+
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Record video on failure */
     video: 'retain-on-failure',
-    
+
     /* Timeout for each action (click, fill, etc.) */
     actionTimeout: 15 * 1000, // 15s for actions in CI
-    
+
     /* Timeout for page navigation */
     navigationTimeout: 30 * 1000, // 30s for page loads in CI
   },

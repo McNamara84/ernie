@@ -98,7 +98,7 @@ describe('AbstractSection', () => {
     describe('rendering conditions', () => {
         it('renders when abstract description exists', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             expect(screen.getByTestId('abstract-section')).toBeInTheDocument();
             expect(screen.getByText('Abstract')).toBeInTheDocument();
         });
@@ -110,7 +110,7 @@ describe('AbstractSection', () => {
                     descriptions={[createDescription({ description_type: 'Methods' })]}
                 />
             );
-            
+
             expect(container).toBeEmptyDOMElement();
         });
 
@@ -118,7 +118,7 @@ describe('AbstractSection', () => {
             const { container } = render(
                 <AbstractSection {...defaultProps} descriptions={[]} />
             );
-            
+
             expect(container).toBeEmptyDOMElement();
         });
 
@@ -129,13 +129,13 @@ describe('AbstractSection', () => {
                     descriptions={[createDescription({ description_type: 'ABSTRACT' })]}
                 />
             );
-            
+
             expect(screen.getByTestId('abstract-section')).toBeInTheDocument();
         });
 
         it('displays the abstract text', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             expect(screen.getByTestId('abstract-text')).toHaveTextContent(
                 'This is a test abstract describing the dataset.'
             );
@@ -150,14 +150,14 @@ describe('AbstractSection', () => {
                     creators={[createCreator()]}
                 />
             );
-            
+
             expect(screen.getByTestId('creators-section')).toBeInTheDocument();
             expect(screen.getByText('Creators')).toBeInTheDocument();
         });
 
         it('does not render creators section when no creators', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             expect(screen.queryByTestId('creators-section')).not.toBeInTheDocument();
         });
 
@@ -168,7 +168,7 @@ describe('AbstractSection', () => {
                     creators={[createCreator()]}
                 />
             );
-            
+
             expect(screen.getByText('Doe, John')).toBeInTheDocument();
         });
 
@@ -185,7 +185,7 @@ describe('AbstractSection', () => {
                     })]}
                 />
             );
-            
+
             expect(screen.getByText('GFZ German Research Centre')).toBeInTheDocument();
         });
 
@@ -205,7 +205,7 @@ describe('AbstractSection', () => {
                     })]}
                 />
             );
-            
+
             const orcidLink = screen.getByRole('link', { name: /ORCID/i });
             expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1825-0097');
             expect(orcidLink).toHaveAttribute('target', '_blank');
@@ -220,7 +220,7 @@ describe('AbstractSection', () => {
                     })]}
                 />
             );
-            
+
             expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
         });
 
@@ -236,7 +236,7 @@ describe('AbstractSection', () => {
                     })]}
                 />
             );
-            
+
             const rorLink = screen.getByRole('link', { name: /ROR/i });
             expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
         });
@@ -251,7 +251,7 @@ describe('AbstractSection', () => {
                     ]}
                 />
             );
-            
+
             expect(screen.getByText('Doe, John')).toBeInTheDocument();
             expect(screen.getByText('Smith, Jane')).toBeInTheDocument();
         });
@@ -265,14 +265,14 @@ describe('AbstractSection', () => {
                     fundingReferences={[createFundingReference()]}
                 />
             );
-            
+
             expect(screen.getByTestId('funding-section')).toBeInTheDocument();
             expect(screen.getByText('Funders')).toBeInTheDocument();
         });
 
         it('does not render funding section when no funding references', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             expect(screen.queryByTestId('funding-section')).not.toBeInTheDocument();
         });
 
@@ -283,7 +283,7 @@ describe('AbstractSection', () => {
                     fundingReferences={[createFundingReference()]}
                 />
             );
-            
+
             expect(screen.getByText('DFG')).toBeInTheDocument();
         });
 
@@ -297,7 +297,7 @@ describe('AbstractSection', () => {
                     })]}
                 />
             );
-            
+
             const rorLink = screen.getByRole('link', { name: /ROR/i });
             expect(rorLink).toHaveAttribute('href', 'https://ror.org/018mejw64');
         });
@@ -312,7 +312,7 @@ describe('AbstractSection', () => {
                     })]}
                 />
             );
-            
+
             const crossrefLink = screen.getByRole('link', { name: /Crossref Funder ID/i });
             expect(crossrefLink).toHaveAttribute('href', 'https://doi.org/10.13039/501100001659');
         });
@@ -326,7 +326,7 @@ describe('AbstractSection', () => {
                     subjects={[createSubject()]}
                 />
             );
-            
+
             expect(screen.getByTestId('subjects-section')).toBeInTheDocument();
             expect(screen.getByText('Free Keywords')).toBeInTheDocument();
         });
@@ -338,7 +338,7 @@ describe('AbstractSection', () => {
                     subjects={[createSubject({ subject_scheme: 'Science Keywords' })]}
                 />
             );
-            
+
             expect(screen.queryByTestId('subjects-section')).not.toBeInTheDocument();
         });
 
@@ -352,7 +352,7 @@ describe('AbstractSection', () => {
                     ]}
                 />
             );
-            
+
             expect(screen.getByText('Geophysics')).toBeInTheDocument();
             expect(screen.getByText('Seismology')).toBeInTheDocument();
         });
@@ -366,7 +366,7 @@ describe('AbstractSection', () => {
                     subjects={[createSubject({ subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
                 />
             );
-            
+
             expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
             expect(screen.getByText('EARTH SCIENCE')).toBeInTheDocument();
         });
@@ -378,7 +378,7 @@ describe('AbstractSection', () => {
                     subjects={[createSubject({ subject: 'SATELLITES', subject_scheme: 'Platforms' })]}
                 />
             );
-            
+
             expect(screen.getByText('GCMD Platforms')).toBeInTheDocument();
             expect(screen.getByText('SATELLITES')).toBeInTheDocument();
         });
@@ -390,7 +390,7 @@ describe('AbstractSection', () => {
                     subjects={[createSubject({ subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' })]}
                 />
             );
-            
+
             expect(screen.getByText('GCMD Instruments')).toBeInTheDocument();
             expect(screen.getByText('GPS RECEIVERS')).toBeInTheDocument();
         });
@@ -402,7 +402,7 @@ describe('AbstractSection', () => {
                     subjects={[createSubject({ subject: 'Rock mechanics', subject_scheme: 'msl' })]}
                 />
             );
-            
+
             expect(screen.getByText('MSL Vocabularies')).toBeInTheDocument();
             expect(screen.getByText('Rock mechanics')).toBeInTheDocument();
         });
@@ -420,7 +420,7 @@ describe('AbstractSection', () => {
                     ]}
                 />
             );
-            
+
             expect(screen.getByText('Free Keywords')).toBeInTheDocument();
             expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
             expect(screen.getByText('GCMD Platforms')).toBeInTheDocument();
@@ -432,36 +432,36 @@ describe('AbstractSection', () => {
     describe('download metadata section', () => {
         it('renders download metadata section', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             expect(screen.getByText('Download Metadata')).toBeInTheDocument();
         });
 
         it('renders DataCite logo', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             expect(screen.getByAltText('DataCite')).toBeInTheDocument();
         });
 
         it('renders XML download link with correct href', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             const xmlLink = screen.getByRole('link', { name: /XML/i });
             expect(xmlLink).toHaveAttribute('href', '/resources/123/export-datacite-xml');
         });
 
         it('renders JSON download link with correct href', () => {
             render(<AbstractSection {...defaultProps} />);
-            
+
             const jsonLink = screen.getByRole('link', { name: /JSON/i });
             expect(jsonLink).toHaveAttribute('href', '/resources/123/export-datacite-json');
         });
 
         it('uses correct resourceId in download links', () => {
             render(<AbstractSection {...defaultProps} resourceId={456} />);
-            
+
             const xmlLink = screen.getByRole('link', { name: /XML/i });
             const jsonLink = screen.getByRole('link', { name: /JSON/i });
-            
+
             expect(xmlLink).toHaveAttribute('href', '/resources/456/export-datacite-xml');
             expect(jsonLink).toHaveAttribute('href', '/resources/456/export-datacite-json');
         });

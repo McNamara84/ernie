@@ -249,7 +249,7 @@ describe('PolygonForm', () => {
         expect(screen.getByText('1')).toBeInTheDocument();
         expect(screen.getByText('2')).toBeInTheDocument();
         expect(screen.getByText('3')).toBeInTheDocument();
-        
+
         // And the table should exist
         expect(screen.getByRole('table')).toBeInTheDocument();
     });
@@ -286,7 +286,7 @@ describe('PolygonForm', () => {
 
         // Check that onBatchChange was called multiple times (once per character typed)
         expect(mockOnBatchChange).toHaveBeenCalled();
-        
+
         // Check that at least one call contains a valid lat value change
         const calls = mockOnBatchChange.mock.calls;
         const hasLatitudeChange = calls.some(

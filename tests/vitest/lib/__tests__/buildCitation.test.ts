@@ -39,7 +39,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Institution',
                         name: 'GFZ German Research Centre for Geosciences',
@@ -68,7 +68,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'John',
@@ -76,7 +76,7 @@ describe('buildCitation', () => {
                     },
                 },
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Jane',
@@ -106,7 +106,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -156,7 +156,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         family_name: 'SingleName',
@@ -185,7 +185,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     given_name: 'Legacy',
                     family_name: 'User',
                 },
@@ -212,7 +212,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -242,7 +242,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -266,7 +266,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -291,7 +291,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -315,7 +315,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -340,7 +340,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -365,7 +365,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     institution_name: 'Legacy Institution',
                 },
             ],
@@ -386,7 +386,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     family_name: 'OnlyFamily',
                 },
             ],
@@ -407,11 +407,11 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     // No valid name data - should be filtered out
                 },
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Valid',
@@ -451,7 +451,7 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
+
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',

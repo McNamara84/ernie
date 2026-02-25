@@ -42,4 +42,3 @@ describe('Breadcrumb', () => {
         expect(screen.getByText('More')).toBeInTheDocument();
     });
 });
-

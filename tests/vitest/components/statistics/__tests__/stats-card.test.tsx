@@ -38,7 +38,7 @@ describe('StatsCard', () => {
 
     it('renders icon when provided', () => {
         const TestIcon = () => <svg data-testid="test-icon" />;
-        
+
         render(
             <StatsCard
                 title="Active Users"

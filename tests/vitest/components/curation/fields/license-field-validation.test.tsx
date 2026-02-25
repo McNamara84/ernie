@@ -25,20 +25,20 @@ describe('LicenseField Validation Integration', () => {
     describe('Basic Rendering', () => {
         it('renders without validation props', () => {
             render(<LicenseField {...defaultProps} />);
-            
+
             expect(screen.getByLabelText(/^License/)).toBeInTheDocument();
         });
 
         it('renders with required indicator when required is true', () => {
             render(<LicenseField {...defaultProps} required={true} />);
-            
+
             const select = screen.getByLabelText(/^License/);
             expect(select).toBeRequired();
         });
 
         it('does not show required indicator for secondary licenses', () => {
             render(<LicenseField {...defaultProps} isFirst={false} required={false} />);
-            
+
             const select = screen.getByLabelText(/^License/);
             expect(select).not.toBeRequired();
         });
@@ -163,7 +163,7 @@ describe('LicenseField Validation Integration', () => {
             );
 
             const trigger = screen.getByRole('combobox');
-            
+
             // SelectField triggers onValidationBlur in handleValueChange
             // So we select a value to trigger the blur handler
             await user.click(trigger);
@@ -191,7 +191,7 @@ describe('LicenseField Validation Integration', () => {
 
             const trigger = screen.getByRole('combobox');
             await user.click(trigger);
-            
+
             const option = await screen.findByText('MIT License');
             await user.click(option);
 
@@ -202,19 +202,19 @@ describe('LicenseField Validation Integration', () => {
     describe('Add/Remove Buttons', () => {
         it('shows add button when isFirst is true and canAdd is true', () => {
             render(<LicenseField {...defaultProps} isFirst={true} canAdd={true} />);
-            
+
             expect(screen.getByLabelText('Add license')).toBeInTheDocument();
         });
 
         it('shows remove button when isFirst is false', () => {
             render(<LicenseField {...defaultProps} isFirst={false} />);
-            
+
             expect(screen.getByLabelText('Remove license')).toBeInTheDocument();
         });
 
         it('does not show add button when canAdd is false', () => {
             render(<LicenseField {...defaultProps} isFirst={true} canAdd={false} />);
-            
+
             expect(screen.queryByLabelText('Add license')).not.toBeInTheDocument();
         });
     });
@@ -255,13 +255,13 @@ describe('LicenseField Validation Integration', () => {
     describe('Label Visibility', () => {
         it('shows label when isFirst is true', () => {
             render(<LicenseField {...defaultProps} isFirst={true} />);
-            
+
             expect(screen.getByText('License')).toBeVisible();
         });
 
         it('hides label visually when isFirst is false', () => {
             render(<LicenseField {...defaultProps} isFirst={false} />);
-            
+
             const label = screen.getByText('License').closest('label');
             expect(label).toHaveClass('sr-only');
         });
@@ -270,7 +270,7 @@ describe('LicenseField Validation Integration', () => {
     describe('Options Display', () => {
         it('displays all license options when opened', async () => {
             const user = userEvent.setup();
-            
+
             render(<LicenseField {...defaultProps} />);
 
             const trigger = screen.getByRole('combobox');

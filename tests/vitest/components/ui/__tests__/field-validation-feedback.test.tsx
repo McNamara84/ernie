@@ -21,7 +21,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'error', message: 'This field is required' }]}
                 />
             );
-            
+
             expect(screen.getByText('This field is required')).toBeInTheDocument();
         });
 
@@ -34,7 +34,7 @@ describe('FieldValidationFeedback', () => {
                     ]}
                 />
             );
-            
+
             expect(screen.getByText('Error message')).toBeInTheDocument();
             expect(screen.getByText('Warning message')).toBeInTheDocument();
         });
@@ -43,7 +43,7 @@ describe('FieldValidationFeedback', () => {
             const { container } = render(
                 <FieldValidationFeedback messages={[]} />
             );
-            
+
             expect(container).toBeEmptyDOMElement();
         });
 
@@ -54,7 +54,7 @@ describe('FieldValidationFeedback', () => {
                     className="my-custom-class"
                 />
             );
-            
+
             const container = screen.getByRole('alert');
             expect(container).toHaveClass('my-custom-class');
         });
@@ -66,7 +66,7 @@ describe('FieldValidationFeedback', () => {
                     id="custom-id"
                 />
             );
-            
+
             expect(document.getElementById('custom-id')).toBeInTheDocument();
         });
     });
@@ -83,7 +83,7 @@ describe('FieldValidationFeedback', () => {
                     ]}
                 />
             );
-            
+
             const messages = screen.getAllByTestId(/validation-message-/);
             expect(messages[0]).toHaveAttribute('data-severity', 'error');
             expect(messages[1]).toHaveAttribute('data-severity', 'warning');
@@ -99,7 +99,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'success', message: 'Valid!' }]}
                 />
             );
-            
+
             expect(screen.getByText('Valid!')).toBeInTheDocument();
         });
 
@@ -110,7 +110,7 @@ describe('FieldValidationFeedback', () => {
                     showSuccess={false}
                 />
             );
-            
+
             // All messages filtered, returns null
             expect(container).toBeEmptyDOMElement();
         });
@@ -125,7 +125,7 @@ describe('FieldValidationFeedback', () => {
                     showSuccess={false}
                 />
             );
-            
+
             expect(screen.queryByText('Success')).not.toBeInTheDocument();
             expect(screen.getByText('Error')).toBeInTheDocument();
         });
@@ -139,7 +139,7 @@ describe('FieldValidationFeedback', () => {
                     compact
                 />
             );
-            
+
             const message = screen.getByTestId('validation-message-error');
             expect(message).toHaveClass('text-xs');
         });
@@ -150,7 +150,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'error', message: 'Error' }]}
                 />
             );
-            
+
             const message = screen.getByTestId('validation-message-error');
             expect(message).toHaveClass('text-sm');
         });
@@ -163,7 +163,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'error', message: 'Error' }]}
                 />
             );
-            
+
             const message = screen.getByTestId('validation-message-error');
             expect(message).toHaveClass('text-destructive');
         });
@@ -174,7 +174,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'warning', message: 'Warning' }]}
                 />
             );
-            
+
             const message = screen.getByTestId('validation-message-warning');
             expect(message).toHaveClass('text-amber-600');
         });
@@ -185,7 +185,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'success', message: 'Success' }]}
                 />
             );
-            
+
             const message = screen.getByTestId('validation-message-success');
             expect(message).toHaveClass('text-green-600');
         });
@@ -196,7 +196,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'info', message: 'Info' }]}
                 />
             );
-            
+
             const message = screen.getByTestId('validation-message-info');
             expect(message).toHaveClass('text-blue-600');
         });
@@ -209,7 +209,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'error', message: 'Error' }]}
                 />
             );
-            
+
             expect(screen.getByRole('alert')).toBeInTheDocument();
         });
 
@@ -219,7 +219,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'error', message: 'Error' }]}
                 />
             );
-            
+
             expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'polite');
         });
 
@@ -229,7 +229,7 @@ describe('FieldValidationFeedback', () => {
                     messages={[{ severity: 'error', message: 'Error' }]}
                 />
             );
-            
+
             expect(screen.getByRole('alert')).toHaveAttribute('aria-atomic', 'true');
         });
     });
@@ -242,7 +242,7 @@ describe('CompactFieldValidationFeedback', () => {
                 messages={[{ severity: 'error', message: 'Error' }]}
             />
         );
-        
+
         const message = screen.getByTestId('validation-message-error');
         expect(message).toHaveClass('text-xs');
     });
@@ -259,13 +259,13 @@ describe('helper functions', () => {
     describe('getFirstMessageBySeverity', () => {
         it('returns first message of specified severity', () => {
             const result = getFirstMessageBySeverity(messages, 'error');
-            
+
             expect(result).toEqual({ severity: 'error', message: 'First error' });
         });
 
         it('returns undefined when no message matches', () => {
             const result = getFirstMessageBySeverity(messages, 'success');
-            
+
             expect(result).toBeUndefined();
         });
     });
@@ -284,20 +284,20 @@ describe('helper functions', () => {
     describe('filterMessagesBySeverity', () => {
         it('filters messages by single severity', () => {
             const result = filterMessagesBySeverity(messages, ['error']);
-            
+
             expect(result).toHaveLength(2);
             expect(result.every(m => m.severity === 'error')).toBe(true);
         });
 
         it('filters messages by multiple severities', () => {
             const result = filterMessagesBySeverity(messages, ['error', 'warning']);
-            
+
             expect(result).toHaveLength(3);
         });
 
         it('returns empty array when no matches', () => {
             const result = filterMessagesBySeverity(messages, ['success']);
-            
+
             expect(result).toHaveLength(0);
         });
     });

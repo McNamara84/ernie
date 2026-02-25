@@ -45,4 +45,3 @@ describe('AppFooter', () => {
         expect(screen.getByRole('link', { name: /legal notice/i })).toHaveAttribute('href', '/legal-notice');
     });
 });
-

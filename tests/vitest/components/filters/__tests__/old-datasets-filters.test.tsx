@@ -108,7 +108,7 @@ describe('OldDatasetsFilters Component', () => {
 
         // Wait for debounce
         await new Promise(resolve => setTimeout(resolve, 1100));
-        
+
         // Last call should clear the search
         const calls = mockOnFilterChange.mock.calls;
         const lastCall = calls[calls.length - 1][0];
@@ -132,7 +132,7 @@ describe('OldDatasetsFilters Component', () => {
 
         // Simulate filter change (as would happen from parent component)
         rerender(<OldDatasetsFilters {...defaultProps} filters={{ search: 'xyz' }} isLoading={true} />);
-        
+
         // Simulate loading finished
         rerender(<OldDatasetsFilters {...defaultProps} filters={{ search: 'xyz' }} isLoading={false} />);
 
@@ -145,7 +145,7 @@ describe('OldDatasetsFilters Component', () => {
 
     it('displays result count correctly when filtered', () => {
         render(<OldDatasetsFilters {...defaultProps} resultCount={10} totalCount={150} />);
-        
+
         // The result count shows up when resultCount !== totalCount
         // Look for the span containing "Showing" as direct text
         const spans = screen.getAllByText(/Showing/);
@@ -155,27 +155,27 @@ describe('OldDatasetsFilters Component', () => {
 
     it('shows clear all button when filters are active', () => {
         render(<OldDatasetsFilters {...defaultProps} filters={{ search: 'xyz', curator: ['Alice'] }} />);
-        
+
         expect(screen.getByText(/clear all/i)).toBeInTheDocument();
     });
 
     it('allows removing individual filter badges', async () => {
         const user = userEvent.setup();
         render(<OldDatasetsFilters {...defaultProps} filters={{ search: 'test', status: ['published'] }} />);
-        
+
         // Find the X button on the filter badge
         const badges = screen.getAllByRole('button', { name: /remove/i });
         expect(badges.length).toBeGreaterThan(0);
-        
+
         // Click to remove
         await user.click(badges[0]);
-        
+
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
 
     it('disables filters when loading', () => {
         render(<OldDatasetsFilters {...defaultProps} isLoading={true} />);
-        
+
         const searchInput = screen.getByPlaceholderText(/search title or doi/i);
         expect(searchInput).toBeDisabled();
     });

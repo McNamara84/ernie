@@ -58,7 +58,7 @@ describe('CoordinateInputs', () => {
 
         // Verify onChange was called multiple times (once per character typed)
         expect(mockOnChange).toHaveBeenCalled();
-        
+
         // All calls should be for the latMin field
         const allCalls = mockOnChange.mock.calls;
         const latMinCalls = allCalls.filter(call => call[0] === 'latMin');
@@ -73,7 +73,7 @@ describe('CoordinateInputs', () => {
 
         // Clear the field first
         await user.clear(latMinInput);
-        
+
         // Type a value with more than 6 decimal places
         await user.type(latMinInput, '7.1234567');
 
@@ -81,7 +81,7 @@ describe('CoordinateInputs', () => {
         // Check that all onChange calls have values with max 6 decimal places
         const allCalls = mockOnChange.mock.calls;
         const latMinCalls = allCalls.filter(call => call[0] === 'latMin');
-        
+
         for (const call of latMinCalls) {
             const value = call[1];
             if (value.includes('.')) {

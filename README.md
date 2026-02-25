@@ -185,7 +185,7 @@ The project includes a complete Docker development environment that mirrors the 
    ```powershell
    # Windows PowerShell
    .\docker\generate-certs.ps1
-   
+
    # Or using Git Bash / WSL
    ./docker/generate-certs.sh
    ```
@@ -456,4 +456,3 @@ This project integrates with:
 - [ORCID](https://orcid.org/) Public API for researcher identification
 - [SPDX License List](https://spdx.org/licenses/) for standardized license identifiers
 - [MSL](https://msl-vocabularies.tib.eu/) Materials Science and Engineering vocabulary
-

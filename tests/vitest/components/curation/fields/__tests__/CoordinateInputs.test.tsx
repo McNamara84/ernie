@@ -297,7 +297,7 @@ describe('CoordinateInputs', () => {
             // Check both lat and lon inputs have value '0'
             const latMinInput = container.querySelector('#lat-min') as HTMLInputElement;
             const lonMinInput = container.querySelector('#lon-min') as HTMLInputElement;
-            
+
             expect(latMinInput.value).toBe('0');
             expect(lonMinInput.value).toBe('0');
             expect(screen.queryByText(/must be between/i)).not.toBeInTheDocument();

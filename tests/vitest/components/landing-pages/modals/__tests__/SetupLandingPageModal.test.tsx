@@ -463,9 +463,9 @@ describe('SetupLandingPageModal', () => {
 
             // Find and click the copy button
             const copyButton = screen.getByTitle('Copy preview URL');
-            
+
             await user.click(copyButton);
-            
+
             // Small delay to allow async operations
             await new Promise(resolve => setTimeout(resolve, 100));
 

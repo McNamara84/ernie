@@ -347,7 +347,7 @@ describe('Logs/Index', () => {
         // Find all buttons in table
         const table = screen.getByRole('table');
         const deleteButtons = table.querySelectorAll('button');
-        
+
         // Click the first delete button (skip row clicks)
         const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
         if (firstDeleteBtn) {

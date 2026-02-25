@@ -2,7 +2,7 @@
  * Tests for Date Field Serialization in datacite-form.tsx
  * These tests verify that separate startDate/endDate fields are correctly
  * serialized back to DataCite format when submitting the form.
- * 
+ *
  * DataCite date formats:
  * - Single date: "2015-03-10" (only startDate filled)
  * - Full range: "2013-09-05/2014-10-11" (both startDate and endDate filled)
@@ -21,9 +21,9 @@ describe('DataCite Form - Date Serialization', () => {
             startDate: '2015-03-10',
             endDate: '',
         };
-        
+
         const dateString = serializeDateEntry(dateEntry);
-        
+
         expect(dateString).toBe('2015-03-10');
     });
 
@@ -34,9 +34,9 @@ describe('DataCite Form - Date Serialization', () => {
             startDate: '2013-09-05',
             endDate: '2014-10-11',
         };
-        
+
         const dateString = serializeDateEntry(dateEntry);
-        
+
         expect(dateString).toBe('2013-09-05/2014-10-11');
     });
 
@@ -47,9 +47,9 @@ describe('DataCite Form - Date Serialization', () => {
             startDate: '',
             endDate: '2017-03-01',
         };
-        
+
         const dateString = serializeDateEntry(dateEntry);
-        
+
         expect(dateString).toBe('/2017-03-01');
     });
 
@@ -60,9 +60,9 @@ describe('DataCite Form - Date Serialization', () => {
             startDate: '',
             endDate: '',
         };
-        
+
         const dateString = serializeDateEntry(dateEntry);
-        
+
         expect(dateString).toBe('');
     });
 
@@ -73,9 +73,9 @@ describe('DataCite Form - Date Serialization', () => {
             startDate: '   ',
             endDate: '  ',
         };
-        
+
         const dateString = serializeDateEntry(dateEntry);
-        
+
         expect(dateString).toBe('');
     });
 
@@ -86,12 +86,12 @@ describe('DataCite Form - Date Serialization', () => {
             { dateType: 'created', startDate: '2015-03-10', endDate: '' },
             { dateType: 'collected', startDate: '2013-09-05', endDate: '2014-10-11' },
         ];
-        
+
         const serializedDates = dates.map((date) => ({
             date: serializeDateEntry(date),
             dateType: date.dateType,
         }));
-        
+
         expect(serializedDates).toEqual([
             { date: '/2017-03-01', dateType: 'available' },
             { date: '2015-03-10', dateType: 'created' },

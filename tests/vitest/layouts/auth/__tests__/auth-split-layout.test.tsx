@@ -47,4 +47,3 @@ describe('AuthSplitLayout', () => {
         expect(screen.queryByText(/be yourself/i)).toBeNull();
     });
 });
-

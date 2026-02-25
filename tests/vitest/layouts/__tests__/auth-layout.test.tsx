@@ -37,4 +37,3 @@ describe('AuthLayout', () => {
         expect(callProps.description).toBe('Please sign in');
     });
 });
-

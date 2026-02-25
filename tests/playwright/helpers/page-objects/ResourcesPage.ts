@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Page Object Model for the Resources page
- * 
+ *
  * Handles all interactions with the resources management interface.
  * Uses data-testid selectors for stable, refactoring-safe element targeting.
  */
@@ -86,7 +86,7 @@ export class ResourcesPage {
     const row = this.getResourceRow(index);
     const deleteButton = row.getByRole('button', { name: /Delete/i });
     await deleteButton.click();
-    
+
     // Handle confirmation dialog
     if (confirm) {
       const confirmButton = this.page.getByRole('button', { name: /Confirm|Yes|Delete/i });

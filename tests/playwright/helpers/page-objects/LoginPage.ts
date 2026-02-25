@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Page Object Model for the Login page
- * 
+ *
  * Handles all interactions with the login form and navigation to/from login.
  */
 export class LoginPage {
@@ -41,11 +41,11 @@ export class LoginPage {
   async login(email: string, password: string, rememberMe = false) {
     await this.emailInput.fill(email);
     await this.passwordInput.fill(password);
-    
+
     if (rememberMe) {
       await this.rememberMeCheckbox.check();
     }
-    
+
     await this.loginButton.click();
   }
 
@@ -72,7 +72,7 @@ export class LoginPage {
    */
   async verifyErrorDisplayed(errorText?: string) {
     await expect(this.errorMessage).toBeVisible();
-    
+
     if (errorText) {
       await expect(this.errorMessage).toContainText(errorText);
     }

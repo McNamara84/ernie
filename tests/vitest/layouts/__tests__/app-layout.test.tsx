@@ -41,4 +41,3 @@ describe('AppLayout', () => {
         expect(callProps.breadcrumbs).toEqual(breadcrumbs);
     });
 });
-

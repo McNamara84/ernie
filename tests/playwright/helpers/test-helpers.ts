@@ -8,7 +8,7 @@ import { LoginPage } from './page-objects/LoginPage';
 
 /**
  * Perform login as the default test user and wait for dashboard
- * 
+ *
  * @param page - Playwright page object
  * @param email - User email (defaults to TEST_USER_EMAIL)
  * @param password - User password (defaults to TEST_USER_PASSWORD)
@@ -25,7 +25,7 @@ export async function loginAsTestUser(
 
 /**
  * Perform logout
- * 
+ *
  * @param page - Playwright page object
  */
 export async function logout(page: Page) {
@@ -35,18 +35,18 @@ export async function logout(page: Page) {
     .or(page.getByRole('button', { name: /User menu|Profile/i }));
   await userMenu.waitFor({ state: 'visible', timeout: 15000 });
   await userMenu.click();
-  
+
   // Click logout
   const logoutButton = page.getByRole('menuitem', { name: /Logout|Sign out/i });
   await logoutButton.click();
-  
+
   // Wait for redirect to login page
   await page.waitForURL('/login', { timeout: 10000 });
 }
 
 /**
  * Wait for an accordion to reach the specified expanded state
- * 
+ *
  * @param accordionButton - The accordion trigger button
  * @param expanded - Whether accordion should be expanded (true) or collapsed (false)
  */
@@ -56,7 +56,7 @@ export async function waitForAccordionState(
 ) {
   const expectedState = String(expanded);
   await accordionButton.waitFor({ state: 'visible' });
-  
+
   // Wait for aria-expanded attribute to match expected state
   await accordionButton.evaluate((el: HTMLElement, state: string) => {
     return new Promise<void>((resolve) => {
@@ -74,7 +74,7 @@ export async function waitForAccordionState(
 
 /**
  * Resolve path to a dataset example file
- * 
+ *
  * @param fileName - Name of the dataset example file
  * @returns Absolute path to the file
  */
@@ -84,13 +84,13 @@ export function resolveDatasetExample(fileName: string): string {
     path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', fileName),
     path.resolve(process.cwd(), 'tests', 'pest', 'dataset-examples', fileName),
   ];
-  
+
   for (const candidatePath of possiblePaths) {
     if (fs.existsSync(candidatePath)) {
       return candidatePath;
     }
   }
-  
+
   throw new Error(
     `Unable to locate dataset example "${fileName}" in any of the expected locations: ${possiblePaths.join(', ')}`,
   );
@@ -98,7 +98,7 @@ export function resolveDatasetExample(fileName: string): string {
 
 /**
  * Wait for navigation to complete
- * 
+ *
  * @param page - Playwright page object
  * @param urlPattern - URL pattern to wait for (regex or string)
  * @param timeout - Timeout in milliseconds (default: 10000)
@@ -109,7 +109,7 @@ export async function waitForNavigation(
   timeout: number = 10000,
 ) {
   await page.waitForURL(urlPattern, { timeout });
-  
+
   // Also wait for network idle to ensure page is fully loaded
   await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
     // Ignore timeout - networkidle is optional
@@ -119,7 +119,7 @@ export async function waitForNavigation(
 /**
  * Wait for a debounced action to complete
  * Useful after typing in search fields, filters, etc.
- * 
+ *
  * @param page - Playwright page object
  * @param ms - Milliseconds to wait (default: 500)
  */
@@ -129,7 +129,7 @@ export async function waitForDebounce(page: Page, ms: number = 500) {
 
 /**
  * Clear local storage
- * 
+ *
  * @param page - Playwright page object
  */
 export async function clearLocalStorage(page: Page) {
@@ -140,7 +140,7 @@ export async function clearLocalStorage(page: Page) {
 
 /**
  * Clear session storage
- * 
+ *
  * @param page - Playwright page object
  */
 export async function clearSessionStorage(page: Page) {
@@ -151,7 +151,7 @@ export async function clearSessionStorage(page: Page) {
 
 /**
  * Take a screenshot with a descriptive name
- * 
+ *
  * @param page - Playwright page object
  * @param name - Screenshot name
  */

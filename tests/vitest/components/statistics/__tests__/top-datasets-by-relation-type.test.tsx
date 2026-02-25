@@ -98,7 +98,7 @@ describe('TopDatasetsByRelationType', () => {
 
         // Medal emoji for the main heading
         expect(screen.getByRole('img', { name: 'Medal' })).toBeInTheDocument();
-        
+
         // Open book emoji for Cites
         expect(screen.getByRole('img', { name: 'Open book' })).toBeInTheDocument();
     });

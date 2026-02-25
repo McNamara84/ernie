@@ -57,4 +57,3 @@ describe('AppShell', () => {
         expect(provider).toHaveAttribute('data-default-open', 'true');
     });
 });
-

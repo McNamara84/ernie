@@ -14,4 +14,3 @@ describe('useMobileNavigation', () => {
         expect(document.body.style.pointerEvents).toBe('');
     });
 });
-

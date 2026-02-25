@@ -128,14 +128,14 @@ describe('Changelog', () => {
                     },
                 ]),
         }) as unknown as typeof fetch;
-        
+
         // Mock scrollTo and scrollIntoView
         window.scrollTo = vi.fn();
         Element.prototype.scrollIntoView = vi.fn();
 
         // Reset hash between tests (handleNavigate uses pushState which persists)
         window.history.replaceState(null, '', window.location.pathname);
-        
+
         // Mock IntersectionObserver with callback execution
         global.IntersectionObserver = vi.fn().mockImplementation(function (this: IntersectionObserver, callback: IntersectionObserverCallback) {
             return {
@@ -169,7 +169,7 @@ describe('Changelog', () => {
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
-        
+
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         expect(list).toBeInTheDocument();
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });

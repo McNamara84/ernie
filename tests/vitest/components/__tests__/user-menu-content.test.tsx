@@ -87,4 +87,3 @@ describe('UserMenuContent', () => {
         expect(flushAll).toHaveBeenCalledTimes(1);
     });
 });
-

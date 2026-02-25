@@ -77,4 +77,3 @@ describe('NavMain', () => {
         expect(separators[0]).toHaveClass('my-2');
     });
 });
-

@@ -10,7 +10,7 @@ describe('UserRoleBadge', () => {
 
             const badge = screen.getByText('Admin');
             expect(badge).toBeInTheDocument();
-            
+
             // Test for variant data attribute instead of CSS classes
             const badgeElement = container.querySelector('[data-slot="badge"]');
             expect(badgeElement).toHaveAttribute('data-variant', 'destructive');
@@ -21,7 +21,7 @@ describe('UserRoleBadge', () => {
 
             const badge = screen.getByText('Group Leader');
             expect(badge).toBeInTheDocument();
-            
+
             // Test for variant data attribute instead of CSS classes
             const badgeElement = container.querySelector('[data-slot="badge"]');
             expect(badgeElement).toHaveAttribute('data-variant', 'default');
@@ -32,7 +32,7 @@ describe('UserRoleBadge', () => {
 
             const badge = screen.getByText('Curator');
             expect(badge).toBeInTheDocument();
-            
+
             // Test for variant data attribute instead of CSS classes
             const badgeElement = container.querySelector('[data-slot="badge"]');
             expect(badgeElement).toHaveAttribute('data-variant', 'secondary');
@@ -43,7 +43,7 @@ describe('UserRoleBadge', () => {
 
             const badge = screen.getByText('Beginner');
             expect(badge).toBeInTheDocument();
-            
+
             // Test for variant data attribute instead of CSS classes
             const badgeElement = container.querySelector('[data-slot="badge"]');
             expect(badgeElement).toHaveAttribute('data-variant', 'outline');

@@ -9,7 +9,7 @@ test.describe('Old Datasets', () => {
   test('old datasets page requires authentication', async ({ page }) => {
     // Try to access without login
     await page.goto('/old-datasets');
-    
+
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
   });

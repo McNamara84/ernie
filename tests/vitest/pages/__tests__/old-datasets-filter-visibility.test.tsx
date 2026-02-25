@@ -62,7 +62,7 @@ describe('OldDatasetsPage - Filter Visibility', () => {
 
         // Search input should be visible
         expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
-        
+
         // No results message should be shown
         expect(screen.getByText(/no old datasets found matching your filters/i)).toBeInTheDocument();
     });
@@ -95,7 +95,7 @@ describe('OldDatasetsPage - Filter Visibility', () => {
 
         // Search input should be visible
         expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
-        
+
         // Dataset should be shown
         expect(screen.getByText('Old Test Dataset')).toBeInTheDocument();
     });
@@ -111,7 +111,7 @@ describe('OldDatasetsPage - Filter Visibility', () => {
 
         // Message should guide users to adjust filters
         expect(screen.getByText(/no old datasets found matching your filters/i)).toBeInTheDocument();
-        
+
         // Filters should still be accessible to modify
         expect(screen.getByPlaceholderText(/search title or doi/i)).toBeInTheDocument();
     });

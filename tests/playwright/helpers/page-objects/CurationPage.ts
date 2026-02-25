@@ -7,21 +7,21 @@ export type AuthorType = 'Person' | 'Institution';
 
 /**
  * Page Object Model for the Curation page
- * 
+ *
  * Handles all interactions with the curation form including
  * authors, titles, descriptions, dates, and controlled vocabularies.
  */
 export class CurationPage {
   readonly page: Page;
   readonly heading: Locator;
-  
+
   // Accordion sections
   readonly authorsAccordion: Locator;
   readonly titlesAccordion: Locator;
   readonly descriptionsAccordion: Locator;
   readonly datesAccordion: Locator;
   readonly vocabulariesAccordion: Locator;
-  
+
   // Common buttons
   readonly saveButton: Locator;
   readonly cancelButton: Locator;
@@ -29,14 +29,14 @@ export class CurationPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { name: /Curation/i });
-    
+
     // Accordion triggers
     this.authorsAccordion = page.getByRole('button', { name: 'Authors' });
     this.titlesAccordion = page.getByRole('button', { name: 'Titles' });
     this.descriptionsAccordion = page.getByRole('button', { name: 'Descriptions' });
     this.datesAccordion = page.getByRole('button', { name: 'Dates' });
     this.vocabulariesAccordion = page.getByRole('button', { name: 'Controlled Vocabularies' });
-    
+
     this.saveButton = page.getByRole('button', { name: /Save|Submit/i });
     this.cancelButton = page.getByRole('button', { name: 'Cancel' });
   }
@@ -211,7 +211,7 @@ export class CurationPage {
     await this.openVocabularies();
     const searchInput = this.page.getByPlaceholder('Search vocabularies...');
     await searchInput.fill(searchTerm);
-    
+
     // Wait for search results
     await this.page.waitForTimeout(300);
   }
@@ -268,11 +268,11 @@ export class CurationPage {
     year?: string;
   }) {
     const currentUrl = this.page.url();
-    
+
     if (expectedData.doi) {
       expect(currentUrl).toContain(`doi=${encodeURIComponent(expectedData.doi)}`);
     }
-    
+
     if (expectedData.year) {
       expect(currentUrl).toContain(`year=${expectedData.year}`);
     }
@@ -289,11 +289,11 @@ export class CurationPage {
   }) {
     await this.openAccordion(this.authorsAccordion);
     const authorRegion = this.getAuthorRegion(index);
-    
+
     if (expectedData.lastName) {
       await expect(authorRegion.getByLabel('Last name')).toHaveValue(expectedData.lastName);
     }
-    
+
     if (expectedData.firstName) {
       await expect(authorRegion.getByLabel('First name')).toHaveValue(expectedData.firstName);
     }
@@ -310,16 +310,16 @@ export class CurationPage {
     type?: string;
   }) {
     await this.openAccordion(this.titlesAccordion);
-    
+
     const titleInput = this.page.getByLabel('Title').nth(index);
     await titleInput.fill(data.title);
-    
+
     if (data.language) {
       const languageSelect = this.page.getByLabel('Language').nth(index);
       await languageSelect.click();
       await this.page.getByRole('option', { name: data.language }).click();
     }
-    
+
     if (data.type) {
       const typeSelect = this.page.getByLabel('Title Type').nth(index);
       await typeSelect.click();
@@ -347,16 +347,16 @@ export class CurationPage {
     type?: string;
   }) {
     await this.openAccordion(this.descriptionsAccordion);
-    
+
     const descriptionInput = this.page.getByLabel('Description').nth(index);
     await descriptionInput.fill(data.description);
-    
+
     if (data.language) {
       const languageSelect = this.page.getByLabel('Language').nth(index);
       await languageSelect.click();
       await this.page.getByRole('option', { name: data.language }).click();
     }
-    
+
     if (data.type) {
       const typeSelect = this.page.getByLabel('Description Type').nth(index);
       await typeSelect.click();
@@ -385,22 +385,22 @@ export class CurationPage {
     type?: string;
   }) {
     await this.openAccordion(this.datesAccordion);
-    
+
     if (data.date) {
       const dateInput = this.page.getByLabel('Date').nth(index);
       await dateInput.fill(data.date);
     }
-    
+
     if (data.dateFrom) {
       const dateFromInput = this.page.getByLabel('Date From').nth(index);
       await dateFromInput.fill(data.dateFrom);
     }
-    
+
     if (data.dateTo) {
       const dateToInput = this.page.getByLabel('Date To').nth(index);
       await dateToInput.fill(data.dateTo);
     }
-    
+
     if (data.type) {
       const typeSelect = this.page.getByLabel('Date Type').nth(index);
       await typeSelect.click();

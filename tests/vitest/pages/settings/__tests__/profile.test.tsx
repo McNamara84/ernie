@@ -99,4 +99,3 @@ describe('Profile settings page', () => {
         });
     });
 });
-

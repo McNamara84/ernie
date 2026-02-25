@@ -106,12 +106,12 @@ describe('ResourcesPage', () => {
         expect(table).toBeInTheDocument();
         expect(within(table).getByText('Primary title')).toBeInTheDocument();
         expect(within(table).getByRole('columnheader', { name: /id.*doi/i })).toBeInTheDocument();
-        
+
         const dataRows = within(table).getAllByRole('row').slice(1);
         expect(within(dataRows[0]).getByText('#1')).toBeInTheDocument();
         // DOI is now shown as text, not as a link
         expect(within(dataRows[0]).getByText('10.9999/example')).toBeInTheDocument();
-        
+
         expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /open resource.*10\.9999\/example.*in.*editor/i }),
@@ -125,14 +125,14 @@ describe('ResourcesPage', () => {
         render(
             <ResourcesPage
                 resources={[]}
-                pagination={{ 
-                    current_page: 1, 
-                    last_page: 1, 
-                    per_page: 50, 
-                    total: 0, 
-                    from: 0, 
-                    to: 0, 
-                    has_more: false 
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 0,
+                    from: 0,
+                    to: 0,
+                    has_more: false
                 }}
                 sort={{ key: 'id', direction: 'asc' }}
             />,

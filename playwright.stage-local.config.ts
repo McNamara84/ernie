@@ -24,25 +24,25 @@ if (fs.existsSync(envPath)) {
  */
 export default defineConfig({
   testDir: './tests/playwright/stage',
-  
+
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
   workers: 1,
-  
+
   reporter: [
     ['html', { outputFolder: 'playwright-report-stage-local' }],
     ['list'],
   ],
-  
+
   timeout: 120 * 1000,
-  
+
   expect: {
     timeout: 20 * 1000,
   },
-  
+
   testMatch: '**/*.spec.ts',
-  
+
   use: {
     /* LOCAL Docker environment instead of Stage */
     baseURL: 'https://ernie.localhost:3333',
@@ -51,7 +51,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    
+
     actionTimeout: 30 * 1000,
     navigationTimeout: 60 * 1000,
   },

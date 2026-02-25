@@ -22,4 +22,3 @@ describe('Icon', () => {
         expect(icon).toHaveClass('text-blue-500');
     });
 });
-

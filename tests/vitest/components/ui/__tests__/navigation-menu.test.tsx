@@ -47,4 +47,3 @@ describe('NavigationMenu', () => {
         expect(container.querySelector('[data-slot="navigation-menu-viewport"]')).not.toBeInTheDocument();
     });
 });
-

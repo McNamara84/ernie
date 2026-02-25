@@ -19,4 +19,3 @@ describe('Tooltip', () => {
         expect(content).toBeInTheDocument();
     });
 });
-

@@ -87,7 +87,7 @@ describe('RoleDistributionChart', () => {
         const { container } = render(<RoleDistributionChart data={manyRoles} />);
 
         expect(container.querySelector('.recharts-wrapper')).toBeInTheDocument();
-        
+
         // Check that all roles appear in the table
         const colorBoxes = container.querySelectorAll('.h-3.w-3.rounded-sm');
         expect(colorBoxes).toHaveLength(25);

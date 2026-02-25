@@ -24,4 +24,3 @@ describe('Badge', () => {
         expect(badgeLink).toHaveClass('bg-secondary', { exact: false });
     });
 });
-

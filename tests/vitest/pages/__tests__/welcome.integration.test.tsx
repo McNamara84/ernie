@@ -27,4 +27,3 @@ describe('Welcome integration', () => {
         expect(document.title).toBe('Welcome');
     });
 });
-

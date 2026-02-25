@@ -49,4 +49,3 @@ describe('NavFooter', () => {
         expect(links[1]).toHaveAttribute('href', '/github');
     });
 });
-

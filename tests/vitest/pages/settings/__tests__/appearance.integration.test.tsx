@@ -45,11 +45,11 @@ vi.mock('@/routes', () => ({
 describe('Appearance settings integration', () => {
     beforeEach(() => {
         document.title = '';
-        usePageMock.mockReturnValue({ 
-            props: { 
+        usePageMock.mockReturnValue({
+            props: {
                 fontSizePreference: 'regular',
-                auth: { user: { id: 1 } } 
-            } 
+                auth: { user: { id: 1 } }
+            }
         });
     });
 
@@ -58,4 +58,3 @@ describe('Appearance settings integration', () => {
         expect(document.title).toBe('Appearance settings');
     });
 });
-

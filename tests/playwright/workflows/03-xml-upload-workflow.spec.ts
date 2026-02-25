@@ -49,11 +49,11 @@ test.describe('XML Upload', () => {
     const sessionKey = urlParams.get('xmlSession');
     expect(sessionKey).toBeTruthy();
     expect(sessionKey).toMatch(/^xml_upload_/);
-    
+
     // Verify editor page loaded successfully with form fields
     // Check for DOI input field (id="doi"), which is unique and stable
     await expect(page.locator('#doi')).toBeVisible();
-    
+
     // Verify form has loaded by checking for Year field (has id="year")
     await expect(page.locator('#year')).toBeVisible();
   });
@@ -63,11 +63,11 @@ test.describe('XML Upload', () => {
     await expect(page.getByTestId('unified-dropzone')).toBeVisible();
 
     const fileInput = page.getByTestId('unified-file-input');
-    
+
     // Create temporary invalid XML file
     const invalidXml = '<invalid>Not a proper DataCite XML</invalid>';
     const buffer = Buffer.from(invalidXml, 'utf-8');
-    
+
     await fileInput.setInputFiles({
       name: 'invalid.xml',
       mimeType: 'application/xml',
@@ -76,12 +76,12 @@ test.describe('XML Upload', () => {
 
     // Should show error or stay on dashboard
     await page.waitForTimeout(2000);
-    
+
     // Should either show error message or stay on dashboard
     const url = page.url();
     const isOnDashboard = url.includes('/dashboard');
     const hasError = await page.getByText(/error|invalid|failed/i).isVisible().catch(() => false);
-    
+
     expect(isOnDashboard || hasError).toBeTruthy();
   });
 });

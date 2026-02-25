@@ -241,7 +241,7 @@ test.describe('Portal Page', () => {
             // Focus the search input directly
             const searchInput = page.getByPlaceholder(/search datasets/i);
             await searchInput.focus();
-            
+
             // Should be able to type
             await page.keyboard.type('keyboard test');
 

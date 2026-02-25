@@ -25,14 +25,14 @@ describe('TitleField Validation Integration', () => {
     describe('Basic Rendering', () => {
         it('renders without validation props', () => {
             render(<TitleField {...defaultProps} />);
-            
+
             expect(screen.getByRole('textbox', { name: /Title/i })).toBeInTheDocument();
             expect(screen.getByRole('combobox', { name: /Title Type/i })).toBeInTheDocument();
         });
 
         it('renders with tooltip on title field', () => {
             render(<TitleField {...defaultProps} />);
-            
+
             const titleInput = screen.getByRole('textbox', { name: /Title/i });
             const titleLabel = document.querySelector(`label[for="${titleInput.id}"]`);
             expect(titleLabel).toHaveClass('cursor-help');
@@ -125,7 +125,7 @@ describe('TitleField Validation Integration', () => {
             expect(screen.getByText('Error message')).toBeInTheDocument();
             expect(screen.getByText('Warning message')).toBeInTheDocument();
             expect(screen.getByText('Info message')).toBeInTheDocument();
-            
+
             // Verify error message appears first (highest severity)
             const feedback = screen.getByText('Error message').closest('div');
             expect(feedback).toBeInTheDocument();
@@ -242,14 +242,14 @@ describe('TitleField Validation Integration', () => {
     describe('Required Field Indicator', () => {
         it('shows required indicator for main title', () => {
             render(<TitleField {...defaultProps} titleType="main-title" />);
-            
+
             const input = screen.getByRole('textbox', { name: /Title/i });
             expect(input).toBeRequired();
         });
 
         it('does not show required indicator for alternative title', () => {
             render(<TitleField {...defaultProps} titleType="alternative" />);
-            
+
             const input = screen.getByRole('textbox', { name: /Title/i });
             expect(input).not.toBeRequired();
         });
@@ -258,14 +258,14 @@ describe('TitleField Validation Integration', () => {
     describe('Label Visibility', () => {
         it('shows labels when isFirst is true', () => {
             render(<TitleField {...defaultProps} isFirst={true} />);
-            
+
             // Verify Title input has visible label
             const titleInput = screen.getByRole('textbox', { name: /Title/i });
             const titleLabel = document.querySelector(`label[for="${titleInput.id}"]`);
             expect(titleLabel).not.toBeNull();
             expect(titleLabel).toBeInTheDocument();
             expect(titleLabel).not.toHaveClass('sr-only');
-            
+
             // Verify Title Type select is accessible (has name from label)
             const typeSelect = screen.getByRole('combobox', { name: /Title Type/i });
             expect(typeSelect).toBeInTheDocument();
@@ -275,7 +275,7 @@ describe('TitleField Validation Integration', () => {
 
         it('hides labels when isFirst is false', () => {
             render(<TitleField {...defaultProps} isFirst={false} />);
-            
+
             const titleInput = screen.getByRole('textbox', { name: /Title/i });
             const titleLabel = titleInput.closest('div')?.querySelector('label');
             expect(titleLabel).toHaveClass('sr-only');
@@ -285,19 +285,19 @@ describe('TitleField Validation Integration', () => {
     describe('Add/Remove Buttons', () => {
         it('shows add button when isFirst is true', () => {
             render(<TitleField {...defaultProps} isFirst={true} />);
-            
+
             expect(screen.getByLabelText('Add title')).toBeInTheDocument();
         });
 
         it('shows remove button when isFirst is false', () => {
             render(<TitleField {...defaultProps} isFirst={false} />);
-            
+
             expect(screen.getByLabelText('Remove title')).toBeInTheDocument();
         });
 
         it('disables add button when canAdd is false', () => {
             render(<TitleField {...defaultProps} isFirst={true} canAdd={false} />);
-            
+
             expect(screen.getByLabelText('Add title')).toBeDisabled();
         });
     });

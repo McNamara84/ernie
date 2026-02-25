@@ -102,7 +102,7 @@ describe('ContributorItem Component', () => {
 
     it('renders person contributor correctly', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
-        
+
         expect(screen.getByText('Contributor 1')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Jane')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Smith')).toBeInTheDocument();
@@ -110,49 +110,49 @@ describe('ContributorItem Component', () => {
 
     it('renders institution contributor correctly', () => {
         render(<ContributorItem contributor={mockInstitutionContributor} {...mockProps} />);
-        
+
         expect(screen.getByText('Contributor 1')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Research Institute')).toBeInTheDocument();
     });
 
     it('shows remove button when canRemove is true', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} canRemove={true} />);
-        
+
         expect(screen.getByLabelText('Remove contributor 1')).toBeInTheDocument();
     });
 
     it('hides remove button when canRemove is false', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} canRemove={false} />);
-        
+
         expect(screen.queryByLabelText('Remove contributor 1')).not.toBeInTheDocument();
     });
 
     it('calls onRemove when remove button is clicked', async () => {
         const user = userEvent.setup();
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
-        
+
         const removeButton = screen.getByLabelText('Remove contributor 1');
         await user.click(removeButton);
-        
+
         expect(mockProps.onRemove).toHaveBeenCalledTimes(1);
     });
 
     it('displays contributor roles', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
-        
+
         // Roles are shown in tag input
         expect(screen.getByDisplayValue('DataCollector')).toBeInTheDocument();
     });
 
     it('renders drag handle with correct aria-label', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Reorder contributor 1')).toBeInTheDocument();
     });
 
     it('shows ORCID field for person type', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
-        
+
         // Use getAllByLabelText since there's both an input and a button with ORCID text
         const orcidElements = screen.getAllByLabelText(/ORCID/i);
         expect(orcidElements.length).toBeGreaterThan(0);
@@ -160,14 +160,14 @@ describe('ContributorItem Component', () => {
 
     it('does not show ORCID field for institution type', () => {
         render(<ContributorItem contributor={mockInstitutionContributor} {...mockProps} />);
-        
+
         expect(screen.queryByLabelText(/ORCID/i)).not.toBeInTheDocument();
     });
 
     it('displays ORCID verified badge when orcidVerified is true', () => {
         const verifiedContributor = { ...mockPersonContributor, orcidVerified: true };
         render(<ContributorItem contributor={verifiedContributor} {...mockProps} />);
-        
+
         expect(screen.getByText('Verified')).toBeInTheDocument();
     });
 });

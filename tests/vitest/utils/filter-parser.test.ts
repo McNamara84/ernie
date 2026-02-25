@@ -235,7 +235,7 @@ describe('parseOldDatasetFiltersFromUrl', () => {
     it('should handle both array and single value notation', () => {
         const result1 = parseOldDatasetFiltersFromUrl('?resource_type[]=dataset');
         const result2 = parseOldDatasetFiltersFromUrl('?resource_type=dataset');
-        
+
         expect(result1).toEqual({ resource_type: ['dataset'] });
         expect(result2).toEqual({ resource_type: ['dataset'] });
     });

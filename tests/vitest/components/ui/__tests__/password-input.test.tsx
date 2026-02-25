@@ -91,7 +91,7 @@ describe('PasswordInput', () => {
             showPasswordLabel: 'Reveal password',
             hidePasswordLabel: 'Conceal password',
         });
-        
+
         const toggleButton = screen.getByRole('button', { name: 'Reveal password' });
         expect(toggleButton).toBeInTheDocument();
 
@@ -106,7 +106,7 @@ describe('PasswordInput', () => {
                 <PasswordInput id="pwd" name="password" />
             </div>
         );
-        
+
         const input = screen.getByLabelText('Password');
         expect(input).toBeInTheDocument();
         expect(input).toHaveAttribute('type', 'password');

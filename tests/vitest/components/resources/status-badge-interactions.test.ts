@@ -114,7 +114,7 @@ describe('Status Badge Interactions', () => {
 
         // Badge should not be clickable for curation status
         const isClickable = curationResource.publicStatus === 'published' && curationResource.doi;
-        
+
         expect(isClickable).toBeFalsy();
     });
 
@@ -134,10 +134,10 @@ describe('Status Badge Interactions', () => {
             },
         };
 
-        const isClickable = 
-            reviewResource.publicStatus === 'review' && 
+        const isClickable =
+            reviewResource.publicStatus === 'review' &&
             reviewResource.landingPage?.public_url;
-        
+
         expect(isClickable).toBeTruthy();
     });
 
@@ -147,10 +147,10 @@ describe('Status Badge Interactions', () => {
             doi: null,
         };
 
-        const isClickable = 
-            resourceWithoutDoi.publicStatus === 'published' && 
+        const isClickable =
+            resourceWithoutDoi.publicStatus === 'published' &&
             resourceWithoutDoi.doi;
-        
+
         expect(isClickable).toBeFalsy();
     });
 
@@ -161,10 +161,10 @@ describe('Status Badge Interactions', () => {
             landingPage: null,
         };
 
-        const isClickable = 
-            resourceWithoutLandingPage.publicStatus === 'review' && 
+        const isClickable =
+            resourceWithoutLandingPage.publicStatus === 'review' &&
             !!resourceWithoutLandingPage.landingPage;
-        
+
         expect(isClickable).toBe(false);
     });
 });

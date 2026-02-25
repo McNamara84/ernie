@@ -52,4 +52,3 @@ describe('Sheet', () => {
         await waitFor(() => expect(screen.queryByText('Content')).not.toBeInTheDocument());
     });
 });
-

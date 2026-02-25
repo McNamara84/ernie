@@ -34,4 +34,3 @@ describe('AuthCardLayout', () => {
         expect(screen.getByText('Form')).toBeInTheDocument();
     });
 });
-

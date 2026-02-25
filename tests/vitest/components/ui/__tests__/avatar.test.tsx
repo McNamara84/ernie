@@ -25,4 +25,3 @@ describe('Avatar', () => {
         expect(container.textContent).toContain('AB');
     });
 });
-

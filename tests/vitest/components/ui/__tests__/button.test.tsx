@@ -37,4 +37,3 @@ describe('Button', () => {
         expect(link).toHaveClass('inline-flex');
     });
 });
-

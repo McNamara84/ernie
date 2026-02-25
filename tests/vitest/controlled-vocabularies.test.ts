@@ -1,7 +1,7 @@
 /**
  * Unit tests for GCMD Controlled Vocabularies types and validation
  * These tests ensure type safety and data structure integrity without database dependencies
- * 
+ *
  * Run with: npm run test -- controlled-vocabularies
  */
 
@@ -103,7 +103,7 @@ describe('SelectedKeyword Type', () => {
 
     it('should store full GCMD URI (not just UUID)', () => {
         const fullUri = 'https://gcmd.earthdata.nasa.gov/kms/concept/12345678-1234-5678-9012-123456789012';
-        
+
         const keyword: SelectedKeyword = {
             id: fullUri,
             text: 'TEST',

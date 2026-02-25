@@ -34,4 +34,3 @@ describe('ToggleGroup', () => {
         expect(first).toHaveAttribute('data-state', 'off');
     });
 });
-

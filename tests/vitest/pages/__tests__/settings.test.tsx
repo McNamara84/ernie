@@ -334,4 +334,3 @@ describe('Date Type settings', () => {
         ]);
     });
 });
-

@@ -36,4 +36,3 @@ describe('AppHeaderLayout', () => {
         expect(screen.getByText('Body')).toBeInTheDocument();
     });
 });
-

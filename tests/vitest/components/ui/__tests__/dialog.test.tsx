@@ -47,4 +47,3 @@ describe('Dialog', () => {
         await waitFor(() => expect(screen.queryByText('Dialog body')).not.toBeInTheDocument());
     });
 });
-

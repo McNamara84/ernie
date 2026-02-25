@@ -177,7 +177,7 @@ describe('DoiConflictModal', () => {
     describe('Copy to Clipboard', () => {
         it('should show success toast when copy succeeds', async () => {
             const user = userEvent.setup();
-            
+
             render(<DoiConflictModal {...defaultProps} />);
 
             const copyButton = screen.getByLabelText('Zuletzt vergebene DOI kopieren');
@@ -192,20 +192,20 @@ describe('DoiConflictModal', () => {
             // In JSDOM, clipboard operations may fail. We test that the component
             // handles this gracefully by clicking the copy button and verifying
             // the component doesn't crash.
-            // 
+            //
             // Note: Full clipboard error handling is better tested via E2E tests
             // in a real browser context where clipboard APIs work correctly.
             const user = userEvent.setup();
             render(<DoiConflictModal {...defaultProps} hasSuggestion={true} />);
 
             const copyButton = screen.getByLabelText('Zuletzt vergebene DOI kopieren');
-            
+
             // Click the button - should not throw even if clipboard fails
             await expect(user.click(copyButton)).resolves.not.toThrow();
-            
+
             // The button should still be present (no crash)
             expect(screen.getByLabelText('Zuletzt vergebene DOI kopieren')).toBeInTheDocument();
-            
+
             // Component should still be functional after click
             expect(screen.getByRole('dialog')).toBeInTheDocument();
         });

@@ -50,7 +50,7 @@ vi.mock('@/routes', () => {
 
     return {
         dashboard: () => makeRoute('/dashboard'),
-        editor: (params?: { query?: Record<string, string | number> }) => 
+        editor: (params?: { query?: Record<string, string | number> }) =>
             makeRoute('/editor', params?.query),
         changelog: () => makeRoute('/changelog'),
         about: () => makeRoute('/about'),
@@ -69,16 +69,16 @@ vi.mock('@/routes/igsns', () => ({
 
 describe('Dashboard', () => {
     beforeEach(() => {
-        usePageMock.mockReturnValue({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValue({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 phpVersion: '8.4.12',
                 laravelVersion: '12.28.1'
-            } 
+            }
         });
         handleXmlFilesSpy.mockClear();
     });
@@ -141,16 +141,16 @@ describe('Dashboard', () => {
     });
 
     it('generates correct PHP release link for major.minor version', () => {
-        usePageMock.mockReturnValueOnce({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 phpVersion: '8.5.3',
                 laravelVersion: '12.28.1'
-            } 
+            }
         });
         render(<Dashboard />);
         const phpVersionLink = screen.getByRole('link', {
@@ -161,16 +161,16 @@ describe('Dashboard', () => {
     });
 
     it('generates correct Laravel release link for major version', () => {
-        usePageMock.mockReturnValueOnce({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 phpVersion: '8.4.12',
                 laravelVersion: '13.5.10'
-            } 
+            }
         });
         render(<Dashboard />);
         const laravelVersionLink = screen.getByRole('link', {
@@ -181,21 +181,21 @@ describe('Dashboard', () => {
     });
 
     it('falls back to default versions when props are missing', () => {
-        usePageMock.mockReturnValueOnce({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2
-            } 
+            }
         });
         render(<Dashboard />);
-        
+
         // Should still display badges with fallback values
         const phpBadge = screen.getByText('8.4.12');
         const laravelBadge = screen.getByText('12.28.1');
-        
+
         expect(phpBadge).toBeInTheDocument();
         expect(laravelBadge).toBeInTheDocument();
     });
@@ -363,4 +363,3 @@ describe('handleXmlFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
-

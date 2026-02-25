@@ -43,4 +43,3 @@ describe('Card', () => {
         expect(heading).toHaveAttribute('data-slot', 'card-title');
     });
 });
-

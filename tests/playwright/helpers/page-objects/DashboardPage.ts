@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Page Object Model for the Dashboard page
- * 
+ *
  * Handles navigation and interactions on the main dashboard.
  * Uses data-testid selectors for stable, refactoring-safe element targeting.
  */
@@ -65,7 +65,7 @@ export class DashboardPage {
    */
   async verifyNavigationVisible() {
     await expect(this.navigationMenu).toBeVisible();
-    
+
     // Verify key navigation items are present (use first() to avoid strict mode violation with breadcrumbs)
     await expect(this.page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible();
     await expect(this.page.getByRole('link', { name: 'Old Datasets' }).first()).toBeVisible();

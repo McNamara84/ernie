@@ -10,7 +10,7 @@ test.describe('Editor Form', () => {
   test('editor page requires authentication', async ({ page }) => {
     // Try to access editor without login
     await page.goto('/editor');
-    
+
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
   });
@@ -22,10 +22,10 @@ test.describe('Editor Form', () => {
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
-    
+
     // Navigate to editor
     await page.goto('/editor');
-    
+
     // Should be accessible (even if empty without XML upload)
     await expect(page).toHaveURL(/\/editor/);
   });

@@ -26,4 +26,3 @@ describe('About integration', () => {
         expect(document.title).toBe('About');
     });
 });
-

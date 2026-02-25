@@ -62,4 +62,3 @@ describe('Docs integration', () => {
         expect(document.title).toBe('Documentation');
     });
 });
-

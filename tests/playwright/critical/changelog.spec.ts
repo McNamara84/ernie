@@ -147,11 +147,11 @@ test.describe('Changelog Page', () => {
     test('shows "New" badge for recent releases', async ({ page }) => {
         // The first version (0.8.0) has a recent date (2025-10-14), so it should have a "New" badge
         const firstButton = page.getByRole('button', { name: /version 0\.8\.0/i });
-        
+
         // Look for a "New" badge near the first button
         const buttonContainer = firstButton.locator('..');
         const newBadge = buttonContainer.getByText('New');
-        
+
         // Note: This test might fail if the release is older than 30 days
         // We're testing the functionality exists, not the specific data
         const badgeCount = await newBadge.count();
@@ -183,13 +183,13 @@ test.describe('Changelog Page', () => {
     test('supports deep linking with hash URLs', async ({ page }) => {
         // Navigate directly to the hash URL (realistic user scenario)
         await page.goto('/changelog#v0.7.0');
-        
+
         // Wait for the page to load
         await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 5000 });
-        
+
         // Wait a bit for hash processing (100ms setTimeout in code + React render)
         await page.waitForTimeout(200);
-        
+
         // The version 0.7.0 should be expanded (do not rely on array index)
         const targetButton = page.getByRole('button', { name: /^Version 0\.7\.0\b/i });
         await expect(targetButton).toBeVisible();
@@ -214,7 +214,7 @@ test.describe('Changelog Page', () => {
         const firstItem = versionItems.first();
         const firstItemDiv = firstItem.locator('> div').first();
         const className = await firstItemDiv.getAttribute('class');
-        
+
         // Should contain gradient-related classes
         expect(className).toContain('bg-gradient-to-r');
     });

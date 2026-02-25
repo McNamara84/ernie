@@ -126,7 +126,7 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         );
         const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
         expect(
-            isValidPreviewUrl, 
+            isValidPreviewUrl,
             `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`
         ).toBeTruthy();
 

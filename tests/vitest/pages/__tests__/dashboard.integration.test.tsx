@@ -60,4 +60,3 @@ describe('Dashboard integration', () => {
         expect(document.title).toBe('Dashboard');
     });
 });
-

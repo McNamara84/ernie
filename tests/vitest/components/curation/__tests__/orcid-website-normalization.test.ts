@@ -1,10 +1,10 @@
 /**
  * Tests for ORCID and website URL normalization when loading data from old datasets
- * 
+ *
  * This tests the fix for the issue where:
  * 1. ORCIDs from old database containing https://orcid.org/ prefix caused validation errors
  * 2. Website URLs without protocol (e.g., www.geomar.de/pbrandl) failed validation
- * 
+ *
  * Related: fix/orcid-validation-false-positive
  */
 
@@ -16,17 +16,17 @@ const normalizeOrcid = (orcid: string | null | undefined): string => {
     if (!orcid || typeof orcid !== 'string') {
         return '';
     }
-    
+
     const trimmed = orcid.trim();
-    
+
     // Remove https://orcid.org/ prefix if present
     const orcidPattern = /^(?:https?:\/\/)?(?:www\.)?orcid\.org\/(.+)$/i;
     const match = trimmed.match(orcidPattern);
-    
+
     if (match && match[1]) {
         return match[1];
     }
-    
+
     return trimmed;
 };
 
@@ -34,14 +34,14 @@ const normalizeWebsiteUrl = (url: string | null | undefined): string => {
     if (!url || typeof url !== 'string') {
         return '';
     }
-    
+
     const trimmed = url.trim();
-    
+
     // If URL doesn't start with http:// or https://, add https://
     if (trimmed && !/^https?:\/\//i.test(trimmed)) {
         return `https://${trimmed}`;
     }
-    
+
     return trimmed;
 };
 

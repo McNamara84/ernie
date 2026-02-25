@@ -343,7 +343,7 @@ precipitation`;
 
             const fileInput = document.querySelector('#csv-upload-free-keywords') as HTMLInputElement;
             const csvContent = `Keyword
-  climate change  
+  climate change
 temperature
   precipitation  `;
 

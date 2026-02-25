@@ -90,67 +90,67 @@ describe('AuthorList Component', () => {
 
     it('renders empty state when no authors', () => {
         render(<AuthorList authors={[]} {...mockProps} />);
-        
+
         expect(screen.getByText('No authors yet')).toBeInTheDocument();
         expect(screen.getByLabelText('Add first author')).toBeInTheDocument();
     });
 
     it('shows CSV import button in empty state', () => {
         render(<AuthorList authors={[]} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
     });
 
     it('calls onAdd when Add First Author button is clicked', async () => {
         const user = userEvent.setup({ delay: null });
         render(<AuthorList authors={[]} {...mockProps} />);
-        
+
         const addButton = screen.getByLabelText('Add first author');
         await user.click(addButton);
-        
+
         expect(mockProps.onAdd).toHaveBeenCalledTimes(1);
     });
 
     it('renders list of authors', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByText('Author 1')).toBeInTheDocument();
         expect(screen.getByText('Author 2')).toBeInTheDocument();
     });
 
     it('has role="list" for accessibility', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByRole('list', { name: 'Authors' })).toBeInTheDocument();
     });
 
     it('shows Add Author button when authors exist', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Add another author')).toBeInTheDocument();
     });
 
     it('shows CSV import button when authors exist', () => {
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
     });
 
     it('calls onRemove with correct index', async () => {
         const user = userEvent.setup({ delay: null });
         render(<AuthorList authors={mockAuthors} {...mockProps} />);
-        
+
         // Both authors should have remove buttons since there are 2 authors
         const removeButtons = screen.getAllByLabelText(/Remove author/i);
         await user.click(removeButtons[0]);
-        
+
         expect(mockProps.onRemove).toHaveBeenCalledWith(0);
     });
 
     it('handles bulk add via CSV import', async () => {
         const onBulkAdd = vi.fn();
         render(<AuthorList authors={[]} {...mockProps} onBulkAdd={onBulkAdd} />);
-        
+
         // CSV import is tested separately in author-csv-import.test.tsx
         expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
     });

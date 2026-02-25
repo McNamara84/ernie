@@ -242,13 +242,13 @@ describe('OldDatasets page', () => {
         });
         expect(idSortButton).toHaveAttribute('aria-pressed', 'false');
         expect(idSortButton).toHaveTextContent('ID');
-        
+
         const identifierSortButton = within(headerRow).getByRole('button', {
             name: /Sort by the DOI identifier/i,
         });
         expect(identifierSortButton).toHaveAttribute('aria-pressed', 'false');
         expect(identifierSortButton).toHaveTextContent('Identifier');
-        
+
         const identifierHeaderCell = identifierSortButton.closest('th');
         expect(identifierHeaderCell).toHaveAttribute('aria-sort', 'none');
 
@@ -321,7 +321,7 @@ describe('OldDatasets page', () => {
     it('allows sorting by ID and toggling direction while persisting preference', async () => {
         // Reset mocks to ensure clean state
         mockedAxios.get.mockReset();
-        
+
         const user = userEvent.setup();
 
         const filterOptionsResponse = {
@@ -564,7 +564,7 @@ describe('OldDatasets page', () => {
     it('surfaces a retry affordance when refreshing the datasets for a new sort fails', async () => {
         // Reset mocks to ensure clean state
         mockedAxios.get.mockReset();
-        
+
         const axiosError = Object.assign(new Error('Request failed with status code 500'), {
             isAxiosError: true,
             response: {
@@ -687,7 +687,7 @@ describe('OldDatasets page', () => {
         // Mock window.location.href as writable
         delete (window as { location?: unknown }).location;
         (window as { location: { href: string } }).location = { href: '' };
-        
+
         render(<OldDatasets {...baseProps} />);
 
         const datasetOneButton = screen.getByRole('button', {

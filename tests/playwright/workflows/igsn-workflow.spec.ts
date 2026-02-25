@@ -12,7 +12,7 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
  * 2. Verify data appears in /igsns table
  * 3. Verify data is correctly stored in database
  * 4. Export IGSN as DataCite JSON and verify download succeeds
- * 
+ *
  * Note: These tests run in a shared database environment. Previous test runs
  * or retries may leave data in the database. Tests use .first() selectors
  * to handle multiple matching elements gracefully.
@@ -136,7 +136,7 @@ test.describe('IGSN Workflow', () => {
         await page.goto('/dashboard');
         let fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
-        
+
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
@@ -147,7 +147,7 @@ test.describe('IGSN Workflow', () => {
         await page.goto('/dashboard');
         fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DIVE_CSV_DATA.filename));
-        
+
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
@@ -171,7 +171,7 @@ test.describe('IGSN Workflow', () => {
         await page.goto('/dashboard');
         let fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
-        
+
         // Wait for either redirect (success) or error state (IGSN already exists)
         const firstUploadResult = await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }).then(() => 'redirect' as const),
@@ -195,7 +195,7 @@ test.describe('IGSN Workflow', () => {
         // Wait for error state - duplicate IGSNs are now validated before storage
         await expect(page.getByTestId('dropzone-error-state')).toBeVisible({ timeout: 15000 });
         await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
-        
+
         // Verify the error message mentions the duplicate IGSN
         await expect(page.getByText(/already exists/i)).toBeVisible();
     });
@@ -205,7 +205,7 @@ test.describe('IGSN Workflow', () => {
         await page.goto('/dashboard');
         const fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
-        
+
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
@@ -243,7 +243,7 @@ test.describe('IGSN Workflow', () => {
         await page.goto('/dashboard');
         const fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
-        
+
         // Wait for redirect or error (IGSN might already exist from previous test runs)
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
@@ -261,7 +261,7 @@ test.describe('IGSN Workflow', () => {
 
         // Step 3: Find the row and click the JSON export button
         const row = page.locator('tr').filter({ has: igsnCell }).first();
-        
+
         // The export button has aria-label="Export as DataCite JSON"
         const exportButton = row.getByRole('button', { name: 'Export as DataCite JSON' });
         await expect(exportButton).toBeVisible();
@@ -274,10 +274,10 @@ test.describe('IGSN Workflow', () => {
 
         // Step 5: Wait for download to complete
         const download = await downloadPromise;
-        
+
         // Verify the download was successful
         expect(download).toBeTruthy();
-        
+
         // Verify filename contains the IGSN
         const filename = download.suggestedFilename();
         expect(filename).toContain('.json');
@@ -286,7 +286,7 @@ test.describe('IGSN Workflow', () => {
         // Step 6: Read and validate the downloaded JSON content
         const downloadPath = await download.path();
         expect(downloadPath).toBeTruthy();
-        
+
         // Read the file content
         const fs = await import('fs/promises');
         const jsonContent = await fs.readFile(downloadPath!, 'utf-8');
@@ -317,14 +317,14 @@ test.describe('IGSN Workflow', () => {
     });
 
     test('exported JSON passes DataCite schema validation (no validation modal)', async ({ page }) => {
-        // This test specifically verifies that the fix for contributorType, relationType, 
+        // This test specifically verifies that the fix for contributorType, relationType,
         // and geoLocation coordinate types works correctly
-        
+
         // Upload the DOVE CSV (which has contributors and geo coordinates)
         await page.goto('/dashboard');
         const fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
-        
+
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
             page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
@@ -343,7 +343,7 @@ test.describe('IGSN Workflow', () => {
 
         // Set up listeners for both download (success) and dialog (validation error)
         const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null);
-        
+
         // Click export
         await exportButton.click();
 
@@ -353,7 +353,7 @@ test.describe('IGSN Workflow', () => {
         // Check if validation error modal appeared (this would indicate our fix didn't work)
         const validationModal = page.locator('[role="dialog"]').filter({ hasText: /JSON Export Failed/i });
         const modalVisible = await validationModal.isVisible();
-        
+
         if (modalVisible) {
             // If modal is visible, the test should fail with details about what went wrong
             const errorText = await validationModal.textContent();
@@ -363,7 +363,7 @@ test.describe('IGSN Workflow', () => {
         // Download should have succeeded
         const download = await downloadPromise;
         expect(download).toBeTruthy();
-        
+
         // Additional verification: read the JSON and check specific fields that were fixed
         if (download) {
             const downloadPath = await download.path();

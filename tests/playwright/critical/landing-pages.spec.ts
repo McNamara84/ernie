@@ -292,10 +292,10 @@ test.describe('Landing Page - Licenses', () => {
 
     // Verify files section is visible (licenses are displayed within files section)
     await landingPage.verifyFilesSectionVisible();
-    
+
     // Verify license full name is displayed
     await expect(landingPage.filesSection).toContainText('Creative Commons Attribution 4.0 International');
-    
+
     // Verify CC icons are displayed for Creative Commons license
     const ccIcon = landingPage.filesSection.locator('[aria-label*="Creative Commons"]');
     await expect(ccIcon.first()).toBeVisible();
@@ -308,11 +308,11 @@ test.describe('Landing Page - Licenses', () => {
 
     // Verify files section is visible
     await landingPage.verifyFilesSectionVisible();
-    
+
     // Check for License label and CC content
     await expect(landingPage.filesSection).toContainText('License');
     await expect(landingPage.filesSection).toContainText('CC');
-    
+
     // Verify CC icons are displayed
     const ccIcon = landingPage.filesSection.locator('[aria-label*="Creative Commons"]');
     await expect(ccIcon.first()).toBeVisible();

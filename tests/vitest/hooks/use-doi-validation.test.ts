@@ -103,7 +103,7 @@ describe('useDoiValidation', () => {
             await waitFor(() => {
                 expect(result.current.isValid).toBe(true);
             });
-            
+
             expect(result.current.error).toBeNull();
             expect(result.current.conflictData).toBeNull();
             expect(onSuccess).toHaveBeenCalled();
@@ -134,7 +134,7 @@ describe('useDoiValidation', () => {
             await waitFor(() => {
                 expect(result.current.isValid).toBe(false);
             });
-            
+
             expect(result.current.error).toBe('Invalid DOI format');
             expect(onError).toHaveBeenCalledWith('Invalid DOI format');
         });
@@ -169,7 +169,7 @@ describe('useDoiValidation', () => {
             await waitFor(() => {
                 expect(result.current.showConflictModal).toBe(true);
             });
-            
+
             expect(result.current.conflictData).toEqual({
                 existingDoi: '10.5880/test.2026.001',
                 existingResourceId: 456,

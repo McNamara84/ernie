@@ -92,10 +92,10 @@ describe('AuthorItem Component', () => {
         vi.useFakeTimers();
         vi.runAllTimers();
         vi.useRealTimers();
-        
+
         // Clean up all components
         cleanup();
-        
+
         // Flush microtasks to ensure all pending promises are resolved
         await waitFor(() => {
             // Wait for any Tagify events to be processed
@@ -105,7 +105,7 @@ describe('AuthorItem Component', () => {
 
     it('renders person author correctly', () => {
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
+
         expect(screen.getByText('Author 1')).toBeInTheDocument();
         expect(screen.getByDisplayValue('John')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Doe')).toBeInTheDocument();
@@ -114,41 +114,41 @@ describe('AuthorItem Component', () => {
 
     it('renders institution author correctly', () => {
         render(<AuthorItem author={mockInstitutionAuthor} {...mockProps} />);
-        
+
         expect(screen.getByText('Author 1')).toBeInTheDocument();
         expect(screen.getByDisplayValue('Test University')).toBeInTheDocument();
     });
 
     it('shows remove button when canRemove is true', () => {
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} canRemove={true} />);
-        
+
         expect(screen.getByLabelText('Remove author 1')).toBeInTheDocument();
     });
 
     it('hides remove button when canRemove is false', () => {
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} canRemove={false} />);
-        
+
         expect(screen.queryByLabelText('Remove author 1')).not.toBeInTheDocument();
     });
 
     it('calls onRemove when remove button is clicked', async () => {
         const user = userEvent.setup();
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
+
         const removeButton = screen.getByLabelText('Remove author 1');
         await user.click(removeButton);
-        
+
         expect(mockProps.onRemove).toHaveBeenCalledTimes(1);
     });
 
     it('calls onPersonFieldChange when first name is changed', async () => {
         const user = userEvent.setup();
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
+
         const firstNameInput = screen.getByRole('textbox', { name: /First name/i });
         await user.clear(firstNameInput);
         await user.type(firstNameInput, 'Jane');
-        
+
         // Check that the callback was called
         expect(mockProps.onPersonFieldChange).toHaveBeenCalled();
         // Verify that at least one call was made with firstName
@@ -160,33 +160,33 @@ describe('AuthorItem Component', () => {
     it('calls onContactChange when contact person checkbox is toggled', async () => {
         const user = userEvent.setup();
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
+
         const contactCheckbox = screen.getByRole('checkbox', { name: /contact person/i });
         await user.click(contactCheckbox);
-        
+
         expect(mockProps.onContactChange).toHaveBeenCalledWith(true);
     });
 
     it('displays ORCID verified badge when orcidVerified is true', () => {
         const verifiedAuthor = { ...mockPersonAuthor, orcidVerified: true };
         render(<AuthorItem author={verifiedAuthor} {...mockProps} />);
-        
+
         expect(screen.getByText('Verified')).toBeInTheDocument();
     });
 
     it('renders drag handle with correct aria-label', () => {
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
+
         expect(screen.getByLabelText('Reorder author 1')).toBeInTheDocument();
     });
 
     it('validates ORCID format', () => {
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
+
         // Get the ORCID input - it's a Tagify input which works differently
         const orcidContainer = screen.getByTestId('author-0-orcid-field');
         expect(orcidContainer).toBeInTheDocument();
-        
+
         // Just verify that the ORCID field exists
         // Tagify inputs are difficult to test in jsdom
         const label = screen.getByText(/ORCID/i);

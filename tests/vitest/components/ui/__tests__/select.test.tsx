@@ -64,4 +64,3 @@ describe('Select', () => {
         expect(trigger).toHaveTextContent('Banana');
     });
 });
-

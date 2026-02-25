@@ -2,29 +2,29 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Page Object Model for Settings pages
- * 
+ *
  * Handles interactions with user settings including profile,
  * password, appearance, and other preferences.
  */
 export class SettingsPage {
   readonly page: Page;
   readonly heading: Locator;
-  
+
   // Profile settings
   readonly nameInput: Locator;
   readonly emailInput: Locator;
   readonly updateProfileButton: Locator;
-  
+
   // Password settings
   readonly currentPasswordInput: Locator;
   readonly newPasswordInput: Locator;
   readonly confirmPasswordInput: Locator;
   readonly updatePasswordButton: Locator;
-  
+
   // Appearance settings
   readonly themeSelector: Locator;
   readonly languageSelector: Locator;
-  
+
   // Common elements
   readonly successMessage: Locator;
   readonly errorMessage: Locator;
@@ -33,22 +33,22 @@ export class SettingsPage {
     this.page = page;
     // Use .first() to avoid strict mode violation (Settings page has multiple headings)
     this.heading = page.getByRole('heading', { name: /Settings/i }).first();
-    
+
     // Profile
     this.nameInput = page.getByLabel('Name');
     this.emailInput = page.getByLabel('Email');
     this.updateProfileButton = page.getByRole('button', { name: 'Update Profile' });
-    
+
     // Password
     this.currentPasswordInput = page.getByLabel('Current Password');
     this.newPasswordInput = page.getByLabel('New Password');
     this.confirmPasswordInput = page.getByLabel('Confirm Password');
     this.updatePasswordButton = page.getByRole('button', { name: 'Update Password' });
-    
+
     // Appearance
     this.themeSelector = page.getByLabel('Theme');
     this.languageSelector = page.getByLabel('Language');
-    
+
     // Messages
     this.successMessage = page.getByRole('status').filter({ hasText: /success/i });
     this.errorMessage = page.getByRole('alert');
@@ -82,12 +82,12 @@ export class SettingsPage {
    */
   async updateProfile(name: string, email?: string) {
     await this.gotoSection('profile');
-    
+
     await this.nameInput.fill(name);
     if (email) {
       await this.emailInput.fill(email);
     }
-    
+
     await this.updateProfileButton.click();
   }
 
@@ -99,11 +99,11 @@ export class SettingsPage {
    */
   async changePassword(currentPassword: string, newPassword: string, confirmPassword?: string) {
     await this.gotoSection('password');
-    
+
     await this.currentPasswordInput.fill(currentPassword);
     await this.newPasswordInput.fill(newPassword);
     await this.confirmPasswordInput.fill(confirmPassword || newPassword);
-    
+
     await this.updatePasswordButton.click();
   }
 
@@ -114,7 +114,7 @@ export class SettingsPage {
   async changeTheme(theme: 'light' | 'dark' | 'system') {
     await this.gotoSection('appearance');
     await this.themeSelector.selectOption(theme);
-    
+
     // Wait for theme to apply
     await this.page.waitForTimeout(300);
   }
@@ -126,7 +126,7 @@ export class SettingsPage {
   async changeLanguage(language: string) {
     await this.gotoSection('appearance');
     await this.languageSelector.selectOption(language);
-    
+
     // Wait for language to apply
     await this.page.waitForTimeout(300);
   }
@@ -137,7 +137,7 @@ export class SettingsPage {
    */
   async verifySuccess(message?: string) {
     await expect(this.successMessage).toBeVisible();
-    
+
     if (message) {
       await expect(this.successMessage).toContainText(message);
     }
@@ -149,7 +149,7 @@ export class SettingsPage {
    */
   async verifyError(message?: string) {
     await expect(this.errorMessage).toBeVisible();
-    
+
     if (message) {
       await expect(this.errorMessage).toContainText(message);
     }

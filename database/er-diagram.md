@@ -4,7 +4,7 @@ erDiagram
     %% =========================================================================
     %% LOOKUP TABLES (DataCite Controlled Vocabularies)
     %% =========================================================================
-    
+
     resource_types {
         bigint id PK
         varchar name

@@ -22,7 +22,7 @@ export interface OldDatasetFilters {
 
 /**
  * Page Object Model for the Old Datasets page
- * 
+ *
  * Handles all interactions with the legacy datasets overview,
  * including filtering, sorting, and loading data into curation.
  */
@@ -115,11 +115,11 @@ export class OldDatasetsPage {
    * @param field - Field to sort by
    */
   async sortBy(field: OldDatasetSort['field']) {
-    const columnHeader = this.page.getByRole('columnheader', { 
-      name: new RegExp(field, 'i') 
+    const columnHeader = this.page.getByRole('columnheader', {
+      name: new RegExp(field, 'i')
     });
     await columnHeader.click();
-    
+
     // Wait for sort to apply
     await this.page.waitForTimeout(500);
   }
@@ -140,9 +140,9 @@ export class OldDatasetsPage {
       .locator('button')
       .filter({ hasText: /Load Authors/i })
       .nth(datasetIndex);
-    
+
     await loadButton.click();
-    
+
     // Wait for navigation to curation page
     await this.page.waitForURL(/\/curation/, { timeout: 10000 });
   }
@@ -156,9 +156,9 @@ export class OldDatasetsPage {
       .locator('button')
       .filter({ hasText: /Load Dates/i })
       .nth(datasetIndex);
-    
+
     await loadButton.click();
-    
+
     // Wait for navigation to curation page
     await this.page.waitForURL(/\/curation/, { timeout: 10000 });
   }
@@ -172,9 +172,9 @@ export class OldDatasetsPage {
       .locator('button')
       .filter({ hasText: /Load Descriptions/i })
       .nth(datasetIndex);
-    
+
     await loadButton.click();
-    
+
     // Wait for navigation to curation page
     await this.page.waitForURL(/\/curation/, { timeout: 10000 });
   }
@@ -188,9 +188,9 @@ export class OldDatasetsPage {
       .locator('button')
       .filter({ hasText: /Load Contributors/i })
       .nth(datasetIndex);
-    
+
     await loadButton.click();
-    
+
     // Wait for navigation to curation page
     await this.page.waitForURL(/\/curation/, { timeout: 10000 });
   }
@@ -200,7 +200,7 @@ export class OldDatasetsPage {
    */
   async verifyDatasetsDisplayed() {
     await expect(this.datasetTable).toBeVisible();
-    
+
     const rows = this.datasetTable.locator('tbody tr');
     await expect(rows).not.toHaveCount(0);
   }
@@ -214,7 +214,7 @@ export class OldDatasetsPage {
       .locator('tbody tr')
       .nth(rowIndex)
       .locator('[data-testid="dataset-year"]');
-    
+
     return (await yearCell.textContent()) || '';
   }
 

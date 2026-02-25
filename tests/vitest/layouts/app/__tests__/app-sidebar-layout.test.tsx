@@ -42,4 +42,3 @@ describe('AppSidebarLayout', () => {
         expect(screen.getByText('Child')).toBeInTheDocument();
     });
 });
-

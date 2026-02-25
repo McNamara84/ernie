@@ -10,7 +10,7 @@ describe('ValidationAlert', () => {
     describe('rendering', () => {
         it('renders with single message', () => {
             render(<ValidationAlert severity="error" messages={['Field is required']} />);
-            
+
             expect(screen.getByText('Field is required')).toBeInTheDocument();
         });
 
@@ -21,7 +21,7 @@ describe('ValidationAlert', () => {
                     messages={['First error', 'Second error', 'Third error']}
                 />
             );
-            
+
             expect(screen.getByText('First error')).toBeInTheDocument();
             expect(screen.getByText('Second error')).toBeInTheDocument();
             expect(screen.getByText('Third error')).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('ValidationAlert', () => {
                     messages={['Field is required']}
                 />
             );
-            
+
             expect(screen.getByText('Validation Failed')).toBeInTheDocument();
         });
 
@@ -43,7 +43,7 @@ describe('ValidationAlert', () => {
             const { container } = render(
                 <ValidationAlert severity="error" messages={[]} />
             );
-            
+
             expect(container).toBeEmptyDOMElement();
         });
 
@@ -55,7 +55,7 @@ describe('ValidationAlert', () => {
                     data-testid="validation-error"
                 />
             );
-            
+
             expect(screen.getByTestId('validation-error')).toBeInTheDocument();
         });
     });
@@ -63,19 +63,19 @@ describe('ValidationAlert', () => {
     describe('severity levels', () => {
         it('renders error severity with alert role', () => {
             render(<ValidationAlert severity="error" messages={['Error']} />);
-            
+
             expect(screen.getByRole('alert')).toBeInTheDocument();
         });
 
         it('renders warning severity with alert role', () => {
             render(<ValidationAlert severity="warning" messages={['Warning']} />);
-            
+
             expect(screen.getByRole('alert')).toBeInTheDocument();
         });
 
         it('renders info severity with status role', () => {
             render(<ValidationAlert severity="info" messages={['Info']} />);
-            
+
             expect(screen.getByRole('status')).toBeInTheDocument();
         });
 
@@ -87,7 +87,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             const alert = screen.getByTestId('alert');
             expect(alert).toHaveClass('text-destructive');
         });
@@ -100,7 +100,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             const alert = screen.getByTestId('alert');
             expect(alert).toHaveClass('text-amber-900');
         });
@@ -113,7 +113,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             const alert = screen.getByTestId('alert');
             expect(alert).toHaveClass('text-blue-900');
         });
@@ -128,7 +128,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             expect(screen.getByTestId('alert')).toHaveAttribute('aria-live', 'polite');
         });
 
@@ -141,7 +141,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             expect(screen.getByTestId('alert')).toHaveAttribute('aria-live', 'assertive');
         });
 
@@ -153,7 +153,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             expect(screen.getByTestId('alert')).not.toHaveAttribute('tabIndex');
         });
 
@@ -166,7 +166,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             expect(screen.getByTestId('alert')).toHaveAttribute('tabIndex', '-1');
         });
     });
@@ -174,7 +174,7 @@ describe('ValidationAlert', () => {
     describe('message display', () => {
         it('renders single message as paragraph', () => {
             render(<ValidationAlert severity="info" messages={['Single message']} />);
-            
+
             const paragraph = screen.getByText('Single message');
             expect(paragraph.tagName).toBe('P');
         });
@@ -186,10 +186,10 @@ describe('ValidationAlert', () => {
                     messages={['First', 'Second']}
                 />
             );
-            
+
             const list = screen.getByRole('list');
             expect(list).toBeInTheDocument();
-            
+
             const items = screen.getAllByRole('listitem');
             expect(items).toHaveLength(2);
         });
@@ -202,7 +202,7 @@ describe('ValidationAlert', () => {
                     messages={['Single message']}
                 />
             );
-            
+
             expect(screen.getByText('Error Title')).toBeInTheDocument();
             expect(screen.getByText('Single message')).toBeInTheDocument();
         });
@@ -218,7 +218,7 @@ describe('ValidationAlert', () => {
                     data-testid="alert"
                 />
             );
-            
+
             expect(screen.getByTestId('alert')).toHaveClass('my-custom-class');
         });
     });

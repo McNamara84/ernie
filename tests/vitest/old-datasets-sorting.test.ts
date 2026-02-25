@@ -4,13 +4,13 @@ import { type SortDirection, type SortKey, type SortState } from '@/types/old-da
 
 /**
  * Tests for old-datasets sorting logic
- * 
+ *
  * These tests validate the frontend sorting behavior without requiring
  * backend connectivity, making them safe for CI environments.
  */
 
 describe('OldDataset Sort State', () => {
-    
+
     describe('Sort Key Validation', () => {
         const validSortKeys = [
             'id',
@@ -60,39 +60,39 @@ describe('OldDataset Sort State', () => {
         it('starts with asc when clicking a new column', () => {
             const currentState: SortState = { key: 'id', direction: 'asc' };
             const nextDirection = determineNextDirection(currentState, 'title');
-            
+
             expect(nextDirection).toBe('asc');
         });
 
         it('toggles to desc when clicking the same column sorted asc', () => {
             const currentState: SortState = { key: 'title', direction: 'asc' };
             const nextDirection = determineNextDirection(currentState, 'title');
-            
+
             expect(nextDirection).toBe('desc');
         });
 
         it('toggles to asc when clicking the same column sorted desc', () => {
             const currentState: SortState = { key: 'title', direction: 'desc' };
             const nextDirection = determineNextDirection(currentState, 'title');
-            
+
             expect(nextDirection).toBe('asc');
         });
 
         it('handles multiple column switches correctly', () => {
             let state: SortState = { key: 'id', direction: 'asc' };
-            
+
             // Click on title
             state = { key: 'title', direction: determineNextDirection(state, 'title') };
             expect(state).toEqual({ key: 'title', direction: 'asc' });
-            
+
             // Click on title again
             state = { key: 'title', direction: determineNextDirection(state, 'title') };
             expect(state).toEqual({ key: 'title', direction: 'desc' });
-            
+
             // Click on author
             state = { key: 'first_author', direction: determineNextDirection(state, 'first_author') };
             expect(state).toEqual({ key: 'first_author', direction: 'asc' });
-            
+
             // Click on author again
             state = { key: 'first_author', direction: determineNextDirection(state, 'first_author') };
             expect(state).toEqual({ key: 'first_author', direction: 'desc' });
@@ -183,12 +183,12 @@ describe('OldDataset Sort State', () => {
 
         it('handles invalid stored data gracefully', () => {
             const invalidData = { key: 'invalid_key', direction: 'invalid_dir' };
-            
+
             // Validation function would check if key is valid
             const isValidKey = (key: string): boolean => {
                 const validKeys = [
-                    'id', 'identifier', 'title', 'resourcetypegeneral', 
-                    'first_author', 'publicationyear', 'curator', 
+                    'id', 'identifier', 'title', 'resourcetypegeneral',
+                    'first_author', 'publicationyear', 'curator',
                     'publicstatus', 'created_at', 'updated_at'
                 ];
                 return validKeys.includes(key);

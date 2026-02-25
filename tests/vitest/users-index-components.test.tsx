@@ -65,7 +65,7 @@ describe('Users Index Components', () => {
 
             expect(adminBadge).toBeInTheDocument();
             expect(adminBadge).toHaveAttribute('data-variant', 'destructive');
-            
+
             expect(beginnerBadge).toBeInTheDocument();
             expect(beginnerBadge).toHaveAttribute('data-variant', 'outline');
 

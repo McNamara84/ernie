@@ -36,12 +36,12 @@ import { DashboardPage, CurationPage } from './helpers/page-objects';
 test('user can navigate from dashboard to curation', async ({ page }) => {
   // Login using helper
   await loginAsTestUser(page);
-  
+
   // Use page objects for interactions
   const dashboard = new DashboardPage(page);
   await dashboard.verifyOnDashboard();
   await dashboard.navigateTo('Curation');
-  
+
   const curation = new CurationPage(page);
   await curation.verifyOnCurationPage();
 });
@@ -211,7 +211,7 @@ class CurationPage {
 test('create and verify resource', async ({ page }) => {
   const curation = new CurationPage(page);
   await curation.fillAuthor(0, { lastName: 'Doe' });
-  
+
   const resources = await curation.save();
   await resources.verifyResourceExists('10.1234/example');
 });
@@ -262,4 +262,3 @@ export class MyPage {
 - **Add methods** when new user actions are needed
 - **Deprecate methods** with JSDoc `@deprecated` before removing
 - **Keep documentation** in sync with implementation
-

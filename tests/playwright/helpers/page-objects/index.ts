@@ -1,6 +1,6 @@
 /**
  * Page Object Models Index
- * 
+ *
  * Central export point for all page objects used in Playwright tests.
  */
 

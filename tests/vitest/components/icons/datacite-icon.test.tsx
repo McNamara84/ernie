@@ -37,12 +37,12 @@ describe('DataCiteIcon', () => {
     it('is accessible with default attributes', () => {
         const { container } = render(<DataCiteIcon />);
         const svg = container.querySelector('svg');
-        
+
         // SVG should have aria-hidden by default or role="img"
-        const isAccessible = 
-            svg?.hasAttribute('aria-hidden') || 
+        const isAccessible =
+            svg?.hasAttribute('aria-hidden') ||
             svg?.getAttribute('role') === 'img';
-        
+
         expect(isAccessible).toBeTruthy();
     });
 

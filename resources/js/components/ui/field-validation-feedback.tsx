@@ -51,10 +51,10 @@ const severityConfig: Record<
 
 /**
  * Component for displaying validation feedback
- * 
+ *
  * Shows inline validation messages with icons for different
  * severity levels (error, warning, success, info).
- * 
+ *
  * @example
  * ```tsx
  * <FieldValidationFeedback

@@ -67,7 +67,7 @@ describe('ContactSection', () => {
     describe('rendering conditions', () => {
         it('renders when contact persons exist', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.getByText('Contact Information')).toBeInTheDocument();
         });
 
@@ -75,7 +75,7 @@ describe('ContactSection', () => {
             const { container } = render(
                 <ContactSection contactPersons={[]} datasetTitle="Test Dataset" />
             );
-            
+
             expect(container).toBeEmptyDOMElement();
         });
     });
@@ -83,7 +83,7 @@ describe('ContactSection', () => {
     describe('contact person display', () => {
         it('displays contact person name as button when has_email is true', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const contactButton = screen.getByRole('button', { name: /John Doe/i });
             expect(contactButton).toBeInTheDocument();
         });
@@ -95,7 +95,7 @@ describe('ContactSection', () => {
                     contactPersons={[createContactPerson({ has_email: false })]}
                 />
             );
-            
+
             expect(screen.queryByRole('button', { name: /John Doe/i })).not.toBeInTheDocument();
         });
 
@@ -109,7 +109,7 @@ describe('ContactSection', () => {
                     ]}
                 />
             );
-            
+
             expect(screen.getByRole('button', { name: /John Doe/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Jane Smith/i })).toBeInTheDocument();
         });
@@ -123,7 +123,7 @@ describe('ContactSection', () => {
                     contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]}
                 />
             );
-            
+
             // accessible name comes from img alt="ORCID"
             const orcidLink = screen.getByRole('link', { name: /^ORCID$/i });
             expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1825-0097');
@@ -133,7 +133,7 @@ describe('ContactSection', () => {
 
         it('does not render ORCID link when person has no ORCID', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.queryByRole('link', { name: /^ORCID$/i })).not.toBeInTheDocument();
         });
     });
@@ -146,7 +146,7 @@ describe('ContactSection', () => {
                     contactPersons={[createContactPerson({ website: 'https://example.com/john' })]}
                 />
             );
-            
+
             const websiteLink = screen.getByRole('link', { name: /Website/i });
             expect(websiteLink).toHaveAttribute('href', 'https://example.com/john');
             expect(websiteLink).toHaveAttribute('target', '_blank');
@@ -154,7 +154,7 @@ describe('ContactSection', () => {
 
         it('does not render website link when person has no website', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.queryByRole('link', { name: /Website/i })).not.toBeInTheDocument();
         });
     });
@@ -169,7 +169,7 @@ describe('ContactSection', () => {
                     })]}
                 />
             );
-            
+
             expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
         });
 
@@ -185,7 +185,7 @@ describe('ContactSection', () => {
                     })]}
                 />
             );
-            
+
             expect(screen.getByText(/GFZ Potsdam/)).toBeInTheDocument();
             expect(screen.getByText(/TU Berlin/)).toBeInTheDocument();
         });
@@ -202,7 +202,7 @@ describe('ContactSection', () => {
                     })]}
                 />
             );
-            
+
             // accessible name comes from img alt="ROR"
             const rorLink = screen.getByRole('link', { name: /^ROR$/i });
             expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
@@ -221,7 +221,7 @@ describe('ContactSection', () => {
                     })]}
                 />
             );
-            
+
             expect(screen.queryByRole('link', { name: /^ROR$/i })).not.toBeInTheDocument();
         });
     });
@@ -229,21 +229,21 @@ describe('ContactSection', () => {
     describe('contact modal interaction', () => {
         it('opens modal when clicking on contact person', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             const contactButton = screen.getByRole('button', { name: /John Doe/i });
             fireEvent.click(contactButton);
-            
+
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('John Doe');
         });
 
         it('closes modal when clicking close button', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             // Open modal
             fireEvent.click(screen.getByRole('button', { name: /John Doe/i }));
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
-            
+
             // Close modal
             fireEvent.click(screen.getByRole('button', { name: /Close/i }));
             expect(screen.queryByTestId('contact-modal')).not.toBeInTheDocument();
@@ -251,9 +251,9 @@ describe('ContactSection', () => {
 
         it('passes correct dataset title to modal', () => {
             render(<ContactSection {...defaultProps} datasetTitle="My Research Data" />);
-            
+
             fireEvent.click(screen.getByRole('button', { name: /John Doe/i }));
-            
+
             expect(screen.getByTestId('dataset-title')).toHaveTextContent('My Research Data');
         });
     });
@@ -269,13 +269,13 @@ describe('ContactSection', () => {
                     ]}
                 />
             );
-            
+
             expect(screen.getByRole('button', { name: /Contact all \(2\)/i })).toBeInTheDocument();
         });
 
         it('does not render "Contact all" button when only one contact person', () => {
             render(<ContactSection {...defaultProps} />);
-            
+
             expect(screen.queryByRole('button', { name: /Contact all/i })).not.toBeInTheDocument();
         });
 
@@ -289,9 +289,9 @@ describe('ContactSection', () => {
                     ]}
                 />
             );
-            
+
             fireEvent.click(screen.getByRole('button', { name: /Contact all/i }));
-            
+
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('All');
             expect(screen.getByTestId('contact-count')).toHaveTextContent('2');

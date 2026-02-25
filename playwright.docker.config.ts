@@ -4,9 +4,9 @@ import { testIgnorePatterns, testMatchPatterns, timeoutSettings } from './tests/
 
 /**
  * Playwright configuration for Docker development environment.
- * 
+ *
  * Usage: npx playwright test --config=playwright.docker.config.ts
- * 
+ *
  * This configuration:
  * - Uses https://localhost:3333/ as base URL
  * - Ignores self-signed certificate errors
@@ -30,13 +30,13 @@ export default defineConfig({
   expect: {
     timeout: timeoutSettings.expectTimeout,
   },
-  
+
   /* Test match patterns - imported from shared config */
   testMatch: testMatchPatterns,
-  
+
   /* Ignore helper files and documentation */
   testIgnore: testIgnorePatterns,
-  
+
   /* Shared settings for all the projects below */
   use: {
     /* Docker development URL - must match SESSION_DOMAIN in docker-compose.dev.yml */
@@ -47,16 +47,16 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test */
     trace: 'on-first-retry',
-    
+
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Record video on failure */
     video: 'retain-on-failure',
-    
+
     /* Timeout for each action */
     actionTimeout: 15 * 1000,
-    
+
     /* Timeout for page navigation */
     navigationTimeout: 30 * 1000,
   },

@@ -41,11 +41,11 @@ vi.mock('@/routes', () => ({
 
 describe('Appearance settings page', () => {
     beforeEach(() => {
-        usePageMock.mockReturnValue({ 
-            props: { 
+        usePageMock.mockReturnValue({
+            props: {
                 fontSizePreference: 'regular',
-                auth: { user: { id: 1 } } 
-            } 
+                auth: { user: { id: 1 } }
+            }
         });
     });
 

@@ -8,12 +8,12 @@ export function normalizeTestUrl(url: string): string {
     if (url.startsWith('//http://localhost')) {
         return url.replace('//http://localhost', '');
     }
-    
-    // Handle URLs like "http://localhost/path" -> "/path" 
+
+    // Handle URLs like "http://localhost/path" -> "/path"
     if (url.startsWith('http://localhost')) {
         return url.replace('http://localhost', '');
     }
-    
+
     return url;
 }
 

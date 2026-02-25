@@ -9,7 +9,7 @@ test.describe('Resources Management', () => {
   test('resources page requires authentication', async ({ page }) => {
     // Try to access resources without login
     await page.goto('/resources');
-    
+
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
   });
@@ -21,10 +21,10 @@ test.describe('Resources Management', () => {
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
-    
+
     // Navigate to resources
     await page.goto('/resources');
-    
+
     // Should be accessible
     await expect(page).toHaveURL(/\/resources/);
   });

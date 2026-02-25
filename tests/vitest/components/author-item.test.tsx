@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Tests for AuthorItem component - hasUserInteracted flag
- * 
+ *
  * These tests verify that the ORCID Auto-Suggest feature does NOT trigger
  * when loading existing authors from the database, but DOES trigger when
  * the user manually types in the name fields.
- * 
+ *
  * The actual functionality is tested via E2E tests in Playwright.
  * This file documents the expected behavior.
  */

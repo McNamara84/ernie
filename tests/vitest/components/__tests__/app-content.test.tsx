@@ -35,4 +35,3 @@ describe('AppContent', () => {
         expect(inset).toHaveTextContent('Sidebar content');
     });
 });
-

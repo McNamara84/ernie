@@ -50,4 +50,3 @@ describe('AuthSimpleLayout', () => {
         expect(screen.getByText('Child content')).toBeInTheDocument();
     });
 });
-

@@ -22,4 +22,3 @@ describe('AppLogo', () => {
         expect(screen.getByText('Ernie')).toBeInTheDocument();
     });
 });
-
