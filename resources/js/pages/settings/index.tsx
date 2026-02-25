@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { getSelectAllState } from '@/lib/select-all';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
@@ -283,6 +284,18 @@ export default function EditorSettings({
         );
     };
 
+    // Select-all state for each card's ERNIE / ELMO columns
+    const licenseErnieState = getSelectAllState(data.licenses.map((l) => l.active));
+    const licenseElmoState = getSelectAllState(data.licenses.map((l) => l.elmo_active));
+    const rtErnieState = getSelectAllState(data.resourceTypes.map((r) => r.active));
+    const rtElmoState = getSelectAllState(data.resourceTypes.map((r) => r.elmo_active));
+    const ttErnieState = getSelectAllState(data.titleTypes.map((t) => t.active));
+    const ttElmoState = getSelectAllState(data.titleTypes.map((t) => t.elmo_active));
+    const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
+    const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
+    const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
+    const dtElmoState = getSelectAllState(data.dateTypes.map((d) => d.elmo_active));
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(settings().url);
@@ -315,11 +328,37 @@ export default function EditorSettings({
                                                     ERNIE
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={licenseErnieState.allChecked}
+                                                            indeterminate={licenseErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'licenses',
+                                                                    data.licenses.map((l) => ({ ...l, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Licenses"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                                 <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={licenseElmoState.allChecked}
+                                                            indeterminate={licenseElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'licenses',
+                                                                    data.licenses.map((l) => ({ ...l, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Licenses"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                                 <TableHead className="text-center">
                                                     Resource
@@ -465,11 +504,37 @@ export default function EditorSettings({
                                                     ERNIE
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={rtErnieState.allChecked}
+                                                            indeterminate={rtErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'resourceTypes',
+                                                                    data.resourceTypes.map((r) => ({ ...r, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Resource Types"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                                 <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={rtElmoState.allChecked}
+                                                            indeterminate={rtElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'resourceTypes',
+                                                                    data.resourceTypes.map((r) => ({ ...r, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Resource Types"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -532,11 +597,37 @@ export default function EditorSettings({
                                                     ERNIE
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={ttErnieState.allChecked}
+                                                            indeterminate={ttErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'titleTypes',
+                                                                    data.titleTypes.map((t) => ({ ...t, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Title Types"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                                 <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={ttElmoState.allChecked}
+                                                            indeterminate={ttElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'titleTypes',
+                                                                    data.titleTypes.map((t) => ({ ...t, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Title Types"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -609,11 +700,37 @@ export default function EditorSettings({
                                                     ERNIE
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={langErnieState.allChecked}
+                                                            indeterminate={langErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'languages',
+                                                                    data.languages.map((l) => ({ ...l, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Languages"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                                 <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={langElmoState.allChecked}
+                                                            indeterminate={langElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'languages',
+                                                                    data.languages.map((l) => ({ ...l, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Languages"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -668,11 +785,37 @@ export default function EditorSettings({
                                                     ERNIE
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={dtErnieState.allChecked}
+                                                            indeterminate={dtErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'dateTypes',
+                                                                    data.dateTypes.map((d) => ({ ...d, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Date Types"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                                 <TableHead className="text-center">
                                                     ELMO
                                                     <br />
                                                     active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={dtElmoState.allChecked}
+                                                            indeterminate={dtElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'dateTypes',
+                                                                    data.dateTypes.map((d) => ({ ...d, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Date Types"
+                                                        />
+                                                    </div>
                                                 </TableHead>
                                             </TableRow>
                                         </TableHeader>

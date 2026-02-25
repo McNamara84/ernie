@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { getSelectAllState } from '@/lib/select-all';
 import { type SharedData } from '@/types';
 
 /**
@@ -351,6 +352,10 @@ export interface ThesaurusCardProps {
 }
 
 export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange }: ThesaurusCardProps) {
+    // Select-all state for ERNIE / ELMO columns
+    const ernieState = getSelectAllState(thesauri.map((t) => t.isActive));
+    const elmoState = getSelectAllState(thesauri.map((t) => t.isElmoActive));
+
     // Reload page data after update to get fresh data from backend
     // Using Inertia's router.reload() for smoother UX (preserves scroll position)
     const handleUpdateComplete = useCallback(() => {
@@ -362,6 +367,40 @@ export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange }: 
 
     return (
         <div className="space-y-4" data-testid="thesaurus-card">
+            {/* Select all row */}
+            <div className="flex items-center justify-end gap-4 border-b pb-3">
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="thesaurus-all-ernie"
+                        checked={ernieState.allChecked}
+                        indeterminate={ernieState.indeterminate}
+                        onCheckedChange={(checked) => {
+                            const newValue = checked === true;
+                            thesauri.forEach((t) => onActiveChange(t.type, newValue));
+                        }}
+                        aria-label="Select all ERNIE active for Thesauri"
+                    />
+                    <Label htmlFor="thesaurus-all-ernie" className="text-sm font-medium">
+                        All ERNIE
+                    </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="thesaurus-all-elmo"
+                        checked={elmoState.allChecked}
+                        indeterminate={elmoState.indeterminate}
+                        onCheckedChange={(checked) => {
+                            const newValue = checked === true;
+                            thesauri.forEach((t) => onElmoActiveChange(t.type, newValue));
+                        }}
+                        aria-label="Select all ELMO active for Thesauri"
+                    />
+                    <Label htmlFor="thesaurus-all-elmo" className="text-sm font-medium">
+                        All ELMO
+                    </Label>
+                </div>
+            </div>
+
             {thesauri.map((thesaurus) => (
                 <ThesaurusRow
                     key={thesaurus.type}
