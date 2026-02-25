@@ -275,6 +275,20 @@ export default function EditorSettings({
         );
     };
 
+    const handleBulkThesaurusActiveChange = (isActive: boolean) => {
+        setData(
+            'thesauri',
+            data.thesauri.map((t) => ({ ...t, isActive })),
+        );
+    };
+
+    const handleBulkThesaurusElmoActiveChange = (isElmoActive: boolean) => {
+        setData(
+            'thesauri',
+            data.thesauri.map((t) => ({ ...t, isElmoActive })),
+        );
+    };
+
     // Select-all state for each card's ERNIE / ELMO columns
     const licenseErnieState = getSelectAllState(data.licenses.map((l) => l.active));
     const licenseElmoState = getSelectAllState(data.licenses.map((l) => l.elmo_active));
@@ -866,6 +880,8 @@ export default function EditorSettings({
                                     })}
                                     onActiveChange={handleThesaurusActiveChange}
                                     onElmoActiveChange={handleThesaurusElmoActiveChange}
+                                    onBulkActiveChange={handleBulkThesaurusActiveChange}
+                                    onBulkElmoActiveChange={handleBulkThesaurusElmoActiveChange}
                                 />
                             </CardContent>
                         </Card>

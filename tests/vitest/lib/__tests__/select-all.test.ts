@@ -5,32 +5,32 @@ import { getSelectAllState } from '@/lib/select-all';
 describe('getSelectAllState', () => {
     it('returns allChecked when every value is true', () => {
         const result = getSelectAllState([true, true, true]);
-        expect(result).toEqual({ allChecked: true, noneChecked: false, indeterminate: false });
+        expect(result).toEqual({ allChecked: true, noneChecked: false, indeterminate: false, isEmpty: false });
     });
 
     it('returns noneChecked when every value is false', () => {
         const result = getSelectAllState([false, false, false]);
-        expect(result).toEqual({ allChecked: false, noneChecked: true, indeterminate: false });
+        expect(result).toEqual({ allChecked: false, noneChecked: true, indeterminate: false, isEmpty: false });
     });
 
     it('returns indeterminate when values are mixed', () => {
         const result = getSelectAllState([true, false, true]);
-        expect(result).toEqual({ allChecked: false, noneChecked: false, indeterminate: true });
+        expect(result).toEqual({ allChecked: false, noneChecked: false, indeterminate: true, isEmpty: false });
     });
 
-    it('returns allChecked and noneChecked for an empty array', () => {
+    it('returns unchecked with isEmpty flag for an empty array', () => {
         const result = getSelectAllState([]);
-        expect(result).toEqual({ allChecked: true, noneChecked: true, indeterminate: false });
+        expect(result).toEqual({ allChecked: false, noneChecked: true, indeterminate: false, isEmpty: true });
     });
 
     it('handles a single true value', () => {
         const result = getSelectAllState([true]);
-        expect(result).toEqual({ allChecked: true, noneChecked: false, indeterminate: false });
+        expect(result).toEqual({ allChecked: true, noneChecked: false, indeterminate: false, isEmpty: false });
     });
 
     it('handles a single false value', () => {
         const result = getSelectAllState([false]);
-        expect(result).toEqual({ allChecked: false, noneChecked: true, indeterminate: false });
+        expect(result).toEqual({ allChecked: false, noneChecked: true, indeterminate: false, isEmpty: false });
     });
 
     it('handles a large array of all true', () => {

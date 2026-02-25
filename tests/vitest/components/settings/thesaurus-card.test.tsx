@@ -312,6 +312,77 @@ describe('ThesaurusCard', () => {
             const selectAllElmo = screen.getByLabelText('Select all ELMO active for Thesauri');
             expect(selectAllElmo).toHaveAttribute('data-indeterminate', 'true');
         });
+
+        it('should not render select-all row when thesauri array is empty', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={[]}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.queryByLabelText('Select all ERNIE active for Thesauri')).not.toBeInTheDocument();
+            expect(screen.queryByLabelText('Select all ELMO active for Thesauri')).not.toBeInTheDocument();
+        });
+
+        it('should call onBulkActiveChange instead of per-item onActiveChange when provided', async () => {
+            const user = userEvent.setup();
+            const mockBulkActiveChange = vi.fn();
+            const allInactiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: false }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allInactiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                    onBulkActiveChange={mockBulkActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ERNIE active for Thesauri'));
+
+            expect(mockBulkActiveChange).toHaveBeenCalledTimes(1);
+            expect(mockBulkActiveChange).toHaveBeenCalledWith(true);
+            expect(mockOnActiveChange).not.toHaveBeenCalled();
+        });
+
+        it('should call onBulkElmoActiveChange instead of per-item onElmoActiveChange when provided', async () => {
+            const user = userEvent.setup();
+            const mockBulkElmoActiveChange = vi.fn();
+
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                    onBulkElmoActiveChange={mockBulkElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ELMO active for Thesauri'));
+
+            expect(mockBulkElmoActiveChange).toHaveBeenCalledTimes(1);
+            expect(mockBulkElmoActiveChange).toHaveBeenCalledWith(true);
+            expect(mockOnElmoActiveChange).not.toHaveBeenCalled();
+        });
+
+        it('should fall back to per-item onActiveChange when onBulkActiveChange is not provided', async () => {
+            const user = userEvent.setup();
+            const allInactiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: false }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allInactiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ERNIE active for Thesauri'));
+
+            expect(mockOnActiveChange).toHaveBeenCalledTimes(3);
+        });
     });
 
     describe('Update check flow', () => {

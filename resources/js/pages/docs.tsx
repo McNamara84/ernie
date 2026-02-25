@@ -276,9 +276,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <h4>Bulk Selection</h4>
                         <p>
-                            Each settings table provides a <strong>header checkbox</strong> in the &quot;ERNIE active&quot; and &quot;ELMO
-                            active&quot; columns. Use it to select or deselect all options in a column at once. When some options
-                            are selected and others are not, the header checkbox shows an indeterminate state (—).
+                            The settings tables for Resource Types, Title Types, Licenses, and Languages provide a{' '}
+                            <strong>header checkbox</strong> in both the &quot;ERNIE active&quot; and &quot;ELMO active&quot;
+                            columns. The Date Types table only has an ERNIE header checkbox (ELMO is not supported for
+                            Date Types). Use these checkboxes to select or deselect all options in a column at once. When
+                            some options are selected and others are not, the checkbox shows an indeterminate state (—).
+                            The Thesauri card provides an &quot;All ERNIE&quot; / &quot;All ELMO&quot; row at the top for
+                            the same purpose.
                         </p>
 
                         <h4>Thesaurus Management</h4>
