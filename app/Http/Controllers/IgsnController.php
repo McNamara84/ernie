@@ -55,6 +55,12 @@ class IgsnController extends Controller
     private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     /**
+     * Minimum number of characters for a search query.
+     * Must match the frontend constant in igsn-search-input.tsx.
+     */
+    private const MIN_SEARCH_LENGTH = 3;
+
+    /**
      * Display a listing of IGSNs (Physical Sample resources).
      */
     public function index(Request $request): Response
@@ -63,6 +69,12 @@ class IgsnController extends Controller
         $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
         $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
         $search = trim((string) $request->query('search', ''));
+
+        // Enforce minimum search length to avoid expensive full-table LIKE scans.
+        // Must stay in sync with the frontend MIN_SEARCH_LENGTH constant.
+        if (mb_strlen($search) < self::MIN_SEARCH_LENGTH) {
+            $search = '';
+        }
 
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 

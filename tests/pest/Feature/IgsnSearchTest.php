@@ -90,6 +90,20 @@ describe('IGSN Search', function () {
         );
     });
 
+    it('ignores search terms shorter than 3 characters', function () {
+        createSearchableIgsn('IGSN-AB-001', 'AB Sample');
+        createSearchableIgsn('IGSN-CD-002', 'CD Sample');
+
+        $response = $this->actingAs($this->user)->get('/igsns?search=AB');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('igsns/index')
+            ->has('igsns', 2)
+            ->where('search', '')
+        );
+    });
+
     it('filters IGSNs by DOI search', function () {
         createSearchableIgsn('IGSN-ALPHA-001', 'Alpha Sample');
         createSearchableIgsn('IGSN-BETA-002', 'Beta Sample');
@@ -111,7 +125,7 @@ describe('IGSN Search', function () {
         createSearchableIgsn('IGSN-002', 'Rock Sample from Alps');
         createSearchableIgsn('IGSN-003', 'Soil Sample from Black Forest');
 
-        $response = $this->actingAs($this->user)->get('/igsns?search=Lake Constance');
+        $response = $this->actingAs($this->user)->get('/igsns?' . http_build_query(['search' => 'Lake Constance']));
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page

@@ -30,18 +30,38 @@ return new class extends Migration
         // Only needed on MySQL/MariaDB where old migrations created VARCHAR(2048).
         // SQLite (used in CI) always runs fresh migrations with VARCHAR(768).
         if ($driver === 'mysql' || $driver === 'mariadb') {
-            $oversized = DB::table('landing_page_domains')
+            $oversizedIds = DB::table('landing_page_domains')
                 ->whereRaw('CHAR_LENGTH(domain) > 768')
-                ->pluck('domain', 'id');
+                ->pluck('id');
 
-            if ($oversized->isNotEmpty()) {
+            if ($oversizedIds->isNotEmpty()) {
+                // Check for potential collisions: if two oversized domains share the
+                // same first 768 characters, truncation would violate the unique index.
+                $collisionCount = (int) DB::table('landing_page_domains')
+                    ->whereIn('id', $oversizedIds)
+                    ->selectRaw('SUBSTR(domain, 1, 768) as truncated')
+                    ->groupBy('truncated')
+                    ->havingRaw('COUNT(*) > 1')
+                    ->count();
+
+                if ($collisionCount > 0) {
+                    Log::error('Cannot truncate landing_page_domains.domain: truncation would create duplicate values', [
+                        'collision_groups' => $collisionCount,
+                        'affected_ids' => $oversizedIds->all(),
+                    ]);
+                    throw new \RuntimeException(
+                        "Cannot shorten domain column: {$collisionCount} collision group(s) detected. "
+                        . 'Resolve duplicate domains manually before re-running this migration.'
+                    );
+                }
+
                 Log::warning('Truncating landing_page_domains entries that exceed 768 characters', [
-                    'count' => $oversized->count(),
-                    'affected_ids' => $oversized->keys()->all(),
+                    'count' => $oversizedIds->count(),
+                    'affected_ids' => $oversizedIds->all(),
                 ]);
 
                 DB::table('landing_page_domains')
-                    ->whereIn('id', $oversized->keys())
+                    ->whereIn('id', $oversizedIds)
                     ->update(['domain' => DB::raw('SUBSTR(domain, 1, 768)')]);
             }
         }

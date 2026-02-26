@@ -7,8 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IgsnSearchInput } from '@/components/igsns/igsn-search-input';
 
 describe('IgsnSearchInput', () => {
+    let user: ReturnType<typeof userEvent.setup>;
+
     beforeEach(() => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     });
 
     afterEach(() => {
@@ -88,7 +91,7 @@ describe('IgsnSearchInput', () => {
             render(<IgsnSearchInput {...defaultProps} onChange={onChange} />);
 
             const input = screen.getByLabelText('Search IGSNs by IGSN or title');
-            await userEvent.type(input, 'rock');
+            await user.type(input, 'rock');
 
             // onChange should NOT have been called yet (debounce pending)
             expect(onChange).not.toHaveBeenCalled();
@@ -99,7 +102,7 @@ describe('IgsnSearchInput', () => {
             render(<IgsnSearchInput {...defaultProps} onChange={onChange} />);
 
             const input = screen.getByLabelText('Search IGSNs by IGSN or title');
-            await userEvent.type(input, 'rock');
+            await user.type(input, 'rock');
 
             // Advance past the 1000ms debounce
             act(() => {
@@ -115,7 +118,7 @@ describe('IgsnSearchInput', () => {
             render(<IgsnSearchInput {...defaultProps} onChange={onChange} />);
 
             const input = screen.getByLabelText('Search IGSNs by IGSN or title');
-            await userEvent.type(input, 'ab');
+            await user.type(input, 'ab');
 
             act(() => {
                 vi.advanceTimersByTime(1500);
@@ -131,16 +134,16 @@ describe('IgsnSearchInput', () => {
             const input = screen.getByLabelText('Search IGSNs by IGSN or title');
 
             // Type 'r', wait 500ms, type 'o', wait 500ms, type 'c', wait 500ms, type 'k'
-            await userEvent.type(input, 'r');
+            await user.type(input, 'r');
             act(() => { vi.advanceTimersByTime(500); });
 
-            await userEvent.type(input, 'o');
+            await user.type(input, 'o');
             act(() => { vi.advanceTimersByTime(500); });
 
-            await userEvent.type(input, 'c');
+            await user.type(input, 'c');
             act(() => { vi.advanceTimersByTime(500); });
 
-            await userEvent.type(input, 'k');
+            await user.type(input, 'k');
 
             // 500ms after last keystroke — should NOT have fired yet
             act(() => { vi.advanceTimersByTime(500); });
@@ -163,7 +166,7 @@ describe('IgsnSearchInput', () => {
             render(<IgsnSearchInput {...defaultProps} value="rock" onChange={onChange} />);
 
             const input = screen.getByLabelText('Search IGSNs by IGSN or title');
-            await userEvent.clear(input);
+            await user.clear(input);
 
             // Should fire immediately (no debounce for clearing)
             expect(onChange).toHaveBeenCalledTimes(1);
@@ -228,7 +231,7 @@ describe('IgsnSearchInput', () => {
             const { unmount } = render(<IgsnSearchInput {...defaultProps} onChange={onChange} />);
 
             const input = screen.getByLabelText('Search IGSNs by IGSN or title');
-            await userEvent.type(input, 'rock');
+            await user.type(input, 'rock');
 
             // Unmount before debounce fires
             unmount();
