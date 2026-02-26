@@ -139,6 +139,65 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
     }
 
     /**
+     * Register an IGSN with DataCite (faked for testing)
+     *
+     * Unlike registerDoi(), this method keeps the existing DOI/IGSN in the payload
+     * because IGSNs have pre-defined identifiers that must be preserved.
+     *
+     * @param  Resource  $resource  The IGSN resource to register
+     * @return array<string, mixed> The DataCite API response format
+     *
+     * @throws \RuntimeException If resource doesn't have a DOI/IGSN or landing page
+     * @throws \InvalidArgumentException If the IGSN prefix is not allowed
+     */
+    public function registerIgsn(Resource $resource): array
+    {
+        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: registerIgsn called', [
+            'resource_id' => $resource->id,
+            'igsn' => $resource->doi,
+        ]);
+
+        // Validate resource has an IGSN
+        if (! $resource->doi) {
+            throw new \RuntimeException(
+                "Resource #{$resource->id} must have an IGSN to register."
+            );
+        }
+
+        // Extract prefix and validate
+        $prefix = explode('/', $resource->doi, 2)[0];
+        if (! in_array($prefix, $this->prefixes, true)) {
+            throw new \InvalidArgumentException(
+                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: " . implode(', ', $this->prefixes)
+            );
+        }
+
+        // Check if resource has a landing page
+        $resource->load('landingPage');
+        if (! $resource->landingPage) {
+            throw new \RuntimeException(
+                "Resource #{$resource->id} must have a landing page before registering an IGSN."
+            );
+        }
+
+        $publicUrl = $resource->landingPage->public_url;
+
+        // Return DataCite API response format – IGSN is kept as DOI
+        return [
+            'data' => [
+                'id' => $resource->doi,
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => $resource->doi,
+                    'prefix' => $prefix,
+                    'url' => $publicUrl,
+                    'state' => 'findable',
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Get available DOI prefixes for the current environment
      *
      * @return array<int, string>

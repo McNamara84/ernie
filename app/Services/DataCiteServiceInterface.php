@@ -31,6 +31,20 @@ interface DataCiteServiceInterface
     public function registerDoi(Resource $resource, string $prefix): array;
 
     /**
+     * Register an IGSN with DataCite.
+     *
+     * Unlike registerDoi(), this method keeps the existing DOI/IGSN in the payload
+     * because IGSNs have pre-defined identifiers that must be preserved.
+     *
+     * @param  Resource  $resource  The IGSN resource to register
+     * @return array<string, mixed> The DataCite API response format
+     *
+     * @throws \RuntimeException If resource doesn't have a DOI/IGSN or landing page
+     * @throws \InvalidArgumentException If the IGSN prefix is not allowed
+     */
+    public function registerIgsn(Resource $resource): array;
+
+    /**
      * Update metadata for an existing DOI.
      *
      * @param  Resource  $resource  The resource with an existing DOI

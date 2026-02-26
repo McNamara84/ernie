@@ -256,6 +256,138 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
     }
 
     /**
+     * Register an IGSN with DataCite
+     *
+     * Unlike registerDoi(), this method keeps the existing DOI/IGSN in the payload
+     * because IGSNs have pre-defined identifiers that must be preserved.
+     *
+     * @param  Resource  $resource  The IGSN resource to register
+     * @return array<string, mixed> The DataCite API response
+     *
+     * @throws \RuntimeException If resource doesn't have a DOI/IGSN or landing page
+     * @throws \InvalidArgumentException If the IGSN prefix is not allowed
+     * @throws RequestException If the API request fails
+     */
+    #[\NoDiscard('IGSN registration response must be checked for success')]
+    public function registerIgsn(Resource $resource): array
+    {
+        // Validate resource has an IGSN (stored in doi field)
+        if (! $resource->doi) {
+            throw new \RuntimeException(
+                "Resource #{$resource->id} must have an IGSN to register."
+            );
+        }
+
+        // Extract and validate prefix from IGSN
+        $prefix = $this->extractPrefix($resource->doi);
+        if (! in_array($prefix, $this->prefixes, true)) {
+            throw new \InvalidArgumentException(
+                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: " . implode(', ', $this->prefixes)
+            );
+        }
+
+        // Check if resource has a landing page
+        $resource->load('landingPage');
+        if (! $resource->landingPage) {
+            throw new \RuntimeException(
+                "Resource #{$resource->id} must have a landing page before registering an IGSN."
+            );
+        }
+
+        // Generate DataCite metadata using the existing exporter
+        $jsonExporter = new DataCiteJsonExporter;
+        $dataCiteData = $jsonExporter->export($resource);
+
+        // Build the registration payload – KEEP the DOI (unlike registerDoi which unsets it)
+        $payload = [
+            'data' => [
+                'type' => 'dois',
+                'attributes' => array_merge(
+                    $dataCiteData['data']['attributes'],
+                    [
+                        'doi' => $resource->doi,
+                        'prefix' => $prefix,
+                        'url' => $resource->landingPage->public_url,
+                        'event' => 'publish',
+                    ]
+                ),
+            ],
+        ];
+
+        Log::info('Registering IGSN with DataCite', [
+            'resource_id' => $resource->id,
+            'igsn' => $resource->doi,
+            'prefix' => $prefix,
+            'test_mode' => $this->testMode,
+            'url' => $resource->landingPage->public_url,
+            'endpoint' => $this->endpoint,
+        ]);
+
+        if (config('app.debug')) {
+            Log::debug('IGSN registration payload', [
+                'payload' => $payload,
+            ]);
+        }
+
+        try {
+            $response = $this->client
+                ->post("{$this->endpoint}/dois", $payload);
+            $response->throw();
+
+            $responseData = $response->json();
+
+            if ($responseData === null) {
+                Log::error('DataCite response is not valid JSON', [
+                    'resource_id' => $resource->id,
+                    'igsn' => $resource->doi,
+                    'response_body' => $response->body(),
+                ]);
+
+                throw new \RuntimeException('Received invalid JSON response from DataCite API');
+            }
+
+            Log::info('IGSN registered successfully', [
+                'resource_id' => $resource->id,
+                'doi' => $responseData['data']['id'] ?? null,
+            ]);
+
+            return $responseData;
+        } catch (RequestException $e) {
+            $response = $e->response;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $statusCode = $response !== null ? $response->status() : null;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $responseBody = $response !== null ? $response->body() : null;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $responseJson = $response !== null ? $response->json() : null;
+
+            Log::error('Failed to register IGSN with DataCite', [
+                'resource_id' => $resource->id,
+                'igsn' => $resource->doi,
+                'prefix' => $prefix,
+                'status_code' => $statusCode,
+                'error_message' => $e->getMessage(),
+                'response_body' => $responseBody,
+                'response_json' => $responseJson,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract the DOI prefix from a full DOI/IGSN string.
+     *
+     * @example "10.60510/IEYRS123" → "10.60510"
+     */
+    private function extractPrefix(string $doi): string
+    {
+        $parts = explode('/', $doi, 2);
+
+        return $parts[0];
+    }
+
+    /**
      * Update metadata for an existing DOI
      *
      * @param  resource  $resource  The resource with an existing DOI
@@ -295,6 +427,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                     [
                         'url' => $resource->landingPage->public_url,
                         'event' => 'publish', // Ensure DOI remains published
+                        'publicationYear' => (string) date('Y'), // Always use current year at registration time
                     ]
                 ),
             ],

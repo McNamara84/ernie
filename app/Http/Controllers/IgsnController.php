@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\DateType;
 use App\Models\GeoLocation;
+use App\Models\IgsnMetadata;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -15,10 +16,12 @@ use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteRegistrationService;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -191,6 +194,105 @@ class IgsnController extends Controller
     }
 
     /**
+     * Register or update an IGSN at DataCite.
+     *
+     * For new registrations, sends a POST with the IGSN preserved as DOI.
+     * For already-registered IGSNs, sends a PUT to update metadata.
+     * Sets publicationYear to the current year (Issue #438).
+     */
+    public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
+    {
+        // Verify this is an IGSN resource
+        if ($resource->igsnMetadata === null) {
+            abort(404, 'IGSN not found.');
+        }
+
+        // Check landing page requirement
+        $resource->load('landingPage');
+        if (! $resource->landingPage) {
+            return response()->json([
+                'error' => 'Landing page required',
+                'message' => 'A landing page must be set up before registering at DataCite.',
+            ], 422);
+        }
+
+        $metadata = $resource->igsnMetadata;
+        $wasAlreadyRegistered = $metadata->isRegistered();
+
+        try {
+            // Update publicationYear to current year (Issue #438)
+            $resource->publication_year = (int) date('Y');
+            $resource->save();
+
+            // Set status to "registering"
+            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
+
+            /** @var DataCiteRegistrationService $service */
+            $service = app(DataCiteRegistrationService::class);
+
+            if ($wasAlreadyRegistered) {
+                // Already registered → update metadata
+                $response = $service->updateMetadata($resource);
+                $doi = $response['data']['id'] ?? $resource->doi;
+
+                // Keep status as registered after successful update
+                $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+
+                Log::info('IGSN metadata updated at DataCite', [
+                    'resource_id' => $resource->id,
+                    'doi' => $doi,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'IGSN metadata updated at DataCite.',
+                    'doi' => $doi,
+                    'mode' => $service->isTestMode() ? 'test' : 'production',
+                    'updated' => true,
+                ]);
+            }
+
+            // New registration
+            $response = $service->registerIgsn($resource);
+            $doi = $response['data']['id'] ?? $resource->doi;
+
+            // Update resource DOI if DataCite returned a different one
+            if ($doi !== null && $doi !== $resource->doi) {
+                $resource->doi = $doi;
+                $resource->save();
+            }
+
+            // Mark as registered
+            $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
+
+            Log::info('IGSN registered at DataCite', [
+                'resource_id' => $resource->id,
+                'doi' => $doi,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'IGSN registered at DataCite successfully.',
+                'doi' => $doi,
+                'mode' => $service->isTestMode() ? 'test' : 'production',
+                'updated' => false,
+            ]);
+        } catch (\Throwable $e) {
+            $metadata->markAsError($e->getMessage());
+
+            Log::error('IGSN registration failed', [
+                'resource_id' => $resource->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Registration failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Build the base query for IGSN resources.
      *
      * @return \Illuminate\Database\Eloquent\Builder<Resource>
@@ -207,6 +309,7 @@ class IgsnController extends Controller
                 'geoLocations',
                 'creators.creatorable',
                 'dates.dateType',
+                'landingPage',
             ])
             ->whereHas('igsnMetadata'); // Only resources with IGSN metadata
 
@@ -258,6 +361,7 @@ class IgsnController extends Controller
             'upload_error_message' => $metadata?->upload_error_message,
             'parent_resource_id' => $metadata?->parent_resource_id,
             'collector' => $this->formatCreator($firstCreator),
+            'has_landing_page' => $resource->landingPage !== null,
             'created_at' => $resource->created_at?->toISOString(),
             'updated_at' => $resource->updated_at?->toISOString(),
         ];
