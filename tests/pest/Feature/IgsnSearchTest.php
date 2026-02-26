@@ -205,4 +205,48 @@ describe('IGSN Search', function () {
             ->where('search', 'Test')
         );
     });
+
+    it('escapes SQL LIKE wildcards so they match literally', function () {
+        createSearchableIgsn('10.5%/IGSN.SPECIAL', 'Percent Sample');
+        createSearchableIgsn('10.500/IGSN.NORMAL', 'Normal Sample');
+        createSearchableIgsn('IGSN_v2_CORE', 'Underscore Sample');
+        createSearchableIgsn('IGSN-v2-CORE', 'Dash Sample');
+
+        // "10.5%" should match only the literal percent, not act as a wildcard
+        $response = $this->actingAs($this->user)->get('/igsns?' . http_build_query(['search' => '10.5%']));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('igsns/index')
+            ->has('igsns', 1)
+            ->where('igsns.0.igsn', '10.5%/IGSN.SPECIAL')
+        );
+
+        // "_v2_" should match only the literal underscore, not any single character
+        $response = $this->actingAs($this->user)->get('/igsns?' . http_build_query(['search' => '_v2_']));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('igsns/index')
+            ->has('igsns', 1)
+            ->where('igsns.0.igsn', 'IGSN_v2_CORE')
+        );
+    });
+
+    it('returns correct totalCount when search is active', function () {
+        createSearchableIgsn('IGSN-ALPHA-001', 'Alpha Sample');
+        createSearchableIgsn('IGSN-BETA-002', 'Beta Sample');
+        createSearchableIgsn('IGSN-GAMMA-003', 'Gamma Sample');
+
+        // Search matches only 1 of 3 IGSNs — totalCount should be 3
+        $response = $this->actingAs($this->user)->get('/igsns?search=ALPHA');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('igsns/index')
+            ->has('igsns', 1)
+            ->where('totalCount', 3)
+            ->where('pagination.total', 1)
+        );
+    });
 });
