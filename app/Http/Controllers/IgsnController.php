@@ -62,10 +62,12 @@ class IgsnController extends Controller
         $page = max(1, (int) $request->query('page', 1));
         $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
         $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
+        $search = trim((string) $request->query('search', ''));
 
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
         $query = $this->buildQuery();
+        $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
         $paginated = $query->paginate($perPage, ['*'], 'page', $page);
@@ -93,6 +95,7 @@ class IgsnController extends Controller
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
+            'search' => $search,
             'canDelete' => $canDelete,
         ]);
     }
@@ -317,6 +320,27 @@ class IgsnController extends Controller
         }
 
         return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * Apply text search filter to the query.
+     *
+     * Searches in the DOI field (where IGSN is stored) and in title values.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     */
+    private function applySearch(\Illuminate\Database\Eloquent\Builder $query, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search): void {
+            $q->where('doi', 'like', "%{$search}%")
+                ->orWhereHas('titles', function (\Illuminate\Database\Eloquent\Builder $titleQuery) use ($search): void {
+                    $titleQuery->where('value', 'like', "%{$search}%");
+                });
+        });
     }
 
     /**

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
+import { IgsnSearchInput } from '@/components/igsns/igsn-search-input';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -65,6 +66,7 @@ interface IgsnsPageProps {
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
     canDelete: boolean;
+    search: string;
 }
 
 // ============================================================================
@@ -122,10 +124,11 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, search: initialSearch }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
+    const [searchQuery, setSearchQuery] = useState(initialSearch || '');
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [exportingIgsns, setExportingIgsns] = useState<Set<number>>(new Set());
@@ -143,9 +146,10 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         setIgsns(initialIgsns);
         setPagination(initialPagination);
         setSortState(initialSort || DEFAULT_SORT);
+        setSearchQuery(initialSearch || '');
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
-    }, [initialIgsns, initialPagination, initialSort]);
+    }, [initialIgsns, initialPagination, initialSort, initialSearch]);
 
     const handleExportJson = useCallback(async (igsn: Igsn) => {
         // Mark IGSN as exporting
@@ -213,19 +217,50 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         }
     }, []);
 
+    const buildParams = useCallback(
+        (overrides: { sort?: SortState<SortKey>; search?: string; page?: number } = {}) => {
+            const sort = overrides.sort ?? sortState;
+            const search = overrides.search ?? searchQuery;
+            const params = new URLSearchParams();
+            params.set('sort', sort.key);
+            params.set('direction', sort.direction);
+            if (search) {
+                params.set('search', search);
+            }
+            if (overrides.page && overrides.page > 1) {
+                params.set('page', String(overrides.page));
+            }
+            return params;
+        },
+        [sortState, searchQuery],
+    );
+
     const handleSortChange = useCallback(
         (key: SortKey) => {
             const newDirection = determineNextDirection(sortState, key);
             const newSort = { key, direction: newDirection };
             setSortState(newSort);
 
-            const params = new URLSearchParams();
-            params.set('sort', newSort.key);
-            params.set('direction', newSort.direction);
-
-            window.location.href = `/igsns?${params.toString()}`;
+            const params = buildParams({ sort: newSort });
+            router.visit(`/igsns?${params.toString()}`, {
+                preserveState: false,
+                replace: true,
+            });
         },
-        [sortState],
+        [sortState, buildParams],
+    );
+
+    const handleSearchChange = useCallback(
+        (search: string) => {
+            setSearchQuery(search);
+
+            const params = buildParams({ search });
+            router.visit(`/igsns?${params.toString()}`, {
+                preserveState: false,
+                replace: true,
+            });
+        },
+        [buildParams],
     );
 
     // Selection handlers for bulk actions
@@ -314,11 +349,19 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                     <CardHeader>
                         <CardTitle>Physical Samples (IGSNs)</CardTitle>
                         <CardDescription>
-                            Manage physical sample metadata with International Generic Sample Numbers. Total: {pagination.total} samples
+                            Manage physical sample metadata with International Generic Sample Numbers.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
+                            {/* Search Input */}
+                            <IgsnSearchInput
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                resultCount={pagination.total}
+                                totalCount={pagination.total}
+                            />
+
                             {/* Bulk Actions Toolbar */}
                             <BulkActionsToolbar
                                 selectedCount={selectedIds.size}
@@ -489,9 +532,11 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
-                                                const params = new URLSearchParams(window.location.search);
-                                                params.set('page', String(pagination.current_page + 1));
-                                                window.location.href = `/igsns?${params.toString()}`;
+                                                const params = buildParams({ page: pagination.current_page + 1 });
+                                                router.visit(`/igsns?${params.toString()}`, {
+                                                    preserveState: false,
+                                                    replace: true,
+                                                });
                                             }}
                                         >
                                             Load More
