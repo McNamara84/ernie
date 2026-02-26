@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -29,9 +30,20 @@ return new class extends Migration
         // Only needed on MySQL/MariaDB where old migrations created VARCHAR(2048).
         // SQLite (used in CI) always runs fresh migrations with VARCHAR(768).
         if ($driver === 'mysql' || $driver === 'mariadb') {
-            DB::table('landing_page_domains')
+            $oversized = DB::table('landing_page_domains')
                 ->whereRaw('CHAR_LENGTH(domain) > 768')
-                ->update(['domain' => DB::raw('SUBSTR(domain, 1, 768)')]);
+                ->pluck('domain', 'id');
+
+            if ($oversized->isNotEmpty()) {
+                Log::warning('Truncating landing_page_domains entries that exceed 768 characters', [
+                    'count' => $oversized->count(),
+                    'affected_ids' => $oversized->keys()->all(),
+                ]);
+
+                DB::table('landing_page_domains')
+                    ->whereIn('id', $oversized->keys())
+                    ->update(['domain' => DB::raw('SUBSTR(domain, 1, 768)')]);
+            }
         }
 
         Schema::table('landing_page_domains', function (Blueprint $table): void {

@@ -45,6 +45,14 @@ vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
         </div>
     ),
 }));
+vi.mock('@/components/igsns/igsn-search-input', () => ({
+    IgsnSearchInput: ({ value, onChange, resultCount, totalCount }: { value: string; onChange: (v: string) => void; resultCount: number; totalCount: number }) => (
+        <div data-testid="search-input">
+            <input data-testid="search-field" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Search IGSNs by IGSN or title" />
+            <span data-testid="search-counts">{resultCount} / {totalCount}</span>
+        </div>
+    ),
+}));
 vi.mock('@/components/landing-pages/modals/SetupIgsnLandingPageModal', () => ({
     default: () => null,
 }));
