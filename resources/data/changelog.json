@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-25",
+        "date": "2026-02-26",
         "features": [
+            {
+                "title": "IGSN List Search",
+                "description": "Added a search input to the IGSN list view that allows filtering physical samples by IGSN (DOI) and title. The search uses debounced input (1 second delay) with a minimum of 3 characters, matching the behavior of the Resources view."
+            },
             {
                 "title": "Select or Deselect All in Editor Settings",
                 "description": "Added header checkboxes to all settings tables (Resource Types, Title Types, Licenses, Languages, Date Types, and Thesauri), allowing administrators and group leaders to quickly activate or deactivate all ERNIE/ELMO options in a column at once. The checkbox shows an indeterminate state when only some options are selected."
