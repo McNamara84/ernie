@@ -353,13 +353,14 @@ class IgsnController extends Controller
         }
 
         // Escape SQL LIKE meta-characters so %, _ and \ in user input are treated literally.
+        // Use a explicit ESCAPE clause so this works on both MySQL and SQLite.
         $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
         $pattern = "%{$escaped}%";
 
         $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($pattern): void {
-            $q->where('doi', 'like', $pattern)
+            $q->whereRaw('doi like ? escape ?', [$pattern, '\\'])
                 ->orWhereHas('titles', function (\Illuminate\Database\Eloquent\Builder $titleQuery) use ($pattern): void {
-                    $titleQuery->where('value', 'like', $pattern);
+                    $titleQuery->whereRaw('value like ? escape ?', [$pattern, '\\']);
                 });
         });
     }
