@@ -119,6 +119,7 @@ const defaultProps = {
     sort: { key: 'updated_at' as const, direction: 'desc' as const },
     canDelete: true,
     search: '',
+    totalCount: 2,
 };
 
 describe('IgsnsPage', () => {

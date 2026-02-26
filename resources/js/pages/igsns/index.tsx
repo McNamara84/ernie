@@ -67,6 +67,7 @@ interface IgsnsPageProps {
     sort: SortState<SortKey>;
     canDelete: boolean;
     search: string;
+    totalCount: number;
 }
 
 // ============================================================================
@@ -124,7 +125,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, search: initialSearch }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, search: initialSearch, totalCount }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -359,7 +360,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 resultCount={pagination.total}
-                                totalCount={pagination.total}
+                                totalCount={totalCount}
                             />
 
                             {/* Bulk Actions Toolbar */}

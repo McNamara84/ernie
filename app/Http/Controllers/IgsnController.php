@@ -67,6 +67,10 @@ class IgsnController extends Controller
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
         $query = $this->buildQuery();
+
+        // Get total count before applying search (for "Showing X of Y" display)
+        $totalCount = $search !== '' ? $query->count() : null;
+
         $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
@@ -96,6 +100,7 @@ class IgsnController extends Controller
                 'direction' => $sortDirection,
             ],
             'search' => $search,
+            'totalCount' => $totalCount ?? $paginated->total(),
             'canDelete' => $canDelete,
         ]);
     }
