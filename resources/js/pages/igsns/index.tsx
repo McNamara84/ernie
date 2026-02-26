@@ -231,9 +231,13 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             if (overrides.page && overrides.page > 1) {
                 params.set('page', String(overrides.page));
             }
+            // Preserve per_page when it differs from the backend default (50)
+            if (pagination.per_page !== 50) {
+                params.set('per_page', String(pagination.per_page));
+            }
             return params;
         },
-        [sortState, searchQuery],
+        [sortState, searchQuery, pagination.per_page],
     );
 
     const handleSortChange = useCallback(

@@ -44,7 +44,7 @@ class LandingPageDomainController extends Controller
     public function store(Request $request): JsonResponse
     {
         // Normalize before validation: trim whitespace and ensure trailing slash
-        // so that max:2048 and unique checks apply to the stored form.
+        // so that max:768 and unique checks apply to the stored form.
         $domain = trim((string) $request->input('domain'));
         if ($domain !== '' && ! str_ends_with($domain, '/')) {
             $domain .= '/';

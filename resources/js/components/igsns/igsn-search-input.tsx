@@ -104,12 +104,18 @@ export function IgsnSearchInput({ value, onChange, resultCount, totalCount, isLo
                 />
             </div>
 
-            {isFiltered && (
-                <span className="text-sm text-muted-foreground">
-                    Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
-                    <span className="font-semibold text-foreground">{totalCount}</span> samples
-                </span>
-            )}
+            <span className="text-sm text-muted-foreground">
+                {isFiltered ? (
+                    <>
+                        Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
+                        <span className="font-semibold text-foreground">{totalCount}</span> samples
+                    </>
+                ) : (
+                    <>
+                        <span className="font-semibold text-foreground">{totalCount}</span> samples total
+                    </>
+                )}
+            </span>
         </div>
     );
 }
