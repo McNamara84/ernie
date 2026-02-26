@@ -1,21 +1,23 @@
-import { Trash2 } from 'lucide-react';
+import { CloudUpload, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 interface BulkActionsToolbarProps {
     selectedCount: number;
     onDelete: () => void;
+    onRegister: () => void;
     canDelete: boolean;
     isDeleting?: boolean;
+    isRegistering?: boolean;
 }
 
 /**
  * Toolbar component for bulk actions on IGSN list.
  *
- * Designed for extensibility - future actions (export, status change)
- * can be added as additional buttons.
+ * Provides bulk delete and bulk registration actions.
  */
-export function BulkActionsToolbar({ selectedCount, onDelete, canDelete, isDeleting = false }: BulkActionsToolbarProps) {
+export function BulkActionsToolbar({ selectedCount, onDelete, onRegister, canDelete, isDeleting = false, isRegistering = false }: BulkActionsToolbarProps) {
     if (selectedCount === 0) {
         return null;
     }
@@ -26,11 +28,22 @@ export function BulkActionsToolbar({ selectedCount, onDelete, canDelete, isDelet
                 {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
             </span>
             <div className="flex items-center gap-2">
-                {/* Future actions can be added here */}
-                {/* Example: <Button variant="outline" size="sm">Export JSON</Button> */}
+                <Button variant="default" size="sm" onClick={onRegister} disabled={isRegistering || isDeleting}>
+                    {isRegistering ? (
+                        <>
+                            <Spinner size="sm" className="mr-2" />
+                            Registering...
+                        </>
+                    ) : (
+                        <>
+                            <CloudUpload className="mr-2 size-4" />
+                            Register Selected
+                        </>
+                    )}
+                </Button>
 
                 {canDelete && (
-                    <Button variant="destructive" size="sm" onClick={onDelete} disabled={isDeleting}>
+                    <Button variant="destructive" size="sm" onClick={onDelete} disabled={isDeleting || isRegistering}>
                         <Trash2 className="mr-2 size-4" />
                         {isDeleting ? 'Deleting...' : 'Delete'}
                     </Button>

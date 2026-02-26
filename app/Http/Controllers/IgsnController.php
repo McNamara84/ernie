@@ -203,7 +203,8 @@ class IgsnController extends Controller
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
         // Verify this is an IGSN resource
-        if ($resource->igsnMetadata === null) {
+        $metadata = $resource->igsnMetadata;
+        if ($metadata === null) {
             abort(404, 'IGSN not found.');
         }
 
@@ -215,8 +216,6 @@ class IgsnController extends Controller
                 'message' => 'A landing page must be set up before registering at DataCite.',
             ], 422);
         }
-
-        $metadata = $resource->igsnMetadata;
         $wasAlreadyRegistered = $metadata->isRegistered();
 
         try {
