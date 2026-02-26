@@ -55,6 +55,12 @@ class IgsnController extends Controller
     private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     /**
+     * Minimum number of characters for a search query.
+     * Must match the frontend constant in igsn-search-input.tsx.
+     */
+    private const MIN_SEARCH_LENGTH = 3;
+
+    /**
      * Display a listing of IGSNs (Physical Sample resources).
      */
     public function index(Request $request): Response
@@ -62,10 +68,22 @@ class IgsnController extends Controller
         $page = max(1, (int) $request->query('page', 1));
         $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
         $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
+        $search = trim((string) $request->query('search', ''));
+
+        // Enforce minimum search length to avoid expensive full-table LIKE scans.
+        // Must stay in sync with the frontend MIN_SEARCH_LENGTH constant.
+        if (mb_strlen($search) < self::MIN_SEARCH_LENGTH) {
+            $search = '';
+        }
 
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
         $query = $this->buildQuery();
+
+        // Get total count before applying search (for "Showing X of Y" display)
+        $totalCount = $search !== '' ? $query->count() : null;
+
+        $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
         $paginated = $query->paginate($perPage, ['*'], 'page', $page);
@@ -93,6 +111,8 @@ class IgsnController extends Controller
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
+            'search' => $search,
+            'totalCount' => $totalCount ?? $paginated->total(),
             'canDelete' => $canDelete,
         ]);
     }
@@ -317,6 +337,32 @@ class IgsnController extends Controller
         }
 
         return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * Apply text search filter to the query.
+     *
+     * Searches in the DOI field (where IGSN is stored) and in title values.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     */
+    private function applySearch(\Illuminate\Database\Eloquent\Builder $query, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        // Escape SQL LIKE meta-characters so %, _ and \ in user input are treated literally.
+        // Use an explicit ESCAPE clause so this works on both MySQL and SQLite.
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
+        $pattern = "%{$escaped}%";
+
+        $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($pattern): void {
+            $q->whereRaw('doi like ? escape ?', [$pattern, '\\'])
+                ->orWhereHas('titles', function (\Illuminate\Database\Eloquent\Builder $titleQuery) use ($pattern): void {
+                    $titleQuery->whereRaw('value like ? escape ?', [$pattern, '\\']);
+                });
+        });
     }
 
     /**

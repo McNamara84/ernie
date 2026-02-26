@@ -5,10 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia
-const { mockRouterDelete } = vi.hoisted(() => ({ mockRouterDelete: vi.fn() }));
+const { mockRouterDelete, mockRouterVisit } = vi.hoisted(() => ({ mockRouterDelete: vi.fn(), mockRouterVisit: vi.fn() }));
 vi.mock('@inertiajs/react', () => ({
     Head: ({ title }: { title: string }) => <title>{title}</title>,
-    router: { delete: mockRouterDelete },
+    router: { delete: mockRouterDelete, visit: mockRouterVisit },
 }));
 
 // Mock axios
@@ -42,6 +42,14 @@ vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
         <div data-testid="bulk-toolbar">
             <span>{selectedCount} selected</span>
             <button onClick={onDelete}>Delete</button>
+        </div>
+    ),
+}));
+vi.mock('@/components/igsns/igsn-search-input', () => ({
+    IgsnSearchInput: ({ value, onChange, resultCount, totalCount }: { value: string; onChange: (v: string) => void; resultCount: number; totalCount: number }) => (
+        <div data-testid="search-input">
+            <input data-testid="search-field" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Search IGSNs by IGSN or title" />
+            <span data-testid="search-counts">{resultCount} / {totalCount}</span>
         </div>
     ),
 }));
@@ -118,6 +126,8 @@ const defaultProps = {
     pagination: createPagination(),
     sort: { key: 'updated_at' as const, direction: 'desc' as const },
     canDelete: true,
+    search: '',
+    totalCount: 2,
 };
 
 describe('IgsnsPage', () => {
@@ -314,15 +324,24 @@ describe('IgsnsPage', () => {
             render(<IgsnsPage {...defaultProps} />);
             const titleSortButton = screen.getByRole('button', { name: /sort by title/i });
             await userEvent.click(titleSortButton);
-            expect(window.location.href).toContain('sort=title');
-            expect(window.location.href).toContain('direction=asc');
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                expect.stringContaining('sort=title'),
+                expect.objectContaining({ preserveState: false, replace: true }),
+            );
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                expect.stringContaining('direction=asc'),
+                expect.anything(),
+            );
         });
 
         it('toggles direction when clicking the already active sort column', async () => {
             render(<IgsnsPage {...defaultProps} sort={{ key: 'title', direction: 'asc' }} />);
             const titleSortButton = screen.getByRole('button', { name: /sort by title/i });
             await userEvent.click(titleSortButton);
-            expect(window.location.href).toContain('direction=desc');
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                expect.stringContaining('direction=desc'),
+                expect.anything(),
+            );
         });
     });
 
@@ -341,15 +360,13 @@ describe('IgsnsPage', () => {
     });
 
     describe('pagination details', () => {
-        it('shows total sample count in description', () => {
-            render(<IgsnsPage {...defaultProps} pagination={createPagination({ total: 42 })} />);
-            expect(screen.getByText(/total: 42 samples/i)).toBeInTheDocument();
-        });
-
         it('navigates to next page when Load More is clicked', async () => {
             render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, current_page: 1 })} />);
             await userEvent.click(screen.getByText(/load more/i));
-            expect(window.location.href).toContain('page=2');
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                expect.stringContaining('page=2'),
+                expect.objectContaining({ preserveState: false, replace: true }),
+            );
         });
     });
 
