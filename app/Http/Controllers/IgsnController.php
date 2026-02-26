@@ -353,7 +353,7 @@ class IgsnController extends Controller
         }
 
         // Escape SQL LIKE meta-characters so %, _ and \ in user input are treated literally.
-        // Use a explicit ESCAPE clause so this works on both MySQL and SQLite.
+        // Use an explicit ESCAPE clause so this works on both MySQL and SQLite.
         $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
         $pattern = "%{$escaped}%";
 
