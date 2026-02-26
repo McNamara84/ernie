@@ -23,12 +23,16 @@ return new class extends Migration
             return;
         }
 
+        $driver = DB::getDriverName();
+
         // Truncate any existing values that exceed the new limit.
-        // In practice this table is unlikely to contain such long values,
-        // but we handle the edge case defensively.
-        DB::table('landing_page_domains')
-            ->whereRaw('CHAR_LENGTH(domain) > 768')
-            ->update(['domain' => DB::raw('LEFT(domain, 768)')]);
+        // Only needed on MySQL/MariaDB where old migrations created VARCHAR(2048).
+        // SQLite (used in CI) always runs fresh migrations with VARCHAR(768).
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::table('landing_page_domains')
+                ->whereRaw('CHAR_LENGTH(domain) > 768')
+                ->update(['domain' => DB::raw('SUBSTR(domain, 1, 768)')]);
+        }
 
         Schema::table('landing_page_domains', function (Blueprint $table): void {
             $table->string('domain', 768)->change();
