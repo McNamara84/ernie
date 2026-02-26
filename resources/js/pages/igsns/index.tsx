@@ -130,6 +130,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
     const [searchQuery, setSearchQuery] = useState(initialSearch || '');
+    const [isNavigating, setIsNavigating] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [exportingIgsns, setExportingIgsns] = useState<Set<number>>(new Set());
@@ -245,9 +246,11 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             setSortState(newSort);
 
             const params = buildParams({ sort: newSort });
+            setIsNavigating(true);
             router.visit(`/igsns?${params.toString()}`, {
                 preserveState: false,
                 replace: true,
+                onFinish: () => setIsNavigating(false),
             });
         },
         [sortState, buildParams],
@@ -258,9 +261,11 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             setSearchQuery(search);
 
             const params = buildParams({ search });
+            setIsNavigating(true);
             router.visit(`/igsns?${params.toString()}`, {
                 preserveState: false,
                 replace: true,
+                onFinish: () => setIsNavigating(false),
             });
         },
         [buildParams],
@@ -363,6 +368,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                 onChange={handleSearchChange}
                                 resultCount={pagination.total}
                                 totalCount={totalCount}
+                                isLoading={isNavigating}
                             />
 
                             {/* Bulk Actions Toolbar */}
@@ -536,9 +542,11 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                             size="sm"
                                             onClick={() => {
                                                 const params = buildParams({ page: pagination.current_page + 1 });
+                                                setIsNavigating(true);
                                                 router.visit(`/igsns?${params.toString()}`, {
                                                     preserveState: false,
                                                     replace: true,
+                                                    onFinish: () => setIsNavigating(false),
                                                 });
                                             }}
                                         >
