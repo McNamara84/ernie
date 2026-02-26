@@ -340,10 +340,14 @@ class IgsnController extends Controller
             return;
         }
 
-        $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($search): void {
-            $q->where('doi', 'like', "%{$search}%")
-                ->orWhereHas('titles', function (\Illuminate\Database\Eloquent\Builder $titleQuery) use ($search): void {
-                    $titleQuery->where('value', 'like', "%{$search}%");
+        // Escape SQL LIKE meta-characters so %, _ and \ in user input are treated literally.
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
+        $pattern = "%{$escaped}%";
+
+        $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($pattern): void {
+            $q->where('doi', 'like', $pattern)
+                ->orWhereHas('titles', function (\Illuminate\Database\Eloquent\Builder $titleQuery) use ($pattern): void {
+                    $titleQuery->where('value', 'like', $pattern);
                 });
         });
     }

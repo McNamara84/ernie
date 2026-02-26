@@ -61,7 +61,7 @@ return new class extends Migration
                         'updated_at' => $now,
                     ];
                 }
-                DB::table('resource_contributor_contributor_type')->insert($inserts);
+                DB::table('resource_contributor_contributor_type')->insertOrIgnore($inserts);
             });
         }
 
