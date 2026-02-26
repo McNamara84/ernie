@@ -56,6 +56,27 @@ vi.mock('@/components/ui/label', () => ({
     ),
 }));
 
+vi.mock('@/components/ui/checkbox', () => ({
+    Checkbox: ({
+        onCheckedChange,
+        checked,
+        indeterminate,
+        ...props
+    }: {
+        onCheckedChange?: (checked: boolean) => void;
+        checked?: boolean;
+        indeterminate?: boolean;
+    } & React.ComponentProps<'input'>) => (
+        <input
+            type="checkbox"
+            checked={checked ?? false}
+            data-indeterminate={indeterminate ? 'true' : undefined}
+            {...props}
+            onChange={(e) => onCheckedChange?.(e.target.checked)}
+        />
+    ),
+}));
+
 vi.mock('@/components/settings/thesaurus-card', () => ({
     ThesaurusCard: () => <div data-testid="thesaurus-card-mock">Thesaurus Card Mock</div>,
 }));
@@ -82,7 +103,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }]}
                 licenses={[]}
                 languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
-                dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true, elmo_active: false }]}
+                dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true }]}
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
@@ -104,7 +125,7 @@ describe('EditorSettings page', () => {
 
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(4);
-        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(4);
+        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
         expect(screen.getByLabelText('Slug')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
@@ -145,7 +166,6 @@ describe('EditorSettings page', () => {
                         slug: 'accepted',
                         description: 'Test description',
                         active: true,
-                        elmo_active: false,
                     },
                 ],
                 maxTitles: 10,
@@ -206,8 +226,8 @@ describe('EditorSettings page', () => {
                 licenses: [],
                 languages: [],
                 dateTypes: [
-                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true, elmo_active: true },
-                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false, elmo_active: false },
+                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true },
+                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false },
                 ],
                 maxTitles: 10,
                 maxLicenses: 5,
@@ -225,8 +245,8 @@ describe('EditorSettings page', () => {
                 licenses={[]}
                 languages={[]}
                 dateTypes={[
-                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true, elmo_active: true },
-                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false, elmo_active: false },
+                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true },
+                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false },
                 ]}
                 maxTitles={10}
                 maxLicenses={5}
@@ -521,5 +541,406 @@ describe('EditorSettings page', () => {
         await userEvent.type(maxTitlesInput, '15');
 
         expect(setDataMock).toHaveBeenCalledWith('maxTitles', expect.any(Number));
+    });
+});
+
+describe('Select All / Deselect All header checkboxes', () => {
+    it('renders select-all header checkboxes for all table cards', () => {
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [{ id: 1, name: 'Dataset', active: true, elmo_active: false }],
+                titleTypes: [{ id: 1, name: 'Main', slug: 'main', active: true, elmo_active: false }],
+                licenses: [{ id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] }],
+                languages: [{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }],
+                dateTypes: [{ id: 1, name: 'Created', slug: 'created', description: null, active: true }],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: vi.fn(),
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[{ id: 1, name: 'Dataset', active: true, elmo_active: false }]}
+                titleTypes={[{ id: 1, name: 'Main', slug: 'main', active: true, elmo_active: false }]}
+                licenses={[{ id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false, excluded_resource_type_ids: [] }]}
+                languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
+                dateTypes={[{ id: 1, name: 'Created', slug: 'created', description: null, active: true }]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        // 4 cards × 2 columns + 1 card (Date Types) × 1 column = 9 select-all checkboxes
+        expect(screen.getByLabelText('Select all ERNIE active for Resource Types')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Resource Types')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Title Types')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Title Types')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Licenses')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Licenses')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Languages')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Languages')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Date Types')).toBeInTheDocument();
+    });
+
+    it('selects all resource types ERNIE active when header checkbox is clicked', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [
+                    { id: 1, name: 'Dataset', active: false, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: false },
+                ],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[
+                    { id: 1, name: 'Dataset', active: false, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: false },
+                ]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ERNIE active for Resource Types'));
+        expect(setDataMock).toHaveBeenCalledWith('resourceTypes', [
+            { id: 1, name: 'Dataset', active: true, elmo_active: false },
+            { id: 2, name: 'Collection', active: true, elmo_active: false },
+        ]);
+    });
+
+    it('deselects all resource types ERNIE active when header checkbox is unchecked', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                    { id: 2, name: 'Collection', active: true, elmo_active: false },
+                ],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                    { id: 2, name: 'Collection', active: true, elmo_active: false },
+                ]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ERNIE active for Resource Types'));
+        expect(setDataMock).toHaveBeenCalledWith('resourceTypes', [
+            { id: 1, name: 'Dataset', active: false, elmo_active: false },
+            { id: 2, name: 'Collection', active: false, elmo_active: false },
+        ]);
+    });
+
+    it('shows indeterminate state when resource types have mixed ERNIE active', () => {
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: false },
+                ],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: vi.fn(),
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: false },
+                ]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        const headerCheckbox = screen.getByLabelText('Select all ERNIE active for Resource Types');
+        expect(headerCheckbox).toHaveAttribute('data-indeterminate', 'true');
+    });
+
+    it('selects all ELMO active for Resource Types', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [
+                    { id: 1, name: 'Dataset', active: false, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: false },
+                ],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[
+                    { id: 1, name: 'Dataset', active: false, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: false },
+                ]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ELMO active for Resource Types'));
+        expect(setDataMock).toHaveBeenCalledWith('resourceTypes', [
+            { id: 1, name: 'Dataset', active: false, elmo_active: true },
+            { id: 2, name: 'Collection', active: false, elmo_active: true },
+        ]);
+    });
+
+    it('selects all ERNIE active for Licenses', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [],
+                licenses: [
+                    { id: 1, identifier: 'MIT', name: 'MIT', active: false, elmo_active: false, excluded_resource_type_ids: [] },
+                    { id: 2, identifier: 'CC0', name: 'CC0', active: false, elmo_active: false, excluded_resource_type_ids: [] },
+                ],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[
+                    { id: 1, identifier: 'MIT', name: 'MIT', active: false, elmo_active: false, excluded_resource_type_ids: [] },
+                    { id: 2, identifier: 'CC0', name: 'CC0', active: false, elmo_active: false, excluded_resource_type_ids: [] },
+                ]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ERNIE active for Licenses'));
+        expect(setDataMock).toHaveBeenCalledWith('licenses', [
+            { id: 1, identifier: 'MIT', name: 'MIT', active: true, elmo_active: false, excluded_resource_type_ids: [] },
+            { id: 2, identifier: 'CC0', name: 'CC0', active: true, elmo_active: false, excluded_resource_type_ids: [] },
+        ]);
+    });
+
+    it('selects all ERNIE active for Languages', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [],
+                licenses: [],
+                languages: [
+                    { id: 1, code: 'en', name: 'English', active: false, elmo_active: false },
+                    { id: 2, code: 'de', name: 'German', active: false, elmo_active: false },
+                ],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[
+                    { id: 1, code: 'en', name: 'English', active: false, elmo_active: false },
+                    { id: 2, code: 'de', name: 'German', active: false, elmo_active: false },
+                ]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ERNIE active for Languages'));
+        expect(setDataMock).toHaveBeenCalledWith('languages', [
+            { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
+            { id: 2, code: 'de', name: 'German', active: true, elmo_active: false },
+        ]);
+    });
+
+    it('selects all ERNIE active for Title Types', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [
+                    { id: 1, name: 'Main', slug: 'main', active: false, elmo_active: false },
+                    { id: 2, name: 'Alternative', slug: 'alt', active: false, elmo_active: false },
+                ],
+                licenses: [],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[
+                    { id: 1, name: 'Main', slug: 'main', active: false, elmo_active: false },
+                    { id: 2, name: 'Alternative', slug: 'alt', active: false, elmo_active: false },
+                ]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ERNIE active for Title Types'));
+        expect(setDataMock).toHaveBeenCalledWith('titleTypes', [
+            { id: 1, name: 'Main', slug: 'main', active: true, elmo_active: false },
+            { id: 2, name: 'Alternative', slug: 'alt', active: true, elmo_active: false },
+        ]);
+    });
+
+    it('selects all ERNIE active for Date Types', async () => {
+        const setDataMock = vi.fn();
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [
+                    { id: 1, name: 'Created', slug: 'created', description: null, active: false },
+                    { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false },
+                ],
+                maxTitles: 10,
+                maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
+            },
+            setData: setDataMock,
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[
+                    { id: 1, name: 'Created', slug: 'created', description: null, active: false },
+                    { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: false },
+                ]}
+                maxTitles={10}
+                maxLicenses={5}
+                thesauri={defaultThesauri}
+                landingPageDomains={[]}
+            />,
+        );
+
+        await userEvent.click(screen.getByLabelText('Select all ERNIE active for Date Types'));
+        expect(setDataMock).toHaveBeenCalledWith('dateTypes', [
+            { id: 1, name: 'Created', slug: 'created', description: null, active: true },
+            { id: 2, name: 'Accepted', slug: 'accepted', description: null, active: true },
+        ]);
     });
 });

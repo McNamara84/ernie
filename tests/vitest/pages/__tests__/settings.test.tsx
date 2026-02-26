@@ -49,9 +49,11 @@ vi.mock('@/components/ui/label', () => ({
 }));
 
 vi.mock('@/components/ui/checkbox', () => ({
-    Checkbox: ({ onCheckedChange, ...props }: { onCheckedChange?: (checked: boolean) => void } & React.ComponentProps<'input'>) => (
+    Checkbox: ({ onCheckedChange, checked, indeterminate, ...props }: { onCheckedChange?: (checked: boolean) => void; checked?: boolean; indeterminate?: boolean } & React.ComponentProps<'input'>) => (
         <input
             type="checkbox"
+            checked={checked ?? false}
+            data-indeterminate={indeterminate ? 'true' : undefined}
             {...props}
             onChange={(e) => onCheckedChange?.(e.target.checked)}
         />
@@ -124,7 +126,7 @@ describe('EditorSettings page', () => {
                     { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
                 ]}
                 dateTypes={[
-                    { id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true, elmo_active: false },
+                    { id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true },
                 ]}
                 maxTitles={5}
                 maxLicenses={10}
@@ -290,7 +292,7 @@ describe('Language settings', () => {
 describe('Date Type settings', () => {
     it('updates date type ERNIE active when toggled', () => {
         const dateTypes = [
-            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false, elmo_active: false },
+            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false },
         ];
         render(
             <EditorSettings
@@ -307,30 +309,7 @@ describe('Date Type settings', () => {
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('dateTypes', [
-            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: true, elmo_active: false },
-        ]);
-    });
-
-    it('updates date type ELMO active when toggled', () => {
-        const dateTypes = [
-            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false, elmo_active: false },
-        ];
-        render(
-            <EditorSettings
-                resourceTypes={[]}
-                titleTypes={[]}
-                licenses={[]}
-                languages={[]}
-                dateTypes={dateTypes}
-                maxTitles={1}
-                maxLicenses={1}
-                thesauri={defaultThesauri}
-                landingPageDomains={[]}
-            />,
-        );
-        fireEvent.click(screen.getByLabelText('ELMO active'));
-        expect(setData).toHaveBeenCalledWith('dateTypes', [
-            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false, elmo_active: true },
+            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: true },
         ]);
     });
 });

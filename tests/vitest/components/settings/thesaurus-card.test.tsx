@@ -127,7 +127,7 @@ describe('ThesaurusCard', () => {
             expect(screen.getAllByText('ELMO')).toHaveLength(3);
         });
 
-        it('should render 6 checkboxes (2 per thesaurus)', () => {
+        it('should render 8 checkboxes (2 select-all + 2 per thesaurus)', () => {
             render(
                 <ThesaurusCard
                     thesauri={mockThesauri}
@@ -136,7 +136,8 @@ describe('ThesaurusCard', () => {
                 />,
             );
 
-            expect(screen.getAllByRole('checkbox')).toHaveLength(6);
+            // 2 select-all checkboxes + 6 individual checkboxes
+            expect(screen.getAllByRole('checkbox')).toHaveLength(8);
         });
 
         it('should have correct test ids for each thesaurus row', () => {
@@ -165,9 +166,10 @@ describe('ThesaurusCard', () => {
                 />,
             );
 
-            // Find and click the first ERNIE checkbox (Science Keywords)
+            // Find and click the first individual ERNIE checkbox (Science Keywords)
+            // Index 0 = select-all ERNIE, 1 = select-all ELMO, 2 = first thesaurus ERNIE
             const ernieCheckboxes = screen.getAllByRole('checkbox');
-            await user.click(ernieCheckboxes[0]); // First checkbox is ERNIE for science_keywords
+            await user.click(ernieCheckboxes[2]); // Third checkbox is ERNIE for science_keywords
 
             expect(mockOnActiveChange).toHaveBeenCalledWith('science_keywords', false);
         });
@@ -182,9 +184,10 @@ describe('ThesaurusCard', () => {
                 />,
             );
 
-            // Find and click the second checkbox (ELMO for science_keywords)
+            // Find and click the ELMO checkbox for science_keywords
+            // Index 0 = select-all ERNIE, 1 = select-all ELMO, 2 = first ERNIE, 3 = first ELMO
             const checkboxes = screen.getAllByRole('checkbox');
-            await user.click(checkboxes[1]); // Second checkbox is ELMO for science_keywords
+            await user.click(checkboxes[3]); // Fourth checkbox is ELMO for science_keywords
 
             expect(mockOnElmoActiveChange).toHaveBeenCalledWith('science_keywords', false);
         });
@@ -200,6 +203,185 @@ describe('ThesaurusCard', () => {
 
             const checkButtons = screen.getAllByRole('button', { name: /check for updates/i });
             expect(checkButtons).toHaveLength(3);
+        });
+    });
+
+    describe('Select All', () => {
+        it('should render select-all checkboxes with correct aria labels', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.getByLabelText('Select all ERNIE active for Thesauri')).toBeInTheDocument();
+            expect(screen.getByLabelText('Select all ELMO active for Thesauri')).toBeInTheDocument();
+        });
+
+        it('should call onActiveChange for all thesauri when select-all ERNIE is clicked', async () => {
+            const user = userEvent.setup();
+            // All inactive so clicking select-all should activate all
+            const allInactiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: false }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allInactiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ERNIE active for Thesauri'));
+
+            expect(mockOnActiveChange).toHaveBeenCalledTimes(3);
+            expect(mockOnActiveChange).toHaveBeenCalledWith('science_keywords', true);
+            expect(mockOnActiveChange).toHaveBeenCalledWith('platforms', true);
+            expect(mockOnActiveChange).toHaveBeenCalledWith('instruments', true);
+        });
+
+        it('should call onElmoActiveChange for all thesauri when select-all ELMO is clicked', async () => {
+            const user = userEvent.setup();
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ELMO active for Thesauri'));
+
+            // All thesauri have isElmoActive: false, so clicking should select all (true)
+            expect(mockOnElmoActiveChange).toHaveBeenCalledTimes(3);
+            expect(mockOnElmoActiveChange).toHaveBeenCalledWith('science_keywords', true);
+            expect(mockOnElmoActiveChange).toHaveBeenCalledWith('platforms', true);
+            expect(mockOnElmoActiveChange).toHaveBeenCalledWith('instruments', true);
+        });
+
+        it('should show indeterminate state when some thesauri are active', () => {
+            const mixedThesauri = [
+                { ...mockThesauri[0], isActive: true },
+                { ...mockThesauri[1], isActive: false },
+                { ...mockThesauri[2], isActive: true },
+            ];
+
+            render(
+                <ThesaurusCard
+                    thesauri={mixedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const selectAllErnie = screen.getByLabelText('Select all ERNIE active for Thesauri');
+            expect(selectAllErnie).toHaveAttribute('data-indeterminate', 'true');
+        });
+
+        it('should show checked state when all thesauri ERNIE are active', () => {
+            const allActiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: true }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allActiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const selectAllErnie = screen.getByLabelText('Select all ERNIE active for Thesauri');
+            expect(selectAllErnie).not.toHaveAttribute('data-indeterminate', 'true');
+        });
+
+        it('should show indeterminate for ELMO when some thesauri have ELMO active', () => {
+            const mixedElmoThesauri = [
+                { ...mockThesauri[0], isElmoActive: true },
+                { ...mockThesauri[1], isElmoActive: false },
+                { ...mockThesauri[2], isElmoActive: true },
+            ];
+
+            render(
+                <ThesaurusCard
+                    thesauri={mixedElmoThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const selectAllElmo = screen.getByLabelText('Select all ELMO active for Thesauri');
+            expect(selectAllElmo).toHaveAttribute('data-indeterminate', 'true');
+        });
+
+        it('should not render select-all row when thesauri array is empty', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={[]}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.queryByLabelText('Select all ERNIE active for Thesauri')).not.toBeInTheDocument();
+            expect(screen.queryByLabelText('Select all ELMO active for Thesauri')).not.toBeInTheDocument();
+        });
+
+        it('should call onBulkActiveChange instead of per-item onActiveChange when provided', async () => {
+            const user = userEvent.setup();
+            const mockBulkActiveChange = vi.fn();
+            const allInactiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: false }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allInactiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                    onBulkActiveChange={mockBulkActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ERNIE active for Thesauri'));
+
+            expect(mockBulkActiveChange).toHaveBeenCalledTimes(1);
+            expect(mockBulkActiveChange).toHaveBeenCalledWith(true);
+            expect(mockOnActiveChange).not.toHaveBeenCalled();
+        });
+
+        it('should call onBulkElmoActiveChange instead of per-item onElmoActiveChange when provided', async () => {
+            const user = userEvent.setup();
+            const mockBulkElmoActiveChange = vi.fn();
+
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                    onBulkElmoActiveChange={mockBulkElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ELMO active for Thesauri'));
+
+            expect(mockBulkElmoActiveChange).toHaveBeenCalledTimes(1);
+            expect(mockBulkElmoActiveChange).toHaveBeenCalledWith(true);
+            expect(mockOnElmoActiveChange).not.toHaveBeenCalled();
+        });
+
+        it('should fall back to per-item onActiveChange when onBulkActiveChange is not provided', async () => {
+            const user = userEvent.setup();
+            const allInactiveThesauri = mockThesauri.map((t) => ({ ...t, isActive: false }));
+
+            render(
+                <ThesaurusCard
+                    thesauri={allInactiveThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select all ERNIE active for Thesauri'));
+
+            expect(mockOnActiveChange).toHaveBeenCalledTimes(3);
         });
     });
 
