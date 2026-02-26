@@ -22,7 +22,7 @@ return new class extends Migration
     {
         Schema::create('landing_page_domains', function (Blueprint $table): void {
             $table->id();
-            $table->string('domain', 2048)->unique();
+            $table->string('domain', 768)->unique();
             $table->timestamps();
         });
     }

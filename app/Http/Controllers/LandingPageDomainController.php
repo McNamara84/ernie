@@ -52,7 +52,7 @@ class LandingPageDomainController extends Controller
         $request->merge(['domain' => $domain]);
 
         $validated = $request->validate([
-            'domain' => ['required', 'string', new SafeDomainUrl, 'max:2048', 'unique:landing_page_domains,domain'],
+            'domain' => ['required', 'string', new SafeDomainUrl, 'max:768', 'unique:landing_page_domains,domain'],
         ]);
 
         // Use try/catch to handle the race condition where another request
