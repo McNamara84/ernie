@@ -18,31 +18,40 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Create the pivot table
-        Schema::create('resource_contributor_contributor_type', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('resource_contributor_id')
-                ->constrained('resource_contributors')
-                ->cascadeOnDelete();
-            $table->foreignId('contributor_type_id')
-                ->constrained('contributor_types')
-                ->cascadeOnUpdate()
-                ->restrictOnDelete();
-            $table->timestamps();
+        // 1. Create the pivot table (guard against re-runs during RefreshDatabase)
+        if (! Schema::hasTable('resource_contributor_contributor_type')) {
+            Schema::create('resource_contributor_contributor_type', function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('resource_contributor_id');
+                $table->unsignedBigInteger('contributor_type_id');
+                $table->timestamps();
 
-            $table->unique(
-                ['resource_contributor_id', 'contributor_type_id'],
-                'rc_ct_unique'
-            );
-        });
+                $table->foreign('resource_contributor_id', 'rc_ct_contributor_fk')
+                    ->references('id')
+                    ->on('resource_contributors')
+                    ->cascadeOnDelete();
+
+                $table->foreign('contributor_type_id', 'rc_ct_type_fk')
+                    ->references('id')
+                    ->on('contributor_types')
+                    ->cascadeOnUpdate()
+                    ->restrictOnDelete();
+
+                $table->unique(
+                    ['resource_contributor_id', 'contributor_type_id'],
+                    'rc_ct_unique'
+                );
+            });
+        }
 
         // 2. Migrate existing data from the old single-FK column into the pivot table
-        $now = now();
+        if (Schema::hasColumn('resource_contributors', 'contributor_type_id')) {
+            $now = now();
 
-        DB::table('resource_contributors')
-            ->whereNotNull('contributor_type_id')
-            ->select(['id', 'contributor_type_id'])
-            ->chunkById(500, function ($rows) use ($now): void {
+            DB::table('resource_contributors')
+                ->whereNotNull('contributor_type_id')
+                ->select(['id', 'contributor_type_id'])
+                ->chunkById(500, function ($rows) use ($now): void {
                 $inserts = [];
                 foreach ($rows as $row) {
                     $inserts[] = [
@@ -54,11 +63,14 @@ return new class extends Migration
                 }
                 DB::table('resource_contributor_contributor_type')->insert($inserts);
             });
+        }
 
-        // 3. Drop the old foreign key and column
-        Schema::table('resource_contributors', function (Blueprint $table): void {
-            $table->dropForeign(['contributor_type_id']);
-            $table->dropColumn('contributor_type_id');
-        });
+        // 3. Drop the old foreign key and column (only if it still exists)
+        if (Schema::hasColumn('resource_contributors', 'contributor_type_id')) {
+            Schema::table('resource_contributors', function (Blueprint $table): void {
+                $table->dropForeign(['contributor_type_id']);
+                $table->dropColumn('contributor_type_id');
+            });
+        }
     }
 };
