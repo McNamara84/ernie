@@ -38,9 +38,8 @@ class BatchIgsnRegistrationController extends Controller
      */
     public function register(Request $request): JsonResponse
     {
-        // Only curators and above may register IGSNs
-        $user = $request->user();
-        if ($user === null || $user->role === \App\Enums\UserRole::BEGINNER) {
+        // Authorization: only users who can register production DOIs may register IGSNs
+        if (! $request->user()?->can('register-production-doi')) {
             abort(403, 'You are not authorized to register IGSNs.');
         }
 

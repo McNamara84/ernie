@@ -99,7 +99,7 @@ class IgsnController extends Controller
         // Check if current user is admin (only admins can delete IGSNs)
         $user = $request->user();
         $canDelete = $user !== null && $user->role === UserRole::ADMIN;
-        $canRegister = $user !== null && $user->role !== UserRole::BEGINNER;
+        $canRegister = $user?->can('register-production-doi') ?? false;
 
         return Inertia::render('igsns/index', [
             'igsns' => $igsns,
@@ -205,9 +205,8 @@ class IgsnController extends Controller
      */
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
-        // Only curators and above may register IGSNs (beginners are not authorized)
-        $user = $request->user();
-        if ($user === null || $user->role === UserRole::BEGINNER) {
+        // Authorization: only users who can register production DOIs may register IGSNs
+        if (! $request->user()?->can('register-production-doi')) {
             abort(403, 'You are not authorized to register IGSNs.');
         }
 
@@ -218,7 +217,7 @@ class IgsnController extends Controller
         }
 
         // Check landing page requirement
-        $resource->load('landingPage');
+        $resource->loadMissing('landingPage');
         if (! $resource->landingPage) {
             return response()->json([
                 'error' => 'Landing page required',
