@@ -99,6 +99,7 @@ class IgsnController extends Controller
         // Check if current user is admin (only admins can delete IGSNs)
         $user = $request->user();
         $canDelete = $user !== null && $user->role === UserRole::ADMIN;
+        $canRegister = $user !== null && $user->role !== UserRole::BEGINNER;
 
         return Inertia::render('igsns/index', [
             'igsns' => $igsns,
@@ -118,6 +119,7 @@ class IgsnController extends Controller
             'search' => $search,
             'totalCount' => $totalCount ?? $paginated->total(),
             'canDelete' => $canDelete,
+            'canRegister' => $canRegister,
         ]);
     }
 

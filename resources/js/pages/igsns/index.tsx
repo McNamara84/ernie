@@ -68,6 +68,7 @@ interface IgsnsPageProps {
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
     canDelete: boolean;
+    canRegister: boolean;
     search: string;
     totalCount: number;
 }
@@ -127,7 +128,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, search: initialSearch, totalCount }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -446,7 +447,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                             <BulkActionsToolbar
                                 selectedCount={selectedIds.size}
                                 onDelete={handleBulkDeleteClick}
-                                onRegister={handleBulkRegister}
+                                onRegister={canRegister ? handleBulkRegister : undefined}
                                 canDelete={canDelete}
                                 isDeleting={isDeleting}
                                 isRegistering={isBulkRegistering}
@@ -563,6 +564,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                 <TooltipContent>Setup Landing Page</TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
+                                                        {canRegister && (
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
@@ -601,6 +603,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
+                                                        )}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="font-mono text-sm">

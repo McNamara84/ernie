@@ -131,6 +131,7 @@ const defaultProps = {
     pagination: createPagination(),
     sort: { key: 'updated_at' as const, direction: 'desc' as const },
     canDelete: true,
+    canRegister: true,
     search: '',
     totalCount: 2,
 };

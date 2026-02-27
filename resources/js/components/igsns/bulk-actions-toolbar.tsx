@@ -6,7 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 interface BulkActionsToolbarProps {
     selectedCount: number;
     onDelete: () => void;
-    onRegister: () => void;
+    onRegister?: () => void;
     canDelete: boolean;
     isDeleting?: boolean;
     isRegistering?: boolean;
@@ -28,6 +28,7 @@ export function BulkActionsToolbar({ selectedCount, onDelete, onRegister, canDel
                 {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
             </span>
             <div className="flex items-center gap-2">
+                {onRegister && (
                 <Button variant="default" size="sm" onClick={onRegister} disabled={isRegistering || isDeleting}>
                     {isRegistering ? (
                         <>
@@ -41,6 +42,7 @@ export function BulkActionsToolbar({ selectedCount, onDelete, onRegister, canDel
                         </>
                     )}
                 </Button>
+                )}
 
                 {canDelete && (
                     <Button variant="destructive" size="sm" onClick={onDelete} disabled={isDeleting || isRegistering}>
