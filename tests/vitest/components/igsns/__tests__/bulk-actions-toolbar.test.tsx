@@ -12,6 +12,8 @@ describe('BulkActionsToolbar', () => {
         onDelete: vi.fn(),
         canDelete: true,
         isDeleting: false,
+        onRegister: vi.fn(),
+        isRegistering: false,
     };
 
     describe('rendering', () => {

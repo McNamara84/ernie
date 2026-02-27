@@ -75,6 +75,7 @@ function createIgsn(overrides: Partial<{
     upload_error_message: string | null;
     parent_resource_id: number | null;
     collector: string | null;
+    has_landing_page: boolean;
     created_at: string | null;
     updated_at: string | null;
 }> = {}) {
@@ -91,6 +92,7 @@ function createIgsn(overrides: Partial<{
         upload_error_message: null,
         parent_resource_id: null,
         collector: 'Dr. Smith',
+        has_landing_page: false,
         created_at: '2024-06-01 10:00:00',
         updated_at: '2024-06-15 14:30:00',
         ...overrides,
