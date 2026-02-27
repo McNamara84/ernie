@@ -164,6 +164,13 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
             );
         }
 
+        // Validate DOI/IGSN format: must be 10.NNNN/suffix
+        if (! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $resource->doi)) {
+            throw new \InvalidArgumentException(
+                "IGSN '{$resource->doi}' has an invalid format. Expected: 10.XXXXX/SUFFIX"
+            );
+        }
+
         // Extract prefix and validate
         $prefix = explode('/', $resource->doi, 2)[0];
         if (! in_array($prefix, $this->prefixes, true)) {
@@ -173,7 +180,7 @@ class FakeDataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         // Check if resource has a landing page
-        $resource->load('landingPage');
+        $resource->loadMissing('landingPage');
         if (! $resource->landingPage) {
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page before registering an IGSN."

@@ -203,7 +203,7 @@ class IgsnController extends Controller
      */
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
-        // Only curators and above may register IGSNs (beginners are restricted to test mode via service)
+        // Only curators and above may register IGSNs (beginners are not authorized)
         $user = $request->user();
         if ($user === null || $user->role === UserRole::BEGINNER) {
             abort(403, 'You are not authorized to register IGSNs.');
