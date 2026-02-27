@@ -338,7 +338,8 @@ class IgsnController extends Controller
             ], $statusCode >= 400 && $statusCode < 500 ? $statusCode : 500);
 
         } catch (\Exception $e) {
-            $metadata->markAsError($e->getMessage());
+            $safeMessage = 'An unexpected error occurred during IGSN registration. Please contact support.';
+            $metadata->markAsError($safeMessage);
 
             Log::error('Unexpected error during IGSN registration', [
                 'resource_id' => $resource->id,
@@ -350,7 +351,7 @@ class IgsnController extends Controller
                 'error' => 'Unexpected error',
                 'message' => config('app.debug')
                     ? $e->getMessage()
-                    : 'An unexpected error occurred during IGSN registration. Please contact support.',
+                    : $safeMessage,
             ], 500);
         }
     }

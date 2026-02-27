@@ -162,7 +162,7 @@ class BatchIgsnRegistrationController extends Controller
                     ? $e->getMessage()
                     : 'An unexpected error occurred during registration.';
 
-                $metadata->markAsError($e->getMessage());
+                $metadata->markAsError('An unexpected error occurred during registration.');
 
                 $results['failed'][] = [
                     'id' => $resourceId,
