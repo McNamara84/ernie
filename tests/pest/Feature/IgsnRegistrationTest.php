@@ -219,7 +219,10 @@ describe('IgsnController@registerAtDataCite', function () {
     });
 
     test('updates metadata for already-registered IGSN', function () {
-        $resource = createIgsnWithMetadata([], ['upload_status' => IgsnMetadata::STATUS_REGISTERED]);
+        $resource = createIgsnWithMetadata(
+            ['publication_year' => 2020],
+            ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
+        );
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         Http::fake([
@@ -245,6 +248,10 @@ describe('IgsnController@registerAtDataCite', function () {
         Http::assertSent(function ($request) {
             return $request->method() === 'PUT';
         });
+
+        // publicationYear must NOT be overwritten for already-registered IGSNs
+        $resource->refresh();
+        expect($resource->publication_year)->toBe(2020);
     });
 
     test('marks IGSN as error on API failure', function () {
@@ -294,6 +301,17 @@ describe('IgsnController@registerAtDataCite', function () {
             ->postJson("/igsns/{$resource->id}/register");
 
         $response->assertStatus(404);
+    });
+
+    test('rejects registration for beginners', function () {
+        $beginner = User::factory()->beginner()->create();
+        $resource = createIgsnWithMetadata();
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $response = $this->actingAs($beginner)
+            ->postJson("/igsns/{$resource->id}/register");
+
+        $response->assertStatus(403);
     });
 });
 
@@ -371,7 +389,7 @@ describe('BatchIgsnRegistrationController@register', function () {
         expect($data['failed'][0]['reason'])->toBe('No landing page configured');
     });
 
-    test('sets publicationYear for all registered IGSNs', function () {
+    test('sets publicationYear for newly registered IGSNs', function () {
         $resource = createIgsnWithMetadata(['doi' => '10.83279/YEAR-001', 'publication_year' => 2020]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
@@ -391,6 +409,31 @@ describe('BatchIgsnRegistrationController@register', function () {
 
         $resource->refresh();
         expect($resource->publication_year)->toBe((int) date('Y'));
+    });
+
+    test('preserves publicationYear for already-registered IGSNs in batch', function () {
+        $resource = createIgsnWithMetadata(
+            ['doi' => '10.83279/YEAR-002', 'publication_year' => 2020],
+            ['upload_status' => IgsnMetadata::STATUS_REGISTERED],
+        );
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response([
+                'data' => [
+                    'id' => '10.83279/YEAR-002',
+                    'type' => 'dois',
+                    'attributes' => ['state' => 'findable'],
+                ],
+            ], 200),
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson('/igsns/batch-register', ['ids' => [$resource->id]])
+            ->assertOk();
+
+        $resource->refresh();
+        expect($resource->publication_year)->toBe(2020);
     });
 
     test('validates request requires ids', function () {
@@ -433,6 +476,17 @@ describe('BatchIgsnRegistrationController@register', function () {
         $resource2->refresh();
         expect($resource1->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
         expect($resource2->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR);
+    });
+
+    test('rejects batch registration for beginners', function () {
+        $beginner = User::factory()->beginner()->create();
+        $resource = createIgsnWithMetadata();
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $response = $this->actingAs($beginner)
+            ->postJson('/igsns/batch-register', ['ids' => [$resource->id]]);
+
+        $response->assertStatus(403);
     });
 });
 

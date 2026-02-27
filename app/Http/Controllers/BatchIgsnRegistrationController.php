@@ -34,6 +34,12 @@ class BatchIgsnRegistrationController extends Controller
      */
     public function register(Request $request): JsonResponse
     {
+        // Only curators and above may register IGSNs
+        $user = $request->user();
+        if ($user === null || $user->role === \App\Enums\UserRole::BEGINNER) {
+            abort(403, 'You are not authorized to register IGSNs.');
+        }
+
         $validated = $request->validate([
             'ids' => ['required', 'array', 'min:1', 'max:' . self::MAX_BATCH_SIZE],
             'ids.*' => ['required', 'integer', 'exists:resources,id'],
@@ -48,8 +54,32 @@ class BatchIgsnRegistrationController extends Controller
         /** @var DataCiteRegistrationService $service */
         $service = app(DataCiteRegistrationService::class);
 
-        // Fetch all resources in a single query to avoid N+1
-        $resources = Resource::with(['igsnMetadata', 'landingPage'])
+        // Fetch all resources with ALL relations needed by DataCiteJsonExporter
+        // to avoid N+1 queries when export() is called inside the loop.
+        $resources = Resource::with([
+            'igsnMetadata',
+            'landingPage',
+            'resourceType',
+            'language',
+            'publisher',
+            'titles.titleType',
+            'creators.creatorable',
+            'creators.affiliations',
+            'contributors.contributorable',
+            'contributors.contributorTypes',
+            'contributors.affiliations',
+            'descriptions.descriptionType',
+            'dates.dateType',
+            'subjects',
+            'geoLocations',
+            'rights',
+            'relatedIdentifiers.identifierType',
+            'relatedIdentifiers.relationType',
+            'fundingReferences.funderIdentifierType',
+            'alternateIdentifiers',
+            'sizes',
+            'formats',
+        ])
             ->whereIn('id', $ids)
             ->get()
             ->keyBy('id');
@@ -80,9 +110,12 @@ class BatchIgsnRegistrationController extends Controller
             $metadata = $resource->igsnMetadata;
             $wasAlreadyRegistered = $metadata->isRegistered();
 
-            // Set publicationYear to current year in memory (Issue #438)
+            // Set publicationYear to current year only for new registrations (Issue #438).
+            // Already-registered IGSNs keep their original publicationYear.
             // Only persisted after a successful DataCite response.
-            $resource->publication_year = (int) date('Y');
+            if (! $wasAlreadyRegistered) {
+                $resource->publication_year = (int) date('Y');
+            }
 
             try {
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);

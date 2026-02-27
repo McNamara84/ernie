@@ -203,6 +203,12 @@ class IgsnController extends Controller
      */
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
+        // Only curators and above may register IGSNs (beginners are restricted to test mode via service)
+        $user = $request->user();
+        if ($user === null || $user->role === UserRole::BEGINNER) {
+            abort(403, 'You are not authorized to register IGSNs.');
+        }
+
         // Verify this is an IGSN resource
         $metadata = $resource->igsnMetadata;
         if ($metadata === null) {
@@ -219,9 +225,12 @@ class IgsnController extends Controller
         }
         $wasAlreadyRegistered = $metadata->isRegistered();
 
-        // Set publicationYear to current year in memory (Issue #438)
+        // Set publicationYear to current year only for new registrations (Issue #438).
+        // Already-registered IGSNs keep their original publicationYear.
         // Only persisted after a successful DataCite response to avoid inconsistent local state.
-        $resource->publication_year = (int) date('Y');
+        if (! $wasAlreadyRegistered) {
+            $resource->publication_year = (int) date('Y');
+        }
 
         try {
             // Set status to "registering"
