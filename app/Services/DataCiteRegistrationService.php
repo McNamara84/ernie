@@ -428,7 +428,6 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                     [
                         'url' => $resource->landingPage->public_url,
                         'event' => 'publish', // Ensure DOI remains published
-                        'publicationYear' => (string) date('Y'), // Always use current year at registration time
                     ]
                 ),
             ],

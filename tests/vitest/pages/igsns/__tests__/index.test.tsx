@@ -5,21 +5,23 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia
-const { mockRouterDelete, mockRouterVisit } = vi.hoisted(() => ({ mockRouterDelete: vi.fn(), mockRouterVisit: vi.fn() }));
+const { mockRouterDelete, mockRouterVisit, mockRouterReload } = vi.hoisted(() => ({ mockRouterDelete: vi.fn(), mockRouterVisit: vi.fn(), mockRouterReload: vi.fn() }));
 vi.mock('@inertiajs/react', () => ({
     Head: ({ title }: { title: string }) => <title>{title}</title>,
-    router: { delete: mockRouterDelete, visit: mockRouterVisit },
+    router: { delete: mockRouterDelete, visit: mockRouterVisit, reload: mockRouterReload },
 }));
 
 // Mock axios
+const { mockAxiosPost } = vi.hoisted(() => ({ mockAxiosPost: vi.fn() }));
 vi.mock('axios', () => ({
-    default: { get: vi.fn() },
-    isAxiosError: () => false,
+    default: { get: vi.fn(), post: mockAxiosPost },
+    isAxiosError: (error: unknown) => error instanceof Error && 'isAxiosError' in error,
 }));
 
 // Mock sonner
+const { mockToast } = vi.hoisted(() => ({ mockToast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({
-    toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+    toast: Object.assign(vi.fn(), mockToast),
 }));
 
 // Mock blob-utils
@@ -38,10 +40,11 @@ vi.mock('@/components/igsns/status-badge', () => ({
     IgsnStatusBadge: ({ status }: { status: string }) => <span data-testid="status-badge">{status}</span>,
 }));
 vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
-    BulkActionsToolbar: ({ selectedCount, onDelete }: { selectedCount: number; onDelete: () => void }) => (
+    BulkActionsToolbar: ({ selectedCount, onDelete, onRegister, isRegistering }: { selectedCount: number; onDelete: () => void; onRegister?: () => void; isRegistering?: boolean }) => (
         <div data-testid="bulk-toolbar">
             <span>{selectedCount} selected</span>
             <button onClick={onDelete}>Delete</button>
+            {onRegister && <button onClick={onRegister} disabled={isRegistering}>Register Selected</button>}
         </div>
     ),
 }));
@@ -383,6 +386,230 @@ describe('IgsnsPage', () => {
             // Confirm deletion
             const confirmBtn = screen.getAllByRole('button').find((btn) => btn.textContent === 'Delete' && !btn.closest('[data-testid="bulk-toolbar"]'));
             expect(confirmBtn).toBeTruthy();
+        });
+    });
+
+    describe('single IGSN registration', () => {
+        it('renders register button for each IGSN with landing page', () => {
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[
+                        createIgsn({ id: 1, has_landing_page: true }),
+                        createIgsn({ id: 2, has_landing_page: false }),
+                    ]}
+                />,
+            );
+            const registerButtons = screen.getAllByRole('button', { name: /register at datacite/i });
+            expect(registerButtons).toHaveLength(2);
+            // Button with landing page should be enabled
+            expect(registerButtons[0]).not.toBeDisabled();
+            // Button without landing page should be disabled
+            expect(registerButtons[1]).toBeDisabled();
+        });
+
+        it('shows "Update Metadata" label for already-registered IGSNs', () => {
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true, upload_status: 'registered' })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
+            expect(screen.getByRole('button', { name: /update metadata at datacite/i })).toBeInTheDocument();
+        });
+
+        it('calls axios.post and shows success toast on successful registration', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { success: true, doi: '10.83279/TEST-001', mode: 'test', updated: false, message: 'OK' },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+
+            expect(mockAxiosPost).toHaveBeenCalledWith('/igsns/1/register');
+            // Wait for async handler
+            await vi.waitFor(() => {
+                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('10.83279/TEST-001'));
+            });
+        });
+
+        it('shows update toast for already-registered IGSN', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { success: true, doi: '10.83279/TEST-001', mode: 'test', updated: true, message: 'OK' },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true, upload_status: 'registered' })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('button', { name: /update metadata at datacite/i }));
+
+            await vi.waitFor(() => {
+                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('Metadata updated'));
+            });
+        });
+
+        it('shows error toast on registration failure', async () => {
+            const axiosError = new Error('Request failed') as Error & { isAxiosError: boolean; response: { data: { message: string } } };
+            axiosError.isAxiosError = true;
+            axiosError.response = { data: { message: 'IGSN prefix not allowed' } };
+            mockAxiosPost.mockRejectedValueOnce(axiosError);
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+
+            await vi.waitFor(() => {
+                expect(mockToast.error).toHaveBeenCalled();
+            });
+        });
+
+        it('reloads page data after successful registration', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { success: true, doi: '10.83279/TEST-001', mode: 'test', updated: false, message: 'OK' },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
+
+            await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
+
+            await vi.waitFor(() => {
+                expect(mockRouterReload).toHaveBeenCalled();
+            });
+        });
+    });
+
+    describe('bulk IGSN registration', () => {
+        it('calls axios.post with selected IDs and shows success toast', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { success: [{ id: 1 }, { id: 2 }], failed: [] },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[
+                        createIgsn({ id: 1, has_landing_page: true }),
+                        createIgsn({ id: 2, has_landing_page: true }),
+                    ]}
+                />,
+            );
+
+            // Select both rows
+            const checkboxes = screen.getAllByRole('checkbox');
+            await userEvent.click(checkboxes[1]);
+            await userEvent.click(checkboxes[2]);
+
+            // Click bulk register
+            await userEvent.click(screen.getByText('Register Selected'));
+
+            expect(mockAxiosPost).toHaveBeenCalledWith('/igsns/batch-register', {
+                ids: expect.arrayContaining([1, 2]),
+            });
+
+            await vi.waitFor(() => {
+                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('2 IGSN(s) registered'));
+            });
+        });
+
+        it('shows error toast for partial failures (207)', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: {
+                    success: [{ id: 1 }],
+                    failed: [{ id: 2, reason: 'No landing page' }],
+                },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[
+                        createIgsn({ id: 1, has_landing_page: true }),
+                        createIgsn({ id: 2, has_landing_page: true }),
+                    ]}
+                />,
+            );
+
+            const checkboxes = screen.getAllByRole('checkbox');
+            await userEvent.click(checkboxes[1]);
+            await userEvent.click(checkboxes[2]);
+            await userEvent.click(screen.getByText('Register Selected'));
+
+            await vi.waitFor(() => {
+                expect(mockToast.success).toHaveBeenCalledWith(expect.stringContaining('1 IGSN(s) registered'));
+                expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining('1 IGSN(s) failed'));
+            });
+        });
+
+        it('prevents bulk registration when selected IGSNs lack landing pages', async () => {
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[
+                        createIgsn({ id: 1, has_landing_page: true }),
+                        createIgsn({ id: 2, has_landing_page: false }),
+                    ]}
+                />,
+            );
+
+            const checkboxes = screen.getAllByRole('checkbox');
+            await userEvent.click(checkboxes[1]);
+            await userEvent.click(checkboxes[2]);
+            await userEvent.click(screen.getByText('Register Selected'));
+
+            // Should show error toast instead of making API call
+            expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining('no landing page'));
+            expect(mockAxiosPost).not.toHaveBeenCalled();
+        });
+
+        it('clears selection after successful bulk registration', async () => {
+            mockAxiosPost.mockResolvedValueOnce({
+                data: { success: [{ id: 1 }], failed: [] },
+            });
+
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
+
+            const checkboxes = screen.getAllByRole('checkbox');
+            await userEvent.click(checkboxes[1]);
+
+            // Toolbar should show "1 selected"
+            expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+            await userEvent.click(screen.getByText('Register Selected'));
+
+            await vi.waitFor(() => {
+                expect(mockRouterReload).toHaveBeenCalled();
+            });
         });
     });
 });

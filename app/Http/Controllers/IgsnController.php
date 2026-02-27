@@ -219,11 +219,11 @@ class IgsnController extends Controller
         }
         $wasAlreadyRegistered = $metadata->isRegistered();
 
-        try {
-            // Update publicationYear to current year (Issue #438)
-            $resource->publication_year = (int) date('Y');
-            $resource->save();
+        // Set publicationYear to current year in memory (Issue #438)
+        // Only persisted after a successful DataCite response to avoid inconsistent local state.
+        $resource->publication_year = (int) date('Y');
 
+        try {
             // Set status to "registering"
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
 
@@ -234,6 +234,9 @@ class IgsnController extends Controller
                 // Already registered → update metadata
                 $response = $service->updateMetadata($resource);
                 $doi = $response['data']['id'] ?? $resource->doi;
+
+                // Persist publicationYear only after successful DataCite response
+                $resource->save();
 
                 // Keep status as registered after successful update
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
@@ -259,8 +262,10 @@ class IgsnController extends Controller
             // Update resource DOI if DataCite returned a different one
             if ($doi !== null && $doi !== $resource->doi) {
                 $resource->doi = $doi;
-                $resource->save();
             }
+
+            // Persist publicationYear (and possibly updated DOI) after successful DataCite response
+            $resource->save();
 
             // Mark as registered
             $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);

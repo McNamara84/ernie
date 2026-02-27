@@ -566,6 +566,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
+                                                                    <span tabIndex={0} className="inline-flex">
                                                                     <Button
                                                                         variant="ghost"
                                                                         size="icon"
@@ -589,6 +590,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                             <CloudUpload className="size-4" />
                                                                         )}
                                                                     </Button>
+                                                                    </span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     {!igsn.has_landing_page

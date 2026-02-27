@@ -270,6 +270,22 @@ describe('IgsnController@registerAtDataCite', function () {
         expect($resource->igsnMetadata->upload_error_message)->not->toBeNull();
     });
 
+    test('does not persist publicationYear on API failure', function () {
+        $resource = createIgsnWithMetadata(['publication_year' => 2020]);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response(['errors' => [['title' => 'Bad Request']]], 400),
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson("/igsns/{$resource->id}/register");
+
+        $resource->refresh();
+        // publication_year should NOT have been updated because the DataCite call failed
+        expect($resource->publication_year)->toBe(2020);
+    });
+
     test('returns 404 for non-IGSN resource', function () {
         $resource = Resource::factory()->create();
         // No igsnMetadata

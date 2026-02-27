@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -79,11 +80,11 @@ class BatchIgsnRegistrationController extends Controller
             $metadata = $resource->igsnMetadata;
             $wasAlreadyRegistered = $metadata->isRegistered();
 
-            try {
-                // Update publicationYear to current year (Issue #438)
-                $resource->publication_year = (int) date('Y');
-                $resource->save();
+            // Set publicationYear to current year in memory (Issue #438)
+            // Only persisted after a successful DataCite response.
+            $resource->publication_year = (int) date('Y');
 
+            try {
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERING);
 
                 if ($wasAlreadyRegistered) {
@@ -97,8 +98,10 @@ class BatchIgsnRegistrationController extends Controller
                 // Update resource DOI if DataCite returned a different one
                 if (! $wasAlreadyRegistered && $doi !== null && $doi !== $resource->doi) {
                     $resource->doi = $doi;
-                    $resource->save();
                 }
+
+                // Persist publicationYear (and possibly updated DOI) after successful DataCite response
+                $resource->save();
 
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
 
@@ -114,7 +117,33 @@ class BatchIgsnRegistrationController extends Controller
                     'doi' => $doi,
                     'updated' => $wasAlreadyRegistered,
                 ]);
-            } catch (\Throwable $e) {
+            } catch (RequestException $e) {
+                // DataCite API error – extract user-friendly message
+                $apiResponse = $e->response;
+                /** @phpstan-ignore notIdentical.alwaysTrue */
+                $apiError = $apiResponse !== null ? $apiResponse->json() : null;
+
+                $errorMessage = 'Failed to communicate with DataCite API.';
+                if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {
+                    $firstError = $apiError['errors'][0];
+                    $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
+                }
+
+                $metadata->markAsError($errorMessage);
+
+                $results['failed'][] = [
+                    'id' => $resourceId,
+                    'igsn' => $resource->doi,
+                    'reason' => $errorMessage,
+                ];
+
+                Log::error('Batch IGSN registration: DataCite API error', [
+                    'resource_id' => $resourceId,
+                    'error' => $e->getMessage(),
+                    'api_response' => $apiError,
+                ]);
+            } catch (\InvalidArgumentException|\RuntimeException $e) {
+                // Actionable errors (invalid prefix, missing landing page, etc.)
                 $metadata->markAsError($e->getMessage());
 
                 $results['failed'][] = [
@@ -123,9 +152,28 @@ class BatchIgsnRegistrationController extends Controller
                     'reason' => $e->getMessage(),
                 ];
 
-                Log::error('Batch IGSN registration: failed', [
+                Log::warning('Batch IGSN registration: validation error', [
                     'resource_id' => $resourceId,
                     'error' => $e->getMessage(),
+                ]);
+            } catch (\Throwable $e) {
+                // Unexpected errors – hide internal details
+                $safeMessage = config('app.debug')
+                    ? $e->getMessage()
+                    : 'An unexpected error occurred during registration.';
+
+                $metadata->markAsError($e->getMessage());
+
+                $results['failed'][] = [
+                    'id' => $resourceId,
+                    'igsn' => $resource->doi,
+                    'reason' => $safeMessage,
+                ];
+
+                Log::error('Batch IGSN registration: unexpected error', [
+                    'resource_id' => $resourceId,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
