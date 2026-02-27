@@ -57,8 +57,8 @@ class DataCiteXmlExporter
     #[\NoDiscard('Exported XML string must be used')]
     public function export(Resource $resource): string
     {
-        // Load all necessary relationships
-        $resource->load($this->getRequiredRelations());
+        // Load only missing relationships to honor caller's eager-loading
+        $resource->loadMissing($this->getRequiredRelations());
 
         // Initialize DOM
         $this->dom = new DOMDocument('1.0', 'UTF-8');

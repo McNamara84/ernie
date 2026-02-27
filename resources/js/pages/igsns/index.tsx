@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { FileJson, Globe } from 'lucide-react';
+import { CloudUpload, FileJson, Globe, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SortableTableHeader, type SortDirection, type SortState } from '@/components/ui/sortable-table-header';
+import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
@@ -47,6 +48,7 @@ interface Igsn {
     upload_error_message: string | null;
     parent_resource_id: number | null;
     collector: string | null;
+    has_landing_page: boolean;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -66,6 +68,7 @@ interface IgsnsPageProps {
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
     canDelete: boolean;
+    canRegister: boolean;
     search: string;
     totalCount: number;
 }
@@ -125,7 +128,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, search: initialSearch, totalCount }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -139,6 +142,8 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
+    const [registeringIgsns, setRegisteringIgsns] = useState<Set<number>>(new Set());
+    const [isBulkRegistering, setIsBulkRegistering] = useState(false);
 
     // Selection state for bulk actions
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -311,6 +316,73 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         setSelectedIgsnForLandingPage(null);
     }, []);
 
+    const handleRegister = useCallback(async (igsn: Igsn) => {
+        setRegisteringIgsns((prev) => new Set(prev).add(igsn.id));
+        try {
+            const response = await axios.post<{ success: boolean; doi: string; mode: string; updated: boolean; message: string }>(
+                `/igsns/${igsn.id}/register`,
+            );
+            const { doi, mode, updated } = response.data;
+
+            toast.success(updated ? `Metadata updated at DataCite (${mode})` : `IGSN registered at DataCite (${mode}): ${doi}`);
+
+            // Refresh page data to reflect new status
+            router.reload();
+        } catch (error) {
+            const message =
+                isAxiosError(error) && error.response?.data?.message
+                    ? (error.response.data.message as string)
+                    : 'Failed to register IGSN at DataCite';
+            toast.error(message);
+        } finally {
+            setRegisteringIgsns((prev) => {
+                const next = new Set(prev);
+                next.delete(igsn.id);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleBulkRegister = useCallback(async () => {
+        if (selectedIds.size === 0) return;
+
+        // Check if any selected IGSNs lack a landing page
+        const withoutLandingPage = igsns.filter((i) => selectedIds.has(i.id) && !i.has_landing_page);
+
+        if (withoutLandingPage.length > 0) {
+            toast.error(`${withoutLandingPage.length} IGSN(s) have no landing page and cannot be registered.`);
+            return;
+        }
+
+        setIsBulkRegistering(true);
+        try {
+            const response = await axios.post<{ success: Array<{ id: number }>; failed: Array<{ id: number; reason: string }> }>(
+                '/igsns/batch-register',
+                { ids: Array.from(selectedIds) },
+            );
+
+            const { success, failed } = response.data;
+
+            if (success.length > 0) {
+                toast.success(`${success.length} IGSN(s) registered successfully.`);
+            }
+            if (failed.length > 0) {
+                toast.error(`${failed.length} IGSN(s) failed to register.`);
+            }
+
+            setSelectedIds(new Set());
+            router.reload();
+        } catch (error) {
+            const message =
+                isAxiosError(error) && error.response?.data?.message
+                    ? (error.response.data.message as string)
+                    : 'Batch registration failed.';
+            toast.error(message);
+        } finally {
+            setIsBulkRegistering(false);
+        }
+    }, [selectedIds, igsns]);
+
     const handleBulkDeleteConfirm = useCallback(() => {
         if (selectedIds.size === 0) return;
 
@@ -375,8 +447,10 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                             <BulkActionsToolbar
                                 selectedCount={selectedIds.size}
                                 onDelete={handleBulkDeleteClick}
+                                onRegister={canRegister ? handleBulkRegister : undefined}
                                 canDelete={canDelete}
                                 isDeleting={isDeleting}
+                                isRegistering={isBulkRegistering}
                             />
 
                             {igsns.length === 0 ? (
@@ -395,7 +469,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         aria-label="Select all"
                                                     />
                                                 </TableHead>
-                                                <TableHead className="w-20">Actions</TableHead>
+                                                <TableHead className="w-32">Actions</TableHead>
                                                 <SortableTableHeader<SortKey>
                                                     label="IGSN"
                                                     sortKey="igsn"
@@ -456,6 +530,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         />
                                                     </TableCell>
                                                     <TableCell>
+                                                        <div className="flex items-center gap-0.5">
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
@@ -489,6 +564,47 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                 <TooltipContent>Setup Landing Page</TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
+                                                        {canRegister && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span tabIndex={0} className="inline-flex">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() => handleRegister(igsn)}
+                                                                        disabled={
+                                                                            !igsn.has_landing_page ||
+                                                                            registeringIgsns.has(igsn.id)
+                                                                        }
+                                                                        aria-label={
+                                                                            igsn.upload_status === 'registered'
+                                                                                ? 'Update Metadata at DataCite'
+                                                                                : 'Register at DataCite'
+                                                                        }
+                                                                    >
+                                                                        {registeringIgsns.has(igsn.id) ? (
+                                                                            <Spinner size="sm" />
+                                                                        ) : igsn.upload_status === 'registered' ? (
+                                                                            <RefreshCw className="size-4" />
+                                                                        ) : (
+                                                                            <CloudUpload className="size-4" />
+                                                                        )}
+                                                                    </Button>
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    {!igsn.has_landing_page
+                                                                        ? 'Set up a landing page first'
+                                                                        : igsn.upload_status === 'registered'
+                                                                          ? 'Update Metadata at DataCite'
+                                                                          : 'Register at DataCite'}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        )}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="font-mono text-sm">
                                                         {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}

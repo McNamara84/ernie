@@ -39,8 +39,8 @@ class DataCiteJsonExporter
      */
     public function export(Resource $resource): array
     {
-        // Load all necessary relationships using shared method
-        $resource->load($this->getRequiredRelations());
+        // Load only missing relationships to honor caller's eager-loading
+        $resource->loadMissing($this->getRequiredRelations());
 
         return [
             'data' => [
