@@ -4,6 +4,14 @@
         "date": "2026-02-26",
         "features": [
             {
+                "title": "IGSN Registration at DataCite",
+                "description": "IGSNs can now be registered at DataCite directly from the IGSN list page. Each row has a 'Register at DataCite' button that sends the existing DataCite JSON export with the landing page URL to the DataCite API. Already-registered IGSNs show an 'Update Metadata' action instead. Bulk registration of multiple selected IGSNs is also supported via the toolbar. Registration requires a landing page to be set up first — the button is disabled with a tooltip hint when no landing page exists."
+            },
+            {
+                "title": "Publication Year Set at Registration",
+                "description": "When registering an IGSN at DataCite, the publicationYear is automatically set to the current year. This applies to both new registrations and metadata updates, ensuring the publication year reflects when the DOI was actually registered rather than when the sample was collected."
+            },
+            {
                 "title": "IGSN List Search",
                 "description": "Added a search input to the IGSN list view that allows filtering physical samples by IGSN (DOI) and title. The search uses debounced input (1 second delay) with a minimum of 3 characters, matching the behavior of the Resources view."
             },
