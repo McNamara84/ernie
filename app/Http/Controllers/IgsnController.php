@@ -244,9 +244,6 @@ class IgsnController extends Controller
                 $response = $service->updateMetadata($resource);
                 $doi = $response['data']['id'] ?? $resource->doi;
 
-                // Persist publicationYear only after successful DataCite response
-                $resource->save();
-
                 // Keep status as registered after successful update
                 $metadata->updateStatus(IgsnMetadata::STATUS_REGISTERED);
 

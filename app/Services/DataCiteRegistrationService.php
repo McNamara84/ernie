@@ -163,7 +163,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         // Check if resource has a landing page
-        $resource->load('landingPage');
+        $resource->loadMissing('landingPage');
         if (! $resource->landingPage) {
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page before registering a DOI."
@@ -287,7 +287,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         // Check if resource has a landing page
-        $resource->load('landingPage');
+        $resource->loadMissing('landingPage');
         if (! $resource->landingPage) {
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page before registering an IGSN."
@@ -407,7 +407,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         }
 
         // Check if resource has a landing page
-        $resource->load('landingPage');
+        $resource->loadMissing('landingPage');
         if (! $resource->landingPage) {
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page to update metadata."

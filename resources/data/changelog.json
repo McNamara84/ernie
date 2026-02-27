@@ -9,7 +9,7 @@
             },
             {
                 "title": "Publication Year Set at Registration",
-                "description": "When registering an IGSN at DataCite, the publicationYear is automatically set to the current year. This applies to both new registrations and metadata updates, ensuring the publication year reflects when the DOI was actually registered rather than when the sample was collected."
+                "description": "When registering a new IGSN at DataCite, the publicationYear is automatically set to the current year, ensuring it reflects when the DOI was actually registered. Already-registered IGSNs retain their original publicationYear when metadata is updated."
             },
             {
                 "title": "IGSN List Search",
