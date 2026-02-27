@@ -22,8 +22,12 @@ class BatchIgsnRegistrationController extends Controller
 {
     /**
      * Maximum number of IGSNs that can be registered in a single batch.
+     *
+     * Kept intentionally low because each registration performs a synchronous
+     * HTTP request to the DataCite API, so large batches can exceed web-server
+     * request timeouts or tie up PHP workers.
      */
-    private const MAX_BATCH_SIZE = 100;
+    private const MAX_BATCH_SIZE = 25;
 
     /**
      * Batch register or update IGSNs at DataCite.

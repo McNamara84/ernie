@@ -278,6 +278,13 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
             );
         }
 
+        // Validate DOI/IGSN format: must be 10.NNNN/suffix
+        if (! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $resource->doi)) {
+            throw new \InvalidArgumentException(
+                "IGSN '{$resource->doi}' has an invalid format. Expected: 10.XXXXX/SUFFIX"
+            );
+        }
+
         // Extract and validate prefix from IGSN
         $prefix = $this->extractPrefix($resource->doi);
         if (! in_array($prefix, $this->prefixes, true)) {

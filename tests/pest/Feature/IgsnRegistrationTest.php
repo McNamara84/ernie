@@ -118,6 +118,16 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         });
     });
 
+    test('rejects IGSN with invalid DOI format (missing suffix)', function () {
+        $resource = createIgsnWithMetadata(['doi' => '10.83279']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $service = app(DataCiteRegistrationService::class);
+
+        expect(fn () => $service->registerIgsn($resource))
+            ->toThrow(\InvalidArgumentException::class, 'invalid format');
+    });
+
     test('rejects IGSN with invalid prefix', function () {
         $resource = createIgsnWithMetadata(['doi' => '10.99999/INVALID-PREFIX']);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
