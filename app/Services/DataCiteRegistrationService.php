@@ -309,6 +309,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
                         'prefix' => $prefix,
                         'url' => $resource->landingPage->public_url,
                         'event' => 'publish',
+                        'publicationYear' => (string) date('Y'), // Always use current year at registration time
                     ]
                 ),
             ],

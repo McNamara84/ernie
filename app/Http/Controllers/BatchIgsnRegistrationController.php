@@ -47,8 +47,14 @@ class BatchIgsnRegistrationController extends Controller
         /** @var DataCiteRegistrationService $service */
         $service = app(DataCiteRegistrationService::class);
 
+        // Fetch all resources in a single query to avoid N+1
+        $resources = Resource::with(['igsnMetadata', 'landingPage'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
         foreach ($ids as $resourceId) {
-            $resource = Resource::with(['igsnMetadata', 'landingPage'])->find($resourceId);
+            $resource = $resources->get($resourceId);
 
             if (! $resource instanceof Resource || $resource->igsnMetadata === null) {
                 $results['failed'][] = [

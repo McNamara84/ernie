@@ -78,13 +78,16 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         expect($response['data']['id'])->toBe('10.83279/IGSN-TEST-001');
 
         // Verify the DOI was kept in the payload (not unset like registerDoi)
+        // and publicationYear is always set to current year
         Http::assertSent(function ($request) {
             $body = json_decode($request->body(), true);
 
             return str_contains($request->url(), 'api.test.datacite.org/dois')
                 && $request->method() === 'POST'
                 && isset($body['data']['attributes']['doi'])
-                && $body['data']['attributes']['doi'] === '10.83279/IGSN-TEST-001';
+                && $body['data']['attributes']['doi'] === '10.83279/IGSN-TEST-001'
+                && isset($body['data']['attributes']['publicationYear'])
+                && $body['data']['attributes']['publicationYear'] === (string) date('Y');
         });
     });
 
@@ -255,7 +258,12 @@ describe('IgsnController@registerAtDataCite', function () {
         $response = $this->actingAs($this->user)
             ->postJson("/igsns/{$resource->id}/register");
 
-        $response->assertStatus(500);
+        // DataCite 400 maps to 400 (client error preserved)
+        $response->assertStatus(400);
+        $response->assertJson([
+            'error' => 'DataCite API error',
+            'message' => 'Bad Request',
+        ]);
 
         $resource->refresh();
         expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR);

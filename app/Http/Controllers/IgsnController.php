@@ -18,6 +18,7 @@ use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\JsonSchemaValidator;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -276,10 +277,23 @@ class IgsnController extends Controller
                 'mode' => $service->isTestMode() ? 'test' : 'production',
                 'updated' => false,
             ]);
-        } catch (\Throwable $e) {
+        } catch (\InvalidArgumentException $e) {
             $metadata->markAsError($e->getMessage());
 
-            Log::error('IGSN registration failed', [
+            Log::warning('IGSN registration invalid request', [
+                'resource_id' => $resource->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Invalid request',
+                'message' => $e->getMessage(),
+            ], 422);
+
+        } catch (\RuntimeException $e) {
+            $metadata->markAsError($e->getMessage());
+
+            Log::warning('IGSN registration runtime error', [
                 'resource_id' => $resource->id,
                 'error' => $e->getMessage(),
             ]);
@@ -287,6 +301,51 @@ class IgsnController extends Controller
             return response()->json([
                 'error' => 'Registration failed',
                 'message' => $e->getMessage(),
+            ], 422);
+
+        } catch (RequestException $e) {
+            // DataCite API error
+            $apiResponse = $e->response;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $statusCode = $apiResponse !== null ? $apiResponse->status() : 500;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $apiError = $apiResponse !== null ? $apiResponse->json() : null;
+
+            $errorMessage = 'Failed to communicate with DataCite API.';
+            if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {
+                $firstError = $apiError['errors'][0];
+                $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
+            }
+
+            $metadata->markAsError($errorMessage);
+
+            Log::error('DataCite API error during IGSN registration', [
+                'resource_id' => $resource->id,
+                'status' => $statusCode,
+                'error' => $e->getMessage(),
+                'api_response' => $apiError,
+            ]);
+
+            return response()->json([
+                'error' => 'DataCite API error',
+                'message' => $errorMessage,
+                'details' => config('app.debug') ? $apiError : null,
+            ], $statusCode >= 400 && $statusCode < 500 ? $statusCode : 500);
+
+        } catch (\Exception $e) {
+            $metadata->markAsError($e->getMessage());
+
+            Log::error('Unexpected error during IGSN registration', [
+                'resource_id' => $resource->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Unexpected error',
+                'message' => config('app.debug')
+                    ? $e->getMessage()
+                    : 'An unexpected error occurred during IGSN registration. Please contact support.',
             ], 500);
         }
     }

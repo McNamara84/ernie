@@ -72,4 +72,46 @@ describe('BulkActionsToolbar', () => {
             expect(screen.getByText('Delete')).toBeInTheDocument();
         });
     });
+
+    describe('register button', () => {
+        it('renders register button when items are selected', () => {
+            render(<BulkActionsToolbar {...defaultProps} />);
+            expect(screen.getByRole('button', { name: /register selected/i })).toBeInTheDocument();
+        });
+
+        it('calls onRegister when register button is clicked', async () => {
+            const onRegister = vi.fn();
+            render(<BulkActionsToolbar {...defaultProps} onRegister={onRegister} />);
+
+            await userEvent.click(screen.getByRole('button', { name: /register selected/i }));
+            expect(onRegister).toHaveBeenCalledTimes(1);
+        });
+
+        it('disables register button while registering', () => {
+            render(<BulkActionsToolbar {...defaultProps} isRegistering={true} />);
+            expect(screen.getByRole('button', { name: /registering/i })).toBeDisabled();
+        });
+
+        it('shows "Registering..." text while isRegistering', () => {
+            render(<BulkActionsToolbar {...defaultProps} isRegistering={true} />);
+            expect(screen.getByText('Registering...')).toBeInTheDocument();
+        });
+
+        it('shows "Register Selected" text when not registering', () => {
+            render(<BulkActionsToolbar {...defaultProps} isRegistering={false} />);
+            expect(screen.getByText('Register Selected')).toBeInTheDocument();
+        });
+
+        it('disables delete button while registering', () => {
+            render(<BulkActionsToolbar {...defaultProps} isRegistering={true} />);
+            const deleteButton = screen.getByRole('button', { name: /delete/i });
+            expect(deleteButton).toBeDisabled();
+        });
+
+        it('disables register button while deleting', () => {
+            render(<BulkActionsToolbar {...defaultProps} isDeleting={true} />);
+            const registerButton = screen.getByRole('button', { name: /register selected/i });
+            expect(registerButton).toBeDisabled();
+        });
+    });
 });
