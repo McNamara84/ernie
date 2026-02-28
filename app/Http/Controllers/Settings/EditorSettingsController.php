@@ -9,11 +9,13 @@ use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\DateType;
 use App\Models\LandingPageDomain;
 use App\Models\Language;
+use App\Models\PidSetting;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
+use App\Services\Pid4instStatusService;
 use App\Services\ThesaurusStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -23,13 +25,15 @@ use Inertia\Response;
 class EditorSettingsController extends Controller
 {
     public function __construct(
-        private readonly ThesaurusStatusService $thesaurusStatusService
+        private readonly ThesaurusStatusService $thesaurusStatusService,
+        private readonly Pid4instStatusService $pidStatusService
     ) {}
 
     public function index(): Response
     {
-        // Ensure thesaurus settings exist (auto-create if missing)
+        // Ensure thesaurus and PID settings exist (auto-create if missing)
         $this->ensureThesaurusSettingsExist();
+        $this->ensurePidSettingsExist();
 
         // Map database fields to frontend expected field names
         $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
@@ -83,6 +87,21 @@ class EditorSettingsController extends Controller
             ];
         });
 
+        // Get PID settings with local status information
+        $pidSettings = PidSetting::orderBy('id')->get()->map(function (PidSetting $pidSetting) {
+            $localStatus = $this->pidStatusService->getLocalStatus();
+
+            return [
+                'type' => $pidSetting->type,
+                'displayName' => $pidSetting->display_name,
+                'isActive' => $pidSetting->is_active,
+                'isElmoActive' => $pidSetting->is_elmo_active,
+                'exists' => $localStatus['exists'],
+                'instrumentCount' => $localStatus['instrumentCount'],
+                'lastUpdated' => $localStatus['lastUpdated'],
+            ];
+        });
+
         return Inertia::render('settings/index', [
             'resourceTypes' => $resourceTypes,
             'titleTypes' => $titleTypes,
@@ -92,6 +111,7 @@ class EditorSettingsController extends Controller
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'thesauri' => $thesauri,
+            'pidSettings' => $pidSettings,
             'landingPageDomains' => LandingPageDomain::orderBy('domain')->get(['id', 'domain']),
         ]);
     }
@@ -209,6 +229,21 @@ class EditorSettingsController extends Controller
                         ]);
                 }
             }
+
+            // Update PID settings if provided
+            if (isset($validated['pidSettings'])) {
+                /** @var array<int, array{type: string, isActive: bool, isElmoActive: bool}> $pidSettings */
+                $pidSettings = $validated['pidSettings'];
+                foreach ($pidSettings as $pidSetting) {
+                    DB::table('pid_settings')
+                        ->where('type', $pidSetting['type'])
+                        ->update([
+                            'is_active' => $pidSetting['isActive'],
+                            'is_elmo_active' => $pidSetting['isElmoActive'],
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
         });
 
         return back()->with('success', 'Settings updated');
@@ -246,5 +281,22 @@ class EditorSettingsController extends Controller
                 ]
             );
         }
+    }
+
+    /**
+     * Ensure PID settings exist in the database.
+     * This is a fallback mechanism to handle cases where the seeder wasn't run
+     * or entries were accidentally deleted.
+     */
+    private function ensurePidSettingsExist(): void
+    {
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_PID4INST],
+            [
+                'display_name' => 'PID4INST (b2inst)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
     }
 }
