@@ -203,7 +203,7 @@ class UploadXmlController extends Controller
                 $resourceType = $resourceTypeModel?->id;
             }
 
-            $relatedWorks = $this->extractRelatedWorks($reader, $filename);
+            ['relatedWorks' => $relatedWorks, 'instruments' => $instruments] = $this->extractRelatedWorksAndInstruments($reader, $filename);
             $fundingReferences = $this->extractFundingReferences($reader);
         } catch (XmlReaderException|XmlRuntimeException $e) {
             $error = UploadError::withMessage(
@@ -253,6 +253,7 @@ class UploadXmlController extends Controller
             'dates' => $dates,
             'coverages' => $coverages,
             'relatedWorks' => $relatedWorks,
+            'instruments' => $instruments,
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
             'mslKeywords' => $mslKeywords,
@@ -353,9 +354,12 @@ class UploadXmlController extends Controller
     /**
      * Extract related identifiers from DataCite XML for editor related works prefill.
      *
-     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, position: int}>
+     * Instrument PIDs (relationType="IsCollectedBy" with identifierType="Handle")
+     * are separated into their own array for the "Used Instruments" form section.
+     *
+     * @return array{relatedWorks: array<int, array{identifier: string, identifier_type: string, relation_type: string, position: int}>, instruments: array<int, array{pid: string, pidType: string, name: string}>}
      */
-    private function extractRelatedWorks(XmlReader $reader, string $filename): array
+    private function extractRelatedWorksAndInstruments(XmlReader $reader, string $filename): array
     {
         $relatedIdentifierElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="relatedIdentifiers"]/*[local-name()="relatedIdentifier"]')
@@ -374,6 +378,7 @@ class UploadXmlController extends Controller
         }
 
         $relatedWorks = [];
+        $instruments = [];
 
         foreach ($relatedIdentifierElements as $index => $element) {
             $identifier = $this->stringValue($element);
@@ -403,6 +408,17 @@ class UploadXmlController extends Controller
                 continue;
             }
 
+            // Separate instrument PIDs (IsCollectedBy + Handle) into their own array
+            if ($relationType === 'IsCollectedBy' && $identifierType === 'Handle') {
+                $instruments[] = [
+                    'pid' => $identifier,
+                    'pidType' => $identifierType,
+                    'name' => $identifier, // Use PID as name fallback; editor will resolve from vocabulary
+                ];
+
+                continue;
+            }
+
             $relatedWorks[] = [
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
@@ -411,7 +427,10 @@ class UploadXmlController extends Controller
             ];
         }
 
-        return $relatedWorks;
+        return [
+            'relatedWorks' => $relatedWorks,
+            'instruments' => $instruments,
+        ];
     }
 
     /**
