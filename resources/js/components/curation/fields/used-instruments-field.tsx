@@ -1,5 +1,5 @@
 import { AlertCircle, ExternalLink, Fingerprint, Info, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,29 @@ interface UsedInstrumentsFieldProps {
  */
 export default function UsedInstrumentsField({ selectedInstruments, onChange }: UsedInstrumentsFieldProps) {
     const { instruments, isLoading, error, refetch } = usePid4instInstruments();
+    const hasResolvedNames = useRef(false);
+
+    // Resolve instrument names from vocabulary when instruments are loaded.
+    // This handles the case where an XML import only provides PIDs (not names),
+    // so the PID is used as a placeholder name until the vocabulary is available.
+    useEffect(() => {
+        if (!instruments || instruments.length === 0 || hasResolvedNames.current) return;
+
+        const needsResolution = selectedInstruments.some((sel) => sel.name === sel.pid);
+        if (!needsResolution) {
+            hasResolvedNames.current = true;
+            return;
+        }
+
+        const resolved = selectedInstruments.map((sel) => {
+            if (sel.name !== sel.pid) return sel;
+            const match = instruments.find((inst) => inst.pid === sel.pid);
+            return match ? { ...sel, name: match.name } : sel;
+        });
+
+        hasResolvedNames.current = true;
+        onChange(resolved);
+    }, [instruments, selectedInstruments, onChange]);
 
     // Convert instruments to ComboboxOption format, excluding already selected
     const comboboxOptions: ComboboxOption[] = useMemo(() => {

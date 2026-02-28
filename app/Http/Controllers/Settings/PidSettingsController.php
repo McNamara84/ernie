@@ -118,7 +118,7 @@ class PidSettingsController extends Controller
             ], 400);
         }
 
-        $cacheKey = UpdatePidJob::getCacheKey(strtolower($jobId));
+        $cacheKey = UpdatePidJob::getCacheKey($jobId);
 
         /** @var array{status: string, pidType: string, progress: string, startedAt?: string, completedAt?: string, failedAt?: string, error?: string}|null $status */
         $status = Cache::get($cacheKey);

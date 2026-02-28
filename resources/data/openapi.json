@@ -840,12 +840,12 @@
             },
             "Pid4instInstrument": {
                 "type": "object",
-                "description": "A single instrument record from the b2inst PID registry",
+                "description": "A single instrument record from the b2inst PID registry. Fields are flattened from the original b2inst API response — nested objects are reduced to their name strings for simpler consumption.",
                 "properties": {
                     "id": {
-                        "type": "integer",
-                        "description": "Internal b2inst record ID",
-                        "example": 123
+                        "type": "string",
+                        "description": "Internal b2inst record ID (string-cast)",
+                        "example": "123"
                     },
                     "pid": {
                         "type": "string",
@@ -863,92 +863,42 @@
                         "example": "CTD Profiler"
                     },
                     "description": {
-                        "type": ["string", "null"],
-                        "description": "Description of the instrument",
+                        "type": "string",
+                        "description": "Description of the instrument (empty string if not available)",
                         "example": "Conductivity-Temperature-Depth profiler for oceanographic measurements"
                     },
                     "landingPage": {
-                        "type": ["string", "null"],
-                        "format": "uri",
-                        "description": "URL to the landing page of the instrument in b2inst",
+                        "type": "string",
+                        "description": "URL to the landing page of the instrument in b2inst (empty string if not available)",
                         "example": "https://b2inst.gwdg.de/records/123"
                     },
                     "owners": {
                         "type": "array",
-                        "description": "Organizations or persons owning the instrument",
+                        "description": "Names of organizations or persons owning the instrument",
                         "items": {
-                            "type": "object",
-                            "properties": {
-                                "ownerName": {
-                                    "type": "string",
-                                    "example": "GFZ Helmholtz Centre Potsdam"
-                                },
-                                "ownerIdentifier": {
-                                    "type": ["string", "null"],
-                                    "example": "https://ror.org/04z8jg394"
-                                },
-                                "ownerIdentifierType": {
-                                    "type": ["string", "null"],
-                                    "example": "ROR"
-                                }
-                            }
+                            "type": "string",
+                            "example": "GFZ Helmholtz Centre Potsdam"
                         }
                     },
                     "manufacturers": {
                         "type": "array",
-                        "description": "Manufacturers of the instrument",
+                        "description": "Names of manufacturers of the instrument",
                         "items": {
-                            "type": "object",
-                            "properties": {
-                                "manufacturerName": {
-                                    "type": "string",
-                                    "example": "Sea-Bird Electronics"
-                                },
-                                "manufacturerIdentifier": {
-                                    "type": ["string", "null"],
-                                    "example": null
-                                },
-                                "manufacturerIdentifierType": {
-                                    "type": ["string", "null"],
-                                    "example": null
-                                }
-                            }
+                            "type": "string",
+                            "example": "Sea-Bird Electronics"
                         }
                     },
                     "model": {
-                        "type": "object",
-                        "nullable": true,
-                        "description": "Model information of the instrument",
-                        "properties": {
-                            "modelName": {
-                                "type": "string",
-                                "example": "SBE 911plus"
-                            },
-                            "modelIdentifier": {
-                                "type": ["string", "null"],
-                                "example": null
-                            },
-                            "modelIdentifierType": {
-                                "type": ["string", "null"],
-                                "example": null
-                            }
-                        }
+                        "type": ["string", "null"],
+                        "description": "Model name of the instrument, or null if not available",
+                        "example": "SBE 911plus"
                     },
                     "instrumentTypes": {
                         "type": "array",
-                        "description": "Classification types of the instrument",
+                        "description": "Classification type names of the instrument",
                         "items": {
-                            "type": "object",
-                            "properties": {
-                                "instrumentTypeName": {
-                                    "type": "string",
-                                    "example": "CTD"
-                                },
-                                "instrumentTypeIdentifier": {
-                                    "type": ["string", "null"],
-                                    "example": null
-                                }
-                            }
+                            "type": "string",
+                            "example": "CTD"
                         }
                     },
                     "measuredVariables": {

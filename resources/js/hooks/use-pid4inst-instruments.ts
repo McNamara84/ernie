@@ -47,6 +47,15 @@ export function usePid4instInstruments(): UsePid4instInstrumentsReturn {
 
                 if (!response.ok) {
                     if (response.status === 404) {
+                        // Try to read the specific error message from the backend
+                        try {
+                            const errorBody = (await response.json()) as { error?: string };
+                            if (errorBody.error) {
+                                throw new Error(errorBody.error);
+                            }
+                        } catch {
+                            // If JSON parsing fails, fall through to default message
+                        }
                         throw new Error('Instrument registry not yet downloaded. An administrator must first download it in Settings.');
                     }
                     throw new Error(`Failed to fetch instruments: ${response.status} ${response.statusText}`);

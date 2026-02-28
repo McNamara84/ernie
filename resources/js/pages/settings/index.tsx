@@ -311,20 +311,6 @@ export default function EditorSettings({
         );
     };
 
-    const handleBulkPidActiveChange = (isActive: boolean) => {
-        setData(
-            'pidSettings',
-            data.pidSettings.map((p) => ({ ...p, isActive })),
-        );
-    };
-
-    const handleBulkPidElmoActiveChange = (isElmoActive: boolean) => {
-        setData(
-            'pidSettings',
-            data.pidSettings.map((p) => ({ ...p, isElmoActive })),
-        );
-    };
-
     // Select-all state for each card's ERNIE / ELMO columns
     const licenseErnieState = getSelectAllState(data.licenses.map((l) => l.active));
     const licenseElmoState = getSelectAllState(data.licenses.map((l) => l.elmo_active));
@@ -942,8 +928,6 @@ export default function EditorSettings({
                                     })}
                                     onActiveChange={handlePidActiveChange}
                                     onElmoActiveChange={handlePidElmoActiveChange}
-                                    onBulkActiveChange={handleBulkPidActiveChange}
-                                    onBulkElmoActiveChange={handleBulkPidElmoActiveChange}
                                 />
                             </CardContent>
                         </Card>

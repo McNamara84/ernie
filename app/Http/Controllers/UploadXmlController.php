@@ -413,7 +413,7 @@ class UploadXmlController extends Controller
                 $instruments[] = [
                     'pid' => $identifier,
                     'pidType' => $identifierType,
-                    'name' => $identifier, // Use PID as name fallback; editor will resolve from vocabulary
+                    'name' => $identifier, // PID as fallback; UsedInstrumentsField resolves the name from vocabulary on load
                 ];
 
                 continue;

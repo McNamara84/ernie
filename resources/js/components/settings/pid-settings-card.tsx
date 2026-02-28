@@ -346,8 +346,6 @@ export interface PidSettingsCardProps {
     pidSettings: PidSettingData[];
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
-    onBulkActiveChange?: (isActive: boolean) => void;
-    onBulkElmoActiveChange?: (isElmoActive: boolean) => void;
 }
 
 export function PidSettingsCard({
