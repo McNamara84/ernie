@@ -1,8 +1,20 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-26",
+        "date": "2026-02-28",
         "features": [
+            {
+                "title": "PID4INST Instrument Integration",
+                "description": "Research instruments from the EUDAT b2inst PID registry can now be linked to datasets. A new 'Used Instruments' section in the editor form allows selecting instruments via a searchable combobox populated from the b2inst API. Selected instruments are exported as DataCite relatedIdentifiers with relationType 'IsCollectedBy' and relatedIdentifierType 'Handle', following the DataCite Schema 4.6 specification."
+            },
+            {
+                "title": "Persistent Identifiers Settings",
+                "description": "A new 'Persistent Identifiers' card in Editor Settings allows administrators to manage PID registries like PID4INST. Settings include ERNIE/ELMO activation toggles and a 'Check for Updates' button that compares local instrument data with the remote b2inst registry. Updates are downloaded as background jobs with real-time progress tracking."
+            },
+            {
+                "title": "PID4INST API Endpoints for ELMO",
+                "description": "Two new API endpoints are available for ELMO integration: GET /api/v1/vocabularies/pid4inst-instruments returns the full instrument vocabulary from b2inst, and GET /api/v1/vocabularies/pid-availability returns the activation status of all PID registries."
+            },
             {
                 "title": "IGSN Registration at DataCite",
                 "description": "IGSNs can now be registered at DataCite directly from the IGSN list page. Each row has a 'Register at DataCite' button that sends the existing DataCite JSON export with the landing page URL to the DataCite API. Already-registered IGSNs show an 'Update Metadata' action instead. Bulk registration of multiple selected IGSNs is also supported via the toolbar. Registration requires a landing page to be set up first — the button is disabled with a tooltip hint when no landing page exists."
