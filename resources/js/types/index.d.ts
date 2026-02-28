@@ -226,3 +226,13 @@ export interface MSLLaboratory {
     affiliation_name: string;
     affiliation_ror: string;
 }
+
+/**
+ * Instrument selection from the PID4INST / b2inst registry.
+ * Used in the "Used Instruments" editor section.
+ */
+export interface InstrumentSelection {
+    pid: string;
+    pidType: string;
+    name: string;
+}

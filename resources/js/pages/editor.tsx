@@ -10,6 +10,7 @@ import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
     type DateType,
+    type InstrumentSelection,
     type Language,
     type License,
     type MSLLaboratory,
@@ -42,6 +43,7 @@ interface EditorProps {
     relatedWorks?: RelatedIdentifier[];
     fundingReferences?: FundingReferenceEntry[];
     mslLaboratories?: MSLLaboratory[];
+    instruments?: InstrumentSelection[];
 }
 
 export default function Editor({
@@ -66,6 +68,7 @@ export default function Editor({
     relatedWorks = [],
     fundingReferences = [],
     mslLaboratories = [],
+    instruments = [],
 }: EditorProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -227,6 +230,7 @@ export default function Editor({
                             initialRelatedWorks={relatedWorks}
                             initialFundingReferences={fundingReferences}
                             initialMslLaboratories={mslLaboratories}
+                            initialInstruments={instruments}
                             isUserAdmin={isUserAdmin}
                         />
                     )}

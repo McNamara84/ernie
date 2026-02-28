@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
+import { PidSettingsCard, type PidSettingData } from '@/components/settings/pid-settings-card';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +72,7 @@ interface EditorSettingsProps {
     maxTitles: number;
     maxLicenses: number;
     thesauri: ThesaurusData[];
+    pidSettings: PidSettingData[];
     landingPageDomains: LandingPageDomainRow[];
 }
 
@@ -85,6 +87,7 @@ export default function EditorSettings({
     maxTitles,
     maxLicenses,
     thesauri,
+    pidSettings,
     landingPageDomains,
 }: EditorSettingsProps) {
     // Landing page domains - managed separately via API (not part of main form)
@@ -174,6 +177,11 @@ export default function EditorSettings({
             type: t.type,
             isActive: t.isActive,
             isElmoActive: t.isElmoActive,
+        })),
+        pidSettings: pidSettings.map((p) => ({
+            type: p.type,
+            isActive: p.isActive,
+            isElmoActive: p.isElmoActive,
         })),
     });
 
@@ -286,6 +294,34 @@ export default function EditorSettings({
         setData(
             'thesauri',
             data.thesauri.map((t) => ({ ...t, isElmoActive })),
+        );
+    };
+
+    const handlePidActiveChange = (type: string, isActive: boolean) => {
+        setData(
+            'pidSettings',
+            data.pidSettings.map((p) => (p.type === type ? { ...p, isActive } : p)),
+        );
+    };
+
+    const handlePidElmoActiveChange = (type: string, isElmoActive: boolean) => {
+        setData(
+            'pidSettings',
+            data.pidSettings.map((p) => (p.type === type ? { ...p, isElmoActive } : p)),
+        );
+    };
+
+    const handleBulkPidActiveChange = (isActive: boolean) => {
+        setData(
+            'pidSettings',
+            data.pidSettings.map((p) => ({ ...p, isActive })),
+        );
+    };
+
+    const handleBulkPidElmoActiveChange = (isElmoActive: boolean) => {
+        setData(
+            'pidSettings',
+            data.pidSettings.map((p) => ({ ...p, isElmoActive })),
         );
     };
 
@@ -882,6 +918,32 @@ export default function EditorSettings({
                                     onElmoActiveChange={handleThesaurusElmoActiveChange}
                                     onBulkActiveChange={handleBulkThesaurusActiveChange}
                                     onBulkElmoActiveChange={handleBulkThesaurusElmoActiveChange}
+                                />
+                            </CardContent>
+                        </Card>
+
+                        {/* Persistent Identifiers */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Persistent Identifiers</CardTitle>
+                                <CardDescription>
+                                    Manage PID4INST instrument registry from b2inst for linking datasets to research instruments.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <PidSettingsCard
+                                    pidSettings={pidSettings.map((p) => {
+                                        const formData = data.pidSettings.find((d) => d.type === p.type);
+                                        return {
+                                            ...p,
+                                            isActive: formData?.isActive ?? p.isActive,
+                                            isElmoActive: formData?.isElmoActive ?? p.isElmoActive,
+                                        };
+                                    })}
+                                    onActiveChange={handlePidActiveChange}
+                                    onElmoActiveChange={handlePidElmoActiveChange}
+                                    onBulkActiveChange={handleBulkPidActiveChange}
+                                    onBulkElmoActiveChange={handleBulkPidElmoActiveChange}
                                 />
                             </CardContent>
                         </Card>
