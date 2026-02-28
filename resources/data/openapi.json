@@ -33,7 +33,7 @@
         },
         {
             "name": "Vocabularies",
-            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory)"
+            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory) and PID registries (b2inst)"
         }
     ],
     "paths": {
@@ -475,6 +475,68 @@
                     }
                 }
             }
+        },
+        "/api/v1/vocabularies/pid4inst-instruments": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get PID4INST instruments vocabulary",
+                "description": "Returns the complete PID4INST instruments vocabulary from b2inst (EUDAT instrument registry). Each instrument includes a persistent identifier (Handle PID), name, description, and additional metadata such as owners, manufacturers, instrument types, and measured variables. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PID4INST instruments vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Pid4instInstruments"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "PID4INST is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "PID4INST is disabled"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/vocabularies/pid-availability": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Check PID registry availability",
+                "description": "Returns the availability status of all configured PID registries (e.g., PID4INST). This endpoint does not require authentication and is intended for frontend configuration checks.",
+                "responses": {
+                    "200": {
+                        "description": "PID registry availability status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PidAvailability"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -750,6 +812,181 @@
                     }
                 },
                 "required": ["id", "text", "language", "scheme", "schemeURI", "description", "children"]
+            },
+            "Pid4instInstruments": {
+                "type": "object",
+                "description": "PID4INST instruments vocabulary from b2inst (EUDAT instrument registry)",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the vocabulary was last updated",
+                        "example": "2025-10-15 14:30:00"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "description": "Total number of instruments in the vocabulary",
+                        "example": 1250
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Array of instrument records from b2inst",
+                        "items": {
+                            "$ref": "#/components/schemas/Pid4instInstrument"
+                        }
+                    }
+                },
+                "required": ["lastUpdated", "total", "data"]
+            },
+            "Pid4instInstrument": {
+                "type": "object",
+                "description": "A single instrument record from the b2inst PID registry",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "description": "Internal b2inst record ID",
+                        "example": 123
+                    },
+                    "pid": {
+                        "type": "string",
+                        "description": "Persistent Identifier (Handle PID) of the instrument",
+                        "example": "21.T11998/0000-001A-3905-F"
+                    },
+                    "pidType": {
+                        "type": "string",
+                        "description": "Type of the persistent identifier",
+                        "example": "Handle"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name or title of the instrument",
+                        "example": "CTD Profiler"
+                    },
+                    "description": {
+                        "type": ["string", "null"],
+                        "description": "Description of the instrument",
+                        "example": "Conductivity-Temperature-Depth profiler for oceanographic measurements"
+                    },
+                    "landingPage": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "description": "URL to the landing page of the instrument in b2inst",
+                        "example": "https://b2inst.gwdg.de/records/123"
+                    },
+                    "owners": {
+                        "type": "array",
+                        "description": "Organizations or persons owning the instrument",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "ownerName": {
+                                    "type": "string",
+                                    "example": "GFZ Helmholtz Centre Potsdam"
+                                },
+                                "ownerIdentifier": {
+                                    "type": ["string", "null"],
+                                    "example": "https://ror.org/04z8jg394"
+                                },
+                                "ownerIdentifierType": {
+                                    "type": ["string", "null"],
+                                    "example": "ROR"
+                                }
+                            }
+                        }
+                    },
+                    "manufacturers": {
+                        "type": "array",
+                        "description": "Manufacturers of the instrument",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "manufacturerName": {
+                                    "type": "string",
+                                    "example": "Sea-Bird Electronics"
+                                },
+                                "manufacturerIdentifier": {
+                                    "type": ["string", "null"],
+                                    "example": null
+                                },
+                                "manufacturerIdentifierType": {
+                                    "type": ["string", "null"],
+                                    "example": null
+                                }
+                            }
+                        }
+                    },
+                    "model": {
+                        "type": "object",
+                        "nullable": true,
+                        "description": "Model information of the instrument",
+                        "properties": {
+                            "modelName": {
+                                "type": "string",
+                                "example": "SBE 911plus"
+                            },
+                            "modelIdentifier": {
+                                "type": ["string", "null"],
+                                "example": null
+                            },
+                            "modelIdentifierType": {
+                                "type": ["string", "null"],
+                                "example": null
+                            }
+                        }
+                    },
+                    "instrumentTypes": {
+                        "type": "array",
+                        "description": "Classification types of the instrument",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "instrumentTypeName": {
+                                    "type": "string",
+                                    "example": "CTD"
+                                },
+                                "instrumentTypeIdentifier": {
+                                    "type": ["string", "null"],
+                                    "example": null
+                                }
+                            }
+                        }
+                    },
+                    "measuredVariables": {
+                        "type": "array",
+                        "description": "Variables measured by the instrument",
+                        "items": {
+                            "type": "string",
+                            "example": "Conductivity"
+                        }
+                    }
+                },
+                "required": ["id", "pid", "pidType", "name"]
+            },
+            "PidAvailability": {
+                "type": "object",
+                "description": "Availability status of PID registries, keyed by registry type",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "available": {
+                            "type": "boolean",
+                            "description": "Whether this PID registry is enabled",
+                            "example": true
+                        },
+                        "displayName": {
+                            "type": "string",
+                            "description": "Human-readable name of the PID registry",
+                            "example": "PID4INST (b2inst)"
+                        }
+                    },
+                    "required": ["available", "displayName"]
+                },
+                "example": {
+                    "pid4inst": {
+                        "available": true,
+                        "displayName": "PID4INST (b2inst)"
+                    }
+                }
             }
         }
     }
