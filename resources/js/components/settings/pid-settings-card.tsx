@@ -274,7 +274,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
             {/* Check error message */}
             {checkStatus === 'error' && checkError && (
                 <div className="mt-3 flex items-start gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                    <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>Failed to check for updates: {checkError}</span>
                 </div>
             )}
@@ -290,7 +290,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                 >
                     {updateInfo.updateAvailable ? (
                         <>
-                            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>
                                 ERNIE contains {updateInfo.localCount.toLocaleString()} instruments, but b2inst contains{' '}
                                 {updateInfo.remoteCount.toLocaleString()} instruments.
@@ -299,7 +299,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                         </>
                     ) : (
                         <>
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>Instrument registry is up to date ({updateInfo.localCount.toLocaleString()} instruments)</span>
                         </>
                     )}
@@ -319,17 +319,17 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                 >
                     {jobStatus.status === 'running' ? (
                         <>
-                            <Spinner size="sm" className="mt-0.5 flex-shrink-0" />
+                            <Spinner size="sm" className="mt-0.5 shrink-0" />
                             <span>{jobStatus.progress}</span>
                         </>
                     ) : jobStatus.status === 'completed' ? (
                         <>
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>{jobStatus.progress}</span>
                         </>
                     ) : (
                         <>
-                            <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                            <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>
                                 {jobStatus.progress}
                                 {jobStatus.error && `: ${jobStatus.error}`}

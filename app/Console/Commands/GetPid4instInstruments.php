@@ -57,9 +57,9 @@ class GetPid4instInstruments extends Command
             /** @var array{hits: array{hits: list<array<string, mixed>>, total: int}, links: array<string, string>} $data */
             $data = $response->json();
             /** @var list<array<string, mixed>> $hits */
-            $hits = $data['hits']['hits'] ?? [];
+            $hits = $data['hits']['hits'];
             /** @var int $total */
-            $total = $data['hits']['total'] ?? 0;
+            $total = $data['hits']['total'];
 
             foreach ($hits as $hit) {
                 $allInstruments[] = $this->transformRecord($hit);
@@ -70,11 +70,19 @@ class GetPid4instInstruments extends Command
         } while (count($allInstruments) < $total && count($hits) > 0);
 
         // Store as JSON
-        Storage::put('pid4inst-instruments.json', json_encode([
+        $json = json_encode([
             'lastUpdated' => now()->toIso8601String(),
             'total' => count($allInstruments),
             'data' => $allInstruments,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+        if ($json === false) {
+            $this->error('Failed to encode instruments as JSON.');
+
+            return self::FAILURE;
+        }
+
+        Storage::put('pid4inst-instruments.json', $json);
 
         // Clear vocabulary cache
         Artisan::call('cache:clear-app', ['section' => 'vocabularies']);
@@ -120,19 +128,19 @@ class GetPid4instInstruments extends Command
             'name' => (string) ($meta['Name'] ?? ''),
             'description' => (string) ($meta['Description'] ?? ''),
             'landingPage' => (string) ($meta['LandingPage'] ?? ''),
-            'owners' => array_values(array_map(
+            'owners' => array_map(
                 fn (array $o): string => (string) ($o['ownerName'] ?? ''),
                 $owners
-            )),
-            'manufacturers' => array_values(array_map(
+            ),
+            'manufacturers' => array_map(
                 fn (array $m): string => (string) ($m['manufacturerName'] ?? ''),
                 $manufacturers
-            )),
+            ),
             'model' => $model !== null ? ($model['modelName'] ?? null) : null,
-            'instrumentTypes' => array_values(array_map(
+            'instrumentTypes' => array_map(
                 fn (array $t): string => (string) ($t['instrumentTypeName'] ?? ''),
                 $instrumentTypes
-            )),
+            ),
             'measuredVariables' => $measuredVariables,
         ];
     }

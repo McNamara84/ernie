@@ -43,7 +43,7 @@ class PidSettingsController extends Controller
         }
 
         try {
-            $comparison = $this->statusService->compareWithRemote();
+            $comparison = $this->statusService->compareWithRemote($setting);
 
             return response()->json([
                 'type' => $type,

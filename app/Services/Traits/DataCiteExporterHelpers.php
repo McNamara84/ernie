@@ -50,6 +50,7 @@ trait DataCiteExporterHelpers
             'sizes',
             'formats',
             'igsnMetadata', // For IGSN-specific creator/contributor handling
+            'instruments', // For PID4INST instrument PIDs (IsCollectedBy)
         ];
     }
 

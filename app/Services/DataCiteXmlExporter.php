@@ -808,10 +808,15 @@ class DataCiteXmlExporter
 
     /**
      * Build relatedIdentifiers element (optional)
+     *
+     * Includes both explicit relatedIdentifiers and instrument PIDs (IsCollectedBy).
      */
     private function buildRelatedIdentifiers(Resource $resource): void
     {
-        if ($resource->relatedIdentifiers->isEmpty()) {
+        $hasRelatedIdentifiers = $resource->relatedIdentifiers->isNotEmpty();
+        $hasInstruments = $resource->instruments->isNotEmpty();
+
+        if (! $hasRelatedIdentifiers && ! $hasInstruments) {
             return;
         }
 
@@ -834,6 +839,18 @@ class DataCiteXmlExporter
             }
 
             $relatedIdentifiers->appendChild($relatedElement);
+        }
+
+        // Append instrument PIDs as relatedIdentifiers with relationType="IsCollectedBy"
+        foreach ($resource->instruments as $instrument) {
+            $instrumentElement = $this->dom->createElement(
+                'relatedIdentifier',
+                htmlspecialchars($instrument->instrument_pid)
+            );
+            $instrumentElement->setAttribute('relatedIdentifierType', $instrument->instrument_pid_type);
+            $instrumentElement->setAttribute('relationType', 'IsCollectedBy');
+
+            $relatedIdentifiers->appendChild($instrumentElement);
         }
 
         $this->root->appendChild($relatedIdentifiers);

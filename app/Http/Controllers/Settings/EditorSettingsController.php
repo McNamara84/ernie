@@ -89,7 +89,7 @@ class EditorSettingsController extends Controller
 
         // Get PID settings with local status information
         $pidSettings = PidSetting::orderBy('id')->get()->map(function (PidSetting $pidSetting) {
-            $localStatus = $this->pidStatusService->getLocalStatus();
+            $localStatus = $this->pidStatusService->getLocalStatus($pidSetting);
 
             return [
                 'type' => $pidSetting->type,

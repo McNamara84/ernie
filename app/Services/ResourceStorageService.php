@@ -104,6 +104,7 @@ class ResourceStorageService
             $this->storeGeoLocations($resource, $data, $isUpdate);
             $this->storeRelatedIdentifiers($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
+            $this->storeInstruments($resource, $data, $isUpdate);
 
             return [
                 $resource->load([
@@ -900,5 +901,32 @@ class ResourceStorageService
             ->first();
 
         return $type?->id;
+    }
+
+    /**
+     * Store instruments (PID4INST) for a resource.
+     *
+     * Uses the delete-and-recreate pattern consistent with other relations.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function storeInstruments(Resource $resource, array $data, bool $isUpdate): void
+    {
+        if ($isUpdate) {
+            $resource->instruments()->delete();
+        }
+
+        $instruments = $data['instruments'] ?? [];
+
+        foreach ($instruments as $index => $instrument) {
+            if (! empty($instrument['pid']) && ! empty($instrument['name'])) {
+                $resource->instruments()->create([
+                    'instrument_pid' => trim($instrument['pid']),
+                    'instrument_pid_type' => $instrument['pidType'] ?? 'Handle',
+                    'instrument_name' => trim($instrument['name']),
+                    'position' => $index,
+                ]);
+            }
+        }
     }
 }

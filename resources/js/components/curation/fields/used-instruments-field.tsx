@@ -94,7 +94,7 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
             {/* Info Banner */}
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/50">
                 <div className="flex items-start gap-2">
-                    <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                     <p className="text-sm text-blue-900 dark:text-blue-300">
                         Select the research instruments used to collect this dataset. Instruments are sourced from the{' '}
                         <a
@@ -177,7 +177,7 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => handleRemoveInstrument(inst.pid)}
-                                            className="h-8 w-8 flex-shrink-0 p-0"
+                                            className="h-8 w-8 shrink-0 p-0"
                                             aria-label={`Remove ${inst.name}`}
                                         >
                                             <X className="h-4 w-4" />
