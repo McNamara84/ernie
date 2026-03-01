@@ -11,6 +11,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { usePid4instInstruments } from '@/hooks/use-pid4inst-instruments';
 import type { InstrumentSelection } from '@/types';
 
+/**
+ * Normalize a Handle PID by stripping known resolver URL prefixes.
+ * This ensures matching works regardless of whether the PID is stored
+ * as a bare handle (e.g. "21.T11998/XYZ") or a resolver URL
+ * (e.g. "https://hdl.handle.net/21.T11998/XYZ").
+ */
+function normalizeHandlePid(pid: string): string {
+    return pid
+        .replace(/^https?:\/\/hdl\.handle\.net\//i, '')
+        .replace(/^https?:\/\/doi\.org\//i, '')
+        .replace(/[?#].*$/, '');
+}
+
 interface UsedInstrumentsFieldProps {
     selectedInstruments: InstrumentSelection[];
     onChange: (instruments: InstrumentSelection[]) => void;
@@ -47,7 +60,8 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
 
         const resolved = selectedInstruments.map((sel) => {
             if (sel.name !== sel.pid) return sel;
-            const match = instruments.find((inst) => inst.pid === sel.pid);
+            const normalizedSelPid = normalizeHandlePid(sel.pid);
+            const match = instruments.find((inst) => normalizeHandlePid(inst.pid) === normalizedSelPid);
             return match ? { ...sel, name: match.name } : sel;
         });
 
@@ -62,9 +76,9 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
     const comboboxOptions: ComboboxOption[] = useMemo(() => {
         if (!instruments) return [];
 
-        const selectedPids = new Set(selectedInstruments.map((inst) => inst.pid));
+        const selectedPids = new Set(selectedInstruments.map((inst) => normalizeHandlePid(inst.pid)));
         return instruments
-            .filter((inst) => !selectedPids.has(inst.pid))
+            .filter((inst) => !selectedPids.has(normalizeHandlePid(inst.pid)))
             .map((inst) => ({
                 value: inst.pid,
                 label: inst.name,
