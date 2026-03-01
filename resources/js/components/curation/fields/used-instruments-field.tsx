@@ -1,5 +1,5 @@
 import { AlertCircle, ExternalLink, Fingerprint, Info, X } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -33,19 +33,17 @@ interface UsedInstrumentsFieldProps {
  */
 export default function UsedInstrumentsField({ selectedInstruments, onChange }: UsedInstrumentsFieldProps) {
     const { instruments, isLoading, error, refetch } = usePid4instInstruments();
-    const hasResolvedNames = useRef(false);
 
     // Resolve instrument names from vocabulary when instruments are loaded.
     // This handles the case where an XML import only provides PIDs (not names),
     // so the PID is used as a placeholder name until the vocabulary is available.
+    // Runs whenever selectedInstruments changes, but only calls onChange when
+    // the resolved array actually differs (avoids infinite loops).
     useEffect(() => {
-        if (!instruments || instruments.length === 0 || hasResolvedNames.current) return;
+        if (!instruments || instruments.length === 0) return;
 
         const needsResolution = selectedInstruments.some((sel) => sel.name === sel.pid);
-        if (!needsResolution) {
-            hasResolvedNames.current = true;
-            return;
-        }
+        if (!needsResolution) return;
 
         const resolved = selectedInstruments.map((sel) => {
             if (sel.name !== sel.pid) return sel;
@@ -53,8 +51,11 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
             return match ? { ...sel, name: match.name } : sel;
         });
 
-        hasResolvedNames.current = true;
-        onChange(resolved);
+        // Only call onChange if resolution actually changed something
+        const hasChanges = resolved.some((r, i) => r.name !== selectedInstruments[i].name);
+        if (hasChanges) {
+            onChange(resolved);
+        }
     }, [instruments, selectedInstruments, onChange]);
 
     // Convert instruments to ComboboxOption format, excluding already selected
