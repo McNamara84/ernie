@@ -173,11 +173,9 @@ class VocabularyController extends Controller
      */
     public function pidAvailability(): JsonResponse
     {
-        $isElmo = $this->isElmoRequest();
-
         $pids = PidSetting::all()->mapWithKeys(fn (PidSetting $p) => [
             $p->type => [
-                'available' => $isElmo ? $p->is_elmo_active : $p->is_active,
+                'available' => $p->is_active,
                 'displayName' => $p->display_name,
             ],
         ]);

@@ -124,7 +124,7 @@ class GetPid4instInstruments extends Command
         return [
             'id' => (string) ($hit['id'] ?? ''),
             'pid' => (string) ($identifier['identifierValue'] ?? ''),
-            'pidType' => (string) ($identifier['identifierType'] ?? 'Handle'),
+            'pidType' => $this->normalizePidType((string) ($identifier['identifierType'] ?? 'Handle')),
             'name' => (string) ($meta['Name'] ?? ''),
             'description' => (string) ($meta['Description'] ?? ''),
             'landingPage' => (string) ($meta['LandingPage'] ?? ''),
@@ -143,5 +143,21 @@ class GetPid4instInstruments extends Command
             ),
             'measuredVariables' => $measuredVariables,
         ];
+    }
+
+    /**
+     * Normalize a PID identifier type from the b2inst API to an accepted value.
+     *
+     * The backend request validation only accepts 'Handle', 'DOI', or 'URL'.
+     * This maps common variants and defaults unknown types to 'Handle'.
+     */
+    private function normalizePidType(string $type): string
+    {
+        return match (strtolower(trim($type))) {
+            'handle' => 'Handle',
+            'doi' => 'DOI',
+            'url' => 'URL',
+            default => 'Handle',
+        };
     }
 }
