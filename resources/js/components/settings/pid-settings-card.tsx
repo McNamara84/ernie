@@ -249,98 +249,97 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
 
             {/* Update check section – only visible to admins (routes require manage-thesauri) */}
             {isAdmin && (
-            <>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
-                    {checkStatus === 'loading' ? (
-                        <>
-                            <Spinner size="xs" className="mr-1" />
-                            Checking...
-                        </>
-                    ) : (
-                        <>
-                            <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                            Check for Updates
-                        </>
-                    )}
-                </Button>
+                <>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
+                            {checkStatus === 'loading' ? (
+                                <>
+                                    <Spinner size="xs" className="mr-1" />
+                                    Checking...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                    Check for Updates
+                                </>
+                            )}
+                        </Button>
 
-                {updateInfo?.updateAvailable && isAdmin && !isUpdating && (
-                    <Button size="sm" onClick={triggerUpdate}>
-                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                        Update Now
-                    </Button>
-                )}
-            </div>
+                        {updateInfo?.updateAvailable && !isUpdating && (
+                            <Button size="sm" onClick={triggerUpdate}>
+                                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                Update Now
+                            </Button>
+                        )}
+                    </div>
 
-            {/* Check error message */}
-            {checkStatus === 'error' && checkError && (
-                <div className="mt-3 flex items-start gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>Failed to check for updates: {checkError}</span>
-                </div>
-            )}
-
-            {/* Update info message */}
-            {updateInfo && checkStatus === 'done' && (
-                <div
-                    className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
-                        updateInfo.updateAvailable
-                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
-                            : 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
-                    }`}
-                >
-                    {updateInfo.updateAvailable ? (
-                        <>
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <span>
-                                ERNIE contains {updateInfo.localCount.toLocaleString()} instruments, but b2inst contains{' '}
-                                {updateInfo.remoteCount.toLocaleString()} instruments.
-                                {isAdmin ? ' Would you like to update the instrument registry?' : ' Contact an administrator to update.'}
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                            <span>Instrument registry is up to date ({updateInfo.localCount.toLocaleString()} instruments)</span>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* Update progress */}
-            {jobStatus && (
-                <div
-                    className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
-                        jobStatus.status === 'running'
-                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
-                            : jobStatus.status === 'completed'
-                              ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
-                              : 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400'
-                    }`}
-                >
-                    {jobStatus.status === 'running' ? (
-                        <>
-                            <Spinner size="sm" className="mt-0.5 shrink-0" />
-                            <span>{jobStatus.progress}</span>
-                        </>
-                    ) : jobStatus.status === 'completed' ? (
-                        <>
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                            <span>{jobStatus.progress}</span>
-                        </>
-                    ) : (
-                        <>
+                    {/* Check error message */}
+                    {checkStatus === 'error' && checkError && (
+                        <div className="mt-3 flex items-start gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-400">
                             <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <span>
-                                {jobStatus.progress}
-                                {jobStatus.error && `: ${jobStatus.error}`}
-                            </span>
-                        </>
+                            <span>Failed to check for updates: {checkError}</span>
+                        </div>
                     )}
-                </div>
-            )}
-            </>
+
+                    {/* Update info message */}
+                    {updateInfo && checkStatus === 'done' && (
+                        <div
+                            className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
+                                updateInfo.updateAvailable
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+                                    : 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
+                            }`}
+                        >
+                            {updateInfo.updateAvailable ? (
+                                <>
+                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>
+                                        ERNIE contains {updateInfo.localCount.toLocaleString()} instruments, but b2inst contains{' '}
+                                        {updateInfo.remoteCount.toLocaleString()} instruments. Would you like to update the instrument registry?
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>Instrument registry is up to date ({updateInfo.localCount.toLocaleString()} instruments)</span>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Update progress */}
+                    {jobStatus && (
+                        <div
+                            className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
+                                jobStatus.status === 'running'
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400'
+                                    : jobStatus.status === 'completed'
+                                      ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
+                                      : 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                            }`}
+                        >
+                            {jobStatus.status === 'running' ? (
+                                <>
+                                    <Spinner size="sm" className="mt-0.5 shrink-0" />
+                                    <span>{jobStatus.progress}</span>
+                                </>
+                            ) : jobStatus.status === 'completed' ? (
+                                <>
+                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>{jobStatus.progress}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <span>
+                                        {jobStatus.progress}
+                                        {jobStatus.error && `: ${jobStatus.error}`}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
@@ -352,11 +351,7 @@ export interface PidSettingsCardProps {
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
 }
 
-export function PidSettingsCard({
-    pidSettings,
-    onActiveChange,
-    onElmoActiveChange,
-}: PidSettingsCardProps) {
+export function PidSettingsCard({ pidSettings, onActiveChange, onElmoActiveChange }: PidSettingsCardProps) {
     // Reload page data after update to get fresh data from backend
     const handleUpdateComplete = useCallback(() => {
         setTimeout(() => {

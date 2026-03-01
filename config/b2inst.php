@@ -7,23 +7,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | The base URL for the b2inst (EUDAT) instrument registry API.
+    | Only publicly available instruments are fetched (no authentication required).
     | Production: https://b2inst.gwdg.de
     | Test: https://b2inst-test.gwdg.de
     |
     */
     'host' => env('B2INST_HOST', 'https://b2inst.gwdg.de'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | b2inst API Token
-    |--------------------------------------------------------------------------
-    |
-    | OAuth 2.0 access token for accessing draft instruments.
-    | For public instruments, no token is required.
-    | Generate a token in the b2inst web UI under Profile → API tokens.
-    |
-    */
-    'token' => env('B2INST_TOKEN'),
 
     /*
     |--------------------------------------------------------------------------
