@@ -85,7 +85,7 @@ class GetPid4instInstruments extends Command
         Storage::put('pid4inst-instruments.json', $json);
 
         // Clear vocabulary cache
-        Artisan::call('cache:clear-app', ['section' => 'vocabularies']);
+        Artisan::call('cache:clear-app', ['category' => 'vocabularies']);
 
         $this->info("Successfully stored " . count($allInstruments) . ' instruments.');
 

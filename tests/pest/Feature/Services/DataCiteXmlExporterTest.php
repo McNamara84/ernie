@@ -637,6 +637,93 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
 
         expect($xml)->not->toContain('<relatedIdentifiers>');
     });
+
+    test('exports instrument as relatedIdentifier with IsCollectedBy', function () {
+        $resource = Resource::factory()->create();
+
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'Test Seismometer',
+            'position' => 0,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<relatedIdentifiers>')
+            ->and($xml)->toContain('relatedIdentifierType="Handle"')
+            ->and($xml)->toContain('relationType="IsCollectedBy"')
+            ->and($xml)->toContain('>http://hdl.handle.net/21.12132/INST001</relatedIdentifier>');
+    });
+
+    test('exports multiple instruments as relatedIdentifiers', function () {
+        $resource = Resource::factory()->create();
+
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'Seismometer',
+            'position' => 0,
+        ]);
+
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST002',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'Magnetometer',
+            'position' => 1,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('http://hdl.handle.net/21.12132/INST001')
+            ->and($xml)->toContain('http://hdl.handle.net/21.12132/INST002');
+
+        // Count IsCollectedBy occurrences
+        $count = substr_count($xml, 'relationType="IsCollectedBy"');
+        expect($count)->toBe(2);
+    });
+
+    test('exports instruments alongside regular relatedIdentifiers', function () {
+        $resource = Resource::factory()->create();
+
+        // Add a regular relatedIdentifier
+        $doiType = \App\Models\IdentifierType::firstOrCreate(
+            ['slug' => 'DOI'],
+            ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true]
+        );
+        $relationType = \App\Models\RelationType::firstOrCreate(
+            ['slug' => 'References'],
+            ['name' => 'References', 'slug' => 'References', 'is_active' => true]
+        );
+
+        \App\Models\RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.1234/example.2024',
+            'identifier_type_id' => $doiType->id,
+            'relation_type_id' => $relationType->id,
+            'position' => 1,
+        ]);
+
+        // Add an instrument
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST003',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'GPS Receiver',
+            'position' => 0,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        // Both types should be present in the same relatedIdentifiers block
+        expect($xml)->toContain('relationType="References"')
+            ->and($xml)->toContain('relationType="IsCollectedBy"')
+            ->and($xml)->toContain('10.1234/example.2024')
+            ->and($xml)->toContain('http://hdl.handle.net/21.12132/INST003');
+    });
 });
 
 describe('DataCiteXmlExporter - Dates', function () {

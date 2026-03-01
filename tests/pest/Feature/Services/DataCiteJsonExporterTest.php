@@ -1204,3 +1204,102 @@ describe('DataCiteJsonExporter - Affiliations', function () {
             ->and($contributors[0]['affiliation'][0])->toHaveKey('name', 'GFZ Potsdam');
     });
 });
+
+describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function () {
+    test('exports instrument as relatedIdentifier with IsCollectedBy', function () {
+        $resource = Resource::factory()->create();
+
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'Test Seismometer',
+            'position' => 0,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $relatedIdentifiers = $result['data']['attributes']['relatedIdentifiers'];
+
+        expect($relatedIdentifiers)->toHaveCount(1)
+            ->and($relatedIdentifiers[0])->toHaveKey('relatedIdentifier', 'http://hdl.handle.net/21.12132/INST001')
+            ->and($relatedIdentifiers[0])->toHaveKey('relatedIdentifierType', 'Handle')
+            ->and($relatedIdentifiers[0])->toHaveKey('relationType', 'IsCollectedBy');
+    });
+
+    test('exports multiple instruments as relatedIdentifiers', function () {
+        $resource = Resource::factory()->create();
+
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'Seismometer',
+            'position' => 0,
+        ]);
+
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST002',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'Magnetometer',
+            'position' => 1,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $relatedIdentifiers = $result['data']['attributes']['relatedIdentifiers'];
+
+        expect($relatedIdentifiers)->toHaveCount(2);
+
+        $instrumentPids = array_column($relatedIdentifiers, 'relatedIdentifier');
+        expect($instrumentPids)->toContain('http://hdl.handle.net/21.12132/INST001')
+            ->and($instrumentPids)->toContain('http://hdl.handle.net/21.12132/INST002');
+    });
+
+    test('exports instruments alongside regular relatedIdentifiers', function () {
+        $resource = Resource::factory()->create();
+
+        // Add a regular relatedIdentifier
+        $doiType = \App\Models\IdentifierType::firstOrCreate(
+            ['slug' => 'DOI'],
+            ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true]
+        );
+        $relationType = \App\Models\RelationType::firstOrCreate(
+            ['slug' => 'References'],
+            ['name' => 'References', 'slug' => 'References', 'is_active' => true]
+        );
+
+        \App\Models\RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.1234/example.2024',
+            'identifier_type_id' => $doiType->id,
+            'relation_type_id' => $relationType->id,
+            'position' => 1,
+        ]);
+
+        // Add an instrument
+        \App\Models\ResourceInstrument::factory()->create([
+            'resource_id' => $resource->id,
+            'instrument_pid' => 'http://hdl.handle.net/21.12132/INST003',
+            'instrument_pid_type' => 'Handle',
+            'instrument_name' => 'GPS Receiver',
+            'position' => 0,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $relatedIdentifiers = $result['data']['attributes']['relatedIdentifiers'];
+
+        expect($relatedIdentifiers)->toHaveCount(2);
+
+        $relationTypes = array_column($relatedIdentifiers, 'relationType');
+        expect($relationTypes)->toContain('References')
+            ->and($relationTypes)->toContain('IsCollectedBy');
+    });
+
+    test('omits relatedIdentifiers when no instruments and no related identifiers exist', function () {
+        $resource = Resource::factory()->create();
+
+        $result = $this->exporter->export($resource);
+
+        expect($result['data']['attributes'])->not->toHaveKey('relatedIdentifiers');
+    });
+});
