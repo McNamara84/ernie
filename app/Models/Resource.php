@@ -51,6 +51,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalAge> $igsnGeologicalAges
  * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
  * @property-read \Illuminate\Database\Eloquent\Collection<int, AlternateIdentifier> $alternateIdentifiers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceInstrument> $instruments
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
  */
@@ -186,6 +187,15 @@ class Resource extends Model
     {
         /** @var HasMany<FundingReference, static> $relation */
         $relation = $this->hasMany(FundingReference::class);
+
+        return $relation;
+    }
+
+    /** @return HasMany<ResourceInstrument, static> */
+    public function instruments(): HasMany
+    {
+        /** @var HasMany<ResourceInstrument, static> $relation */
+        $relation = $this->hasMany(ResourceInstrument::class)->orderBy('position');
 
         return $relation;
     }

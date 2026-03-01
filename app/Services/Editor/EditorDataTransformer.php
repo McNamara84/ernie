@@ -64,6 +64,7 @@ class EditorDataTransformer
             'relatedWorks' => $this->transformRelatedIdentifiers($resource),
             'fundingReferences' => $this->transformFundingReferences($resource),
             'mslLaboratories' => $this->transformMslLaboratories($resource),
+            'instruments' => $this->transformInstruments($resource),
         ];
     }
 
@@ -451,6 +452,22 @@ class EditorDataTransformer
                 ];
             })
             ->values()
+            ->toArray();
+    }
+
+    /**
+     * Transform resource instruments to editor format.
+     *
+     * @return array<int, array{pid: string, pidType: string, name: string}>
+     */
+    public function transformInstruments(Resource $resource): array
+    {
+        return $resource->instruments
+            ->map(fn ($instrument): array => [
+                'pid' => $instrument->instrument_pid,
+                'pidType' => $instrument->instrument_pid_type,
+                'name' => $instrument->instrument_name,
+            ])
             ->toArray();
     }
 }

@@ -417,6 +417,31 @@ erDiagram
     }
 
     %% =========================================================================
+    %% PID SETTINGS & INSTRUMENTS (PID4INST)
+    %% =========================================================================
+
+    pid_settings {
+        bigint id PK
+        varchar type UK
+        varchar display_name
+        boolean is_active
+        boolean is_elmo_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resource_instruments {
+        bigint id PK
+        bigint resource_id FK
+        varchar instrument_pid "max 512"
+        varchar instrument_pid_type "max 50, default Handle"
+        varchar instrument_name "max 1024"
+        int position "unsigned, default 0"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% =========================================================================
     %% LARAVEL FRAMEWORK TABLES
     %% =========================================================================
 
@@ -590,6 +615,9 @@ erDiagram
 
     %% Sessions (no FK constraint, just indexed)
     %% sessions.user_id references users.id but is not enforced at DB level
+
+    %% PID4INST instrument relationships
+    resources ||--o{ resource_instruments : "has"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"

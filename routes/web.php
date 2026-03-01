@@ -226,6 +226,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('thesauri.update-status');
     });
 
+    // PID settings routes (Admin only) - PID4INST instrument registry
+    Route::middleware(['can:manage-thesauri'])->prefix('pid-settings')->group(function () {
+        Route::post('/{type}/check', [\App\Http\Controllers\Settings\PidSettingsController::class, 'checkStatus'])
+            ->name('pid-settings.check');
+        Route::post('/{type}/update', [\App\Http\Controllers\Settings\PidSettingsController::class, 'triggerUpdate'])
+            ->name('pid-settings.update');
+        Route::get('/update-status/{jobId}', [\App\Http\Controllers\Settings\PidSettingsController::class, 'updateStatus'])
+            ->name('pid-settings.update-status');
+    });
+
     // Resources routes (new curated resources)
     Route::get('resources/filter-options', [ResourceController::class, 'getFilterOptions'])
         ->name('resources.filter-options');
@@ -445,6 +455,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.gcmd-instruments');
     Route::get('vocabularies/msl', [VocabularyController::class, 'mslVocabulary'])
         ->name('vocabularies.msl');
+    Route::get('vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments'])
+        ->name('vocabularies.pid4inst-instruments');
+    Route::get('vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])
+        ->name('vocabularies.pid-availability');
     Route::get('vocabularies/msl-vocabulary-url', function () {
         return response()->json([
             'url' => config('msl.vocabulary_url'),

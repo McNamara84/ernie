@@ -63,9 +63,13 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords'
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments']);
 
 // Thesauri availability - returns which thesauri are enabled (no auth required for frontend)
 Route::get('/v1/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
+
+// PID availability - returns which PID registries are enabled (no auth required for frontend)
+Route::get('/v1/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability']);
 
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 

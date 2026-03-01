@@ -107,6 +107,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -208,6 +209,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -251,6 +253,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -296,6 +299,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -339,6 +343,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -375,6 +380,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -414,6 +420,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -451,6 +458,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -494,6 +502,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -532,6 +541,7 @@ describe('EditorSettings page', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -572,6 +582,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -622,6 +633,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -667,6 +679,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -711,6 +724,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -753,6 +767,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -798,6 +813,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -843,6 +859,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -888,6 +905,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -933,6 +951,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles={10}
                 maxLicenses={5}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );

@@ -435,4 +435,200 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
         expect($createdDate)->not->toBeNull()
             ->and($createdDate->date_value)->toBe($today);
     });
+
+    describe('Instruments', function () {
+        it('stores instruments when creating a resource', function () {
+            $resourceType = ResourceType::first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2024,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'Instrument Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+                ],
+                'instruments' => [
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/INST001',
+                        'pidType' => 'Handle',
+                        'name' => 'Seismometer STS-2',
+                    ],
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/INST002',
+                        'pidType' => 'Handle',
+                        'name' => 'GPS Receiver LEICA',
+                    ],
+                ],
+            ];
+
+            [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+            expect($isUpdate)->toBeFalse()
+                ->and($resource->instruments()->count())->toBe(2);
+
+            $instruments = $resource->instruments()->orderBy('position')->get();
+
+            expect($instruments[0]->instrument_pid)->toBe('http://hdl.handle.net/21.12132/INST001')
+                ->and($instruments[0]->instrument_pid_type)->toBe('Handle')
+                ->and($instruments[0]->instrument_name)->toBe('Seismometer STS-2')
+                ->and($instruments[0]->position)->toBe(0)
+                ->and($instruments[1]->instrument_pid)->toBe('http://hdl.handle.net/21.12132/INST002')
+                ->and($instruments[1]->instrument_name)->toBe('GPS Receiver LEICA')
+                ->and($instruments[1]->position)->toBe(1);
+        });
+
+        it('replaces instruments when updating a resource', function () {
+            $resourceType = ResourceType::first();
+
+            // Create initial resource with instruments
+            $data = [
+                'resourceId' => null,
+                'year' => 2024,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'Instrument Update Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+                ],
+                'instruments' => [
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/OLD001',
+                        'pidType' => 'Handle',
+                        'name' => 'Old Instrument',
+                    ],
+                ],
+            ];
+
+            [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+            expect($resource->instruments()->count())->toBe(1);
+
+            // Update with different instruments
+            $updateData = [
+                'resourceId' => $resource->id,
+                'year' => 2024,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'Instrument Update Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+                ],
+                'instruments' => [
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/NEW001',
+                        'pidType' => 'Handle',
+                        'name' => 'New Instrument A',
+                    ],
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/NEW002',
+                        'pidType' => 'Handle',
+                        'name' => 'New Instrument B',
+                    ],
+                ],
+            ];
+
+            [$updatedResource, $wasUpdate] = $this->service->store($updateData, $this->user->id);
+
+            expect($wasUpdate)->toBeTrue()
+                ->and($updatedResource->instruments()->count())->toBe(2);
+
+            $instruments = $updatedResource->instruments()->orderBy('position')->get();
+
+            expect($instruments[0]->instrument_pid)->toBe('http://hdl.handle.net/21.12132/NEW001')
+                ->and($instruments[1]->instrument_pid)->toBe('http://hdl.handle.net/21.12132/NEW002');
+
+            // Old instrument should be gone
+            expect(\App\Models\ResourceInstrument::where('instrument_pid', 'http://hdl.handle.net/21.12132/OLD001')->exists())->toBeFalse();
+        });
+
+        it('skips instruments with empty pid or name', function () {
+            $resourceType = ResourceType::first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2024,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'Skip Invalid Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+                ],
+                'instruments' => [
+                    [
+                        'pid' => '',
+                        'pidType' => 'Handle',
+                        'name' => 'No PID Instrument',
+                    ],
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/VALID',
+                        'pidType' => 'Handle',
+                        'name' => '',
+                    ],
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/GOOD',
+                        'pidType' => 'Handle',
+                        'name' => 'Valid Instrument',
+                    ],
+                ],
+            ];
+
+            [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+            // Only the valid instrument should be stored
+            expect($resource->instruments()->count())->toBe(1)
+                ->and($resource->instruments->first()->instrument_pid)->toBe('http://hdl.handle.net/21.12132/GOOD');
+        });
+
+        it('defaults pidType to Handle when not provided', function () {
+            $resourceType = ResourceType::first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2024,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'Default PID Type Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+                ],
+                'instruments' => [
+                    [
+                        'pid' => 'http://hdl.handle.net/21.12132/NOTYPE',
+                        'name' => 'Instrument Without PID Type',
+                    ],
+                ],
+            ];
+
+            [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+            expect($resource->instruments()->count())->toBe(1)
+                ->and($resource->instruments->first()->instrument_pid_type)->toBe('Handle');
+        });
+
+        it('stores no instruments when instruments key is absent', function () {
+            $resourceType = ResourceType::first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2024,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'No Instruments Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+                ],
+            ];
+
+            [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+            expect($resource->instruments()->count())->toBe(0);
+        });
+    });
 });

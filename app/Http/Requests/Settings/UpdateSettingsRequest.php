@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -48,6 +49,11 @@ class UpdateSettingsRequest extends FormRequest
             'thesauri.*.type' => ['required', 'string', Rule::in(ThesaurusSetting::getValidTypes())],
             'thesauri.*.isActive' => ['required', 'boolean'],
             'thesauri.*.isElmoActive' => ['required', 'boolean'],
+            // PID settings (optional - only sent when PID settings card is present)
+            'pidSettings' => ['sometimes', 'array'],
+            'pidSettings.*.type' => ['required', 'string', Rule::in(PidSetting::getValidTypes())],
+            'pidSettings.*.isActive' => ['required', 'boolean'],
+            'pidSettings.*.isElmoActive' => ['required', 'boolean'],
         ];
     }
 }

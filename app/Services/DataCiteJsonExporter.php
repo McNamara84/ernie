@@ -921,6 +921,9 @@ class DataCiteJsonExporter
     /**
      * Build related identifiers array
      *
+     * Includes both manually added related identifiers and
+     * PID4INST instrument PIDs (as relationType="IsCollectedBy").
+     *
      * @return array<int, array<string, mixed>>|null
      */
     private function buildRelatedIdentifiers(Resource $resource): ?array
@@ -941,6 +944,15 @@ class DataCiteJsonExporter
             }
 
             $relatedIdentifiers[] = $relatedData;
+        }
+
+        // Append instrument PIDs as relatedIdentifiers with relationType="IsCollectedBy"
+        foreach ($resource->instruments as $instrument) {
+            $relatedIdentifiers[] = [
+                'relatedIdentifier' => $instrument->instrument_pid,
+                'relatedIdentifierType' => $instrument->instrument_pid_type,
+                'relationType' => 'IsCollectedBy',
+            ];
         }
 
         return ! empty($relatedIdentifiers) ? $relatedIdentifiers : null;

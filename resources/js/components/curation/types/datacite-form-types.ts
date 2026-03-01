@@ -5,7 +5,7 @@
  * Extracted from datacite-form.tsx for better maintainability.
  */
 
-import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type { DateType, InstrumentSelection, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 
 import type { FundingReferenceEntry } from '../fields/funding-reference';
 import type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
@@ -187,6 +187,7 @@ export interface DataCiteFormProps {
     initialRelatedWorks?: RelatedIdentifier[];
     initialFundingReferences?: FundingReferenceEntry[];
     initialMslLaboratories?: MSLLaboratory[];
+    initialInstruments?: InstrumentSelection[];
     /** Optional: Whether the current user is an admin (used for DOI editing permissions) */
     isUserAdmin?: boolean;
 }

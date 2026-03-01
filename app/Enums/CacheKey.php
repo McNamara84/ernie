@@ -23,6 +23,7 @@ enum CacheKey: string
     case GCMD_PLATFORMS = 'vocabularies:gcmd:platforms';
     case GCMD_PROVIDERS = 'vocabularies:gcmd:providers';
     case MSL_KEYWORDS = 'vocabularies:msl:keywords';
+    case PID4INST_INSTRUMENTS = 'vocabularies:pid4inst:instruments';
 
     // ROR affiliation cache keys
     case ROR_AFFILIATION = 'ror:affiliation';
@@ -72,7 +73,8 @@ enum CacheKey: string
             self::GCMD_INSTRUMENTS,
             self::GCMD_PLATFORMS,
             self::GCMD_PROVIDERS,
-            self::MSL_KEYWORDS => 86400,
+            self::MSL_KEYWORDS,
+            self::PID4INST_INSTRUMENTS => 86400,
 
             // ROR affiliations are relatively stable - 7 days
             self::ROR_AFFILIATION => 604800,
@@ -104,7 +106,8 @@ enum CacheKey: string
             self::GCMD_INSTRUMENTS,
             self::GCMD_PLATFORMS,
             self::GCMD_PROVIDERS,
-            self::MSL_KEYWORDS => ['vocabularies'],
+            self::MSL_KEYWORDS,
+            self::PID4INST_INSTRUMENTS => ['vocabularies'],
 
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 

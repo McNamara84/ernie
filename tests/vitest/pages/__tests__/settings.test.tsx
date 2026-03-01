@@ -90,6 +90,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -131,6 +132,7 @@ describe('EditorSettings page', () => {
                 maxTitles={5}
                 maxLicenses={10}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -162,6 +164,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -185,6 +188,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -208,6 +212,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -229,6 +234,7 @@ describe('EditorSettings page', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -254,6 +260,7 @@ describe('License settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -279,6 +286,7 @@ describe('Language settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );
@@ -304,6 +312,7 @@ describe('Date Type settings', () => {
                 maxTitles={1}
                 maxLicenses={1}
                 thesauri={defaultThesauri}
+                pidSettings={[]}
                 landingPageDomains={[]}
             />,
         );

@@ -8,6 +8,7 @@ use App\Enums\CacheKey;
 use App\Exceptions\VocabularyCorruptedException;
 use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
+use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
@@ -150,6 +151,39 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return PID4INST instruments vocabulary.
+     */
+    public function pid4instInstruments(): JsonResponse
+    {
+        if (!$this->isPidActive(PidSetting::TYPE_PID4INST)) {
+            return response()->json(['error' => 'PID4INST is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::PID4INST_INSTRUMENTS,
+            'pid4inst-instruments.json',
+            'php artisan get-pid4inst-instruments'
+        );
+    }
+
+    /**
+     * Return PID availability status for the frontend.
+     *
+     * Similar to thesauriAvailability but for PID registries.
+     */
+    public function pidAvailability(): JsonResponse
+    {
+        $pids = PidSetting::all()->mapWithKeys(fn (PidSetting $p) => [
+            $p->type => [
+                'available' => $p->is_active,
+                'displayName' => $p->display_name,
+            ],
+        ]);
+
+        return response()->json($pids);
+    }
+
+    /**
      * Check if a thesaurus is active for the current request context.
      */
     private function isThesaurusActive(string $type): bool
@@ -162,6 +196,20 @@ class VocabularyController extends Controller
 
         // For ELMO (API) requests, check is_elmo_active
         // For ERNIE requests, check is_active
+        return $this->isElmoRequest() ? $setting->is_elmo_active : $setting->is_active;
+    }
+
+    /**
+     * Check if a PID registry is active for the current request context.
+     */
+    private function isPidActive(string $type): bool
+    {
+        $setting = PidSetting::where('type', $type)->first();
+
+        if (!$setting) {
+            return true; // Default to active if no setting exists
+        }
+
         return $this->isElmoRequest() ? $setting->is_elmo_active : $setting->is_active;
     }
 

@@ -17,7 +17,7 @@ import { validateAllFundingReferences } from '@/hooks/use-funding-reference-vali
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { store, storeDraft } from '@/routes/editor/resources';
-import type { MSLLaboratory, RelatedIdentifier } from '@/types';
+import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
@@ -41,6 +41,7 @@ import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
+import UsedInstrumentsField from './fields/used-instruments-field';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
@@ -101,6 +102,7 @@ export default function DataCiteForm({
     initialFreeKeywords = [],
     initialSpatialTemporalCoverages = [],
     initialMslLaboratories = [],
+    initialInstruments = [],
     initialRelatedWorks = [],
     initialFundingReferences = [],
     isUserAdmin,
@@ -325,6 +327,12 @@ export default function DataCiteForm({
     const [mslLaboratories, setMslLaboratories] = useState<MSLLaboratory[]>(() => {
         if (initialMslLaboratories && initialMslLaboratories.length > 0) {
             return initialMslLaboratories;
+        }
+        return [];
+    });
+    const [instruments, setInstruments] = useState<InstrumentSelection[]>(() => {
+        if (initialInstruments && initialInstruments.length > 0) {
+            return initialInstruments;
         }
         return [];
     });
@@ -1203,6 +1211,14 @@ export default function DataCiteForm({
         return 'valid';
     }, [fundingReferences]);
 
+    const instrumentsStatus = useMemo(() => {
+        // Instruments are optional
+        if (instruments.length === 0) {
+            return 'optional-empty';
+        }
+        return 'valid';
+    }, [instruments]);
+
     // ===================================================================
     // Auto-Scroll to First Invalid Section
     // ===================================================================
@@ -1617,6 +1633,11 @@ export default function DataCiteForm({
                 awardUri: string;
                 awardTitle: string;
             }[];
+            instruments: {
+                pid: string;
+                pidType: string;
+                name: string;
+            }[];
             importedCreatedDate: string | null;
             resourceId?: number;
         } = {
@@ -1684,6 +1705,11 @@ export default function DataCiteForm({
                 awardUri: funding.awardUri,
                 awardTitle: funding.awardTitle,
             })),
+            instruments: instruments.map((inst) => ({
+                pid: inst.pid,
+                pidType: inst.pidType,
+                name: inst.name,
+            })),
             importedCreatedDate,
         };
 
@@ -1706,6 +1732,7 @@ export default function DataCiteForm({
         fundingReferences,
         gcmdKeywords,
         importedCreatedDate,
+        instruments,
         licenseEntries,
         mslLaboratories,
         relatedWorks,
@@ -2353,6 +2380,23 @@ export default function DataCiteForm({
                             counter={{ current: relatedWorks.length, max: 100 }}
                         />
                         <RelatedWorkField relatedWorks={relatedWorks} onChange={setRelatedWorks} />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="used-instruments" data-testid="used-instruments-section">
+                    <AccordionTrigger data-testid="used-instruments-accordion-trigger">
+                        <div className="flex items-center gap-2">
+                            <span>Used Instruments</span>
+                            {renderStatusBadge(instrumentsStatus)}
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="used-instruments-accordion-content">
+                        <SectionHeader
+                            label="Used Instruments"
+                            description="Research instruments used for data collection."
+                            tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
+                            counter={{ current: instruments.length, max: 100 }}
+                        />
+                        <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="funding-references">

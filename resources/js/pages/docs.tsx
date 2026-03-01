@@ -270,6 +270,10 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments)
                             </li>
                             <li>
+                                <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
+                                linking research instruments to datasets
+                            </li>
+                            <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
                             </li>
                         </ul>
@@ -291,6 +295,21 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>Enable/disable individual thesauri for ERNIE and/or ELMO</li>
                             <li>Check for updates by comparing local vs. NASA remote counts</li>
                             <li>Trigger vocabulary updates with one click</li>
+                        </ul>
+
+                        <h4>Persistent Identifiers Management</h4>
+                        <p>The Persistent Identifiers card allows you to manage PID registries:</p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>PID4INST (b2inst):</strong> Instruments from the EUDAT b2inst registry can be
+                                linked to datasets as DataCite relatedIdentifiers with relationType
+                                &quot;IsCollectedBy&quot;
+                            </li>
+                            <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
+                            <li>
+                                Check for updates by comparing local instrument count with remote b2inst registry
+                            </li>
+                            <li>Trigger background downloads of the full instrument vocabulary</li>
                         </ul>
                     </>
                 ),
@@ -317,6 +336,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <DocsCodeBlock code="php artisan get-gcmd-science-keywords" />
                         <DocsCodeBlock code="php artisan get-gcmd-platforms" />
                         <DocsCodeBlock code="php artisan get-gcmd-instruments" />
+
+                        <h4>Update PID4INST Instruments (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads all instruments from the b2inst registry. Can also be triggered from Editor
+                            Settings.
+                        </p>
 
                         <h4>Update MSL Keywords</h4>
                         <DocsCodeBlock code="php artisan get-msl-keywords" />

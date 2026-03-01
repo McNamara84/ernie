@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             RightsSeeder::class,
             PublisherSeeder::class,
             ThesaurusSettingSeeder::class,
+            PidSettingSeeder::class,
         ]);
 
         // Only create test data in testing environment (for automated tests)

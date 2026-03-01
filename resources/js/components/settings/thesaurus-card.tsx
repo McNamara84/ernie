@@ -112,6 +112,16 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 });
 
                 if (!response.ok) {
+                    // Stop polling on permanent errors (job not found, forbidden, bad request)
+                    if ([400, 403, 404].includes(response.status)) {
+                        setJobStatus({ status: 'failed', thesaurusType: thesaurus.type, progress: '', error: `HTTP ${response.status}` });
+                        if (pollingRef.current) {
+                            clearInterval(pollingRef.current);
+                            pollingRef.current = null;
+                        }
+                        setUpdateJobId(null);
+                        return;
+                    }
                     throw new Error(`HTTP ${response.status}`);
                 }
 
@@ -133,10 +143,10 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                     }
                 }
             } catch {
-                // Continue polling even on error
+                // Transient network errors: continue polling
             }
         },
-        [onUpdateComplete],
+        [onUpdateComplete, thesaurus.type],
     );
 
     const triggerUpdate = useCallback(async () => {
