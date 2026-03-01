@@ -103,14 +103,19 @@ export default function UsedInstrumentsField({ selectedInstruments, onChange }: 
      * For Handle PIDs, resolve via hdl.handle.net.
      */
     const getInstrumentUrl = (pid: string, pidType: string): string => {
+        // If pid is already a full URL, return it directly
+        if (pid.startsWith('http://') || pid.startsWith('https://')) {
+            return pid;
+        }
+
         if (pidType === 'Handle' || pidType === 'handle') {
             return `https://hdl.handle.net/${pid}`;
         }
         if (pidType === 'DOI' || pidType === 'doi') {
             return `https://doi.org/${pid}`;
         }
-        // For URLs or unknown types, return as-is
-        return pid.startsWith('http') ? pid : `https://hdl.handle.net/${pid}`;
+        // For unknown types, attempt Handle resolution
+        return `https://hdl.handle.net/${pid}`;
     };
 
     return (
