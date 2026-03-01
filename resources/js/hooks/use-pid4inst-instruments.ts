@@ -12,7 +12,7 @@ export interface Pid4instInstrument {
     landingPage: string;
     owners: string[];
     manufacturers: string[];
-    model: string;
+    model: string | null;
     instrumentTypes: string[];
     measuredVariables: string[];
 }

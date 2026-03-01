@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -287,7 +287,7 @@ describe('UsedInstrumentsField', () => {
                         landingPage: '',
                         owners: [],
                         manufacturers: [],
-                        model: '',
+                        model: null,
                         instrumentTypes: [],
                         measuredVariables: [],
                     },
@@ -304,10 +304,12 @@ describe('UsedInstrumentsField', () => {
 
             render(<UsedInstrumentsField selectedInstruments={selected} onChange={mockOnChange} />);
 
-            // The useEffect should resolve the name and call onChange
-            expect(mockOnChange).toHaveBeenCalledWith([
-                { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
-            ]);
+            // The useEffect resolves names asynchronously after render
+            await waitFor(() => {
+                expect(mockOnChange).toHaveBeenCalledWith([
+                    { pid: '21.T11998/0000-001A-2B3C-4', pidType: 'Handle', name: 'Magnetometer XYZ-500' },
+                ]);
+            });
         });
     });
 });
