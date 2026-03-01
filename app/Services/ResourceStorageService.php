@@ -919,14 +919,27 @@ class ResourceStorageService
         $instruments = $data['instruments'] ?? [];
 
         foreach ($instruments as $index => $instrument) {
-            if (! empty($instrument['pid']) && ! empty($instrument['name'])) {
-                $resource->instruments()->create([
-                    'instrument_pid' => trim($instrument['pid']),
-                    'instrument_pid_type' => $instrument['pidType'] ?? 'Handle',
-                    'instrument_name' => trim($instrument['name']),
-                    'position' => $index,
-                ]);
+            if (! is_array($instrument)) {
+                continue;
             }
+
+            $pid = isset($instrument['pid']) && is_string($instrument['pid']) ? trim($instrument['pid']) : '';
+            $name = isset($instrument['name']) && is_string($instrument['name']) ? trim($instrument['name']) : '';
+
+            if ($pid === '' || $name === '') {
+                continue;
+            }
+
+            $pidType = isset($instrument['pidType']) && is_string($instrument['pidType'])
+                ? $instrument['pidType']
+                : 'Handle';
+
+            $resource->instruments()->create([
+                'instrument_pid' => mb_substr($pid, 0, 512),
+                'instrument_pid_type' => mb_substr($pidType, 0, 50),
+                'instrument_name' => mb_substr($name, 0, 1024),
+                'position' => $index,
+            ]);
         }
     }
 }

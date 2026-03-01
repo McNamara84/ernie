@@ -167,6 +167,10 @@ class StoreDraftResourceRequest extends FormRequest
             'mslLaboratories.*.affiliation_name' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.affiliation_ror' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.position' => ['required', 'integer', 'min:0'],
+            'instruments' => ['nullable', 'array', 'max:99'],
+            'instruments.*.pid' => ['required', 'string', 'max:512'],
+            'instruments.*.pidType' => ['required', 'string', Rule::in(['Handle', 'DOI', 'URL'])],
+            'instruments.*.name' => ['required', 'string', 'max:1024'],
         ];
     }
 

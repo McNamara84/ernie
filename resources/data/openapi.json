@@ -821,7 +821,7 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the vocabulary was last updated",
-                        "example": "2025-10-15 14:30:00"
+                        "example": "2025-10-15T14:30:00Z"
                     },
                     "total": {
                         "type": "integer",

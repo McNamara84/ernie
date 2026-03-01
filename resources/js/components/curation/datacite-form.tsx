@@ -347,7 +347,6 @@ export default function DataCiteForm({
         'spatial-temporal-coverage',
         'dates',
         'related-work',
-        'used-instruments',
         'funding-references',
     ]);
 

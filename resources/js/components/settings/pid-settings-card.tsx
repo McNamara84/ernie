@@ -247,7 +247,9 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                 </div>
             </div>
 
-            {/* Update check section */}
+            {/* Update check section – only visible to admins (routes require manage-thesauri) */}
+            {isAdmin && (
+            <>
             <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
                     {checkStatus === 'loading' ? (
@@ -337,6 +339,8 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                         </>
                     )}
                 </div>
+            )}
+            </>
             )}
         </div>
     );
