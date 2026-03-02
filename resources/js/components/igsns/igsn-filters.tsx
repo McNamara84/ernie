@@ -111,8 +111,13 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                 return;
             }
 
-            // Don't search with less than MIN_SEARCH_LENGTH characters
+            // Below minimum length: clear active search filter to stay in sync
             if (value.trim().length < MIN_SEARCH_LENGTH) {
+                if (filters.search) {
+                    const newFilters = { ...filters };
+                    delete newFilters.search;
+                    onFilterChange(newFilters);
+                }
                 return;
             }
 
@@ -126,6 +131,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const handlePrefixChange = useCallback(
         (value: string) => {
+            setPrefixValue(value);
             const newFilters = { ...filters };
             if (value && value !== 'all') {
                 newFilters.prefix = value;
@@ -139,6 +145,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const handleStatusChange = useCallback(
         (value: string) => {
+            setStatusValue(value);
             const newFilters = { ...filters };
             if (value && value !== 'all') {
                 newFilters.status = value;

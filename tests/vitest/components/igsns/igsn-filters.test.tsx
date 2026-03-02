@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -230,35 +230,60 @@ describe('IgsnFilters Component', () => {
     });
 
     it('debounces search input with 1000ms delay', async () => {
-        const user = userEvent.setup();
+        vi.useFakeTimers();
         render(<IgsnFilters {...defaultProps} />);
 
         const searchInput = screen.getByPlaceholderText(/search igsn or title/i);
-        await user.type(searchInput, 'test');
+        fireEvent.change(searchInput, { target: { value: 'test' } });
 
         // Should not trigger immediately
         expect(mockOnFilterChange).not.toHaveBeenCalled();
 
-        // Wait for debounce delay (1000ms)
-        await new Promise((resolve) => setTimeout(resolve, 1100));
+        // Advance past debounce delay (1000ms)
+        await act(async () => {
+            vi.advanceTimersByTime(1100);
+        });
 
         expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
         expect(mockOnFilterChange).toHaveBeenCalledWith(
             expect.objectContaining({ search: 'test' }),
         );
-    }, 15000);
+
+        vi.useRealTimers();
+    });
 
     it('does not trigger search for input shorter than 3 characters', async () => {
-        const user = userEvent.setup();
+        vi.useFakeTimers();
         render(<IgsnFilters {...defaultProps} />);
 
         const searchInput = screen.getByPlaceholderText(/search igsn or title/i);
-        await user.type(searchInput, 'ab');
+        fireEvent.change(searchInput, { target: { value: 'ab' } });
 
-        // Wait beyond debounce delay
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        // Advance past debounce delay
+        await act(async () => {
+            vi.advanceTimersByTime(1200);
+        });
 
         // Should not trigger search (minimum is 3 characters)
         expect(mockOnFilterChange).not.toHaveBeenCalled();
-    }, 15000);
+
+        vi.useRealTimers();
+    });
+
+    it('clears active search filter when input drops below minimum length', async () => {
+        const user = userEvent.setup({ delay: null });
+        const propsWithSearch = { ...defaultProps, filters: { search: 'test' } };
+        render(<IgsnFilters {...propsWithSearch} />);
+
+        const searchInput = screen.getByPlaceholderText(/search igsn or title/i);
+        await user.clear(searchInput);
+        await user.type(searchInput, 'ab');
+
+        // Should immediately clear the search filter since an active filter existed
+        expect(mockOnFilterChange).toHaveBeenCalledWith(
+            expect.not.objectContaining({ search: expect.anything() }),
+        );
+
+        vi.useRealTimers();
+    });
 });
