@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
-import { IgsnFilters, type IgsnFilterOptions, type IgsnFilterState } from '@/components/igsns/igsn-filters';
+import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';

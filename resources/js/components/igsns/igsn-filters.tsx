@@ -57,6 +57,12 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
     const [searchInput, setSearchInput] = useState(filters.search || '');
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const filtersRef = useRef(filters);
+
+    // Keep filtersRef in sync so debounced callbacks always see the latest state
+    useEffect(() => {
+        filtersRef.current = filters;
+    }, [filters]);
 
     // Local states for Select components to ensure proper synchronization
     const [prefixValue, setPrefixValue] = useState(filters.prefix || 'all');
@@ -105,7 +111,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
             // Empty input clears the search immediately
             if (value.trim().length === 0) {
-                const newFilters = { ...filters };
+                const newFilters = { ...filtersRef.current };
                 delete newFilters.search;
                 onFilterChange(newFilters);
                 return;
@@ -113,8 +119,8 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
             // Below minimum length: clear active search filter to stay in sync
             if (value.trim().length < MIN_SEARCH_LENGTH) {
-                if (filters.search) {
-                    const newFilters = { ...filters };
+                if (filtersRef.current.search) {
+                    const newFilters = { ...filtersRef.current };
                     delete newFilters.search;
                     onFilterChange(newFilters);
                 }
@@ -122,11 +128,12 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             }
 
             // Debounce: wait to allow users to finish typing
+            // Read from filtersRef to avoid stale closure when prefix/status changed during debounce
             searchTimeoutRef.current = setTimeout(() => {
-                onFilterChange({ ...filters, search: value.trim() });
+                onFilterChange({ ...filtersRef.current, search: value.trim() });
             }, SEARCH_DEBOUNCE_MS);
         },
-        [filters, onFilterChange],
+        [onFilterChange],
     );
 
     const handlePrefixChange = useCallback(
@@ -163,6 +170,10 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             delete newFilters[key];
             if (key === 'search') {
                 setSearchInput('');
+                if (searchTimeoutRef.current) {
+                    clearTimeout(searchTimeoutRef.current);
+                    searchTimeoutRef.current = undefined;
+                }
             }
             onFilterChange(newFilters);
         },
@@ -171,6 +182,10 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const clearAllFilters = useCallback(() => {
         setSearchInput('');
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+            searchTimeoutRef.current = undefined;
+        }
         onFilterChange({});
     }, [onFilterChange]);
 

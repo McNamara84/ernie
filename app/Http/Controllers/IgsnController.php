@@ -147,28 +147,47 @@ class IgsnController extends Controller
      */
     public function filterOptions(): JsonResponse
     {
-        $driver = DB::getDriverName();
+        $prefixes = [];
+        $statuses = [];
 
-        // Extract DOI prefix (part before the first slash)
-        // Use database-specific syntax for MySQL vs SQLite compatibility
-        $prefixExpr = $driver === 'sqlite'
-            ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
-            : "SUBSTRING_INDEX(doi, '/', 1)";
+        try {
+            $driver = DB::getDriverName();
 
-        $prefixes = Resource::query()
-            ->whereHas('igsnMetadata')
-            ->whereNotNull('doi')
-            ->where('doi', 'like', '%/%')
-            ->selectRaw("DISTINCT {$prefixExpr} as prefix")
-            ->pluck('prefix')
-            ->sort()
-            ->values();
+            // Extract DOI prefix (part before the first slash)
+            // Use database-specific syntax for MySQL vs SQLite compatibility
+            $prefixExpr = $driver === 'sqlite'
+                ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
+                : "SUBSTRING_INDEX(doi, '/', 1)";
 
-        $statuses = IgsnMetadata::query()
-            ->select('upload_status')
-            ->distinct()
-            ->orderBy('upload_status')
-            ->pluck('upload_status');
+            $prefixes = Resource::query()
+                ->whereHas('igsnMetadata')
+                ->whereNotNull('doi')
+                ->where('doi', 'like', '%/%')
+                ->selectRaw("DISTINCT {$prefixExpr} as prefix")
+                ->pluck('prefix')
+                ->sort()
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load IGSN prefix filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            $statuses = IgsnMetadata::query()
+                ->select('upload_status')
+                ->distinct()
+                ->orderBy('upload_status')
+                ->pluck('upload_status')
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load IGSN status filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'prefixes' => $prefixes,
