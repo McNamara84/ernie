@@ -138,6 +138,7 @@ const defaultProps = {
     search: '',
     totalCount: 2,
     filters: { prefix: '', status: '' },
+    filterOptions: { prefixes: [], statuses: [] },
 };
 
 describe('IgsnsPage', () => {

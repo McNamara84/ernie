@@ -92,6 +92,7 @@ class IgsnController extends Controller
 
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
+        $base = $this->baseQuery();
         $query = $this->buildQuery();
 
         // Get total count before applying any filters/search (for "Showing X of Y" display)
@@ -136,6 +137,7 @@ class IgsnController extends Controller
                 'prefix' => $prefix,
                 'status' => $status,
             ],
+            'filterOptions' => $this->getFilterOptionsData($base),
         ]);
     }
 
@@ -147,11 +149,23 @@ class IgsnController extends Controller
      */
     public function filterOptions(): JsonResponse
     {
-        $prefixes = [];
-        $statuses = [];
+        return response()->json($this->getFilterOptionsData($this->baseQuery()));
+    }
 
-        // Compute base query once to avoid redundant ResourceType lookups
-        $base = $this->baseQuery();
+    /**
+     * Compute the available filter options (prefixes + statuses) from a base query.
+     *
+     * Shared between the JSON endpoint and the Inertia page props.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Resource>  $base
+     * @return array{prefixes: list<string>, statuses: list<string>}
+     */
+    private function getFilterOptionsData(\Illuminate\Database\Eloquent\Builder $base): array
+    {
+        /** @var list<string> $prefixes */
+        $prefixes = [];
+        /** @var list<string> $statuses */
+        $statuses = [];
 
         try {
             $driver = DB::getDriverName();
@@ -162,6 +176,7 @@ class IgsnController extends Controller
                 ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
                 : "SUBSTRING_INDEX(doi, '/', 1)";
 
+            /** @var list<string> $prefixes */
             $prefixes = (clone $base)
                 ->whereNotNull('doi')
                 ->where('doi', 'like', '%/%')
@@ -178,6 +193,7 @@ class IgsnController extends Controller
         }
 
         try {
+            /** @var list<string> $statuses */
             $statuses = IgsnMetadata::query()
                 ->whereIn('resource_id', (clone $base)->select('id'))
                 ->select('upload_status')
@@ -192,10 +208,10 @@ class IgsnController extends Controller
             ]);
         }
 
-        return response()->json([
+        return [
             'prefixes' => $prefixes,
             'statuses' => $statuses,
-        ]);
+        ];
     }
 
     /**

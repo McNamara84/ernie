@@ -75,6 +75,7 @@ interface IgsnsPageProps {
         prefix: string;
         status: string;
     };
+    filterOptions: IgsnFilterOptions;
 }
 
 // ============================================================================
@@ -132,7 +133,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount, filters: initialFilters }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount, filters: initialFilters, filterOptions: initialFilterOptions }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -155,21 +156,11 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         prefix: initialFilters?.prefix || undefined,
         status: initialFilters?.status || undefined,
     });
-    const [filterOptions, setFilterOptions] = useState<IgsnFilterOptions | null>(null);
+    // Filter options are delivered as Inertia props to avoid extra network requests on remount
+    const [filterOptions, setFilterOptions] = useState<IgsnFilterOptions>(initialFilterOptions);
 
     // Selection state for bulk actions
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-
-    // Load filter options on mount
-    useEffect(() => {
-        axios
-            .get<IgsnFilterOptions>('/igsns/filter-options')
-            .then((response) => setFilterOptions(response.data))
-            .catch(() => {
-                // Use empty options as fallback so dropdowns remain enabled
-                setFilterOptions({ prefixes: [], statuses: [] });
-            });
-    }, []);
 
     // Update state when props change (after navigation)
     useEffect(() => {
@@ -182,9 +173,10 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             prefix: initialFilters?.prefix || undefined,
             status: initialFilters?.status || undefined,
         });
+        setFilterOptions(initialFilterOptions);
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
-    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters]);
+    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions]);
 
     const handleExportJson = useCallback(async (igsn: Igsn) => {
         // Mark IGSN as exporting

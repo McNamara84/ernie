@@ -139,35 +139,47 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const handlePrefixChange = useCallback(
         (value: string) => {
+            // Clear any pending debounced search to prevent out-of-order navigations
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+                searchTimeoutRef.current = undefined;
+            }
             setPrefixValue(value);
-            const newFilters = { ...filters };
+            const newFilters = { ...filtersRef.current };
             if (value && value !== 'all') {
                 newFilters.prefix = value;
             } else {
                 delete newFilters.prefix;
             }
+            filtersRef.current = newFilters;
             onFilterChange(newFilters);
         },
-        [filters, onFilterChange],
+        [onFilterChange],
     );
 
     const handleStatusChange = useCallback(
         (value: string) => {
+            // Clear any pending debounced search to prevent out-of-order navigations
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+                searchTimeoutRef.current = undefined;
+            }
             setStatusValue(value);
-            const newFilters = { ...filters };
+            const newFilters = { ...filtersRef.current };
             if (value && value !== 'all') {
                 newFilters.status = value;
             } else {
                 delete newFilters.status;
             }
+            filtersRef.current = newFilters;
             onFilterChange(newFilters);
         },
-        [filters, onFilterChange],
+        [onFilterChange],
     );
 
     const removeFilter = useCallback(
         (key: keyof IgsnFilterState) => {
-            const newFilters = { ...filters };
+            const newFilters = { ...filtersRef.current };
             delete newFilters[key];
             if (key === 'search') {
                 setSearchInput('');
@@ -176,9 +188,10 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                     searchTimeoutRef.current = undefined;
                 }
             }
+            filtersRef.current = newFilters;
             onFilterChange(newFilters);
         },
-        [filters, onFilterChange],
+        [onFilterChange],
     );
 
     const clearAllFilters = useCallback(() => {
@@ -187,6 +200,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             clearTimeout(searchTimeoutRef.current);
             searchTimeoutRef.current = undefined;
         }
+        filtersRef.current = {};
         onFilterChange({});
     }, [onFilterChange]);
 
