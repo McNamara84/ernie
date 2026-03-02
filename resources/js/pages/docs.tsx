@@ -1197,6 +1197,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Features</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click column headers to sort</li>
+                            <li>Search by IGSN identifier or title</li>
+                            <li>Filter by IGSN prefix or upload status using the dropdown menus — active filters are shown as badges that can be individually removed</li>
                             <li>Export individual IGSNs as DataCite JSON</li>
                             <li>Setup landing pages for IGSNs</li>
                         </ul>

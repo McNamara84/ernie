@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
-import { IgsnSearchInput } from '@/components/igsns/igsn-search-input';
+import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -71,6 +71,11 @@ interface IgsnsPageProps {
     canRegister: boolean;
     search: string;
     totalCount: number;
+    filters: {
+        prefix: string;
+        status: string;
+    };
+    filterOptions: IgsnFilterOptions;
 }
 
 // ============================================================================
@@ -128,7 +133,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount, filters: initialFilters, filterOptions: initialFilterOptions }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -145,6 +150,15 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [registeringIgsns, setRegisteringIgsns] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
 
+    // Filter state
+    const [activeFilters, setActiveFilters] = useState<IgsnFilterState>({
+        search: initialSearch || undefined,
+        prefix: initialFilters?.prefix || undefined,
+        status: initialFilters?.status || undefined,
+    });
+    // Filter options are delivered as Inertia props to avoid extra network requests on remount
+    const [filterOptions, setFilterOptions] = useState<IgsnFilterOptions>(initialFilterOptions);
+
     // Selection state for bulk actions
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -154,9 +168,15 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         setPagination(initialPagination);
         setSortState(initialSort || DEFAULT_SORT);
         setSearchQuery(initialSearch || '');
+        setActiveFilters({
+            search: initialSearch || undefined,
+            prefix: initialFilters?.prefix || undefined,
+            status: initialFilters?.status || undefined,
+        });
+        setFilterOptions(initialFilterOptions);
         // Clear selection when data changes (e.g., after pagination or sorting)
         setSelectedIds(new Set());
-    }, [initialIgsns, initialPagination, initialSort, initialSearch]);
+    }, [initialIgsns, initialPagination, initialSort, initialSearch, initialFilters, initialFilterOptions]);
 
     const handleExportJson = useCallback(async (igsn: Igsn) => {
         // Mark IGSN as exporting
@@ -225,14 +245,21 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     }, []);
 
     const buildParams = useCallback(
-        (overrides: { sort?: SortState<SortKey>; search?: string; page?: number } = {}) => {
+        (overrides: { sort?: SortState<SortKey>; search?: string; page?: number; filters?: IgsnFilterState } = {}) => {
             const sort = overrides.sort ?? sortState;
-            const search = overrides.search ?? searchQuery;
+            const currentFilters = overrides.filters ?? activeFilters;
+            const search = overrides.search ?? currentFilters.search ?? searchQuery;
             const params = new URLSearchParams();
             params.set('sort', sort.key);
             params.set('direction', sort.direction);
             if (search) {
                 params.set('search', search);
+            }
+            if (currentFilters.prefix) {
+                params.set('prefix', currentFilters.prefix);
+            }
+            if (currentFilters.status) {
+                params.set('status', currentFilters.status);
             }
             if (overrides.page && overrides.page > 1) {
                 params.set('page', String(overrides.page));
@@ -241,7 +268,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             params.set('per_page', String(pagination.per_page));
             return params;
         },
-        [sortState, searchQuery, pagination.per_page],
+        [sortState, searchQuery, activeFilters, pagination.per_page],
     );
 
     const handleSortChange = useCallback(
@@ -261,11 +288,12 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         [sortState, buildParams],
     );
 
-    const handleSearchChange = useCallback(
-        (search: string) => {
-            setSearchQuery(search);
+    const handleFilterChange = useCallback(
+        (newFilters: IgsnFilterState) => {
+            setActiveFilters(newFilters);
+            setSearchQuery(newFilters.search || '');
 
-            const params = buildParams({ search });
+            const params = buildParams({ filters: newFilters, search: newFilters.search || '' });
             setIsNavigating(true);
             router.visit(`/igsns?${params.toString()}`, {
                 preserveState: false,
@@ -434,10 +462,11 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {/* Search Input */}
-                            <IgsnSearchInput
-                                value={searchQuery}
-                                onChange={handleSearchChange}
+                            {/* Filters (Search + Prefix + Status) */}
+                            <IgsnFilters
+                                filters={activeFilters}
+                                onFilterChange={handleFilterChange}
+                                filterOptions={filterOptions}
                                 resultCount={pagination.total}
                                 totalCount={totalCount}
                                 isLoading={isNavigating}

@@ -322,6 +322,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // IGSNs (Physical Samples) routes
     Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
         ->name('igsns.index');
+    Route::get('igsns/filter-options', [\App\Http\Controllers\IgsnController::class, 'filterOptions'])
+        ->name('igsns.filter-options');
     Route::get('igsns-map', [IgsnMapController::class, 'index'])
         ->name('igsns.map');
     // Batch operations must be defined before routes with {resource} parameter

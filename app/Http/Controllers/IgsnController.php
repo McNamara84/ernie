@@ -22,6 +22,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -80,13 +81,25 @@ class IgsnController extends Controller
             $search = '';
         }
 
+        // Extract filter parameters
+        $prefix = trim((string) $request->query('prefix', ''));
+        $status = trim((string) $request->query('status', ''));
+
+        // Validate status against known values
+        if ($status !== '' && ! in_array($status, IgsnMetadata::getValidStatuses(), true)) {
+            $status = '';
+        }
+
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
-        $query = $this->buildQuery();
+        $base = $this->baseQuery();
+        $query = $this->buildQueryFrom($base);
 
-        // Get total count before applying search (for "Showing X of Y" display)
-        $totalCount = $search !== '' ? $query->count() : null;
+        // Get total count before applying any filters/search (for "Showing X of Y" display)
+        $hasFilters = $search !== '' || $prefix !== '' || $status !== '';
+        $totalCount = $hasFilters ? $query->count() : null;
 
+        $this->applyFilters($query, $prefix, $status);
         $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
@@ -120,7 +133,85 @@ class IgsnController extends Controller
             'totalCount' => $totalCount ?? $paginated->total(),
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
+            'filters' => [
+                'prefix' => $prefix,
+                'status' => $status,
+            ],
+            'filterOptions' => $this->getFilterOptionsData($base),
         ]);
+    }
+
+    /**
+     * Return available filter options for the IGSN list.
+     *
+     * Provides distinct IGSN prefixes (DOI part before the slash) and
+     * distinct upload statuses currently in use.
+     */
+    public function filterOptions(): JsonResponse
+    {
+        return response()->json($this->getFilterOptionsData($this->baseQuery()));
+    }
+
+    /**
+     * Compute the available filter options (prefixes + statuses) from a base query.
+     *
+     * Shared between the JSON endpoint and the Inertia page props.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Resource>  $base
+     * @return array{prefixes: list<string>, statuses: list<string>}
+     */
+    private function getFilterOptionsData(\Illuminate\Database\Eloquent\Builder $base): array
+    {
+        /** @var list<string> $prefixes */
+        $prefixes = [];
+        /** @var list<string> $statuses */
+        $statuses = [];
+
+        try {
+            $driver = DB::getDriverName();
+
+            // Extract DOI prefix (part before the first slash)
+            // Use database-specific syntax for MySQL vs SQLite compatibility
+            $prefixExpr = $driver === 'sqlite'
+                ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
+                : "SUBSTRING_INDEX(doi, '/', 1)";
+
+            /** @var list<string> $prefixes */
+            $prefixes = (clone $base)
+                ->whereNotNull('doi')
+                ->where('doi', 'like', '%/%')
+                ->selectRaw("DISTINCT {$prefixExpr} as prefix")
+                ->pluck('prefix')
+                ->sort()
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load IGSN prefix filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            /** @var list<string> $statuses */
+            $statuses = IgsnMetadata::query()
+                ->whereIn('resource_id', (clone $base)->select('id'))
+                ->select('upload_status')
+                ->distinct()
+                ->orderBy('upload_status')
+                ->pluck('upload_status')
+                ->all();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load IGSN status filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return [
+            'prefixes' => $prefixes,
+            'statuses' => $statuses,
+        ];
     }
 
     /**
@@ -364,16 +455,36 @@ class IgsnController extends Controller
     }
 
     /**
-     * Build the base query for IGSN resources.
+     * Base query for IGSN resources without eager-loading.
+     *
+     * Shared by buildQueryFrom(), filterOptions(), and other methods
+     * to ensure consistent scoping (Physical Object type + igsnMetadata).
      *
      * @return \Illuminate\Database\Eloquent\Builder<Resource>
      */
-    private function buildQuery(): \Illuminate\Database\Eloquent\Builder
+    private function baseQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        // Get the Physical Object resource type
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
 
         $query = Resource::query()
+            ->whereHas('igsnMetadata');
+
+        if ($physicalObjectType !== null) {
+            $query->where('resource_type_id', $physicalObjectType->id);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Clone a base query and add eager-loading for the IGSN list.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $base
+     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     */
+    private function buildQueryFrom(\Illuminate\Database\Eloquent\Builder $base): \Illuminate\Database\Eloquent\Builder
+    {
+        return (clone $base)
             ->with([
                 'titles',
                 'igsnMetadata',
@@ -381,14 +492,7 @@ class IgsnController extends Controller
                 'creators.creatorable',
                 'dates.dateType',
                 'landingPage',
-            ])
-            ->whereHas('igsnMetadata'); // Only resources with IGSN metadata
-
-        if ($physicalObjectType !== null) {
-            $query->where('resource_type_id', $physicalObjectType->id);
-        }
-
-        return $query;
+            ]);
     }
 
     /**
@@ -512,6 +616,26 @@ class IgsnController extends Controller
         }
 
         return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * Apply prefix and status filters to the query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     */
+    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, string $prefix, string $status): void
+    {
+        if ($prefix !== '') {
+            // Escape SQL LIKE meta-characters in the prefix
+            $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $prefix);
+            $query->whereRaw('doi like ? escape ?', [$escaped . '/%', '\\']);
+        }
+
+        if ($status !== '') {
+            $query->whereHas('igsnMetadata', function (\Illuminate\Database\Eloquent\Builder $q) use ($status): void {
+                $q->where('upload_status', $status);
+            });
+        }
     }
 
     /**
