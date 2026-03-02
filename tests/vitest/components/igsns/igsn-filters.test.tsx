@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { IgsnFilters, type IgsnFilterOptions, type IgsnFilterState } from '@/components/igsns/igsn-filters';
+import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 
 // Mock Radix UI Select to avoid portal issues in tests
 vi.mock('@/components/ui/select', () => ({
@@ -285,5 +285,98 @@ describe('IgsnFilters Component', () => {
         );
 
         vi.useRealTimers();
+    });
+
+    it('flushes pending search when prefix is changed during debounce', async () => {
+        vi.useFakeTimers();
+        render(<IgsnFilters {...defaultProps} />);
+
+        // Type a valid search term (>= 3 chars) — debounce starts
+        const searchInput = screen.getByPlaceholderText(/search igsn or title/i);
+        fireEvent.change(searchInput, { target: { value: 'rock' } });
+
+        // Before debounce fires, select a prefix
+        const prefixSelect = screen.getByLabelText('Filter by IGSN prefix');
+        fireEvent.change(prefixSelect, { target: { value: '10.58052' } });
+
+        // The search term should be flushed (included) alongside the prefix
+        expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
+        expect(mockOnFilterChange).toHaveBeenCalledWith(
+            expect.objectContaining({ prefix: '10.58052', search: 'rock' }),
+        );
+
+        vi.useRealTimers();
+    });
+
+    it('flushes pending search when status is changed during debounce', async () => {
+        vi.useFakeTimers();
+        render(<IgsnFilters {...defaultProps} />);
+
+        const searchInput = screen.getByPlaceholderText(/search igsn or title/i);
+        fireEvent.change(searchInput, { target: { value: 'sample' } });
+
+        const statusSelect = screen.getByLabelText('Filter by upload status');
+        fireEvent.change(statusSelect, { target: { value: 'pending' } });
+
+        expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
+        expect(mockOnFilterChange).toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'pending', search: 'sample' }),
+        );
+
+        vi.useRealTimers();
+    });
+
+    it('resets prefix select value when removing prefix filter', async () => {
+        const user = userEvent.setup();
+        const props = {
+            ...defaultProps,
+            filters: { prefix: '10.60516', status: 'pending' } as IgsnFilterState,
+            resultCount: 12,
+            totalCount: 50,
+        };
+        render(<IgsnFilters {...props} />);
+
+        const removePrefixButton = screen.getByLabelText('Remove prefix filter');
+        await user.click(removePrefixButton);
+
+        // The prefix select should be reset to "all"
+        const prefixSelect = screen.getByLabelText('Filter by IGSN prefix') as HTMLSelectElement;
+        expect(prefixSelect.value).toBe('all');
+    });
+
+    it('resets status select value when removing status filter', async () => {
+        const user = userEvent.setup();
+        const props = {
+            ...defaultProps,
+            filters: { prefix: '10.60516', status: 'pending' } as IgsnFilterState,
+            resultCount: 12,
+            totalCount: 50,
+        };
+        render(<IgsnFilters {...props} />);
+
+        const removeStatusButton = screen.getByLabelText('Remove status filter');
+        await user.click(removeStatusButton);
+
+        const statusSelect = screen.getByLabelText('Filter by upload status') as HTMLSelectElement;
+        expect(statusSelect.value).toBe('all');
+    });
+
+    it('resets all select values when clearing all filters', async () => {
+        const user = userEvent.setup();
+        const props = {
+            ...defaultProps,
+            filters: { prefix: '10.60516', status: 'pending', search: 'rock' } as IgsnFilterState,
+            resultCount: 5,
+            totalCount: 50,
+        };
+        render(<IgsnFilters {...props} />);
+
+        const clearAllButton = screen.getByText('Clear All');
+        await user.click(clearAllButton);
+
+        const prefixSelect = screen.getByLabelText('Filter by IGSN prefix') as HTMLSelectElement;
+        const statusSelect = screen.getByLabelText('Filter by upload status') as HTMLSelectElement;
+        expect(prefixSelect.value).toBe('all');
+        expect(statusSelect.value).toBe('all');
     });
 });

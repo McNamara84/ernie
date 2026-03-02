@@ -114,6 +114,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             if (value.trim().length === 0) {
                 const newFilters = { ...filtersRef.current };
                 delete newFilters.search;
+                filtersRef.current = newFilters;
                 onFilterChange(newFilters);
                 return;
             }
@@ -123,6 +124,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                 if (filtersRef.current.search) {
                     const newFilters = { ...filtersRef.current };
                     delete newFilters.search;
+                    filtersRef.current = newFilters;
                     onFilterChange(newFilters);
                 }
                 return;
@@ -139,7 +141,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const handlePrefixChange = useCallback(
         (value: string) => {
-            // Clear any pending debounced search to prevent out-of-order navigations
+            // Flush any pending debounced search instead of dropping it
             if (searchTimeoutRef.current) {
                 clearTimeout(searchTimeoutRef.current);
                 searchTimeoutRef.current = undefined;
@@ -151,6 +153,11 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             } else {
                 delete newFilters.prefix;
             }
+            // Include pending search term if it meets minimum length
+            const pendingSearch = searchInputRef.current?.value.trim() ?? '';
+            if (pendingSearch.length >= MIN_SEARCH_LENGTH) {
+                newFilters.search = pendingSearch;
+            }
             filtersRef.current = newFilters;
             onFilterChange(newFilters);
         },
@@ -159,7 +166,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const handleStatusChange = useCallback(
         (value: string) => {
-            // Clear any pending debounced search to prevent out-of-order navigations
+            // Flush any pending debounced search instead of dropping it
             if (searchTimeoutRef.current) {
                 clearTimeout(searchTimeoutRef.current);
                 searchTimeoutRef.current = undefined;
@@ -170,6 +177,11 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                 newFilters.status = value;
             } else {
                 delete newFilters.status;
+            }
+            // Include pending search term if it meets minimum length
+            const pendingSearch = searchInputRef.current?.value.trim() ?? '';
+            if (pendingSearch.length >= MIN_SEARCH_LENGTH) {
+                newFilters.search = pendingSearch;
             }
             filtersRef.current = newFilters;
             onFilterChange(newFilters);
@@ -188,6 +200,12 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
                     searchTimeoutRef.current = undefined;
                 }
             }
+            if (key === 'prefix') {
+                setPrefixValue('all');
+            }
+            if (key === 'status') {
+                setStatusValue('all');
+            }
             filtersRef.current = newFilters;
             onFilterChange(newFilters);
         },
@@ -196,6 +214,8 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
     const clearAllFilters = useCallback(() => {
         setSearchInput('');
+        setPrefixValue('all');
+        setStatusValue('all');
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
             searchTimeoutRef.current = undefined;
