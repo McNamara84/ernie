@@ -93,7 +93,7 @@ class IgsnController extends Controller
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
         $base = $this->baseQuery();
-        $query = $this->buildQuery();
+        $query = $this->buildQueryFrom($base);
 
         // Get total count before applying any filters/search (for "Showing X of Y" display)
         $hasFilters = $search !== '' || $prefix !== '' || $status !== '';
@@ -457,7 +457,7 @@ class IgsnController extends Controller
     /**
      * Base query for IGSN resources without eager-loading.
      *
-     * Shared by buildQuery(), filterOptions(), and other methods
+     * Shared by buildQueryFrom(), filterOptions(), and other methods
      * to ensure consistent scoping (Physical Object type + igsnMetadata).
      *
      * @return \Illuminate\Database\Eloquent\Builder<Resource>
@@ -477,13 +477,14 @@ class IgsnController extends Controller
     }
 
     /**
-     * Build the base query for IGSN resources with eager-loading.
+     * Clone a base query and add eager-loading for the IGSN list.
      *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $base
      * @return \Illuminate\Database\Eloquent\Builder<Resource>
      */
-    private function buildQuery(): \Illuminate\Database\Eloquent\Builder
+    private function buildQueryFrom(\Illuminate\Database\Eloquent\Builder $base): \Illuminate\Database\Eloquent\Builder
     {
-        return $this->baseQuery()
+        return (clone $base)
             ->with([
                 'titles',
                 'igsnMetadata',

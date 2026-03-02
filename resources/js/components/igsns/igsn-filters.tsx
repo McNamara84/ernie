@@ -38,7 +38,7 @@ interface IgsnFiltersProps {
     filters: IgsnFilterState;
     /** Called when any filter changes (search, prefix, status) */
     onFilterChange: (filters: IgsnFilterState) => void;
-    /** Available filter options loaded from the API */
+    /** Available filter options provided by the parent via Inertia server props */
     filterOptions: IgsnFilterOptions | null;
     /** Number of results after filtering */
     resultCount: number;
