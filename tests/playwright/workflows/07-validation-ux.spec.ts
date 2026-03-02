@@ -67,7 +67,7 @@ test.describe('DataCite Form Validation UX', () => {
       expect(hasSuccess).toBeTruthy();
     });
     
-    test('validates DOI format on blur', async ({ page }) => {
+    test('validates DOI format on blur', async () => {
       await formPage.expandAccordion(formPage.resourceInfoAccordion);
       
       // Fill with invalid DOI format
