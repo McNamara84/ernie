@@ -166,7 +166,8 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             .get<IgsnFilterOptions>('/igsns/filter-options')
             .then((response) => setFilterOptions(response.data))
             .catch(() => {
-                // Filter options are non-critical; silently ignore errors
+                // Use empty options as fallback so dropdowns remain enabled
+                setFilterOptions({ prefixes: [], statuses: [] });
             });
     }, []);
 

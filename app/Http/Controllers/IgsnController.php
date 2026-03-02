@@ -159,8 +159,7 @@ class IgsnController extends Controller
                 ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
                 : "SUBSTRING_INDEX(doi, '/', 1)";
 
-            $prefixes = Resource::query()
-                ->whereHas('igsnMetadata')
+            $prefixes = $this->baseQuery()
                 ->whereNotNull('doi')
                 ->where('doi', 'like', '%/%')
                 ->selectRaw("DISTINCT {$prefixExpr} as prefix")
@@ -177,6 +176,7 @@ class IgsnController extends Controller
 
         try {
             $statuses = IgsnMetadata::query()
+                ->whereHas('resource', fn ($q) => $q->whereIn('id', $this->baseQuery()->select('id')))
                 ->select('upload_status')
                 ->distinct()
                 ->orderBy('upload_status')
@@ -436,16 +436,35 @@ class IgsnController extends Controller
     }
 
     /**
-     * Build the base query for IGSN resources.
+     * Base query for IGSN resources without eager-loading.
+     *
+     * Shared by buildQuery(), filterOptions(), and other methods
+     * to ensure consistent scoping (Physical Object type + igsnMetadata).
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     */
+    private function baseQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+
+        $query = Resource::query()
+            ->whereHas('igsnMetadata');
+
+        if ($physicalObjectType !== null) {
+            $query->where('resource_type_id', $physicalObjectType->id);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Build the base query for IGSN resources with eager-loading.
      *
      * @return \Illuminate\Database\Eloquent\Builder<Resource>
      */
     private function buildQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        // Get the Physical Object resource type
-        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
-
-        $query = Resource::query()
+        return $this->baseQuery()
             ->with([
                 'titles',
                 'igsnMetadata',
@@ -453,14 +472,7 @@ class IgsnController extends Controller
                 'creators.creatorable',
                 'dates.dateType',
                 'landingPage',
-            ])
-            ->whereHas('igsnMetadata'); // Only resources with IGSN metadata
-
-        if ($physicalObjectType !== null) {
-            $query->where('resource_type_id', $physicalObjectType->id);
-        }
-
-        return $query;
+            ]);
     }
 
     /**
