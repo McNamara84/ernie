@@ -46,6 +46,14 @@
         ],
         "fixes": [
             {
+                "title": "Thesaurus and PID Update Status Polling",
+                "description": "Fixed a race condition where the update status polling returned HTTP 404 immediately after triggering a thesaurus or PID update. The frontend polled the status endpoint before the queue worker had started the job, causing the cache lookup to fail. The controller now pre-populates the cache with a 'queued' status before dispatching the job, ensuring seamless progress tracking."
+            },
+            {
+                "title": "CSRF Cookie Endpoint",
+                "description": "Added a /sanctum/csrf-cookie route that was previously missing, causing 404 errors during session warmup. The endpoint returns a 204 response and relies on Laravel's VerifyCsrfToken middleware to set the XSRF-TOKEN cookie automatically."
+            },
+            {
                 "title": "Related Works Lost After XML Upload",
                 "description": "Fixed an issue where related identifiers from uploaded DataCite XML files were not carried into the editor prefill and were therefore lost on subsequent save. The XML upload pipeline now extracts related works, validates identifier and relation types against supported values, and passes valid entries to the editor session payload. Unsupported type combinations are skipped and logged as warnings instead of breaking the upload."
             },
