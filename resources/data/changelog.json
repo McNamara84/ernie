@@ -47,7 +47,7 @@
         "fixes": [
             {
                 "title": "Thesaurus and PID Update Status Polling",
-                "description": "Fixed a race condition where the update status polling returned HTTP 404 immediately after triggering a thesaurus or PID update. The frontend polled the status endpoint before the queue worker had started the job, causing the cache lookup to fail. The controller now pre-populates the cache with a 'queued' status before dispatching the job, ensuring seamless progress tracking."
+                "description": "Fixed a race condition where the update status polling returned HTTP 404 immediately after triggering a thesaurus or PID update. The frontend polled the status endpoint before the queue worker had started the job, causing the cache lookup to fail. The controller now pre-populates the cache with a 'running' status before dispatching the job, ensuring seamless progress tracking."
             },
             {
                 "title": "CSRF Cookie Endpoint",

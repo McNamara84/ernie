@@ -123,7 +123,7 @@ class ThesaurusSettingsController extends Controller
 
         $jobId = Str::uuid()->toString();
 
-        // Pre-populate cache with 'queued' status before dispatching the job.
+        // Pre-populate cache with 'running' status before dispatching the job.
         // This prevents a race condition where the frontend polls update-status
         // before the queue worker has started the job (which would return 404).
         $cacheKey = UpdateThesaurusJob::getCacheKey(strtolower($jobId));
