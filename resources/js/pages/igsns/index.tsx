@@ -295,21 +295,6 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         [sortState, buildParams],
     );
 
-    const handleSearchChange = useCallback(
-        (search: string) => {
-            setSearchQuery(search);
-
-            const params = buildParams({ search });
-            setIsNavigating(true);
-            router.visit(`/igsns?${params.toString()}`, {
-                preserveState: false,
-                replace: true,
-                onFinish: () => setIsNavigating(false),
-            });
-        },
-        [buildParams],
-    );
-
     const handleFilterChange = useCallback(
         (newFilters: IgsnFilterState) => {
             setActiveFilters(newFilters);
