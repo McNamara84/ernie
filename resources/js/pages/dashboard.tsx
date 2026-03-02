@@ -17,9 +17,10 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
 
     const csrfHeaders = buildCsrfHeaders();
-    const token = csrfHeaders['X-CSRF-TOKEN'];
 
-    if (!token) {
+    // Accept either the unencrypted meta token (X-CSRF-TOKEN) or the
+    // encrypted cookie token (X-XSRF-TOKEN) — Laravel decrypts the latter.
+    if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
         throw new Error('CSRF token not found. Please reload the page (Ctrl+F5) and try again.');
     }
 

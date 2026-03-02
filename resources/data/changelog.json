@@ -54,6 +54,10 @@
                 "description": "Added a /sanctum/csrf-cookie route that was previously missing, causing 404 errors during session warmup. The endpoint returns a 204 response and relies on Laravel's VerifyCsrfToken middleware to set the XSRF-TOKEN cookie automatically."
             },
             {
+                "title": "CSRF Token Handling for Encrypted Cookies",
+                "description": "Fixed a CSRF token corruption issue where the session warmup hook overwrote the unencrypted meta tag token with the encrypted XSRF-TOKEN cookie value. Since Laravel's VerifyCsrfToken middleware only decrypts the X-XSRF-TOKEN header (not X-CSRF-TOKEN), sending the encrypted value as X-CSRF-TOKEN caused 419 CSRF mismatches on native fetch requests such as IGSN CSV uploads. The token sync function now correctly updates only the X-XSRF-TOKEN header and leaves the server-rendered meta tag unchanged."
+            },
+            {
                 "title": "Related Works Lost After XML Upload",
                 "description": "Fixed an issue where related identifiers from uploaded DataCite XML files were not carried into the editor prefill and were therefore lost on subsequent save. The XML upload pipeline now extracts related works, validates identifier and relation types against supported values, and passes valid entries to the editor session payload. Unsupported type combinations are skipped and logged as warnings instead of breaking the upload."
             },

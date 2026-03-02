@@ -137,11 +137,10 @@ describe('buildCsrfHeaders', () => {
         });
     });
 
-    it('falls back to the cookie token when no meta tag exists', () => {
+    it('returns only X-XSRF-TOKEN when only cookie is present (encrypted cookie must not be sent as X-CSRF-TOKEN)', () => {
         document.cookie = 'XSRF-TOKEN=cookie-token';
 
         expect(buildCsrfHeaders()).toEqual({
-            'X-CSRF-TOKEN': 'cookie-token',
             'X-XSRF-TOKEN': 'cookie-token',
         });
     });
