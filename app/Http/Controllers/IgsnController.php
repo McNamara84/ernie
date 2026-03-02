@@ -22,6 +22,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -80,13 +81,24 @@ class IgsnController extends Controller
             $search = '';
         }
 
+        // Extract filter parameters
+        $prefix = trim((string) $request->query('prefix', ''));
+        $status = trim((string) $request->query('status', ''));
+
+        // Validate status against known values
+        if ($status !== '' && ! in_array($status, IgsnMetadata::getValidStatuses(), true)) {
+            $status = '';
+        }
+
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
 
         $query = $this->buildQuery();
 
-        // Get total count before applying search (for "Showing X of Y" display)
-        $totalCount = $search !== '' ? $query->count() : null;
+        // Get total count before applying any filters/search (for "Showing X of Y" display)
+        $hasFilters = $search !== '' || $prefix !== '' || $status !== '';
+        $totalCount = $hasFilters ? $query->count() : null;
 
+        $this->applyFilters($query, $prefix, $status);
         $this->applySearch($query, $search);
         $this->applySorting($query, $sortKey, $sortDirection);
 
@@ -120,6 +132,47 @@ class IgsnController extends Controller
             'totalCount' => $totalCount ?? $paginated->total(),
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
+            'filters' => [
+                'prefix' => $prefix,
+                'status' => $status,
+            ],
+        ]);
+    }
+
+    /**
+     * Return available filter options for the IGSN list.
+     *
+     * Provides distinct IGSN prefixes (DOI part before the slash) and
+     * distinct upload statuses currently in use.
+     */
+    public function filterOptions(): JsonResponse
+    {
+        $driver = DB::getDriverName();
+
+        // Extract DOI prefix (part before the first slash)
+        // Use database-specific syntax for MySQL vs SQLite compatibility
+        $prefixExpr = $driver === 'sqlite'
+            ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
+            : "SUBSTRING_INDEX(doi, '/', 1)";
+
+        $prefixes = Resource::query()
+            ->whereHas('igsnMetadata')
+            ->whereNotNull('doi')
+            ->where('doi', 'like', '%/%')
+            ->selectRaw("DISTINCT {$prefixExpr} as prefix")
+            ->pluck('prefix')
+            ->sort()
+            ->values();
+
+        $statuses = IgsnMetadata::query()
+            ->select('upload_status')
+            ->distinct()
+            ->orderBy('upload_status')
+            ->pluck('upload_status');
+
+        return response()->json([
+            'prefixes' => $prefixes,
+            'statuses' => $statuses,
         ]);
     }
 
@@ -512,6 +565,26 @@ class IgsnController extends Controller
         }
 
         return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * Apply prefix and status filters to the query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     */
+    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, string $prefix, string $status): void
+    {
+        if ($prefix !== '') {
+            // Escape SQL LIKE meta-characters in the prefix
+            $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $prefix);
+            $query->whereRaw('doi like ? escape ?', [$escaped . '/%', '\\']);
+        }
+
+        if ($status !== '') {
+            $query->whereHas('igsnMetadata', function (\Illuminate\Database\Eloquent\Builder $q) use ($status): void {
+                $q->where('upload_status', $status);
+            });
+        }
     }
 
     /**
