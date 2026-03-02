@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Helper function to locate an accordion trigger button by its text
@@ -172,20 +172,31 @@ export class DataCiteFormPage {
   }
   
   /**
-   * Check if a field has validation error styling
+   * Check if a field has validation error styling.
+   * Waits up to `timeout` ms for `aria-invalid="true"` to appear,
+   * which avoids flaky failures on slow CI runners.
    */
-  async hasValidationError(fieldLocator: Locator): Promise<boolean> {
-    const ariaInvalid = await fieldLocator.getAttribute('aria-invalid');
-    return ariaInvalid === 'true';
+  async hasValidationError(fieldLocator: Locator, timeout = 5000): Promise<boolean> {
+    try {
+      await expect(fieldLocator).toHaveAttribute('aria-invalid', 'true', { timeout });
+      return true;
+    } catch {
+      return false;
+    }
   }
   
   /**
-   * Check if a field has validation success styling
+   * Check if a field has validation success styling.
+   * Waits up to `timeout` ms for `aria-invalid` to NOT be "true".
    */
-  async hasValidationSuccess(fieldLocator: Locator): Promise<boolean> {
-    const ariaInvalid = await fieldLocator.getAttribute('aria-invalid');
-    // Field is NOT invalid (either false or null/undefined)
-    return ariaInvalid !== 'true';
+  async hasValidationSuccess(fieldLocator: Locator, timeout = 5000): Promise<boolean> {
+    try {
+      // Wait until the attribute is either absent, empty, or "false"
+      await expect(fieldLocator).not.toHaveAttribute('aria-invalid', 'true', { timeout });
+      return true;
+    } catch {
+      return false;
+    }
   }
   
   /**

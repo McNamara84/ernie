@@ -73,9 +73,8 @@ test.describe('DataCite Form Validation UX', () => {
       // Fill with invalid DOI format
       await formPage.doiInput.fill('not-a-doi');
       await formPage.doiInput.blur();
-      await page.waitForTimeout(400);
       
-      // Should show error
+      // hasValidationError now waits for aria-invalid="true" with auto-retry
       const hasError = await formPage.hasValidationError(formPage.doiInput);
       expect(hasError).toBeTruthy();
       
@@ -83,9 +82,8 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.doiInput.clear();
       await formPage.doiInput.fill('10.82433/test-dataset-2024');
       await formPage.doiInput.blur();
-      await page.waitForTimeout(400);
       
-      // Should show success (even if not registered - just format validation)
+      // hasValidationSuccess waits for aria-invalid to NOT be "true"
       const hasSuccess = await formPage.hasValidationSuccess(formPage.doiInput);
       expect(hasSuccess).toBeTruthy();
     });
