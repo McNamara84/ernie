@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-02-28",
+        "date": "2026-03-02",
         "features": [
+            {
+                "title": "IGSN List Filters",
+                "description": "The IGSN list page now includes dropdown filters for IGSN prefix and upload status, in addition to the existing search input. Active filters are displayed as removable badges below the toolbar, and a 'Clear All' button resets all filters at once. The result count updates in real time to reflect applied filters."
+            },
             {
                 "title": "PID4INST Instrument Integration",
                 "description": "Research instruments from the EUDAT b2inst PID registry can now be linked to datasets. A new 'Used Instruments' section in the editor form allows selecting instruments via a searchable combobox populated from the b2inst API. Selected instruments are exported as DataCite relatedIdentifiers with relationType 'IsCollectedBy' and relatedIdentifierType 'Handle', following the DataCite Schema 4.6 specification."
