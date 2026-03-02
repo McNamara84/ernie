@@ -14,7 +14,10 @@ vi.mock('@inertiajs/react', () => ({
 // Mock axios
 const { mockAxiosPost } = vi.hoisted(() => ({ mockAxiosPost: vi.fn() }));
 vi.mock('axios', () => ({
-    default: { get: vi.fn(), post: mockAxiosPost },
+    default: {
+        get: vi.fn().mockResolvedValue({ data: { prefixes: [], statuses: [] } }),
+        post: mockAxiosPost,
+    },
     isAxiosError: (error: unknown) => error instanceof Error && 'isAxiosError' in error,
 }));
 
@@ -48,10 +51,10 @@ vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
         </div>
     ),
 }));
-vi.mock('@/components/igsns/igsn-search-input', () => ({
-    IgsnSearchInput: ({ value, onChange, resultCount, totalCount }: { value: string; onChange: (v: string) => void; resultCount: number; totalCount: number }) => (
-        <div data-testid="search-input">
-            <input data-testid="search-field" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Search IGSNs by IGSN or title" />
+vi.mock('@/components/igsns/igsn-filters', () => ({
+    IgsnFilters: ({ filters, onFilterChange, resultCount, totalCount }: { filters: Record<string, string | undefined>; onFilterChange: (v: Record<string, string | undefined>) => void; resultCount: number; totalCount: number }) => (
+        <div data-testid="igsn-filters">
+            <input data-testid="search-field" value={filters.search || ''} onChange={(e) => onFilterChange({ ...filters, search: e.target.value })} aria-label="Search IGSNs by IGSN or title" />
             <span data-testid="search-counts">{resultCount} / {totalCount}</span>
         </div>
     ),
@@ -134,6 +137,7 @@ const defaultProps = {
     canRegister: true,
     search: '',
     totalCount: 2,
+    filters: { prefix: '', status: '' },
 };
 
 describe('IgsnsPage', () => {
