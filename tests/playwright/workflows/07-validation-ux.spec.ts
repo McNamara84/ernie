@@ -45,8 +45,7 @@ test.describe('DataCite Form Validation UX', () => {
       await page.waitForTimeout(400); // Wait for debounced validation
       
       // Should show error styling
-      const hasError = await formPage.hasValidationError(formPage.yearInput);
-      expect(hasError).toBeTruthy();
+      await formPage.expectValidationError(formPage.yearInput);
       
       // Should have error message
       const messages = await formPage.getFieldValidationMessages(formPage.yearInput);
@@ -63,8 +62,7 @@ test.describe('DataCite Form Validation UX', () => {
       await page.waitForTimeout(400);
       
       // Should show success styling
-      const hasSuccess = await formPage.hasValidationSuccess(formPage.yearInput);
-      expect(hasSuccess).toBeTruthy();
+      await formPage.expectValidationSuccess(formPage.yearInput);
     });
     
     test('validates DOI format on blur', async () => {
@@ -74,18 +72,16 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.doiInput.fill('not-a-doi');
       await formPage.doiInput.blur();
       
-      // hasValidationError now waits for aria-invalid="true" with auto-retry
-      const hasError = await formPage.hasValidationError(formPage.doiInput);
-      expect(hasError).toBeTruthy();
+      // expectValidationError waits for aria-invalid="true" with auto-retry
+      await formPage.expectValidationError(formPage.doiInput);
       
       // Clear and fill with valid DOI format
       await formPage.doiInput.clear();
       await formPage.doiInput.fill('10.82433/test-dataset-2024');
       await formPage.doiInput.blur();
       
-      // hasValidationSuccess waits for aria-invalid to NOT be "true"
-      const hasSuccess = await formPage.hasValidationSuccess(formPage.doiInput);
-      expect(hasSuccess).toBeTruthy();
+      // expectValidationSuccess waits for aria-invalid to NOT be "true"
+      await formPage.expectValidationSuccess(formPage.doiInput);
     });
     
     test('validates semantic version format', async ({ page }) => {
@@ -96,8 +92,7 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.versionInput.blur();
       await page.waitForTimeout(400);
       
-      const hasError = await formPage.hasValidationError(formPage.versionInput);
-      expect(hasError).toBeTruthy();
+      await formPage.expectValidationError(formPage.versionInput);
       
       // Valid version
       await formPage.versionInput.clear();
@@ -105,8 +100,7 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.versionInput.blur();
       await page.waitForTimeout(400);
       
-      const hasSuccess = await formPage.hasValidationSuccess(formPage.versionInput);
-      expect(hasSuccess).toBeTruthy();
+      await formPage.expectValidationSuccess(formPage.versionInput);
     });
     
     test('validates main title length', async ({ page }) => {
@@ -117,16 +111,14 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.mainTitleInput.blur();
       await page.waitForTimeout(400);
       
-      const hasError = await formPage.hasValidationError(formPage.mainTitleInput);
-      expect(hasError).toBeTruthy();
+      await formPage.expectValidationError(formPage.mainTitleInput);
       
       // Valid length
       await formPage.mainTitleInput.fill('Valid Dataset Title');
       await formPage.mainTitleInput.blur();
       await page.waitForTimeout(400);
       
-      const hasSuccess = await formPage.hasValidationSuccess(formPage.mainTitleInput);
-      expect(hasSuccess).toBeTruthy();
+      await formPage.expectValidationSuccess(formPage.mainTitleInput);
     });
     
     test('validates abstract length with character counter', async ({ page }) => {
@@ -143,8 +135,7 @@ test.describe('DataCite Form Validation UX', () => {
       expect(charCount).toContain(String(shortText.length));
       
       // Should show error styling
-      const hasError = await formPage.hasValidationError(formPage.abstractTextarea);
-      expect(hasError).toBeTruthy();
+      await formPage.expectValidationError(formPage.abstractTextarea);
       
       // Valid length (50+ characters)
       const validText = 'This is a comprehensive abstract that contains more than fifty characters as required for validation.';
@@ -157,8 +148,7 @@ test.describe('DataCite Form Validation UX', () => {
       expect(newCharCount).toContain(String(validText.length));
       
       // Should show success
-      const hasSuccess = await formPage.hasValidationSuccess(formPage.abstractTextarea);
-      expect(hasSuccess).toBeTruthy();
+      await formPage.expectValidationSuccess(formPage.abstractTextarea);
     });
   });
   

@@ -118,7 +118,7 @@ Handles DataCite metadata form with validation (350+ lines):
 - `expandAccordion(accordion)` / `collapseAccordion(accordion)` - Manage accordion state
 - `getAccordionStatusBadge(accordion)` - Get status badge (complete/incomplete/optional)
 - `getFieldValidationMessages(field)` - Get validation messages for a field
-- `hasValidationError(field)` / `hasValidationSuccess(field)` - Check field validation state
+- `expectValidationError(field)` / `expectValidationSuccess(field)` - Assert field validation state (throws on failure with Playwright diagnostics)
 - `fillMainTitle(title)` / `fillYear(year)` / `fillAbstract(text)` - Fill specific fields
 - `getAbstractCharacterCount()` - Get displayed character count
 - `isSaveButtonDisabled()` - Check if Save button is disabled

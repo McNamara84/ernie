@@ -16,10 +16,10 @@ vi.mock('axios', () => ({
 }));
 
 vi.mock('@/lib/csrf-token', () => ({
-    syncCsrfTokenToAxiosAndMeta: vi.fn(),
+    syncXsrfTokenToAxios: vi.fn(),
 }));
 
-import { syncCsrfTokenToAxiosAndMeta } from '@/lib/csrf-token';
+import { syncXsrfTokenToAxios } from '@/lib/csrf-token';
 import { useSessionWarmup } from '@/hooks/use-session-warmup';
 
 describe('useSessionWarmup', () => {
@@ -43,7 +43,7 @@ describe('useSessionWarmup', () => {
         renderHook(() => useSessionWarmup());
 
         await waitFor(() => {
-            expect(syncCsrfTokenToAxiosAndMeta).toHaveBeenCalledWith(
+            expect(syncXsrfTokenToAxios).toHaveBeenCalledWith(
                 axios.defaults.headers.common,
             );
         });
@@ -80,6 +80,6 @@ describe('useSessionWarmup', () => {
             expect(axios.get).toHaveBeenCalledTimes(1);
         });
 
-        expect(syncCsrfTokenToAxiosAndMeta).not.toHaveBeenCalled();
+        expect(syncXsrfTokenToAxios).not.toHaveBeenCalled();
     });
 });

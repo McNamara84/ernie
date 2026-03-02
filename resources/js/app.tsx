@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
-import { buildCsrfHeaders, syncCsrfTokenToAxiosAndMeta } from './lib/csrf-token';
+import { buildCsrfHeaders, syncXsrfTokenToAxios } from './lib/csrf-token';
 import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -179,8 +179,8 @@ async function refreshCsrfToken(): Promise<boolean> {
             headers: { 'X-Skip-CSRF-Refresh': 'true' },
         });
 
-        // Use shared helper to sync token to axios headers and meta tag
-        const token = syncCsrfTokenToAxiosAndMeta(axios.defaults.headers.common);
+        // Use shared helper to sync token to axios headers
+        const token = syncXsrfTokenToAxios(axios.defaults.headers.common);
 
         if (token) {
             if (import.meta.env.DEV) {
