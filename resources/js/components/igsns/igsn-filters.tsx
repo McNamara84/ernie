@@ -107,6 +107,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
             // Clear existing timeout
             if (searchTimeoutRef.current) {
                 clearTimeout(searchTimeoutRef.current);
+                searchTimeoutRef.current = undefined;
             }
 
             // Empty input clears the search immediately

@@ -150,6 +150,9 @@ class IgsnController extends Controller
         $prefixes = [];
         $statuses = [];
 
+        // Compute base query once to avoid redundant ResourceType lookups
+        $base = $this->baseQuery();
+
         try {
             $driver = DB::getDriverName();
 
@@ -159,7 +162,7 @@ class IgsnController extends Controller
                 ? "SUBSTR(doi, 1, INSTR(doi, '/') - 1)"
                 : "SUBSTRING_INDEX(doi, '/', 1)";
 
-            $prefixes = $this->baseQuery()
+            $prefixes = (clone $base)
                 ->whereNotNull('doi')
                 ->where('doi', 'like', '%/%')
                 ->selectRaw("DISTINCT {$prefixExpr} as prefix")
@@ -176,7 +179,7 @@ class IgsnController extends Controller
 
         try {
             $statuses = IgsnMetadata::query()
-                ->whereHas('resource', fn ($q) => $q->whereIn('id', $this->baseQuery()->select('id')))
+                ->whereIn('resource_id', (clone $base)->select('id'))
                 ->select('upload_status')
                 ->distinct()
                 ->orderBy('upload_status')
