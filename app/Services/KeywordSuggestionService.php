@@ -55,7 +55,7 @@ class KeywordSuggestionService
     {
         return Subject::query()
             ->select('value', 'subject_scheme')
-            ->selectRaw('COUNT(*) as usage_count')
+            ->selectRaw('COUNT(DISTINCT resource_id) as usage_count')
             ->whereHas('resource', function ($query): void {
                 $query->whereHas('landingPage', function ($q): void {
                     $q->where('is_published', true);
