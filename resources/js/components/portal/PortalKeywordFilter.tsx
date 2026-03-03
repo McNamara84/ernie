@@ -24,7 +24,7 @@ const SCHEME_LABELS: Record<string, string> = {
     'Science Keywords': 'GCMD Science Keywords',
     Platforms: 'GCMD Platforms',
     Instruments: 'GCMD Instruments',
-    msl: 'MSL Vocabularies',
+    'EPOS MSL vocabulary': 'MSL Vocabularies',
 };
 
 /**

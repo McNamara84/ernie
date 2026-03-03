@@ -92,7 +92,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
     const gcmdScienceKeywords = subjects.filter((s) => s.subject_scheme === 'Science Keywords');
     const gcmdPlatforms = subjects.filter((s) => s.subject_scheme === 'Platforms');
     const gcmdInstruments = subjects.filter((s) => s.subject_scheme === 'Instruments');
-    const mslVocabularies = subjects.filter((s) => s.subject_scheme === 'msl');
+    const mslVocabularies = subjects.filter((s) => s.subject_scheme === 'EPOS MSL vocabulary');
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="abstract-section">

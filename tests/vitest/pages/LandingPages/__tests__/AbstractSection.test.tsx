@@ -439,7 +439,7 @@ describe('AbstractSection', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'Rock mechanics', subject_scheme: 'msl' })]}
+                    subjects={[createSubject({ subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' })]}
                 />
             );
             
@@ -456,7 +456,7 @@ describe('AbstractSection', () => {
                         createSubject({ id: 2, subject: 'Science KW', subject_scheme: 'Science Keywords' }),
                         createSubject({ id: 3, subject: 'Platform', subject_scheme: 'Platforms' }),
                         createSubject({ id: 4, subject: 'Instrument', subject_scheme: 'Instruments' }),
-                        createSubject({ id: 5, subject: 'MSL Term', subject_scheme: 'msl' }),
+                        createSubject({ id: 5, subject: 'MSL Term', subject_scheme: 'EPOS MSL vocabulary' }),
                     ]}
                 />
             );

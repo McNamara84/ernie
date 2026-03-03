@@ -24,7 +24,7 @@ describe('PortalKeywordFilter', () => {
         createSuggestion({ value: 'EARTH SCIENCE', scheme: 'Science Keywords', count: 12 }),
         createSuggestion({ value: 'SATELLITES', scheme: 'Platforms', count: 2 }),
         createSuggestion({ value: 'GPS RECEIVERS', scheme: 'Instruments', count: 4 }),
-        createSuggestion({ value: 'Rock mechanics', scheme: 'msl', count: 6 }),
+        createSuggestion({ value: 'Rock mechanics', scheme: 'EPOS MSL vocabulary', count: 6 }),
     ];
 
     const defaultProps = {
@@ -265,7 +265,7 @@ describe('PortalKeywordFilter', () => {
             const user = userEvent.setup();
             const duplicateSuggestions: KeywordSuggestion[] = [
                 createSuggestion({ value: 'Geochemistry', scheme: null, count: 3 }),
-                createSuggestion({ value: 'Geochemistry', scheme: 'msl', count: 5 }),
+                createSuggestion({ value: 'Geochemistry', scheme: 'EPOS MSL vocabulary', count: 5 }),
             ];
 
             render(
