@@ -1,4 +1,4 @@
-import { FileCode, FileJson } from 'lucide-react';
+import { ExternalLink, FileCode, FileJson } from 'lucide-react';
 
 interface Description {
     id: number;
@@ -54,6 +54,24 @@ interface AbstractSectionProps {
     fundingReferences: FundingReference[];
     subjects: Subject[];
     resourceId: number;
+}
+
+/**
+ * Renders a keyword badge that links to the portal with the keyword as filter.
+ */
+function KeywordBadge({ subject }: { subject: Subject }) {
+    const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
+
+    return (
+        <a
+            href={portalUrl}
+            className="inline-flex items-center gap-1 rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground transition-opacity hover:opacity-80"
+            title={`Search for "${subject.subject}" in the portal`}
+        >
+            {subject.subject}
+            <ExternalLink className="h-3 w-3 opacity-70" />
+        </a>
+    );
 }
 
 /**
@@ -195,12 +213,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                     <h3 className="text-lg font-semibold text-gray-900">Free Keywords</h3>
                     <div className="flex flex-wrap gap-2" data-testid="keywords-list">
                         {freeKeywords.map((subject) => (
-                            <span
-                                key={subject.id}
-                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
-                            >
-                                {subject.subject}
-                            </span>
+                            <KeywordBadge key={subject.id} subject={subject} />
                         ))}
                     </div>
                 </div>
@@ -212,12 +225,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                     <h3 className="text-lg font-semibold text-gray-900">GCMD Science Keywords</h3>
                     <div className="flex flex-wrap gap-2">
                         {gcmdScienceKeywords.map((subject) => (
-                            <span
-                                key={subject.id}
-                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
-                            >
-                                {subject.subject}
-                            </span>
+                            <KeywordBadge key={subject.id} subject={subject} />
                         ))}
                     </div>
                 </div>
@@ -229,12 +237,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                     <h3 className="text-lg font-semibold text-gray-900">GCMD Platforms</h3>
                     <div className="flex flex-wrap gap-2">
                         {gcmdPlatforms.map((subject) => (
-                            <span
-                                key={subject.id}
-                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
-                            >
-                                {subject.subject}
-                            </span>
+                            <KeywordBadge key={subject.id} subject={subject} />
                         ))}
                     </div>
                 </div>
@@ -246,12 +249,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                     <h3 className="text-lg font-semibold text-gray-900">GCMD Instruments</h3>
                     <div className="flex flex-wrap gap-2">
                         {gcmdInstruments.map((subject) => (
-                            <span
-                                key={subject.id}
-                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
-                            >
-                                {subject.subject}
-                            </span>
+                            <KeywordBadge key={subject.id} subject={subject} />
                         ))}
                     </div>
                 </div>
@@ -263,12 +261,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                     <h3 className="text-lg font-semibold text-gray-900">MSL Vocabularies</h3>
                     <div className="flex flex-wrap gap-2">
                         {mslVocabularies.map((subject) => (
-                            <span
-                                key={subject.id}
-                                className="inline-flex items-center rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground"
-                            >
-                                {subject.subject}
-                            </span>
+                            <KeywordBadge key={subject.id} subject={subject} />
                         ))}
                     </div>
                 </div>

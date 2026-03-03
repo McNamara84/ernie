@@ -16,7 +16,7 @@ const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters }: PortalPageProps) {
+export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
     // Initialize map collapsed state from localStorage
@@ -57,7 +57,7 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
         localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
     }, []);
 
-    const { setSearch, setType, clearFilters, hasActiveFilters } = usePortalFilters({
+    const { setSearch, setType, setKeywords, clearFilters, hasActiveFilters } = usePortalFilters({
         filters,
         currentPage: pagination.current_page,
     });
@@ -77,6 +77,12 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
 
             if (filters.type && filters.type !== 'all') {
                 params.set('type', filters.type);
+            }
+
+            if (filters.keywords && filters.keywords.length > 0) {
+                filters.keywords.forEach((kw) => {
+                    params.append('keywords[]', kw);
+                });
             }
 
             // Page is passed as Inertia data, not URL parameter
@@ -106,11 +112,13 @@ export default function Portal({ resources, mapData, pagination, filters }: Port
                         filters={filters}
                         onSearchChange={setSearch}
                         onTypeChange={setType}
+                        onKeywordsChange={setKeywords}
                         onClearFilters={clearFilters}
                         hasActiveFilters={hasActiveFilters}
                         isCollapsed={isFilterCollapsed}
                         onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
                         totalResults={pagination.total}
+                        keywordSuggestions={keywordSuggestions}
                     />
 
                     {/* Results + Map Container - Stacked layout for smaller screens */}

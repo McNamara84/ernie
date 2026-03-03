@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,6 +20,7 @@ class PortalController extends Controller
 {
     public function __construct(
         private readonly PortalSearchService $searchService,
+        private readonly KeywordSuggestionService $keywordService,
     ) {}
 
     /**
@@ -29,6 +31,10 @@ class PortalController extends Controller
         $filters = [
             'query' => $request->query('q'),
             'type' => $request->query('type', 'all'),
+            'keywords' => array_filter(
+                (array) $request->query('keywords', []),
+                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+            ),
             'page' => (int) $request->query('page', 1),
             'per_page' => 20,
         ];
@@ -60,7 +66,9 @@ class PortalController extends Controller
             'filters' => [
                 'query' => $filters['query'],
                 'type' => $filters['type'],
+                'keywords' => array_values($filters['keywords']),
             ],
+            'keywordSuggestions' => $this->keywordService->getSuggestions(),
         ]);
     }
 }

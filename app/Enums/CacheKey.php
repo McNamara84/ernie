@@ -34,6 +34,9 @@ enum CacheKey: string
     // Editor settings cache key
     case DOCS_EDITOR_SETTINGS = 'docs:editor_settings';
 
+    // Portal cache keys
+    case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
+
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
@@ -85,6 +88,9 @@ enum CacheKey: string
             // Editor settings for docs - 1 hour (settings rarely change)
             self::DOCS_EDITOR_SETTINGS => 3600,
 
+            // Portal keyword suggestions - 1 hour
+            self::PORTAL_KEYWORD_SUGGESTIONS => 3600,
+
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
         };
@@ -114,6 +120,8 @@ enum CacheKey: string
             self::ORCID_PERSON => ['orcid'],
 
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
+
+            self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
 
             self::CACHE_STATS => ['system'],
         };
