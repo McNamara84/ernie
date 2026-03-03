@@ -244,14 +244,16 @@ axios.interceptors.response.use(
                     processQueue(true);
                     isRefreshingCsrf = false;
 
-                    // Retry the original request with updated headers
-                    const token =
-                        axios.defaults.headers.common['X-XSRF-TOKEN'] ||
-                        axios.defaults.headers.common['X-CSRF-TOKEN'];
-
-                    if (token) {
-                        originalRequest.headers['X-XSRF-TOKEN'] = token;
-                        originalRequest.headers['X-CSRF-TOKEN'] = token;
+                    // Rebuild headers from the correct sources:
+                    // - X-CSRF-TOKEN from the (unencrypted) meta tag
+                    // - X-XSRF-TOKEN from the (encrypted) cookie
+                    // Never copy the cookie value into X-CSRF-TOKEN.
+                    const freshHeaders = buildCsrfHeaders();
+                    if (freshHeaders['X-CSRF-TOKEN']) {
+                        originalRequest.headers['X-CSRF-TOKEN'] = freshHeaders['X-CSRF-TOKEN'];
+                    }
+                    if (freshHeaders['X-XSRF-TOKEN']) {
+                        originalRequest.headers['X-XSRF-TOKEN'] = freshHeaders['X-XSRF-TOKEN'];
                     }
 
                     if (import.meta.env.DEV) {
