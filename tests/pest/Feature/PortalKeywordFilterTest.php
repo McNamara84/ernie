@@ -305,7 +305,7 @@ describe('Portal Keyword Suggestions', function () {
             [
                 ['value' => 'FreeKeyword'],
                 ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords'],
-                ['value' => 'Geochemistry', 'subject_scheme' => 'MSL Vocabularies'],
+                ['value' => 'Geochemistry', 'subject_scheme' => 'EPOS MSL vocabulary'],
             ],
         );
 

@@ -113,7 +113,7 @@ it('includes subject scheme in suggestions', function () {
     createResourceWithSubjects($this->datasetType, [
         ['value' => 'Free Keyword'],
         ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords'],
-        ['value' => 'Geochemistry', 'subject_scheme' => 'MSL Vocabularies'],
+        ['value' => 'Geochemistry', 'subject_scheme' => 'EPOS MSL vocabulary'],
     ]);
 
     $suggestions = $this->service->getSuggestions();
@@ -127,7 +127,7 @@ it('includes subject scheme in suggestions', function () {
     expect($gcmdKeyword['scheme'])->toBe('Science Keywords');
 
     $mslKeyword = collect($suggestions)->firstWhere('value', 'Geochemistry');
-    expect($mslKeyword['scheme'])->toBe('MSL Vocabularies');
+    expect($mslKeyword['scheme'])->toBe('EPOS MSL vocabulary');
 });
 
 it('sorts suggestions alphabetically by value', function () {
@@ -147,7 +147,7 @@ it('sorts suggestions alphabetically by value', function () {
 it('distinguishes same keyword with different schemes', function () {
     createResourceWithSubjects($this->datasetType, [
         ['value' => 'Geochemistry', 'subject_scheme' => null],
-        ['value' => 'Geochemistry', 'subject_scheme' => 'MSL Vocabularies'],
+        ['value' => 'Geochemistry', 'subject_scheme' => 'EPOS MSL vocabulary'],
     ]);
 
     $suggestions = $this->service->getSuggestions();
