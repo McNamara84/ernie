@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\Resource;
+use App\Services\KeywordSuggestionService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 
@@ -20,7 +21,8 @@ class ResourceObserver
      * Create a new observer instance.
      */
     public function __construct(
-        private readonly ResourceCacheService $cacheService
+        private readonly ResourceCacheService $cacheService,
+        private readonly KeywordSuggestionService $keywordService,
     ) {}
 
     /**
@@ -32,6 +34,7 @@ class ResourceObserver
     public function created(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
+        $this->keywordService->invalidateCache();
     }
 
     /**
@@ -58,6 +61,7 @@ class ResourceObserver
     public function updated(Resource $resource): void
     {
         $this->cacheService->invalidateResourceCache($resource->id);
+        $this->keywordService->invalidateCache();
 
         // Sync DOI to landing page if DOI was changed during this save.
         // Use wasChanged() instead of isDirty() because observers run AFTER the model
@@ -170,6 +174,7 @@ class ResourceObserver
     public function deleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
+        $this->keywordService->invalidateCache();
     }
 
     /**
@@ -181,5 +186,6 @@ class ResourceObserver
     public function forceDeleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
+        $this->keywordService->invalidateCache();
     }
 }

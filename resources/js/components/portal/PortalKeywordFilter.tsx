@@ -139,7 +139,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                                         return (
                                             <CommandItem
                                                 key={`${scheme}-${suggestion.value}`}
-                                                value={suggestion.value}
+                                                value={`${suggestion.scheme ?? ''}-${suggestion.value}`}
                                                 onSelect={() => handleSelect(suggestion.value)}
                                             >
                                                 <Check

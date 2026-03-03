@@ -8,6 +8,7 @@ use App\Exceptions\ResourceAlreadyExistsException;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Rules\SafeUrl;
+use App\Services\KeywordSuggestionService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,11 @@ use Inertia\Response;
 class LandingPageController extends Controller
 {
     use AuthorizesRequests;
+
+    public function __construct(
+        private readonly KeywordSuggestionService $keywordService,
+    ) {}
+
     /**
      * Allowed landing page templates.
      *
@@ -269,6 +275,11 @@ class LandingPageController extends Controller
         $landingPage->refresh();
         $landingPage->load('externalDomain');
 
+        // Invalidate keyword suggestions cache if landing page was created as published
+        if ($landingPage->is_published) {
+            $this->keywordService->invalidateCache();
+        }
+
         // Determine status string for API response
         $status = $landingPage->is_published ? 'published' : 'draft';
 
@@ -381,6 +392,7 @@ class LandingPageController extends Controller
         // Handle publication status change: allow publishing a draft
         if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {
             $landingPage->publish();
+            $this->keywordService->invalidateCache();
         }
 
         // Invalidate cache

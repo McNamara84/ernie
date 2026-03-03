@@ -133,7 +133,7 @@ export function PortalFilters({
                             </Button>
                         </form>
                         <p className="text-xs text-muted-foreground">
-                            Search in titles, authors, DOIs, and descriptions
+                            Search in titles, authors, DOIs, descriptions, and keywords
                         </p>
                     </div>
 
