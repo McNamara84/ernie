@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Observers\ResourceObserver;
+use App\Services\KeywordSuggestionService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 
@@ -12,7 +13,8 @@ covers(ResourceObserver::class);
 
 beforeEach(function () {
     $this->cacheService = Mockery::mock(ResourceCacheService::class); // @phpstan-ignore variable.undefined
-    $this->observer = new ResourceObserver($this->cacheService);
+    $this->keywordService = Mockery::mock(KeywordSuggestionService::class); // @phpstan-ignore variable.undefined
+    $this->observer = new ResourceObserver($this->cacheService, $this->keywordService);
 });
 
 // =========================================================================
@@ -24,6 +26,8 @@ describe('created', function () {
         $resource = Resource::factory()->create();
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
+            ->once();
+        $this->keywordService->shouldReceive('invalidateCache')
             ->once();
 
         $this->observer->created($resource);
@@ -41,6 +45,8 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
+        $this->keywordService->shouldReceive('invalidateCache')
+            ->once();
 
         $this->observer->updated($resource);
     });
@@ -90,6 +96,8 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
+        $this->keywordService->shouldReceive('invalidateCache')
+            ->once();
 
         $this->observer->deleted($resource);
     });
@@ -104,6 +112,8 @@ describe('forceDeleted', function () {
         $resource = Resource::factory()->create();
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
+            ->once();
+        $this->keywordService->shouldReceive('invalidateCache')
             ->once();
 
         $this->observer->forceDeleted($resource);
