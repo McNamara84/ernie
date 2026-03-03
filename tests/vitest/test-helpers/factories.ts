@@ -316,6 +316,7 @@ export function createMockPortalFilters(overrides?: Partial<PortalFilters>): Por
     return {
         query: null,
         type: 'all',
+        keywords: [],
         ...overrides,
     };
 }

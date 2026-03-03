@@ -19,6 +19,7 @@ describe('usePortalFilters', () => {
     const defaultFilters: PortalFilters = {
         query: null,
         type: 'all',
+        keywords: [],
     };
 
     beforeEach(() => {
@@ -43,7 +44,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when query is set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'all' },
+                    filters: { query: 'test', type: 'all', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -53,7 +54,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when type is not "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi' },
+                    filters: { query: null, type: 'doi', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -63,7 +64,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters for empty/whitespace query', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: '   ', type: 'all' },
+                    filters: { query: '   ', type: 'all', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -155,7 +156,7 @@ describe('usePortalFilters', () => {
         it('navigates without type param when set to "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi' },
+                    filters: { query: null, type: 'doi', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -174,7 +175,7 @@ describe('usePortalFilters', () => {
         it('preserves existing query when changing type', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'existing', type: 'all' },
+                    filters: { query: 'existing', type: 'all', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -193,7 +194,7 @@ describe('usePortalFilters', () => {
         it('navigates to /portal without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi' },
+                    filters: { query: 'test', type: 'doi', keywords: [] },
                     currentPage: 2,
                 }),
             );
