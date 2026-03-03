@@ -1,8 +1,20 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-02",
+        "date": "2026-03-03",
         "features": [
+            {
+                "title": "Portal Keyword Filter",
+                "description": "The portal search now includes a keyword filter with autocomplete suggestions. Free Keywords, GCMD Science Keywords, GCMD Platforms, GCMD Instruments, and MSL Vocabularies from published resources are available as filter options. Multiple keywords can be selected simultaneously (AND logic), meaning only resources matching all selected keywords are shown. The keyword filter can be combined with text search and resource type filters."
+            },
+            {
+                "title": "Clickable Keyword Badges on Landing Pages",
+                "description": "Keyword badges on landing pages are now clickable links. Clicking a keyword badge navigates to the portal with that keyword pre-selected as a filter, making it easy to discover related datasets sharing the same keywords."
+            },
+            {
+                "title": "Keyword Search in Portal",
+                "description": "The portal text search now also searches in resource keywords/subjects, in addition to titles, authors, DOIs, and descriptions."
+            },
             {
                 "title": "IGSN List Filters",
                 "description": "The IGSN list page now includes dropdown filters for IGSN prefix and upload status, in addition to the existing search input. Active filters are displayed as removable badges below the toolbar, and a 'Clear All' button resets all filters at once. The result count updates in real time to reflect applied filters."
