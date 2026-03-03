@@ -313,7 +313,9 @@ describe('handleXmlFiles', () => {
 
         const [, options] = fetchMock.mock.calls[0];
         const headers = (options as RequestInit).headers as Record<string, string>;
-        expect(headers['X-CSRF-TOKEN']).toBe('cookie-token');
+        // The encrypted cookie value must NOT be sent as X-CSRF-TOKEN because
+        // Laravel does not decrypt that header — only X-XSRF-TOKEN is decrypted.
+        expect(headers['X-CSRF-TOKEN']).toBeUndefined();
         expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
         expect(routerMock.get).toHaveBeenCalledWith(`/editor?xmlSession=${sessionKey}`);
 

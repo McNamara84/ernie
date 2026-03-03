@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useEffect, useRef } from 'react';
 
-import { syncCsrfTokenToAxiosAndMeta } from '@/lib/csrf-token';
+import { syncXsrfTokenToAxios } from '@/lib/csrf-token';
 
 /**
  * Hook that ensures the session and CSRF token are properly initialized.
@@ -14,7 +14,7 @@ import { syncCsrfTokenToAxiosAndMeta } from '@/lib/csrf-token';
  * This hook ensures proper CSRF token initialization by:
  * 1. Always calling the Sanctum CSRF endpoint on first mount
  * 2. Updating both the cookie and axios headers
- * 3. Syncing the meta tag with the new token
+ * 3. Syncing the XSRF-TOKEN to axios default headers
  *
  * This prevents the "Session refresh" / 419 errors that occur when
  * submitting forms before the session is fully synchronized.
@@ -48,9 +48,9 @@ async function initializeCsrfToken(): Promise<void> {
             timeout: 5000,
         });
 
-        // After the cookie is set, sync to axios headers and meta tag
+        // After the cookie is set, sync to axios headers
         // using the shared helper for consistency with 419 refresh handling
-        syncCsrfTokenToAxiosAndMeta(axios.defaults.headers.common);
+        syncXsrfTokenToAxios(axios.defaults.headers.common);
 
         if (import.meta.env.DEV) {
             console.debug('[Session] CSRF token initialized successfully');

@@ -78,14 +78,17 @@ export const ensureCsrfToken = (): string => {
 };
 
 /**
- * Builds CSRF headers prioritising the meta tag token for `X-CSRF-TOKEN` while
- * always sending the cookie token when available.
+ * Builds CSRF headers for outgoing requests.
  *
- * Some middleware validates `X-CSRF-TOKEN`, which should mirror the meta tag
- * value when present, while others expect `X-XSRF-TOKEN` sourced from the
- * cookie. Sending both ensures compatibility across deployments that rely on
- * either header, with meta tokens taking precedence over cookie fallbacks for
- * `X-CSRF-TOKEN`.
+ * - `X-CSRF-TOKEN` is sourced **exclusively** from the `<meta>` tag. The meta
+ *   tag contains the **unencrypted** session token rendered by the server. Laravel
+ *   compares this header value directly against the session token (no decryption).
+ *
+ * - `X-XSRF-TOKEN` is sourced from the `XSRF-TOKEN` cookie, which contains the
+ *   **encrypted** session token. Laravel decrypts this header before comparing.
+ *
+ * The encrypted cookie value must **never** be sent as `X-CSRF-TOKEN` because
+ * Laravel does not decrypt that header, causing a 419 CSRF mismatch.
  */
 export const buildCsrfHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = {};
@@ -100,16 +103,14 @@ export const buildCsrfHeaders = (): Record<string, string> => {
         });
     }
 
+    // X-CSRF-TOKEN: unencrypted token from server-rendered meta tag only
     if (metaToken) {
         headers['X-CSRF-TOKEN'] = metaToken;
     }
 
+    // X-XSRF-TOKEN: encrypted token from cookie (Laravel decrypts this)
     if (cookieToken) {
         headers['X-XSRF-TOKEN'] = cookieToken;
-
-        if (!headers['X-CSRF-TOKEN']) {
-            headers['X-CSRF-TOKEN'] = cookieToken;
-        }
     }
 
     if (Object.keys(headers).length === 0) {
@@ -120,17 +121,21 @@ export const buildCsrfHeaders = (): Record<string, string> => {
 };
 
 /**
- * Syncs the CSRF token from the cookie to axios defaults and the meta tag.
+ * Syncs the XSRF-TOKEN cookie to the axios default `X-XSRF-TOKEN` header.
  *
- * This is the single source of truth for token propagation after a Sanctum
- * CSRF refresh. It ensures:
- * 1. `axios.defaults.headers` are updated with both X-CSRF-TOKEN and X-XSRF-TOKEN
- * 2. The `<meta name="csrf-token">` tag is updated for forms that read it
+ * **Important:** The XSRF-TOKEN cookie is **encrypted** by Laravel's
+ * `EncryptCookies` middleware. Laravel's `VerifyCsrfToken` middleware only
+ * decrypts values received via the `X-XSRF-TOKEN` header. The `X-CSRF-TOKEN`
+ * header and the `<meta name="csrf-token">` tag must contain the
+ * **unencrypted** session token (rendered server-side) and must NOT be
+ * overwritten with the encrypted cookie value.
+ *
+ * This function intentionally does NOT touch `X-CSRF-TOKEN` or the meta tag.
  *
  * @param axiosDefaultHeaders - The axios default headers object (i.e., `axios.defaults.headers.common`)
- * @returns The token if sync was successful, null otherwise
+ * @returns The cookie token if sync was successful, null otherwise
  */
-export const syncCsrfTokenToAxiosAndMeta = (
+export const syncXsrfTokenToAxios = (
     axiosDefaultHeaders: Record<string, AxiosHeaderValue | undefined>,
 ): string | null => {
     const token = getXsrfTokenFromCookie();
@@ -142,20 +147,13 @@ export const syncCsrfTokenToAxiosAndMeta = (
         return null;
     }
 
-    // Update axios defaults
+    // Only update X-XSRF-TOKEN (Laravel decrypts this header automatically).
+    // Do NOT set X-CSRF-TOKEN or the meta tag here – the cookie value is
+    // encrypted and would cause a 419 CSRF mismatch if sent as X-CSRF-TOKEN.
     axiosDefaultHeaders['X-XSRF-TOKEN'] = token;
-    axiosDefaultHeaders['X-CSRF-TOKEN'] = token;
-
-    // Update meta tag for forms that read from it
-    if (isBrowser()) {
-        const metaTag = document.querySelector<HTMLMetaElement>(CSRF_META_SELECTOR);
-        if (metaTag) {
-            metaTag.content = token;
-        }
-    }
 
     if (import.meta.env.DEV) {
-        console.debug('[CSRF] Token synced to axios and meta tag');
+        console.debug('[CSRF] X-XSRF-TOKEN header synced from cookie');
     }
 
     return token;

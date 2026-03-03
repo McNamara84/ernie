@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
-import { buildCsrfHeaders, syncCsrfTokenToAxiosAndMeta } from './lib/csrf-token';
+import { buildCsrfHeaders, syncXsrfTokenToAxios } from './lib/csrf-token';
 import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -179,8 +179,8 @@ async function refreshCsrfToken(): Promise<boolean> {
             headers: { 'X-Skip-CSRF-Refresh': 'true' },
         });
 
-        // Use shared helper to sync token to axios headers and meta tag
-        const token = syncCsrfTokenToAxiosAndMeta(axios.defaults.headers.common);
+        // Use shared helper to sync token to axios headers
+        const token = syncXsrfTokenToAxios(axios.defaults.headers.common);
 
         if (token) {
             if (import.meta.env.DEV) {
@@ -244,14 +244,16 @@ axios.interceptors.response.use(
                     processQueue(true);
                     isRefreshingCsrf = false;
 
-                    // Retry the original request with updated headers
-                    const token =
-                        axios.defaults.headers.common['X-XSRF-TOKEN'] ||
-                        axios.defaults.headers.common['X-CSRF-TOKEN'];
-
-                    if (token) {
-                        originalRequest.headers['X-XSRF-TOKEN'] = token;
-                        originalRequest.headers['X-CSRF-TOKEN'] = token;
+                    // Rebuild headers from the correct sources:
+                    // - X-CSRF-TOKEN from the (unencrypted) meta tag
+                    // - X-XSRF-TOKEN from the (encrypted) cookie
+                    // Never copy the cookie value into X-CSRF-TOKEN.
+                    const freshHeaders = buildCsrfHeaders();
+                    if (freshHeaders['X-CSRF-TOKEN']) {
+                        originalRequest.headers['X-CSRF-TOKEN'] = freshHeaders['X-CSRF-TOKEN'];
+                    }
+                    if (freshHeaders['X-XSRF-TOKEN']) {
+                        originalRequest.headers['X-XSRF-TOKEN'] = freshHeaders['X-XSRF-TOKEN'];
                     }
 
                     if (import.meta.env.DEV) {
