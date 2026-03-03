@@ -10,6 +10,8 @@ use App\Services\KeywordSuggestionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 
+covers(KeywordSuggestionService::class);
+
 uses(RefreshDatabase::class);
 
 beforeEach(function () {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\PortalController;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
+
+covers(PortalController::class);
 
 uses(RefreshDatabase::class);
 
