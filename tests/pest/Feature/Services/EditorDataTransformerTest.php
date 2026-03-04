@@ -624,6 +624,54 @@ describe('transformCoverages', function (): void {
             ->and($result[0]['latMin'])->toContain('50')
             ->and($result[0]['latMax'])->toContain('55');
     });
+
+    it('transforms polygon geo locations with polygon points', function (): void {
+        GeoLocation::factory()->withPolygon()->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        $this->resource->load('geoLocations');
+
+        $result = $this->transformer->transformCoverages($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['type'])->toBe('polygon')
+            ->and($result[0]['polygonPoints'])->toBeArray()
+            ->and(count($result[0]['polygonPoints']))->toBeGreaterThanOrEqual(3);
+    });
+
+    it('transforms line geo locations with line points', function (): void {
+        GeoLocation::factory()->withLine()->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        $this->resource->load('geoLocations');
+
+        $result = $this->transformer->transformCoverages($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['type'])->toBe('line')
+            ->and($result[0]['polygonPoints'])->toBeArray()
+            ->and(count($result[0]['polygonPoints']))->toBeGreaterThanOrEqual(2);
+    });
+
+    it('returns correct type for each geo location kind', function (): void {
+        GeoLocation::factory()->withPoint(13.0, 52.0)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        GeoLocation::factory()->withBox(10.0, 15.0, 50.0, 55.0)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        GeoLocation::factory()->withLine()->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        $this->resource->load('geoLocations');
+
+        $result = $this->transformer->transformCoverages($this->resource);
+
+        $types = array_column($result, 'type');
+        expect($types)->toContain('point')
+            ->and($types)->toContain('box')
+            ->and($types)->toContain('line');
+    });
 });
 
 // =========================================================================

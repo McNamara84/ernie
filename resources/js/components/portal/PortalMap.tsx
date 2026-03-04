@@ -6,7 +6,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Polygon, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -242,6 +242,28 @@ export function PortalMap({ resources, className, hideHeader = false }: PortalMa
                                     <ResourcePopupContent resource={resource} />
                                 </Popup>
                             </Polygon>
+                        );
+                    }
+
+                    // Render line as polyline
+                    if (geo.type === 'line' && geo.polygon) {
+                        const positions: L.LatLngExpression[] = geo.polygon.map(
+                            (p) => [p.lat, p.lng],
+                        );
+                        return (
+                            <Polyline
+                                key={key}
+                                positions={positions}
+                                pathOptions={{
+                                    color: GFZ_BLUE,
+                                    weight: 3,
+                                    dashArray: '8, 4',
+                                }}
+                            >
+                                <Popup>
+                                    <ResourcePopupContent resource={resource} />
+                                </Popup>
+                            </Polyline>
                         );
                     }
 

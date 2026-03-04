@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 
 import BoxForm from './BoxForm';
+import LineForm from './LineForm';
 import PointForm from './PointForm';
 import PolygonForm from './PolygonForm';
 import TemporalInputs from './TemporalInputs';
@@ -32,6 +33,13 @@ const formatCoordinates = (entry: SpatialTemporalCoverageEntry): string => {
             return 'Polygon: No points set';
         }
         return `Polygon: ${entry.polygonPoints.length} points`;
+    }
+
+    if (entry.type === 'line') {
+        if (!entry.polygonPoints || entry.polygonPoints.length === 0) {
+            return 'Line: No points set';
+        }
+        return `Line: ${entry.polygonPoints.length} points`;
     }
 
     if (!entry.latMin || !entry.lonMin) return 'No coordinates set';
@@ -87,7 +95,7 @@ const formatDateRange = (entry: SpatialTemporalCoverageEntry): string => {
  */
 const hasData = (entry: SpatialTemporalCoverageEntry): boolean => {
     // Check polygon points
-    if (entry.type === 'polygon' && entry.polygonPoints && entry.polygonPoints.length > 0) {
+    if ((entry.type === 'polygon' || entry.type === 'line') && entry.polygonPoints && entry.polygonPoints.length > 0) {
         return true;
     }
 
@@ -100,7 +108,7 @@ export default function CoverageEntry({ entry, index, apiKey, isFirst, onChange,
 
     const handleTypeChange = (newType: CoverageType) => {
         // Clear inappropriate data when switching types
-        if (newType === 'polygon') {
+        if (newType === 'polygon' || newType === 'line') {
             onBatchChange({
                 type: newType,
                 latMin: '',
@@ -178,10 +186,11 @@ export default function CoverageEntry({ entry, index, apiKey, isFirst, onChange,
                 <CardContent className="space-y-6">
                     {/* Coverage Type Tabs */}
                     <Tabs value={entry.type} onValueChange={(value) => handleTypeChange(value as CoverageType)}>
-                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="point">Point</TabsTrigger>
                             <TabsTrigger value="box">Bounding Box</TabsTrigger>
                             <TabsTrigger value="polygon">Polygon</TabsTrigger>
+                            <TabsTrigger value="line">Line</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="point" className="mt-4">
@@ -194,6 +203,10 @@ export default function CoverageEntry({ entry, index, apiKey, isFirst, onChange,
 
                         <TabsContent value="polygon" className="mt-4">
                             <PolygonForm entry={entry} apiKey={apiKey} onChange={onChange} onBatchChange={onBatchChange} />
+                        </TabsContent>
+
+                        <TabsContent value="line" className="mt-4">
+                            <LineForm entry={entry} apiKey={apiKey} onChange={onChange} onBatchChange={onBatchChange} />
                         </TabsContent>
                     </Tabs>
 

@@ -33,7 +33,7 @@ export interface GeoBounds {
  */
 export interface PortalGeoLocation {
     id: number;
-    type: 'point' | 'box' | 'polygon' | 'unknown';
+    type: 'point' | 'box' | 'polygon' | 'line' | 'unknown';
     point: GeoPoint | null;
     bounds: GeoBounds | null;
     polygon: GeoPoint[] | null;

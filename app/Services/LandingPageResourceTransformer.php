@@ -183,6 +183,7 @@ final class LandingPageResourceTransformer
             ->map(static fn ($geo): array => [
                 'id' => $geo->id,
                 'place' => $geo->place,
+                'geo_type' => $geo->geo_type,
                 'point_longitude' => $geo->point_longitude !== null ? (float) $geo->point_longitude : null,
                 'point_latitude' => $geo->point_latitude !== null ? (float) $geo->point_latitude : null,
                 'west_bound_longitude' => $geo->west_bound_longitude !== null ? (float) $geo->west_bound_longitude : null,

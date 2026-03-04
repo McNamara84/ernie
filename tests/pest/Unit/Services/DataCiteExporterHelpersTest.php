@@ -396,6 +396,111 @@ describe('transformGeoLocationPolygon()', function (): void {
     });
 });
 
+describe('convertLineToPolygonPoints()', function (): void {
+    it('returns input unchanged when fewer than 2 points', function (): void {
+        $linePoints = [
+            ['longitude' => 13.0, 'latitude' => 52.0],
+        ];
+
+        $result = $this->helper->convertLineToPolygonPoints($linePoints);
+
+        expect($result)->toHaveCount(1)
+            ->and($result)->toBe($linePoints);
+    });
+
+    it('converts a 2-point line to a 4-point closed polygon', function (): void {
+        $linePoints = [
+            ['longitude' => 13.0, 'latitude' => 52.0],
+            ['longitude' => 14.0, 'latitude' => 53.0],
+        ];
+
+        $result = $this->helper->convertLineToPolygonPoints($linePoints);
+
+        // A→B then reverse skip first (B), offset A' → close with A = 4 points
+        expect($result)->toHaveCount(4)
+            // Forward: A
+            ->and($result[0])->toBe(['longitude' => 13.0, 'latitude' => 52.0])
+            // Forward: B
+            ->and($result[1])->toBe(['longitude' => 14.0, 'latitude' => 53.0])
+            // Return: A' (offset)
+            ->and($result[2]['longitude'])->toBe(13.0)
+            ->and(abs($result[2]['latitude'] - 52.00000001))->toBeLessThan(0.0000001)
+            // Close: A
+            ->and($result[3])->toBe(['longitude' => 13.0, 'latitude' => 52.0]);
+    });
+
+    it('converts a 3-point line to a 5-point closed polygon', function (): void {
+        $linePoints = [
+            ['longitude' => 13.0, 'latitude' => 52.0],
+            ['longitude' => 13.5, 'latitude' => 52.5],
+            ['longitude' => 14.0, 'latitude' => 53.0],
+        ];
+
+        $result = $this->helper->convertLineToPolygonPoints($linePoints);
+
+        // A→B→C then reverse skip C: B'→A' then close with A = 6 points
+        expect($result)->toHaveCount(6)
+            // Forward: A, B, C
+            ->and($result[0]['longitude'])->toBe(13.0)
+            ->and($result[1]['longitude'])->toBe(13.5)
+            ->and($result[2]['longitude'])->toBe(14.0)
+            // Return: B' (offset)
+            ->and($result[3]['longitude'])->toBe(13.5)
+            ->and(abs($result[3]['latitude'] - 52.50000001))->toBeLessThan(0.0000001)
+            // Return: A' (offset)
+            ->and($result[4]['longitude'])->toBe(13.0)
+            ->and(abs($result[4]['latitude'] - 52.00000001))->toBeLessThan(0.0000001)
+            // Close: A
+            ->and($result[5])->toBe(['longitude' => 13.0, 'latitude' => 52.0]);
+    });
+});
+
+describe('transformGeoLocationLine()', function (): void {
+    it('returns null when polygon_points is null', function (): void {
+        $geo = new GeoLocation;
+        $geo->polygon_points = null;
+        $geo->geo_type = 'line';
+
+        $result = $this->helper->transformGeoLocationLine($geo);
+
+        expect($result)->toBeNull();
+    });
+
+    it('returns null when fewer than 2 points', function (): void {
+        $geo = new GeoLocation;
+        $geo->polygon_points = [
+            ['longitude' => 13.0, 'latitude' => 52.0],
+        ];
+        $geo->geo_type = 'line';
+
+        $result = $this->helper->transformGeoLocationLine($geo);
+
+        expect($result)->toBeNull();
+    });
+
+    it('transforms line points to DataCite polygon format', function (): void {
+        $geo = new GeoLocation;
+        $geo->polygon_points = [
+            ['longitude' => 13.0, 'latitude' => 52.0],
+            ['longitude' => 14.0, 'latitude' => 53.0],
+        ];
+        $geo->geo_type = 'line';
+
+        $result = $this->helper->transformGeoLocationLine($geo);
+
+        expect($result)->toHaveKey('polygonPoints')
+            ->and($result['polygonPoints'])->toHaveCount(4)
+            ->and($result['polygonPoints'][0])->toBe([
+                'pointLongitude' => 13.0,
+                'pointLatitude' => 52.0,
+            ])
+            ->and($result['polygonPoints'][1])->toBe([
+                'pointLongitude' => 14.0,
+                'pointLatitude' => 53.0,
+            ]);
+    });
+});
+
 describe('transformFundingReference()', function (): void {
     it('transforms minimal funding reference', function (): void {
         $funding = new FundingReference;

@@ -328,6 +328,12 @@ class PortalSearchService
      */
     private function determineGeoType(GeoLocation $geo): string
     {
+        // Prefer explicit geo_type column
+        if ($geo->geo_type !== null) {
+            return $geo->geo_type;
+        }
+
+        // Fall back to implicit detection for legacy rows
         if ($geo->polygon_points !== null && count($geo->polygon_points) >= 3) {
             return 'polygon';
         }

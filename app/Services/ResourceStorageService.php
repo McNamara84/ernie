@@ -805,6 +805,71 @@ class ResourceStorageService
                         ]);
                     }
 
+                    $geoLocationData['geo_type'] = 'polygon';
+                    $geoLocationData['polygon_points'] = array_values(array_map(
+                        static fn (array $point): array => [
+                            'longitude' => (float) ($point['longitude'] ?? $point['lon']),
+                            'latitude' => (float) ($point['latitude'] ?? $point['lat']),
+                        ],
+                        $validPoints
+                    ));
+
+                    $resource->geoLocations()->create($geoLocationData);
+                } elseif ($type === 'line' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
+                    // Line type: stored in polygon_points with geo_type = 'line'
+                    $invalidPoints = [];
+
+                    $validPoints = array_filter(
+                        $coverage['polygonPoints'],
+                        static function (mixed $point, int $index) use (&$invalidPoints): bool {
+                            if (! is_array($point)) {
+                                $invalidPoints[] = 'Point '.($index + 1).': not a valid coordinate pair';
+
+                                return false;
+                            }
+                            $lon = $point['longitude'] ?? $point['lon'] ?? null;
+                            $lat = $point['latitude'] ?? $point['lat'] ?? null;
+
+                            if (! is_numeric($lon) || ! is_numeric($lat)) {
+                                $invalidPoints[] = 'Point '.($index + 1).': missing or non-numeric coordinates';
+
+                                return false;
+                            }
+
+                            $lonFloat = (float) $lon;
+                            $latFloat = (float) $lat;
+
+                            if ($latFloat < -90.0 || $latFloat > 90.0 || $lonFloat < -180.0 || $lonFloat > 180.0) {
+                                $invalidPoints[] = sprintf(
+                                    'Point %d: coordinates out of range (lat: %.6f, lon: %.6f)',
+                                    $index + 1,
+                                    $latFloat,
+                                    $lonFloat
+                                );
+
+                                return false;
+                            }
+
+                            return true;
+                        },
+                        ARRAY_FILTER_USE_BOTH
+                    );
+
+                    if (count($validPoints) < 2) {
+                        $message = 'Line requires at least 2 valid points, but only '.count($validPoints).' valid point(s) found.';
+                        if (! empty($invalidPoints)) {
+                            $message .= ' Rejected points: '.implode('; ', array_slice($invalidPoints, 0, 5));
+                            if (count($invalidPoints) > 5) {
+                                $message .= ' and '.(count($invalidPoints) - 5).' more.';
+                            }
+                        }
+
+                        throw ValidationException::withMessages([
+                            'coverages' => [$message],
+                        ]);
+                    }
+
+                    $geoLocationData['geo_type'] = 'line';
                     $geoLocationData['polygon_points'] = array_values(array_map(
                         static fn (array $point): array => [
                             'longitude' => (float) ($point['longitude'] ?? $point['lon']),
@@ -816,11 +881,13 @@ class ResourceStorageService
                     $resource->geoLocations()->create($geoLocationData);
                 } elseif ($type === 'point') {
                     // Point type
+                    $geoLocationData['geo_type'] = 'point';
                     $geoLocationData['point_longitude'] = $coverage['lonMin'] ?? null;
                     $geoLocationData['point_latitude'] = $coverage['latMin'] ?? null;
                     $resource->geoLocations()->create($geoLocationData);
                 } else {
                     // Box type
+                    $geoLocationData['geo_type'] = 'box';
                     $geoLocationData['west_bound_longitude'] = $coverage['lonMin'] ?? null;
                     $geoLocationData['east_bound_longitude'] = $coverage['lonMax'] ?? null;
                     $geoLocationData['south_bound_latitude'] = $coverage['latMin'] ?? null;

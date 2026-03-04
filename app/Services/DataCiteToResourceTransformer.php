@@ -724,9 +724,38 @@ class DataCiteToResourceTransformer
         foreach ($geoLocations as $geoData) {
             $point = $geoData['geoLocationPoint'] ?? null;
             $box = $geoData['geoLocationBox'] ?? null;
+            $polygon = $geoData['geoLocationPolygon'] ?? null;
+
+            // Determine geo_type based on available data
+            $geoType = null;
+            if ($polygon !== null && ! empty($polygon['polygonPoints'])) {
+                $geoType = 'polygon';
+            } elseif ($box !== null) {
+                $geoType = 'box';
+            } elseif ($point !== null) {
+                $geoType = 'point';
+            }
+
+            // Transform polygon points to storage format
+            $polygonPoints = null;
+            $inPolygonPointLon = null;
+            $inPolygonPointLat = null;
+
+            if ($polygon !== null && ! empty($polygon['polygonPoints'])) {
+                $polygonPoints = array_map(fn (array $p): array => [
+                    'longitude' => (float) ($p['pointLongitude'] ?? 0),
+                    'latitude' => (float) ($p['pointLatitude'] ?? 0),
+                ], $polygon['polygonPoints']);
+
+                if (isset($polygon['inPolygonPoint'])) {
+                    $inPolygonPointLon = $polygon['inPolygonPoint']['pointLongitude'] ?? null;
+                    $inPolygonPointLat = $polygon['inPolygonPoint']['pointLatitude'] ?? null;
+                }
+            }
 
             GeoLocation::create([
                 'resource_id' => $resource->id,
+                'geo_type' => $geoType,
                 'place' => $geoData['geoLocationPlace'] ?? null,
                 'point_longitude' => $point['pointLongitude'] ?? null,
                 'point_latitude' => $point['pointLatitude'] ?? null,
@@ -734,6 +763,9 @@ class DataCiteToResourceTransformer
                 'east_bound_longitude' => $box['eastBoundLongitude'] ?? null,
                 'south_bound_latitude' => $box['southBoundLatitude'] ?? null,
                 'north_bound_latitude' => $box['northBoundLatitude'] ?? null,
+                'polygon_points' => $polygonPoints,
+                'in_polygon_point_longitude' => $inPolygonPointLon,
+                'in_polygon_point_latitude' => $inPolygonPointLat,
             ]);
         }
     }
