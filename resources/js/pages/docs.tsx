@@ -687,6 +687,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <strong>Polygon:</strong> Draw custom shapes for complex regions
                             </li>
+                            <li>
+                                <strong>Line:</strong> Draw a polyline (e.g. transects, routes, profiles) by clicking successive points on the map. Requires at least 2 points. For DataCite export, lines are automatically converted to thin polygons.
+                            </li>
                         </ul>
 
                         <h4>Manual Entry</h4>
