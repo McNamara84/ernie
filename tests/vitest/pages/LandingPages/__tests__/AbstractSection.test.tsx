@@ -369,6 +369,8 @@ describe('AbstractSection', () => {
             
             const link = screen.getByRole('link', { name: /Geophysics/i });
             expect(link).toHaveAttribute('href', '/portal?keywords[]=Geophysics');
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
         });
 
         it('encodes special characters in keyword portal links', () => {
@@ -409,6 +411,7 @@ describe('AbstractSection', () => {
             
             const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
             expect(link).toHaveAttribute('href', '/portal?keywords[]=EARTH%20SCIENCE');
+            expect(link).toHaveAttribute('target', '_blank');
         });
 
         it('renders GCMD Platforms section', () => {

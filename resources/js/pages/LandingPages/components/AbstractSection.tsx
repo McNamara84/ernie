@@ -65,6 +65,8 @@ function KeywordBadge({ subject }: { subject: Subject }) {
     return (
         <a
             href={portalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground transition-opacity hover:opacity-80"
             title={`Search for "${subject.subject}" in the portal`}
         >
