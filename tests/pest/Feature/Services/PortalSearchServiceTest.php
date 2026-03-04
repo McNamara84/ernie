@@ -9,6 +9,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\PortalSearchService;
@@ -159,6 +160,136 @@ describe('full-text search', function () {
         $results = $this->service->search(['query' => 'GFZ Potsdam']);
 
         expect($results->total())->toBe(1);
+    });
+
+    it('finds resources by subject value', function () {
+        $resource = createPublishedResourceForSearch('Seismic Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $resource->id,
+            'value' => 'Volcanology',
+        ]);
+
+        // Resource without matching subject
+        createPublishedResourceForSearch('Other Paper', $this->titleType);
+
+        $results = $this->service->search(['query' => 'Volcanology']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    });
+
+    it('finds resources by partial subject value', function () {
+        $resource = createPublishedResourceForSearch('Test Paper', $this->titleType);
+        Subject::factory()->gcmd()->create([
+            'resource_id' => $resource->id,
+            'value' => 'EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC CHEMISTRY',
+        ]);
+
+        $results = $this->service->search(['query' => 'ATMOSPHERIC']);
+
+        expect($results->total())->toBe(1);
+    });
+
+    it('finds resources by MSL keyword value', function () {
+        $resource = createPublishedResourceForSearch('Rock Paper', $this->titleType);
+        Subject::factory()->msl()->create([
+            'resource_id' => $resource->id,
+            'value' => 'Geochemistry',
+        ]);
+
+        $results = $this->service->search(['query' => 'Geochemistry']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($resource->id);
+    });
+});
+
+// =========================================================================
+// keyword filtering
+// =========================================================================
+
+describe('keyword filtering', function () {
+    it('filters resources by a single keyword', function () {
+        $matching = createPublishedResourceForSearch('Matching Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'Seismology',
+        ]);
+
+        $nonMatching = createPublishedResourceForSearch('Other Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $nonMatching->id,
+            'value' => 'Geology',
+        ]);
+
+        $results = $this->service->search(['keywords' => ['Seismology']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('applies AND logic for multiple keywords', function () {
+        // Resource with both keywords
+        $both = createPublishedResourceForSearch('Both Keywords', $this->titleType);
+        Subject::factory()->create(['resource_id' => $both->id, 'value' => 'Seismology']);
+        Subject::factory()->create(['resource_id' => $both->id, 'value' => 'Geology']);
+
+        // Resource with only one keyword
+        $oneOnly = createPublishedResourceForSearch('One Keyword', $this->titleType);
+        Subject::factory()->create(['resource_id' => $oneOnly->id, 'value' => 'Seismology']);
+
+        $results = $this->service->search(['keywords' => ['Seismology', 'Geology']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($both->id);
+    });
+
+    it('returns all resources when keywords is empty', function () {
+        createPublishedResourceForSearch('Paper A', $this->titleType);
+        createPublishedResourceForSearch('Paper B', $this->titleType);
+
+        $results = $this->service->search(['keywords' => []]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('returns all resources when keywords is null', function () {
+        createPublishedResourceForSearch('Paper A', $this->titleType);
+        createPublishedResourceForSearch('Paper B', $this->titleType);
+
+        $results = $this->service->search(['keywords' => null]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('ignores empty string keywords', function () {
+        createPublishedResourceForSearch('Paper A', $this->titleType);
+        createPublishedResourceForSearch('Paper B', $this->titleType);
+
+        $results = $this->service->search(['keywords' => ['', '  ']]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('combines keyword filter with text search', function () {
+        // Resource matching both query and keyword
+        $matching = createPublishedResourceForSearch('Seismic Activity', $this->titleType);
+        Subject::factory()->create(['resource_id' => $matching->id, 'value' => 'Volcanology']);
+
+        // Resource matching only query
+        createPublishedResourceForSearch('Seismic Data', $this->titleType);
+
+        // Resource matching only keyword
+        $keywordOnly = createPublishedResourceForSearch('Other Paper', $this->titleType);
+        Subject::factory()->create(['resource_id' => $keywordOnly->id, 'value' => 'Volcanology']);
+
+        $results = $this->service->search([
+            'query' => 'Seismic',
+            'keywords' => ['Volcanology'],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
     });
 });
 

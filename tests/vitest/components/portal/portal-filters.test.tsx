@@ -11,17 +11,20 @@ describe('PortalFilters', () => {
     const defaultFilters: PortalFiltersType = {
         query: '',
         type: 'all',
+        keywords: [],
     };
 
     const defaultProps = {
         filters: defaultFilters,
         onSearchChange: vi.fn(),
         onTypeChange: vi.fn(),
+        onKeywordsChange: vi.fn(),
         onClearFilters: vi.fn(),
         hasActiveFilters: false,
         isCollapsed: false,
         onToggleCollapse: vi.fn(),
         totalResults: 42,
+        keywordSuggestions: [],
     };
 
     beforeEach(() => {

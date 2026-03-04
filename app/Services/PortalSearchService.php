@@ -31,6 +31,7 @@ class PortalSearchService
      * @param  array{
      *     query?: string|null,
      *     type?: string|null,
+     *     keywords?: string[]|null,
      *     page?: int,
      *     per_page?: int,
      * }  $filters
@@ -58,6 +59,7 @@ class PortalSearchService
      * @param  array{
      *     query?: string|null,
      *     type?: string|null,
+     *     keywords?: string[]|null,
      * }  $filters
      * @return \Illuminate\Database\Eloquent\Collection<int, Resource>
      */
@@ -75,6 +77,7 @@ class PortalSearchService
      * @param  array{
      *     query?: string|null,
      *     type?: string|null,
+     *     keywords?: string[]|null,
      * }  $filters
      * @return Builder<Resource>
      */
@@ -105,6 +108,9 @@ class PortalSearchService
 
         // Apply search query
         $this->applySearchQuery($query, $filters['query'] ?? null);
+
+        // Apply keyword filter
+        $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
 
         return $query;
     }
@@ -175,8 +181,39 @@ class PortalSearchService
                             $instQuery->where('name', 'like', $searchTerm);
                         }
                     );
+                })
+                // Search in subjects/keywords
+                ->orWhereHas('subjects', function (Builder $subjectQuery) use ($searchTerm): void {
+                    $subjectQuery->where('value', 'like', $searchTerm);
                 });
         });
+    }
+
+    /**
+     * Apply keyword filter with AND logic.
+     *
+     * Each keyword adds a whereHas constraint, so the resource
+     * must have ALL specified keywords to match.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  string[]|null  $keywords
+     */
+    private function applyKeywordFilter(Builder $query, ?array $keywords): void
+    {
+        if ($keywords === null || $keywords === []) {
+            return;
+        }
+
+        foreach ($keywords as $keyword) {
+            $keyword = trim($keyword);
+            if ($keyword === '') {
+                continue;
+            }
+
+            $query->whereHas('subjects', function (Builder $q) use ($keyword): void {
+                $q->where('value', $keyword);
+            });
+        }
     }
 
     /**

@@ -27,6 +27,9 @@ vi.mock('@/hooks/use-portal-filters', () => ({
     usePortalFilters: () => ({
         setSearch: setSearchMock,
         setType: setTypeMock,
+        setKeywords: vi.fn(),
+        addKeyword: vi.fn(),
+        removeKeyword: vi.fn(),
         clearFilters: clearFiltersMock,
         hasActiveFilters: false,
     }),
@@ -108,7 +111,9 @@ const defaultProps: PortalPageProps = {
     filters: {
         query: '',
         type: 'all',
+        keywords: [],
     },
+    keywordSuggestions: [],
 };
 
 describe('Portal', () => {
@@ -155,7 +160,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithQuery = {
             ...defaultProps,
-            filters: { query: 'climate', type: 'all' as const },
+            filters: { query: 'climate', type: 'all' as const, keywords: [] },
         };
         render(<Portal {...propsWithQuery} />);
 
@@ -169,7 +174,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithType = {
             ...defaultProps,
-            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'] },
+            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'], keywords: [] },
         };
         render(<Portal {...propsWithType} />);
 

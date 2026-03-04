@@ -73,6 +73,16 @@ export interface PortalPagination {
 export interface PortalFilters {
     query: string | null;
     type: 'all' | 'doi' | 'igsn';
+    keywords: string[];
+}
+
+/**
+ * Keyword suggestion for autocomplete.
+ */
+export interface KeywordSuggestion {
+    value: string;
+    scheme: string | null;
+    count: number;
 }
 
 /**
@@ -83,6 +93,7 @@ export interface PortalPageProps {
     mapData: PortalResource[];
     pagination: PortalPagination;
     filters: PortalFilters;
+    keywordSuggestions: KeywordSuggestion[];
 }
 
 /**

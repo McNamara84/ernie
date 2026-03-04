@@ -356,6 +356,36 @@ describe('AbstractSection', () => {
             expect(screen.getByText('Geophysics')).toBeInTheDocument();
             expect(screen.getByText('Seismology')).toBeInTheDocument();
         });
+
+        it('renders keyword badges as links to the portal', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'Geophysics' }),
+                    ]}
+                />
+            );
+            
+            const link = screen.getByRole('link', { name: /Geophysics/i });
+            expect(link).toHaveAttribute('href', '/portal?keywords[]=Geophysics');
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        });
+
+        it('encodes special characters in keyword portal links', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'Rock & Soil' }),
+                    ]}
+                />
+            );
+            
+            const link = screen.getByRole('link', { name: /Rock & Soil/i });
+            expect(link).toHaveAttribute('href', '/portal?keywords[]=Rock%20%26%20Soil');
+        });
     });
 
     describe('subjects section - GCMD keywords', () => {
@@ -369,6 +399,19 @@ describe('AbstractSection', () => {
             
             expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
             expect(screen.getByText('EARTH SCIENCE')).toBeInTheDocument();
+        });
+
+        it('renders GCMD keyword badges as links to the portal', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
+                />
+            );
+            
+            const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
+            expect(link).toHaveAttribute('href', '/portal?keywords[]=EARTH%20SCIENCE');
+            expect(link).toHaveAttribute('target', '_blank');
         });
 
         it('renders GCMD Platforms section', () => {
@@ -399,7 +442,7 @@ describe('AbstractSection', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'Rock mechanics', subject_scheme: 'msl' })]}
+                    subjects={[createSubject({ subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' })]}
                 />
             );
             
@@ -416,7 +459,7 @@ describe('AbstractSection', () => {
                         createSubject({ id: 2, subject: 'Science KW', subject_scheme: 'Science Keywords' }),
                         createSubject({ id: 3, subject: 'Platform', subject_scheme: 'Platforms' }),
                         createSubject({ id: 4, subject: 'Instrument', subject_scheme: 'Instruments' }),
-                        createSubject({ id: 5, subject: 'MSL Term', subject_scheme: 'msl' }),
+                        createSubject({ id: 5, subject: 'MSL Term', subject_scheme: 'EPOS MSL vocabulary' }),
                     ]}
                 />
             );

@@ -53,7 +53,7 @@ class SubjectFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'value' => 'Geochemistry',
-            'subject_scheme' => 'MSL Vocabularies',
+            'subject_scheme' => 'EPOS MSL vocabulary',
             'scheme_uri' => 'https://epos-msl.uu.nl/voc/',
             'value_uri' => 'https://epos-msl.uu.nl/voc/'.fake()->uuid(),
         ]);

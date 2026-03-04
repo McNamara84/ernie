@@ -1,34 +1,39 @@
 import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { PortalKeywordFilter } from '@/components/portal/PortalKeywordFilter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { PortalFilters, PortalTypeFilter } from '@/types/portal';
+import type { KeywordSuggestion, PortalFilters, PortalTypeFilter } from '@/types/portal';
 
 interface PortalFiltersProps {
     filters: PortalFilters;
     onSearchChange: (query: string) => void;
     onTypeChange: (type: PortalTypeFilter) => void;
+    onKeywordsChange: (keywords: string[]) => void;
     onClearFilters: () => void;
     hasActiveFilters: boolean;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
     totalResults: number;
+    keywordSuggestions: KeywordSuggestion[];
 }
 
 export function PortalFilters({
     filters,
     onSearchChange,
     onTypeChange,
+    onKeywordsChange,
     onClearFilters,
     hasActiveFilters,
     isCollapsed,
     onToggleCollapse,
     totalResults,
+    keywordSuggestions,
 }: PortalFiltersProps) {
     const [searchInput, setSearchInput] = useState(filters.query ?? '');
 
@@ -128,9 +133,16 @@ export function PortalFilters({
                             </Button>
                         </form>
                         <p className="text-xs text-muted-foreground">
-                            Search in titles, authors, DOIs, and descriptions
+                            Search in titles, authors, DOIs, descriptions, and keywords
                         </p>
                     </div>
+
+                    {/* Keyword Filter */}
+                    <PortalKeywordFilter
+                        suggestions={keywordSuggestions}
+                        selectedKeywords={filters.keywords ?? []}
+                        onKeywordsChange={onKeywordsChange}
+                    />
 
                     {/* Type Filter */}
                     <div className="space-y-3">

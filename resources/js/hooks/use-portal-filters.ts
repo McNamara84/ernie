@@ -12,6 +12,9 @@ interface UsePortalFiltersReturn {
     filters: PortalFilters;
     setSearch: (query: string) => void;
     setType: (type: PortalTypeFilter) => void;
+    setKeywords: (keywords: string[]) => void;
+    addKeyword: (keyword: string) => void;
+    removeKeyword: (keyword: string) => void;
     clearFilters: () => void;
     hasActiveFilters: boolean;
 }
@@ -29,6 +32,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
 
             const query = newFilters.query !== undefined ? newFilters.query : filters.query;
             const type = newFilters.type !== undefined ? newFilters.type : filters.type;
+            const keywords = newFilters.keywords !== undefined ? newFilters.keywords : filters.keywords;
 
             if (query && query.trim() !== '') {
                 params.set('q', query.trim());
@@ -36,6 +40,12 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
 
             if (type && type !== 'all') {
                 params.set('type', type);
+            }
+
+            if (keywords && keywords.length > 0) {
+                keywords.forEach((kw) => {
+                    params.append('keywords[]', kw);
+                });
             }
 
             if (!resetPage && currentPage > 1) {
@@ -64,18 +74,50 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         [updateFilters],
     );
 
+    const setKeywords = useCallback(
+        (keywords: string[]) => {
+            updateFilters({ keywords }, true);
+        },
+        [updateFilters],
+    );
+
+    const addKeyword = useCallback(
+        (keyword: string) => {
+            const current = filters.keywords ?? [];
+            if (!current.includes(keyword)) {
+                updateFilters({ keywords: [...current, keyword] }, true);
+            }
+        },
+        [updateFilters, filters.keywords],
+    );
+
+    const removeKeyword = useCallback(
+        (keyword: string) => {
+            const current = filters.keywords ?? [];
+            updateFilters({ keywords: current.filter((k) => k !== keyword) }, true);
+        },
+        [updateFilters, filters.keywords],
+    );
+
     const clearFilters = useCallback(() => {
         router.get('/portal', {}, { preserveState: true, preserveScroll: true });
     }, []);
 
     const hasActiveFilters = useMemo(() => {
-        return (filters.query !== null && filters.query.trim() !== '') || filters.type !== 'all';
+        return (
+            (filters.query !== null && filters.query.trim() !== '') ||
+            filters.type !== 'all' ||
+            (filters.keywords !== undefined && filters.keywords.length > 0)
+        );
     }, [filters]);
 
     return {
         filters,
         setSearch,
         setType,
+        setKeywords,
+        addKeyword,
+        removeKeyword,
         clearFilters,
         hasActiveFilters,
     };

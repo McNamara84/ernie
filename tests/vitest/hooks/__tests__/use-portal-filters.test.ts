@@ -19,6 +19,7 @@ describe('usePortalFilters', () => {
     const defaultFilters: PortalFilters = {
         query: null,
         type: 'all',
+        keywords: [],
     };
 
     beforeEach(() => {
@@ -43,7 +44,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when query is set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'all' },
+                    filters: { query: 'test', type: 'all', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -53,7 +54,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when type is not "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi' },
+                    filters: { query: null, type: 'doi', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -63,7 +64,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters for empty/whitespace query', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: '   ', type: 'all' },
+                    filters: { query: '   ', type: 'all', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -155,7 +156,7 @@ describe('usePortalFilters', () => {
         it('navigates without type param when set to "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi' },
+                    filters: { query: null, type: 'doi', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -174,7 +175,7 @@ describe('usePortalFilters', () => {
         it('preserves existing query when changing type', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'existing', type: 'all' },
+                    filters: { query: 'existing', type: 'all', keywords: [] },
                     currentPage: 1,
                 }),
             );
@@ -193,7 +194,7 @@ describe('usePortalFilters', () => {
         it('navigates to /portal without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi' },
+                    filters: { query: 'test', type: 'doi', keywords: [] },
                     currentPage: 2,
                 }),
             );
@@ -207,6 +208,181 @@ describe('usePortalFilters', () => {
                 {},
                 { preserveState: true, preserveScroll: true },
             );
+        });
+    });
+
+    describe('setKeywords', () => {
+        it('navigates with keywords[] URL params', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
+            );
+
+            act(() => {
+                result.current.setKeywords(['Seismology', 'Geology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('keywords%5B%5D=Seismology');
+            expect(calledUrl).toContain('keywords%5B%5D=Geology');
+        });
+
+        it('navigates without keywords param when empty array is passed', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setKeywords([]);
+            });
+
+            expect(routerMock.get).toHaveBeenCalledWith(
+                '/portal',
+                {},
+                expect.objectContaining({ preserveState: true }),
+            );
+        });
+
+        it('preserves existing query and type when setting keywords', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: 'test', type: 'doi', keywords: [] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setKeywords(['Seismology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('q=test');
+            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('keywords%5B%5D=Seismology');
+        });
+
+        it('resets page to 1 when setting keywords', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
+            );
+
+            act(() => {
+                result.current.setKeywords(['Seismology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('page=');
+        });
+    });
+
+    describe('addKeyword', () => {
+        it('adds a keyword to the existing list', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.addKeyword('Geology');
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('keywords%5B%5D=Seismology');
+            expect(calledUrl).toContain('keywords%5B%5D=Geology');
+        });
+
+        it('does not add duplicate keywords', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.addKeyword('Seismology');
+            });
+
+            expect(routerMock.get).not.toHaveBeenCalled();
+        });
+
+        it('adds a keyword when list is initially empty', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
+            );
+
+            act(() => {
+                result.current.addKeyword('Geology');
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('keywords%5B%5D=Geology');
+        });
+    });
+
+    describe('removeKeyword', () => {
+        it('removes a specific keyword from the list', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: ['Seismology', 'Geology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.removeKeyword('Seismology');
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('keywords%5B%5D=Geology');
+            expect(calledUrl).not.toContain('Seismology');
+        });
+
+        it('navigates without keywords param when removing the last keyword', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.removeKeyword('Seismology');
+            });
+
+            expect(routerMock.get).toHaveBeenCalledWith(
+                '/portal',
+                {},
+                expect.objectContaining({ preserveState: true }),
+            );
+        });
+    });
+
+    describe('hasActiveFilters with keywords', () => {
+        it('reports active filters when keywords are non-empty', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+
+        it('does not report active filters when keywords are empty', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: [] },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(false);
         });
     });
 });
