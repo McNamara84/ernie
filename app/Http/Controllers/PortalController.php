@@ -31,10 +31,10 @@ class PortalController extends Controller
         $filters = [
             'query' => $request->query('q'),
             'type' => $request->query('type', 'all'),
-            'keywords' => array_filter(
+            'keywords' => array_slice(array_filter(
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ),
+            ), 0, 20),
             'page' => (int) $request->query('page', 1),
             'per_page' => 20,
         ];
