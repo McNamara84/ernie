@@ -261,7 +261,7 @@ describe('PortalKeywordFilter', () => {
     });
 
     describe('value deduplication', () => {
-        it('renders the same keyword value from different schemes as separate items', async () => {
+        it('deduplicates the same keyword value from different schemes, keeping the one with higher count', async () => {
             const user = userEvent.setup();
             const duplicateSuggestions: KeywordSuggestion[] = [
                 createSuggestion({ value: 'Geochemistry', scheme: null, count: 3 }),
@@ -277,13 +277,37 @@ describe('PortalKeywordFilter', () => {
 
             await user.click(screen.getByRole('combobox'));
 
-            // Both groups should be rendered
-            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
+            // Only the MSL group should be rendered (higher count wins)
+            expect(screen.queryByText('Free Keywords')).not.toBeInTheDocument();
             expect(screen.getByText('MSL Vocabularies')).toBeInTheDocument();
 
-            // Both instances of "Geochemistry" should appear
+            // "Geochemistry" should appear only once
             const items = screen.getAllByText('Geochemistry');
-            expect(items).toHaveLength(2);
+            expect(items).toHaveLength(1);
+        });
+
+        it('keeps the free keyword when it has a higher count than the scheme variant', async () => {
+            const user = userEvent.setup();
+            const duplicateSuggestions: KeywordSuggestion[] = [
+                createSuggestion({ value: 'Geochemistry', scheme: null, count: 10 }),
+                createSuggestion({ value: 'Geochemistry', scheme: 'EPOS MSL vocabulary', count: 2 }),
+            ];
+
+            render(
+                <PortalKeywordFilter
+                    {...defaultProps}
+                    suggestions={duplicateSuggestions}
+                />,
+            );
+
+            await user.click(screen.getByRole('combobox'));
+
+            // Only the Free Keywords group should be rendered (higher count wins)
+            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
+            expect(screen.queryByText('MSL Vocabularies')).not.toBeInTheDocument();
+
+            const items = screen.getAllByText('Geochemistry');
+            expect(items).toHaveLength(1);
         });
     });
 });

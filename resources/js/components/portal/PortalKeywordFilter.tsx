@@ -44,11 +44,22 @@ function getSchemeLabel(scheme: string | null): string {
 export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsChange }: PortalKeywordFilterProps) {
     const [open, setOpen] = useState(false);
 
-    // Group suggestions by scheme for display
+    // Group suggestions by scheme for display.
+    // Deduplicate by value first: since the backend filters by value only,
+    // showing the same keyword in multiple scheme groups would cause
+    // misleading checked-state. Keep the entry with the highest count.
     const groupedSuggestions = useMemo(() => {
+        const bestByValue = new Map<string, KeywordSuggestion>();
+        for (const suggestion of suggestions) {
+            const existing = bestByValue.get(suggestion.value);
+            if (!existing || suggestion.count > existing.count) {
+                bestByValue.set(suggestion.value, suggestion);
+            }
+        }
+
         const groups = new Map<string, KeywordSuggestion[]>();
 
-        for (const suggestion of suggestions) {
+        for (const suggestion of bestByValue.values()) {
             const key = suggestion.scheme ?? '';
             const existing = groups.get(key) ?? [];
             existing.push(suggestion);
