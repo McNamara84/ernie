@@ -331,9 +331,16 @@ trait DataCiteExporterHelpers
 
         // Skip the first reversed point (= last forward point) to avoid duplication
         for ($i = 1, $count = count($reversed); $i < $count; $i++) {
+            $lat = $reversed[$i]['latitude'];
+
+            // Choose offset direction to stay within valid [-90, 90] range
+            $adjustedLat = ($lat + $offset > 90.0)
+                ? $lat - $offset
+                : $lat + $offset;
+
             $result[] = [
                 'longitude' => $reversed[$i]['longitude'],
-                'latitude' => $reversed[$i]['latitude'] + $offset,
+                'latitude' => $adjustedLat,
             ];
         }
 

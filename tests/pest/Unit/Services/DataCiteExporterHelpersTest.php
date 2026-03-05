@@ -453,6 +453,19 @@ describe('convertLineToPolygonPoints()', function (): void {
             // Close: A
             ->and($result[5])->toBe(['longitude' => 13.0, 'latitude' => 52.0]);
     });
+
+    it('subtracts offset when latitude is near +90 to stay within valid range', function (): void {
+        $linePoints = [
+            ['longitude' => 0.0, 'latitude' => 89.99999999],
+            ['longitude' => 1.0, 'latitude' => 90.0],
+        ];
+
+        $result = $this->helper->convertLineToPolygonPoints($linePoints);
+
+        // Return point A' should have latitude < 90.0 (subtracted offset)
+        expect($result[2]['latitude'])->toBeLessThanOrEqual(90.0)
+            ->and($result[2]['latitude'])->toBeGreaterThan(89.999999);
+    });
 });
 
 describe('transformGeoLocationLine()', function (): void {
