@@ -33,7 +33,7 @@
         },
         {
             "name": "Vocabularies",
-            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory) and PID registries (b2inst)"
+            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst), and ROR (Research Organization Registry)"
         }
     ],
     "paths": {
@@ -523,7 +523,7 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check PID registry availability",
-                "description": "Returns the availability status of all configured PID registries (e.g., PID4INST). This endpoint does not require authentication and is intended for frontend configuration checks.",
+                "description": "Returns the availability status of all configured PID registries (e.g., PID4INST, ROR). This endpoint does not require authentication and is intended for frontend configuration checks.",
                 "responses": {
                     "200": {
                         "description": "PID registry availability status",
@@ -531,6 +531,49 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PidAvailability"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ror-affiliations/elmo": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get ROR affiliations for ELMO",
+                "description": "Returns the complete ROR (Research Organization Registry) data with metadata wrapper including total count and last update timestamp. Each entry includes the preferred label, ROR ID, and alternative labels/search terms. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ROR affiliations with metadata wrapper",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RorAffiliations"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "ROR is disabled or data file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "ROR is disabled"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -935,8 +978,58 @@
                     "pid4inst": {
                         "available": true,
                         "displayName": "PID4INST (b2inst)"
+                    },
+                    "ror": {
+                        "available": true,
+                        "displayName": "ROR (Research Organization Registry)"
                     }
                 }
+            },
+            "RorAffiliations": {
+                "type": "object",
+                "description": "ROR affiliations data with metadata wrapper",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp of when the data was last fetched",
+                        "example": "2026-03-05T12:00:00+00:00"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "description": "Total number of organizations in the dataset",
+                        "example": 109876
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Array of ROR organization entries",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "prefLabel": {
+                                    "type": "string",
+                                    "description": "Preferred display name of the organization",
+                                    "example": "Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences"
+                                },
+                                "rorId": {
+                                    "type": "string",
+                                    "description": "ROR identifier URL",
+                                    "example": "https://ror.org/04z8jg394"
+                                },
+                                "otherLabel": {
+                                    "type": "array",
+                                    "description": "Alternative names, acronyms, and search terms",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "example": ["GFZ", "Deutsches GeoForschungsZentrum"]
+                                }
+                            },
+                            "required": ["prefLabel", "rorId", "otherLabel"]
+                        }
+                    }
+                },
+                "required": ["lastUpdated", "total", "data"]
             }
         }
     }
