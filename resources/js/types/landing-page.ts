@@ -239,6 +239,8 @@ export interface LandingPageGeoLocation {
     geo_location_box?: LandingPageGeoLocationBox | null;
     /** Polygon points for complex boundaries */
     polygon_points: Array<{ longitude: number; latitude: number }> | null;
+    /** Explicit geo-location type: point, box, polygon, line */
+    geo_type: string | null;
 }
 
 /**
