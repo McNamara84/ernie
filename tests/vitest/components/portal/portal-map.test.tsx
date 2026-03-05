@@ -26,6 +26,9 @@ vi.mock('react-leaflet', () => ({
     Polygon: ({ children }: { children?: React.ReactNode }) => (
         <div data-testid="map-polygon">{children}</div>
     ),
+    Polyline: ({ children }: { children?: React.ReactNode }) => (
+        <div data-testid="map-polyline">{children}</div>
+    ),
     useMap: () => ({
         fitBounds: vi.fn(),
         setView: vi.fn(),

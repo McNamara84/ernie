@@ -20,6 +20,9 @@ vi.mock('react-leaflet', () => ({
     Polygon: vi.fn(({ positions }) => (
         <div data-testid="polygon" data-positions={JSON.stringify(positions)} />
     )),
+    Polyline: vi.fn(({ positions }) => (
+        <div data-testid="polyline" data-positions={JSON.stringify(positions)} />
+    )),
     useMap: vi.fn(() => ({
         fitBounds: vi.fn(),
         invalidateSize: vi.fn(),
