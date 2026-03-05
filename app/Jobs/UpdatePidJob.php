@@ -28,10 +28,10 @@ class UpdatePidJob implements ShouldQueue
     /**
      * The maximum number of seconds the job can run.
      *
-     * PID4INST updates may take longer than GCMD thesauri due to
-     * the number of instruments and network conditions.
+     * ROR updates require downloading a large data dump (~500MB)
+     * and may take longer than PID4INST updates.
      */
-    public int $timeout = 600; // 10 minutes
+    public int $timeout = 1200; // 20 minutes
 
     /**
      * The number of times the job may be attempted.
@@ -83,10 +83,16 @@ class UpdatePidJob implements ShouldQueue
             'pid_type' => $this->pidType,
         ]);
 
+        $progressMessage = match ($this->pidType) {
+            PidSetting::TYPE_PID4INST => 'Fetching instruments from b2inst API...',
+            PidSetting::TYPE_ROR => 'Fetching organizations from ROR data dump...',
+            default => 'Fetching data...',
+        };
+
         Cache::put($cacheKey, [
             'status' => 'running',
             'pidType' => $this->pidType,
-            'progress' => 'Fetching instruments from b2inst API...',
+            'progress' => $progressMessage,
             'startedAt' => now()->toIso8601String(),
         ], now()->addHours(1));
 

@@ -63,6 +63,11 @@ class RorAffiliationController extends Controller
                     return [];
                 }
 
+                // Support wrapped format {lastUpdated, total, data: [...]} and legacy flat array
+                if (isset($decoded['data']) && is_array($decoded['data'])) {
+                    return $decoded['data'];
+                }
+
                 return $decoded;
             }
         );

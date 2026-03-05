@@ -25,7 +25,7 @@ export interface PidSettingData {
     isActive: boolean;
     isElmoActive: boolean;
     exists: boolean;
-    instrumentCount: number;
+    itemCount: number;
     lastUpdated: string | null;
 }
 
@@ -51,6 +51,12 @@ interface PidSettingRowProps {
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
     onUpdateComplete?: () => void;
+}
+
+function getTypeLabels(type: string): { countLabel: string; sourceName: string } {
+    return type === 'ror'
+        ? { countLabel: 'organizations', sourceName: 'ROR' }
+        : { countLabel: 'instruments', sourceName: 'b2inst' };
 }
 
 function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdateComplete }: PidSettingRowProps) {
@@ -203,6 +209,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
     };
 
     const isUpdating = updateJobId !== null && jobStatus?.status === 'running';
+    const { countLabel, sourceName } = getTypeLabels(pidSetting.type);
 
     return (
         <div className="rounded-lg border p-4" data-testid={`pid-setting-row-${pidSetting.type}`}>
@@ -215,7 +222,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                             <>
                                 <span className="flex items-center gap-1">
                                     <Database className="h-3.5 w-3.5" />
-                                    {pidSetting.instrumentCount.toLocaleString()} instruments
+                                    {pidSetting.itemCount.toLocaleString()} {countLabel}
                                 </span>
                                 <span className="text-muted-foreground/50">&bull;</span>
                                 <span className="flex items-center gap-1">
@@ -304,14 +311,14 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                                 <>
                                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                                     <span>
-                                        ERNIE contains {updateInfo.localCount.toLocaleString()} instruments, but b2inst contains{' '}
-                                        {updateInfo.remoteCount.toLocaleString()} instruments. Would you like to update the instrument registry?
+                                        ERNIE contains {updateInfo.localCount.toLocaleString()} {countLabel}, but {sourceName} contains{' '}
+                                        {updateInfo.remoteCount.toLocaleString()} {countLabel}. Would you like to update the registry?
                                     </span>
                                 </>
                             ) : (
                                 <>
                                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                                    <span>Instrument registry is up to date ({updateInfo.localCount.toLocaleString()} instruments)</span>
+                                    <span>Registry is up to date ({updateInfo.localCount.toLocaleString()} {countLabel})</span>
                                 </>
                             )}
                         </div>

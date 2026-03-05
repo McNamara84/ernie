@@ -21,6 +21,8 @@ class PidSetting extends Model
 {
     public const TYPE_PID4INST = 'pid4inst';
 
+    public const TYPE_ROR = 'ror';
+
     /**
      * @var list<string>
      */
@@ -49,6 +51,7 @@ class PidSetting extends Model
     {
         return match ($this->type) {
             self::TYPE_PID4INST => 'pid4inst-instruments.json',
+            self::TYPE_ROR => 'ror/ror-affiliations.json',
             default => throw new \InvalidArgumentException("Unknown PID type: {$this->type}"),
         };
     }
@@ -60,6 +63,7 @@ class PidSetting extends Model
     {
         return match ($this->type) {
             self::TYPE_PID4INST => 'get-pid4inst-instruments',
+            self::TYPE_ROR => 'get-ror-ids',
             default => throw new \InvalidArgumentException("Unknown PID type: {$this->type}"),
         };
     }
@@ -73,6 +77,7 @@ class PidSetting extends Model
     {
         return [
             self::TYPE_PID4INST,
+            self::TYPE_ROR,
         ];
     }
 }

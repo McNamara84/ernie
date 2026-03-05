@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
@@ -245,7 +246,8 @@ class GetRorIds extends Command
             throw new \RuntimeException(sprintf('Unable to open output path [%s] for writing.', $targetPath));
         }
 
-        fwrite($outputHandle, '[');
+        $timestamp = Carbon::now()->toIso8601String();
+        fwrite($outputHandle, '{"lastUpdated":' . json_encode($timestamp, JSON_THROW_ON_ERROR) . ',"data":[');
 
         $first = true;
         $count = 0;
@@ -275,7 +277,7 @@ class GetRorIds extends Command
             }
         }
 
-        fwrite($outputHandle, ']');
+        fwrite($outputHandle, '],"total":' . $count . '}');
         fclose($outputHandle);
 
         return $count;
@@ -421,7 +423,8 @@ class GetRorIds extends Command
             throw new \RuntimeException(sprintf('Unable to open output path [%s] for writing.', $targetPath));
         }
 
-        fwrite($outputHandle, '[');
+        $timestamp = Carbon::now()->toIso8601String();
+        fwrite($outputHandle, '{"lastUpdated":' . json_encode($timestamp, JSON_THROW_ON_ERROR) . ',"data":[');
 
         $first = true;
         $count = 0;
@@ -520,7 +523,7 @@ class GetRorIds extends Command
             $count++;
         }
 
-        fwrite($outputHandle, ']');
+        fwrite($outputHandle, '],"total":' . $count . '}');
         fclose($outputHandle);
         gzclose($resource);
 

@@ -913,7 +913,8 @@ export default function EditorSettings({
                             <CardHeader>
                                 <CardTitle>Persistent Identifiers</CardTitle>
                                 <CardDescription>
-                                    Manage PID4INST instrument registry from b2inst for linking datasets to research instruments.
+                                    Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for
+                                    research organizations.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
