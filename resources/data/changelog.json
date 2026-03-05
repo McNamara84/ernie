@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-03",
+        "date": "2026-03-04",
         "features": [
+            {
+                "title": "Line Geo-Locations in Editor",
+                "description": "Lines (polylines) can now be added as a new geo-location type alongside Points, Bounding Boxes, and Polygons. Lines are drawn interactively on a Google Map with vertex markers that can be dragged. A coordinate table allows precise manual editing. Lines require at least 2 points. For DataCite export, lines are automatically converted to thin polygons with a minimal latitude offset to ensure schema compliance."
+            },
             {
                 "title": "Portal Keyword Filter",
                 "description": "The portal search now includes a keyword filter with autocomplete suggestions. Free Keywords, GCMD Science Keywords, GCMD Platforms, GCMD Instruments, and MSL Vocabularies from published resources are available as filter options. Multiple keywords can be selected simultaneously (AND logic), meaning only resources matching all selected keywords are shown. The keyword filter can be combined with text search and resource type filters."
@@ -57,6 +61,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Polygon and Line Geo-Locations Preserved on Reload",
+                "description": "Fixed multiple issues where polygon and line geo-location data was lost during save-reload cycles. The editor submission payload was missing the geo-location type and polygon point coordinates. The backend transformer only handled bounding box coordinates, discarding polygon and line point data. Additionally, DataCite imports now correctly import geoLocationPolygon data which was previously ignored entirely."
+            },
             {
                 "title": "Thesaurus and PID Update Status Polling",
                 "description": "Fixed a race condition where the update status polling returned HTTP 404 immediately after triggering a thesaurus or PID update. The frontend polled the status endpoint before the queue worker had started the job, causing the cache lookup to fail. The controller now pre-populates the cache with a 'running' status before dispatching the job, ensuring seamless progress tracking."

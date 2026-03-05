@@ -305,6 +305,77 @@ trait DataCiteExporterHelpers
     }
 
     /**
+     * Convert line points to a thin polygon for DataCite export.
+     *
+     * Since DataCite has no native line element, lines are exported as thin polygons.
+     * A minimal latitude offset (~0.00000001°) is applied to the return path to create
+     * a valid closed polygon with near-zero area.
+     *
+     * Example: Line A→B→C becomes polygon A→B→C→C'→B'→A where primed points
+     * have a small latitude offset.
+     *
+     * @param  array<int, array{longitude: float, latitude: float}>  $linePoints
+     * @return array<int, array{longitude: float, latitude: float}>
+     */
+    protected function convertLineToPolygonPoints(array $linePoints): array
+    {
+        if (count($linePoints) < 2) {
+            return $linePoints;
+        }
+
+        $offset = 0.00000001;
+        $result = $linePoints;
+
+        // Add return path in reverse order with a minimal latitude offset
+        $reversed = array_reverse($linePoints);
+
+        // Skip the first reversed point (= last forward point) to avoid duplication
+        for ($i = 1, $count = count($reversed); $i < $count; $i++) {
+            $lat = $reversed[$i]['latitude'];
+
+            // Choose offset direction to stay within valid [-90, 90] range
+            $adjustedLat = ($lat + $offset > 90.0)
+                ? $lat - $offset
+                : $lat + $offset;
+
+            $result[] = [
+                'longitude' => $reversed[$i]['longitude'],
+                'latitude' => $adjustedLat,
+            ];
+        }
+
+        // Close the polygon: last point = first point
+        $result[] = $linePoints[0];
+
+        return $result;
+    }
+
+    /**
+     * Transform a GeoLocation line to DataCite polygon format.
+     *
+     * Converts line points to a thin polygon and delegates to polygon format.
+     *
+     * @return array{polygonPoints: array<int, array{pointLongitude: float, pointLatitude: float}>}|null
+     */
+    protected function transformGeoLocationLine(GeoLocation $geoLocation): ?array
+    {
+        $points = $geoLocation->polygon_points;
+
+        if ($points === null || count($points) < 2) {
+            return null;
+        }
+
+        $polygonPoints = $this->convertLineToPolygonPoints($points);
+
+        return [
+            'polygonPoints' => array_map(fn (array $point) => [
+                'pointLongitude' => (float) $point['longitude'],
+                'pointLatitude' => (float) $point['latitude'],
+            ], $polygonPoints),
+        ];
+    }
+
+    /**
      * Transform a funding reference to DataCite format.
      *
      * @return array<string, mixed>

@@ -876,8 +876,17 @@ class DataCiteJsonExporter
             }
 
             // Add polygons if available
-            if ($polygon = $this->transformGeoLocationPolygon($geoLocation)) {
-                $geoLocationData['geoLocationPolygon'] = $polygon;
+            if ($geoLocation->hasPolygon()) {
+                if ($polygon = $this->transformGeoLocationPolygon($geoLocation)) {
+                    $geoLocationData['geoLocationPolygon'] = $polygon;
+                }
+            }
+
+            // Add lines as polygons (DataCite has no native line element)
+            if ($geoLocation->hasLine()) {
+                if ($lineAsPolygon = $this->transformGeoLocationLine($geoLocation)) {
+                    $geoLocationData['geoLocationPolygon'] = $lineAsPolygon;
+                }
             }
 
             if (! empty($geoLocationData)) {

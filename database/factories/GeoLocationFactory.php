@@ -43,6 +43,7 @@ class GeoLocationFactory extends Factory
     public function withPoint(?float $longitude = null, ?float $latitude = null): static
     {
         return $this->state(fn (array $attributes) => [
+            'geo_type' => 'point',
             'point_longitude' => $longitude ?? fake()->longitude(),
             'point_latitude' => $latitude ?? fake()->latitude(),
         ]);
@@ -58,6 +59,7 @@ class GeoLocationFactory extends Factory
         ?float $north = null
     ): static {
         return $this->state(fn (array $attributes) => [
+            'geo_type' => 'box',
             'west_bound_longitude' => $west ?? fake()->longitude(-180, 0),
             'east_bound_longitude' => $east ?? fake()->longitude(0, 180),
             'south_bound_latitude' => $south ?? fake()->latitude(-90, 0),
@@ -86,9 +88,35 @@ class GeoLocationFactory extends Factory
             }
 
             return [
+                'geo_type' => 'polygon',
                 'polygon_points' => $points,
                 'in_polygon_point_longitude' => $centerLon ?? $points[0]['longitude'],
                 'in_polygon_point_latitude' => $centerLat ?? $points[0]['latitude'],
+            ];
+        });
+    }
+
+    /**
+     * Create a geo location with a line.
+     *
+     * @param  array<int, array{longitude: float, latitude: float}>|null  $points
+     */
+    public function withLine(?array $points = null): static
+    {
+        return $this->state(function (array $attributes) use ($points) {
+            if ($points === null) {
+                $startLon = fake()->longitude();
+                $startLat = fake()->latitude();
+                $points = [
+                    ['longitude' => $startLon, 'latitude' => $startLat],
+                    ['longitude' => $startLon + 0.5, 'latitude' => $startLat + 0.3],
+                    ['longitude' => $startLon + 1.0, 'latitude' => $startLat + 0.1],
+                ];
+            }
+
+            return [
+                'geo_type' => 'line',
+                'polygon_points' => $points,
             ];
         });
     }

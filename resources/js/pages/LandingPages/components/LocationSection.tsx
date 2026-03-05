@@ -6,7 +6,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Polygon, Rectangle, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Button } from '@/components/ui/button';
 
@@ -33,6 +33,7 @@ interface GeoLocation {
     south_bound_latitude: number | null;
     north_bound_latitude: number | null;
     polygon_points: Array<{ longitude: number; latitude: number }> | null;
+    geo_type: string | null;
 }
 
 interface LocationSectionProps {
@@ -65,7 +66,15 @@ function hasBox(geo: GeoLocation): boolean {
  * Check if a GeoLocation has a valid polygon defined (minimum 3 points)
  */
 function hasPolygon(geo: GeoLocation): boolean {
+    if (geo.geo_type === 'line') return false;
     return geo.polygon_points !== null && geo.polygon_points.length >= 3;
+}
+
+/**
+ * Check if a GeoLocation has a valid line defined (minimum 2 points)
+ */
+function hasLine(geo: GeoLocation): boolean {
+    return geo.geo_type === 'line' && geo.polygon_points !== null && geo.polygon_points.length >= 2;
 }
 
 /**
@@ -83,6 +92,11 @@ function calculateBounds(locations: GeoLocation[]): L.LatLngBounds {
             allPoints.push([geo.north_bound_latitude!, geo.east_bound_longitude!]);
         }
         if (hasPolygon(geo)) {
+            geo.polygon_points!.forEach((p) => {
+                allPoints.push([p.latitude, p.longitude]);
+            });
+        }
+        if (hasLine(geo)) {
             geo.polygon_points!.forEach((p) => {
                 allPoints.push([p.latitude, p.longitude]);
             });
@@ -306,6 +320,18 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
                     }}
                 />
             )}
+
+            {/* Line as polyline (open path) */}
+            {hasLine(geoLocation) && (
+                <Polyline
+                    positions={geoLocation.polygon_points!.map((p) => [p.latitude, p.longitude])}
+                    pathOptions={{
+                        color: GFZ_BLUE,
+                        weight: 3,
+                        dashArray: '8, 4',
+                    }}
+                />
+            )}
         </>
     );
 }
@@ -327,7 +353,7 @@ export function LocationSection({ geoLocations }: LocationSectionProps) {
     }, []);
 
     // Filter: Only GeoLocations with actual coordinates
-    const validLocations = useMemo(() => geoLocations.filter((geo) => hasPoint(geo) || hasBox(geo) || hasPolygon(geo)), [geoLocations]);
+    const validLocations = useMemo(() => geoLocations.filter((geo) => hasPoint(geo) || hasBox(geo) || hasPolygon(geo) || hasLine(geo)), [geoLocations]);
 
     // Calculate bounds for auto-zoom
     const bounds = useMemo(() => calculateBounds(validLocations), [validLocations]);

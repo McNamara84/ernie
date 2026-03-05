@@ -2,7 +2,7 @@
  * Types for Spatial and Temporal Coverage
  */
 
-export type CoverageType = 'point' | 'box' | 'polygon';
+export type CoverageType = 'point' | 'box' | 'polygon' | 'line';
 
 export interface PolygonPoint {
     lat: number;
@@ -21,8 +21,8 @@ export interface SpatialTemporalCoverageEntry {
     latMax: string; // Optional (only for box), -90 to +90, max 6 decimals
     lonMax: string; // Optional (only for box), -180 to +180, max 6 decimals
 
-    // Spatial Information (Polygon)
-    polygonPoints?: PolygonPoint[]; // Optional (only for polygon), min 3 points
+    // Spatial Information (Polygon/Line)
+    polygonPoints?: PolygonPoint[]; // Optional (for polygon min 3, for line min 2)
 
     // Temporal Information
     startDate: string; // Required, format: YYYY-MM-DD
@@ -47,4 +47,4 @@ export interface CoordinateBounds {
     west: number;
 }
 
-export type DrawingMode = 'point' | 'rectangle' | 'polygon' | null;
+export type DrawingMode = 'point' | 'rectangle' | 'polygon' | 'line' | null;

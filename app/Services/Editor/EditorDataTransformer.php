@@ -358,17 +358,31 @@ class EditorDataTransformer
     /**
      * Transform geoLocations to coverages format for frontend.
      *
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, mixed>>
      */
     public function transformCoverages(Resource $resource): array
     {
         return $resource->geoLocations->map(function ($geoLocation): array {
-            return [
+            // Determine type from explicit geo_type column or fall back to implicit detection
+            $type = $geoLocation->geo_type;
+
+            if ($type === null) {
+                if ($geoLocation->polygon_points !== null && count($geoLocation->polygon_points) >= 3) {
+                    $type = 'polygon';
+                } elseif ($geoLocation->west_bound_longitude !== null) {
+                    $type = 'box';
+                } else {
+                    $type = 'point';
+                }
+            }
+
+            $entry = [
                 'id' => (string) $geoLocation->id,
-                'latMin' => $geoLocation->south_bound_latitude !== null ? (string) $geoLocation->south_bound_latitude : '',
-                'latMax' => $geoLocation->north_bound_latitude !== null ? (string) $geoLocation->north_bound_latitude : '',
-                'lonMin' => $geoLocation->west_bound_longitude !== null ? (string) $geoLocation->west_bound_longitude : '',
-                'lonMax' => $geoLocation->east_bound_longitude !== null ? (string) $geoLocation->east_bound_longitude : '',
+                'type' => $type,
+                'latMin' => '',
+                'latMax' => '',
+                'lonMin' => '',
+                'lonMax' => '',
                 'startDate' => '',
                 'endDate' => '',
                 'startTime' => '',
@@ -376,6 +390,30 @@ class EditorDataTransformer
                 'timezone' => 'UTC',
                 'description' => $geoLocation->place ?? '',
             ];
+
+            match ($type) {
+                'point' => $entry = array_merge($entry, [
+                    'latMin' => $geoLocation->point_latitude !== null ? (string) $geoLocation->point_latitude : '',
+                    'lonMin' => $geoLocation->point_longitude !== null ? (string) $geoLocation->point_longitude : '',
+                ]),
+                'box' => $entry = array_merge($entry, [
+                    'latMin' => $geoLocation->south_bound_latitude !== null ? (string) $geoLocation->south_bound_latitude : '',
+                    'latMax' => $geoLocation->north_bound_latitude !== null ? (string) $geoLocation->north_bound_latitude : '',
+                    'lonMin' => $geoLocation->west_bound_longitude !== null ? (string) $geoLocation->west_bound_longitude : '',
+                    'lonMax' => $geoLocation->east_bound_longitude !== null ? (string) $geoLocation->east_bound_longitude : '',
+                ]),
+                'polygon', 'line' => $entry = array_merge($entry, [
+                    'polygonPoints' => $geoLocation->polygon_points !== null
+                        ? array_map(fn (array $point): array => [
+                            'lat' => (float) $point['latitude'],
+                            'lon' => (float) $point['longitude'],
+                        ], $geoLocation->polygon_points)
+                        : [],
+                ]),
+                default => null,
+            };
+
+            return $entry;
         })->toArray();
     }
 

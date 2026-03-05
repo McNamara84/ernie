@@ -25,7 +25,7 @@ const normalizeCoverage = (coverage: SpatialTemporalCoverageEntry): SpatialTempo
     }
 
     // Detect type based on existing data
-    let detectedType: 'point' | 'box' | 'polygon' = 'point';
+    let detectedType: 'point' | 'box' | 'polygon' | 'line' = 'point';
 
     if (coverage.polygonPoints && coverage.polygonPoints.length > 0) {
         detectedType = 'polygon';
@@ -72,9 +72,13 @@ const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[], maxCoverages:
 
     const lastCoverage = coverages[coverages.length - 1];
 
-    // For polygon type: require at least 3 points
+    // For polygon/line type: require at least the minimum number of points
     if (lastCoverage.type === 'polygon') {
         return !!(lastCoverage.polygonPoints && lastCoverage.polygonPoints.length >= 3);
+    }
+
+    if (lastCoverage.type === 'line') {
+        return !!(lastCoverage.polygonPoints && lastCoverage.polygonPoints.length >= 2);
     }
 
     // For point/box type: require latMin and lonMin
@@ -140,7 +144,7 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
                 <EmptyState
                     icon={<MapPin className="h-8 w-8" />}
                     title="No coverage entries yet"
-                    description="Define the geographic and temporal scope of your dataset. Supports point locations, bounding boxes, and polygons."
+                    description="Define the geographic and temporal scope of your dataset. Supports point locations, bounding boxes, polygons, and lines."
                     action={{
                         label: 'Add Coverage Entry',
                         onClick: handleAddCoverage,

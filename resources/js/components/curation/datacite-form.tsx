@@ -1681,6 +1681,8 @@ export default function DataCiteForm({
                 vocabularyType: getVocabularyTypeFromScheme(kw.scheme),
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
+                type: coverage.type,
+                polygonPoints: coverage.polygonPoints?.map((p) => ({ lat: p.lat, lon: p.lon })),
                 latMin: coverage.latMin,
                 latMax: coverage.latMax,
                 lonMin: coverage.lonMin,

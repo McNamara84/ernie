@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @vitest-environment jsdom
  */
 import { render, screen } from '@testing-library/react';
@@ -19,6 +19,9 @@ vi.mock('react-leaflet', () => ({
     )),
     Polygon: vi.fn(({ positions }) => (
         <div data-testid="polygon" data-positions={JSON.stringify(positions)} />
+    )),
+    Polyline: vi.fn(({ positions }) => (
+        <div data-testid="polyline" data-positions={JSON.stringify(positions)} />
     )),
     useMap: vi.fn(() => ({
         fitBounds: vi.fn(),
@@ -87,6 +90,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -108,6 +112,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -130,6 +135,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -154,6 +160,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -178,6 +185,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                         {
                             id: 2,
@@ -189,6 +197,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -214,6 +223,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: 47.27,
                             north_bound_latitude: 55.06,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -252,6 +262,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: polygonPoints,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -286,6 +297,7 @@ describe('LocationSection', () => {
                                 { longitude: 9.19, latitude: 47.66 },
                                 { longitude: 9.37, latitude: 47.5 },
                             ],
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -312,6 +324,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                         // Box
                         {
@@ -324,6 +337,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: 47.27,
                             north_bound_latitude: 50.56,
                             polygon_points: null,
+                            geo_type: null,
                         },
                         // Polygon
                         {
@@ -341,6 +355,7 @@ describe('LocationSection', () => {
                                 { longitude: 14, latitude: 47.5 },
                                 { longitude: 10, latitude: 47.5 },
                             ],
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -367,6 +382,7 @@ describe('LocationSection', () => {
                             south_bound_latitude: null,
                             north_bound_latitude: null,
                             polygon_points: null,
+                            geo_type: null,
                         },
                     ]}
                 />,
@@ -395,6 +411,7 @@ describe('LocationSection', () => {
                                 south_bound_latitude: null,
                                 north_bound_latitude: null,
                                 polygon_points: null,
+                            geo_type: null,
                             },
                         ]}
                     />,

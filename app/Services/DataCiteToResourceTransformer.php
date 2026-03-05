@@ -724,9 +724,47 @@ class DataCiteToResourceTransformer
         foreach ($geoLocations as $geoData) {
             $point = $geoData['geoLocationPoint'] ?? null;
             $box = $geoData['geoLocationBox'] ?? null;
+            $polygon = $geoData['geoLocationPolygon'] ?? null;
+
+            // Transform polygon points to storage format
+            $polygonPoints = null;
+            $inPolygonPointLon = null;
+            $inPolygonPointLat = null;
+
+            if ($polygon !== null && ! empty($polygon['polygonPoints'])) {
+                // Filter out points with missing coordinates instead of coercing to 0
+                $validPoints = array_filter(
+                    $polygon['polygonPoints'],
+                    fn (array $p): bool => isset($p['pointLongitude'], $p['pointLatitude']),
+                );
+
+                // Only store polygon if at least 3 valid points remain
+                if (count($validPoints) >= 3) {
+                    $polygonPoints = array_values(array_map(fn (array $p): array => [
+                        'longitude' => (float) $p['pointLongitude'],
+                        'latitude' => (float) $p['pointLatitude'],
+                    ], $validPoints));
+                }
+
+                if (isset($polygon['inPolygonPoint'])) {
+                    $inPolygonPointLon = $polygon['inPolygonPoint']['pointLongitude'] ?? null;
+                    $inPolygonPointLat = $polygon['inPolygonPoint']['pointLatitude'] ?? null;
+                }
+            }
+
+            // Determine geo_type based on available (valid) data
+            $geoType = null;
+            if ($polygonPoints !== null) {
+                $geoType = 'polygon';
+            } elseif ($box !== null) {
+                $geoType = 'box';
+            } elseif ($point !== null) {
+                $geoType = 'point';
+            }
 
             GeoLocation::create([
                 'resource_id' => $resource->id,
+                'geo_type' => $geoType,
                 'place' => $geoData['geoLocationPlace'] ?? null,
                 'point_longitude' => $point['pointLongitude'] ?? null,
                 'point_latitude' => $point['pointLatitude'] ?? null,
@@ -734,6 +772,9 @@ class DataCiteToResourceTransformer
                 'east_bound_longitude' => $box['eastBoundLongitude'] ?? null,
                 'south_bound_latitude' => $box['southBoundLatitude'] ?? null,
                 'north_bound_latitude' => $box['northBoundLatitude'] ?? null,
+                'polygon_points' => $polygonPoints,
+                'in_polygon_point_longitude' => $inPolygonPointLon,
+                'in_polygon_point_latitude' => $inPolygonPointLat,
             ]);
         }
     }

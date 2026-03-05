@@ -161,6 +161,8 @@ export interface ResourceForCuration {
         | null;
     spatialTemporalCoverages?:
         | {
+              type?: string;
+              polygonPoints?: { lat: number; lon: number }[];
               latMin: string;
               latMax: string;
               lonMin: string;
@@ -711,6 +713,7 @@ export const buildCurationQueryFromResource = async (resource: ResourceForCurati
     const coverages = resource.spatialTemporalCoverages ?? [];
     coverages.forEach((coverage, index) => {
         const prefix = `coverages[${index}]`;
+        if (coverage.type) query[`${prefix}[type]`] = coverage.type;
         if (coverage.latMin) query[`${prefix}[latMin]`] = coverage.latMin;
         if (coverage.latMax) query[`${prefix}[latMax]`] = coverage.latMax;
         if (coverage.lonMin) query[`${prefix}[lonMin]`] = coverage.lonMin;
@@ -721,6 +724,12 @@ export const buildCurationQueryFromResource = async (resource: ResourceForCurati
         if (coverage.endTime) query[`${prefix}[endTime]`] = coverage.endTime;
         if (coverage.timezone) query[`${prefix}[timezone]`] = coverage.timezone;
         if (coverage.description) query[`${prefix}[description]`] = coverage.description;
+        if (coverage.polygonPoints && coverage.polygonPoints.length > 0) {
+            coverage.polygonPoints.forEach((point, pointIndex) => {
+                query[`${prefix}[polygonPoints][${pointIndex}][lat]`] = String(point.lat);
+                query[`${prefix}[polygonPoints][${pointIndex}][lon]`] = String(point.lon);
+            });
+        }
     });
 
     // Add related identifiers to query as JSON string

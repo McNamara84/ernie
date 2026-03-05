@@ -108,7 +108,7 @@ class StoreResourceRequest extends FormRequest
             'gcmdKeywords.*.scheme' => ['required', 'string', 'max:255'],
             'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
             'spatialTemporalCoverages' => ['nullable', 'array'],
-            'spatialTemporalCoverages.*.type' => ['required', Rule::in(['point', 'box', 'polygon'])],
+            'spatialTemporalCoverages.*.type' => ['required', Rule::in(['point', 'box', 'polygon', 'line'])],
             'spatialTemporalCoverages.*.latMin' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.latMax' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.lonMin' => ['nullable', 'numeric', 'between:-180,180'],
@@ -601,12 +601,12 @@ class StoreResourceRequest extends FormRequest
             }
 
             $type = isset($coverage['type']) ? trim((string) $coverage['type']) : 'point';
-            if (! in_array($type, ['point', 'box', 'polygon'], true)) {
+            if (! in_array($type, ['point', 'box', 'polygon', 'line'], true)) {
                 $type = 'point';
             }
 
             $polygonPoints = null;
-            if ($type === 'polygon' && isset($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
+            if (in_array($type, ['polygon', 'line'], true) && isset($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
                 $polygonPoints = [];
                 foreach ($coverage['polygonPoints'] as $point) {
                     if (! is_array($point)) {

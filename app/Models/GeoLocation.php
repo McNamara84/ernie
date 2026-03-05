@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $resource_id
+ * @property string|null $geo_type
  * @property string|null $place
  * @property float|null $point_longitude
  * @property float|null $point_latitude
@@ -40,6 +41,7 @@ class GeoLocation extends Model
 
     protected $fillable = [
         'resource_id',
+        'geo_type',
         'place',
         'point_longitude',
         'point_latitude',
@@ -106,10 +108,26 @@ class GeoLocation extends Model
 
     /**
      * Check if this has polygon points defined.
+     * Excludes lines (geo_type = 'line') which also use polygon_points.
      */
     public function hasPolygon(): bool
     {
-        return $this->polygon_points !== null && count($this->polygon_points) >= 4;
+        if ($this->geo_type === 'line') {
+            return false;
+        }
+
+        return $this->polygon_points !== null && count($this->polygon_points) >= 3;
+    }
+
+    /**
+     * Check if this has line points defined.
+     * A line requires at least 2 points and geo_type = 'line'.
+     */
+    public function hasLine(): bool
+    {
+        return $this->geo_type === 'line'
+            && $this->polygon_points !== null
+            && count($this->polygon_points) >= 2;
     }
 
     /**

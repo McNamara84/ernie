@@ -12,7 +12,7 @@ import { isoDateSchema, latitudeSchema, longitudeSchema, timeSchema } from './co
 // Coverage Type
 // =============================================================================
 
-export const coverageTypes = ['point', 'box', 'polygon'] as const;
+export const coverageTypes = ['point', 'box', 'polygon', 'line'] as const;
 
 export const coverageTypeSchema = z.enum(coverageTypes);
 
@@ -116,6 +116,17 @@ export const spatialTemporalCoverageSchema = z
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     message: 'Polygon coverage requires at least 3 points',
+                    path: ['polygonPoints'],
+                });
+            }
+        }
+
+        // Validate line type requires at least 2 points
+        if (data.type === 'line') {
+            if (!data.polygonPoints || data.polygonPoints.length < 2) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Line coverage requires at least 2 points',
                     path: ['polygonPoints'],
                 });
             }
