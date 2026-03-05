@@ -1682,7 +1682,7 @@ export default function DataCiteForm({
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
                 type: coverage.type,
-                polygonPoints: coverage.polygonPoints?.map((p) => ({ longitude: p.lon, latitude: p.lat })),
+                polygonPoints: coverage.polygonPoints?.map((p) => ({ lat: p.lat, lon: p.lon })),
                 latMin: coverage.latMin,
                 latMax: coverage.latMax,
                 lonMin: coverage.lonMin,
