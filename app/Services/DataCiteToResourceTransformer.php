@@ -726,31 +726,40 @@ class DataCiteToResourceTransformer
             $box = $geoData['geoLocationBox'] ?? null;
             $polygon = $geoData['geoLocationPolygon'] ?? null;
 
-            // Determine geo_type based on available data
-            $geoType = null;
-            if ($polygon !== null && ! empty($polygon['polygonPoints'])) {
-                $geoType = 'polygon';
-            } elseif ($box !== null) {
-                $geoType = 'box';
-            } elseif ($point !== null) {
-                $geoType = 'point';
-            }
-
             // Transform polygon points to storage format
             $polygonPoints = null;
             $inPolygonPointLon = null;
             $inPolygonPointLat = null;
 
             if ($polygon !== null && ! empty($polygon['polygonPoints'])) {
-                $polygonPoints = array_map(fn (array $p): array => [
-                    'longitude' => (float) ($p['pointLongitude'] ?? 0),
-                    'latitude' => (float) ($p['pointLatitude'] ?? 0),
-                ], $polygon['polygonPoints']);
+                // Filter out points with missing coordinates instead of coercing to 0
+                $validPoints = array_filter(
+                    $polygon['polygonPoints'],
+                    fn (array $p): bool => isset($p['pointLongitude'], $p['pointLatitude']),
+                );
+
+                // Only store polygon if at least 3 valid points remain
+                if (count($validPoints) >= 3) {
+                    $polygonPoints = array_values(array_map(fn (array $p): array => [
+                        'longitude' => (float) $p['pointLongitude'],
+                        'latitude' => (float) $p['pointLatitude'],
+                    ], $validPoints));
+                }
 
                 if (isset($polygon['inPolygonPoint'])) {
                     $inPolygonPointLon = $polygon['inPolygonPoint']['pointLongitude'] ?? null;
                     $inPolygonPointLat = $polygon['inPolygonPoint']['pointLatitude'] ?? null;
                 }
+            }
+
+            // Determine geo_type based on available (valid) data
+            $geoType = null;
+            if ($polygonPoints !== null) {
+                $geoType = 'polygon';
+            } elseif ($box !== null) {
+                $geoType = 'box';
+            } elseif ($point !== null) {
+                $geoType = 'point';
             }
 
             GeoLocation::create([

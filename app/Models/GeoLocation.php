@@ -116,7 +116,7 @@ class GeoLocation extends Model
             return false;
         }
 
-        return $this->polygon_points !== null && count($this->polygon_points) >= 4;
+        return $this->polygon_points !== null && count($this->polygon_points) >= 3;
     }
 
     /**
