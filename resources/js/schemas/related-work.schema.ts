@@ -110,7 +110,7 @@ export const relatedIdentifierSchema = z.object({
     identifier: z.string().min(1, 'Identifier is required'),
     identifier_type: identifierTypeSchema,
     relation_type: relationTypeSchema,
-    relation_type_information: z.string().optional().nullable(),
+    relation_type_information: z.string().max(255).optional().nullable(),
     position: z.number().optional(),
     related_title: z.string().optional().nullable(),
     related_metadata: z.record(z.string(), z.unknown()).optional().nullable(),
@@ -134,7 +134,7 @@ export const relatedWorkFormSchema = z.object({
     identifier: z.string().min(1, 'Identifier is required'),
     identifierType: identifierTypeSchema,
     relationType: relationTypeSchema,
-    relationTypeInformation: z.string().optional().nullable(),
+    relationTypeInformation: z.string().max(255).optional().nullable(),
 });
 
 export type RelatedWorkFormData = z.infer<typeof relatedWorkFormSchema>;

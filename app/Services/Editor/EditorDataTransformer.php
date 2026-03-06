@@ -420,7 +420,7 @@ class EditorDataTransformer
     /**
      * Transform related identifiers to frontend format.
      *
-     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string}>
+     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null}>
      */
     public function transformRelatedIdentifiers(Resource $resource): array
     {
