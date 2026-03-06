@@ -110,8 +110,6 @@ describe('CoordinateCsvImport Component', () => {
             globalThis.URL.createObjectURL = vi.fn(() => mockObjectURL);
             globalThis.URL.revokeObjectURL = vi.fn();
 
-            render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
-
             const clickSpy = vi.fn();
             const originalCreateElement = document.createElement.bind(document);
             vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
@@ -122,15 +120,19 @@ describe('CoordinateCsvImport Component', () => {
                 return element;
             });
 
-            await user.click(screen.getByText('Example CSV'));
+            try {
+                render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
 
-            expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
-            expect(clickSpy).toHaveBeenCalled();
-            expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(mockObjectURL);
+                await user.click(screen.getByText('Example CSV'));
 
-            vi.mocked(document.createElement).mockRestore();
-            globalThis.URL.createObjectURL = originalCreateObjectURL;
-            globalThis.URL.revokeObjectURL = originalRevokeObjectURL;
+                expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+                expect(clickSpy).toHaveBeenCalled();
+                expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(mockObjectURL);
+            } finally {
+                vi.mocked(document.createElement).mockRestore();
+                globalThis.URL.createObjectURL = originalCreateObjectURL;
+                globalThis.URL.revokeObjectURL = originalRevokeObjectURL;
+            }
         });
     });
 

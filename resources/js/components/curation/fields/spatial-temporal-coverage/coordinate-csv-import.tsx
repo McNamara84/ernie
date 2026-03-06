@@ -461,6 +461,20 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                             <FileUp className="h-5 w-5 text-green-600" />
                             <span className="font-medium">{file.name}</span>
                             <span className="text-sm text-muted-foreground">({(file.size / 1024).toFixed(2)} KB)</span>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => {
+                                    setFile(null);
+                                    setFileValidationError(null);
+                                    resetParsedState();
+                                }}
+                                aria-label="Clear selected file"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
                         </div>
                         {isProcessing && (
                             <div className="space-y-2">
