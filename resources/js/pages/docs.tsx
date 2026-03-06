@@ -711,6 +711,27 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>North/South/East/West bounds for bounding boxes</li>
                         </ul>
 
+                        <h4>CSV Import for Polygons and Lines</h4>
+                        <p>
+                            For polygons or lines with many coordinate pairs, you can import coordinates from a CSV file
+                            instead of entering them manually:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                Click the <strong>CSV Import</strong> button next to &quot;Add Point&quot; in a polygon or line entry
+                            </li>
+                            <li>
+                                Upload a CSV file with <code>latitude,longitude</code> or <code>lon,lat</code> column headers
+                            </li>
+                            <li>Both column orders are auto-detected from the header row</li>
+                            <li>Coordinates are validated (latitude: -90 to +90, longitude: -180 to +180)</li>
+                            <li>Up to 10,000 coordinate pairs per upload</li>
+                            <li>
+                                When existing points are present, choose to <strong>replace</strong> or <strong>append</strong>
+                            </li>
+                            <li>Download an example CSV template from within the import dialog</li>
+                        </ul>
+
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Tip:</strong> Use the search box to quickly navigate to a location by name.
