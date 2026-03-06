@@ -122,6 +122,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
                     identifier: item.identifier,
                     identifier_type: item.identifierType,
                     relation_type: item.relationType,
+                    ...(item.relationTypeInformation ? { relation_type_information: item.relationTypeInformation } : {}),
                     position: combinedList.length,
                 });
             }

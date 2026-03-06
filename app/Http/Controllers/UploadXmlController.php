@@ -425,7 +425,7 @@ class UploadXmlController extends Controller
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
-                'relation_type_information' => is_string($relationTypeInformationRaw) && $relationTypeInformationRaw !== '' ? $relationTypeInformationRaw : null,
+                'relation_type_information' => is_string($relationTypeInformationRaw) && trim($relationTypeInformationRaw) !== '' ? trim($relationTypeInformationRaw) : null,
                 'position' => count($relatedWorks),
             ];
         }
