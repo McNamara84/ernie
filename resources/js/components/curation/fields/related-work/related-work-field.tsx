@@ -22,7 +22,7 @@ interface RelatedWorkFieldProps {
  * Main container for the Related Work functionality.
  * Manages state and coordinates between:
  * - Quick Add form (Top 5 most used)
- * - Advanced Add form (All 33 relation types)
+ * - Advanced Add form (All DataCite relation types)
  * - CSV Bulk Import
  * - List of added items
  */
