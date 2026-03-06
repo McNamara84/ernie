@@ -833,7 +833,7 @@ class DataCiteXmlExporter
             if ($relatedIdentifier->relation_type_information) {
                 $relatedElement->setAttribute(
                     'relationTypeInformation',
-                    htmlspecialchars($relatedIdentifier->relation_type_information)
+                    $relatedIdentifier->relation_type_information
                 );
             }
 
