@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Resource $resource
  * @property-read Language|null $language
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/subject/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/subject/
  */
 class Subject extends Model
 {

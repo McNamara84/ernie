@@ -392,7 +392,7 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
 use App\Models\Publisher;
 
 describe('DataCiteJsonExporter - Publisher', function () {
-    test('returns default publisher with full DataCite 4.6 fields when none set', function () {
+    test('returns default publisher with full DataCite 4.7 fields when none set', function () {
         // Create default publisher with all fields
         Publisher::firstOrCreate(
             ['name' => 'GFZ Data Services'],
@@ -419,7 +419,7 @@ describe('DataCiteJsonExporter - Publisher', function () {
             ->toHaveKey('lang', 'en');
     });
 
-    test('exports publisher with all DataCite 4.6 fields when resource has publisher', function () {
+    test('exports publisher with all DataCite 4.7 fields when resource has publisher', function () {
         $resource = Resource::factory()->create();
 
         $result = $this->exporter->export($resource);
@@ -480,7 +480,7 @@ describe('DataCiteJsonExporter - Publisher', function () {
             ->toHaveKey('lang', 'fr');
     });
 
-    test('hardcoded fallback includes all DataCite 4.6 publisher fields', function () {
+    test('hardcoded fallback includes all DataCite 4.7 publisher fields', function () {
         // Create resource first (factory seeds a default publisher via firstOrCreate),
         // then delete ALL publishers and clear the resource's publisher_id so the
         // exporter's hardcoded fallback branch is actually exercised.

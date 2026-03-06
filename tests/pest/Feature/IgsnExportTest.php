@@ -325,7 +325,7 @@ describe('IGSN JSON Export with Schema Validation', function () {
             ->get("/igsns/{$resource->id}/export/json");
 
         $response->assertStatus(422);
-        $response->assertJsonPath('schema_version', '4.6');
+        $response->assertJsonPath('schema_version', '4.7');
     });
 
     it('includes human-readable error messages', function () {

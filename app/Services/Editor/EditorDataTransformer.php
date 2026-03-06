@@ -430,6 +430,7 @@ class EditorDataTransformer
                 'identifier' => $relatedId->identifier,
                 'identifier_type' => $relatedId->identifierType->name,
                 'relation_type' => $relatedId->relationType->name,
+                'relation_type_information' => $relatedId->relation_type_information,
             ])
             ->values()
             ->toArray();

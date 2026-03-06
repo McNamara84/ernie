@@ -30,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Resource $resource
  * @property-read TitleType|null $titleType May be null in legacy data (treated as MainTitle)
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/title/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/title/
  */
 class Title extends Model
 {

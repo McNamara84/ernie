@@ -17,18 +17,17 @@ use DOMElement;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Service for exporting Resource data to DataCite XML format (v4.6)
+ * Service for exporting Resource data to DataCite XML format (v4.7)
  *
- * Implements the DataCite Metadata Schema v4.6 XML format.
- * Schema: https://schema.datacite.org/meta/kernel-4.6/metadata.xsd
- * Documentation: https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ * Implements the DataCite Metadata Schema v4.7 XML format.
+ * Schema: https://schema.datacite.org/meta/kernel-4.7/metadata.xsd
+ * Documentation: https://datacite-metadata-schema.readthedocs.io/en/4.7/
  *
- * DataCite 4.6 additions over 4.5:
- * - resourceTypeGeneral: Award, Project
- * - relatedIdentifierType: CSTR, RRID
- * - contributorType: Translator
- * - relationType: HasTranslation, IsTranslationOf
- * - dateType: Coverage
+ * DataCite 4.7 additions over 4.6:
+ * - resourceTypeGeneral: Poster, Presentation
+ * - relatedIdentifierType: RAiD, SWHID
+ * - relationType: Other
+ * - New sub-property: relationTypeInformation (12.g, 20.c)
  */
 class DataCiteXmlExporter
 {
@@ -42,7 +41,7 @@ class DataCiteXmlExporter
 
     private const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
 
-    private const SCHEMA_LOCATION = 'http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.6/metadata.xsd';
+    private const SCHEMA_LOCATION = 'http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.7/metadata.xsd';
 
     private DOMDocument $dom;
 
@@ -313,7 +312,7 @@ class DataCiteXmlExporter
      * Uses the resource's publisher if available, otherwise falls back
      * to the default publisher (GFZ Data Services).
      *
-     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/publisher/
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/publisher/
      */
     private function buildPublisher(Resource $resource): void
     {
@@ -829,6 +828,14 @@ class DataCiteXmlExporter
             );
             $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->identifierType->slug ?? 'DOI');
             $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');
+
+            // Add relationTypeInformation if available (DataCite 4.7, property 12.g)
+            if ($relatedIdentifier->relation_type_information) {
+                $relatedElement->setAttribute(
+                    'relationTypeInformation',
+                    htmlspecialchars($relatedIdentifier->relation_type_information)
+                );
+            }
 
             // Add resourceTypeGeneral if available
             if ($relatedIdentifier->resource_type_general) {

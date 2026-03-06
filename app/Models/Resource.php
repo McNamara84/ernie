@@ -53,7 +53,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, AlternateIdentifier> $alternateIdentifiers
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceInstrument> $instruments
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
 class Resource extends Model
 {

@@ -17,6 +17,11 @@ describe('Related Work Schemas', () => {
             expect(identifierTypeSchema.safeParse('Handle').success).toBe(true);
         });
 
+        it('accepts DataCite 4.7 identifier types', () => {
+            expect(identifierTypeSchema.safeParse('RAiD').success).toBe(true);
+            expect(identifierTypeSchema.safeParse('SWHID').success).toBe(true);
+        });
+
         it('rejects invalid identifier type', () => {
             expect(identifierTypeSchema.safeParse('INVALID').success).toBe(false);
         });
@@ -28,6 +33,12 @@ describe('Related Work Schemas', () => {
             expect(relationTypeSchema.safeParse('IsCitedBy').success).toBe(true);
             expect(relationTypeSchema.safeParse('IsPartOf').success).toBe(true);
             expect(relationTypeSchema.safeParse('HasPart').success).toBe(true);
+        });
+
+        it('accepts DataCite 4.7 relation types', () => {
+            expect(relationTypeSchema.safeParse('Other').success).toBe(true);
+            expect(relationTypeSchema.safeParse('HasTranslation').success).toBe(true);
+            expect(relationTypeSchema.safeParse('IsTranslationOf').success).toBe(true);
         });
 
         it('rejects invalid relation type', () => {
@@ -66,6 +77,19 @@ describe('Related Work Schemas', () => {
             });
             expect(result.success).toBe(true);
         });
+
+        it('accepts relation_type_information field', () => {
+            const result = relatedIdentifierSchema.safeParse({
+                identifier: '10.5880/test',
+                identifier_type: 'DOI',
+                relation_type: 'Other',
+                relation_type_information: 'Custom relationship description',
+            });
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.relation_type_information).toBe('Custom relationship description');
+            }
+        });
     });
 
     describe('relatedIdentifiersArraySchema', () => {
@@ -93,6 +117,19 @@ describe('Related Work Schemas', () => {
                 relationType: 'Cites',
             });
             expect(result.success).toBe(false);
+        });
+
+        it('accepts optional relationTypeInformation', () => {
+            const result = relatedWorkFormSchema.safeParse({
+                identifier: 'https://example.com',
+                identifierType: 'URL',
+                relationType: 'Other',
+                relationTypeInformation: 'Custom relationship',
+            });
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.relationTypeInformation).toBe('Custom relationship');
+            }
         });
     });
 });

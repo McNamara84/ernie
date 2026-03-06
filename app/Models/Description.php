@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Resource $resource
  * @property-read DescriptionType $descriptionType
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/description/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/description/
  */
 class Description extends Model
 {

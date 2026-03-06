@@ -122,6 +122,13 @@ export default function RelatedWorkItem({ item, index, onRemove, validationStatu
 
                     {/* Optional: Related title from API */}
                     {item.related_title && <p className="text-xs text-muted-foreground italic">{item.related_title}</p>}
+
+                    {/* Relation Type Information (for "Other" relation type) */}
+                    {item.relation_type_information && (
+                        <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Info:</span> {item.relation_type_information}
+                        </p>
+                    )}
                 </div>
 
                 {/* Remove Button */}

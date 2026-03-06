@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/format/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/format/
  */
 class Format extends Model
 {

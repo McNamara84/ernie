@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read string $export_string
  * @property-read Resource $resource
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/size/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/size/
  */
 class Size extends Model
 {

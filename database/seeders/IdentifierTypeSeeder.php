@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 /**
  * Seeder for Identifier Types (DataCite #12)
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/relatedidentifier/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
 class IdentifierTypeSeeder extends Seeder
 {
@@ -35,7 +35,9 @@ class IdentifierTypeSeeder extends Seeder
             ['name' => 'LSID', 'slug' => 'LSID'],
             ['name' => 'PMID', 'slug' => 'PMID'],
             ['name' => 'PURL', 'slug' => 'PURL'],
+            ['name' => 'RAiD', 'slug' => 'RAiD'],
             ['name' => 'RRID', 'slug' => 'RRID'],
+            ['name' => 'SWHID', 'slug' => 'SWHID'],
             ['name' => 'UPC', 'slug' => 'UPC'],
             ['name' => 'URL', 'slug' => 'URL'],
             ['name' => 'URN', 'slug' => 'URN'],

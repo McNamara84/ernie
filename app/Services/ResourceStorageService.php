@@ -923,6 +923,7 @@ class ResourceStorageService
                     'identifier' => trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
+                    'relation_type_information' => $relatedIdentifier['relationTypeInformation'] ?? null,
                     'position' => $index,
                 ]);
             }

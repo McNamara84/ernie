@@ -106,11 +106,11 @@ describe('DataCiteXmlValidator', function () {
 
 describe('DataCiteXmlValidator with complete DataCite XML', function () {
     it('validates minimal complete DataCite XML structure', function () {
-        // Minimal valid DataCite 4.6 XML with all required elements
+        // Minimal valid DataCite 4.7 XML with all required elements
         $completeXml = '<?xml version="1.0" encoding="UTF-8"?>
             <resource xmlns="http://datacite.org/schema/kernel-4" 
                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                      xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
+                      xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.7/metadata.xsd">
                 <identifier identifierType="DOI">10.1234/test</identifier>
                 <creators>
                     <creator>

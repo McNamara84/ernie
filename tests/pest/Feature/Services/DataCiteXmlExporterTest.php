@@ -37,7 +37,7 @@ describe('DataCiteXmlExporter - XML Structure', function () {
 
         expect($xml)->toContain('xmlns="http://datacite.org/schema/kernel-4"')
             ->and($xml)->toContain('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"')
-            ->and($xml)->toContain('xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.6/metadata.xsd"');
+            ->and($xml)->toContain('xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.7/metadata.xsd"');
     });
 
     test('exports well-formed XML that can be parsed', function () {
@@ -137,7 +137,7 @@ describe('DataCiteXmlExporter - Required Fields', function () {
         expect($xml)->toContain('<title>Untitled</title>');
     });
 
-    test('exports required publisher with all DataCite 4.6 attributes', function () {
+    test('exports required publisher with all DataCite 4.7 attributes', function () {
         $resource = Resource::factory()->create();
 
         $xml = $this->exporter->export($resource);
@@ -150,7 +150,7 @@ describe('DataCiteXmlExporter - Required Fields', function () {
             ->and($xml)->toContain('GFZ Data Services</publisher>');
     });
 
-    test('hardcoded fallback includes all DataCite 4.6 publisher attributes', function () {
+    test('hardcoded fallback includes all DataCite 4.7 publisher attributes', function () {
         // Create resource first (factory seeds a default publisher via firstOrCreate),
         // then delete ALL publishers so the exporter's hardcoded fallback branch is exercised.
         $resource = Resource::factory()->create(['publisher_id' => null]);

@@ -96,6 +96,7 @@ class UploadXmlController extends Controller
         'HasMetadata', 'IsMetadataFor',
         'Reviews', 'IsReviewedBy',
         'IsPublishedIn', 'Collects', 'IsCollectedBy',
+        'Other',
     ];
 
     public function __construct(
@@ -384,6 +385,7 @@ class UploadXmlController extends Controller
             $identifier = $this->stringValue($element);
             $identifierTypeRaw = $element->getAttribute('relatedIdentifierType');
             $relationTypeRaw = $element->getAttribute('relationType');
+            $relationTypeInformationRaw = $element->getAttribute('relationTypeInformation');
 
             if (! is_string($identifier) || $identifier === '') {
                 continue;
@@ -423,6 +425,7 @@ class UploadXmlController extends Controller
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
+                'relation_type_information' => is_string($relationTypeInformationRaw) && $relationTypeInformationRaw !== '' ? $relationTypeInformationRaw : null,
                 'position' => count($relatedWorks),
             ];
         }

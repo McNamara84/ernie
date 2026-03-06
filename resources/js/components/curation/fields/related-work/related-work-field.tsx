@@ -67,6 +67,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
     const [identifier, setIdentifier] = useState('');
     const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
     const [relationType, setRelationType] = useState<RelationType>('Cites');
+    const [relationTypeInformation, setRelationTypeInformation] = useState('');
 
     // Update identifierType when identifier changes in simple mode (auto-detection)
     const handleIdentifierChange = (value: string, autoDetect: boolean = false) => {
@@ -95,6 +96,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
             identifier: data.identifier,
             identifier_type: data.identifierType,
             relation_type: data.relationType,
+            ...(data.relationTypeInformation ? { relation_type_information: data.relationTypeInformation } : {}),
             position: relatedWorks.length,
         };
 
@@ -104,6 +106,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
         setIdentifier('');
         setIdentifierType('DOI');
         setRelationType('Cites');
+        setRelationTypeInformation('');
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
@@ -190,6 +193,8 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
                                 onIdentifierTypeChange={setIdentifierType}
                                 relationType={relationType}
                                 onRelationTypeChange={setRelationType}
+                                relationTypeInformation={relationTypeInformation}
+                                onRelationTypeInformationChange={setRelationTypeInformation}
                             />
                             <div className="pt-2">
                                 <button

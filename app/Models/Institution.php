@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceCreator> $resourceCreators
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceContributor> $resourceContributors
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/creator/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/
  */
 class Institution extends Model
 {

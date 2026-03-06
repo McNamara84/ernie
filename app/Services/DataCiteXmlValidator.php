@@ -11,15 +11,15 @@ use Illuminate\Support\Facades\Log;
 /**
  * Service for validating DataCite XML against the official XSD schema
  *
- * Validates XML against the DataCite Metadata Schema v4.6
- * Schema URL: https://schema.datacite.org/meta/kernel-4.6/metadata.xsd
+ * Validates XML against the DataCite Metadata Schema v4.7
+ * Schema URL: https://schema.datacite.org/meta/kernel-4.7/metadata.xsd
  */
 class DataCiteXmlValidator
 {
     /**
      * DataCite XSD schema URL (always use latest online version)
      */
-    private const SCHEMA_URL = 'https://schema.datacite.org/meta/kernel-4.6/metadata.xsd';
+    private const SCHEMA_URL = 'https://schema.datacite.org/meta/kernel-4.7/metadata.xsd';
 
     /**
      * Validation warnings collected during validation

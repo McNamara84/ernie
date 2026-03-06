@@ -138,6 +138,7 @@ export interface RelatedIdentifier {
     identifier: string;
     identifier_type: string;
     relation_type: string;
+    relation_type_information?: string | null;
     position?: number;
     related_title?: string | null;
     related_metadata?: Record<string, unknown> | null;
@@ -147,6 +148,7 @@ export interface RelatedIdentifierFormData {
     identifier: string;
     identifierType: string;
     relationType: string;
+    relationTypeInformation?: string | null;
 }
 
 export type IdentifierType =
@@ -158,6 +160,7 @@ export type IdentifierType =
     | 'ISBN'
     | 'ISSN'
     | 'PURL'
+    | 'RAiD'
     | 'ARK'
     | 'arXiv'
     | 'bibcode'
@@ -169,6 +172,7 @@ export type IdentifierType =
     | 'LSID'
     | 'PMID'
     | 'RRID'
+    | 'SWHID'
     | 'UPC'
     | 'w3id';
 
@@ -215,10 +219,14 @@ export type RelationType =
     // Reviews
     | 'Reviews'
     | 'IsReviewedBy'
+    // Translation
+    | 'HasTranslation'
+    | 'IsTranslationOf'
     // Other
     | 'IsPublishedIn'
     | 'Collects'
-    | 'IsCollectedBy';
+    | 'IsCollectedBy'
+    | 'Other';
 
 export interface MSLLaboratory {
     identifier: string;

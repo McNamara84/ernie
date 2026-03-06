@@ -27,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Resource $resource
  * @property-read FunderIdentifierType|null $funderIdentifierType
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/fundingreference/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/fundingreference/
  */
 class FundingReference extends Model
 {

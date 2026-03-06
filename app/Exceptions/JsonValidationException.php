@@ -20,7 +20,7 @@ class JsonValidationException extends Exception
     public function __construct(
         string $message,
         private readonly array $errors = [],
-        private readonly string $schemaVersion = '4.6',
+        private readonly string $schemaVersion = '4.7',
     ) {
         parent::__construct($message);
     }

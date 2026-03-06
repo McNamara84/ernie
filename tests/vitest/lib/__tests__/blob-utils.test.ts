@@ -82,7 +82,7 @@ describe('blob-utils', () => {
                     { path: '/titles/0/title', message: 'Required field missing' },
                     { path: '/creators', message: 'Must have at least one creator' },
                 ],
-                schema_version: '4.6',
+                schema_version: '4.7',
                 message: 'Validation failed',
             };
             const blob = createMockBlob(JSON.stringify(validationError));

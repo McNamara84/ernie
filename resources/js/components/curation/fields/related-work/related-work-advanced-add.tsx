@@ -1,5 +1,7 @@
 import { Info } from 'lucide-react';
 
+import { useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,12 +19,14 @@ interface RelatedWorkAdvancedAddProps {
     onIdentifierTypeChange: (value: IdentifierType) => void;
     relationType: RelationType;
     onRelationTypeChange: (value: RelationType) => void;
+    relationTypeInformation?: string;
+    onRelationTypeInformationChange?: (value: string) => void;
 }
 
 /**
  * RelatedWorkAdvancedAdd Component
  *
- * Advanced mode showing all 33 DataCite relation types
+ * Advanced mode showing all DataCite 4.7 relation types
  * grouped by category for better navigation.
  */
 export default function RelatedWorkAdvancedAdd({
@@ -33,7 +37,12 @@ export default function RelatedWorkAdvancedAdd({
     onIdentifierTypeChange,
     relationType,
     onRelationTypeChange,
+    relationTypeInformation: externalRelationTypeInformation,
+    onRelationTypeInformationChange,
 }: RelatedWorkAdvancedAddProps) {
+    const [internalRelationTypeInfo, setInternalRelationTypeInfo] = useState('');
+    const relationTypeInformation = externalRelationTypeInformation ?? internalRelationTypeInfo;
+    const setRelationTypeInformation = onRelationTypeInformationChange ?? setInternalRelationTypeInfo;
     // Validate identifier with API
     const validation = useIdentifierValidation({
         identifier,
@@ -51,7 +60,10 @@ export default function RelatedWorkAdvancedAdd({
             identifier: identifier.trim(),
             identifierType,
             relationType,
+            ...(relationType === 'Other' && relationTypeInformation.trim() ? { relationTypeInformation: relationTypeInformation.trim() } : {}),
         });
+
+        setRelationTypeInformation('');
 
         // Form reset is handled by parent component
     };
@@ -72,6 +84,7 @@ export default function RelatedWorkAdvancedAdd({
         'ISBN',
         'ISSN',
         'PURL',
+        'RAiD',
         'ARK',
         'arXiv',
         'bibcode',
@@ -81,6 +94,8 @@ export default function RelatedWorkAdvancedAdd({
         'LISSN',
         'LSID',
         'PMID',
+        'RRID',
+        'SWHID',
         'UPC',
         'w3id',
     ];
@@ -187,8 +202,26 @@ export default function RelatedWorkAdvancedAdd({
                 </div>
             </div>
 
+            {/* Relation Type Information (only for "Other") */}
+            {relationType === 'Other' && (
+                <div className="space-y-1">
+                    <Label htmlFor="relation-type-information">Relation Type Information</Label>
+                    <Input
+                        id="relation-type-information"
+                        type="text"
+                        value={relationTypeInformation}
+                        onChange={(e) => setRelationTypeInformation(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Describe the relationship type"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Provide additional information about the non-standard relationship type.
+                    </p>
+                </div>
+            )}
+
             {/* Selected Relation Description */}
-            {relationType && (
+            {relationType && relationType !== 'Other' && (
                 <div className="rounded-lg bg-muted/50 p-3">
                     <p className="text-sm">
                         <span className="font-semibold">{relationType}:</span>{' '}
