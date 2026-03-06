@@ -4,6 +4,10 @@
         "date": "2026-03-06",
         "features": [
             {
+                "title": "CSV Upload for Polygon and Line Coordinates",
+                "description": "Added CSV file upload for polygon and line coordinate entries in the Spatial and Temporal Coverage section. Users can import large numbers of coordinate pairs from a CSV file instead of entering them manually. Supports both 'latitude,longitude' and 'longitude,latitude' column orders (auto-detected from headers), replace or append modes when existing points are present, validation with detailed error reporting, and an example CSV template download. Maximum of 10,000 coordinate pairs per upload."
+            },
+            {
                 "title": "DataCite Schema 4.7 Upgrade",
                 "description": "ERNIE now fully supports DataCite Metadata Schema 4.7. New resource types (Poster, Presentation), new identifier types (RAiD, SWHID), and the new relation type 'Other' with an optional free-text 'relationTypeInformation' field are available. All XML/JSON exports, imports, and validations use the updated schema."
             },
