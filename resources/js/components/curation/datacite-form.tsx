@@ -1624,6 +1624,7 @@ export default function DataCiteForm({
                 identifier: string;
                 identifierType: string;
                 relationType: string;
+                relationTypeInformation?: string;
             }[];
             fundingReferences: {
                 funderName: string;

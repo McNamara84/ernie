@@ -69,7 +69,7 @@ describe('JsonSchemaValidator', function () {
             }
         });
 
-        it('validates all new DataCite 4.6 resourceTypeGeneral values', function () {
+        it('validates resourceTypeGeneral values added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $newResourceTypes = [
@@ -106,7 +106,7 @@ describe('JsonSchemaValidator', function () {
             }
         });
 
-        it('validates new 4.6 contributorType Translator', function () {
+        it('validates contributorType Translator added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -124,7 +124,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 relationType values', function () {
+        it('validates relationType values added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $newRelationTypes = [
@@ -156,7 +156,7 @@ describe('JsonSchemaValidator', function () {
             }
         });
 
-        it('validates new 4.6 relatedIdentifierType CSTR', function () {
+        it('validates relatedIdentifierType CSTR added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -178,7 +178,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 relatedIdentifierType RRID', function () {
+        it('validates relatedIdentifierType RRID added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -295,7 +295,7 @@ describe('JsonSchemaValidator', function () {
 
             expect($validator->validate($data))->toBeTrue();
         });
-        it('validates new 4.6 dateType Coverage', function () {
+        it('validates dateType Coverage added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -313,7 +313,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 publisher with object structure', function () {
+        it('validates publisher with object structure added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -333,7 +333,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 subjects with classificationCode', function () {
+        it('validates subjects with classificationCode added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [

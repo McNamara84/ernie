@@ -74,7 +74,7 @@ class UploadXmlController extends Controller
     private const RELATED_IDENTIFIER_TYPES = [
         'DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK',
         'arXiv', 'bibcode', 'CSTR', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID',
-        'PMID', 'RRID', 'UPC', 'w3id',
+        'PMID', 'RAiD', 'RRID', 'SWHID', 'UPC', 'w3id',
     ];
 
     /**
@@ -358,7 +358,7 @@ class UploadXmlController extends Controller
      * Instrument PIDs (relationType="IsCollectedBy" with identifierType="Handle")
      * are separated into their own array for the "Used Instruments" form section.
      *
-     * @return array{relatedWorks: array<int, array{identifier: string, identifier_type: string, relation_type: string, position: int}>, instruments: array<int, array{pid: string, pidType: string, name: string}>}
+     * @return array{relatedWorks: array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, position: int}>, instruments: array<int, array{pid: string, pidType: string, name: string}>}
      */
     private function extractRelatedWorksAndInstruments(XmlReader $reader, string $filename): array
     {
