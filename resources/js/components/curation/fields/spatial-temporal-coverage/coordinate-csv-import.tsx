@@ -311,6 +311,14 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
         [],
     );
 
+    const resetParsedState = () => {
+        setParsedData([]);
+        setErrors([]);
+        setProgress(0);
+        setDuplicatesRemoved(0);
+        setHeaderFallback(false);
+    };
+
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];
         if (selectedFile) {
@@ -321,6 +329,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
             } else {
                 setFileValidationError('Please select a valid CSV file');
                 setFile(null);
+                resetParsedState();
             }
         }
     };
@@ -347,6 +356,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
             } else {
                 setFileValidationError('Please drop a valid CSV file');
                 setFile(null);
+                resetParsedState();
             }
         }
     };
