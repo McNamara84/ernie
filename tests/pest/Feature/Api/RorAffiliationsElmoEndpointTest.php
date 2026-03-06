@@ -39,8 +39,8 @@ function storeRorData(array $data = []): void
     $content = json_encode(array_merge([
         'lastUpdated' => '2025-06-01T10:00:00Z',
         'data' => [
-            ['prefLabel' => 'GFZ Potsdam', 'rorId' => 'https://ror.org/04z8jg394', 'otherLabel' => 'Helmholtz-Zentrum Potsdam'],
-            ['prefLabel' => 'MIT', 'rorId' => 'https://ror.org/042nb2s44', 'otherLabel' => 'Massachusetts Institute of Technology'],
+            ['prefLabel' => 'GFZ Potsdam', 'rorId' => 'https://ror.org/04z8jg394', 'otherLabel' => ['Helmholtz-Zentrum Potsdam']],
+            ['prefLabel' => 'MIT', 'rorId' => 'https://ror.org/042nb2s44', 'otherLabel' => ['Massachusetts Institute of Technology']],
         ],
         'total' => 2,
     ], $data));

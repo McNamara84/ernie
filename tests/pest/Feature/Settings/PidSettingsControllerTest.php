@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\actingAs;
-use function Pest\Laravel\postJson;
 
 uses(RefreshDatabase::class);
 
