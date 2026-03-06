@@ -1,5 +1,5 @@
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
-import { MapPin, Maximize2, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Maximize2, Plus, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+import CoordinateCsvImport from './coordinate-csv-import';
 import type { PolygonPoint, SpatialTemporalCoverageEntry } from './types';
 
 interface LineFormProps {
@@ -192,6 +193,7 @@ function LineMapContent({ points, onPointsChange }: { points: PolygonPoint[]; on
 
 export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
     const points = entry.polygonPoints || [];
 
     const handlePointsChange = useCallback(
@@ -219,6 +221,12 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
         handlePointsChange(newPoints);
     };
 
+    const handleCsvImport = (importedPoints: PolygonPoint[], mode: 'replace' | 'append') => {
+        const newPoints = mode === 'replace' ? importedPoints : [...points, ...importedPoints];
+        handlePointsChange(newPoints);
+        setIsCsvImportOpen(false);
+    };
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -240,10 +248,16 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <Label className="text-sm font-medium">Line Points ({points.length})</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={handleAddPoint}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Point
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={handleAddPoint}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Point
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => setIsCsvImportOpen(true)}>
+                                <Upload className="mr-2 h-4 w-4" />
+                                CSV Import
+                            </Button>
+                        </div>
                     </div>
 
                     {points.length === 0 ? (
@@ -310,6 +324,24 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
                     )}
                 </div>
             </div>
+
+            {/* CSV Import Dialog */}
+            <Dialog open={isCsvImportOpen} onOpenChange={setIsCsvImportOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Import Line Coordinates from CSV</DialogTitle>
+                        <DialogDescription>
+                            Upload a CSV file containing latitude and longitude coordinate pairs for your line.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <CoordinateCsvImport
+                        onImport={handleCsvImport}
+                        onClose={() => setIsCsvImportOpen(false)}
+                        existingPointCount={points.length}
+                        geoType="line"
+                    />
+                </DialogContent>
+            </Dialog>
 
             {/* Fullscreen Dialog */}
             <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
