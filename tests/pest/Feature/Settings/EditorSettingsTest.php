@@ -22,6 +22,8 @@ test('guests are redirected to login when accessing editor settings', function (
 test('admin users can view editor settings page', function () {
     // Issue #379: Only Admin and Group Leader can access Editor Settings
     $user = User::factory()->admin()->create();
+    // Remove any resource types seeded by migrations (e.g. DataCite 4.7 upgrade)
+    ResourceType::query()->delete();
     ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]);
     TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]);
     Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);

@@ -8,6 +8,9 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config(['services.ernie.api_key' => 'test-api-key']);
 
+    // Remove any resource types seeded by migrations (e.g. DataCite 4.7 upgrade)
+    ResourceType::query()->delete();
+
     ResourceType::create(['name' => 'Alpha', 'slug' => 'alpha', 'description' => 'Alpha description', 'is_active' => true, 'is_elmo_active' => true]);
     ResourceType::create(['name' => 'Bravo', 'slug' => 'bravo', 'description' => 'Bravo description', 'is_active' => true, 'is_elmo_active' => false]);
     ResourceType::create(['name' => 'Charlie', 'slug' => 'charlie', 'description' => 'Charlie description', 'is_active' => false, 'is_elmo_active' => true]);
