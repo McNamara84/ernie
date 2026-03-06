@@ -19,7 +19,7 @@ class RoleController extends Controller
     /**
      * Return all contributor types (for authors/creators).
      *
-     * Note: In DataCite 4.7, creators don't have types - they are just creators.
+     * Note: In DataCite, creators don't have types - they are just creators.
      * This endpoint returns contributor types for backwards compatibility.
      */
     public function authorRolesForErnie(): JsonResponse

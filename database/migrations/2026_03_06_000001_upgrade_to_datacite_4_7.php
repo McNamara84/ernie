@@ -9,6 +9,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Database\Seeders\ResourceTypeDescriptionSeeder;
 
 /**
  * Upgrade schema from DataCite 4.6 to 4.7.
@@ -42,11 +43,10 @@ return new class extends Migration
         }
 
         // Update descriptions for the new resource types
-        ResourceType::where('name', 'Poster')
-            ->update(['description' => 'A display poster, typically containing text with illustrative figures and/or tables, usually reporting research results or proposing hypotheses, submitted for acceptance to and/or presented at a conference, seminar, symposium, workshop or similar event.']);
-
-        ResourceType::where('name', 'Presentation')
-            ->update(['description' => 'A set of slides containing text, tables or figures, designed to communicate ideas or research results, for viewing by an audience at a conference, symposium, seminar, lecture, workshop or other event.']);
+        foreach (['Poster', 'Presentation'] as $name) {
+            ResourceType::where('name', $name)
+                ->update(['description' => ResourceTypeDescriptionSeeder::DESCRIPTIONS[$name]]);
+        }
 
         // 3. Seed new relatedIdentifierType values
         foreach ([

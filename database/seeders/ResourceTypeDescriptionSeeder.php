@@ -25,7 +25,7 @@ class ResourceTypeDescriptionSeeder extends Seeder
      *
      * @var array<string, string>
      */
-    private const DESCRIPTIONS = [
+    public const DESCRIPTIONS = [
         'Audiovisual' => 'A series of visual representations imparting an impression of motion when shown in succession. May or may not include sound.',
         'Award' => 'An umbrella term for resources provided to individual(s) or organization(s) in support of research, academic output, or training, such as a specific instance of funding, grant, investment, sponsorship, scholarship, recognition, or non-monetary materials.',
         'Book' => 'A medium for recording information in the form of writing or images, typically composed of many pages bound together and protected by a cover.',
