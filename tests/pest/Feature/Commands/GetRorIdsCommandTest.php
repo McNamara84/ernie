@@ -75,7 +75,9 @@ it('fetches and stores ROR affiliation suggestions', function () {
 
     $decoded = json_decode(File::get($outputPath), true, 512, JSON_THROW_ON_ERROR);
 
-    expect($decoded)->toBe([
+    expect($decoded)->toHaveKeys(['lastUpdated', 'data', 'total']);
+    expect($decoded['total'])->toBe(2);
+    expect($decoded['data'])->toBe([
         [
             'prefLabel' => 'Example University',
             'rorId' => 'https://ror.org/123456789',
