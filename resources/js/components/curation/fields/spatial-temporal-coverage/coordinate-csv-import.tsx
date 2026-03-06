@@ -186,6 +186,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
 
                         const validationErrors: ValidationError[] = [];
                         const rawPoints: PolygonPoint[] = [];
+                        let lastPercent = 0;
 
                         results.data.forEach((row, index) => {
                             const rowNum = index + 2; // +1 header, +1 for 1-based
@@ -265,7 +266,12 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                                 lon: Number(lon.toFixed(6)),
                             });
 
-                            setProgress(Math.round(((index + 1) / results.data.length) * 100));
+                            // Update progress in coarse increments to avoid excessive rerenders
+                            const percent = Math.round(((index + 1) / results.data.length) * 100);
+                            if (percent !== lastPercent) {
+                                lastPercent = percent;
+                                setProgress(percent);
+                            }
                         });
 
                         // Remove consecutive duplicates

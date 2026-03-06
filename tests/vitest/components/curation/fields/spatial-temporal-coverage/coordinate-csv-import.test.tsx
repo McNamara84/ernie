@@ -104,6 +104,9 @@ describe('CoordinateCsvImport Component', () => {
         it('downloads polygon example CSV when button is clicked', async () => {
             const user = userEvent.setup({ delay: null });
             const mockObjectURL = 'blob:test';
+
+            const originalCreateObjectURL = globalThis.URL.createObjectURL;
+            const originalRevokeObjectURL = globalThis.URL.revokeObjectURL;
             globalThis.URL.createObjectURL = vi.fn(() => mockObjectURL);
             globalThis.URL.revokeObjectURL = vi.fn();
 
@@ -126,6 +129,8 @@ describe('CoordinateCsvImport Component', () => {
             expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(mockObjectURL);
 
             vi.mocked(document.createElement).mockRestore();
+            globalThis.URL.createObjectURL = originalCreateObjectURL;
+            globalThis.URL.revokeObjectURL = originalRevokeObjectURL;
         });
     });
 
