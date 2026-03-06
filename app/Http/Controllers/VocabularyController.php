@@ -167,6 +167,38 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return ROR affiliations vocabulary for ELMO.
+     *
+     * Returns the complete ROR data with metadata wrapper
+     * including total count and last update timestamp.
+     */
+    public function rorAffiliations(): JsonResponse
+    {
+        if (!$this->isPidActive(PidSetting::TYPE_ROR)) {
+            return response()->json(['error' => 'ROR is disabled'], 404);
+        }
+
+        $filePath = 'ror/ror-affiliations.json';
+
+        if (! Storage::exists($filePath)) {
+            return response()->json([
+                'error' => 'Vocabulary file not found. Please run: php artisan get-ror-ids',
+            ], 404);
+        }
+
+        $content = Storage::get($filePath);
+
+        if ($content === null) {
+            return response()->json([
+                'error' => 'Failed to read vocabulary file.',
+            ], 500);
+        }
+
+        // Stream the raw JSON string directly to avoid decoding the large file into memory
+        return new JsonResponse(data: $content, json: true);
+    }
+
+    /**
      * Return PID availability status for the frontend.
      *
      * Similar to thesauriAvailability but for PID registries.

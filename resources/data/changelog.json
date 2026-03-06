@@ -1,8 +1,16 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-04",
+        "date": "2026-03-06",
         "features": [
+            {
+                "title": "ROR Affiliations API Endpoint for ELMO",
+                "description": "A new API endpoint (`/api/v1/ror-affiliations/elmo`) provides the complete ROR (Research Organization Registry) dataset to ELMO. The endpoint returns a metadata wrapper with total count, last update timestamp, and the full list of organizations including preferred labels, ROR IDs, and alternative names. Access is protected by API key authentication."
+            },
+            {
+                "title": "ROR in Persistent Identifiers Settings",
+                "description": "The Settings page now includes ROR (Research Organization Registry) alongside PID4INST in the 'Persistent Identifiers' card. Administrators can check for updates by comparing the local ROR dataset count against the ROR API v2, and trigger background update jobs to fetch the latest ROR data dump from Zenodo. Active/ELMO toggles allow enabling or disabling ROR independently for ERNIE and ELMO."
+            },
             {
                 "title": "Line Geo-Locations in Editor",
                 "description": "Lines (polylines) can now be added as a new geo-location type alongside Points, Bounding Boxes, and Polygons. Lines are drawn interactively on a Google Map with vertex markers that can be dragged. A coordinate table allows precise manual editing. Lines require at least 2 points. For DataCite export, lines are automatically converted to thin polygons with a minimal latitude offset to ensure schema compliance."

@@ -50,6 +50,15 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/vocabularies/gcmd-science-keywords.get.summary', 'Get GCMD Science Keywords vocabulary')
         ->assertJsonPath('paths./api/v1/vocabularies/gcmd-platforms.get.summary', 'Get GCMD Platforms vocabulary')
         ->assertJsonPath('paths./api/v1/vocabularies/gcmd-instruments.get.summary', 'Get GCMD Instruments vocabulary')
+        // ROR affiliations endpoint
+        ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.tags.0', 'Vocabularies')
+        ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.security.0.ElmoApiKey', [])
+        ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.summary', 'Get ROR affiliations for ELMO')
+        ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/RorAffiliations')
+        ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
+        ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.404.description', 'ROR is disabled or data file not found')
+        // ROR schema
+        ->assertJsonPath('components.schemas.RorAffiliations.description', 'ROR affiliations data with metadata wrapper')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/TitleType')

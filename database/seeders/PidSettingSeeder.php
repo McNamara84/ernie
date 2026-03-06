@@ -19,5 +19,14 @@ class PidSettingSeeder extends Seeder
                 'is_elmo_active' => true,
             ]
         );
+
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_ROR],
+            [
+                'display_name' => 'ROR (Research Organization Registry)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
     }
 }

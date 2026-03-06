@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use App\Services\Pid4instStatusService;
+use App\Services\RorStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -16,21 +17,22 @@ use Illuminate\Support\Str;
 /**
  * Controller for managing PID (Persistent Identifier) settings via API.
  *
- * Provides endpoints for checking PID4INST update status
+ * Provides endpoints for checking PID update status
  * and triggering background update jobs.
  */
 class PidSettingsController extends Controller
 {
     public function __construct(
-        private readonly Pid4instStatusService $statusService
+        private readonly Pid4instStatusService $pid4instStatusService,
+        private readonly RorStatusService $rorStatusService,
     ) {}
 
     /**
-     * Check for available updates by comparing local and remote instrument counts.
+     * Check for available updates by comparing local and remote counts.
      *
      * POST /pid-settings/{type}/check
      *
-     * @param  string  $type  The PID type (pid4inst)
+     * @param  string  $type  The PID type (pid4inst, ror)
      */
     public function checkStatus(string $type): JsonResponse
     {
@@ -43,7 +45,15 @@ class PidSettingsController extends Controller
         }
 
         try {
-            $comparison = $this->statusService->compareWithRemote($setting);
+            $statusService = $this->resolveStatusService($type);
+
+            if ($statusService === null) {
+                return response()->json([
+                    'error' => "No status service available for PID type '{$type}'",
+                ], 400);
+            }
+
+            $comparison = $statusService->compareWithRemote($setting);
 
             return response()->json([
                 'type' => $type,
@@ -61,13 +71,13 @@ class PidSettingsController extends Controller
     }
 
     /**
-     * Trigger a background job to update the PID instruments.
+     * Trigger a background job to update the PID data.
      *
      * POST /pid-settings/{type}/update
      *
      * Requires 'manage-thesauri' gate (admin only).
      *
-     * @param  string  $type  The PID type (pid4inst)
+     * @param  string  $type  The PID type (pid4inst, ror)
      */
     public function triggerUpdate(string $type): JsonResponse
     {
@@ -141,5 +151,17 @@ class PidSettingsController extends Controller
         }
 
         return response()->json($status);
+    }
+
+    /**
+     * Resolve the appropriate status service for the given PID type.
+     */
+    private function resolveStatusService(string $type): Pid4instStatusService|RorStatusService|null
+    {
+        return match ($type) {
+            PidSetting::TYPE_PID4INST => $this->pid4instStatusService,
+            PidSetting::TYPE_ROR => $this->rorStatusService,
+            default => null,
+        };
     }
 }

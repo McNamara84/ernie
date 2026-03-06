@@ -9,12 +9,15 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service for checking PID4INST instrument status and comparing with b2inst API.
+ * Service for checking ROR (Research Organization Registry) status
+ * and comparing with the ROR API v2.
  */
-class Pid4instStatusService
+class RorStatusService
 {
+    private const ROR_API_URL = 'https://api.ror.org/v2/organizations';
+
     /**
-     * Get the local status of a PID setting (from stored JSON file).
+     * Get the local status of the ROR data (from stored JSON file).
      *
      * @return array{exists: bool, itemCount: int, lastUpdated: string|null}
      */
@@ -59,39 +62,35 @@ class Pid4instStatusService
     }
 
     /**
-     * Get the instrument count from the b2inst API.
+     * Get the organization count from the ROR API v2.
      *
-     * Makes a lightweight request (size=1) to get the total hits count
-     * without downloading all instruments.
+     * Makes a lightweight request (page=1) to get the total count
+     * without downloading all organizations.
      *
      * @throws \RuntimeException If the API request fails
      */
     public function getRemoteCount(): int
     {
-        /** @var string $host */
-        $host = config('b2inst.host');
-
         $response = Http::timeout(30)
             ->accept('application/json')
-            ->get("{$host}/api/records/", [
-                'size' => 1,
+            ->get(self::ROR_API_URL, [
                 'page' => 1,
             ]);
 
         if (! $response->successful()) {
             throw new \RuntimeException(
-                "Failed to fetch from b2inst API: HTTP {$response->status()}"
+                "Failed to fetch from ROR API: HTTP {$response->status()}"
             );
         }
 
-        return (int) $response->json('hits.total', 0);
+        return (int) $response->json('number_of_results', 0);
     }
 
     /**
-     * Compare local and remote instrument counts.
+     * Compare local and remote organization counts.
      *
      * An update is considered available when the remote count differs
-     * from the local count (instruments can be added or removed).
+     * from the local count (organizations can be added or removed).
      *
      * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null}
      *

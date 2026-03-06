@@ -16,6 +16,7 @@ use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Services\Pid4instStatusService;
+use App\Services\RorStatusService;
 use App\Services\ThesaurusStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,8 @@ class EditorSettingsController extends Controller
 {
     public function __construct(
         private readonly ThesaurusStatusService $thesaurusStatusService,
-        private readonly Pid4instStatusService $pidStatusService
+        private readonly Pid4instStatusService $pid4instStatusService,
+        private readonly RorStatusService $rorStatusService,
     ) {}
 
     public function index(): Response
@@ -89,7 +91,7 @@ class EditorSettingsController extends Controller
 
         // Get PID settings with local status information
         $pidSettings = PidSetting::orderBy('id')->get()->map(function (PidSetting $pidSetting) {
-            $localStatus = $this->pidStatusService->getLocalStatus($pidSetting);
+            $localStatus = $this->getPidLocalStatus($pidSetting);
 
             return [
                 'type' => $pidSetting->type,
@@ -97,7 +99,7 @@ class EditorSettingsController extends Controller
                 'isActive' => $pidSetting->is_active,
                 'isElmoActive' => $pidSetting->is_elmo_active,
                 'exists' => $localStatus['exists'],
-                'instrumentCount' => $localStatus['instrumentCount'],
+                'itemCount' => $localStatus['itemCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
             ];
         });
@@ -298,5 +300,28 @@ class EditorSettingsController extends Controller
                 'is_elmo_active' => true,
             ]
         );
+
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_ROR],
+            [
+                'display_name' => 'ROR (Research Organization Registry)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+    }
+
+    /**
+     * Get local status for a PID setting using the appropriate status service.
+     *
+     * @return array{exists: bool, itemCount: int, lastUpdated: string|null}
+     */
+    private function getPidLocalStatus(PidSetting $pidSetting): array
+    {
+        return match ($pidSetting->type) {
+            PidSetting::TYPE_PID4INST => $this->pid4instStatusService->getLocalStatus($pidSetting),
+            PidSetting::TYPE_ROR => $this->rorStatusService->getLocalStatus($pidSetting),
+            default => ['exists' => false, 'itemCount' => 0, 'lastUpdated' => null],
+        };
     }
 }

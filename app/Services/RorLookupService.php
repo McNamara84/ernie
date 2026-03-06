@@ -152,7 +152,12 @@ class RorLookupService
                 return;
             }
 
-            foreach ($decoded as $entry) {
+            // Support wrapped format {lastUpdated, total, data: [...]} and legacy flat array
+            $entries = isset($decoded['data']) && is_array($decoded['data'])
+                ? $decoded['data']
+                : $decoded;
+
+            foreach ($entries as $entry) {
                 if (! is_array($entry)) {
                     continue;
                 }

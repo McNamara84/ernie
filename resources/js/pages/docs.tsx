@@ -271,7 +271,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
-                                linking research instruments to datasets
+                                linking research instruments and ROR for research organizations
                             </li>
                             <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
@@ -305,11 +305,16 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 linked to datasets as DataCite relatedIdentifiers with relationType
                                 &quot;IsCollectedBy&quot;
                             </li>
+                            <li>
+                                <strong>ROR (Research Organization Registry):</strong> Organization data used for
+                                affiliation lookups. The ROR dataset is fetched from the Zenodo data dump and can be
+                                provided to ELMO via the API.
+                            </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
                             <li>
-                                Check for updates by comparing local instrument count with remote b2inst registry
+                                Check for updates by comparing local item count with the remote registry
                             </li>
-                            <li>Trigger background downloads of the full instrument vocabulary</li>
+                            <li>Trigger background downloads of the full vocabulary data</li>
                         </ul>
                     </>
                 ),
@@ -341,6 +346,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
                         <p className="text-sm text-muted-foreground">
                             Downloads all instruments from the b2inst registry. Can also be triggered from Editor
+                            Settings.
+                        </p>
+
+                        <h4>Update ROR Affiliations (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-ror-ids" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads the full ROR data dump from Zenodo. Can also be triggered from Editor
                             Settings.
                         </p>
 
