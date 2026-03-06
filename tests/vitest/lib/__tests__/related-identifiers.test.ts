@@ -24,6 +24,7 @@ describe('related-identifiers', () => {
             expect(categories).toContain('Software');
             expect(categories).toContain('Metadata');
             expect(categories).toContain('Reviews');
+            expect(categories).toContain('Translation');
             expect(categories).toContain('Other');
         });
 
@@ -46,6 +47,14 @@ describe('related-identifiers', () => {
             expect(RELATION_TYPES_GROUPED.Compilation).toContain('IsPartOf');
             expect(RELATION_TYPES_GROUPED.Compilation).toContain('Compiles');
             expect(RELATION_TYPES_GROUPED.Compilation).toContain('IsCompiledBy');
+        });
+        it('contains Translation category with HasTranslation and IsTranslationOf', () => {
+            expect(RELATION_TYPES_GROUPED.Translation).toContain('HasTranslation');
+            expect(RELATION_TYPES_GROUPED.Translation).toContain('IsTranslationOf');
+        });
+
+        it('contains Other in Other category', () => {
+            expect(RELATION_TYPES_GROUPED.Other).toContain('Other');
         });
     });
 
@@ -86,6 +95,12 @@ describe('related-identifiers', () => {
         it('maps unidirectional relations to themselves', () => {
             expect(BIDIRECTIONAL_PAIRS['IsPublishedIn']).toBe('IsPublishedIn');
             expect(BIDIRECTIONAL_PAIRS['IsIdenticalTo']).toBe('IsIdenticalTo');
+            expect(BIDIRECTIONAL_PAIRS['Other']).toBe('Other');
+        });
+
+        it('maps HasTranslation to IsTranslationOf and vice versa', () => {
+            expect(BIDIRECTIONAL_PAIRS['HasTranslation']).toBe('IsTranslationOf');
+            expect(BIDIRECTIONAL_PAIRS['IsTranslationOf']).toBe('HasTranslation');
         });
     });
 

@@ -1624,6 +1624,7 @@ export default function DataCiteForm({
                 identifier: string;
                 identifierType: string;
                 relationType: string;
+                relationTypeInformation?: string;
             }[];
             fundingReferences: {
                 funderName: string;
@@ -1698,6 +1699,7 @@ export default function DataCiteForm({
                 identifier: rw.identifier,
                 identifierType: rw.identifier_type,
                 relationType: rw.relation_type,
+                ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
             })),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,

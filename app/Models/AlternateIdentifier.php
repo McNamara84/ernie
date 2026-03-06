@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * - 'sample_other_names' field with type "Local sample name"
  *
  * @see https://github.com/McNamara84/ernie/issues/465
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/alternateidentifier/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/alternateidentifier/
  *
  * @property int $id
  * @property int $resource_id

@@ -420,7 +420,7 @@ class EditorDataTransformer
     /**
      * Transform related identifiers to frontend format.
      *
-     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string}>
+     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null}>
      */
     public function transformRelatedIdentifiers(Resource $resource): array
     {
@@ -430,6 +430,7 @@ class EditorDataTransformer
                 'identifier' => $relatedId->identifier,
                 'identifier_type' => $relatedId->identifierType->name,
                 'relation_type' => $relatedId->relationType->name,
+                'relation_type_information' => $relatedId->relation_type_information,
             ])
             ->values()
             ->toArray();

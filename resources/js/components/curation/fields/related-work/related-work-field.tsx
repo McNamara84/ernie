@@ -22,7 +22,7 @@ interface RelatedWorkFieldProps {
  * Main container for the Related Work functionality.
  * Manages state and coordinates between:
  * - Quick Add form (Top 5 most used)
- * - Advanced Add form (All 33 relation types)
+ * - Advanced Add form (All DataCite relation types)
  * - CSV Bulk Import
  * - List of added items
  */
@@ -67,6 +67,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
     const [identifier, setIdentifier] = useState('');
     const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
     const [relationType, setRelationType] = useState<RelationType>('Cites');
+    const [relationTypeInformation, setRelationTypeInformation] = useState('');
 
     // Update identifierType when identifier changes in simple mode (auto-detection)
     const handleIdentifierChange = (value: string, autoDetect: boolean = false) => {
@@ -95,6 +96,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
             identifier: data.identifier,
             identifier_type: data.identifierType,
             relation_type: data.relationType,
+            ...(data.relationTypeInformation ? { relation_type_information: data.relationTypeInformation } : {}),
             position: relatedWorks.length,
         };
 
@@ -104,6 +106,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
         setIdentifier('');
         setIdentifierType('DOI');
         setRelationType('Cites');
+        setRelationTypeInformation('');
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
@@ -119,6 +122,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
                     identifier: item.identifier,
                     identifier_type: item.identifierType,
                     relation_type: item.relationType,
+                    ...(item.relationTypeInformation ? { relation_type_information: item.relationTypeInformation } : {}),
                     position: combinedList.length,
                 });
             }
@@ -190,6 +194,8 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
                                 onIdentifierTypeChange={setIdentifierType}
                                 relationType={relationType}
                                 onRelationTypeChange={setRelationType}
+                                relationTypeInformation={relationTypeInformation}
+                                onRelationTypeInformationChange={setRelationTypeInformation}
                             />
                             <div className="pt-2">
                                 <button

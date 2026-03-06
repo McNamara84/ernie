@@ -7,7 +7,7 @@
 import { z } from 'zod';
 
 // =============================================================================
-// Identifier Types (DataCite 4.6)
+// Identifier Types (DataCite 4.7)
 // =============================================================================
 
 export const identifierTypes = [
@@ -19,6 +19,7 @@ export const identifierTypes = [
     'ISBN',
     'ISSN',
     'PURL',
+    'RAiD',
     'ARK',
     'arXiv',
     'bibcode',
@@ -30,6 +31,7 @@ export const identifierTypes = [
     'LSID',
     'PMID',
     'RRID',
+    'SWHID',
     'UPC',
     'w3id',
 ] as const;
@@ -39,7 +41,7 @@ export const identifierTypeSchema = z.enum(identifierTypes);
 export type IdentifierType = z.infer<typeof identifierTypeSchema>;
 
 // =============================================================================
-// Relation Types (DataCite 4.6)
+// Relation Types (DataCite 4.7)
 // =============================================================================
 
 export const relationTypes = [
@@ -85,10 +87,14 @@ export const relationTypes = [
     // Reviews
     'Reviews',
     'IsReviewedBy',
+    // Translation
+    'HasTranslation',
+    'IsTranslationOf',
     // Other
     'IsPublishedIn',
     'Collects',
     'IsCollectedBy',
+    'Other',
 ] as const;
 
 export const relationTypeSchema = z.enum(relationTypes);
@@ -104,6 +110,7 @@ export const relatedIdentifierSchema = z.object({
     identifier: z.string().min(1, 'Identifier is required'),
     identifier_type: identifierTypeSchema,
     relation_type: relationTypeSchema,
+    relation_type_information: z.string().max(255).optional().nullable(),
     position: z.number().optional(),
     related_title: z.string().optional().nullable(),
     related_metadata: z.record(z.string(), z.unknown()).optional().nullable(),
@@ -127,6 +134,7 @@ export const relatedWorkFormSchema = z.object({
     identifier: z.string().min(1, 'Identifier is required'),
     identifierType: identifierTypeSchema,
     relationType: relationTypeSchema,
+    relationTypeInformation: z.string().max(255).optional().nullable(),
 });
 
 export type RelatedWorkFormData = z.infer<typeof relatedWorkFormSchema>;

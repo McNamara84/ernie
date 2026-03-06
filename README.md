@@ -16,7 +16,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 ## Features
 
-- **DataCite v4.6 Metadata Editor** – Complete support for DOI registration with all mandatory and recommended fields
+- **DataCite v4.7 Metadata Editor** – Complete support for DOI registration with all mandatory and recommended fields
 - **Role-Based Access Control** – Four-tier permission system (Admin, Group Leader, Curator, Beginner)
 - **IGSN Support** – Physical sample registration with CSV import and hierarchical relationships
 - **ORCID & ROR Integration** – Researcher identification and institutional affiliation lookup
@@ -450,7 +450,7 @@ For detailed information about changes in each release, visit the [interactive c
 Developed at **GFZ German Research Centre for Geosciences** – Helmholtz Centre Potsdam.
 
 This project integrates with:
-- [DataCite](https://datacite.org/) metadata schema v4.6
+- [DataCite](https://datacite.org/) metadata schema v4.7
 - [NASA GCMD](https://earthdata.nasa.gov/earth-observation-data/find-data/gcmd) controlled vocabularies
 - [Research Organization Registry (ROR)](https://ror.org/) for institutional identifiers
 - [ORCID](https://orcid.org/) Public API for researcher identification

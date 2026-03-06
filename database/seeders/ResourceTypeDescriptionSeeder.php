@@ -10,8 +10,8 @@ use Illuminate\Database\Seeder;
 /**
  * Seeder to populate resource types with official DataCite descriptions.
  *
- * Descriptions are taken from the DataCite Metadata Schema 4.6:
- * https://datacite-metadata-schema.readthedocs.io/en/4.6/appendices/appendix-1/resourceTypeGeneral/
+ * Descriptions are taken from the DataCite Metadata Schema 4.7:
+ * https://datacite-metadata-schema.readthedocs.io/en/4.7/appendices/appendix-1/resourceTypeGeneral/
  */
 class ResourceTypeDescriptionSeeder extends Seeder
 {
@@ -20,12 +20,12 @@ class ResourceTypeDescriptionSeeder extends Seeder
      *
      * Keys must match the 'name' column in the resource_types table exactly.
      *
-     * Descriptions are taken from the DataCite Metadata Schema 4.6:
-     * https://datacite-metadata-schema.readthedocs.io/en/4.6/appendices/appendix-1/resourceTypeGeneral/
+     * Descriptions are taken from the DataCite Metadata Schema 4.7:
+     * https://datacite-metadata-schema.readthedocs.io/en/4.7/appendices/appendix-1/resourceTypeGeneral/
      *
      * @var array<string, string>
      */
-    private const DESCRIPTIONS = [
+    public const DESCRIPTIONS = [
         'Audiovisual' => 'A series of visual representations imparting an impression of motion when shown in succession. May or may not include sound.',
         'Award' => 'An umbrella term for resources provided to individual(s) or organization(s) in support of research, academic output, or training, such as a specific instance of funding, grant, investment, sponsorship, scholarship, recognition, or non-monetary materials.',
         'Book' => 'A medium for recording information in the form of writing or images, typically composed of many pages bound together and protected by a cover.',
@@ -47,7 +47,9 @@ class ResourceTypeDescriptionSeeder extends Seeder
         'Output Management Plan' => 'A formal document that outlines how research outputs are to be handled both during a research project and after the project is completed.',
         'Peer Review' => 'Evaluation of scientific, academic, or professional work by others working in the same field.',
         'Physical Object' => 'A physical object or substance.',
+        'Poster' => 'A display poster, typically containing text with illustrative figures and/or tables, usually reporting research results or proposing hypotheses, submitted for acceptance to and/or presented at a conference, seminar, symposium, workshop or similar event.',
         'Preprint' => 'A version of a scholarly or scientific paper that precedes formal peer review and publication in a peer-reviewed scholarly or scientific journal.',
+        'Presentation' => 'A set of slides containing text, tables or figures, designed to communicate ideas or research results, for viewing by an audience at a conference, symposium, seminar, lecture, workshop or other event.',
         'Project' => 'A planned endeavor or activity, frequently collaborative, intended to achieve a particular aim using allocated resources such as budget, time, and expertise.',
         'Report' => 'A document that presents information in an organized format for a specific audience and purpose.',
         'Service' => 'An organized system of apparatus, appliances, staff, etc., for supplying some function(s) required by end users.',

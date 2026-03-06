@@ -34,7 +34,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -48,7 +48,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -62,7 +62,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -76,7 +76,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="IGSN"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -90,11 +90,11 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
-        expect(screen.getByText(/DataCite.*Schema.*4\.6/)).toBeInTheDocument();
+        expect(screen.getByText(/DataCite.*Schema.*4\.7/)).toBeInTheDocument();
     });
 
     it('displays all error messages', () => {
@@ -104,7 +104,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -121,7 +121,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -146,7 +146,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -164,7 +164,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -187,7 +187,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -203,7 +203,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={[]}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -227,7 +227,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={minimalErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -251,7 +251,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={longError}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -265,7 +265,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={sampleErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 
@@ -288,7 +288,7 @@ describe('ValidationErrorModal', () => {
                 onOpenChange={mockOnOpenChange}
                 errors={manyErrors}
                 resourceType="Resource"
-                schemaVersion="4.6"
+                schemaVersion="4.7"
             />,
         );
 

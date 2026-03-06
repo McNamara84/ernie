@@ -11,7 +11,7 @@ use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 
 /**
- * Validates JSON data against the DataCite 4.6 JSON Schema.
+ * Validates JSON data against the DataCite 4.7 JSON Schema.
  *
  * This service provides validation for exported Resource and IGSN data
  * to ensure compliance with the DataCite Metadata Schema before export.
@@ -22,9 +22,9 @@ use Opis\JsonSchema\Validator;
  */
 class JsonSchemaValidator
 {
-    private const SCHEMA_PATH = 'resources/data/scheme/datacite_4.6_schema.json';
+    private const SCHEMA_PATH = 'resources/data/scheme/datacite_4.7_schema.json';
 
-    private const SCHEMA_VERSION = '4.6';
+    private const SCHEMA_VERSION = '4.7';
 
     private Validator $validator;
 

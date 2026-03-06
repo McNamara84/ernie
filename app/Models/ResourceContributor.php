@@ -28,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ContributorType> $contributorTypes
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Affiliation> $affiliations
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/contributor/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/contributor/
  */
 class ResourceContributor extends Model
 {

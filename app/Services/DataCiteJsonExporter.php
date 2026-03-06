@@ -14,18 +14,16 @@ use App\Models\ResourceCreator;
 use App\Services\Traits\DataCiteExporterHelpers;
 
 /**
- * Service for exporting Resource data to DataCite JSON format (v4.5/4.6)
+ * Service for exporting Resource data to DataCite JSON format (v4.7)
  *
- * Implements the DataCite Metadata Schema v4.5 JSON format with v4.6 extensions.
- * Schema: https://github.com/inveniosoftware/datacite/blob/master/datacite/schemas/datacite-v4.5.json
- * Documentation: https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ * Implements the DataCite Metadata Schema v4.7 JSON format.
+ * Documentation: https://datacite-metadata-schema.readthedocs.io/en/4.7/
  *
- * DataCite 4.6 additions over 4.5:
- * - resourceTypeGeneral: Award, Project
- * - relatedIdentifierType: CSTR, RRID
- * - contributorType: Translator
- * - relationType: HasTranslation, IsTranslationOf
- * - dateType: Coverage
+ * DataCite 4.7 additions over 4.6:
+ * - resourceTypeGeneral: Poster, Presentation
+ * - relatedIdentifierType: RAiD, SWHID
+ * - relationType: Other
+ * - New sub-property: relationTypeInformation (12.g, 20.c)
  */
 class DataCiteJsonExporter
 {
@@ -215,7 +213,7 @@ class DataCiteJsonExporter
      *
      * @return array<string, string|null>
      *
-     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/publisher/
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/publisher/
      */
     private function buildPublisher(Resource $resource): array
     {
@@ -256,7 +254,7 @@ class DataCiteJsonExporter
      * Mapping from database resource type names to DataCite resourceTypeGeneral values.
      * DataCite requires PascalCase without spaces.
      *
-     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/appendices/appendix-1/resourceTypeGeneral/
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/appendices/appendix-1/resourceTypeGeneral/
      *
      * @var array<string, string>
      */
@@ -950,6 +948,11 @@ class DataCiteJsonExporter
             // Add resource type general if available
             if ($relatedIdentifier->resource_type_general) {
                 $relatedData['resourceTypeGeneral'] = $relatedIdentifier->resource_type_general;
+            }
+
+            // Add relationTypeInformation if available (DataCite 4.7, property 12.g)
+            if ($relatedIdentifier->relation_type_information) {
+                $relatedData['relationTypeInformation'] = $relatedIdentifier->relation_type_information;
             }
 
             $relatedIdentifiers[] = $relatedData;

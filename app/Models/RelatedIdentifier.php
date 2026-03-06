@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $identifier
  * @property int $identifier_type_id
  * @property int $relation_type_id
+ * @property string|null $relation_type_information
  * @property string|null $resource_type_general
  * @property int $position
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read IdentifierType $identifierType
  * @property-read RelationType $relationType
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/relatedidentifier/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
 class RelatedIdentifier extends Model
 {
@@ -38,6 +39,7 @@ class RelatedIdentifier extends Model
         'identifier',
         'identifier_type_id',
         'relation_type_id',
+        'relation_type_information',
         'resource_type_general',
         'position',
     ];
@@ -86,6 +88,7 @@ class RelatedIdentifier extends Model
         'IsReviewedBy' => 'Reviews',
         'Collects' => 'IsCollectedBy',
         'IsCollectedBy' => 'Collects',
+        'Other' => 'Other',
     ];
 
     /** @return BelongsTo<Resource, static> */

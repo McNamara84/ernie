@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 /**
  * Seeder for Relation Types (DataCite #12)
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/relatedidentifier/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
 class RelationTypeSeeder extends Seeder
 {
@@ -57,6 +57,7 @@ class RelationTypeSeeder extends Seeder
             ['name' => 'Obsoletes', 'slug' => 'Obsoletes'],
             ['name' => 'Is Collected By', 'slug' => 'IsCollectedBy'],
             ['name' => 'Collects', 'slug' => 'Collects'],
+            ['name' => 'Other', 'slug' => 'Other'],
         ];
 
         foreach ($types as $type) {

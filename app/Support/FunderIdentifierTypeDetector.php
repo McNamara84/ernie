@@ -7,14 +7,14 @@ namespace App\Support;
 /**
  * Detects funderIdentifierType from funderIdentifier URLs.
  *
- * Supports DataCite 4.6 funderIdentifierType values:
+ * Supports DataCite 4.7 funderIdentifierType values:
  * - ROR (Research Organization Registry)
  * - Crossref Funder ID (DOI prefix 10.13039)
  * - ISNI (International Standard Name Identifier)
  * - GRID (Global Research Identifier Database - deprecated)
  * - Other (fallback)
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/fundingreference/#a-funderidentifiertype
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/fundingreference/#a-funderidentifiertype
  */
 final class FunderIdentifierTypeDetector
 {

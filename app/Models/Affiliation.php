@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read ResourceCreator|ResourceContributor $affiliatable
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/creator/#affiliation
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/#affiliation
  */
 class Affiliation extends Model
 {

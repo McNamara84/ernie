@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Log;
  *
  * Maps all DataCite metadata fields to the local database schema.
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
 class DataCiteToResourceTransformer
 {
@@ -821,6 +821,7 @@ class DataCiteToResourceTransformer
                 'identifier' => $identifier,
                 'identifier_type_id' => $identifierTypeId,
                 'relation_type_id' => $relationTypeId,
+                'relation_type_information' => $relIdData['relationTypeInformation'] ?? null,
                 'related_metadata_scheme' => $relIdData['relatedMetadataScheme'] ?? null,
                 'scheme_uri' => $relIdData['schemeUri'] ?? null,
                 'scheme_type' => $relIdData['schemeType'] ?? null,

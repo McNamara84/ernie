@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/contributor/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/contributor/
  */
 class ContributorType extends Model
 {

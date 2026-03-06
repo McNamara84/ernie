@@ -4,6 +4,10 @@
         "date": "2026-03-06",
         "features": [
             {
+                "title": "DataCite Schema 4.7 Upgrade",
+                "description": "ERNIE now fully supports DataCite Metadata Schema 4.7. New resource types (Poster, Presentation), new identifier types (RAiD, SWHID), and the new relation type 'Other' with an optional free-text 'relationTypeInformation' field are available. All XML/JSON exports, imports, and validations use the updated schema."
+            },
+            {
                 "title": "ROR Affiliations API Endpoint for ELMO",
                 "description": "A new API endpoint (`/api/v1/ror-affiliations/elmo`) provides the complete ROR (Research Organization Registry) dataset to ELMO. The endpoint returns a metadata wrapper with total count, last update timestamp, and the full list of organizations including preferred labels, ROR IDs, and alternative names. Access is protected by API key authentication."
             },

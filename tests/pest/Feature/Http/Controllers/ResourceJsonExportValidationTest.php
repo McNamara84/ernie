@@ -111,7 +111,7 @@ describe('Resource JSON Export with Schema Validation', function () {
             ->get("/resources/{$resource->id}/export-datacite-json");
 
         $response->assertStatus(422);
-        $response->assertJsonPath('schema_version', '4.6');
+        $response->assertJsonPath('schema_version', '4.7');
     });
 
     it('includes multiple validation errors in response', function () {

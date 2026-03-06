@@ -29,7 +29,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property-read Person|Institution $creatorable
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Affiliation> $affiliations
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/creator/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/
  */
 class ResourceCreator extends Model
 {

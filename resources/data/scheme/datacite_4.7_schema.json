@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "id": "datacite-v4.6.json",
-    "title": "DataCite v4.6",
-    "description": "JSON representation of the DataCite v4.6 schema.",
+    "id": "datacite-v4.7.json",
+    "title": "DataCite v4.7",
+    "description": "JSON representation of the DataCite v4.7 schema.",
     "additionalProperties": false,
     "definitions": {
         "nameType": {
@@ -121,7 +121,9 @@
                 "OutputManagementPlan",
                 "PeerReview",
                 "PhysicalObject",
+                "Poster",
                 "Preprint",
+                "Presentation",
                 "Project",
                 "Report",
                 "Service",
@@ -153,7 +155,9 @@
                 "LSID",
                 "PMID",
                 "PURL",
+                "RAiD",
                 "RRID",
+                "SWHID",
                 "UPC",
                 "URL",
                 "URN",
@@ -200,7 +204,8 @@
                 "IsCollectedBy",
                 "Collects",
                 "IsTranslationOf",
-                "HasTranslation"
+                "HasTranslation",
+                "Other"
             ]
         },
         "descriptionType": {
@@ -391,7 +396,8 @@
                     "relatedMetadataScheme": { "type": "string" },
                     "schemeUri": { "type": "string", "format": "uri" },
                     "schemeType": { "type": "string" },
-                    "resourceTypeGeneral": { "$ref": "#/definitions/resourceTypeGeneral" }
+                    "resourceTypeGeneral": { "$ref": "#/definitions/resourceTypeGeneral" },
+                    "relationTypeInformation": { "type": "string" }
                 },
                 "required": ["relatedIdentifier", "relatedIdentifierType", "relationType"],
                 "if": {
@@ -515,6 +521,7 @@
                 "properties": {
                     "relatedItemType": { "$ref": "#/definitions/resourceTypeGeneral" },
                     "relationType": { "$ref": "#/definitions/relationType" },
+                    "relationTypeInformation": { "type": "string" },
                     "relatedItemIdentifier": {
                         "type": "object",
                         "properties": {

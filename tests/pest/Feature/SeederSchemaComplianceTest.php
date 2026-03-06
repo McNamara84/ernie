@@ -16,7 +16,7 @@ beforeEach(function () {
     $this->artisan('db:seed', ['--class' => 'RelationTypeSeeder']);
 });
 
-describe('DataCite Schema 4.6 Compliance', function () {
+describe('DataCite Schema 4.7 Compliance', function () {
     describe('DateType', function () {
         it('has all required dateTypes including Coverage', function () {
             $required = [
@@ -104,6 +104,20 @@ describe('DataCite Schema 4.6 Compliance', function () {
             expect($rrid->name)->toBe('RRID');
         });
 
+        it('has RAiD identifierType', function () {
+            $raid = IdentifierType::where('slug', 'RAiD')->first();
+
+            expect($raid)->not->toBeNull();
+            expect($raid->name)->toBe('RAiD');
+        });
+
+        it('has SWHID identifierType', function () {
+            $swhid = IdentifierType::where('slug', 'SWHID')->first();
+
+            expect($swhid)->not->toBeNull();
+            expect($swhid->name)->toBe('SWHID');
+        });
+
         it('has all required identifierTypes', function () {
             $required = [
                 'ARK',
@@ -123,6 +137,8 @@ describe('DataCite Schema 4.6 Compliance', function () {
                 'PMID',
                 'PURL',
                 'RRID',  // New in Schema 4.6
+                'RAiD',  // New in Schema 4.7
+                'SWHID', // New in Schema 4.7
                 'UPC',
                 'URL',
                 'URN',
@@ -149,6 +165,13 @@ describe('DataCite Schema 4.6 Compliance', function () {
 
             expect($isTranslationOf)->not->toBeNull();
             expect($isTranslationOf->name)->toBe('Is Translation Of');
+        });
+
+        it('has Other relationType', function () {
+            $other = RelationType::where('slug', 'Other')->first();
+
+            expect($other)->not->toBeNull();
+            expect($other->name)->toBe('Other');
         });
 
         it('has all required relationTypes', function () {
@@ -191,6 +214,7 @@ describe('DataCite Schema 4.6 Compliance', function () {
                 'Obsoletes',
                 'IsCollectedBy',
                 'Collects',
+                'Other', // New in Schema 4.7
             ];
 
             foreach ($required as $slug) {

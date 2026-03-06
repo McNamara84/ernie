@@ -975,7 +975,7 @@ class ResourceController extends Controller
         $exporter = new DataCiteJsonExporter;
         $dataCiteJson = $exporter->export($resource);
 
-        // Validate attributes against DataCite 4.6 schema
+        // Validate attributes against DataCite 4.7 schema
         // Schema expects flat structure, export has data.attributes wrapper
         try {
             $validator->validate($dataCiteJson['data']['attributes']);

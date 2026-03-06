@@ -1,7 +1,7 @@
 import type { RelationType } from '@/types';
 
 /**
- * DataCite 4.6 Relation Types grouped by category.
+ * DataCite 4.7 Relation Types grouped by category.
  * Based on analysis of metaworks database and DataCite schema.
  */
 export const RELATION_TYPES_GROUPED: Record<string, RelationType[]> = {
@@ -26,7 +26,8 @@ export const RELATION_TYPES_GROUPED: Record<string, RelationType[]> = {
     Software: ['Requires', 'IsRequiredBy'],
     Metadata: ['HasMetadata', 'IsMetadataFor'],
     Reviews: ['Reviews', 'IsReviewedBy'],
-    Other: ['IsPublishedIn', 'Collects', 'IsCollectedBy'],
+    Translation: ['HasTranslation', 'IsTranslationOf'],
+    Other: ['IsPublishedIn', 'Collects', 'IsCollectedBy', 'Other'],
 };
 
 /**
@@ -96,9 +97,12 @@ export const BIDIRECTIONAL_PAIRS: Record<RelationType, RelationType> = {
     IsReviewedBy: 'Reviews',
     Collects: 'IsCollectedBy',
     IsCollectedBy: 'Collects',
+    HasTranslation: 'IsTranslationOf',
+    IsTranslationOf: 'HasTranslation',
     // Unidirectional
     IsPublishedIn: 'IsPublishedIn' as RelationType,
     IsIdenticalTo: 'IsIdenticalTo' as RelationType,
+    Other: 'Other' as RelationType,
 };
 
 /**
@@ -157,4 +161,7 @@ export const RELATION_TYPE_DESCRIPTIONS: Record<RelationType, string> = {
     IsPublishedIn: 'This resource is published in',
     Collects: 'This resource collects',
     IsCollectedBy: 'This resource is collected by',
+    HasTranslation: 'This resource has a translation',
+    IsTranslationOf: 'This resource is a translation of',
+    Other: 'Other relationship not covered by existing types',
 };

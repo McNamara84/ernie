@@ -9,6 +9,9 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config(['services.ernie.api_key' => 'test-api-key']);
+
+    // Remove any resource types seeded by migrations (e.g. DataCite 4.7 upgrade)
+    ResourceType::query()->delete();
 });
 
 function createElmoResourceTypes(): ResourceType

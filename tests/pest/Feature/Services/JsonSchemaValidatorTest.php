@@ -43,7 +43,7 @@ describe('JsonSchemaValidator', function () {
             try {
                 $validator->validate($invalidData);
             } catch (JsonValidationException $e) {
-                expect($e->getSchemaVersion())->toBe('4.6');
+                expect($e->getSchemaVersion())->toBe('4.7');
             }
         });
 
@@ -69,7 +69,7 @@ describe('JsonSchemaValidator', function () {
             }
         });
 
-        it('validates all new DataCite 4.6 resourceTypeGeneral values', function () {
+        it('validates resourceTypeGeneral values added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $newResourceTypes = [
@@ -106,7 +106,7 @@ describe('JsonSchemaValidator', function () {
             }
         });
 
-        it('validates new 4.6 contributorType Translator', function () {
+        it('validates contributorType Translator added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -124,7 +124,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 relationType values', function () {
+        it('validates relationType values added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $newRelationTypes = [
@@ -156,7 +156,7 @@ describe('JsonSchemaValidator', function () {
             }
         });
 
-        it('validates new 4.6 relatedIdentifierType CSTR', function () {
+        it('validates relatedIdentifierType CSTR added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -178,7 +178,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 relatedIdentifierType RRID', function () {
+        it('validates relatedIdentifierType RRID added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -199,8 +199,103 @@ describe('JsonSchemaValidator', function () {
 
             expect($validator->validate($data))->toBeTrue();
         });
+        it('validates new 4.7 relatedIdentifierType RAiD', function () {
+            $validator = new JsonSchemaValidator;
 
-        it('validates new 4.6 dateType Coverage', function () {
+            $data = [
+                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'relatedIdentifiers' => [
+                    [
+                        'relatedIdentifier' => 'https://raid.org/10.25.1/abc123',
+                        'relatedIdentifierType' => 'RAiD',
+                        'relationType' => 'References',
+                    ],
+                ],
+            ];
+
+            expect($validator->validate($data))->toBeTrue();
+        });
+
+        it('validates new 4.7 relatedIdentifierType SWHID', function () {
+            $validator = new JsonSchemaValidator;
+
+            $data = [
+                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'relatedIdentifiers' => [
+                    [
+                        'relatedIdentifier' => 'swh:1:cnt:94a9ed024d3859793618152ea559a168bbcbb5e2',
+                        'relatedIdentifierType' => 'SWHID',
+                        'relationType' => 'References',
+                    ],
+                ],
+            ];
+
+            expect($validator->validate($data))->toBeTrue();
+        });
+
+        it('validates new 4.7 relationType Other with relationTypeInformation', function () {
+            $validator = new JsonSchemaValidator;
+
+            $data = [
+                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'relatedIdentifiers' => [
+                    [
+                        'relatedIdentifier' => '10.5880/other',
+                        'relatedIdentifierType' => 'DOI',
+                        'relationType' => 'Other',
+                        'relationTypeInformation' => 'Custom relation description',
+                    ],
+                ],
+            ];
+
+            expect($validator->validate($data))->toBeTrue();
+        });
+
+        it('validates new 4.7 resourceTypeGeneral Poster', function () {
+            $validator = new JsonSchemaValidator;
+
+            $data = [
+                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Poster', 'resourceTypeGeneral' => 'Poster'],
+            ];
+
+            expect($validator->validate($data))->toBeTrue();
+        });
+
+        it('validates new 4.7 resourceTypeGeneral Presentation', function () {
+            $validator = new JsonSchemaValidator;
+
+            $data = [
+                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Presentation', 'resourceTypeGeneral' => 'Presentation'],
+            ];
+
+            expect($validator->validate($data))->toBeTrue();
+        });
+        it('validates dateType Coverage added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -218,7 +313,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 publisher with object structure', function () {
+        it('validates publisher with object structure added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -238,7 +333,7 @@ describe('JsonSchemaValidator', function () {
             expect($validator->validate($data))->toBeTrue();
         });
 
-        it('validates new 4.6 subjects with classificationCode', function () {
+        it('validates subjects with classificationCode added in DataCite 4.6', function () {
             $validator = new JsonSchemaValidator;
 
             $data = [
@@ -488,9 +583,9 @@ describe('JsonValidationException', function () {
     });
 
     it('stores schema version', function () {
-        $exception = new JsonValidationException('Validation failed', [], '4.6');
+        $exception = new JsonValidationException('Validation failed', [], '4.7');
 
-        expect($exception->getSchemaVersion())->toBe('4.6');
+        expect($exception->getSchemaVersion())->toBe('4.7');
     });
 
     it('returns error messages', function () {
@@ -509,7 +604,7 @@ describe('JsonValidationException', function () {
             ['path' => '/creators', 'message' => 'Required', 'keyword' => 'required', 'context' => []],
         ];
 
-        $exception = new JsonValidationException('Validation failed', $errors, '4.6');
+        $exception = new JsonValidationException('Validation failed', $errors, '4.7');
 
         $array = $exception->toArray();
 
@@ -517,7 +612,7 @@ describe('JsonValidationException', function () {
         expect($array)->toHaveKey('schema_version');
         expect($array)->toHaveKey('errors');
         expect($array['message'])->toBe('Validation failed');
-        expect($array['schema_version'])->toBe('4.6');
+        expect($array['schema_version'])->toBe('4.7');
         expect($array['errors'])->toBe($errors);
     });
 });

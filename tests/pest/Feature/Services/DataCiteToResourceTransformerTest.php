@@ -507,7 +507,7 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($publisher->identifier)->toBe('https://ror.org/12345');
         });
 
-        it('enriches GFZ Data Services publisher with full DataCite 4.6 metadata', function (): void {
+        it('enriches GFZ Data Services publisher with full DataCite 4.7 metadata', function (): void {
             $user = User::factory()->create();
             $transformer = new DataCiteToResourceTransformer;
 
