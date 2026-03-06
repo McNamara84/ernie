@@ -127,7 +127,7 @@ class StoreResourceRequest extends FormRequest
             'relatedIdentifiers.*.identifierType' => [
                 'required',
                 'string',
-                Rule::in(['DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK', 'arXiv', 'bibcode', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID', 'PMID', 'UPC', 'w3id']),
+                Rule::in(['DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK', 'arXiv', 'bibcode', 'CSTR', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID', 'PMID', 'RAiD', 'RRID', 'SWHID', 'UPC', 'w3id']),
             ],
             'relatedIdentifiers.*.relationType' => [
                 'required',
@@ -143,8 +143,10 @@ class StoreResourceRequest extends FormRequest
                     'IsReviewedBy', 'Reviews', 'IsDerivedFrom', 'IsSourceOf',
                     'IsRequiredBy', 'Requires', 'IsCollectedBy', 'Collects',
                     'IsObsoletedBy', 'Obsoletes',
+                    'HasTranslation', 'IsTranslationOf', 'Other',
                 ]),
             ],
+            'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'fundingReferences' => ['nullable', 'array', 'max:99'],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
@@ -673,10 +675,15 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
+            $relationTypeInformation = isset($relatedIdentifier['relationTypeInformation'])
+                ? trim((string) $relatedIdentifier['relationTypeInformation'])
+                : '';
+
             $relatedIdentifiers[] = [
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
+                ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
             ];
         }
 
