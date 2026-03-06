@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 /**
  * Controller for returning contributor types.
  *
- * In DataCite 4.7, the concept of "roles" was replaced with
+ * In DataCite, the concept of "roles" was replaced with
  * contributorTypes, which are standardized types like "DataCurator",
  * "ProjectLeader", "ContactPerson", etc.
  */

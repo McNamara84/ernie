@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
 import { getAllRelationTypes, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
+import { identifierTypes } from '@/schemas/related-work.schema';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
 interface RelatedWorkAdvancedAddProps {
@@ -74,31 +75,6 @@ export default function RelatedWorkAdvancedAdd({
             handleAdd();
         }
     };
-
-    const identifierTypes: IdentifierType[] = [
-        'DOI',
-        'URL',
-        'Handle',
-        'IGSN',
-        'URN',
-        'ISBN',
-        'ISSN',
-        'PURL',
-        'RAiD',
-        'ARK',
-        'arXiv',
-        'bibcode',
-        'EAN13',
-        'EISSN',
-        'ISTC',
-        'LISSN',
-        'LSID',
-        'PMID',
-        'RRID',
-        'SWHID',
-        'UPC',
-        'w3id',
-    ];
 
     return (
         <div className="space-y-4">
