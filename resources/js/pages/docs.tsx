@@ -1402,8 +1402,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     </p>
                 </div>
 
-                {/* Tabs */}
-                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange} />
+                {/* Tabs – relative z-10 ensures tabs render above the sticky sidebar during scroll */}
+                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange} className="relative z-10" />
 
                 {/* Mobile Sidebar */}
                 <DocsSidebarMobile items={sidebarItems} activeId={activeId} onSectionClick={scrollToSection} />
