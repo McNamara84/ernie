@@ -62,12 +62,12 @@ class UpdateSettingsRequest extends FormRequest
             'pidSettings.*.type' => ['required', 'string', Rule::in(PidSetting::getValidTypes())],
             'pidSettings.*.isActive' => ['required', 'boolean'],
             'pidSettings.*.isElmoActive' => ['required', 'boolean'],
-            // Contributor roles (three categories)
-            'contributorPersonRoles' => ['required', 'array'],
+            // Contributor roles (optional - only sent when contributor role cards are present)
+            'contributorPersonRoles' => ['sometimes', 'array'],
             ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorPersonRoles{$key}" => $rules])->all(),
-            'contributorInstitutionRoles' => ['required', 'array'],
+            'contributorInstitutionRoles' => ['sometimes', 'array'],
             ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorInstitutionRoles{$key}" => $rules])->all(),
-            'contributorBothRoles' => ['required', 'array'],
+            'contributorBothRoles' => ['sometimes', 'array'],
             ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorBothRoles{$key}" => $rules])->all(),
         ];
     }

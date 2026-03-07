@@ -65,13 +65,25 @@ describe('ContributorType', function () {
     it('has correct fillable fields', function () {
         $model = new ContributorType;
 
-        expect($model->getFillable())->toBe(['name', 'slug', 'is_active']);
+        expect($model->getFillable())->toBe(['name', 'slug', 'category', 'is_active', 'is_elmo_active']);
     });
 
     it('casts is_active to boolean', function () {
         $model = new ContributorType(['is_active' => 1]);
 
         expect($model->is_active)->toBeBool();
+    });
+
+    it('casts is_elmo_active to boolean', function () {
+        $model = new ContributorType(['is_elmo_active' => 1]);
+
+        expect($model->is_elmo_active)->toBeBool();
+    });
+
+    it('casts category to ContributorCategory enum', function () {
+        $model = new ContributorType(['category' => 'person']);
+
+        expect($model->category)->toBe(\App\Enums\ContributorCategory::PERSON);
     });
 
     it('defines contributors relationship', function () {
@@ -85,6 +97,27 @@ describe('ContributorType', function () {
         $builder = $model->newQuery();
 
         expect($model->scopeActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+    });
+
+    it('has elmoActive scope', function () {
+        $model = new ContributorType;
+        $builder = $model->newQuery();
+
+        expect($model->scopeElmoActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+    });
+
+    it('has forPersons scope', function () {
+        $model = new ContributorType;
+        $builder = $model->newQuery();
+
+        expect($model->scopeForPersons($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
+    });
+
+    it('has forInstitutions scope', function () {
+        $model = new ContributorType;
+        $builder = $model->newQuery();
+
+        expect($model->scopeForInstitutions($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
     });
 });
 
