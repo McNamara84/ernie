@@ -111,6 +111,7 @@ function isConsecutiveDuplicate(a: PolygonPoint, b: PolygonPoint): boolean {
 
 export default function CoordinateCsvImport({ onImport, onClose, existingPointCount, geoType }: CoordinateCsvImportProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const parseGenerationRef = useRef(0);
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -127,6 +128,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
 
     const parseCSV = useCallback(
         async (csvFile: File) => {
+            const generation = ++parseGenerationRef.current;
             setIsProcessing(true);
             setErrors([]);
             setParsedData([]);
@@ -141,6 +143,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                     header: true,
                     skipEmptyLines: true,
                     complete: (results) => {
+                        if (generation !== parseGenerationRef.current) return;
                         if (results.data.length === 0) {
                             setErrors([{ row: 0, field: 'file', value: '', message: 'CSV file is empty or has no data rows' }]);
                             setIsProcessing(false);
@@ -192,11 +195,19 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                         results.data.forEach((row, index) => {
                             const rowNum = index + 2; // +1 header, +1 for 1-based
 
+                            // Update progress based on row index regardless of validity
+                            const percent = Math.round(((index + 1) / results.data.length) * 100);
+                            if (percent !== lastPercent) {
+                                lastPercent = percent;
+                                setProgress(percent);
+                            }
+
                             const latStr = row[columns.latKey]?.trim();
                             const lonStr = row[columns.lonKey]?.trim();
 
-                            // Skip completely empty rows
-                            if (!latStr && !lonStr) return;
+                            // Skip only rows where ALL fields are empty/whitespace
+                            const allFieldsEmpty = Object.values(row).every((v) => !v?.trim());
+                            if (allFieldsEmpty) return;
 
                             // Validate latitude
                             if (!latStr) {
@@ -266,13 +277,6 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                                 lat: Number(lat.toFixed(6)),
                                 lon: Number(lon.toFixed(6)),
                             });
-
-                            // Update progress in coarse increments to avoid excessive rerenders
-                            const percent = Math.round(((index + 1) / results.data.length) * 100);
-                            if (percent !== lastPercent) {
-                                lastPercent = percent;
-                                setProgress(percent);
-                            }
                         });
 
                         // Remove consecutive duplicates
@@ -313,6 +317,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
     );
 
     const resetParsedState = () => {
+        parseGenerationRef.current++;
         setParsedData([]);
         setErrors([]);
         setProgress(0);
