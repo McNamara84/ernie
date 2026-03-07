@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom/vitest';
+﻿import '@testing-library/jest-dom/vitest';
 
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -109,6 +109,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         const grid = screen.getByTestId('settings-grid');
@@ -172,6 +175,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             }),
         );
     });
@@ -190,6 +196,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -211,6 +220,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -234,6 +246,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -255,6 +270,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -280,6 +298,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -301,6 +322,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -324,6 +348,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -345,6 +372,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -364,6 +394,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -382,6 +415,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -404,6 +440,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: postMock,
@@ -422,6 +461,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -442,6 +484,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -460,6 +505,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -483,6 +531,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -504,6 +555,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -525,6 +579,9 @@ describe('EditorSettings page', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -543,6 +600,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -566,6 +626,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -584,10 +647,13 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
-        // 4 cards × 2 columns + 1 card (Date Types) × 1 column = 9 select-all checkboxes
+        // 4 cards Ã— 2 columns + 1 card (Date Types) Ã— 1 column = 9 select-all checkboxes
         expect(screen.getByLabelText('Select all ERNIE active for Resource Types')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ELMO active for Resource Types')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ERNIE active for Title Types')).toBeInTheDocument();
@@ -614,6 +680,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -635,6 +704,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -660,6 +732,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -681,6 +756,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -705,6 +783,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -726,6 +807,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -748,6 +832,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -769,6 +856,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -794,6 +884,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -815,6 +908,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -840,6 +936,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -861,6 +960,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -886,6 +988,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -907,6 +1012,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -932,6 +1040,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
+                contributorPersonRoles: [],
+                contributorInstitutionRoles: [],
+                contributorBothRoles: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -953,6 +1064,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 

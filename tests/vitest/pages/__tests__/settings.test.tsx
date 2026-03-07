@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom/vitest';
+﻿import '@testing-library/jest-dom/vitest';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,6 +92,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         // Find headers by their text content (handles different accessible name interpretations)
@@ -134,6 +137,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
 
@@ -166,6 +172,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -190,6 +199,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
@@ -214,6 +226,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
@@ -236,6 +251,9 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         // Verify Limits card exists with heading
@@ -262,6 +280,9 @@ describe('License settings', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -288,6 +309,9 @@ describe('Language settings', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -314,6 +338,9 @@ describe('Date Type settings', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
+                contributorPersonRoles={[]}
+                contributorInstitutionRoles={[]}
+                contributorBothRoles={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
