@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
-import { PidSettingsCard, type PidSettingData } from '@/components/settings/pid-settings-card';
+import { type PidSettingData, PidSettingsCard } from '@/components/settings/pid-settings-card';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

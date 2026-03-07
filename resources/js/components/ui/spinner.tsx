@@ -1,5 +1,4 @@
 import { Loader2, type LucideProps } from 'lucide-react';
-import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -18,29 +17,8 @@ const sizeMap: Record<SpinnerSize, string> = {
     xl: 'h-8 w-8',
 };
 
-/**
- * Unified loading spinner component.
- *
- * Uses Lucide Loader2 icon with consistent styling across the application.
- * Replaces various custom spinner implementations (CSS border spinners,
- * inline animate-spin classes, LoaderCircle icons).
- *
- * @example
- * // Default medium size
- * <Spinner />
- *
- * // Small spinner for buttons
- * <Spinner size="sm" />
- *
- * // Large spinner for page loading
- * <Spinner size="lg" />
- *
- * // With custom className
- * <Spinner className="text-primary" />
- */
-const Spinner = React.forwardRef<SVGSVGElement, SpinnerProps>(({ className, size = 'md', ...props }, ref) => {
-    return <Loader2 ref={ref} className={cn('animate-spin', sizeMap[size], className)} aria-hidden="true" {...props} />;
-});
-Spinner.displayName = 'Spinner';
+function Spinner({ className, size = 'md', ...props }: SpinnerProps) {
+    return <Loader2 data-slot="spinner" className={cn('animate-spin', sizeMap[size], className)} aria-hidden="true" {...props} />;
+}
 
 export { Spinner, type SpinnerProps, type SpinnerSize };

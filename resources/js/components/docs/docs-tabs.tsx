@@ -47,14 +47,14 @@ const tabConfig = [
 export function DocsTabs({ activeTab, onTabChange, className }: DocsTabsProps) {
     return (
         <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as DocsTabId)} className={cn('w-full', className)}>
-            <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0">
+            <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto">
                 {tabConfig.map((tab) => (
                     <TabsTrigger
                         key={tab.id}
                         value={tab.id}
                         data-testid={`tab-${tab.id}`}
                         className={cn(
-                            'group flex flex-col items-center gap-2 rounded-lg border bg-card p-4 transition-all',
+                            'group flex flex-initial flex-col items-center gap-2 rounded-lg border bg-card p-4 transition-all',
                             'data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:shadow-sm',
                             'hover:border-primary/50 hover:bg-accent/50',
                             'h-auto whitespace-normal',

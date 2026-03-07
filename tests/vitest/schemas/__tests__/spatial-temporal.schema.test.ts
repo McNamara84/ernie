@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
     coverageTypeSchema,
     polygonPointSchema,
-    spatialTemporalCoverageSchema,
     spatialTemporalCoveragesArraySchema,
+    spatialTemporalCoverageSchema,
 } from '@/schemas/spatial-temporal.schema';
 
 const baseCoverage = {
