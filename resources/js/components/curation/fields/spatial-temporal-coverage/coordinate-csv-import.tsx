@@ -14,7 +14,7 @@
 
 import { Download, FileUp, Info, Upload, X } from 'lucide-react';
 import Papa from 'papaparse';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -112,6 +112,8 @@ function isConsecutiveDuplicate(a: PolygonPoint, b: PolygonPoint): boolean {
 export default function CoordinateCsvImport({ onImport, onClose, existingPointCount, geoType }: CoordinateCsvImportProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const parseGenerationRef = useRef(0);
+    const inputId = useId();
+    const fileInputId = `csv-upload-coordinates-${inputId}`;
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -125,6 +127,12 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
 
     const minPoints = geoType === 'polygon' ? 3 : 2;
     const geoLabel = geoType === 'polygon' ? 'polygon' : 'line';
+
+    const effectiveTotal =
+        importMode === 'append' && existingPointCount > 0
+            ? existingPointCount + parsedData.length
+            : parsedData.length;
+    const meetsMinPoints = effectiveTotal >= minPoints;
 
     const parseCSV = useCallback(
         async (csvFile: File) => {
@@ -375,7 +383,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
     };
 
     const handleImport = () => {
-        if (parsedData.length >= minPoints) {
+        if (parsedData.length > 0 && meetsMinPoints) {
             onImport(parsedData, importMode);
             onClose();
         }
@@ -453,14 +461,14 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 <input
                     ref={fileInputRef}
                     type="file"
-                    id="csv-upload-coordinates"
+                    id={fileInputId}
                     accept=".csv,text/csv"
                     onChange={handleFileSelect}
                     className="sr-only"
                 />
 
                 {!file ? (
-                    <label htmlFor="csv-upload-coordinates" className="flex cursor-pointer flex-col items-center gap-2">
+                    <label htmlFor={fileInputId} className="flex cursor-pointer flex-col items-center gap-2">
                         <Upload className="h-10 w-10 text-muted-foreground" />
                         <div className="space-y-1">
                             <p className="text-sm font-medium">Drop your CSV file here or click to browse</p>
@@ -547,9 +555,12 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                                 ` (${duplicatesRemoved} consecutive duplicate${duplicatesRemoved > 1 ? 's' : ''} removed)`}
                             . Ready to import!
                         </p>
-                        {parsedData.length < minPoints && (
+                        {!meetsMinPoints && (
                             <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-                                ⚠️ A valid {geoLabel} requires at least {minPoints} points. Only {parsedData.length} parsed.
+                                ⚠️ A valid {geoLabel} requires at least {minPoints} points.{' '}
+                                {importMode === 'append' && existingPointCount > 0
+                                    ? `Total after append: ${effectiveTotal}.`
+                                    : `Only ${parsedData.length} parsed.`}
                             </p>
                         )}
                         <div className="mt-2 max-h-48 overflow-y-auto rounded border bg-white p-2 dark:bg-transparent">
@@ -608,7 +619,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button type="button" onClick={handleImport} disabled={parsedData.length < minPoints || isProcessing}>
+                <Button type="button" onClick={handleImport} disabled={parsedData.length === 0 || !meetsMinPoints || isProcessing}>
                     {parsedData.length > 0
                         ? `Import ${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}`
                         : 'Import'}

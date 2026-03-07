@@ -154,6 +154,29 @@ describe('PolygonForm', () => {
         });
     });
 
+    it('deduplicates boundary point when last existing equals first imported on append', async () => {
+        const user = userEvent.setup();
+        const onBatchChange = vi.fn();
+        const entryWithPoints: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            polygonPoints: [
+                { lat: 1, lon: 2 },
+                { lat: 70, lon: 80 },
+            ],
+        };
+
+        render(<PolygonForm {...defaultProps} entry={entryWithPoints} onBatchChange={onBatchChange} />);
+        await user.click(screen.getByRole('button', { name: /csv import/i }));
+        await user.click(screen.getByTestId('csv-import-append'));
+
+        expect(onBatchChange).toHaveBeenCalledWith({
+            polygonPoints: [
+                { lat: 1, lon: 2 },
+                { lat: 70, lon: 80 },
+            ],
+        });
+    });
+
     it('closes CSV Import dialog after import', async () => {
         const user = userEvent.setup();
         render(<PolygonForm {...defaultProps} />);

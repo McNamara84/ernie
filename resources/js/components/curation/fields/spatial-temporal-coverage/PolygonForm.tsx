@@ -223,8 +223,20 @@ export default function PolygonForm({ entry, apiKey, onBatchChange }: PolygonFor
     };
 
     const handleCsvImport = (importedPoints: PolygonPoint[], mode: 'replace' | 'append') => {
-        const newPoints = mode === 'replace' ? importedPoints : [...points, ...importedPoints];
-        handlePointsChange(newPoints);
+        if (mode === 'replace') {
+            handlePointsChange(importedPoints);
+        } else {
+            const merged = [...points, ...importedPoints];
+            // Remove consecutive duplicate at the seam
+            if (points.length > 0 && importedPoints.length > 0) {
+                const last = points[points.length - 1];
+                const first = importedPoints[0];
+                if (last.lat === first.lat && last.lon === first.lon) {
+                    merged.splice(points.length, 1);
+                }
+            }
+            handlePointsChange(merged);
+        }
     };
 
     return (
