@@ -403,7 +403,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                         Import coordinate pairs for your {geoLabel} from a CSV file
                     </p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
+                <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -423,7 +423,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                         Need a template? Supports <code className="rounded bg-muted px-1 text-xs">latitude,longitude</code> or{' '}
                         <code className="rounded bg-muted px-1 text-xs">lon,lat</code> column headers
                     </span>
-                    <Button variant="outline" size="sm" onClick={downloadExample}>
+                    <Button type="button" variant="outline" size="sm" onClick={downloadExample}>
                         <Download className="mr-2 h-3 w-3" />
                         Example CSV
                     </Button>
@@ -591,10 +591,10 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button onClick={handleImport} disabled={parsedData.length === 0 || isProcessing}>
+                <Button type="button" onClick={handleImport} disabled={parsedData.length === 0 || isProcessing}>
                     Import {parsedData.length > 0 && `${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}`}
                 </Button>
             </div>
