@@ -15,9 +15,6 @@ vi.mock('@vis.gl/react-google-maps', () => ({
 }));
 
 // Mock CoordinateCsvImport to simulate import behavior
-let capturedOnImport: ((points: PolygonPoint[], mode: 'replace' | 'append') => void) | null = null;
-let capturedOnClose: (() => void) | null = null;
-
 vi.mock('@/components/curation/fields/spatial-temporal-coverage/coordinate-csv-import', () => ({
     default: ({
         onImport,
@@ -30,8 +27,6 @@ vi.mock('@/components/curation/fields/spatial-temporal-coverage/coordinate-csv-i
         existingPointCount: number;
         geoType: string;
     }) => {
-        capturedOnImport = onImport;
-        capturedOnClose = onClose;
         return (
             <div data-testid="csv-import-mock">
                 <span data-testid="csv-existing-count">{existingPointCount}</span>
