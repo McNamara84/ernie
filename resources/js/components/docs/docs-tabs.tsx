@@ -46,8 +46,8 @@ const tabConfig = [
  */
 export function DocsTabs({ activeTab, onTabChange, className }: DocsTabsProps) {
     return (
-        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as DocsTabId)} className={cn('block w-full', className)}>
-            <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0">
+        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as DocsTabId)} className={cn('w-full', className)}>
+            <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto">
                 {tabConfig.map((tab) => (
                     <TabsTrigger
                         key={tab.id}
