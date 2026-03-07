@@ -299,7 +299,7 @@ describe('CoordinateCsvImport Component', () => {
             });
         });
 
-        it('shows warning when polygon has fewer than 3 points', async () => {
+        it('shows warning when polygon has fewer than 3 points and disables import', async () => {
             render(<CoordinateCsvImport {...defaultProps} geoType="polygon" />);
             const fileInput = document.querySelector('#csv-upload-coordinates') as HTMLInputElement;
             const file = createMockFile(`latitude,longitude\n52.381,13.066\n52.382,13.068`, 'coords.csv');
@@ -309,9 +309,12 @@ describe('CoordinateCsvImport Component', () => {
             await waitFor(() => {
                 expect(screen.getByText(/A valid polygon requires at least 3 points/)).toBeInTheDocument();
             });
+
+            const importButton = screen.getByRole('button', { name: /Import 2 Point/ });
+            expect(importButton).toBeDisabled();
         });
 
-        it('shows warning when line has fewer than 2 points', async () => {
+        it('shows warning when line has fewer than 2 points and disables import', async () => {
             render(<CoordinateCsvImport {...defaultProps} geoType="line" />);
             const fileInput = document.querySelector('#csv-upload-coordinates') as HTMLInputElement;
             const file = createMockFile(`latitude,longitude\n52.381,13.066`, 'coords.csv');
@@ -321,6 +324,9 @@ describe('CoordinateCsvImport Component', () => {
             await waitFor(() => {
                 expect(screen.getByText(/A valid line requires at least 2 points/)).toBeInTheDocument();
             });
+
+            const importButton = screen.getByRole('button', { name: /Import 1 Point/ });
+            expect(importButton).toBeDisabled();
         });
 
         it('shows max 10 errors and indicates remaining', async () => {

@@ -14,7 +14,7 @@
 
 import { Download, FileUp, Info, Upload, X } from 'lucide-react';
 import Papa from 'papaparse';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -110,6 +110,7 @@ function isConsecutiveDuplicate(a: PolygonPoint, b: PolygonPoint): boolean {
 }
 
 export default function CoordinateCsvImport({ onImport, onClose, existingPointCount, geoType }: CoordinateCsvImportProps) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -317,6 +318,9 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
         setProgress(0);
         setDuplicatesRemoved(0);
         setHeaderFallback(false);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -362,7 +366,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
     };
 
     const handleImport = () => {
-        if (parsedData.length > 0) {
+        if (parsedData.length >= minPoints) {
             onImport(parsedData, importMode);
             onClose();
         }
@@ -438,6 +442,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 onDrop={handleDrop}
             >
                 <input
+                    ref={fileInputRef}
                     type="file"
                     id="csv-upload-coordinates"
                     accept=".csv,text/csv"
@@ -594,7 +599,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button type="button" onClick={handleImport} disabled={parsedData.length === 0 || isProcessing}>
+                <Button type="button" onClick={handleImport} disabled={parsedData.length < minPoints || isProcessing}>
                     Import {parsedData.length > 0 && `${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}`}
                 </Button>
             </div>
