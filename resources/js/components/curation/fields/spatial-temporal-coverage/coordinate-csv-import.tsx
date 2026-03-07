@@ -298,11 +298,13 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                         setIsProcessing(false);
                     },
                     error: (error: Error) => {
+                        if (generation !== parseGenerationRef.current) return;
                         setErrors([{ row: 0, field: 'file', value: '', message: error.message || 'Failed to parse CSV file' }]);
                         setIsProcessing(false);
                     },
                 });
             } catch (error) {
+                if (generation !== parseGenerationRef.current) return;
                 setErrors([
                     {
                         row: 0,
@@ -322,6 +324,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
         setParsedData([]);
         setErrors([]);
         setProgress(0);
+        setIsProcessing(false);
         setDuplicatesRemoved(0);
         setHeaderFallback(false);
         if (fileInputRef.current) {
