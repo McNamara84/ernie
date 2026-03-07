@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Enums\ContributorCategory;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -17,6 +18,13 @@ class UpdateSettingsRequest extends FormRequest
      */
     public function rules(): array
     {
+        $contributorRoleRules = [
+            '*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            '*.active' => ['required', 'boolean'],
+            '*.elmo_active' => ['required', 'boolean'],
+            '*.category' => ['required', 'string', Rule::in(array_column(ContributorCategory::cases(), 'value'))],
+        ];
+
         return [
             'resourceTypes' => ['required', 'array'],
             'resourceTypes.*.id' => ['required', 'integer', 'exists:resource_types,id'],
@@ -54,6 +62,13 @@ class UpdateSettingsRequest extends FormRequest
             'pidSettings.*.type' => ['required', 'string', Rule::in(PidSetting::getValidTypes())],
             'pidSettings.*.isActive' => ['required', 'boolean'],
             'pidSettings.*.isElmoActive' => ['required', 'boolean'],
+            // Contributor roles (three categories)
+            'contributorPersonRoles' => ['required', 'array'],
+            ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorPersonRoles{$key}" => $rules])->all(),
+            'contributorInstitutionRoles' => ['required', 'array'],
+            ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorInstitutionRoles{$key}" => $rules])->all(),
+            'contributorBothRoles' => ['required', 'array'],
+            ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorBothRoles{$key}" => $rules])->all(),
         ];
     }
 }

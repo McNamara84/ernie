@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { getSelectAllState } from '@/lib/select-all';
@@ -63,6 +64,15 @@ interface LandingPageDomainRow {
     domain: string;
 }
 
+interface ContributorRoleRow {
+    id: number;
+    name: string;
+    slug: string;
+    category: 'person' | 'institution' | 'both';
+    active: boolean;
+    elmo_active: boolean;
+}
+
 interface EditorSettingsProps {
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
@@ -74,6 +84,9 @@ interface EditorSettingsProps {
     thesauri: ThesaurusData[];
     pidSettings: PidSettingData[];
     landingPageDomains: LandingPageDomainRow[];
+    contributorPersonRoles: ContributorRoleRow[];
+    contributorInstitutionRoles: ContributorRoleRow[];
+    contributorBothRoles: ContributorRoleRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
@@ -89,6 +102,9 @@ export default function EditorSettings({
     thesauri,
     pidSettings,
     landingPageDomains,
+    contributorPersonRoles,
+    contributorInstitutionRoles,
+    contributorBothRoles,
 }: EditorSettingsProps) {
     // Landing page domains - managed separately via API (not part of main form)
     const [domains, setDomains] = useState<LandingPageDomainRow[]>(landingPageDomains);
@@ -182,6 +198,30 @@ export default function EditorSettings({
             type: p.type,
             isActive: p.isActive,
             isElmoActive: p.isElmoActive,
+        })),
+        contributorPersonRoles: contributorPersonRoles.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            category: r.category,
+            active: r.active,
+            elmo_active: r.elmo_active,
+        })),
+        contributorInstitutionRoles: contributorInstitutionRoles.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            category: r.category,
+            active: r.active,
+            elmo_active: r.elmo_active,
+        })),
+        contributorBothRoles: contributorBothRoles.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            category: r.category,
+            active: r.active,
+            elmo_active: r.elmo_active,
         })),
     });
 
@@ -311,6 +351,18 @@ export default function EditorSettings({
         );
     };
 
+    const handleContributorRoleChange = (
+        arrayKey: 'contributorPersonRoles' | 'contributorInstitutionRoles' | 'contributorBothRoles',
+        index: number,
+        field: 'active' | 'elmo_active' | 'category',
+        value: boolean | string,
+    ) => {
+        setData(
+            arrayKey,
+            data[arrayKey].map((r, i) => (i === index ? { ...r, [field]: value } : r)),
+        );
+    };
+
     // Select-all state for each card's ERNIE / ELMO columns
     const licenseErnieState = getSelectAllState(data.licenses.map((l) => l.active));
     const licenseElmoState = getSelectAllState(data.licenses.map((l) => l.elmo_active));
@@ -321,6 +373,12 @@ export default function EditorSettings({
     const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
     const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
     const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
+    const crpErnieState = getSelectAllState(data.contributorPersonRoles.map((r) => r.active));
+    const crpElmoState = getSelectAllState(data.contributorPersonRoles.map((r) => r.elmo_active));
+    const criErnieState = getSelectAllState(data.contributorInstitutionRoles.map((r) => r.active));
+    const criElmoState = getSelectAllState(data.contributorInstitutionRoles.map((r) => r.elmo_active));
+    const crbErnieState = getSelectAllState(data.contributorBothRoles.map((r) => r.active));
+    const crbElmoState = getSelectAllState(data.contributorBothRoles.map((r) => r.elmo_active));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -930,6 +988,312 @@ export default function EditorSettings({
                                     onActiveChange={handlePidActiveChange}
                                     onElmoActiveChange={handlePidElmoActiveChange}
                                 />
+                            </CardContent>
+                        </Card>
+
+                        {/* Contributor Roles (Persons) */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Contributor Roles (Persons)</CardTitle>
+                                <CardDescription>
+                                    Contributor types applicable to person contributors.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Slug</TableHead>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead className="text-center">
+                                                    ERNIE
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={crpErnieState.allChecked}
+                                                            indeterminate={crpErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'contributorPersonRoles',
+                                                                    data.contributorPersonRoles.map((r) => ({ ...r, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Contributor Roles (Persons)"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="text-center">
+                                                    ELMO
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={crpElmoState.allChecked}
+                                                            indeterminate={crpElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'contributorPersonRoles',
+                                                                    data.contributorPersonRoles.map((r) => ({ ...r, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Contributor Roles (Persons)"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {data.contributorPersonRoles.map((role, index) => (
+                                                <TableRow key={role.id}>
+                                                    <TableCell>{role.id}</TableCell>
+                                                    <TableCell>{role.name}</TableCell>
+                                                    <TableCell>{role.slug}</TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            value={role.category}
+                                                            onValueChange={(value) =>
+                                                                handleContributorRoleChange('contributorPersonRoles', index, 'category', value)
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="w-[130px]">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="person">Person</SelectItem>
+                                                                <SelectItem value="institution">Institution</SelectItem>
+                                                                <SelectItem value="both">Both</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={role.active}
+                                                            onCheckedChange={(checked) =>
+                                                                handleContributorRoleChange('contributorPersonRoles', index, 'active', checked === true)
+                                                            }
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={role.elmo_active}
+                                                            onCheckedChange={(checked) =>
+                                                                handleContributorRoleChange('contributorPersonRoles', index, 'elmo_active', checked === true)
+                                                            }
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Contributor Roles (Institutions) */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Contributor Roles (Institutions)</CardTitle>
+                                <CardDescription>
+                                    Contributor types applicable to institution contributors.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Slug</TableHead>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead className="text-center">
+                                                    ERNIE
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={criErnieState.allChecked}
+                                                            indeterminate={criErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'contributorInstitutionRoles',
+                                                                    data.contributorInstitutionRoles.map((r) => ({ ...r, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Contributor Roles (Institutions)"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="text-center">
+                                                    ELMO
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={criElmoState.allChecked}
+                                                            indeterminate={criElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'contributorInstitutionRoles',
+                                                                    data.contributorInstitutionRoles.map((r) => ({ ...r, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Contributor Roles (Institutions)"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {data.contributorInstitutionRoles.map((role, index) => (
+                                                <TableRow key={role.id}>
+                                                    <TableCell>{role.id}</TableCell>
+                                                    <TableCell>{role.name}</TableCell>
+                                                    <TableCell>{role.slug}</TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            value={role.category}
+                                                            onValueChange={(value) =>
+                                                                handleContributorRoleChange('contributorInstitutionRoles', index, 'category', value)
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="w-[130px]">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="person">Person</SelectItem>
+                                                                <SelectItem value="institution">Institution</SelectItem>
+                                                                <SelectItem value="both">Both</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={role.active}
+                                                            onCheckedChange={(checked) =>
+                                                                handleContributorRoleChange('contributorInstitutionRoles', index, 'active', checked === true)
+                                                            }
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={role.elmo_active}
+                                                            onCheckedChange={(checked) =>
+                                                                handleContributorRoleChange('contributorInstitutionRoles', index, 'elmo_active', checked === true)
+                                                            }
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Contributor Roles (Both) */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Contributor Roles (Both)</CardTitle>
+                                <CardDescription>
+                                    Contributor types applicable to both person and institution contributors.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Slug</TableHead>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead className="text-center">
+                                                    ERNIE
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={crbErnieState.allChecked}
+                                                            indeterminate={crbErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'contributorBothRoles',
+                                                                    data.contributorBothRoles.map((r) => ({ ...r, active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Contributor Roles (Both)"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="text-center">
+                                                    ELMO
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={crbElmoState.allChecked}
+                                                            indeterminate={crbElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'contributorBothRoles',
+                                                                    data.contributorBothRoles.map((r) => ({ ...r, elmo_active: checked === true })),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Contributor Roles (Both)"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {data.contributorBothRoles.map((role, index) => (
+                                                <TableRow key={role.id}>
+                                                    <TableCell>{role.id}</TableCell>
+                                                    <TableCell>{role.name}</TableCell>
+                                                    <TableCell>{role.slug}</TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            value={role.category}
+                                                            onValueChange={(value) =>
+                                                                handleContributorRoleChange('contributorBothRoles', index, 'category', value)
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="w-[130px]">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="person">Person</SelectItem>
+                                                                <SelectItem value="institution">Institution</SelectItem>
+                                                                <SelectItem value="both">Both</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={role.active}
+                                                            onCheckedChange={(checked) =>
+                                                                handleContributorRoleChange('contributorBothRoles', index, 'active', checked === true)
+                                                            }
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Checkbox
+                                                            checked={role.elmo_active}
+                                                            onCheckedChange={(checked) =>
+                                                                handleContributorRoleChange('contributorBothRoles', index, 'elmo_active', checked === true)
+                                                            }
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\ContributorCategory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
+use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\LandingPageDomain;
 use App\Models\Language;
@@ -104,6 +106,25 @@ class EditorSettingsController extends Controller
             ];
         });
 
+        // Load contributor types grouped by category
+        $contributorTypeMapper = fn (ContributorType $ct) => [
+            'id' => $ct->id,
+            'name' => $ct->name,
+            'slug' => $ct->slug,
+            'category' => $ct->category->value,
+            'active' => $ct->is_active,
+            'elmo_active' => $ct->is_elmo_active,
+        ];
+
+        $contributorPersonRoles = ContributorType::where('category', ContributorCategory::PERSON)
+            ->orderBy('name')->get()->map($contributorTypeMapper);
+
+        $contributorInstitutionRoles = ContributorType::where('category', ContributorCategory::INSTITUTION)
+            ->orderBy('name')->get()->map($contributorTypeMapper);
+
+        $contributorBothRoles = ContributorType::where('category', ContributorCategory::BOTH)
+            ->orderBy('name')->get()->map($contributorTypeMapper);
+
         return Inertia::render('settings/index', [
             'resourceTypes' => $resourceTypes,
             'titleTypes' => $titleTypes,
@@ -115,6 +136,9 @@ class EditorSettingsController extends Controller
             'thesauri' => $thesauri,
             'pidSettings' => $pidSettings,
             'landingPageDomains' => LandingPageDomain::orderBy('domain')->get(['id', 'domain']),
+            'contributorPersonRoles' => $contributorPersonRoles,
+            'contributorInstitutionRoles' => $contributorInstitutionRoles,
+            'contributorBothRoles' => $contributorBothRoles,
         ]);
     }
 
@@ -242,6 +266,27 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $pidSetting['isActive'],
                             'is_elmo_active' => $pidSetting['isElmoActive'],
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
+            // Update contributor roles (all three categories in one loop)
+            $contributorRoleArrays = [
+                $validated['contributorPersonRoles'] ?? [],
+                $validated['contributorInstitutionRoles'] ?? [],
+                $validated['contributorBothRoles'] ?? [],
+            ];
+
+            foreach ($contributorRoleArrays as $roles) {
+                /** @var array<int, array{id: int, active: bool, elmo_active: bool, category: string}> $roles */
+                foreach ($roles as $role) {
+                    DB::table('contributor_types')
+                        ->where('id', $role['id'])
+                        ->update([
+                            'is_active' => $role['active'],
+                            'is_elmo_active' => $role['elmo_active'],
+                            'category' => $role['category'],
                             'updated_at' => now(),
                         ]);
                 }
