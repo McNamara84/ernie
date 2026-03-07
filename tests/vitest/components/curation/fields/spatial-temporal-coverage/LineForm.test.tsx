@@ -31,10 +31,10 @@ vi.mock('@/components/curation/fields/spatial-temporal-coverage/coordinate-csv-i
             <div data-testid="csv-import-mock">
                 <span data-testid="csv-existing-count">{existingPointCount}</span>
                 <span data-testid="csv-geo-type">{geoType}</span>
-                <button data-testid="csv-import-replace" onClick={() => onImport([{ lat: 10, lon: 20 }, { lat: 30, lon: 40 }], 'replace')}>
+                <button data-testid="csv-import-replace" onClick={() => { onImport([{ lat: 10, lon: 20 }, { lat: 30, lon: 40 }], 'replace'); onClose(); }}>
                     Import Replace
                 </button>
-                <button data-testid="csv-import-append" onClick={() => onImport([{ lat: 70, lon: 80 }], 'append')}>
+                <button data-testid="csv-import-append" onClick={() => { onImport([{ lat: 70, lon: 80 }], 'append'); onClose(); }}>
                     Import Append
                 </button>
                 <button data-testid="csv-close" onClick={onClose}>

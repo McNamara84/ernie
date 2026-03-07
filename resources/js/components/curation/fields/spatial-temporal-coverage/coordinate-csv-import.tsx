@@ -142,6 +142,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                 Papa.parse<CsvRow>(text, {
                     header: true,
                     skipEmptyLines: true,
+                    preview: MAX_POINTS_COUNT + 1,
                     complete: (results) => {
                         if (generation !== parseGenerationRef.current) return;
                         if (results.data.length === 0) {
@@ -156,7 +157,7 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                                     row: 0,
                                     field: 'file',
                                     value: '',
-                                    message: `Too many coordinate pairs. Maximum is ${MAX_POINTS_COUNT.toLocaleString()}, found ${results.data.length.toLocaleString()}`,
+                                    message: `Too many coordinate pairs. Maximum is ${MAX_POINTS_COUNT.toLocaleString()}, file contains more than ${MAX_POINTS_COUNT.toLocaleString()} rows`,
                                 },
                             ]);
                             setIsProcessing(false);
@@ -605,7 +606,9 @@ export default function CoordinateCsvImport({ onImport, onClose, existingPointCo
                     Cancel
                 </Button>
                 <Button type="button" onClick={handleImport} disabled={parsedData.length < minPoints || isProcessing}>
-                    Import {parsedData.length > 0 && `${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}`}
+                    {parsedData.length > 0
+                        ? `Import ${parsedData.length.toLocaleString()} Point${parsedData.length > 1 ? 's' : ''}`
+                        : 'Import'}
                 </Button>
             </div>
         </div>

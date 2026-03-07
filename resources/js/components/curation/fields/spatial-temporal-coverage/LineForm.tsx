@@ -224,7 +224,6 @@ export default function LineForm({ entry, apiKey, onBatchChange }: LineFormProps
     const handleCsvImport = (importedPoints: PolygonPoint[], mode: 'replace' | 'append') => {
         const newPoints = mode === 'replace' ? importedPoints : [...points, ...importedPoints];
         handlePointsChange(newPoints);
-        setIsCsvImportOpen(false);
     };
 
     return (
