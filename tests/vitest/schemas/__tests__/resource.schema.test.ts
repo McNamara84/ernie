@@ -8,8 +8,8 @@ import {
     mslLaboratorySchema,
     partialResourceSchema,
     resourceSchema,
-    titleSchema,
     titlesArraySchema,
+    titleSchema,
 } from '@/schemas/resource.schema';
 
 describe('Resource Schemas', () => {

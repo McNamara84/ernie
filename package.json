@@ -110,10 +110,11 @@
     "lucide-react": "^0.563.0",
     "papaparse": "^5.5.3",
     "qrcode.react": "^4.2.0",
+    "radix-ui": "^1.4.3",
     "react": "^19.0.0",
     "react-day-picker": "^9.13.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.71.1",
+    "react-hook-form": "^7.71.2",
     "react-leaflet": "^5.0.0",
     "react-resizable-panels": "^4.6.0",
     "recharts": "^3.7.0",
@@ -125,7 +126,7 @@
     "typescript": "^5.7.2",
     "vaul": "^1.1.2",
     "vite": "^7.0.4",
-    "zod": "^4.3.5"
+    "zod": "^4.3.6"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.9.5",

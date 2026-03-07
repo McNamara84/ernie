@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
     contributorRoleTagSchema,
-    contributorSchema,
     contributorsArraySchema,
+    contributorSchema,
     institutionContributorSchema,
     personContributorSchema,
 } from '@/schemas/contributor.schema';

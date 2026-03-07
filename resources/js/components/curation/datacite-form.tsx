@@ -41,12 +41,12 @@ import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
-import UsedInstrumentsField from './fields/used-instruments-field';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
 import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
+import UsedInstrumentsField from './fields/used-instruments-field';
 import {
     type DataCiteFormData,
     type DataCiteFormProps,

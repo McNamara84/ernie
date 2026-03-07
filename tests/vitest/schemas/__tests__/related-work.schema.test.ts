@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
     identifierTypeSchema,
-    relatedIdentifierSchema,
     relatedIdentifiersArraySchema,
+    relatedIdentifierSchema,
     relatedWorkFormSchema,
     relationTypeSchema,
 } from '@/schemas/related-work.schema';

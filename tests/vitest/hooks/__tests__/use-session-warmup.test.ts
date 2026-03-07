@@ -19,8 +19,8 @@ vi.mock('@/lib/csrf-token', () => ({
     syncXsrfTokenToAxios: vi.fn(),
 }));
 
-import { syncXsrfTokenToAxios } from '@/lib/csrf-token';
 import { useSessionWarmup } from '@/hooks/use-session-warmup';
+import { syncXsrfTokenToAxios } from '@/lib/csrf-token';
 
 describe('useSessionWarmup', () => {
     beforeEach(() => {

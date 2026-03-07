@@ -1,6 +1,6 @@
+import { type ColumnDef } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ColumnDef } from '@tanstack/react-table';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DataTable } from '@/components/ui/data-table/data-table';

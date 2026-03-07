@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
     funderIdentifierTypeSchema,
-    fundingReferenceSchema,
     fundingReferencesArraySchema,
+    fundingReferenceSchema,
     rorFunderSchema,
 } from '@/schemas/funding-reference.schema';
 
