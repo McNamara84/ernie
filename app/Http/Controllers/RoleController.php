@@ -38,6 +38,7 @@ class RoleController extends Controller
     public function authorRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
             ->elmoActive()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
@@ -65,6 +66,7 @@ class RoleController extends Controller
     public function contributorPersonRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
             ->elmoActive()
             ->forPersons()
             ->orderBy('name')
@@ -93,6 +95,7 @@ class RoleController extends Controller
     public function contributorInstitutionRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
             ->elmoActive()
             ->forInstitutions()
             ->orderBy('name')

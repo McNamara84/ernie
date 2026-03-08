@@ -85,7 +85,7 @@ export function ContributorRolesCard({ title, description, roles, dataKey, onRol
                                             value={role.category}
                                             onValueChange={(value) => onRoleChange(index, 'category', value)}
                                         >
-                                            <SelectTrigger className="w-[130px]">
+                                            <SelectTrigger className="w-[130px]" aria-label={`Category for ${role.name}`}>
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -103,7 +103,6 @@ export function ContributorRolesCard({ title, description, roles, dataKey, onRol
                                             id={`${dataKey}-active-${role.id}`}
                                             checked={role.active}
                                             onCheckedChange={(checked) => onRoleChange(index, 'active', checked === true)}
-                                            aria-label="ERNIE active"
                                         />
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -114,7 +113,6 @@ export function ContributorRolesCard({ title, description, roles, dataKey, onRol
                                             id={`${dataKey}-elmo-active-${role.id}`}
                                             checked={role.elmo_active}
                                             onCheckedChange={(checked) => onRoleChange(index, 'elmo_active', checked === true)}
-                                            aria-label="ELMO active"
                                         />
                                     </TableCell>
                                 </TableRow>
