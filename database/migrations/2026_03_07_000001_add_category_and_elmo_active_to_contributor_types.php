@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContributorCategory;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('contributor_types', function (Blueprint $table): void {
-            $table->string('category', 20)->default('both')->after('slug');
+            $table->string('category', 20)->default(ContributorCategory::BOTH->value)->after('slug');
             $table->boolean('is_elmo_active')->default(true)->after('is_active');
         });
 
@@ -39,10 +40,10 @@ return new class extends Migration
 
         DB::table('contributor_types')
             ->whereIn('slug', $personSlugs)
-            ->update(['category' => 'person']);
+            ->update(['category' => ContributorCategory::PERSON->value]);
 
         DB::table('contributor_types')
             ->whereIn('slug', $institutionSlugs)
-            ->update(['category' => 'institution']);
+            ->update(['category' => ContributorCategory::INSTITUTION->value]);
     }
 };
