@@ -18,12 +18,7 @@ class UpdateSettingsRequest extends FormRequest
      */
     public function rules(): array
     {
-        $contributorRoleRules = [
-            '*.id' => ['required', 'integer', 'exists:contributor_types,id'],
-            '*.active' => ['required', 'boolean'],
-            '*.elmo_active' => ['required', 'boolean'],
-            '*.category' => ['required', 'string', Rule::in(array_column(ContributorCategory::cases(), 'value'))],
-        ];
+        $categoryValues = array_column(ContributorCategory::cases(), 'value');
 
         return [
             'resourceTypes' => ['required', 'array'],
@@ -64,11 +59,20 @@ class UpdateSettingsRequest extends FormRequest
             'pidSettings.*.isElmoActive' => ['required', 'boolean'],
             // Contributor roles (optional - only sent when contributor role cards are present)
             'contributorPersonRoles' => ['sometimes', 'array'],
-            ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorPersonRoles{$key}" => $rules])->all(),
+            'contributorPersonRoles.*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            'contributorPersonRoles.*.active' => ['required', 'boolean'],
+            'contributorPersonRoles.*.elmo_active' => ['required', 'boolean'],
+            'contributorPersonRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
             'contributorInstitutionRoles' => ['sometimes', 'array'],
-            ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorInstitutionRoles{$key}" => $rules])->all(),
+            'contributorInstitutionRoles.*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            'contributorInstitutionRoles.*.active' => ['required', 'boolean'],
+            'contributorInstitutionRoles.*.elmo_active' => ['required', 'boolean'],
+            'contributorInstitutionRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
             'contributorBothRoles' => ['sometimes', 'array'],
-            ...collect($contributorRoleRules)->mapWithKeys(fn ($rules, $key) => ["contributorBothRoles{$key}" => $rules])->all(),
+            'contributorBothRoles.*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            'contributorBothRoles.*.active' => ['required', 'boolean'],
+            'contributorBothRoles.*.elmo_active' => ['required', 'boolean'],
+            'contributorBothRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
         ];
     }
 }

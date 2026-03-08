@@ -1,4 +1,4 @@
-﻿import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom/vitest';
 
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -626,9 +626,9 @@ describe('Select All / Deselect All header checkboxes', () => {
                 maxTitles: 10,
                 maxLicenses: 5,
                 thesauri: defaultThesauriFormData,
-                contributorPersonRoles: [],
-                contributorInstitutionRoles: [],
-                contributorBothRoles: [],
+                contributorPersonRoles: [{ id: 1, name: 'ContactPerson', slug: 'contact-person', category: 'person', active: true, elmo_active: false }],
+                contributorInstitutionRoles: [{ id: 2, name: 'Distributor', slug: 'distributor', category: 'institution', active: true, elmo_active: false }],
+                contributorBothRoles: [{ id: 3, name: 'Other', slug: 'other', category: 'both', active: true, elmo_active: false }],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -647,13 +647,13 @@ describe('Select All / Deselect All header checkboxes', () => {
                 thesauri={defaultThesauri}
                 pidSettings={[]}
                 landingPageDomains={[]}
-                contributorPersonRoles={[]}
-                contributorInstitutionRoles={[]}
-                contributorBothRoles={[]}
+                contributorPersonRoles={[{ id: 1, name: 'ContactPerson', slug: 'contact-person', category: 'person', active: true, elmo_active: false }]}
+                contributorInstitutionRoles={[{ id: 2, name: 'Distributor', slug: 'distributor', category: 'institution', active: true, elmo_active: false }]}
+                contributorBothRoles={[{ id: 3, name: 'Other', slug: 'other', category: 'both', active: true, elmo_active: false }]}
             />,
         );
 
-        // 4 cards Ã— 2 columns + 1 card (Date Types) Ã— 1 column = 9 select-all checkboxes
+        // 7 cards × 2 columns + 1 card (Date Types) × 1 column = 15 select-all checkboxes
         expect(screen.getByLabelText('Select all ERNIE active for Resource Types')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ELMO active for Resource Types')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ERNIE active for Title Types')).toBeInTheDocument();
@@ -663,6 +663,12 @@ describe('Select All / Deselect All header checkboxes', () => {
         expect(screen.getByLabelText('Select all ERNIE active for Languages')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ELMO active for Languages')).toBeInTheDocument();
         expect(screen.getByLabelText('Select all ERNIE active for Date Types')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Contributor Roles (Persons)')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Contributor Roles (Persons)')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Contributor Roles (Institutions)')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Contributor Roles (Institutions)')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ERNIE active for Contributor Roles (Both)')).toBeInTheDocument();
+        expect(screen.getByLabelText('Select all ELMO active for Contributor Roles (Both)')).toBeInTheDocument();
     });
 
     it('selects all resource types ERNIE active when header checkbox is clicked', async () => {
