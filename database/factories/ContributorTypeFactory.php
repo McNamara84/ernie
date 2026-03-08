@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\ContributorCategory;
 use App\Models\ContributorType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -36,7 +37,9 @@ class ContributorTypeFactory extends Factory
         return [
             'name' => $type['name'],
             'slug' => $type['slug'].'-'.fake()->unique()->randomNumber(5),
+            'category' => ContributorCategory::PERSON,
             'is_active' => true,
+            'is_elmo_active' => true,
         ];
     }
 
@@ -48,6 +51,7 @@ class ContributorTypeFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'name' => 'Contact Person',
             'slug' => 'ContactPerson',
+            'category' => ContributorCategory::PERSON,
         ]);
     }
 
@@ -59,6 +63,7 @@ class ContributorTypeFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'name' => 'Data Curator',
             'slug' => 'DataCurator',
+            'category' => ContributorCategory::PERSON,
         ]);
     }
 
@@ -70,6 +75,47 @@ class ContributorTypeFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'name' => 'Researcher',
             'slug' => 'Researcher',
+            'category' => ContributorCategory::PERSON,
+        ]);
+    }
+
+    /**
+     * Set the category to institution.
+     */
+    public function institution(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'category' => ContributorCategory::INSTITUTION,
+        ]);
+    }
+
+    /**
+     * Set the category to both.
+     */
+    public function both(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'category' => ContributorCategory::BOTH,
+        ]);
+    }
+
+    /**
+     * Set the type as inactive.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_active' => false,
+        ]);
+    }
+
+    /**
+     * Set the type as ELMO inactive.
+     */
+    public function elmoInactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_elmo_active' => false,
         ]);
     }
 }

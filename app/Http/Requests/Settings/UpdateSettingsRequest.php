@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Settings;
 
+use App\Enums\ContributorCategory;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -17,6 +18,8 @@ class UpdateSettingsRequest extends FormRequest
      */
     public function rules(): array
     {
+        $categoryValues = array_column(ContributorCategory::cases(), 'value');
+
         return [
             'resourceTypes' => ['required', 'array'],
             'resourceTypes.*.id' => ['required', 'integer', 'exists:resource_types,id'],
@@ -54,6 +57,22 @@ class UpdateSettingsRequest extends FormRequest
             'pidSettings.*.type' => ['required', 'string', Rule::in(PidSetting::getValidTypes())],
             'pidSettings.*.isActive' => ['required', 'boolean'],
             'pidSettings.*.isElmoActive' => ['required', 'boolean'],
+            // Contributor roles (optional - only sent when contributor role cards are present)
+            'contributorPersonRoles' => ['sometimes', 'array'],
+            'contributorPersonRoles.*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            'contributorPersonRoles.*.active' => ['required', 'boolean'],
+            'contributorPersonRoles.*.elmo_active' => ['required', 'boolean'],
+            'contributorPersonRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
+            'contributorInstitutionRoles' => ['sometimes', 'array'],
+            'contributorInstitutionRoles.*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            'contributorInstitutionRoles.*.active' => ['required', 'boolean'],
+            'contributorInstitutionRoles.*.elmo_active' => ['required', 'boolean'],
+            'contributorInstitutionRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
+            'contributorBothRoles' => ['sometimes', 'array'],
+            'contributorBothRoles.*.id' => ['required', 'integer', 'exists:contributor_types,id'],
+            'contributorBothRoles.*.active' => ['required', 'boolean'],
+            'contributorBothRoles.*.elmo_active' => ['required', 'boolean'],
+            'contributorBothRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
         ];
     }
 }

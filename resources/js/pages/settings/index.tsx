@@ -4,6 +4,7 @@ import { Globe, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { type ContributorRoleRow, ContributorRolesCard } from '@/components/settings/contributor-roles-card';
 import { LicenseResourceTypePopover } from '@/components/settings/license-resource-type-popover';
 import { type PidSettingData, PidSettingsCard } from '@/components/settings/pid-settings-card';
 import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
@@ -74,6 +75,9 @@ interface EditorSettingsProps {
     thesauri: ThesaurusData[];
     pidSettings: PidSettingData[];
     landingPageDomains: LandingPageDomainRow[];
+    contributorPersonRoles: ContributorRoleRow[];
+    contributorInstitutionRoles: ContributorRoleRow[];
+    contributorBothRoles: ContributorRoleRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
@@ -89,6 +93,9 @@ export default function EditorSettings({
     thesauri,
     pidSettings,
     landingPageDomains,
+    contributorPersonRoles,
+    contributorInstitutionRoles,
+    contributorBothRoles,
 }: EditorSettingsProps) {
     // Landing page domains - managed separately via API (not part of main form)
     const [domains, setDomains] = useState<LandingPageDomainRow[]>(landingPageDomains);
@@ -182,6 +189,30 @@ export default function EditorSettings({
             type: p.type,
             isActive: p.isActive,
             isElmoActive: p.isElmoActive,
+        })),
+        contributorPersonRoles: contributorPersonRoles.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            category: r.category,
+            active: r.active,
+            elmo_active: r.elmo_active,
+        })),
+        contributorInstitutionRoles: contributorInstitutionRoles.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            category: r.category,
+            active: r.active,
+            elmo_active: r.elmo_active,
+        })),
+        contributorBothRoles: contributorBothRoles.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            category: r.category,
+            active: r.active,
+            elmo_active: r.elmo_active,
         })),
     });
 
@@ -311,6 +342,37 @@ export default function EditorSettings({
         );
     };
 
+    const handleContributorRoleChange = (
+        arrayKey: 'contributorPersonRoles' | 'contributorInstitutionRoles' | 'contributorBothRoles',
+        index: number,
+        field: 'active' | 'elmo_active' | 'category',
+        value: boolean | string,
+    ) => {
+        if (field === 'category') {
+            const categoryToKey = {
+                person: 'contributorPersonRoles',
+                institution: 'contributorInstitutionRoles',
+                both: 'contributorBothRoles',
+            } as const;
+            const targetKey = categoryToKey[value as 'person' | 'institution' | 'both'];
+
+            if (targetKey && targetKey !== arrayKey) {
+                const role = { ...data[arrayKey][index], category: value as 'person' | 'institution' | 'both' };
+                setData({
+                    ...data,
+                    [arrayKey]: data[arrayKey].filter((_, i) => i !== index),
+                    [targetKey]: [...data[targetKey], role],
+                });
+                return;
+            }
+        }
+
+        setData(
+            arrayKey,
+            data[arrayKey].map((r, i) => (i === index ? { ...r, [field]: value } : r)),
+        );
+    };
+
     // Select-all state for each card's ERNIE / ELMO columns
     const licenseErnieState = getSelectAllState(data.licenses.map((l) => l.active));
     const licenseElmoState = getSelectAllState(data.licenses.map((l) => l.elmo_active));
@@ -321,7 +383,6 @@ export default function EditorSettings({
     const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
     const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
     const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(settings().url);
@@ -932,6 +993,42 @@ export default function EditorSettings({
                                 />
                             </CardContent>
                         </Card>
+
+                        {/* Contributor Roles (Persons) */}
+                        <ContributorRolesCard
+                            title="Contributor Roles (Persons)"
+                            description="Contributor types applicable to person contributors."
+                            roles={data.contributorPersonRoles}
+                            dataKey="contributorPersonRoles"
+                            onRoleChange={(index, field, value) =>
+                                handleContributorRoleChange('contributorPersonRoles', index, field, value)
+                            }
+                            onSetAll={(roles) => setData('contributorPersonRoles', roles)}
+                        />
+
+                        {/* Contributor Roles (Institutions) */}
+                        <ContributorRolesCard
+                            title="Contributor Roles (Institutions)"
+                            description="Contributor types applicable to institution contributors."
+                            roles={data.contributorInstitutionRoles}
+                            dataKey="contributorInstitutionRoles"
+                            onRoleChange={(index, field, value) =>
+                                handleContributorRoleChange('contributorInstitutionRoles', index, field, value)
+                            }
+                            onSetAll={(roles) => setData('contributorInstitutionRoles', roles)}
+                        />
+
+                        {/* Contributor Roles (Both) */}
+                        <ContributorRolesCard
+                            title="Contributor Roles (Both)"
+                            description="Contributor types applicable to both person and institution contributors."
+                            roles={data.contributorBothRoles}
+                            dataKey="contributorBothRoles"
+                            onRoleChange={(index, field, value) =>
+                                handleContributorRoleChange('contributorBothRoles', index, field, value)
+                            }
+                            onSetAll={(roles) => setData('contributorBothRoles', roles)}
+                        />
                     </div>
                 </div>
 

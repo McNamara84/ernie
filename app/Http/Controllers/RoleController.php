@@ -17,7 +17,7 @@ use Illuminate\Http\JsonResponse;
 class RoleController extends Controller
 {
     /**
-     * Return all contributor types (for authors/creators).
+     * Return active contributor types for authors/creators (ERNIE).
      *
      * Note: In DataCite, creators don't have types - they are just creators.
      * This endpoint returns contributor types for backwards compatibility.
@@ -25,6 +25,7 @@ class RoleController extends Controller
     public function authorRolesForErnie(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
@@ -32,11 +33,13 @@ class RoleController extends Controller
     }
 
     /**
-     * Return all contributor types for ELMO.
+     * Return ELMO-active contributor types for authors/creators.
      */
     public function authorRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
+            ->elmoActive()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
@@ -44,11 +47,13 @@ class RoleController extends Controller
     }
 
     /**
-     * Return contributor types for people that are active for Ernie.
+     * Return active contributor types for person contributors (ERNIE).
      */
     public function contributorPersonRolesForErnie(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
+            ->forPersons()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
@@ -56,11 +61,14 @@ class RoleController extends Controller
     }
 
     /**
-     * Return contributor types for people that are active for ELMO.
+     * Return ELMO-active contributor types for person contributors.
      */
     public function contributorPersonRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
+            ->elmoActive()
+            ->forPersons()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
@@ -68,11 +76,13 @@ class RoleController extends Controller
     }
 
     /**
-     * Return contributor types for institutions that are active for Ernie.
+     * Return active contributor types for institution contributors (ERNIE).
      */
     public function contributorInstitutionRolesForErnie(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
+            ->forInstitutions()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
@@ -80,11 +90,14 @@ class RoleController extends Controller
     }
 
     /**
-     * Return contributor types for institutions that are active for ELMO.
+     * Return ELMO-active contributor types for institution contributors.
      */
     public function contributorInstitutionRolesForElmo(): JsonResponse
     {
         $types = ContributorType::query()
+            ->active()
+            ->elmoActive()
+            ->forInstitutions()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 

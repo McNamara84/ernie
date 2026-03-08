@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-06",
+        "date": "2026-03-07",
         "features": [
+            {
+                "title": "Contributor Role Management in Editor Settings",
+                "description": "Contributor roles (e.g. ContactPerson, DataCollector, Distributor) are now configurable in Editor Settings. Roles are organized into three categories: Persons, Institutions, and Both. Each role can be independently activated or deactivated for ERNIE and ELMO. Administrators can also change a role's category directly from the settings page. The API endpoints for contributor roles now correctly filter by category and active status."
+            },
             {
                 "title": "CSV Upload for Polygon and Line Coordinates",
                 "description": "Added CSV file upload for polygon and line coordinate entries in the Spatial and Temporal Coverage section. Users can import large numbers of coordinate pairs from a CSV file instead of entering them manually. Supports both 'latitude,longitude' and 'longitude,latitude' column orders (auto-detected from headers), replace or append modes when existing points are present, validation with detailed error reporting, and an example CSV template download. Maximum of 10,000 coordinate pairs per upload."
