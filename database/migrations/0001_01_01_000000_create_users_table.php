@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->timestamp('password_set_at')->nullable();
             $table->rememberToken();
             // ERNIE-specific user fields
             $table->string('font_size_preference')->default('regular');
