@@ -6,13 +6,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * ERNIE Database Schema - DataCite 4.6 Compliant (Squashed)
+ * ERNIE Database Schema - DataCite 4.7 Compliant (Squashed)
  *
  * This migration creates the complete database schema for ERNIE,
- * aligned with the DataCite Metadata Schema 4.6 standard.
+ * aligned with the DataCite Metadata Schema 4.7 standard.
  *
- * Squashed on: 2026-01-22
- * Includes all migrations from initial schema through 2026-01-21.
+ * Squashed on: 2026-03-08
+ * Includes all migrations from initial schema through 2026-03-07.
  *
  * Column Naming Convention:
  * - Column names use concise, canonical names (e.g., `value` instead of
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Schema;
  * - These names were chosen intentionally from the initial schema design.
  *   No column renaming migrations are needed.
  *
- * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
 return new class extends Migration
 {
@@ -35,6 +35,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');                        // Display name
             $table->string('slug')->unique();              // DataCite resourceTypeGeneral value
+            $table->text('description')->nullable();       // Official DataCite description
             $table->boolean('is_active')->default(true);
             $table->boolean('is_elmo_active')->default(true);
             $table->timestamps();
@@ -73,7 +74,9 @@ return new class extends Migration
             $table->id();
             $table->string('name');                        // Display name
             $table->string('slug')->unique();              // DataCite contributorType value
+            $table->string('category', 20)->default('both'); // person, institution, or both
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_elmo_active')->default(true);
             $table->timestamps();
         });
 
@@ -131,7 +134,7 @@ return new class extends Migration
         // Publishers (DataCite #4)
         Schema::create('publishers', function (Blueprint $table): void {
             $table->id();
-            $table->string('name');                        // Publisher name
+            $table->string('name')->unique();              // Publisher name (unique for race-safe lookups)
             $table->string('identifier', 512)->nullable(); // Publisher identifier (e.g., re3data DOI)
             $table->string('identifier_scheme', 100)->nullable(); // e.g., "re3data"
             $table->string('scheme_uri', 512)->nullable(); // e.g., "https://re3data.org/"
@@ -192,8 +195,9 @@ return new class extends Migration
             // DataCite #5: PublicationYear
             $table->unsignedSmallInteger('publication_year')->nullable();
 
-            // DataCite #10: ResourceType
+            // DataCite #10: ResourceType (nullable for draft resources)
             $table->foreignId('resource_type_id')
+                ->nullable()
                 ->constrained('resource_types')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
@@ -276,15 +280,35 @@ return new class extends Migration
             // Polymorphic relationship (Person or Institution)
             $table->string('contributorable_type');
             $table->unsignedBigInteger('contributorable_id');
-            $table->foreignId('contributor_type_id')
-                ->constrained('contributor_types')
-                ->cascadeOnUpdate()
-                ->restrictOnDelete();
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();
 
             $table->index(['resource_id', 'position']);
             $table->index(['contributorable_type', 'contributorable_id'], 'contributors_morph_idx');
+        });
+
+        // Contributor Type Pivot (supports multiple types per contributor)
+        Schema::create('resource_contributor_contributor_type', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('resource_contributor_id');
+            $table->unsignedBigInteger('contributor_type_id');
+            $table->timestamps();
+
+            $table->foreign('resource_contributor_id', 'rc_ct_contributor_fk')
+                ->references('id')
+                ->on('resource_contributors')
+                ->cascadeOnDelete();
+
+            $table->foreign('contributor_type_id', 'rc_ct_type_fk')
+                ->references('id')
+                ->on('contributor_types')
+                ->cascadeOnUpdate()
+                ->restrictOnDelete();
+
+            $table->unique(
+                ['resource_contributor_id', 'contributor_type_id'],
+                'rc_ct_unique'
+            );
         });
 
         // Affiliations (DataCite 2.5, 7.5) - Polymorphic to Creator or Contributor
@@ -350,10 +374,10 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
 
-            // Flexible date storage (VARCHAR for YYYY, YYYY-MM, YYYY-MM-DD)
-            $table->string('date_value', 10)->nullable();  // For single dates
-            $table->string('start_date', 10)->nullable();  // For ranges (temporal coverage)
-            $table->string('end_date', 10)->nullable();    // For ranges (temporal coverage)
+            // Flexible date storage (VARCHAR for ISO 8601 datetime with timezone)
+            $table->string('date_value', 35)->nullable();  // For single dates
+            $table->string('start_date', 35)->nullable();  // For ranges (temporal coverage)
+            $table->string('end_date', 35)->nullable();    // For ranges (temporal coverage)
             $table->string('date_information')->nullable(); // Free text for special cases
 
             $table->timestamps();
@@ -386,6 +410,9 @@ return new class extends Migration
                 ->constrained('resources')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
+
+            // Explicit geo type (point, box, polygon)
+            $table->string('geo_type', 10)->nullable();
 
             // 18.3 geoLocationPlace
             $table->text('place')->nullable();             // TEXT for long place names
@@ -430,6 +457,9 @@ return new class extends Migration
                 ->constrained('relation_types')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
+
+            // DataCite 4.7: Free text describing the relationship
+            $table->string('relation_type_information')->nullable();
 
             // Optional metadata scheme info
             $table->string('related_metadata_scheme')->nullable();
@@ -518,9 +548,29 @@ return new class extends Migration
             $table->index('resource_id');
         });
 
+        // Alternate Identifiers (DataCite #11)
+        Schema::create('alternate_identifiers', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('resource_id')->constrained()->cascadeOnDelete();
+            $table->string('value');
+            $table->string('type');                        // e.g., "Local accession number"
+            $table->unsignedInteger('position')->default(0);
+            $table->timestamps();
+
+            $table->index(['resource_id', 'position']);
+        });
+
         // =====================================================================
         // APPLICATION-SPECIFIC TABLES
         // =====================================================================
+
+        // Landing Page Domains (allowed external domains)
+        // Must be created before landing_pages (FK dependency)
+        Schema::create('landing_page_domains', function (Blueprint $table): void {
+            $table->id();
+            $table->string('domain', 768)->unique();
+            $table->timestamps();
+        });
 
         // Landing Pages
         Schema::create('landing_pages', function (Blueprint $table): void {
@@ -533,6 +583,11 @@ return new class extends Migration
             $table->string('slug');                    // NOT globally unique - see composite constraints below
             $table->string('template', 50)->default('default_gfz');
             $table->string('ftp_url', 2048)->nullable();
+            $table->foreignId('external_domain_id')        // External landing page domain
+                ->nullable()
+                ->constrained('landing_page_domains')
+                ->restrictOnDelete();
+            $table->string('external_path', 2048)->nullable(); // External URL path segment
             $table->boolean('is_published')->default(false);
             $table->string('preview_token', 64)->nullable()->unique();
             $table->timestamp('published_at')->nullable();
@@ -600,6 +655,33 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['right_id', 'resource_type_id'], 'unique_exclusion');
+        });
+
+        // =====================================================================
+        // PID SETTINGS & INSTRUMENTS (PID4INST)
+        // =====================================================================
+
+        // PID Settings (feature toggles for PID providers)
+        Schema::create('pid_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->string('type')->unique();
+            $table->string('display_name');
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_elmo_active')->default(true);
+            $table->timestamps();
+        });
+
+        // Resource Instruments (B2INST PIDs)
+        Schema::create('resource_instruments', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('resource_id')->constrained()->cascadeOnDelete();
+            $table->string('instrument_pid', 512);
+            $table->string('instrument_pid_type', 50)->default('Handle');
+            $table->string('instrument_name', 1024);
+            $table->unsignedInteger('position')->default(0);
+            $table->timestamps();
+
+            $table->index(['resource_id', 'position']);
         });
 
         // =====================================================================
@@ -714,14 +796,20 @@ return new class extends Migration
         Schema::dropIfExists('igsn_classifications');
         Schema::dropIfExists('igsn_metadata');
 
+        // PID4INST tables
+        Schema::dropIfExists('resource_instruments');
+        Schema::dropIfExists('pid_settings');
+
         // Application tables
         Schema::dropIfExists('right_resource_type_exclusions');
         Schema::dropIfExists('thesaurus_settings');
         Schema::dropIfExists('contact_messages');
         Schema::dropIfExists('settings');
         Schema::dropIfExists('landing_pages');
+        Schema::dropIfExists('landing_page_domains');
 
         // Resource relationship tables
+        Schema::dropIfExists('alternate_identifiers');
         Schema::dropIfExists('formats');
         Schema::dropIfExists('sizes');
         Schema::dropIfExists('resource_rights');
@@ -732,6 +820,7 @@ return new class extends Migration
         Schema::dropIfExists('dates');
         Schema::dropIfExists('subjects');
         Schema::dropIfExists('affiliations');
+        Schema::dropIfExists('resource_contributor_contributor_type');
         Schema::dropIfExists('resource_contributors');
         Schema::dropIfExists('resource_creators');
         Schema::dropIfExists('titles');

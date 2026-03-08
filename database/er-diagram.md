@@ -9,6 +9,7 @@ erDiagram
         bigint id PK
         varchar name
         varchar slug UK
+        text description "nullable"
         boolean is_active
         boolean is_elmo_active
         timestamp created_at
@@ -47,7 +48,9 @@ erDiagram
         bigint id PK
         varchar name
         varchar slug UK
+        varchar category "20, default: both"
         boolean is_active
+        boolean is_elmo_active
         timestamp created_at
         timestamp updated_at
     }
@@ -104,7 +107,7 @@ erDiagram
 
     publishers {
         bigint id PK
-        varchar name
+        varchar name UK
         varchar identifier
         varchar identifier_scheme
         varchar scheme_uri
@@ -182,7 +185,7 @@ erDiagram
         varchar identifier_type
         bigint publisher_id FK
         smallint publication_year "DataCite #5"
-        bigint resource_type_id FK
+        bigint resource_type_id FK "nullable"
         varchar version "DataCite #15"
         bigint language_id FK
         bigint created_by_user_id FK
@@ -265,9 +268,9 @@ erDiagram
         bigint id PK
         bigint resource_id FK
         bigint date_type_id FK
-        varchar date_value "YYYY, YYYY-MM, YYYY-MM-DD"
-        varchar start_date
-        varchar end_date
+        varchar date_value "max 35, ISO 8601 datetime"
+        varchar start_date "max 35"
+        varchar end_date "max 35"
         varchar date_information
         timestamp created_at
         timestamp updated_at
@@ -286,6 +289,7 @@ erDiagram
     geo_locations {
         bigint id PK
         bigint resource_id FK
+        varchar geo_type "10, point/box/polygon"
         text place
         decimal point_longitude "11,8"
         decimal point_latitude "10,8"
@@ -308,6 +312,7 @@ erDiagram
         varchar identifier "max 2183"
         bigint identifier_type_id FK
         bigint relation_type_id FK
+        varchar relation_type_information "nullable, DataCite 4.7"
         varchar related_metadata_scheme
         varchar scheme_uri
         varchar scheme_type
@@ -368,6 +373,8 @@ erDiagram
         varchar slug "unique with doi_prefix"
         varchar template
         varchar ftp_url
+        bigint external_domain_id FK "nullable"
+        varchar external_path "2048, nullable"
         boolean is_published
         varchar preview_token UK
         timestamp published_at
@@ -412,6 +419,23 @@ erDiagram
         bigint id PK
         bigint right_id FK
         bigint resource_type_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    landing_page_domains {
+        bigint id PK
+        varchar domain UK "max 768"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    alternate_identifiers {
+        bigint id PK
+        bigint resource_id FK
+        varchar value
+        varchar type
+        int position "unsigned, default 0"
         timestamp created_at
         timestamp updated_at
     }
@@ -572,9 +596,10 @@ erDiagram
     resources ||--o{ sizes : "has"
     resources ||--o{ formats : "has"
     resources ||--o| landing_pages : "has"
+    resources ||--o{ alternate_identifiers : "has"
 
     %% Lookup table relationships
-    resources }o--|| resource_types : "type"
+    resources }o--o| resource_types : "type"
     resources }o--o| publishers : "published by"
     resources }o--o| languages : "language"
     resources }o--o| users : "created by"
@@ -618,6 +643,9 @@ erDiagram
 
     %% PID4INST instrument relationships
     resources ||--o{ resource_instruments : "has"
+
+    %% Landing page domains
+    landing_pages }o--o| landing_page_domains : "external domain"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"
