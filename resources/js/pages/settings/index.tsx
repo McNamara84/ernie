@@ -348,6 +348,25 @@ export default function EditorSettings({
         field: 'active' | 'elmo_active' | 'category',
         value: boolean | string,
     ) => {
+        if (field === 'category') {
+            const categoryToKey = {
+                person: 'contributorPersonRoles',
+                institution: 'contributorInstitutionRoles',
+                both: 'contributorBothRoles',
+            } as const;
+            const targetKey = categoryToKey[value as 'person' | 'institution' | 'both'];
+
+            if (targetKey && targetKey !== arrayKey) {
+                const role = { ...data[arrayKey][index], category: value as 'person' | 'institution' | 'both' };
+                setData({
+                    ...data,
+                    [arrayKey]: data[arrayKey].filter((_, i) => i !== index),
+                    [targetKey]: [...data[targetKey], role],
+                });
+                return;
+            }
+        }
+
         setData(
             arrayKey,
             data[arrayKey].map((r, i) => (i === index ? { ...r, [field]: value } : r)),
