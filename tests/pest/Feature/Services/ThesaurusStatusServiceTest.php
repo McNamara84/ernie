@@ -278,7 +278,7 @@ describe('getRemoteConceptCount', function () {
         $service = new ThesaurusStatusService;
 
         expect(fn () => $service->getRemoteConceptCount($thesaurus))
-            ->toThrow(RuntimeException::class, 'Unexpected ARDC API response format');
+            ->toThrow(RuntimeException::class, 'Unexpected ARDC API response format: missing result.items array');
     });
 });
 
