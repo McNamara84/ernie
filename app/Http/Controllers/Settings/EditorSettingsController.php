@@ -297,7 +297,7 @@ class EditorSettingsController extends Controller
     }
 
     /**
-     * Ensure all three thesaurus settings exist in the database.
+     * Ensure all thesaurus settings exist in the database.
      * This is a fallback mechanism to handle cases where the seeder wasn't run
      * or entries were accidentally deleted.
      */

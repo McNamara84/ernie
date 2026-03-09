@@ -417,7 +417,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
                             </li>
                             <li>
-                                <code>/api/v1/gcmd/*</code> – NASA GCMD controlled vocabularies
+                                <code>/api/v1/vocabularies/gcmd-*</code> – NASA GCMD controlled vocabularies
                             </li>
                             <li>
                                 <code>/api/v1/vocabularies/chronostrat-timescale</code> – ICS Chronostratigraphic Chart

@@ -715,7 +715,7 @@ export default function DataCiteForm({
 
                 setGcmdVocabularies(vocabularies);
             } catch (error) {
-                console.error('Error loading GCMD vocabularies:', error);
+                console.error('Error loading vocabularies:', error);
             } finally {
                 setIsLoadingVocabularies(false);
             }
