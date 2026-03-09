@@ -7,8 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
-import { getSchemeFromVocabularyType,getVocabularyTypeFromScheme } from '@/types/gcmd';
+import type { VocabularyType, SelectedKeyword } from '@/types/vocabulary';
+import { getSchemeFromVocabularyType,getVocabularyTypeFromScheme } from '@/types/vocabulary';
 
 describe('SelectedKeyword Type', () => {
     it('should have all required fields', () => {
@@ -119,9 +119,9 @@ describe('SelectedKeyword Type', () => {
     });
 });
 
-describe('GCMDVocabularyType', () => {
+describe('VocabularyType', () => {
     it('should only allow valid vocabulary types', () => {
-        const validTypes: GCMDVocabularyType[] = ['science', 'platforms', 'instruments', 'msl'];
+        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl'];
 
         validTypes.forEach((type) => {
             expect(['science', 'platforms', 'instruments', 'msl']).toContain(type);
@@ -260,11 +260,12 @@ describe('Vocabulary Type Grouping', () => {
             },
         ];
 
-        const grouped: Record<GCMDVocabularyType, SelectedKeyword[]> = {
+        const grouped: Record<VocabularyType, SelectedKeyword[]> = {
             science: [],
             platforms: [],
             instruments: [],
             msl: [], // Added MSL
+            chronostratigraphy: [],
         };
 
         keywords.forEach((keyword) => {
@@ -290,7 +291,7 @@ describe('Vocabulary Type Grouping', () => {
             },
         ];
 
-        const hasKeywords = (type: GCMDVocabularyType): boolean => {
+        const hasKeywords = (type: VocabularyType): boolean => {
             return keywords.some((k) => getVocabularyTypeFromScheme(k.scheme) === type);
         };
 

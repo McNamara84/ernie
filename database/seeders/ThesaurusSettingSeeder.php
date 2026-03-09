@@ -24,6 +24,10 @@ class ThesaurusSettingSeeder extends Seeder
                 'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
                 'display_name' => 'GCMD Instruments',
             ],
+            [
+                'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
+                'display_name' => 'ICS Chronostratigraphy',
+            ],
         ];
 
         foreach ($thesauri as $thesaurus) {

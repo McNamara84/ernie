@@ -267,7 +267,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Date Types:</strong> Enable/disable date type options
                             </li>
                             <li>
-                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments)
+                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments) and ICS Chronostratigraphy
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
@@ -342,6 +342,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <DocsCodeBlock code="php artisan get-gcmd-platforms" />
                         <DocsCodeBlock code="php artisan get-gcmd-instruments" />
 
+                        <h4>Update ICS Chronostratigraphy (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-chronostrat-timescale" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads the International Chronostratigraphic Chart from the ARDC Linked Data API.
+                            Can also be triggered from Editor Settings.
+                        </p>
+
                         <h4>Update PID4INST Instruments (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
                         <p className="text-sm text-muted-foreground">
@@ -410,7 +417,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
                             </li>
                             <li>
-                                <code>/api/v1/gcmd/*</code> – NASA GCMD controlled vocabularies
+                                <code>/api/v1/vocabularies/gcmd-*</code> – NASA GCMD controlled vocabularies
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
+                            </li>
+                            <li>
+                                <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns is_elmo_active)
                             </li>
                         </ul>
                     </>
@@ -648,7 +661,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 title: 'Controlled Keywords',
                 icon: Tags,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl,
+                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat,
                 content: (
                     <>
                         <h3>Controlled Vocabularies</h3>
@@ -670,6 +683,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <>
                                 <h4>MSL Keywords</h4>
                                 <p>Materials Science and Engineering vocabulary from TIB for specialized research domains.</p>
+                            </>
+                        )}
+
+                        {editorSettings.features.hasActiveChronostrat && (
+                            <>
+                                <h4>ICS Chronostratigraphy</h4>
+                                <p>
+                                    The International Chronostratigraphic Chart provides standardized geologic time intervals
+                                    organized in five hierarchy levels: Eon, Era, Period, Epoch, and Age. Sourced from the
+                                    ARDC Linked Data API (GeoSciML Geologic Time Scale 2020).
+                                </p>
                             </>
                         )}
 

@@ -133,16 +133,18 @@ class VocabularyController extends Controller
     }
 
     /**
-     * Return thesauri availability status for the frontend.
+     * Return thesauri availability status.
      *
-     * This endpoint is always used by the ERNIE frontend, so we check
-     * is_active (not is_elmo_active) regardless of the route prefix.
+     * Context-aware: returns is_elmo_active for ELMO API requests
+     * and is_active for ERNIE frontend requests.
      */
     public function thesauriAvailability(): JsonResponse
     {
+        $isElmo = $this->isElmoRequest();
+
         $thesauri = ThesaurusSetting::all()->mapWithKeys(fn (ThesaurusSetting $t) => [
             $t->type => [
-                'available' => $t->is_active,
+                'available' => $isElmo ? $t->is_elmo_active : $t->is_active,
                 'displayName' => $t->display_name,
             ],
         ]);
@@ -163,6 +165,22 @@ class VocabularyController extends Controller
             CacheKey::PID4INST_INSTRUMENTS,
             'pid4inst-instruments.json',
             'php artisan get-pid4inst-instruments'
+        );
+    }
+
+    /**
+     * Return ICS Chronostratigraphy vocabulary.
+     */
+    public function chronostratTimescale(): JsonResponse
+    {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_CHRONOSTRAT)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::CHRONOSTRAT_TIMESCALE,
+            'chronostrat-timescale.json',
+            'php artisan get-chronostrat-timescale'
         );
     }
 
@@ -199,15 +217,18 @@ class VocabularyController extends Controller
     }
 
     /**
-     * Return PID availability status for the frontend.
+     * Return PID availability status.
      *
-     * Similar to thesauriAvailability but for PID registries.
+     * Context-aware: returns is_elmo_active for ELMO API requests
+     * and is_active for ERNIE frontend requests.
      */
     public function pidAvailability(): JsonResponse
     {
+        $isElmo = $this->isElmoRequest();
+
         $pids = PidSetting::all()->mapWithKeys(fn (PidSetting $p) => [
             $p->type => [
-                'available' => $p->is_active,
+                'available' => $isElmo ? $p->is_elmo_active : $p->is_active,
                 'displayName' => $p->display_name,
             ],
         ]);

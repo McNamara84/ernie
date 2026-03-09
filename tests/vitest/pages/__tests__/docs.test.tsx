@@ -34,10 +34,12 @@ const defaultEditorSettings: EditorSettings = {
         scienceKeywords: true,
         platforms: true,
         instruments: true,
+        chronostratigraphy: true,
     },
     features: {
         hasActiveGcmd: true,
         hasActiveMsl: true,
+        hasActiveChronostrat: true,
         hasActiveLicenses: true,
         hasActiveResourceTypes: true,
         hasActiveTitleTypes: true,

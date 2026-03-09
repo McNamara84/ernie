@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import ControlledVocabulariesField from '@/components/curation/fields/controlled-vocabularies-field';
-import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+import type { VocabularyKeyword, SelectedKeyword } from '@/types/vocabulary';
 
 // Mock useDebounce to return the value immediately
 vi.mock('@/hooks/use-debounce', () => ({
@@ -13,7 +13,7 @@ vi.mock('@/hooks/use-debounce', () => ({
 }));
 
 describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
-    const mockScienceKeywords: GCMDKeyword[] = [
+    const mockScienceKeywords: VocabularyKeyword[] = [
         {
             id: 'sci-1',
             text: 'Earth Science',
@@ -25,7 +25,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
         },
     ];
 
-    const mockPlatforms: GCMDKeyword[] = [
+    const mockPlatforms: VocabularyKeyword[] = [
         {
             id: 'plat-1',
             text: 'Satellites',
@@ -37,7 +37,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
         },
     ];
 
-    const mockInstruments: GCMDKeyword[] = [
+    const mockInstruments: VocabularyKeyword[] = [
         {
             id: 'inst-1',
             text: 'Spectrometer',
@@ -49,7 +49,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
         },
     ];
 
-    const mockMslVocabulary: GCMDKeyword[] = [
+    const mockMslVocabulary: VocabularyKeyword[] = [
         {
             id: 'msl-1',
             text: 'Rock Physics',

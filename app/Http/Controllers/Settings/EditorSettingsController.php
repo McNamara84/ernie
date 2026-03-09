@@ -297,7 +297,7 @@ class EditorSettingsController extends Controller
     }
 
     /**
-     * Ensure all three thesaurus settings exist in the database.
+     * Ensure all thesaurus settings exist in the database.
      * This is a fallback mechanism to handle cases where the seeder wasn't run
      * or entries were accidentally deleted.
      */
@@ -315,6 +315,10 @@ class EditorSettingsController extends Controller
             [
                 'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
                 'display_name' => 'GCMD Instruments',
+            ],
+            [
+                'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
+                'display_name' => 'ICS Chronostratigraphy',
             ],
         ];
 

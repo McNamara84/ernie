@@ -4,12 +4,12 @@ import { memo, useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { GCMDKeyword } from '@/types/gcmd';
+import type { VocabularyKeyword } from '@/types/vocabulary';
 
 interface GCMDTreeNodeProps {
-    node: GCMDKeyword;
+    node: VocabularyKeyword;
     selectedIds: Set<string>;
-    onToggle: (keyword: GCMDKeyword, path: string[]) => void;
+    onToggle: (keyword: VocabularyKeyword, path: string[]) => void;
     level?: number;
     pathPrefix?: string[];
     searchQuery?: string; // For highlighting search terms
@@ -41,7 +41,7 @@ function highlightText(text: string, query?: string): React.ReactNode {
  */
 const GCMDTreeNodeComponent = ({ node, selectedIds, onToggle, level = 0, pathPrefix = [], searchQuery }: GCMDTreeNodeProps) => {
     // Check if this node or any of its descendants are selected
-    const hasSelectedDescendant = (keyword: GCMDKeyword): boolean => {
+    const hasSelectedDescendant = (keyword: VocabularyKeyword): boolean => {
         if (selectedIds.has(keyword.id)) return true;
         if (!keyword.children || keyword.children.length === 0) return false;
         return keyword.children.some(hasSelectedDescendant);
@@ -127,9 +127,9 @@ export const GCMDTreeNode = memo(GCMDTreeNodeComponent, (prevProps, nextProps) =
 });
 
 interface GCMDTreeProps {
-    keywords: GCMDKeyword[];
+    keywords: VocabularyKeyword[];
     selectedIds: Set<string>;
-    onToggle: (keyword: GCMDKeyword, path: string[]) => void;
+    onToggle: (keyword: VocabularyKeyword, path: string[]) => void;
     emptyMessage?: string;
     searchQuery?: string; // For highlighting search terms
 }

@@ -18,8 +18,8 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier } from '@/types';
-import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
-import { getVocabularyTypeFromScheme } from '@/types/gcmd';
+import type { VocabularyKeyword, SelectedKeyword } from '@/types/vocabulary';
+import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
     validateDate,
     validateDOIFormat,
@@ -599,15 +599,17 @@ export default function DataCiteForm({
     ];
 
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
-        science: GCMDKeyword[];
-        platforms: GCMDKeyword[];
-        instruments: GCMDKeyword[];
-        msl: GCMDKeyword[];
+        science: VocabularyKeyword[];
+        platforms: VocabularyKeyword[];
+        instruments: VocabularyKeyword[];
+        msl: VocabularyKeyword[];
+        chronostratigraphy: VocabularyKeyword[];
     }>({
         science: [],
         platforms: [],
         instruments: [],
         msl: [],
+        chronostratigraphy: [],
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
@@ -616,10 +618,12 @@ export default function DataCiteForm({
         science_keywords: boolean;
         platforms: boolean;
         instruments: boolean;
+        chronostratigraphy: boolean;
     }>({
         science_keywords: true,
         platforms: true,
         instruments: true,
+        chronostratigraphy: true,
     });
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
@@ -627,7 +631,7 @@ export default function DataCiteForm({
         const loadVocabularies = async () => {
             try {
                 // First, check which thesauri are available
-                let availability = { science_keywords: true, platforms: true, instruments: true };
+                let availability = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true };
                 try {
                     const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
                     if (availabilityRes.ok) {
@@ -636,6 +640,7 @@ export default function DataCiteForm({
                             science_keywords: availabilityData.science_keywords?.available ?? true,
                             platforms: availabilityData.platforms?.available ?? true,
                             instruments: availabilityData.instruments?.available ?? true,
+                            chronostratigraphy: availabilityData.chronostratigraphy?.available ?? true,
                         };
                         setThesauriAvailability(availability);
                     }
@@ -646,7 +651,7 @@ export default function DataCiteForm({
 
                 // Only fetch vocabularies that are enabled
                 const fetchPromises: Promise<Response>[] = [];
-                const fetchOrder: ('science' | 'platforms' | 'instruments')[] = [];
+                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy')[] = [];
 
                 if (availability.science_keywords) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
@@ -659,6 +664,10 @@ export default function DataCiteForm({
                 if (availability.instruments) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-instruments'));
                     fetchOrder.push('instruments');
+                }
+                if (availability.chronostratigraphy) {
+                    fetchPromises.push(fetch('/vocabularies/chronostrat-timescale'));
+                    fetchOrder.push('chronostratigraphy');
                 }
 
                 if (fetchPromises.length === 0) {
@@ -675,6 +684,7 @@ export default function DataCiteForm({
                     platforms: [],
                     instruments: [],
                     msl: [],
+                    chronostratigraphy: [],
                 };
 
                 // Process each response with its corresponding key
@@ -684,7 +694,7 @@ export default function DataCiteForm({
                         const data = await response.json();
                         return { key, data: data?.data || [] };
                     }
-                    console.error(`Failed to load GCMD vocabulary: ${key}`);
+                    console.error(`Failed to load vocabulary: ${key}`);
                     return { key, data: [] };
                 });
 
@@ -694,17 +704,18 @@ export default function DataCiteForm({
                 }
 
                 if (import.meta.env.DEV) {
-                    console.debug('Loaded GCMD vocabularies:', {
+                    console.debug('Loaded vocabularies:', {
                         science: vocabularies.science.length,
                         platforms: vocabularies.platforms.length,
                         instruments: vocabularies.instruments.length,
+                        chronostratigraphy: vocabularies.chronostratigraphy.length,
                         availability,
                     });
                 }
 
                 setGcmdVocabularies(vocabularies);
             } catch (error) {
-                console.error('Error loading GCMD vocabularies:', error);
+                console.error('Error loading vocabularies:', error);
             } finally {
                 setIsLoadingVocabularies(false);
             }
@@ -2238,9 +2249,11 @@ export default function DataCiteForm({
                                 platforms={gcmdVocabularies.platforms}
                                 instruments={gcmdVocabularies.instruments}
                                 mslVocabulary={gcmdVocabularies.msl}
+                                chronostratVocabulary={gcmdVocabularies.chronostratigraphy}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
                                 showMslTab={shouldShowMSLSection}
+                                showChronostratTab={thesauriAvailability.chronostratigraphy}
                                 autoSwitchToMsl={shouldAutoSwitchToMsl}
                                 enabledThesauri={thesauriAvailability}
                             />

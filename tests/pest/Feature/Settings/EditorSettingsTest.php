@@ -161,17 +161,18 @@ test('thesaurus settings are auto-created when missing', function () {
     Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
     Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
 
-    // Verify no thesaurus settings exist initially
-    expect(ThesaurusSetting::count())->toBe(0);
+    // Verify only the migration-seeded chronostrat setting exists initially
+    expect(ThesaurusSetting::count())->toBe(1);
+    expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->exists())->toBeTrue();
 
     $this->actingAs($user);
     withoutVite();
 
-    // Access the settings page - this should auto-create thesaurus settings
+    // Access the settings page - this should auto-create missing thesaurus settings
     $response = $this->get(route('settings'))->assertOk();
 
-    // Verify all three thesaurus settings were created
-    expect(ThesaurusSetting::count())->toBe(3);
+    // Verify all four thesaurus settings now exist (3 GCMD auto-created + 1 chronostrat from migration)
+    expect(ThesaurusSetting::count())->toBe(4);
 
     $this->assertDatabaseHas('thesaurus_settings', [
         'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
@@ -195,11 +196,11 @@ test('thesaurus settings are auto-created when missing', function () {
     // Verify thesauri are returned in the response
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
-        ->has('thesauri', 3)
-        ->where('thesauri.0.type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
-        ->where('thesauri.0.displayName', 'GCMD Science Keywords')
-        ->where('thesauri.1.type', ThesaurusSetting::TYPE_PLATFORMS)
-        ->where('thesauri.2.type', ThesaurusSetting::TYPE_INSTRUMENTS)
+        ->has('thesauri', 4)
+        ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_PLATFORMS)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_INSTRUMENTS)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_CHRONOSTRAT))
     );
 });
 

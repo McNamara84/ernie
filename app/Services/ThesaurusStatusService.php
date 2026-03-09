@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\ThesaurusSetting;
+use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service for checking thesaurus status and comparing with NASA KMS API.
+ * Service for checking thesaurus status and comparing with remote APIs.
+ *
+ * Supports NASA KMS API (for GCMD vocabularies) and ARDC Linked Data API
+ * (for ICS Chronostratigraphic Timescale).
  */
 class ThesaurusStatusService
 {
@@ -64,14 +68,32 @@ class ThesaurusStatusService
     }
 
     /**
-     * Get the concept count from the NASA KMS API.
+     * Get the concept count from the remote API.
      *
-     * This makes a lightweight request (page_size=1) to get the total hits count
-     * without downloading all concepts.
+     * For GCMD thesauri, queries NASA KMS API.
+     * For Chronostratigraphy, queries ARDC Linked Data API.
      *
      * @throws \RuntimeException If the API request fails
      */
     public function getRemoteConceptCount(ThesaurusSetting $thesaurus): int
+    {
+        if ($thesaurus->isGcmd()) {
+            return $this->getGcmdRemoteCount($thesaurus);
+        }
+
+        if ($thesaurus->type === ThesaurusSetting::TYPE_CHRONOSTRAT) {
+            return $this->getChronostratRemoteCount();
+        }
+
+        throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
+    }
+
+    /**
+     * Get concept count from NASA KMS API.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getGcmdRemoteCount(ThesaurusSetting $thesaurus): int
     {
         $vocabularyType = $thesaurus->getVocabularyType();
         $url = self::NASA_KMS_BASE_URL.$vocabularyType.'?format=rdf&page_num=1&page_size=1';
@@ -89,6 +111,25 @@ class ThesaurusStatusService
         $parser = new GcmdVocabularyParser;
 
         return $parser->extractTotalHits($response->body());
+    }
+
+    /**
+     * Get concept count from ARDC Linked Data API for Chronostratigraphy.
+     *
+     * Fetches all items via ArdcApiService and counts concepts after filtering
+     * out boundary/GSSP entries, matching the same filter logic used by
+     * ChronostratVocabularyParser::extractConcepts().
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getChronostratRemoteCount(): int
+    {
+        $ardcApi = new ArdcApiService;
+        $allItems = $ardcApi->fetchAllItems(timeout: 30);
+
+        $parser = new ChronostratVocabularyParser;
+
+        return count($parser->extractConcepts($allItems));
     }
 
     /**

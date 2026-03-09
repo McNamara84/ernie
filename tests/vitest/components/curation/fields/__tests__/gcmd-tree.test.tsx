@@ -2,9 +2,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { GCMDTree, GCMDTreeNode } from '@/components/curation/fields/gcmd-tree';
-import type { GCMDKeyword } from '@/types/gcmd';
+import type { VocabularyKeyword } from '@/types/vocabulary';
 
-const createMockKeyword = (overrides: Partial<GCMDKeyword> = {}): GCMDKeyword => ({
+const createMockKeyword = (overrides: Partial<VocabularyKeyword> = {}): VocabularyKeyword => ({
     id: 'test-1',
     text: 'Test Keyword',
     language: 'en',
@@ -28,12 +28,12 @@ describe('gcmd-tree', () => {
         });
 
         it('renders empty message when keywords is undefined', () => {
-            render(<GCMDTree keywords={undefined as unknown as GCMDKeyword[]} selectedIds={new Set()} onToggle={vi.fn()} />);
+            render(<GCMDTree keywords={undefined as unknown as VocabularyKeyword[]} selectedIds={new Set()} onToggle={vi.fn()} />);
             expect(screen.getByText('No keywords available')).toBeInTheDocument();
         });
 
         it('renders keyword nodes for each keyword', () => {
-            const keywords: GCMDKeyword[] = [
+            const keywords: VocabularyKeyword[] = [
                 createMockKeyword({ id: '1', text: 'Earth Science' }),
                 createMockKeyword({ id: '2', text: 'Atmosphere' }),
             ];
@@ -44,7 +44,7 @@ describe('gcmd-tree', () => {
         });
 
         it('passes searchQuery to child nodes for highlighting', () => {
-            const keywords: GCMDKeyword[] = [createMockKeyword({ id: '1', text: 'Earth Science' })];
+            const keywords: VocabularyKeyword[] = [createMockKeyword({ id: '1', text: 'Earth Science' })];
             render(<GCMDTree keywords={keywords} selectedIds={new Set()} onToggle={vi.fn()} searchQuery="Earth" />);
 
             // The highlight component wraps matching text in a <mark> element

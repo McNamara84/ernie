@@ -7,7 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Thesaurus settings for GCMD controlled vocabularies.
+ * Thesaurus settings for controlled vocabularies.
  *
  * @property int $id
  * @property string $type
@@ -24,6 +24,8 @@ class ThesaurusSetting extends Model
     public const TYPE_PLATFORMS = 'platforms';
 
     public const TYPE_INSTRUMENTS = 'instruments';
+
+    public const TYPE_CHRONOSTRAT = 'chronostratigraphy';
 
     /**
      * @var list<string>
@@ -55,6 +57,7 @@ class ThesaurusSetting extends Model
             self::TYPE_SCIENCE_KEYWORDS => 'gcmd-science-keywords.json',
             self::TYPE_PLATFORMS => 'gcmd-platforms.json',
             self::TYPE_INSTRUMENTS => 'gcmd-instruments.json',
+            self::TYPE_CHRONOSTRAT => 'chronostrat-timescale.json',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -68,12 +71,16 @@ class ThesaurusSetting extends Model
             self::TYPE_SCIENCE_KEYWORDS => 'get-gcmd-science-keywords',
             self::TYPE_PLATFORMS => 'get-gcmd-platforms',
             self::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
+            self::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
 
     /**
      * Get the NASA KMS vocabulary type identifier.
+     *
+     * Only applicable for GCMD thesauri. Throws for non-GCMD types
+     * (e.g. Chronostratigraphy) which use different remote APIs.
      */
     public function getVocabularyType(): string
     {
@@ -81,8 +88,20 @@ class ThesaurusSetting extends Model
             self::TYPE_SCIENCE_KEYWORDS => 'sciencekeywords',
             self::TYPE_PLATFORMS => 'platforms',
             self::TYPE_INSTRUMENTS => 'instruments',
-            default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
+            default => throw new \InvalidArgumentException("getVocabularyType() is only supported for GCMD thesauri, got: {$this->type}"),
         };
+    }
+
+    /**
+     * Check if this thesaurus uses the NASA KMS API.
+     */
+    public function isGcmd(): bool
+    {
+        return in_array($this->type, [
+            self::TYPE_SCIENCE_KEYWORDS,
+            self::TYPE_PLATFORMS,
+            self::TYPE_INSTRUMENTS,
+        ], true);
     }
 
     /**
@@ -96,6 +115,7 @@ class ThesaurusSetting extends Model
             self::TYPE_SCIENCE_KEYWORDS,
             self::TYPE_PLATFORMS,
             self::TYPE_INSTRUMENTS,
+            self::TYPE_CHRONOSTRAT,
         ];
     }
 }
