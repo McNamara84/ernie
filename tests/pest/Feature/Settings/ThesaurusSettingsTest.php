@@ -53,7 +53,7 @@ describe('ThesaurusSettingsController', function () {
         $this->actingAs($admin)
             ->getJson('/thesauri')
             ->assertOk()
-            ->assertJsonCount(3)
+            ->assertJsonCount(4)
             ->assertJsonFragment([
                 'type' => 'science_keywords',
                 'displayName' => 'Science Keywords',
@@ -143,6 +143,19 @@ describe('VocabularyController with Thesaurus Settings', function () {
             ]);
     });
 
+    test('thesauri-availability endpoint returns is_elmo_active for ELMO requests', function () {
+        Config::set('services.ernie.api_key', 'test-api-key');
+
+        $this->withHeaders(['X-API-Key' => 'test-api-key'])
+            ->getJson('/api/v1/elmo/vocabularies/thesauri-availability')
+            ->assertOk()
+            ->assertJson([
+                'science_keywords' => ['available' => true],
+                'platforms' => ['available' => false],
+                'instruments' => ['available' => true],
+            ]);
+    });
+
     test('ELMO requests check is_elmo_active instead of is_active', function () {
         Storage::fake();
         Storage::put('gcmd-instruments.json', json_encode([
@@ -183,10 +196,9 @@ describe('EditorSettings with Thesauri', function () {
         $response = $this->get(route('settings'));
 
         $response->assertInertia(fn ($assert) => $assert
-            ->has('thesauri', 3)
-            ->where('thesauri.0.type', 'science_keywords')
-            ->where('thesauri.0.isActive', true)
-            ->where('thesauri.0.isElmoActive', true)
+            ->has('thesauri', 4)
+            ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', 'science_keywords')
+                && $thesauri->contains('type', 'chronostratigraphy'))
         );
     });
 

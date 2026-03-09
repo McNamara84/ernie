@@ -67,11 +67,11 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments',
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale']);
 Route::middleware('ernie.api-key')->get('/v1/ror-affiliations/elmo', [VocabularyController::class, 'rorAffiliations']);
 
-// Thesauri availability - returns which thesauri are enabled (no auth required for frontend)
+// Thesauri/PID availability - dual routes: without auth for ERNIE frontend, with API key for ELMO
 Route::get('/v1/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
-
-// PID availability - returns which PID registries are enabled (no auth required for frontend)
 Route::get('/v1/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability']);
+Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
+Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability']);
 
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 
