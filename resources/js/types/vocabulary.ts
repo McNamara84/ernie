@@ -1,23 +1,23 @@
 /**
- * GCMD (Global Change Master Directory) Controlled Vocabulary Types
+ * Controlled Vocabulary Types (GCMD, MSL, ICS Chronostratigraphy, etc.)
  */
 
-export interface GCMDKeyword {
+export interface VocabularyKeyword {
     id: string;
     text: string;
     language: string;
     scheme: string;
     schemeURI: string;
     description: string;
-    children: GCMDKeyword[];
+    children: VocabularyKeyword[];
 }
 
-export interface GCMDVocabulary {
+export interface VocabularyData {
     lastUpdated: string;
-    data: GCMDKeyword[];
+    data: VocabularyKeyword[];
 }
 
-export type GCMDVocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy';
+export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy';
 
 export interface SelectedKeyword {
     id: string;
@@ -30,7 +30,7 @@ export interface SelectedKeyword {
 }
 
 // Helper function to map scheme to vocabulary type for UI tabs
-export function getVocabularyTypeFromScheme(scheme: string): GCMDVocabularyType {
+export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     // Normalize scheme for comparison
     const normalized = scheme.toLowerCase();
 
@@ -44,7 +44,7 @@ export function getVocabularyTypeFromScheme(scheme: string): GCMDVocabularyType 
 }
 
 // Helper function to map vocabulary type to scheme name
-export function getSchemeFromVocabularyType(type: GCMDVocabularyType): string {
+export function getSchemeFromVocabularyType(type: VocabularyType): string {
     switch (type) {
         case 'science':
             return 'Science Keywords';
@@ -61,9 +61,9 @@ export function getSchemeFromVocabularyType(type: GCMDVocabularyType): string {
     }
 }
 
-export interface GCMDVocabularies {
-    science: GCMDVocabulary;
-    platforms: GCMDVocabulary;
-    instruments: GCMDVocabulary;
-    chronostratigraphy: GCMDVocabulary;
+export interface VocabularyCollection {
+    science: VocabularyData;
+    platforms: VocabularyData;
+    instruments: VocabularyData;
+    chronostratigraphy: VocabularyData;
 }

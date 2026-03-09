@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getSchemeFromVocabularyType,
     getVocabularyTypeFromScheme,
-} from '@/types/gcmd';
+} from '@/types/vocabulary';
 
 describe('getVocabularyTypeFromScheme', () => {
     it('returns "science" for Science Keywords scheme', () => {

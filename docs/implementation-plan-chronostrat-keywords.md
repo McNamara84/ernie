@@ -266,29 +266,31 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale'
 
 #### 5.1 Update TypeScript types
 
-**File:** `resources/js/types/gcmd.ts`
+**File:** `resources/js/types/vocabulary.ts` (renamed from `gcmd.ts` to reflect vocabulary-agnostic scope)
 
-- Add `'chronostrat'` to `GCMDVocabularyType` union type:
+- Add `'chronostratigraphy'` to `VocabularyType` union type:
   ```ts
-  export type GCMDVocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostrat';
+  export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy';
   ```
 - Update `getVocabularyTypeFromScheme()`:
   ```ts
-  if (normalized.includes('chronostratigraphic')) return 'chronostrat';
+  if (normalized.includes('chronostratigraphic') || normalized.includes('chronostrat')) return 'chronostratigraphy';
   ```
 - Update `getSchemeFromVocabularyType()`:
   ```ts
-  case 'chronostrat': return 'International Chronostratigraphic Chart';
+  case 'chronostratigraphy': return 'International Chronostratigraphic Chart';
   ```
-- Update `GCMDVocabularies` interface to add `chronostrat`:
+- Update `VocabularyCollection` interface to add `chronostratigraphy`:
   ```ts
-  export interface GCMDVocabularies {
-      science: GCMDVocabulary;
-      platforms: GCMDVocabulary;
-      instruments: GCMDVocabulary;
-      chronostrat: GCMDVocabulary;
+  export interface VocabularyCollection {
+      science: VocabularyData;
+      platforms: VocabularyData;
+      instruments: VocabularyData;
+      chronostratigraphy: VocabularyData;
   }
   ```
+
+**Note:** Types originally named `GCMDKeyword`, `GCMDVocabulary`, `GCMDVocabularyType`, and `GCMDVocabularies` were renamed to `VocabularyKeyword`, `VocabularyData`, `VocabularyType`, and `VocabularyCollection` since the vocabulary system now includes non-GCMD vocabularies (MSL, ICS Chronostratigraphy).
 
 #### 5.2 Update `EditorProps` and `DataCiteFormProps`
 
@@ -325,7 +327,7 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale'
 **File:** `resources/js/components/curation/fields/controlled-vocabularies-field.tsx`
 
 Changes:
-- Add `chronostratVocabulary` prop (type `GCMDKeyword[]`)
+- Add `chronostratVocabulary` prop (type `VocabularyKeyword[]`)
 - Add `showChronostratTab` visibility control via `enabledThesauri`
 - Update `ThesauriAvailability` interface:
   ```ts
@@ -339,16 +341,16 @@ Changes:
 - Add `Chronostratigraphy` tab:
   ```tsx
   {showChronostratTab && (
-      <TabsTrigger value="chronostrat" className="relative">
+      <TabsTrigger value="chronostratigraphy" className="relative">
           Chronostratigraphy
-          {hasKeywords('chronostrat') && (
+          {hasKeywords('chronostratigraphy') && (
               <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500" />
           )}
       </TabsTrigger>
   )}
   ```
 - Update grid column calculation to handle 5 tabs
-- Add `chronostrat` case to `currentKeywords` switch for tree rendering
+- Add `chronostratigraphy` case to `currentKeywords` switch for tree rendering
 
 #### 6.2 Update `DataCiteForm`
 

@@ -566,7 +566,7 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check thesauri availability",
-                "description": "Returns the availability status of all configured thesauri (e.g., GCMD Science Keywords, GCMD Platforms, GCMD Instruments, ICS Chronostratigraphic Chart, MSL). This endpoint does not require authentication and is intended for frontend configuration checks.",
+                "description": "Returns the availability status of all configured thesauri (e.g., GCMD Science Keywords, GCMD Platforms, GCMD Instruments, ICS Chronostratigraphic Chart). This endpoint does not require authentication and is intended for frontend configuration checks.",
                 "responses": {
                     "200": {
                         "description": "Thesauri availability status",
@@ -1110,25 +1110,21 @@
                     "required": ["available", "displayName"]
                 },
                 "example": {
-                    "gcmd_science_keywords": {
+                    "science_keywords": {
                         "available": true,
                         "displayName": "GCMD Science Keywords"
                     },
-                    "gcmd_platforms": {
+                    "platforms": {
                         "available": true,
                         "displayName": "GCMD Platforms"
                     },
-                    "gcmd_instruments": {
+                    "instruments": {
                         "available": true,
                         "displayName": "GCMD Instruments"
                     },
-                    "chronostrat": {
+                    "chronostratigraphy": {
                         "available": true,
-                        "displayName": "ICS Chronostratigraphic Chart"
-                    },
-                    "msl_labs": {
-                        "available": false,
-                        "displayName": "MSL Laboratories"
+                        "displayName": "ICS Chronostratigraphy"
                     }
                 }
             },

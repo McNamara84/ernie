@@ -18,8 +18,8 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier } from '@/types';
-import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
-import { getVocabularyTypeFromScheme } from '@/types/gcmd';
+import type { VocabularyKeyword, SelectedKeyword } from '@/types/vocabulary';
+import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
     validateDate,
     validateDOIFormat,
@@ -599,11 +599,11 @@ export default function DataCiteForm({
     ];
 
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
-        science: GCMDKeyword[];
-        platforms: GCMDKeyword[];
-        instruments: GCMDKeyword[];
-        msl: GCMDKeyword[];
-        chronostratigraphy: GCMDKeyword[];
+        science: VocabularyKeyword[];
+        platforms: VocabularyKeyword[];
+        instruments: VocabularyKeyword[];
+        msl: VocabularyKeyword[];
+        chronostratigraphy: VocabularyKeyword[];
     }>({
         science: [],
         platforms: [],

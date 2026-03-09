@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
-import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
-import { getSchemeFromVocabularyType, getVocabularyTypeFromScheme } from '@/types/gcmd';
+import type { VocabularyKeyword, VocabularyType, SelectedKeyword } from '@/types/vocabulary';
+import { getSchemeFromVocabularyType, getVocabularyTypeFromScheme } from '@/types/vocabulary';
 
 import { GCMDTree } from './gcmd-tree';
 
@@ -32,11 +32,11 @@ interface ThesauriAvailability {
 }
 
 interface ControlledVocabulariesFieldProps {
-    scienceKeywords: GCMDKeyword[];
-    platforms: GCMDKeyword[];
-    instruments: GCMDKeyword[];
-    mslVocabulary?: GCMDKeyword[]; // Optional MSL vocabulary
-    chronostratVocabulary?: GCMDKeyword[]; // Optional ICS Chronostratigraphy vocabulary
+    scienceKeywords: VocabularyKeyword[];
+    platforms: VocabularyKeyword[];
+    instruments: VocabularyKeyword[];
+    mslVocabulary?: VocabularyKeyword[]; // Optional MSL vocabulary
+    chronostratVocabulary?: VocabularyKeyword[]; // Optional ICS Chronostratigraphy vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
@@ -49,13 +49,13 @@ interface ControlledVocabulariesFieldProps {
  * Recursively searches for keywords matching a search query
  * Optimized with early exit and pre-lowercased query
  */
-function searchKeywords(keywords: GCMDKeyword[], query: string): GCMDKeyword[] {
+function searchKeywords(keywords: VocabularyKeyword[], query: string): VocabularyKeyword[] {
     if (!query) return keywords;
 
-    const results: GCMDKeyword[] = [];
+    const results: VocabularyKeyword[] = [];
     const lowerQuery = query.toLowerCase();
 
-    function searchNode(keyword: GCMDKeyword): void {
+    function searchNode(keyword: VocabularyKeyword): void {
         const textMatch = keyword.text.toLowerCase().includes(lowerQuery);
         const descMatch = keyword.description?.toLowerCase().includes(lowerQuery) ?? false;
 
@@ -97,7 +97,7 @@ export default function ControlledVocabulariesField({
     const showChronostrat = showChronostratTab && enabledThesauri.chronostratigraphy;
 
     // Determine default active tab based on what's available
-    const getDefaultTab = (): GCMDVocabularyType => {
+    const getDefaultTab = (): VocabularyType => {
         if (showScienceTab) return 'science';
         if (showPlatformsTab) return 'platforms';
         if (showInstrumentsTab) return 'instruments';
@@ -106,7 +106,7 @@ export default function ControlledVocabulariesField({
         return 'science'; // Fallback
     };
 
-    const [activeTab, setActiveTab] = useState<GCMDVocabularyType>(getDefaultTab);
+    const [activeTab, setActiveTab] = useState<VocabularyType>(getDefaultTab);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Track if auto-switch has already occurred to prevent interference with manual tab changes
@@ -189,7 +189,7 @@ export default function ControlledVocabulariesField({
 
     // Handle keyword toggle (select/deselect)
     const handleToggle = useCallback(
-        (keyword: GCMDKeyword, path: string[]) => {
+        (keyword: VocabularyKeyword, path: string[]) => {
             const isSelected = selectedKeywords.some((k) => k.id === keyword.id);
 
             if (isSelected) {
@@ -221,7 +221,7 @@ export default function ControlledVocabulariesField({
 
     // Group selected keywords by vocabulary type (based on scheme)
     const keywordsByVocabulary = useMemo(() => {
-        const grouped: Record<GCMDVocabularyType, SelectedKeyword[]> = {
+        const grouped: Record<VocabularyType, SelectedKeyword[]> = {
             science: [],
             platforms: [],
             instruments: [],
@@ -239,7 +239,7 @@ export default function ControlledVocabulariesField({
 
     // Check if a vocabulary type has selected keywords
     const hasKeywords = useCallback(
-        (type: GCMDVocabularyType): boolean => {
+        (type: VocabularyType): boolean => {
             return keywordsByVocabulary[type].length > 0;
         },
         [keywordsByVocabulary],
@@ -267,12 +267,12 @@ export default function ControlledVocabulariesField({
                             ...(showInstrumentsTab ? ['instruments' as const] : []),
                             ...(showMslTab ? ['msl' as const] : []),
                             ...(showChronostrat ? ['chronostratigraphy' as const] : []),
-                        ] as GCMDVocabularyType[]
+                        ] as VocabularyType[]
                     ).map((type) => {
                         const keywords = keywordsByVocabulary[type];
                         if (keywords.length === 0) return null;
 
-                        const typeLabels: Record<GCMDVocabularyType, string> = {
+                        const typeLabels: Record<VocabularyType, string> = {
                             science: 'Science Keywords',
                             platforms: 'Platforms',
                             instruments: 'Instruments',
@@ -367,7 +367,7 @@ export default function ControlledVocabulariesField({
                     </div>
 
                     {/* Tabs for vocabulary types */}
-                    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
+                    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as VocabularyType)}>
                         <TabsList
                             className={cn(
                                 'grid w-full',
