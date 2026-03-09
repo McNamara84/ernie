@@ -22,11 +22,16 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('EPOS MSL vocabulary')).toBe('msl');
     });
 
+    it('returns "chronostratigraphy" for International Chronostratigraphic Chart scheme', () => {
+        expect(getVocabularyTypeFromScheme('International Chronostratigraphic Chart')).toBe('chronostratigraphy');
+    });
+
     it('is case-insensitive', () => {
         expect(getVocabularyTypeFromScheme('SCIENCE KEYWORDS')).toBe('science');
         expect(getVocabularyTypeFromScheme('PLATFORMS')).toBe('platforms');
         expect(getVocabularyTypeFromScheme('INSTRUMENTS')).toBe('instruments');
         expect(getVocabularyTypeFromScheme('epos msl')).toBe('msl');
+        expect(getVocabularyTypeFromScheme('INTERNATIONAL CHRONOSTRATIGRAPHIC CHART')).toBe('chronostratigraphy');
     });
 
     it('handles partial matches', () => {
@@ -34,6 +39,7 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('Observation Platforms')).toBe('platforms');
         expect(getVocabularyTypeFromScheme('Scientific Instruments List')).toBe('instruments');
         expect(getVocabularyTypeFromScheme('MSL Vocabularies')).toBe('msl');
+        expect(getVocabularyTypeFromScheme('ICS Chronostratigraphic Chart 2020')).toBe('chronostratigraphy');
     });
 
     it('returns "science" as default for unknown schemes', () => {
@@ -58,6 +64,10 @@ describe('getSchemeFromVocabularyType', () => {
 
     it('returns "EPOS MSL vocabulary" for msl type', () => {
         expect(getSchemeFromVocabularyType('msl')).toBe('EPOS MSL vocabulary');
+    });
+
+    it('returns "International Chronostratigraphic Chart" for chronostratigraphy type', () => {
+        expect(getSchemeFromVocabularyType('chronostratigraphy')).toBe('International Chronostratigraphic Chart');
     });
 
     it('returns "Science Keywords" as default for unknown types', () => {

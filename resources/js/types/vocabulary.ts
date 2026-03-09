@@ -65,5 +65,6 @@ export interface VocabularyCollection {
     science: VocabularyData;
     platforms: VocabularyData;
     instruments: VocabularyData;
+    msl: VocabularyData;
     chronostratigraphy: VocabularyData;
 }
