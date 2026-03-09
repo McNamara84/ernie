@@ -258,6 +258,28 @@ describe('getRemoteConceptCount', function () {
         expect(fn () => $service->getRemoteConceptCount($thesaurus))
             ->toThrow(\Illuminate\Http\Client\ConnectionException::class);
     });
+
+    test('throws exception on invalid ARDC response format', function () {
+        $thesaurus = ThesaurusSetting::firstOrCreate(
+            ['type' => ThesaurusSetting::TYPE_CHRONOSTRAT],
+            [
+                'display_name' => 'ICS Chronostratigraphy',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        Http::fake([
+            'vocabs.ardc.edu.au/*' => Http::response('<html>Gateway Timeout</html>', 200, [
+                'Content-Type' => 'text/html',
+            ]),
+        ]);
+
+        $service = new ThesaurusStatusService;
+
+        expect(fn () => $service->getRemoteConceptCount($thesaurus))
+            ->toThrow(RuntimeException::class, 'Unexpected ARDC API response format');
+    });
 });
 
 describe('compareWithRemote', function () {

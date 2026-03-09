@@ -54,10 +54,15 @@ class GetChronostratTimescale extends Command
                     return Command::FAILURE;
                 }
 
-                /** @var array{result?: array{items?: array<int, array<string, mixed>>, next?: string}} $data */
                 $data = $response->json();
 
-                $items = $data['result']['items'] ?? [];
+                if (! is_array($data) || ! isset($data['result']['items']) || ! is_array($data['result']['items'])) {
+                    $this->error('Unexpected ARDC API response format: missing result.items array');
+
+                    return Command::FAILURE;
+                }
+
+                $items = $data['result']['items'];
                 $allItems = array_merge($allItems, $items);
 
                 $this->info('Fetched '.count($items).' items (total: '.count($allItems).')');

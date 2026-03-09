@@ -128,6 +128,17 @@ describe('handle', function (): void {
             ->assertExitCode(1);
     });
 
+    it('returns failure on invalid API response format', function (): void {
+        Http::fake([
+            'vocabs.ardc.edu.au/*' => Http::response('<html>Gateway Timeout</html>', 200, [
+                'Content-Type' => 'text/html',
+            ]),
+        ]);
+
+        $this->artisan('get-chronostrat-timescale')
+            ->assertExitCode(1);
+    });
+
     it('filters out concepts without English labels', function (): void {
         Storage::fake('local');
 

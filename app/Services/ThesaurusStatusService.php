@@ -143,9 +143,15 @@ class ThesaurusStatusService
                 );
             }
 
-            /** @var array{result?: array{items?: array<int, mixed>, next?: string}} $data */
             $data = $response->json();
-            $items = $data['result']['items'] ?? [];
+
+            if (! is_array($data) || ! isset($data['result']['items']) || ! is_array($data['result']['items'])) {
+                throw new \RuntimeException(
+                    'Unexpected ARDC API response format: missing result.items array'
+                );
+            }
+
+            $items = $data['result']['items'];
 
             // Use the same filter as ChronostratVocabularyParser::extractConcepts
             $count += count($parser->extractConcepts($items));
