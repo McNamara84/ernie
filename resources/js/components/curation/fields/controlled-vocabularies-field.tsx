@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import type { VocabularyKeyword, VocabularyType, SelectedKeyword } from '@/types/vocabulary';
-import { getSchemeFromVocabularyType, getVocabularyTypeFromScheme } from '@/types/vocabulary';
+import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 
 import { GCMDTree } from './gcmd-tree';
 
@@ -182,9 +182,7 @@ export default function ControlledVocabulariesField({
 
     // Get selected keyword IDs for current vocabulary
     const selectedIdsForCurrentVocabulary = useMemo(() => {
-        // Filter keywords by scheme matching the active tab
-        const targetScheme = getSchemeFromVocabularyType(activeTab);
-        return new Set(selectedKeywords.filter((k) => k.scheme.toLowerCase().includes(targetScheme.toLowerCase().split(' ')[0])).map((k) => k.id));
+        return new Set(selectedKeywords.filter((k) => getVocabularyTypeFromScheme(k.scheme) === activeTab).map((k) => k.id));
     }, [selectedKeywords, activeTab]);
 
     // Handle keyword toggle (select/deselect)
@@ -253,7 +251,7 @@ export default function ControlledVocabulariesField({
             {/* Show message if no thesauri are enabled */}
             {!hasAnyThesaurus && (
                 <div className="rounded-md border border-muted bg-muted/50 p-4 text-center text-sm text-muted-foreground">
-                    No controlled vocabularies are currently enabled. Contact an administrator to enable GCMD thesauri in the settings.
+                    No controlled vocabularies are currently enabled. Contact an administrator to enable vocabularies in the settings.
                 </div>
             )}
 
