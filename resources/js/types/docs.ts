@@ -13,6 +13,8 @@ export interface EditorSettings {
         platforms: boolean;
         /** Is GCMD Instruments thesaurus active? */
         instruments: boolean;
+        /** Is ICS Chronostratigraphy thesaurus active? */
+        chronostratigraphy: boolean;
     };
     /**
      * Feature availability flags
@@ -22,6 +24,8 @@ export interface EditorSettings {
         hasActiveGcmd: boolean;
         /** Is MSL vocabulary available? */
         hasActiveMsl: boolean;
+        /** Is ICS Chronostratigraphy thesaurus active? */
+        hasActiveChronostrat: boolean;
         /** Is at least one license active? */
         hasActiveLicenses: boolean;
         /** Is at least one resource type active? */

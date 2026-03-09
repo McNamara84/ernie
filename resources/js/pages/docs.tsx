@@ -422,6 +422,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <code>/api/v1/vocabularies/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
                             </li>
+                            <li>
+                                <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns is_elmo_active)
+                            </li>
                         </ul>
                     </>
                 ),
