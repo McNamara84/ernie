@@ -476,6 +476,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/chronostrat-timescale": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get ICS Chronostratigraphic Timescale vocabulary",
+                "description": "Returns the International Chronostratigraphic Chart (ICS) as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains geologic time intervals (eons, eras, periods, epochs, ages). Boundary and GSSP concepts are filtered out. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ICS Chronostratigraphic Timescale vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChronostratTimescale"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-chronostrat-timescale"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -512,6 +555,25 @@
                                             "example": "PID4INST is disabled"
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/vocabularies/thesauri-availability": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Check thesauri availability",
+                "description": "Returns the availability status of all configured thesauri (e.g., GCMD Science Keywords, GCMD Platforms, GCMD Instruments, ICS Chronostratigraphic Chart, MSL). This endpoint does not require authentication and is intended for frontend configuration checks.",
+                "responses": {
+                    "200": {
+                        "description": "Thesauri availability status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ThesauriAvailability"
                                 }
                             }
                         }
@@ -577,6 +639,60 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/api/v1/elmo/vocabularies/thesauri-availability": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Check thesauri availability for ELMO",
+                "description": "Returns the availability status of all configured thesauri from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/thesauri-availability` instead.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Thesauri availability status for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ThesauriAvailability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/elmo/vocabularies/pid-availability": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Check PID registry availability for ELMO",
+                "description": "Returns the availability status of all configured PID registries from the ELMO perspective (uses `is_elmo_active` flag). Requires API key authentication. For unauthenticated frontend checks, use `/api/v1/vocabularies/pid-availability` instead.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PID registry availability status for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PidAvailability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
                     }
                 }
             }
@@ -811,6 +927,25 @@
                     }
                 }
             },
+            "ChronostratTimescale": {
+                "type": "object",
+                "description": "ICS Chronostratigraphic Timescale from ARDC Linked Data API (International Chronostratigraphic Chart / Geologic Time Scale 2020)",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the vocabulary was last updated",
+                        "example": "2025-12-15 09:30:00"
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Hierarchical array of chronostratigraphic intervals (Eons → Eras → Periods → Epochs → Ages)",
+                        "items": {
+                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                        }
+                    }
+                }
+            },
             "GcmdKeywordConcept": {
                 "type": "object",
                 "properties": {
@@ -954,6 +1089,48 @@
                     }
                 },
                 "required": ["id", "pid", "pidType", "name"]
+            },
+            "ThesauriAvailability": {
+                "type": "object",
+                "description": "Availability status of thesauri vocabularies, keyed by thesaurus type",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "available": {
+                            "type": "boolean",
+                            "description": "Whether this thesaurus is enabled",
+                            "example": true
+                        },
+                        "displayName": {
+                            "type": "string",
+                            "description": "Human-readable name of the thesaurus",
+                            "example": "GCMD Science Keywords"
+                        }
+                    },
+                    "required": ["available", "displayName"]
+                },
+                "example": {
+                    "gcmd_science_keywords": {
+                        "available": true,
+                        "displayName": "GCMD Science Keywords"
+                    },
+                    "gcmd_platforms": {
+                        "available": true,
+                        "displayName": "GCMD Platforms"
+                    },
+                    "gcmd_instruments": {
+                        "available": true,
+                        "displayName": "GCMD Instruments"
+                    },
+                    "chronostrat": {
+                        "available": true,
+                        "displayName": "ICS Chronostratigraphic Chart"
+                    },
+                    "msl_labs": {
+                        "available": false,
+                        "displayName": "MSL Laboratories"
+                    }
+                }
             },
             "PidAvailability": {
                 "type": "object",
