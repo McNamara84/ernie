@@ -176,7 +176,7 @@ class ChronostratVocabularyParser
      * Extract the broader (parent) URI from the broader field.
      *
      * The broader field can be a single string, an array of strings,
-     * or an array of objects with _about keys.
+     * or an array of objects with an _about key.
      *
      * @param  mixed  $broader
      */
@@ -190,10 +190,19 @@ class ChronostratVocabularyParser
             return null;
         }
 
-        // Array of strings: ["http://..."]
+        // Single object with _about key: {"_about": "http://..."}
+        if (isset($broader['_about']) && is_string($broader['_about']) && $broader['_about'] !== '') {
+            return $broader['_about'];
+        }
+
+        // Array of strings or objects
         foreach ($broader as $item) {
             if (is_string($item) && $item !== '') {
                 return $item;
+            }
+
+            if (is_array($item) && isset($item['_about']) && is_string($item['_about']) && $item['_about'] !== '') {
+                return $item['_about'];
             }
         }
 

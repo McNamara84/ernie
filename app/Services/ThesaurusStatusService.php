@@ -118,7 +118,9 @@ class ThesaurusStatusService
     /**
      * Get concept count from ARDC Linked Data API for Chronostratigraphy.
      *
-     * Fetches the first page with minimal page size to count total items.
+     * Paginates through all ARDC API pages (200 items per page) and counts
+     * concepts after filtering out boundary/GSSP entries, matching the same
+     * filter logic used by ChronostratVocabularyParser::extractConcepts().
      *
      * @throws \RuntimeException If the API request fails
      */

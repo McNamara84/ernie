@@ -20,6 +20,7 @@ describe('constructor validation', function () {
             ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
             ThesaurusSetting::TYPE_PLATFORMS,
             ThesaurusSetting::TYPE_INSTRUMENTS,
+            ThesaurusSetting::TYPE_CHRONOSTRAT,
         ];
 
         foreach ($validTypes as $type) {
@@ -137,6 +138,7 @@ describe('handle', function () {
             ThesaurusSetting::TYPE_SCIENCE_KEYWORDS => 'get-gcmd-science-keywords',
             ThesaurusSetting::TYPE_PLATFORMS => 'get-gcmd-platforms',
             ThesaurusSetting::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
+            ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
         ];
 
         foreach ($mapping as $type => $expectedCommand) {
@@ -150,6 +152,26 @@ describe('handle', function () {
             $job = new UpdateThesaurusJob($type, $uuid);
             $job->handle();
         }
+    });
+    it('uses ARDC progress message for chronostrat type', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-chronostrat-timescale')
+            ->once()
+            ->andReturn(0);
+
+        $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_CHRONOSTRAT, $uuid);
+        $job->handle();
+
+        // The final cache state is 'completed', but we can verify the type is correct
+        $cached = Cache::get($cacheKey);
+
+        expect($cached)
+            ->toBeArray()
+            ->and($cached['status'])->toBe('completed')
+            ->and($cached['thesaurusType'])->toBe(ThesaurusSetting::TYPE_CHRONOSTRAT);
     });
 });
 

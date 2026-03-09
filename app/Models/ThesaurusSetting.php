@@ -77,10 +77,10 @@ class ThesaurusSetting extends Model
     }
 
     /**
-     * Get the remote vocabulary type identifier.
+     * Get the NASA KMS vocabulary type identifier.
      *
-     * For GCMD thesauri, this returns the NASA KMS vocabulary type.
-     * For Chronostratigraphy, this is not applicable (uses ARDC API).
+     * Only applicable for GCMD thesauri. Throws for non-GCMD types
+     * (e.g. Chronostratigraphy) which use different remote APIs.
      */
     public function getVocabularyType(): string
     {
@@ -88,8 +88,7 @@ class ThesaurusSetting extends Model
             self::TYPE_SCIENCE_KEYWORDS => 'sciencekeywords',
             self::TYPE_PLATFORMS => 'platforms',
             self::TYPE_INSTRUMENTS => 'instruments',
-            self::TYPE_CHRONOSTRAT => 'chronostratigraphy',
-            default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
+            default => throw new \InvalidArgumentException("getVocabularyType() is only supported for GCMD thesauri, got: {$this->type}"),
         };
     }
 

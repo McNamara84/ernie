@@ -16,11 +16,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Background job for updating a GCMD thesaurus from NASA KMS API.
+ * Background job for updating a thesaurus from its remote API.
  *
  * This job wraps the existing artisan commands (get-gcmd-science-keywords,
- * get-gcmd-platforms, get-gcmd-instruments) and provides progress tracking
- * via cache for the frontend to poll.
+ * get-gcmd-platforms, get-gcmd-instruments, get-chronostrat-timescale) and
+ * provides progress tracking via cache for the frontend to poll.
  */
 class UpdateThesaurusJob implements ShouldQueue
 {
@@ -93,7 +93,7 @@ class UpdateThesaurusJob implements ShouldQueue
         Cache::put($cacheKey, [
             'status' => 'running',
             'thesaurusType' => $this->thesaurusType,
-            'progress' => 'Fetching data from NASA KMS API...',
+            'progress' => $this->getProgressMessage(),
             'startedAt' => now()->toIso8601String(),
         ], now()->addHours(1));
 
@@ -155,6 +155,17 @@ class UpdateThesaurusJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Get the progress message for the current thesaurus type.
+     */
+    private function getProgressMessage(): string
+    {
+        return match ($this->thesaurusType) {
+            ThesaurusSetting::TYPE_CHRONOSTRAT => 'Fetching data from ARDC Linked Data API...',
+            default => 'Fetching data from NASA KMS API...',
+        };
     }
 
     /**
