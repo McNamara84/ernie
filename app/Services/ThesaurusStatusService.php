@@ -20,8 +20,6 @@ class ThesaurusStatusService
 {
     private const NASA_KMS_BASE_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/';
 
-    private const ARDC_API_BASE_URL = 'https://vocabs.ardc.edu.au/repository/api/lda/csiro/international-chronostratigraphic-chart/geologic-time-scale-2020/concept.json';
-
     /**
      * Get the local status of a thesaurus (from stored JSON file).
      *
@@ -118,49 +116,20 @@ class ThesaurusStatusService
     /**
      * Get concept count from ARDC Linked Data API for Chronostratigraphy.
      *
-     * Paginates through all ARDC API pages (200 items per page) and counts
-     * concepts after filtering out boundary/GSSP entries, matching the same
-     * filter logic used by ChronostratVocabularyParser::extractConcepts().
+     * Fetches all items via ArdcApiService and counts concepts after filtering
+     * out boundary/GSSP entries, matching the same filter logic used by
+     * ChronostratVocabularyParser::extractConcepts().
      *
      * @throws \RuntimeException If the API request fails
      */
     private function getChronostratRemoteCount(): int
     {
+        $ardcApi = new ArdcApiService;
+        $allItems = $ardcApi->fetchAllItems(timeout: 30);
+
         $parser = new ChronostratVocabularyParser;
-        $page = 0;
-        $count = 0;
 
-        do {
-            $url = self::ARDC_API_BASE_URL."?_pageSize=200&_page={$page}";
-
-            $response = Http::timeout(30)
-                ->accept('application/json')
-                ->get($url);
-
-            if (! $response->successful()) {
-                throw new \RuntimeException(
-                    "Failed to fetch from ARDC API: HTTP {$response->status()}"
-                );
-            }
-
-            $data = $response->json();
-
-            if (! is_array($data) || ! isset($data['result']['items']) || ! is_array($data['result']['items'])) {
-                throw new \RuntimeException(
-                    'Unexpected ARDC API response format: missing result.items array'
-                );
-            }
-
-            $items = $data['result']['items'];
-
-            // Use the same filter as ChronostratVocabularyParser::extractConcepts
-            $count += count($parser->extractConcepts($items));
-
-            $hasNextPage = isset($data['result']['next']);
-            $page++;
-        } while ($hasNextPage && count($items) > 0);
-
-        return $count;
+        return count($parser->extractConcepts($allItems));
     }
 
     /**
