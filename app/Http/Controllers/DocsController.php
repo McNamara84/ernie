@@ -85,10 +85,12 @@ class DocsController extends Controller
                 $scienceKeywordsSetting = $thesauri->get(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS);
                 $platformsSetting = $thesauri->get(ThesaurusSetting::TYPE_PLATFORMS);
                 $instrumentsSetting = $thesauri->get(ThesaurusSetting::TYPE_INSTRUMENTS);
+                $chronostratSetting = $thesauri->get(ThesaurusSetting::TYPE_CHRONOSTRAT);
 
                 $scienceKeywordsActive = $scienceKeywordsSetting !== null ? $scienceKeywordsSetting->is_active : false;
                 $platformsActive = $platformsSetting !== null ? $platformsSetting->is_active : false;
                 $instrumentsActive = $instrumentsSetting !== null ? $instrumentsSetting->is_active : false;
+                $chronostratActive = $chronostratSetting !== null ? $chronostratSetting->is_active : false;
 
                 // Check if MSL vocabulary file exists (indicates MSL is available)
                 $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
@@ -98,10 +100,12 @@ class DocsController extends Controller
                         'scienceKeywords' => $scienceKeywordsActive,
                         'platforms' => $platformsActive,
                         'instruments' => $instrumentsActive,
+                        'chronostratigraphy' => $chronostratActive,
                     ],
                     'features' => [
                         'hasActiveGcmd' => $scienceKeywordsActive || $platformsActive || $instrumentsActive,
                         'hasActiveMsl' => $hasMslVocabulary,
+                        'hasActiveChronostrat' => $chronostratActive,
                         'hasActiveLicenses' => Right::where('is_active', true)->exists(),
                         'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
                         'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),

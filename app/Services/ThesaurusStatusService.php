@@ -10,11 +10,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service for checking thesaurus status and comparing with NASA KMS API.
+ * Service for checking thesaurus status and comparing with remote APIs.
+ *
+ * Supports NASA KMS API (for GCMD vocabularies) and ARDC Linked Data API
+ * (for ICS Chronostratigraphic Timescale).
  */
 class ThesaurusStatusService
 {
     private const NASA_KMS_BASE_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/';
+
+    private const ARDC_API_BASE_URL = 'https://vocabs.ardc.edu.au/repository/api/lda/csiro/international-chronostratigraphic-chart/geologic-time-scale-2020/concept.json';
 
     /**
      * Get the local status of a thesaurus (from stored JSON file).
@@ -64,14 +69,32 @@ class ThesaurusStatusService
     }
 
     /**
-     * Get the concept count from the NASA KMS API.
+     * Get the concept count from the remote API.
      *
-     * This makes a lightweight request (page_size=1) to get the total hits count
-     * without downloading all concepts.
+     * For GCMD thesauri, queries NASA KMS API.
+     * For Chronostratigraphy, queries ARDC Linked Data API.
      *
      * @throws \RuntimeException If the API request fails
      */
     public function getRemoteConceptCount(ThesaurusSetting $thesaurus): int
+    {
+        if ($thesaurus->isGcmd()) {
+            return $this->getGcmdRemoteCount($thesaurus);
+        }
+
+        if ($thesaurus->type === ThesaurusSetting::TYPE_CHRONOSTRAT) {
+            return $this->getChronostratRemoteCount();
+        }
+
+        throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
+    }
+
+    /**
+     * Get concept count from NASA KMS API.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getGcmdRemoteCount(ThesaurusSetting $thesaurus): int
     {
         $vocabularyType = $thesaurus->getVocabularyType();
         $url = self::NASA_KMS_BASE_URL.$vocabularyType.'?format=rdf&page_num=1&page_size=1';
@@ -89,6 +112,68 @@ class ThesaurusStatusService
         $parser = new GcmdVocabularyParser;
 
         return $parser->extractTotalHits($response->body());
+    }
+
+    /**
+     * Get concept count from ARDC Linked Data API for Chronostratigraphy.
+     *
+     * Fetches the first page with minimal page size to count total items.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getChronostratRemoteCount(): int
+    {
+        $url = self::ARDC_API_BASE_URL.'?_pageSize=200&_page=0';
+
+        $response = Http::timeout(30)
+            ->accept('application/json')
+            ->get($url);
+
+        if (! $response->successful()) {
+            throw new \RuntimeException(
+                "Failed to fetch from ARDC API: HTTP {$response->status()}"
+            );
+        }
+
+        /** @var array{result?: array{items?: array<int, mixed>}} $data */
+        $data = $response->json();
+        $items = $data['result']['items'] ?? [];
+
+        // Count only interval concepts (exclude boundaries)
+        $count = 0;
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $label = $this->extractEnglishLabelFromArdc($item['prefLabel'] ?? []);
+            if ($label !== null && ! str_starts_with($label, 'Base of ')) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Extract English label from ARDC prefLabel field.
+     */
+    private function extractEnglishLabelFromArdc(mixed $prefLabel): ?string
+    {
+        if (! is_array($prefLabel)) {
+            return null;
+        }
+
+        if (isset($prefLabel['_value'], $prefLabel['_lang'])) {
+            return $prefLabel['_lang'] === 'en' ? $prefLabel['_value'] : null;
+        }
+
+        foreach ($prefLabel as $label) {
+            if (is_array($label) && isset($label['_value'], $label['_lang']) && $label['_lang'] === 'en') {
+                return $label['_value'];
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -64,6 +64,7 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [Voca
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale']);
 Route::middleware('ernie.api-key')->get('/v1/ror-affiliations/elmo', [VocabularyController::class, 'rorAffiliations']);
 
 // Thesauri availability - returns which thesauri are enabled (no auth required for frontend)

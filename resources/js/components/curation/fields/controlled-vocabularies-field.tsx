@@ -28,6 +28,7 @@ interface ThesauriAvailability {
     science_keywords: boolean;
     platforms: boolean;
     instruments: boolean;
+    chronostratigraphy: boolean;
 }
 
 interface ControlledVocabulariesFieldProps {
@@ -35,9 +36,11 @@ interface ControlledVocabulariesFieldProps {
     platforms: GCMDKeyword[];
     instruments: GCMDKeyword[];
     mslVocabulary?: GCMDKeyword[]; // Optional MSL vocabulary
+    chronostratVocabulary?: GCMDKeyword[]; // Optional ICS Chronostratigraphy vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
+    showChronostratTab?: boolean; // Control Chronostratigraphy tab visibility
     autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
     enabledThesauri?: ThesauriAvailability; // Which thesauri are enabled in settings
 }
@@ -79,16 +82,19 @@ export default function ControlledVocabulariesField({
     platforms,
     instruments,
     mslVocabulary = [],
+    chronostratVocabulary = [],
     selectedKeywords,
     onChange,
     showMslTab = false,
+    showChronostratTab = false,
     autoSwitchToMsl = false,
-    enabledThesauri = { science_keywords: true, platforms: true, instruments: true },
+    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true },
 }: ControlledVocabulariesFieldProps) {
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
     const showPlatformsTab = enabledThesauri.platforms;
     const showInstrumentsTab = enabledThesauri.instruments;
+    const showChronostrat = showChronostratTab && enabledThesauri.chronostratigraphy;
 
     // Determine default active tab based on what's available
     const getDefaultTab = (): GCMDVocabularyType => {
@@ -96,6 +102,7 @@ export default function ControlledVocabulariesField({
         if (showPlatformsTab) return 'platforms';
         if (showInstrumentsTab) return 'instruments';
         if (showMslTab) return 'msl';
+        if (showChronostrat) return 'chronostratigraphy';
         return 'science'; // Fallback
     };
 
@@ -124,15 +131,17 @@ export default function ControlledVocabulariesField({
             (activeTab === 'science' && showScienceTab) ||
             (activeTab === 'platforms' && showPlatformsTab) ||
             (activeTab === 'instruments' && showInstrumentsTab) ||
-            (activeTab === 'msl' && showMslTab);
+            (activeTab === 'msl' && showMslTab) ||
+            (activeTab === 'chronostratigraphy' && showChronostrat);
 
         if (!isCurrentTabAvailable) {
             if (showScienceTab) setActiveTab('science');
             else if (showPlatformsTab) setActiveTab('platforms');
             else if (showInstrumentsTab) setActiveTab('instruments');
             else if (showMslTab) setActiveTab('msl');
+            else if (showChronostrat) setActiveTab('chronostratigraphy');
         }
-    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab]);
+    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat]);
 
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
@@ -155,10 +164,12 @@ export default function ControlledVocabulariesField({
                 return instruments;
             case 'msl':
                 return mslVocabulary;
+            case 'chronostratigraphy':
+                return chronostratVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary]);
+    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -215,6 +226,7 @@ export default function ControlledVocabulariesField({
             platforms: [],
             instruments: [],
             msl: [],
+            chronostratigraphy: [],
         };
 
         for (const keyword of selectedKeywords) {
@@ -234,7 +246,7 @@ export default function ControlledVocabulariesField({
     );
 
     // Check if any thesauri are available
-    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab;
+    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat;
 
     return (
         <div className="space-y-4">
@@ -254,6 +266,7 @@ export default function ControlledVocabulariesField({
                             ...(showPlatformsTab ? ['platforms' as const] : []),
                             ...(showInstrumentsTab ? ['instruments' as const] : []),
                             ...(showMslTab ? ['msl' as const] : []),
+                            ...(showChronostrat ? ['chronostratigraphy' as const] : []),
                         ] as GCMDVocabularyType[]
                     ).map((type) => {
                         const keywords = keywordsByVocabulary[type];
@@ -264,6 +277,7 @@ export default function ControlledVocabulariesField({
                             platforms: 'Platforms',
                             instruments: 'Instruments',
                             msl: 'MSL Vocabulary',
+                            chronostratigraphy: 'Chronostratigraphy',
                         };
 
                         // Check if there are any legacy keywords
@@ -359,7 +373,7 @@ export default function ControlledVocabulariesField({
                                 'grid w-full',
                                 // Dynamically calculate grid columns based on visible tabs
                                 (() => {
-                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab].filter(Boolean).length;
+                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat].filter(Boolean).length;
                                     switch (visibleCount) {
                                         case 1:
                                             return 'grid-cols-1';
@@ -369,6 +383,8 @@ export default function ControlledVocabulariesField({
                                             return 'grid-cols-3';
                                         case 4:
                                             return 'grid-cols-4';
+                                        case 5:
+                                            return 'grid-cols-5';
                                         default:
                                             return 'grid-cols-3';
                                     }
@@ -415,6 +431,18 @@ export default function ControlledVocabulariesField({
                                 <TabsTrigger value="msl" className="relative">
                                     MSL Vocabulary
                                     {hasKeywords('msl') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
+                            )}
+                            {showChronostrat && (
+                                <TabsTrigger value="chronostratigraphy" className="relative">
+                                    Chronostratigraphy
+                                    {hasKeywords('chronostratigraphy') && (
                                         <span
                                             className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                             aria-label="Has keywords"

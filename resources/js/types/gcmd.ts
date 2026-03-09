@@ -17,7 +17,7 @@ export interface GCMDVocabulary {
     data: GCMDKeyword[];
 }
 
-export type GCMDVocabularyType = 'science' | 'platforms' | 'instruments' | 'msl';
+export type GCMDVocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy';
 
 export interface SelectedKeyword {
     id: string;
@@ -38,6 +38,7 @@ export function getVocabularyTypeFromScheme(scheme: string): GCMDVocabularyType 
     if (normalized.includes('platform')) return 'platforms';
     if (normalized.includes('instrument')) return 'instruments';
     if (normalized.includes('msl') || normalized.includes('epos')) return 'msl';
+    if (normalized.includes('chronostratigraphic') || normalized.includes('chronostrat')) return 'chronostratigraphy';
 
     return 'science'; // Default fallback
 }
@@ -53,6 +54,8 @@ export function getSchemeFromVocabularyType(type: GCMDVocabularyType): string {
             return 'Instruments';
         case 'msl':
             return 'EPOS MSL vocabulary';
+        case 'chronostratigraphy':
+            return 'International Chronostratigraphic Chart';
         default:
             return 'Science Keywords';
     }
@@ -62,4 +65,5 @@ export interface GCMDVocabularies {
     science: GCMDVocabulary;
     platforms: GCMDVocabulary;
     instruments: GCMDVocabulary;
+    chronostratigraphy: GCMDVocabulary;
 }

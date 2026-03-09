@@ -265,6 +265,7 @@ describe('Vocabulary Type Grouping', () => {
             platforms: [],
             instruments: [],
             msl: [], // Added MSL
+            chronostratigraphy: [],
         };
 
         keywords.forEach((keyword) => {

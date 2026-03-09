@@ -316,6 +316,10 @@ class EditorSettingsController extends Controller
                 'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
                 'display_name' => 'GCMD Instruments',
             ],
+            [
+                'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
+                'display_name' => 'ICS Chronostratigraphy',
+            ],
         ];
 
         foreach ($thesauriConfig as $config) {

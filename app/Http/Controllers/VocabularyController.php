@@ -167,6 +167,22 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return ICS Chronostratigraphy vocabulary.
+     */
+    public function chronostratTimescale(): JsonResponse
+    {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_CHRONOSTRAT)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::CHRONOSTRAT_TIMESCALE,
+            'chronostrat-timescale.json',
+            'php artisan get-chronostrat-timescale'
+        );
+    }
+
+    /**
      * Return ROR affiliations vocabulary for ELMO.
      *
      * Returns the complete ROR data with metadata wrapper

@@ -166,6 +166,7 @@ class UpdateThesaurusJob implements ShouldQueue
             ThesaurusSetting::TYPE_SCIENCE_KEYWORDS => 'get-gcmd-science-keywords',
             ThesaurusSetting::TYPE_PLATFORMS => 'get-gcmd-platforms',
             ThesaurusSetting::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
+            ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->thesaurusType}"),
         };
     }
