@@ -87,7 +87,7 @@
         "improvements": [
             {
                 "title": "Context-Aware Availability Endpoints for ELMO",
-                "description": "The /api/v1/vocabularies/thesauri-availability and /api/v1/vocabularies/pid-availability endpoints now return context-specific availability. ELMO API requests (via API key) receive is_elmo_active status, while ERNIE frontend requests receive is_active status. Dedicated ELMO routes are available at /api/v1/elmo/vocabularies/thesauri-availability and /api/v1/elmo/vocabularies/pid-availability."
+                "description": "Dedicated ELMO availability endpoints are now available at /api/v1/elmo/vocabularies/thesauri-availability and /api/v1/elmo/vocabularies/pid-availability. These routes require an X-API-Key header and return is_elmo_active status. The unauthenticated /api/v1/vocabularies/*-availability endpoints always return is_active status for the ERNIE frontend, regardless of any headers sent."
             }
         ],
         "fixes": [

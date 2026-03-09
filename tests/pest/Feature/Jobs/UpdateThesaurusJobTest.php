@@ -160,12 +160,21 @@ describe('handle', function () {
         Artisan::shouldReceive('call')
             ->with('get-chronostrat-timescale')
             ->once()
-            ->andReturn(0);
+            ->andReturnUsing(function () use ($cacheKey) {
+                // While the command is running, the cache should contain the ARDC progress message
+                $cached = Cache::get($cacheKey);
+                expect($cached)
+                    ->toBeArray()
+                    ->and($cached['status'])->toBe('running')
+                    ->and($cached['progress'])->toBe('Fetching data from ARDC Linked Data API...');
+
+                return 0;
+            });
 
         $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_CHRONOSTRAT, $uuid);
         $job->handle();
 
-        // The final cache state is 'completed', but we can verify the type is correct
+        // After completion, verify final state
         $cached = Cache::get($cacheKey);
 
         expect($cached)
