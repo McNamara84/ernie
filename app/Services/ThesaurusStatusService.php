@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\ThesaurusSetting;
+use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -123,57 +124,34 @@ class ThesaurusStatusService
      */
     private function getChronostratRemoteCount(): int
     {
-        $url = self::ARDC_API_BASE_URL.'?_pageSize=200&_page=0';
-
-        $response = Http::timeout(30)
-            ->accept('application/json')
-            ->get($url);
-
-        if (! $response->successful()) {
-            throw new \RuntimeException(
-                "Failed to fetch from ARDC API: HTTP {$response->status()}"
-            );
-        }
-
-        /** @var array{result?: array{items?: array<int, mixed>}} $data */
-        $data = $response->json();
-        $items = $data['result']['items'] ?? [];
-
-        // Count only interval concepts (exclude boundaries)
+        $parser = new ChronostratVocabularyParser;
+        $page = 0;
         $count = 0;
-        foreach ($items as $item) {
-            if (! is_array($item)) {
-                continue;
+
+        do {
+            $url = self::ARDC_API_BASE_URL."?_pageSize=200&_page={$page}";
+
+            $response = Http::timeout(30)
+                ->accept('application/json')
+                ->get($url);
+
+            if (! $response->successful()) {
+                throw new \RuntimeException(
+                    "Failed to fetch from ARDC API: HTTP {$response->status()}"
+                );
             }
-            $label = $this->extractEnglishLabelFromArdc($item['prefLabel'] ?? []);
-            if ($label !== null && ! str_starts_with($label, 'Base of ')) {
-                $count++;
-            }
-        }
+
+            /** @var array{result?: array{items?: array<int, mixed>}} $data */
+            $data = $response->json();
+            $items = $data['result']['items'] ?? [];
+
+            // Use the same filter as ChronostratVocabularyParser::extractConcepts
+            $count += count($parser->extractConcepts($items));
+
+            $page++;
+        } while (count($items) === 200);
 
         return $count;
-    }
-
-    /**
-     * Extract English label from ARDC prefLabel field.
-     */
-    private function extractEnglishLabelFromArdc(mixed $prefLabel): ?string
-    {
-        if (! is_array($prefLabel)) {
-            return null;
-        }
-
-        if (isset($prefLabel['_value'], $prefLabel['_lang'])) {
-            return $prefLabel['_lang'] === 'en' ? $prefLabel['_value'] : null;
-        }
-
-        foreach ($prefLabel as $label) {
-            if (is_array($label) && isset($label['_value'], $label['_lang']) && $label['_lang'] === 'en') {
-                return $label['_value'];
-            }
-        }
-
-        return null;
     }
 
     /**

@@ -91,12 +91,11 @@ class ChronostratVocabularyParser
             }
         }
 
-        // Find root concept IDs (concepts whose parent is not in the dataset)
-        $allChildIds = array_unique(array_merge(...($childrenByParentId !== [] ? array_values($childrenByParentId) : [[]])));
-
+        // Find root concept IDs (concepts with no parent or parent not in dataset)
         $rootIds = [];
-        foreach ($conceptsById as $id => $concept) {
-            if (! in_array($id, $allChildIds, true)) {
+        foreach ($concepts as $concept) {
+            $id = $concept['id'];
+            if ($concept['broaderId'] === null || ! isset($conceptsById[$concept['broaderId']])) {
                 $rootIds[] = $id;
             }
         }

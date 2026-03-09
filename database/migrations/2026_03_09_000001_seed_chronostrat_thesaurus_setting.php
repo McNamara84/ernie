@@ -24,4 +24,12 @@ return new class extends Migration
             ]
         );
     }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->delete();
+    }
 };
