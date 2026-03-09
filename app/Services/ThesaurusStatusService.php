@@ -143,15 +143,16 @@ class ThesaurusStatusService
                 );
             }
 
-            /** @var array{result?: array{items?: array<int, mixed>}} $data */
+            /** @var array{result?: array{items?: array<int, mixed>, next?: string}} $data */
             $data = $response->json();
             $items = $data['result']['items'] ?? [];
 
             // Use the same filter as ChronostratVocabularyParser::extractConcepts
             $count += count($parser->extractConcepts($items));
 
+            $hasNextPage = isset($data['result']['next']);
             $page++;
-        } while (count($items) === 200);
+        } while ($hasNextPage && count($items) > 0);
 
         return $count;
     }

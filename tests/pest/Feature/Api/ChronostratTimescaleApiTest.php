@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\VocabularyController;
 use App\Models\ThesaurusSetting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\getJson;
 
-covers(ThesaurusSetting::class);
+covers(VocabularyController::class);
 
 beforeEach(function (): void {
     config(['services.ernie.api_key' => 'test-api-key']);

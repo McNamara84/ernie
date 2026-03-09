@@ -651,7 +651,7 @@ export default function DataCiteForm({
 
                 // Only fetch vocabularies that are enabled
                 const fetchPromises: Promise<Response>[] = [];
-                const fetchOrder: ('science' | 'platforms' | 'instruments')[] = [];
+                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy')[] = [];
 
                 if (availability.science_keywords) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
@@ -665,17 +665,9 @@ export default function DataCiteForm({
                     fetchPromises.push(fetch('/vocabularies/gcmd-instruments'));
                     fetchOrder.push('instruments');
                 }
-
-                // Load chronostratigraphy vocabulary separately (different response format)
                 if (availability.chronostratigraphy) {
-                    fetch('/vocabularies/chronostrat-timescale')
-                        .then((res) => (res.ok ? res.json() : null))
-                        .then((data) => {
-                            if (data?.data) {
-                                setGcmdVocabularies((prev) => ({ ...prev, chronostratigraphy: data.data }));
-                            }
-                        })
-                        .catch((err) => console.error('Error loading chronostrat vocabulary:', err));
+                    fetchPromises.push(fetch('/vocabularies/chronostrat-timescale'));
+                    fetchOrder.push('chronostratigraphy');
                 }
 
                 if (fetchPromises.length === 0) {
@@ -702,7 +694,7 @@ export default function DataCiteForm({
                         const data = await response.json();
                         return { key, data: data?.data || [] };
                     }
-                    console.error(`Failed to load GCMD vocabulary: ${key}`);
+                    console.error(`Failed to load vocabulary: ${key}`);
                     return { key, data: [] };
                 });
 
@@ -712,10 +704,11 @@ export default function DataCiteForm({
                 }
 
                 if (import.meta.env.DEV) {
-                    console.debug('Loaded GCMD vocabularies:', {
+                    console.debug('Loaded vocabularies:', {
                         science: vocabularies.science.length,
                         platforms: vocabularies.platforms.length,
                         instruments: vocabularies.instruments.length,
+                        chronostratigraphy: vocabularies.chronostratigraphy.length,
                         availability,
                     });
                 }
