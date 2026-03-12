@@ -168,8 +168,10 @@ class ThesaurusStatusService
     /**
      * Get total node count from GEMET REST API.
      *
-     * Counts SuperGroups + Groups + unique Concepts to match the local hierarchy
-     * counting method used by {@see countConcepts()}.
+     * Counts SuperGroups + Groups + concept assignments per group to match
+     * the local hierarchy counting method used by {@see countConcepts()},
+     * which counts every node in the tree (including concepts appearing
+     * in multiple groups).
      *
      * Uses CacheKey-based caching (1 hour TTL) to avoid 36+ HTTP requests per
      * status check. The cache is invalidated via `cache:clear-app vocabularies`.
@@ -189,15 +191,13 @@ class ThesaurusStatusService
             $superGroups = $gemetApi->fetchSuperGroups(timeout: 30);
             $groups = $gemetApi->fetchGroups(timeout: 30);
 
-            $uniqueConceptUris = [];
+            $conceptCount = 0;
             foreach ($groups as $group) {
                 $concepts = $gemetApi->fetchConceptsForGroup($group['uri'], timeout: 30);
-                foreach ($concepts as $concept) {
-                    $uniqueConceptUris[$concept['uri']] = true;
-                }
+                $conceptCount += count($concepts);
             }
 
-            return count($superGroups) + count($groups) + count($uniqueConceptUris);
+            return count($superGroups) + count($groups) + $conceptCount;
         });
     }
 
