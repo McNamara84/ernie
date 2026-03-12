@@ -348,7 +348,7 @@ class EditorDataTransformer
                 && $subject->subject_scheme !== GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
                 return [
-                    'id' => $subject->value_uri ?? '',
+                    'id' => $subject->value_uri ?? $subject->classification_code ?? '',
                     'text' => $subject->value,
                     'path' => $subject->value, // Path may need to be extracted from subject text
                     'scheme' => $subject->subject_scheme ?? '',
@@ -369,7 +369,7 @@ class EditorDataTransformer
             ->filter(fn ($subject): bool => $subject->subject_scheme === GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
                 return [
-                    'id' => $subject->value_uri ?? '',
+                    'id' => $subject->value_uri ?? $subject->classification_code ?? '',
                     'text' => $subject->value,
                     'path' => $subject->value,
                     'scheme' => $subject->subject_scheme ?? '',
