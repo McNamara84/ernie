@@ -550,7 +550,7 @@ describe('transformGcmdKeywords', function (): void {
         Subject::factory()->gcmd()->create([
             'resource_id' => $this->resource->id,
             'value' => 'Earthquakes',
-            'classification_code' => 'uuid-123',
+            'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/uuid-123',
         ]);
         $this->resource->load('subjects');
 
@@ -558,7 +558,7 @@ describe('transformGcmdKeywords', function (): void {
 
         expect($result)->toHaveCount(1)
             ->and($result[0]['text'])->toBe('Earthquakes')
-            ->and($result[0]['id'])->toBe('uuid-123')
+            ->and($result[0]['id'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/uuid-123')
             ->and($result[0]['scheme'])->toBe('GCMD Science Keywords')
             ->and($result[0]['language'])->toBe('en');
     });
