@@ -157,6 +157,7 @@ class UploadXmlController extends Controller
             $keywordExtractor = new XmlKeywordExtractor;
             $freeKeywords = $keywordExtractor->extractFreeKeywords($reader);
             $mslKeywords = $keywordExtractor->extractMslKeywords($reader);
+            $gemetKeywords = $keywordExtractor->extractGemetKeywords($reader);
 
             $rightsElements = $reader
                 ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -258,6 +259,7 @@ class UploadXmlController extends Controller
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
             'mslKeywords' => $mslKeywords,
+            'gemetKeywords' => $gemetKeywords,
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
         ]);

@@ -85,6 +85,10 @@ class ThesaurusStatusService
             return $this->getChronostratRemoteCount();
         }
 
+        if ($thesaurus->type === ThesaurusSetting::TYPE_GEMET) {
+            return $this->getGemetRemoteCount();
+        }
+
         throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
     }
 
@@ -155,6 +159,30 @@ class ThesaurusStatusService
             'updateAvailable' => $remoteCount > $localStatus['conceptCount'],
             'lastUpdated' => $localStatus['lastUpdated'],
         ];
+    }
+
+    /**
+     * Get concept count from GEMET REST API.
+     *
+     * Fetches all groups and their member concepts, counting unique concepts
+     * across all groups.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getGemetRemoteCount(): int
+    {
+        $gemetApi = new GemetApiService;
+        $groups = $gemetApi->fetchGroups(timeout: 30);
+
+        $uniqueConceptUris = [];
+        foreach ($groups as $group) {
+            $concepts = $gemetApi->fetchConceptsForGroup($group['uri'], timeout: 30);
+            foreach ($concepts as $concept) {
+                $uniqueConceptUris[$concept['uri']] = true;
+            }
+        }
+
+        return count($uniqueConceptUris);
     }
 
     /**

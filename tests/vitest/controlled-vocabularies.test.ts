@@ -124,7 +124,7 @@ describe('VocabularyType', () => {
         const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl'];
 
         validTypes.forEach((type) => {
-            expect(['science', 'platforms', 'instruments', 'msl']).toContain(type);
+            expect(['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet']).toContain(type);
         });
 
         expect(validTypes).toHaveLength(4);
@@ -266,6 +266,7 @@ describe('Vocabulary Type Grouping', () => {
             instruments: [],
             msl: [], // Added MSL
             chronostratigraphy: [],
+            gemet: [],
         };
 
         keywords.forEach((keyword) => {

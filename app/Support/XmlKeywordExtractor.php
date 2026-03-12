@@ -25,6 +25,11 @@ class XmlKeywordExtractor
     private const MSL_VOCABULARY_SCHEME = 'EPOS MSL vocabulary';
 
     /**
+     * GEMET Vocabulary scheme identifier in DataCite XML
+     */
+    private const GEMET_VOCABULARY_SCHEME = 'GEMET - GEneral Multilingual Environmental Thesaurus';
+
+    /**
      * Extract free keywords from XML DataCite metadata
      *
      * Free keywords are subject elements WITHOUT subjectScheme, schemeURI, or valueURI attributes.
@@ -113,6 +118,60 @@ class XmlKeywordExtractor
         }
 
         return $mslKeywords;
+    }
+
+    /**
+     * Extract GEMET (GEneral Multilingual Environmental Thesaurus) controlled vocabulary keywords from XML
+     *
+     * GEMET keywords are subject elements with:
+     * - subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus"
+     * - schemeURI="http://www.eionet.europa.eu/gemet/concept/"
+     * - valueURI attribute containing the concept URI
+     * - Content is hierarchical path (e.g., "SuperGroup > Group > Concept")
+     *
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
+     */
+    public function extractGemetKeywords(XmlReader $reader): array
+    {
+        $subjectElements = $reader
+            ->xpathElement('//*[local-name()="subjects"]/*[local-name()="subject"]')
+            ->get();
+
+        $gemetKeywords = [];
+
+        foreach ($subjectElements as $element) {
+            $scheme = $element->getAttribute('subjectScheme');
+            $schemeUri = $element->getAttribute('schemeURI');
+            $valueUri = $element->getAttribute('valueURI');
+            $language = $element->getAttribute('xml:lang') ?? 'en';
+            $content = $this->extractElementTextContent($element);
+
+            // Only process GEMET vocabulary keywords
+            if ($scheme !== self::GEMET_VOCABULARY_SCHEME) {
+                continue;
+            }
+
+            // Skip if no valueURI (required for controlled vocabulary)
+            if (! $valueUri || trim($valueUri) === '') {
+                continue;
+            }
+
+            // Skip empty content
+            if (! $content || trim($content) === '') {
+                continue;
+            }
+
+            $gemetKeywords[] = [
+                'id' => trim($valueUri),
+                'text' => $this->extractLastPathSegment(trim($content)),
+                'path' => trim($content),
+                'language' => $language,
+                'scheme' => $scheme,
+                'schemeURI' => $schemeUri ?? 'http://www.eionet.europa.eu/gemet/concept/',
+            ];
+        }
+
+        return $gemetKeywords;
     }
 
     /**

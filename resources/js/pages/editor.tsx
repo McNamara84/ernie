@@ -39,6 +39,7 @@ interface EditorProps {
     dates?: { dateType: string; startDate: string; endDate: string }[];
     gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string }[];
     freeKeywords?: string[];
+    gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string }[];
     coverages?: SpatialTemporalCoverageEntry[];
     relatedWorks?: RelatedIdentifier[];
     fundingReferences?: FundingReferenceEntry[];
@@ -64,6 +65,7 @@ export default function Editor({
     dates = [],
     gcmdKeywords = [],
     freeKeywords = [],
+    gemetKeywords = [],
     coverages = [],
     relatedWorks = [],
     fundingReferences = [],
@@ -226,6 +228,7 @@ export default function Editor({
                             initialDates={dates}
                             initialGcmdKeywords={gcmdKeywords}
                             initialFreeKeywords={freeKeywords}
+                            initialGemetKeywords={gemetKeywords}
                             initialSpatialTemporalCoverages={coverages}
                             initialRelatedWorks={relatedWorks}
                             initialFundingReferences={fundingReferences}

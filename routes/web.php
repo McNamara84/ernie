@@ -470,6 +470,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.pid4inst-instruments');
     Route::get('vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale'])
         ->name('vocabularies.chronostrat-timescale');
+    Route::get('vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus'])
+        ->name('vocabularies.gemet');
     Route::get('vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])
         ->name('vocabularies.pid-availability');
     Route::get('vocabularies/msl-vocabulary-url', function () {

@@ -28,6 +28,10 @@ class ThesaurusSettingSeeder extends Seeder
                 'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
                 'display_name' => 'ICS Chronostratigraphy',
             ],
+            [
+                'type' => ThesaurusSetting::TYPE_GEMET,
+                'display_name' => 'GEMET Thesaurus',
+            ],
         ];
 
         foreach ($thesauri as $thesaurus) {

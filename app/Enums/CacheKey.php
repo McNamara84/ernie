@@ -25,6 +25,7 @@ enum CacheKey: string
     case MSL_KEYWORDS = 'vocabularies:msl:keywords';
     case PID4INST_INSTRUMENTS = 'vocabularies:pid4inst:instruments';
     case CHRONOSTRAT_TIMESCALE = 'vocabularies:chronostrat:timescale';
+    case GEMET_THESAURUS = 'vocabularies:gemet:thesaurus';
 
     // ROR affiliation cache keys
     case ROR_AFFILIATION = 'ror:affiliation';
@@ -79,7 +80,8 @@ enum CacheKey: string
             self::GCMD_PROVIDERS,
             self::MSL_KEYWORDS,
             self::PID4INST_INSTRUMENTS,
-            self::CHRONOSTRAT_TIMESCALE => 86400,
+            self::CHRONOSTRAT_TIMESCALE,
+            self::GEMET_THESAURUS => 86400,
 
             // ROR affiliations are relatively stable - 7 days
             self::ROR_AFFILIATION => 604800,
@@ -116,7 +118,8 @@ enum CacheKey: string
             self::GCMD_PROVIDERS,
             self::MSL_KEYWORDS,
             self::PID4INST_INSTRUMENTS,
-            self::CHRONOSTRAT_TIMESCALE => ['vocabularies'],
+            self::CHRONOSTRAT_TIMESCALE,
+            self::GEMET_THESAURUS => ['vocabularies'],
 
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 

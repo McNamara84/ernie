@@ -148,6 +148,93 @@ describe('extractMslKeywords', function () {
 });
 
 // =========================================================================
+// extractGemetKeywords()
+// =========================================================================
+
+describe('extractGemetKeywords', function () {
+    it('extracts GEMET vocabulary keywords', function () {
+        $xml = wrapInDataCite(
+            '<subject subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus" '
+            .'schemeURI="http://www.eionet.europa.eu/gemet/concept/" '
+            .'valueURI="http://www.eionet.europa.eu/gemet/concept/8493">HUMAN HEALTH > pollution > water pollution</subject>'
+        );
+        $reader = XmlReader::fromString($xml);
+
+        $result = $this->extractor->extractGemetKeywords($reader);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['id'])->toBe('http://www.eionet.europa.eu/gemet/concept/8493')
+            ->and($result[0]['text'])->toBe('water pollution')
+            ->and($result[0]['path'])->toBe('HUMAN HEALTH > pollution > water pollution')
+            ->and($result[0]['scheme'])->toBe('GEMET - GEneral Multilingual Environmental Thesaurus')
+            ->and($result[0]['schemeURI'])->toBe('http://www.eionet.europa.eu/gemet/concept/');
+    });
+
+    it('ignores non-GEMET subjects', function () {
+        $xml = wrapInDataCite(
+            '<subject>Free keyword</subject>'
+            .'<subject subjectScheme="GCMD" valueURI="https://gcmd.nasa.gov/x">EARTH SCIENCE</subject>'
+        );
+        $reader = XmlReader::fromString($xml);
+
+        $result = $this->extractor->extractGemetKeywords($reader);
+
+        expect($result)->toBeEmpty();
+    });
+
+    it('skips GEMET entries without valueURI', function () {
+        $xml = wrapInDataCite(
+            '<subject subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus" '
+            .'schemeURI="http://www.eionet.europa.eu/gemet/concept/">'
+            .'water pollution</subject>'
+        );
+        $reader = XmlReader::fromString($xml);
+
+        $result = $this->extractor->extractGemetKeywords($reader);
+
+        expect($result)->toBeEmpty();
+    });
+
+    it('uses default language "en" when xml:lang is missing', function () {
+        $xml = wrapInDataCite(
+            '<subject subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus" '
+            .'schemeURI="http://www.eionet.europa.eu/gemet/concept/" '
+            .'valueURI="http://www.eionet.europa.eu/gemet/concept/8493">water pollution</subject>'
+        );
+        $reader = XmlReader::fromString($xml);
+
+        $result = $this->extractor->extractGemetKeywords($reader);
+
+        expect($result[0]['language'])->toBe('en');
+    });
+
+    it('uses default schemeURI when attribute is missing', function () {
+        $xml = wrapInDataCite(
+            '<subject subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus" '
+            .'valueURI="http://www.eionet.europa.eu/gemet/concept/8493">water pollution</subject>'
+        );
+        $reader = XmlReader::fromString($xml);
+
+        $result = $this->extractor->extractGemetKeywords($reader);
+
+        expect($result[0]['schemeURI'])->toBe('http://www.eionet.europa.eu/gemet/concept/');
+    });
+
+    it('skips empty content', function () {
+        $xml = wrapInDataCite(
+            '<subject subjectScheme="GEMET - GEneral Multilingual Environmental Thesaurus" '
+            .'schemeURI="http://www.eionet.europa.eu/gemet/concept/" '
+            .'valueURI="http://www.eionet.europa.eu/gemet/concept/8493">   </subject>'
+        );
+        $reader = XmlReader::fromString($xml);
+
+        $result = $this->extractor->extractGemetKeywords($reader);
+
+        expect($result)->toBeEmpty();
+    });
+});
+
+// =========================================================================
 // parseGcmdPath() (static)
 // =========================================================================
 
