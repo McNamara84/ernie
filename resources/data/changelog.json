@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-09",
+        "date": "2026-03-12",
         "features": [
+            {
+                "title": "GEMET Thesaurus Integration",
+                "description": "A new 'GEMET' tab is now available in the Controlled Vocabularies section of the editor. It provides the complete GEneral Multilingual Environmental Thesaurus (GEMET) with a three-level hierarchy: SuperGroups, Groups, and Concepts (~5,500 environmental concepts). Keywords are sourced from the EIONET GEMET REST API. The vocabulary can be managed in Editor Settings alongside GCMD and ICS thesauri, including enabling/disabling for ERNIE and ELMO independently. An API endpoint is available for ELMO integration at /api/v1/vocabularies/gemet. GEMET keywords are correctly imported from DataCite XML uploads and exported with proper scheme metadata."
+            },
             {
                 "title": "ICS Chronostratigraphic Chart Keywords",
                 "description": "A new 'Chronostratigraphy' tab is now available in the Controlled Vocabularies section of the editor. It provides the complete International Chronostratigraphic Chart (ICS 2020) with all five hierarchy levels: Eon, Era, Period, Epoch, and Age. Keywords are sourced from the ARDC (Australian Research Data Commons) Linked Data API. The vocabulary can be managed in Editor Settings alongside GCMD thesauri, including enabling/disabling for ERNIE and ELMO independently. An API endpoint is available for ELMO integration at /api/v1/vocabularies/chronostrat-timescale."
