@@ -245,6 +245,10 @@ class EditorController extends Controller
         $mslKeywordsRaw = $request->query('mslKeywords', []);
         $mslKeywords = $this->decodeJsonArrayParam($mslKeywordsRaw);
 
+        // Get GEMET Keywords from query parameters
+        $gemetKeywordsRaw = $request->query('gemetKeywords', []);
+        $gemetKeywords = $this->decodeJsonArrayParam($gemetKeywordsRaw);
+
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
@@ -263,7 +267,7 @@ class EditorController extends Controller
                 'gcmdKeywords' => $request->query('gcmdKeywords', []),
                 'freeKeywords' => $request->query('freeKeywords', []),
                 'mslKeywords' => $mslKeywords,
-                'gemetKeywords' => $request->query('gemetKeywords', []),
+                'gemetKeywords' => $gemetKeywords,
                 'coverages' => $request->query('coverages', []),
                 'relatedWorks' => $relatedWorks,
                 'fundingReferences' => $fundingReferences,

@@ -288,7 +288,7 @@ export default function DataCiteForm({
                     language: 'language' in kw && typeof kw.language === 'string' ? kw.language : 'en',
                     scheme: kw.scheme,
                     schemeURI: 'schemeURI' in kw && typeof kw.schemeURI === 'string' ? kw.schemeURI : '',
-                    isLegacy: 'isLegacy' in kw && kw.isLegacy === 'true',
+                    isLegacy: 'isLegacy' in kw && (kw.isLegacy === true || kw.isLegacy === 'true' || kw.isLegacy === '1'),
                 }));
         }
         return [];

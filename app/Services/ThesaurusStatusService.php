@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\ThesaurusSetting;
 use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -164,25 +165,28 @@ class ThesaurusStatusService
     /**
      * Get concept count from GEMET REST API.
      *
-     * Fetches all groups and their member concepts, counting unique concepts
-     * across all groups.
+     * Uses cached count (1 hour TTL) to avoid 36+ HTTP requests per status check.
+     * The cache is invalidated when the thesaurus is updated via artisan command.
      *
      * @throws \RuntimeException If the API request fails
      */
     private function getGemetRemoteCount(): int
     {
-        $gemetApi = new GemetApiService;
-        $groups = $gemetApi->fetchGroups(timeout: 30);
+        /** @var int */
+        return Cache::remember('gemet:remote_concept_count', 3600, function (): int {
+            $gemetApi = new GemetApiService;
+            $groups = $gemetApi->fetchGroups(timeout: 30);
 
-        $uniqueConceptUris = [];
-        foreach ($groups as $group) {
-            $concepts = $gemetApi->fetchConceptsForGroup($group['uri'], timeout: 30);
-            foreach ($concepts as $concept) {
-                $uniqueConceptUris[$concept['uri']] = true;
+            $uniqueConceptUris = [];
+            foreach ($groups as $group) {
+                $concepts = $gemetApi->fetchConceptsForGroup($group['uri'], timeout: 30);
+                foreach ($concepts as $concept) {
+                    $uniqueConceptUris[$concept['uri']] = true;
+                }
             }
-        }
 
-        return count($uniqueConceptUris);
+            return count($uniqueConceptUris);
+        });
     }
 
     /**
