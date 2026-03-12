@@ -53,7 +53,7 @@ describe('ThesaurusSettingsController', function () {
         $this->actingAs($admin)
             ->getJson('/thesauri')
             ->assertOk()
-            ->assertJsonCount(4)
+            ->assertJsonCount(5)
             ->assertJsonFragment([
                 'type' => 'science_keywords',
                 'displayName' => 'Science Keywords',
@@ -196,9 +196,10 @@ describe('EditorSettings with Thesauri', function () {
         $response = $this->get(route('settings'));
 
         $response->assertInertia(fn ($assert) => $assert
-            ->has('thesauri', 4)
+            ->has('thesauri', 5)
             ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', 'science_keywords')
-                && $thesauri->contains('type', 'chronostratigraphy'))
+                && $thesauri->contains('type', 'chronostratigraphy')
+                && $thesauri->contains('type', 'gemet'))
         );
     });
 
