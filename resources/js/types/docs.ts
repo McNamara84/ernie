@@ -15,6 +15,8 @@ export interface EditorSettings {
         instruments: boolean;
         /** Is ICS Chronostratigraphy thesaurus active? */
         chronostratigraphy: boolean;
+        /** Is GEMET thesaurus active? */
+        gemet: boolean;
     };
     /**
      * Feature availability flags
@@ -26,6 +28,8 @@ export interface EditorSettings {
         hasActiveMsl: boolean;
         /** Is ICS Chronostratigraphy thesaurus active? */
         hasActiveChronostrat: boolean;
+        /** Is GEMET thesaurus active? */
+        hasActiveGemet: boolean;
         /** Is at least one license active? */
         hasActiveLicenses: boolean;
         /** Is at least one resource type active? */

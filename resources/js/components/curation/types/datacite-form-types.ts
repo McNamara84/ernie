@@ -183,6 +183,14 @@ export interface DataCiteFormProps {
         isLegacy?: string;
     }[];
     initialFreeKeywords?: string[];
+    initialGemetKeywords?: {
+        id: string;
+        path: string;
+        text: string;
+        scheme: string;
+        schemeURI?: string;
+        language?: string;
+    }[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
     initialFundingReferences?: FundingReferenceEntry[];

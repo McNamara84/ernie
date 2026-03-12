@@ -27,6 +27,8 @@ class ThesaurusSetting extends Model
 
     public const TYPE_CHRONOSTRAT = 'chronostratigraphy';
 
+    public const TYPE_GEMET = 'gemet';
+
     /**
      * @var list<string>
      */
@@ -58,6 +60,7 @@ class ThesaurusSetting extends Model
             self::TYPE_PLATFORMS => 'gcmd-platforms.json',
             self::TYPE_INSTRUMENTS => 'gcmd-instruments.json',
             self::TYPE_CHRONOSTRAT => 'chronostrat-timescale.json',
+            self::TYPE_GEMET => 'gemet-thesaurus.json',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -72,6 +75,7 @@ class ThesaurusSetting extends Model
             self::TYPE_PLATFORMS => 'get-gcmd-platforms',
             self::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
             self::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
+            self::TYPE_GEMET => 'get-gemet-thesaurus',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -116,6 +120,7 @@ class ThesaurusSetting extends Model
             self::TYPE_PLATFORMS,
             self::TYPE_INSTRUMENTS,
             self::TYPE_CHRONOSTRAT,
+            self::TYPE_GEMET,
         ];
     }
 }

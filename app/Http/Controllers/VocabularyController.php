@@ -185,6 +185,22 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return GEMET Thesaurus vocabulary.
+     */
+    public function gemetThesaurus(): JsonResponse
+    {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_GEMET)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::GEMET_THESAURUS,
+            'gemet-thesaurus.json',
+            'php artisan get-gemet-thesaurus'
+        );
+    }
+
+    /**
      * Return ROR affiliations vocabulary for ELMO.
      *
      * Returns the complete ROR data with metadata wrapper

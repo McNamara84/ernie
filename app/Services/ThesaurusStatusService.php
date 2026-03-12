@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
 use App\Models\ThesaurusSetting;
 use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
+use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ThesaurusStatusService
 {
+    use ChecksCacheTagging;
     private const NASA_KMS_BASE_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/';
 
     /**
@@ -83,6 +87,10 @@ class ThesaurusStatusService
 
         if ($thesaurus->type === ThesaurusSetting::TYPE_CHRONOSTRAT) {
             return $this->getChronostratRemoteCount();
+        }
+
+        if ($thesaurus->type === ThesaurusSetting::TYPE_GEMET) {
+            return $this->getGemetRemoteCount();
         }
 
         throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
@@ -155,6 +163,39 @@ class ThesaurusStatusService
             'updateAvailable' => $remoteCount > $localStatus['conceptCount'],
             'lastUpdated' => $localStatus['lastUpdated'],
         ];
+    }
+
+    /**
+     * Get total node count from GEMET REST API.
+     *
+     * Counts SuperGroups + Groups + concept assignments per group to match
+     * the local hierarchy counting method used by {@see countConcepts()},
+     * which counts every node in the tree (including concepts appearing
+     * in multiple groups).
+     *
+     * Uses CacheKey-based caching (1 hour TTL) to avoid 36+ HTTP requests per
+     * status check. The cache is invalidated via `cache:clear-app vocabularies`.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getGemetRemoteCount(): int
+    {
+        $cacheKey = CacheKey::GEMET_THESAURUS->key('remote_count');
+        $cache = $this->supportsTagging()
+            ? Cache::tags(CacheKey::GEMET_THESAURUS->tags())
+            : Cache::store();
+
+        /** @var int */
+        return $cache->remember($cacheKey, 3600, function (): int {
+            $gemetApi = new GemetApiService;
+            $superGroups = $gemetApi->fetchSuperGroups(timeout: 30);
+            $groups = $gemetApi->fetchGroups(timeout: 30);
+
+            $conceptCounts = $gemetApi->fetchConceptCountsByGroup($groups, timeout: 30);
+            $conceptCount = array_sum($conceptCounts);
+
+            return count($superGroups) + count($groups) + $conceptCount;
+        });
     }
 
     /**

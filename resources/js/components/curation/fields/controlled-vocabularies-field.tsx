@@ -29,6 +29,7 @@ interface ThesauriAvailability {
     platforms: boolean;
     instruments: boolean;
     chronostratigraphy: boolean;
+    gemet: boolean;
 }
 
 interface ControlledVocabulariesFieldProps {
@@ -37,10 +38,12 @@ interface ControlledVocabulariesFieldProps {
     instruments: VocabularyKeyword[];
     mslVocabulary?: VocabularyKeyword[]; // Optional MSL vocabulary
     chronostratVocabulary?: VocabularyKeyword[]; // Optional ICS Chronostratigraphy vocabulary
+    gemetVocabulary?: VocabularyKeyword[]; // Optional GEMET vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
     showChronostratTab?: boolean; // Control Chronostratigraphy tab visibility
+    showGemetTab?: boolean; // Control GEMET tab visibility
     autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
     enabledThesauri?: ThesauriAvailability; // Which thesauri are enabled in settings
 }
@@ -83,18 +86,21 @@ export default function ControlledVocabulariesField({
     instruments,
     mslVocabulary = [],
     chronostratVocabulary = [],
+    gemetVocabulary = [],
     selectedKeywords,
     onChange,
     showMslTab = false,
     showChronostratTab = false,
+    showGemetTab = false,
     autoSwitchToMsl = false,
-    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true },
+    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true },
 }: ControlledVocabulariesFieldProps) {
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
     const showPlatformsTab = enabledThesauri.platforms;
     const showInstrumentsTab = enabledThesauri.instruments;
     const showChronostrat = showChronostratTab && enabledThesauri.chronostratigraphy;
+    const showGemet = showGemetTab && enabledThesauri.gemet;
 
     // Determine default active tab based on what's available
     const getDefaultTab = (): VocabularyType => {
@@ -103,6 +109,7 @@ export default function ControlledVocabulariesField({
         if (showInstrumentsTab) return 'instruments';
         if (showMslTab) return 'msl';
         if (showChronostrat) return 'chronostratigraphy';
+        if (showGemet) return 'gemet';
         return 'science'; // Fallback
     };
 
@@ -132,7 +139,8 @@ export default function ControlledVocabulariesField({
             (activeTab === 'platforms' && showPlatformsTab) ||
             (activeTab === 'instruments' && showInstrumentsTab) ||
             (activeTab === 'msl' && showMslTab) ||
-            (activeTab === 'chronostratigraphy' && showChronostrat);
+            (activeTab === 'chronostratigraphy' && showChronostrat) ||
+            (activeTab === 'gemet' && showGemet);
 
         if (!isCurrentTabAvailable) {
             if (showScienceTab) setActiveTab('science');
@@ -140,8 +148,9 @@ export default function ControlledVocabulariesField({
             else if (showInstrumentsTab) setActiveTab('instruments');
             else if (showMslTab) setActiveTab('msl');
             else if (showChronostrat) setActiveTab('chronostratigraphy');
+            else if (showGemet) setActiveTab('gemet');
         }
-    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat]);
+    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet]);
 
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
@@ -166,10 +175,12 @@ export default function ControlledVocabulariesField({
                 return mslVocabulary;
             case 'chronostratigraphy':
                 return chronostratVocabulary;
+            case 'gemet':
+                return gemetVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary]);
+    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary, gemetVocabulary]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -225,6 +236,7 @@ export default function ControlledVocabulariesField({
             instruments: [],
             msl: [],
             chronostratigraphy: [],
+            gemet: [],
         };
 
         for (const keyword of selectedKeywords) {
@@ -244,7 +256,7 @@ export default function ControlledVocabulariesField({
     );
 
     // Check if any thesauri are available
-    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat;
+    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat || showGemet;
 
     return (
         <div className="space-y-4">
@@ -265,6 +277,7 @@ export default function ControlledVocabulariesField({
                             ...(showInstrumentsTab ? ['instruments' as const] : []),
                             ...(showMslTab ? ['msl' as const] : []),
                             ...(showChronostrat ? ['chronostratigraphy' as const] : []),
+                            ...(showGemet ? ['gemet' as const] : []),
                         ] as VocabularyType[]
                     ).map((type) => {
                         const keywords = keywordsByVocabulary[type];
@@ -276,6 +289,7 @@ export default function ControlledVocabulariesField({
                             instruments: 'Instruments',
                             msl: 'MSL Vocabulary',
                             chronostratigraphy: 'Chronostratigraphy',
+                            gemet: 'GEMET',
                         };
 
                         // Check if there are any legacy keywords
@@ -371,7 +385,7 @@ export default function ControlledVocabulariesField({
                                 'grid w-full',
                                 // Dynamically calculate grid columns based on visible tabs
                                 (() => {
-                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat].filter(Boolean).length;
+                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet].filter(Boolean).length;
                                     switch (visibleCount) {
                                         case 1:
                                             return 'grid-cols-1';
@@ -383,6 +397,8 @@ export default function ControlledVocabulariesField({
                                             return 'grid-cols-4';
                                         case 5:
                                             return 'grid-cols-5';
+                                        case 6:
+                                            return 'grid-cols-6';
                                         default:
                                             return 'grid-cols-3';
                                     }
@@ -441,6 +457,18 @@ export default function ControlledVocabulariesField({
                                 <TabsTrigger value="chronostratigraphy" className="relative">
                                     Chronostratigraphy
                                     {hasKeywords('chronostratigraphy') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
+                            )}
+                            {showGemet && (
+                                <TabsTrigger value="gemet" className="relative">
+                                    GEMET
+                                    {hasKeywords('gemet') && (
                                         <span
                                             className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                             aria-label="Has keywords"

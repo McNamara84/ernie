@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
+use App\Support\GemetVocabularyParser;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -60,6 +61,7 @@ class EditorDataTransformer
             'dates' => $this->transformDates($resource),
             'gcmdKeywords' => $this->transformGcmdKeywords($resource),
             'freeKeywords' => $this->transformFreeKeywords($resource),
+            'gemetKeywords' => $this->transformGemetKeywords($resource),
             'coverages' => $this->transformCoverages($resource),
             'relatedWorks' => $this->transformRelatedIdentifiers($resource),
             'fundingReferences' => $this->transformFundingReferences($resource),
@@ -342,12 +344,34 @@ class EditorDataTransformer
     public function transformGcmdKeywords(Resource $resource): array
     {
         return $resource->subjects
-            ->filter(fn ($subject): bool => ! empty($subject->subject_scheme))
+            ->filter(fn ($subject): bool => ! empty($subject->subject_scheme)
+                && $subject->subject_scheme !== GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
                 return [
-                    'id' => $subject->classification_code ?? '',
+                    'id' => $subject->value_uri ?? $subject->classification_code ?? '',
                     'text' => $subject->value,
                     'path' => $subject->value, // Path may need to be extracted from subject text
+                    'scheme' => $subject->subject_scheme ?? '',
+                    'schemeURI' => $subject->scheme_uri ?? '',
+                    'language' => 'en',
+                ];
+            })->toArray();
+    }
+
+    /**
+     * Transform GEMET controlled keywords from subjects.
+     *
+     * @return array<int, array{id: string, text: string, path: string, scheme: string, schemeURI: string, language: string}>
+     */
+    public function transformGemetKeywords(Resource $resource): array
+    {
+        return $resource->subjects
+            ->filter(fn ($subject): bool => $subject->subject_scheme === GemetVocabularyParser::SCHEME_TITLE)
+            ->map(function ($subject): array {
+                return [
+                    'id' => $subject->value_uri ?? $subject->classification_code ?? '',
+                    'text' => $subject->value,
+                    'path' => $subject->value,
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',

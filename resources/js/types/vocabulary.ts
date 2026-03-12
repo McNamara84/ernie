@@ -17,7 +17,7 @@ export interface VocabularyData {
     data: VocabularyKeyword[];
 }
 
-export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy';
+export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy' | 'gemet';
 
 export interface SelectedKeyword {
     id: string;
@@ -39,6 +39,7 @@ export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     if (normalized.includes('instrument')) return 'instruments';
     if (normalized.includes('msl') || normalized.includes('epos')) return 'msl';
     if (normalized.includes('chronostratigraphic') || normalized.includes('chronostrat')) return 'chronostratigraphy';
+    if (normalized.includes('gemet')) return 'gemet';
 
     return 'science'; // Default fallback
 }
@@ -56,6 +57,8 @@ export function getSchemeFromVocabularyType(type: VocabularyType): string {
             return 'EPOS MSL vocabulary';
         case 'chronostratigraphy':
             return 'International Chronostratigraphic Chart';
+        case 'gemet':
+            return 'GEMET - GEneral Multilingual Environmental Thesaurus';
         default:
             return 'Science Keywords';
     }
@@ -67,4 +70,5 @@ export interface VocabularyCollection {
     instruments: VocabularyData;
     msl: VocabularyData;
     chronostratigraphy: VocabularyData;
+    gemet: VocabularyData;
 }

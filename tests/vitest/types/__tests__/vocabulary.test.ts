@@ -26,12 +26,17 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('International Chronostratigraphic Chart')).toBe('chronostratigraphy');
     });
 
+    it('returns "gemet" for GEMET scheme', () => {
+        expect(getVocabularyTypeFromScheme('GEMET - GEneral Multilingual Environmental Thesaurus')).toBe('gemet');
+    });
+
     it('is case-insensitive', () => {
         expect(getVocabularyTypeFromScheme('SCIENCE KEYWORDS')).toBe('science');
         expect(getVocabularyTypeFromScheme('PLATFORMS')).toBe('platforms');
         expect(getVocabularyTypeFromScheme('INSTRUMENTS')).toBe('instruments');
         expect(getVocabularyTypeFromScheme('epos msl')).toBe('msl');
         expect(getVocabularyTypeFromScheme('INTERNATIONAL CHRONOSTRATIGRAPHIC CHART')).toBe('chronostratigraphy');
+        expect(getVocabularyTypeFromScheme('GEMET - GENERAL MULTILINGUAL ENVIRONMENTAL THESAURUS')).toBe('gemet');
     });
 
     it('handles partial matches', () => {
@@ -40,6 +45,7 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('Scientific Instruments List')).toBe('instruments');
         expect(getVocabularyTypeFromScheme('MSL Vocabularies')).toBe('msl');
         expect(getVocabularyTypeFromScheme('ICS Chronostratigraphic Chart 2020')).toBe('chronostratigraphy');
+        expect(getVocabularyTypeFromScheme('GEMET Thesaurus')).toBe('gemet');
     });
 
     it('returns "science" as default for unknown schemes', () => {
@@ -68,6 +74,10 @@ describe('getSchemeFromVocabularyType', () => {
 
     it('returns "International Chronostratigraphic Chart" for chronostratigraphy type', () => {
         expect(getSchemeFromVocabularyType('chronostratigraphy')).toBe('International Chronostratigraphic Chart');
+    });
+
+    it('returns "GEMET - GEneral Multilingual Environmental Thesaurus" for gemet type', () => {
+        expect(getSchemeFromVocabularyType('gemet')).toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
     });
 
     it('returns "Science Keywords" as default for unknown types', () => {
