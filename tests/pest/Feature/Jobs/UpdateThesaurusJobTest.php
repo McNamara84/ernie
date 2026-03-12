@@ -21,6 +21,7 @@ describe('constructor validation', function () {
             ThesaurusSetting::TYPE_PLATFORMS,
             ThesaurusSetting::TYPE_INSTRUMENTS,
             ThesaurusSetting::TYPE_CHRONOSTRAT,
+            ThesaurusSetting::TYPE_GEMET,
         ];
 
         foreach ($validTypes as $type) {
@@ -131,6 +132,49 @@ describe('handle', function () {
 
         expect($cached['status'])->toBe('failed')
             ->and($cached['error'])->toBe('Connection timeout');
+    });
+
+    it('maps GEMET type to correct artisan command', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-gemet-thesaurus')
+            ->once()
+            ->andReturn(0);
+
+        Artisan::shouldReceive('output')->never();
+
+        $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_GEMET, $uuid);
+        $job->handle();
+
+        $cached = Cache::get($cacheKey);
+
+        expect($cached)
+            ->toBeArray()
+            ->and($cached['status'])->toBe('completed')
+            ->and($cached['thesaurusType'])->toBe(ThesaurusSetting::TYPE_GEMET);
+    });
+
+    it('uses GEMET-specific progress message', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-gemet-thesaurus')
+            ->once()
+            ->andReturnUsing(function () use ($cacheKey) {
+                // Check cache during execution to capture the progress message
+                $cached = Cache::get($cacheKey);
+                expect($cached['progress'])->toBe('Fetching data from GEMET REST API...');
+
+                return 0;
+            });
+
+        Artisan::shouldReceive('output')->never();
+
+        $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_GEMET, $uuid);
+        $job->handle();
     });
 
     it('maps thesaurus types to correct artisan commands', function () {

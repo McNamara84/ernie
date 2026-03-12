@@ -121,13 +121,13 @@ describe('SelectedKeyword Type', () => {
 
 describe('VocabularyType', () => {
     it('should only allow valid vocabulary types', () => {
-        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl'];
+        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet'];
 
         validTypes.forEach((type) => {
             expect(['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet']).toContain(type);
         });
 
-        expect(validTypes).toHaveLength(4);
+        expect(validTypes).toHaveLength(6);
     });
 
     it('should convert scheme to vocabulary type', () => {
@@ -135,6 +135,8 @@ describe('VocabularyType', () => {
         expect(getVocabularyTypeFromScheme('Platforms')).toBe('platforms');
         expect(getVocabularyTypeFromScheme('Instruments')).toBe('instruments');
         expect(getVocabularyTypeFromScheme('EPOS MSL vocabulary')).toBe('msl');
+        expect(getVocabularyTypeFromScheme('International Chronostratigraphic Chart')).toBe('chronostratigraphy');
+        expect(getVocabularyTypeFromScheme('GEMET - GEneral Multilingual Environmental Thesaurus')).toBe('gemet');
     });
 
     it('should convert vocabulary type to scheme', () => {
@@ -142,6 +144,8 @@ describe('VocabularyType', () => {
         expect(getSchemeFromVocabularyType('platforms')).toBe('Platforms');
         expect(getSchemeFromVocabularyType('instruments')).toBe('Instruments');
         expect(getSchemeFromVocabularyType('msl')).toBe('EPOS MSL vocabulary');
+        expect(getSchemeFromVocabularyType('chronostratigraphy')).toBe('International Chronostratigraphic Chart');
+        expect(getSchemeFromVocabularyType('gemet')).toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
     });
 });
 
