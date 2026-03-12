@@ -519,6 +519,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/gemet": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get GEMET Thesaurus vocabulary",
+                "description": "Returns the GEMET (GEneral Multilingual Environmental Thesaurus) as a hierarchical JSON structure. The vocabulary is loaded from the EIONET GEMET REST API and contains environmental concepts organized in SuperGroups, Groups, and Concepts. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "GEMET Thesaurus vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GemetThesaurus"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-gemet-thesaurus"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -946,6 +989,25 @@
                     }
                 }
             },
+            "GemetThesaurus": {
+                "type": "object",
+                "description": "GEMET (GEneral Multilingual Environmental Thesaurus) from the EIONET REST API",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the vocabulary was last updated",
+                        "example": "2026-03-12 10:00:00"
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Hierarchical array of GEMET concepts (SuperGroups → Groups → Concepts)",
+                        "items": {
+                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                        }
+                    }
+                }
+            },
             "GcmdKeywordConcept": {
                 "type": "object",
                 "properties": {
@@ -1125,6 +1187,10 @@
                     "chronostratigraphy": {
                         "available": true,
                         "displayName": "ICS Chronostratigraphy"
+                    },
+                    "gemet": {
+                        "available": true,
+                        "displayName": "GEMET Thesaurus"
                     }
                 }
             },
