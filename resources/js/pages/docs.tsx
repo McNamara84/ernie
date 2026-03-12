@@ -267,7 +267,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Date Types:</strong> Enable/disable date type options
                             </li>
                             <li>
-                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments) and ICS Chronostratigraphy
+                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS Chronostratigraphy, and GEMET
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
@@ -349,6 +349,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             Can also be triggered from Editor Settings.
                         </p>
 
+                        <h4>Update GEMET Thesaurus (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-gemet-thesaurus" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads the GEMET vocabulary from the EIONET REST API.
+                            Can also be triggered from Editor Settings.
+                        </p>
+
                         <h4>Update PID4INST Instruments (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
                         <p className="text-sm text-muted-foreground">
@@ -423,6 +430,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/vocabularies/chronostrat-timescale</code> – ICS Chronostratigraphic Chart
                             </li>
                             <li>
+                                <code>/api/v1/vocabularies/gemet</code> – GEMET environmental thesaurus
+                            </li>
+                            <li>
                                 <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns is_elmo_active)
                             </li>
                         </ul>
@@ -493,7 +503,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Verify author information, add ORCID iDs, and confirm ROR affiliations.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Add Keywords">
-                                <p>Add controlled keywords (GCMD, MSL) and free-form keywords as needed.</p>
+                                <p>Add controlled keywords (GCMD, MSL, GEMET) and free-form keywords as needed.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Complete Coverage">
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
@@ -661,7 +671,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 title: 'Controlled Keywords',
                 icon: Tags,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat,
+                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat || settings.features.hasActiveGemet,
                 content: (
                     <>
                         <h3>Controlled Vocabularies</h3>
@@ -693,6 +703,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     The International Chronostratigraphic Chart provides standardized geologic time intervals
                                     organized in five hierarchy levels: Eon, Era, Period, Epoch, and Age. Sourced from the
                                     ARDC Linked Data API (GeoSciML Geologic Time Scale 2020).
+                                </p>
+                            </>
+                        )}
+
+                        {editorSettings.features.hasActiveGemet && (
+                            <>
+                                <h4>GEMET Keywords</h4>
+                                <p>
+                                    The GEneral Multilingual Environmental Thesaurus (GEMET) provides standardized
+                                    environmental terminology. Concepts are organized in a three-level hierarchy:
+                                    Super Groups, Groups, and Concepts (~5,500 terms). Sourced from the
+                                    European Environment Information and Observation Network (EIONET).
                                 </p>
                             </>
                         )}

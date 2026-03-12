@@ -35,11 +35,13 @@ const defaultEditorSettings: EditorSettings = {
         platforms: true,
         instruments: true,
         chronostratigraphy: true,
+        gemet: true,
     },
     features: {
         hasActiveGcmd: true,
         hasActiveMsl: true,
         hasActiveChronostrat: true,
+        hasActiveGemet: true,
         hasActiveLicenses: true,
         hasActiveResourceTypes: true,
         hasActiveTitleTypes: true,
