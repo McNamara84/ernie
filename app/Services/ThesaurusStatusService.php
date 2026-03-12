@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
 use App\Models\ThesaurusSetting;
 use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
@@ -163,18 +164,24 @@ class ThesaurusStatusService
     }
 
     /**
-     * Get concept count from GEMET REST API.
+     * Get total node count from GEMET REST API.
      *
-     * Uses cached count (1 hour TTL) to avoid 36+ HTTP requests per status check.
-     * The cache is invalidated when the thesaurus is updated via artisan command.
+     * Counts SuperGroups + Groups + unique Concepts to match the local hierarchy
+     * counting method used by {@see countConcepts()}.
+     *
+     * Uses CacheKey-based caching (1 hour TTL) to avoid 36+ HTTP requests per
+     * status check. The cache is invalidated via `cache:clear-app vocabularies`.
      *
      * @throws \RuntimeException If the API request fails
      */
     private function getGemetRemoteCount(): int
     {
+        $cacheKey = CacheKey::GEMET_THESAURUS->key('remote_count');
+
         /** @var int */
-        return Cache::remember('gemet:remote_concept_count', 3600, function (): int {
+        return Cache::tags(CacheKey::GEMET_THESAURUS->tags())->remember($cacheKey, 3600, function (): int {
             $gemetApi = new GemetApiService;
+            $superGroups = $gemetApi->fetchSuperGroups(timeout: 30);
             $groups = $gemetApi->fetchGroups(timeout: 30);
 
             $uniqueConceptUris = [];
@@ -185,7 +192,7 @@ class ThesaurusStatusService
                 }
             }
 
-            return count($uniqueConceptUris);
+            return count($superGroups) + count($groups) + count($uniqueConceptUris);
         });
     }
 

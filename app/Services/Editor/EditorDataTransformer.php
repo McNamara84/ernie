@@ -347,7 +347,7 @@ class EditorDataTransformer
                 && $subject->subject_scheme !== 'GEMET - GEneral Multilingual Environmental Thesaurus')
             ->map(function ($subject): array {
                 return [
-                    'id' => $subject->classification_code ?? '',
+                    'id' => $subject->value_uri ?? '',
                     'text' => $subject->value,
                     'path' => $subject->value, // Path may need to be extracted from subject text
                     'scheme' => $subject->subject_scheme ?? '',
