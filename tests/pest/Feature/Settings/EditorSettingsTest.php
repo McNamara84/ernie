@@ -197,11 +197,12 @@ test('thesaurus settings are auto-created when missing', function () {
     // Verify thesauri are returned in the response
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
-        ->has('thesauri', 4)
+        ->has('thesauri', 5)
         ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_PLATFORMS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_INSTRUMENTS)
-            && $thesauri->contains('type', ThesaurusSetting::TYPE_CHRONOSTRAT))
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_CHRONOSTRAT)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_GEMET))
     );
 });
 
