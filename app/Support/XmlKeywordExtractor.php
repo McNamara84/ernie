@@ -27,7 +27,7 @@ class XmlKeywordExtractor
     /**
      * GEMET Vocabulary scheme identifier in DataCite XML
      */
-    private const GEMET_VOCABULARY_SCHEME = 'GEMET - GEneral Multilingual Environmental Thesaurus';
+    private const GEMET_VOCABULARY_SCHEME = GemetVocabularyParser::SCHEME_TITLE;
 
     /**
      * Extract free keywords from XML DataCite metadata

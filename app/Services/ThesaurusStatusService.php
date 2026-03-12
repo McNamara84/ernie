@@ -191,11 +191,8 @@ class ThesaurusStatusService
             $superGroups = $gemetApi->fetchSuperGroups(timeout: 30);
             $groups = $gemetApi->fetchGroups(timeout: 30);
 
-            $conceptCount = 0;
-            foreach ($groups as $group) {
-                $concepts = $gemetApi->fetchConceptsForGroup($group['uri'], timeout: 30);
-                $conceptCount += count($concepts);
-            }
+            $conceptCounts = $gemetApi->fetchConceptCountsByGroup($groups, timeout: 30);
+            $conceptCount = array_sum($conceptCounts);
 
             return count($superGroups) + count($groups) + $conceptCount;
         });

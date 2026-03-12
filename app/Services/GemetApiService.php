@@ -186,6 +186,60 @@ class GemetApiService
     }
 
     /**
+     * Fetch concept counts per group concurrently using Http::pool().
+     *
+     * Unlike {@see fetchAllConceptsByGroup()}, this method only returns the count
+     * of concepts per group (not the full data), using concurrent HTTP requests
+     * for better performance when only counts are needed.
+     *
+     * @param  array<int, array{uri: string, label: string, definition: string}>  $groups
+     * @return array<string, int> Map of group URI => concept count
+     *
+     * @throws RuntimeException If any API request fails
+     */
+    public function fetchConceptCountsByGroup(array $groups, string $language = 'en', int $timeout = 30): array
+    {
+        $url = self::BASE_URL.'getGroupMembers';
+        $groupUris = array_map(fn (array $group): string => $group['uri'], $groups);
+
+        $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($url, $groupUris, $language, $timeout): array {
+            $requests = [];
+            foreach ($groupUris as $groupUri) {
+                $requests[] = $pool->timeout($timeout)
+                    ->accept('application/json')
+                    ->get($url, [
+                        'group_uri' => $groupUri,
+                        'language' => $language,
+                    ]);
+            }
+
+            return $requests;
+        });
+
+        $counts = [];
+        foreach ($groupUris as $index => $groupUri) {
+            $response = $responses[$index];
+
+            if ($response instanceof \Throwable) {
+                throw new RuntimeException(
+                    "HTTP request failed for group {$groupUri}: {$response->getMessage()}"
+                );
+            }
+
+            if (! $response->successful()) {
+                throw new RuntimeException(
+                    "Failed to fetch concepts for group {$groupUri}: HTTP {$response->status()}"
+                );
+            }
+
+            $data = $response->json();
+            $counts[$groupUri] = is_array($data) ? count($data) : 0;
+        }
+
+        return $counts;
+    }
+
+    /**
      * Parse API response entities into a normalized format.
      *
      * @param  array<int, mixed>  $data

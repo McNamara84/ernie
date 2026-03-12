@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
+use App\Support\GemetVocabularyParser;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -344,7 +345,7 @@ class EditorDataTransformer
     {
         return $resource->subjects
             ->filter(fn ($subject): bool => ! empty($subject->subject_scheme)
-                && $subject->subject_scheme !== 'GEMET - GEneral Multilingual Environmental Thesaurus')
+                && $subject->subject_scheme !== GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
                 return [
                     'id' => $subject->value_uri ?? '',
@@ -365,7 +366,7 @@ class EditorDataTransformer
     public function transformGemetKeywords(Resource $resource): array
     {
         return $resource->subjects
-            ->filter(fn ($subject): bool => $subject->subject_scheme === 'GEMET - GEneral Multilingual Environmental Thesaurus')
+            ->filter(fn ($subject): bool => $subject->subject_scheme === GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
                 return [
                     'id' => $subject->value_uri ?? '',

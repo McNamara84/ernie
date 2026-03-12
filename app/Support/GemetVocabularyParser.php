@@ -14,7 +14,7 @@ namespace App\Support;
  */
 class GemetVocabularyParser
 {
-    private const SCHEME_TITLE = 'GEMET - GEneral Multilingual Environmental Thesaurus';
+    public const SCHEME_TITLE = 'GEMET - GEneral Multilingual Environmental Thesaurus';
 
     private const SCHEME_URI = 'http://www.eionet.europa.eu/gemet/concept/';
 
