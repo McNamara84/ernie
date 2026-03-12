@@ -8,6 +8,7 @@ use App\Enums\CacheKey;
 use App\Models\ThesaurusSetting;
 use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ThesaurusStatusService
 {
+    use ChecksCacheTagging;
     private const NASA_KMS_BASE_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/';
 
     /**
@@ -177,9 +179,12 @@ class ThesaurusStatusService
     private function getGemetRemoteCount(): int
     {
         $cacheKey = CacheKey::GEMET_THESAURUS->key('remote_count');
+        $cache = $this->supportsTagging()
+            ? Cache::tags(CacheKey::GEMET_THESAURUS->tags())
+            : Cache::store();
 
         /** @var int */
-        return Cache::tags(CacheKey::GEMET_THESAURUS->tags())->remember($cacheKey, 3600, function (): int {
+        return $cache->remember($cacheKey, 3600, function (): int {
             $gemetApi = new GemetApiService;
             $superGroups = $gemetApi->fetchSuperGroups(timeout: 30);
             $groups = $gemetApi->fetchGroups(timeout: 30);
