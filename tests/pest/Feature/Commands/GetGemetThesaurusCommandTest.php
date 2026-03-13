@@ -47,10 +47,10 @@ function fakeGemetApiResponses(): void
     ];
 
     Http::fake([
-        '*/getSuperGroupsForScheme*' => Http::response($superGroups, 200),
-        '*/getGroupsForScheme*' => Http::response($groups, 200),
-        '*/getBroaderConcepts*' => Http::response($broaderConcepts, 200),
-        '*/getGroupMembers*' => Http::response($groupMembers, 200),
+        '*/getTopmostConcepts*supergroup*' => Http::response($superGroups, 200),
+        '*/getTopmostConcepts*group*' => Http::response($groups, 200),
+        '*/getRelatedConcepts*broader*' => Http::response($broaderConcepts, 200),
+        '*/getRelatedConcepts*groupMember*' => Http::response($groupMembers, 200),
     ]);
 }
 
@@ -72,7 +72,7 @@ it('successfully fetches and saves GEMET thesaurus', function (): void {
 
 it('fails when SuperGroups API request fails', function (): void {
     Http::fake([
-        '*/getSuperGroupsForScheme*' => Http::response([], 500),
+        '*/getTopmostConcepts*supergroup*' => Http::response([], 500),
     ]);
 
     $exitCode = Artisan::call('get-gemet-thesaurus');
@@ -84,10 +84,10 @@ it('fails when SuperGroups API request fails', function (): void {
 
 it('fails when Groups API request fails', function (): void {
     Http::fake([
-        '*/getSuperGroupsForScheme*' => Http::response([
+        '*/getTopmostConcepts*supergroup*' => Http::response([
             ['uri' => 'http://test', 'preferredLabel' => ['string' => 'Test', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
         ], 200),
-        '*/getGroupsForScheme*' => Http::response([], 500),
+        '*/getTopmostConcepts*group*' => Http::response([], 500),
     ]);
 
     $exitCode = Artisan::call('get-gemet-thesaurus');
@@ -99,8 +99,8 @@ it('fails when Groups API request fails', function (): void {
 
 it('handles empty API responses gracefully', function (): void {
     Http::fake([
-        '*/getSuperGroupsForScheme*' => Http::response([], 200),
-        '*/getGroupsForScheme*' => Http::response([], 200),
+        '*/getTopmostConcepts*supergroup*' => Http::response([], 200),
+        '*/getTopmostConcepts*group*' => Http::response([], 200),
     ]);
 
     Artisan::call('get-gemet-thesaurus');
