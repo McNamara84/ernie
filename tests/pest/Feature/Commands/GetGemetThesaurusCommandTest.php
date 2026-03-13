@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Console\Commands\GetGemetThesaurus;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 
@@ -46,12 +47,29 @@ function fakeGemetApiResponses(): void
         ],
     ];
 
-    Http::fake([
-        '*/getTopmostConcepts*supergroup*' => Http::response($superGroups, 200),
-        '*/getTopmostConcepts*group*' => Http::response($groups, 200),
-        '*/getRelatedConcepts*broader*' => Http::response($broaderConcepts, 200),
-        '*/getRelatedConcepts*groupMember*' => Http::response($groupMembers, 200),
-    ]);
+    Http::fake(function (Request $request) use ($superGroups, $groups, $broaderConcepts, $groupMembers) {
+        $url = $request->url();
+        $thesaurusUri = $request->data()['thesaurus_uri'] ?? '';
+        $relationUri = $request->data()['relation_uri'] ?? '';
+
+        if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'supergroup')) {
+            return Http::response($superGroups, 200);
+        }
+
+        if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'group')) {
+            return Http::response($groups, 200);
+        }
+
+        if (str_contains($url, 'getRelatedConcepts') && str_contains($relationUri, 'broader')) {
+            return Http::response($broaderConcepts, 200);
+        }
+
+        if (str_contains($url, 'getRelatedConcepts') && str_contains($relationUri, 'groupMember')) {
+            return Http::response($groupMembers, 200);
+        }
+
+        return Http::response([], 404);
+    });
 }
 
 it('successfully fetches and saves GEMET thesaurus', function (): void {
@@ -71,9 +89,13 @@ it('successfully fetches and saves GEMET thesaurus', function (): void {
 });
 
 it('fails when SuperGroups API request fails', function (): void {
-    Http::fake([
-        '*/getTopmostConcepts*supergroup*' => Http::response([], 500),
-    ]);
+    Http::fake(function (Request $request) {
+        if (str_contains($request->url(), 'getTopmostConcepts') && str_contains($request->data()['thesaurus_uri'] ?? '', 'supergroup')) {
+            return Http::response([], 500);
+        }
+
+        return Http::response([], 200);
+    });
 
     $exitCode = Artisan::call('get-gemet-thesaurus');
     $output = Artisan::output();
@@ -83,12 +105,19 @@ it('fails when SuperGroups API request fails', function (): void {
 });
 
 it('fails when Groups API request fails', function (): void {
-    Http::fake([
-        '*/getTopmostConcepts*supergroup*' => Http::response([
-            ['uri' => 'http://test', 'preferredLabel' => ['string' => 'Test', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
-        ], 200),
-        '*/getTopmostConcepts*group*' => Http::response([], 500),
-    ]);
+    Http::fake(function (Request $request) {
+        if (str_contains($request->url(), 'getTopmostConcepts') && str_contains($request->data()['thesaurus_uri'] ?? '', 'supergroup')) {
+            return Http::response([
+                ['uri' => 'http://test', 'preferredLabel' => ['string' => 'Test', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+            ], 200);
+        }
+
+        if (str_contains($request->url(), 'getTopmostConcepts') && str_contains($request->data()['thesaurus_uri'] ?? '', 'group')) {
+            return Http::response([], 500);
+        }
+
+        return Http::response([], 200);
+    });
 
     $exitCode = Artisan::call('get-gemet-thesaurus');
     $output = Artisan::output();
@@ -98,10 +127,13 @@ it('fails when Groups API request fails', function (): void {
 });
 
 it('handles empty API responses gracefully', function (): void {
-    Http::fake([
-        '*/getTopmostConcepts*supergroup*' => Http::response([], 200),
-        '*/getTopmostConcepts*group*' => Http::response([], 200),
-    ]);
+    Http::fake(function (Request $request) {
+        if (str_contains($request->url(), 'getTopmostConcepts')) {
+            return Http::response([], 200);
+        }
+
+        return Http::response([], 200);
+    });
 
     Artisan::call('get-gemet-thesaurus');
     $output = Artisan::output();
