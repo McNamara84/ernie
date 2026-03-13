@@ -73,7 +73,7 @@ class Pid4instStatusService
 
         $response = Http::timeout(30)
             ->accept('application/json')
-            ->get("{$host}/api/records/", [
+            ->get("{$host}/api/records", [
                 'size' => 1,
                 'page' => 1,
             ]);

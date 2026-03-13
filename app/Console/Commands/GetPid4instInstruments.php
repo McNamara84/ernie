@@ -42,7 +42,7 @@ class GetPid4instInstruments extends Command
         do {
             $response = Http::timeout(60)
                 ->accept('application/json')
-                ->get("{$host}/api/records/", [
+                ->get("{$host}/api/records", [
                     'size' => $pageSize,
                     'page' => $page,
                     'sort' => 'mostrecent',
