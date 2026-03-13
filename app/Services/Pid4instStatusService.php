@@ -69,7 +69,7 @@ class Pid4instStatusService
     public function getRemoteCount(): int
     {
         /** @var string $host */
-        $host = config('b2inst.host');
+        $host = rtrim((string) config('b2inst.host'), '/');
 
         $response = Http::timeout(30)
             ->accept('application/json')

@@ -52,19 +52,19 @@ function fakeGemetApiResponses(): void
         $thesaurusUri = $request->data()['thesaurus_uri'] ?? '';
         $relationUri = $request->data()['relation_uri'] ?? '';
 
-        if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'supergroup')) {
+        if (str_contains($url, 'getTopmostConcepts') && $thesaurusUri === 'http://www.eionet.europa.eu/gemet/supergroup/') {
             return Http::response($superGroups, 200);
         }
 
-        if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'group')) {
+        if (str_contains($url, 'getTopmostConcepts') && $thesaurusUri === 'http://www.eionet.europa.eu/gemet/group/') {
             return Http::response($groups, 200);
         }
 
-        if (str_contains($url, 'getRelatedConcepts') && str_contains($relationUri, 'broader')) {
+        if (str_contains($url, 'getRelatedConcepts') && $relationUri === 'http://www.w3.org/2004/02/skos/core#broader') {
             return Http::response($broaderConcepts, 200);
         }
 
-        if (str_contains($url, 'getRelatedConcepts') && str_contains($relationUri, 'groupMember')) {
+        if (str_contains($url, 'getRelatedConcepts') && $relationUri === 'http://www.eionet.europa.eu/gemet/2004/06/gemet-schema.rdf#groupMember') {
             return Http::response($groupMembers, 200);
         }
 
@@ -90,11 +90,11 @@ it('successfully fetches and saves GEMET thesaurus', function (): void {
 
 it('fails when SuperGroups API request fails', function (): void {
     Http::fake(function (Request $request) {
-        if (str_contains($request->url(), 'getTopmostConcepts') && str_contains($request->data()['thesaurus_uri'] ?? '', 'supergroup')) {
+        if (str_contains($request->url(), 'getTopmostConcepts') && ($request->data()['thesaurus_uri'] ?? '') === 'http://www.eionet.europa.eu/gemet/supergroup/') {
             return Http::response([], 500);
         }
 
-        return Http::response([], 200);
+        return Http::response([], 404);
     });
 
     $exitCode = Artisan::call('get-gemet-thesaurus');
@@ -106,17 +106,17 @@ it('fails when SuperGroups API request fails', function (): void {
 
 it('fails when Groups API request fails', function (): void {
     Http::fake(function (Request $request) {
-        if (str_contains($request->url(), 'getTopmostConcepts') && str_contains($request->data()['thesaurus_uri'] ?? '', 'supergroup')) {
+        if (str_contains($request->url(), 'getTopmostConcepts') && ($request->data()['thesaurus_uri'] ?? '') === 'http://www.eionet.europa.eu/gemet/supergroup/') {
             return Http::response([
                 ['uri' => 'http://test', 'preferredLabel' => ['string' => 'Test', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
             ], 200);
         }
 
-        if (str_contains($request->url(), 'getTopmostConcepts') && str_contains($request->data()['thesaurus_uri'] ?? '', 'group')) {
+        if (str_contains($request->url(), 'getTopmostConcepts') && ($request->data()['thesaurus_uri'] ?? '') === 'http://www.eionet.europa.eu/gemet/group/') {
             return Http::response([], 500);
         }
 
-        return Http::response([], 200);
+        return Http::response([], 404);
     });
 
     $exitCode = Artisan::call('get-gemet-thesaurus');
@@ -132,7 +132,7 @@ it('handles empty API responses gracefully', function (): void {
             return Http::response([], 200);
         }
 
-        return Http::response([], 200);
+        return Http::response([], 404);
     });
 
     Artisan::call('get-gemet-thesaurus');
