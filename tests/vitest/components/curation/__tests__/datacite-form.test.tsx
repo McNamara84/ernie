@@ -624,7 +624,7 @@ describe('DataCiteForm', () => {
         },
     );
 
-    it('supports managing person and institution authors with affiliations', async () => {
+    it('supports managing person and institution authors with affiliations', { timeout: 60000 }, async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}

@@ -7,8 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { VocabularyType, SelectedKeyword } from '@/types/vocabulary';
-import { getSchemeFromVocabularyType,getVocabularyTypeFromScheme } from '@/types/vocabulary';
+import type { SelectedKeyword, VocabularyType } from '@/types/vocabulary';
+import { getSchemeFromVocabularyType, getVocabularyTypeFromScheme } from '@/types/vocabulary';
 
 describe('SelectedKeyword Type', () => {
     it('should have all required fields', () => {

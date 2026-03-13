@@ -55,7 +55,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 if (parseErr instanceof Error && parseErr.message !== 'Upload failed') {
                     throw parseErr;
                 }
-                throw new Error(`Failed to upload ${filename}`);
+                throw new Error(`Failed to upload ${filename}`, { cause: parseErr });
             }
         }
 
@@ -69,7 +69,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         if (error instanceof Error) {
             throw error;
         }
-        throw new Error(`Failed to upload ${filename}`);
+        throw new Error(`Failed to upload ${filename}`, { cause: error });
     }
 };
 
