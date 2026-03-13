@@ -902,7 +902,7 @@ test.describe('Stage Full Workflow Test', () => {
       }
       
       if (!landingPage) {
-        throw new Error('Could not open landing page preview - no new page was opened');
+        throw new Error('Could not open landing page preview - no new page was opened', { cause: e });
       }
     }
     

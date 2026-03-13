@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
-import type { VocabularyKeyword, VocabularyType, SelectedKeyword } from '@/types/vocabulary';
+import type { SelectedKeyword,VocabularyKeyword, VocabularyType } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 
 import { GCMDTree } from './gcmd-tree';

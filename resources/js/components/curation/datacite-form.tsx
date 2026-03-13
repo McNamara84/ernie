@@ -18,7 +18,7 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier } from '@/types';
-import type { VocabularyKeyword, SelectedKeyword } from '@/types/vocabulary';
+import type { SelectedKeyword,VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
     validateDate,

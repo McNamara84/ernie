@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import ControlledVocabulariesField from '@/components/curation/fields/controlled-vocabularies-field';
-import type { VocabularyKeyword, SelectedKeyword } from '@/types/vocabulary';
+import type { SelectedKeyword,VocabularyKeyword } from '@/types/vocabulary';
 
 // Mock useDebounce to return the value immediately
 vi.mock('@/hooks/use-debounce', () => ({
