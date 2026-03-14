@@ -126,7 +126,7 @@ services:
     environment:
       - CB_SERVER_NAME=ERNIE Database Admin
       - CB_ADMIN_NAME=cbadmin
-      - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD:?CLOUDBEAVER_ADMIN_PASSWORD must be set in stack.env}
+      - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD}
       - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
       - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
       # Database connection credentials for auto-configuration (from stack.env)
