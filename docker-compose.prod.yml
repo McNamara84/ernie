@@ -75,8 +75,7 @@ services:
       - dockerized-laravel-network
       - traefik
     depends_on:
-      app:
-        condition: service_healthy
+      - app
     labels:
       - "traefik.enable=true"
       # Router for the application (subdomain-based, no prefix needed)
