@@ -28,7 +28,7 @@ class GetPid4instInstruments extends Command
     public function handle(): int
     {
         /** @var string $host */
-        $host = config('b2inst.host');
+        $host = rtrim((string) config('b2inst.host'), '/');
         /** @var int $pageSize */
         $pageSize = config('b2inst.page_size', 100);
         $page = 1;
@@ -42,7 +42,7 @@ class GetPid4instInstruments extends Command
         do {
             $response = Http::timeout(60)
                 ->accept('application/json')
-                ->get("{$host}/api/records/", [
+                ->get("{$host}/api/records", [
                     'size' => $pageSize,
                     'page' => $page,
                     'sort' => 'mostrecent',

@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-12",
+        "date": "2026-03-13",
         "features": [
             {
                 "title": "GEMET Thesaurus Integration",
@@ -95,6 +95,14 @@
             }
         ],
         "fixes": [
+            {
+                "title": "GEMET Thesaurus API Compatibility",
+                "description": "Fixed GEMET thesaurus update failing with 'HTTP 400' errors. The EIONET GEMET REST API removed four legacy method names (getSuperGroupsForScheme, getGroupsForScheme, getBroaderConcepts, getGroupMembers). Migrated all API calls to the current endpoints: getTopmostConcepts for fetching SuperGroups and Groups, and getRelatedConcepts with explicit relation URIs for group hierarchy mapping and concept retrieval."
+            },
+            {
+                "title": "PID4INST Instrument Update Compatibility",
+                "description": "Fixed PID4INST instrument update failing with 'HTTP 404' errors. The B2INST API (upgraded to InvenioRDM 13.0) no longer accepts a trailing slash on the /api/records endpoint. Removed the trailing slash from both the status check service and the instrument download command."
+            },
             {
                 "title": "Polygon and Line Geo-Locations Preserved on Reload",
                 "description": "Fixed multiple issues where polygon and line geo-location data was lost during save-reload cycles. The editor submission payload was missing the geo-location type and polygon point coordinates. The backend transformer only handled bounding box coordinates, discarding polygon and line point data. Additionally, DataCite imports now correctly import geoLocationPolygon data which was previously ignored entirely."

@@ -21,6 +21,10 @@ class GemetApiService
 
     private const GROUP_URI = 'http://www.eionet.europa.eu/gemet/group/';
 
+    private const RELATION_BROADER = 'http://www.w3.org/2004/02/skos/core#broader';
+
+    private const RELATION_GROUP_MEMBER = 'http://www.eionet.europa.eu/gemet/2004/06/gemet-schema.rdf#groupMember';
+
     /**
      * Fetch all GEMET SuperGroups.
      *
@@ -30,7 +34,7 @@ class GemetApiService
      */
     public function fetchSuperGroups(string $language = 'en', int $timeout = 30): array
     {
-        $url = self::BASE_URL.'getSuperGroupsForScheme';
+        $url = self::BASE_URL.'getTopmostConcepts';
 
         $response = Http::timeout($timeout)
             ->accept('application/json')
@@ -63,7 +67,7 @@ class GemetApiService
      */
     public function fetchGroups(string $language = 'en', int $timeout = 30): array
     {
-        $url = self::BASE_URL.'getGroupsForScheme';
+        $url = self::BASE_URL.'getTopmostConcepts';
 
         $response = Http::timeout($timeout)
             ->accept('application/json')
@@ -100,12 +104,13 @@ class GemetApiService
         $mapping = [];
 
         foreach ($groups as $group) {
-            $url = self::BASE_URL.'getBroaderConcepts';
+            $url = self::BASE_URL.'getRelatedConcepts';
 
             $response = Http::timeout($timeout)
                 ->accept('application/json')
                 ->get($url, [
                     'concept_uri' => $group['uri'],
+                    'relation_uri' => self::RELATION_BROADER,
                     'language' => $language,
                 ]);
 
@@ -138,12 +143,13 @@ class GemetApiService
      */
     public function fetchConceptsForGroup(string $groupUri, string $language = 'en', int $timeout = 30): array
     {
-        $url = self::BASE_URL.'getGroupMembers';
+        $url = self::BASE_URL.'getRelatedConcepts';
 
         $response = Http::timeout($timeout)
             ->accept('application/json')
             ->get($url, [
-                'group_uri' => $groupUri,
+                'concept_uri' => $groupUri,
+                'relation_uri' => self::RELATION_GROUP_MEMBER,
                 'language' => $language,
             ]);
 
@@ -199,7 +205,7 @@ class GemetApiService
      */
     public function fetchConceptCountsByGroup(array $groups, string $language = 'en', int $timeout = 30): array
     {
-        $url = self::BASE_URL.'getGroupMembers';
+        $url = self::BASE_URL.'getRelatedConcepts';
         $groupUris = array_map(fn (array $group): string => $group['uri'], $groups);
 
         $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($url, $groupUris, $language, $timeout): array {
@@ -208,7 +214,8 @@ class GemetApiService
                 $requests[] = $pool->timeout($timeout)
                     ->accept('application/json')
                     ->get($url, [
-                        'group_uri' => $groupUri,
+                        'concept_uri' => $groupUri,
+                        'relation_uri' => self::RELATION_GROUP_MEMBER,
                         'language' => $language,
                     ]);
             }
