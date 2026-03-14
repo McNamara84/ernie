@@ -56,8 +56,8 @@ RUN composer install --no-interaction --no-plugins --no-scripts \
     && composer dump-autoload --optimize --no-scripts
 
 # Copy package files and install node dependencies (cached unless package.json changes)
-COPY package.json package-lock.json ./
-RUN npm install
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci
 
 # NOW copy the rest of the application (this changes frequently)
 COPY . /var/www/html
