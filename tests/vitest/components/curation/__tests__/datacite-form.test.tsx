@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type 
 
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import type { DateType, Language, License, ResourceType, Role, TitleType } from '@/types';
+import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
 
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
@@ -290,6 +290,15 @@ describe('DataCiteForm', () => {
         { id: 9, name: 'Withdrawn', slug: 'withdrawn', description: 'The date the resource is removed.' },
     ];
 
+    const descriptionTypes: DescriptionType[] = [
+        { id: 1, name: 'Abstract', slug: 'Abstract' },
+        { id: 2, name: 'Methods', slug: 'Methods' },
+        { id: 3, name: 'SeriesInformation', slug: 'SeriesInformation' },
+        { id: 4, name: 'TableOfContents', slug: 'TableOfContents' },
+        { id: 5, name: 'TechnicalInfo', slug: 'TechnicalInfo' },
+        { id: 6, name: 'Other', slug: 'Other' },
+    ];
+
     it(
         'renders fields, title options and supports adding/removing titles',
         { timeout: 60000 },
@@ -304,6 +313,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
             );
@@ -460,6 +470,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -490,6 +501,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -534,6 +546,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -560,6 +573,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -597,6 +611,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -635,6 +650,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -733,6 +749,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -783,6 +800,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -837,6 +855,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
             
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -862,6 +881,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
             );
@@ -1021,6 +1041,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1090,6 +1111,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1129,6 +1151,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1154,6 +1177,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1196,6 +1220,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
             );
@@ -1258,6 +1283,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialDoi="10.1234/abc"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1276,6 +1302,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialYear="2024"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1294,6 +1321,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialVersion="1.5"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1338,6 +1366,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
             
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1401,6 +1430,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1477,6 +1507,7 @@ describe('DataCiteForm', () => {
                         lastName: 'Lovelace',
                     },
                 ]}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1516,6 +1547,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1587,6 +1619,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
             
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1642,6 +1675,7 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1716,6 +1750,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialLanguage="de"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1737,6 +1772,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1761,6 +1797,7 @@ describe('DataCiteForm', () => {
                     dateTypes={dateTypes}
                 licenses={licenses}
                 languages={shuffledLanguages}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1784,6 +1821,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialLanguage="German"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1806,6 +1844,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialLanguage="French"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1829,6 +1868,7 @@ describe('DataCiteForm', () => {
                     dateTypes={dateTypes}
                 licenses={licenses}
                 languages={limitedLanguages}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1854,6 +1894,7 @@ describe('DataCiteForm', () => {
                     dateTypes={dateTypes}
                 licenses={licenses}
                 languages={incompleteLanguages}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1877,6 +1918,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialResourceType="1"
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1897,6 +1939,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialLicenses={['MIT', 'Apache-2.0']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1916,6 +1959,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1945,6 +1989,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -1988,6 +2033,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2040,6 +2086,7 @@ describe('DataCiteForm', () => {
                     { title: 'Example TranslatedTitle', titleType: 'translated-title' },
                     { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
                 ]}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2067,6 +2114,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 initialTitles={[{ title: 'A mandatory Event', titleType: 'main-title' }]}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2092,6 +2140,7 @@ describe('DataCiteForm', () => {
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 maxTitles={3}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
             />,
             );
@@ -2185,6 +2234,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2273,6 +2323,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'Existing Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
                 initialResourceId=" 7 "
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2359,6 +2410,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
             
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2446,6 +2498,7 @@ describe('DataCiteForm', () => {
                     { title: 'Only Subtitle', titleType: 'subtitle' },
                 ]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2525,6 +2578,7 @@ describe('DataCiteForm', () => {
                     initialResourceType="1"
                     initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -2569,6 +2623,7 @@ describe('DataCiteForm', () => {
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2592,6 +2647,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2629,6 +2685,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2668,6 +2725,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2736,6 +2794,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2789,6 +2848,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -2830,6 +2890,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
             );
@@ -2851,6 +2912,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
             );
@@ -2871,6 +2933,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
             );
@@ -2911,6 +2974,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[
                         { dateType: 'accepted', startDate: '2024-01-15', endDate: '' },
@@ -2949,6 +3013,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[{ dateType: 'accepted', startDate: '2024-01-15', endDate: '' }]}
                 />,
@@ -2985,6 +3050,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[{ dateType: 'accepted', startDate: '', endDate: '' }]}
                 />,
@@ -3005,6 +3071,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[{ dateType: 'valid', startDate: '', endDate: '' }]}
                 />,
@@ -3030,6 +3097,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[{ dateType: 'valid', startDate: '2024-01-01', endDate: '2024-12-31' }]}
                 />,
@@ -3077,6 +3145,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[
                         { dateType: 'created', startDate: '2024-01-01', endDate: '' },
@@ -3116,6 +3185,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3162,6 +3232,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3202,6 +3273,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialFreeKeywords={['EPOS', 'test keyword']}
                 />,
@@ -3226,6 +3298,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialFreeKeywords={['Multi-Scale Laboratories', 'research']}
                 />,
@@ -3248,6 +3321,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3294,6 +3368,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3341,6 +3416,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3388,6 +3464,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3440,6 +3517,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3461,6 +3539,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3488,6 +3567,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3521,6 +3601,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );
@@ -3570,6 +3651,7 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
             );

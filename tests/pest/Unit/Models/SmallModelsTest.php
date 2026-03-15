@@ -129,13 +129,26 @@ describe('DescriptionType', function () {
     it('has correct fillable fields', function () {
         $model = new DescriptionType;
 
-        expect($model->getFillable())->toBe(['name', 'slug', 'is_active']);
+        expect($model->getFillable())->toBe(['name', 'slug', 'is_active', 'is_elmo_active']);
     });
 
     it('casts is_active to boolean', function () {
         $model = new DescriptionType(['is_active' => 1]);
 
         expect($model->is_active)->toBeBool();
+    });
+
+    it('casts is_elmo_active to boolean', function () {
+        $model = new DescriptionType(['is_elmo_active' => 1]);
+
+        expect($model->is_elmo_active)->toBeBool();
+    });
+
+    it('has elmoActive scope', function () {
+        $model = new DescriptionType;
+        $builder = $model->newQuery();
+
+        expect($model->scopeElmoActive($builder))->toBeInstanceOf(\Illuminate\Database\Eloquent\Builder::class);
     });
 
     it('defines descriptions relationship', function () {

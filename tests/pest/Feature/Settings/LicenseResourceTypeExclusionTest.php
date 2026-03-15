@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\DateType;
+use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -23,6 +24,7 @@ beforeEach(function () {
     $this->titleType = TitleType::factory()->create(['name' => 'Main', 'slug' => 'main']);
     $this->language = Language::factory()->create(['code' => 'en', 'name' => 'English']);
     $this->dateType = DateType::factory()->create(['name' => 'Created', 'slug' => 'created']);
+    $this->descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
 });
 
 describe('EditorSettingsController loads exclusions', function () {
@@ -93,6 +95,9 @@ describe('EditorSettingsController saves exclusions', function () {
                 'dateTypes' => [
                     ['id' => $this->dateType->id, 'active' => true],
                 ],
+                'descriptionTypes' => [
+                    ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
+                ],
                 'maxTitles' => 5,
                 'maxLicenses' => 5,
                 'thesauri' => [],
@@ -132,6 +137,9 @@ describe('EditorSettingsController saves exclusions', function () {
                 'dateTypes' => [
                     ['id' => $this->dateType->id, 'active' => true],
                 ],
+                'descriptionTypes' => [
+                    ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
+                ],
                 'maxTitles' => 5,
                 'maxLicenses' => 5,
                 'thesauri' => [],
@@ -167,6 +175,9 @@ describe('EditorSettingsController saves exclusions', function () {
                 'dateTypes' => [
                     ['id' => $this->dateType->id, 'active' => true],
                 ],
+                'descriptionTypes' => [
+                    ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
+                ],
                 'maxTitles' => 5,
                 'maxLicenses' => 5,
                 'thesauri' => [],
@@ -198,6 +209,9 @@ describe('EditorSettingsController saves exclusions', function () {
                 ],
                 'dateTypes' => [
                     ['id' => $this->dateType->id, 'active' => true],
+                ],
+                'descriptionTypes' => [
+                    ['id' => $this->descType->id, 'active' => true, 'elmo_active' => true],
                 ],
                 'maxTitles' => 5,
                 'maxLicenses' => 5,

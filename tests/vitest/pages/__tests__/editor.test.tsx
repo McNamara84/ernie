@@ -90,7 +90,7 @@ describe('Editor page', () => {
         );
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(screen.getByRole('status')).toHaveTextContent(
-            /loading resource and title types, licenses, languages, and role options/i,
+            /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
     });
 
@@ -103,7 +103,7 @@ describe('Editor page', () => {
         );
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(screen.getByRole('status')).toHaveTextContent(
-            /loading resource and title types, licenses, languages, and role options/i,
+            /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
     });
 

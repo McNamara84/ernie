@@ -3,6 +3,16 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DescriptionField, { DescriptionEntry } from '@/components/curation/fields/description-field';
+import type { DescriptionType } from '@/types';
+
+const allDescriptionTypes: DescriptionType[] = [
+    { id: 1, name: 'Abstract', slug: 'Abstract' },
+    { id: 2, name: 'Methods', slug: 'Methods' },
+    { id: 3, name: 'SeriesInformation', slug: 'SeriesInformation' },
+    { id: 4, name: 'TableOfContents', slug: 'TableOfContents' },
+    { id: 5, name: 'TechnicalInfo', slug: 'TechnicalInfo' },
+    { id: 6, name: 'Other', slug: 'Other' },
+];
 
 describe('DescriptionField', () => {
     const mockOnChange = vi.fn();
@@ -13,6 +23,7 @@ describe('DescriptionField', () => {
     const defaultProps = {
         descriptions: defaultDescriptions,
         onChange: mockOnChange,
+        availableTypes: allDescriptionTypes,
     };
 
     beforeEach(() => {

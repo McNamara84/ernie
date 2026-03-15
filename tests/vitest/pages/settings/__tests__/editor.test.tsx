@@ -112,6 +112,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         const grid = screen.getByTestId('settings-grid');
@@ -199,6 +200,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -223,6 +225,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -249,6 +252,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -273,6 +277,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -301,6 +306,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -325,6 +331,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -351,6 +358,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -375,6 +383,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -397,6 +406,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -418,6 +428,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -443,6 +454,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: postMock,
@@ -464,6 +476,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -487,6 +500,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -508,6 +522,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -534,6 +549,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -558,6 +574,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -582,6 +599,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -603,6 +621,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -629,6 +648,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [{ id: 1, name: 'ContactPerson', slug: 'contact-person', category: 'person', active: true, elmo_active: false }],
                 contributorInstitutionRoles: [{ id: 2, name: 'Distributor', slug: 'distributor', category: 'institution', active: true, elmo_active: false }],
                 contributorBothRoles: [{ id: 3, name: 'Other', slug: 'other', category: 'both', active: true, elmo_active: false }],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -650,6 +670,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[{ id: 1, name: 'ContactPerson', slug: 'contact-person', category: 'person', active: true, elmo_active: false }]}
                 contributorInstitutionRoles={[{ id: 2, name: 'Distributor', slug: 'distributor', category: 'institution', active: true, elmo_active: false }]}
                 contributorBothRoles={[{ id: 3, name: 'Other', slug: 'other', category: 'both', active: true, elmo_active: false }]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -689,6 +710,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -713,6 +735,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -741,6 +764,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -765,6 +789,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -792,6 +817,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -816,6 +842,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -841,6 +868,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -865,6 +893,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -893,6 +922,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -917,6 +947,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -945,6 +976,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -969,6 +1001,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -997,6 +1030,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -1021,6 +1055,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -1049,6 +1084,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles: [],
                 contributorInstitutionRoles: [],
                 contributorBothRoles: [],
+                descriptionTypes: [],
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -1073,6 +1109,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 

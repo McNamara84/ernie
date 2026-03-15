@@ -55,6 +55,7 @@ entity "description_types" as description_types {
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
+    * is_elmo_active : BOOLEAN
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

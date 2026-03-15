@@ -1,8 +1,16 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-13",
+        "date": "2026-03-15",
         "features": [
+            {
+                "title": "Configurable Description Types",
+                "description": "Description Types can now be individually activated or deactivated for ERNIE and ELMO in the Editor Settings. The editor dynamically shows only active description type tabs. The Abstract type is always active as it is a mandatory field."
+            },
+            {
+                "title": "Description Types API Endpoints",
+                "description": "New API endpoints for retrieving description types: GET /api/v1/description-types (all types), GET /api/v1/description-types/ernie (active for ERNIE), and GET /api/v1/description-types/elmo (active for ELMO, requires API key). OpenAPI documentation has been updated accordingly."
+            },
             {
                 "title": "GEMET Thesaurus Integration",
                 "description": "A new 'GEMET' tab is now available in the Controlled Vocabularies section of the editor. It provides the complete GEneral Multilingual Environmental Thesaurus (GEMET) with a three-level hierarchy: SuperGroups, Groups, and Concepts (~5,500 environmental concepts). Keywords are sourced from the EIONET GEMET REST API. The vocabulary can be managed in Editor Settings alongside GCMD and ICS thesauri, including enabling/disabling for ERNIE and ELMO independently. An API endpoint is available for ELMO integration at /api/v1/vocabularies/gemet. GEMET keywords are correctly imported from DataCite XML uploads and exported with proper scheme metadata."

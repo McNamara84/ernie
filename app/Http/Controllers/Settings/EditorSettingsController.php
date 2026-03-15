@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\ContributorType;
 use App\Models\DateType;
+use App\Models\DescriptionType;
 use App\Models\LandingPageDomain;
 use App\Models\Language;
 use App\Models\PidSetting;
@@ -76,6 +77,14 @@ class EditorSettingsController extends Controller
             'elmo_active' => false, // DateType doesn't have is_elmo_active
         ]);
 
+        $descriptionTypes = DescriptionType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($d) => [
+            'id' => $d->id,
+            'name' => $d->name,
+            'slug' => $d->slug,
+            'active' => $d->is_active,
+            'elmo_active' => $d->is_elmo_active,
+        ]);
+
         // Get thesaurus settings with local status information
         $thesauri = ThesaurusSetting::orderBy('id')->get()->map(function (ThesaurusSetting $thesaurus) {
             $localStatus = $this->thesaurusStatusService->getLocalStatus($thesaurus);
@@ -131,6 +140,7 @@ class EditorSettingsController extends Controller
             'licenses' => $licenses,
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
             'dateTypes' => $dateTypes,
+            'descriptionTypes' => $descriptionTypes,
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'thesauri' => $thesauri,
@@ -149,6 +159,8 @@ class EditorSettingsController extends Controller
         // Wrap all updates in a single transaction for atomicity and performance
         // Using direct DB updates instead of Eloquent for efficiency
         DB::transaction(function () use ($validated): void {
+            $now = now();
+
             // Update resource types
             /** @var array<int, array{id: int, name: string, active: bool, elmo_active: bool}> $resourceTypes */
             $resourceTypes = $validated['resourceTypes'];
@@ -159,7 +171,7 @@ class EditorSettingsController extends Controller
                         'name' => $type['name'],
                         'is_active' => $type['active'],
                         'is_elmo_active' => $type['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -174,7 +186,7 @@ class EditorSettingsController extends Controller
                         'slug' => $type['slug'],
                         'is_active' => $type['active'],
                         'is_elmo_active' => $type['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -187,7 +199,7 @@ class EditorSettingsController extends Controller
                     ->update([
                         'is_active' => $license['active'],
                         'is_elmo_active' => $license['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
 
                 // Sync excluded resource types using a direct query to ensure it works within transaction
@@ -204,8 +216,8 @@ class EditorSettingsController extends Controller
                     $insertData = array_map(fn (int $resourceTypeId) => [
                         'right_id' => $license['id'],
                         'resource_type_id' => $resourceTypeId,
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ], $excludedIds);
                     
                     DB::table('right_resource_type_exclusions')->insert($insertData);
@@ -221,7 +233,7 @@ class EditorSettingsController extends Controller
                     ->update([
                         'active' => $language['active'],
                         'elmo_active' => $language['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -233,9 +245,31 @@ class EditorSettingsController extends Controller
                     ->where('id', $dateType['id'])
                     ->update([
                         'is_active' => $dateType['active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
+
+            // Update description types (Abstract is always forced active)
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $descriptionTypes */
+            $descriptionTypes = $validated['descriptionTypes'];
+            foreach ($descriptionTypes as $descType) {
+                DB::table('description_types')
+                    ->where('id', $descType['id'])
+                    ->update([
+                        'is_active' => $descType['active'],
+                        'is_elmo_active' => $descType['elmo_active'],
+                        'updated_at' => $now,
+                    ]);
+            }
+
+            // Ensure Abstract is always active, regardless of what was submitted
+            DB::table('description_types')
+                ->where('slug', 'Abstract')
+                ->update([
+                    'is_active' => true,
+                    'is_elmo_active' => true,
+                    'updated_at' => $now,
+                ]);
 
             // Update max settings - inside transaction to ensure atomicity
             Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
@@ -251,7 +285,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $thesaurus['isActive'],
                             'is_elmo_active' => $thesaurus['isElmoActive'],
-                            'updated_at' => now(),
+                            'updated_at' => $now,
                         ]);
                 }
             }
@@ -266,7 +300,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $pidSetting['isActive'],
                             'is_elmo_active' => $pidSetting['isElmoActive'],
-                            'updated_at' => now(),
+                            'updated_at' => $now,
                         ]);
                 }
             }
@@ -287,7 +321,7 @@ class EditorSettingsController extends Controller
                             'is_active' => $role['active'],
                             'is_elmo_active' => $role['elmo_active'],
                             'category' => $role['category'],
-                            'updated_at' => now(),
+                            'updated_at' => $now,
                         ]);
                 }
             }

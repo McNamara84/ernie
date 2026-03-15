@@ -91,6 +91,12 @@ export interface DateType {
     description: string | null;
 }
 
+export interface DescriptionType {
+    id: number;
+    name: string;
+    slug: string;
+}
+
 export interface License {
     id: number;
     identifier: string;
