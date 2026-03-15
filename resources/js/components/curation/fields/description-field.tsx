@@ -80,12 +80,13 @@ export default function DescriptionField({
     abstractTouched = false,
     onAbstractValidationBlur,
 }: DescriptionFieldProps) {
-    // Build the visible types list from API data, ensuring Abstract is always included
+    // Build the visible types list from the canonical DESCRIPTION_TYPE_META order,
+    // filtered by enabled types, with Abstract always first.
     const visibleTypes = useMemo(() => {
-        const slugs = new Set(availableTypes.map((t) => t.slug));
-        // Always ensure Abstract is present (mandatory)
-        slugs.add('Abstract');
-        return Array.from(slugs).filter((slug) => slug in DESCRIPTION_TYPE_META) as DescriptionType[];
+        const enabledSlugs = new Set(availableTypes.map((t) => t.slug));
+        return (Object.keys(DESCRIPTION_TYPE_META) as DescriptionType[]).filter(
+            (slug) => slug === 'Abstract' || enabledSlugs.has(slug),
+        );
     }, [availableTypes]);
 
     const [activeTab, setActiveTab] = useState<DescriptionType>('Abstract');

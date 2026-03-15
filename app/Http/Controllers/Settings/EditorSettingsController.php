@@ -247,15 +247,17 @@ class EditorSettingsController extends Controller
                     ]);
             }
 
-            // Update description types
+            // Update description types (Abstract is always forced active)
             /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $descriptionTypes */
             $descriptionTypes = $validated['descriptionTypes'];
+            $abstractId = DB::table('description_types')->where('slug', 'Abstract')->value('id');
             foreach ($descriptionTypes as $descType) {
+                $isAbstract = $descType['id'] === $abstractId;
                 DB::table('description_types')
                     ->where('id', $descType['id'])
                     ->update([
-                        'is_active' => $descType['active'],
-                        'is_elmo_active' => $descType['elmo_active'],
+                        'is_active' => $isAbstract ? true : $descType['active'],
+                        'is_elmo_active' => $isAbstract ? true : $descType['elmo_active'],
                         'updated_at' => now(),
                     ]);
             }
