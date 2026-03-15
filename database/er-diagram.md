@@ -40,6 +40,7 @@ erDiagram
         varchar name
         varchar slug UK
         boolean is_active
+        boolean is_elmo_active
         timestamp created_at
         timestamp updated_at
     }
