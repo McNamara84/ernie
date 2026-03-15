@@ -159,6 +159,8 @@ class EditorSettingsController extends Controller
         // Wrap all updates in a single transaction for atomicity and performance
         // Using direct DB updates instead of Eloquent for efficiency
         DB::transaction(function () use ($validated): void {
+            $now = now();
+
             // Update resource types
             /** @var array<int, array{id: int, name: string, active: bool, elmo_active: bool}> $resourceTypes */
             $resourceTypes = $validated['resourceTypes'];
@@ -169,7 +171,7 @@ class EditorSettingsController extends Controller
                         'name' => $type['name'],
                         'is_active' => $type['active'],
                         'is_elmo_active' => $type['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -184,7 +186,7 @@ class EditorSettingsController extends Controller
                         'slug' => $type['slug'],
                         'is_active' => $type['active'],
                         'is_elmo_active' => $type['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -197,7 +199,7 @@ class EditorSettingsController extends Controller
                     ->update([
                         'is_active' => $license['active'],
                         'is_elmo_active' => $license['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
 
                 // Sync excluded resource types using a direct query to ensure it works within transaction
@@ -214,8 +216,8 @@ class EditorSettingsController extends Controller
                     $insertData = array_map(fn (int $resourceTypeId) => [
                         'right_id' => $license['id'],
                         'resource_type_id' => $resourceTypeId,
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ], $excludedIds);
                     
                     DB::table('right_resource_type_exclusions')->insert($insertData);
@@ -231,7 +233,7 @@ class EditorSettingsController extends Controller
                     ->update([
                         'active' => $language['active'],
                         'elmo_active' => $language['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -243,7 +245,7 @@ class EditorSettingsController extends Controller
                     ->where('id', $dateType['id'])
                     ->update([
                         'is_active' => $dateType['active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -256,7 +258,7 @@ class EditorSettingsController extends Controller
                     ->update([
                         'is_active' => $descType['active'],
                         'is_elmo_active' => $descType['elmo_active'],
-                        'updated_at' => now(),
+                        'updated_at' => $now,
                     ]);
             }
 
@@ -266,7 +268,7 @@ class EditorSettingsController extends Controller
                 ->update([
                     'is_active' => true,
                     'is_elmo_active' => true,
-                    'updated_at' => now(),
+                    'updated_at' => $now,
                 ]);
 
             // Update max settings - inside transaction to ensure atomicity
@@ -283,7 +285,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $thesaurus['isActive'],
                             'is_elmo_active' => $thesaurus['isElmoActive'],
-                            'updated_at' => now(),
+                            'updated_at' => $now,
                         ]);
                 }
             }
@@ -298,7 +300,7 @@ class EditorSettingsController extends Controller
                         ->update([
                             'is_active' => $pidSetting['isActive'],
                             'is_elmo_active' => $pidSetting['isElmoActive'],
-                            'updated_at' => now(),
+                            'updated_at' => $now,
                         ]);
                 }
             }
@@ -319,7 +321,7 @@ class EditorSettingsController extends Controller
                             'is_active' => $role['active'],
                             'is_elmo_active' => $role['elmo_active'],
                             'category' => $role['category'],
-                            'updated_at' => now(),
+                            'updated_at' => $now,
                         ]);
                 }
             }

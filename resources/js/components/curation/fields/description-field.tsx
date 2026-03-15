@@ -26,7 +26,7 @@ interface DescriptionFieldProps {
 
 /** UI metadata for each description type (labels, placeholders, help texts). */
 const DESCRIPTION_TYPE_META: Record<
-    string,
+    DescriptionType,
     {
         label: string;
         placeholder: string;

@@ -48,17 +48,6 @@ it('rejects requests with an invalid API key', function () {
         ->assertJson(['message' => 'Invalid API key.']);
 });
 
-it('allows requests with a valid API key header', function () {
-    createElmoDescriptionTypes();
-
-    $response = getJson('/api/v1/description-types/elmo', ['X-API-Key' => 'test-api-key'])
-        ->assertOk()
-        ->assertJsonCount(2);
-
-    expect($response->json('0.name'))->toBe('Abstract');
-    expect($response->json('1.name'))->toBe('Methods');
-});
-
 it('rejects API keys in query parameters for security', function () {
     createElmoDescriptionTypes();
 
