@@ -95,6 +95,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         // Find headers by their text content (handles different accessible name interpretations)
@@ -140,6 +141,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
 
@@ -175,6 +177,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -202,6 +205,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
@@ -229,6 +233,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
@@ -254,6 +259,7 @@ describe('EditorSettings page', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         // Verify Limits card exists with heading
@@ -283,6 +289,7 @@ describe('License settings', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -312,6 +319,7 @@ describe('Language settings', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -341,6 +349,7 @@ describe('Date Type settings', () => {
                 contributorPersonRoles={[]}
                 contributorInstitutionRoles={[]}
                 contributorBothRoles={[]}
+                descriptionTypes={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));

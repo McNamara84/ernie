@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DateType;
+use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -59,6 +60,7 @@ test('admin users can update resource and title types and settings', function ()
     Setting::create(['key' => 'max_licenses', 'value' => '2']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $type->id, 'name' => 'Data Set', 'active' => false, 'elmo_active' => true],
@@ -74,6 +76,9 @@ test('admin users can update resource and title types and settings', function ()
         ],
         'dateTypes' => [
             ['id' => $dateType->id, 'active' => false],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 10,
         'maxLicenses' => 7,
@@ -122,6 +127,7 @@ test('updating settings with invalid data returns errors', function () {
     $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->actingAs($user);
 
     $response = $this->from(route('settings'))
@@ -140,6 +146,9 @@ test('updating settings with invalid data returns errors', function () {
             ],
             'dateTypes' => [
                 ['id' => $dateType->id, 'active' => true],
+            ],
+            'descriptionTypes' => [
+                ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
             ],
             'maxTitles' => 0,
             'maxLicenses' => 7,
@@ -221,6 +230,7 @@ test('admin can set all resource types to inactive at once', function () {
     Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $rt1->id, 'name' => 'Dataset', 'active' => false, 'elmo_active' => false],
@@ -237,6 +247,9 @@ test('admin can set all resource types to inactive at once', function () {
         ],
         'dateTypes' => [
             ['id' => $dateType->id, 'active' => true],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 5,
         'maxLicenses' => 5,
@@ -258,6 +271,7 @@ test('admin can set all resource types to active at once', function () {
     Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $rt1->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
@@ -274,6 +288,9 @@ test('admin can set all resource types to active at once', function () {
         ],
         'dateTypes' => [
             ['id' => $dateType->id, 'active' => true],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 5,
         'maxLicenses' => 5,
@@ -295,6 +312,7 @@ test('admin can set all licenses to inactive at once', function () {
     Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
@@ -311,6 +329,9 @@ test('admin can set all licenses to inactive at once', function () {
         ],
         'dateTypes' => [
             ['id' => $dateType->id, 'active' => true],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 5,
         'maxLicenses' => 5,
@@ -332,6 +353,7 @@ test('admin can set all languages to inactive at once', function () {
     Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
@@ -348,6 +370,9 @@ test('admin can set all languages to inactive at once', function () {
         ],
         'dateTypes' => [
             ['id' => $dateType->id, 'active' => true],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 5,
         'maxLicenses' => 5,
@@ -369,6 +394,7 @@ test('admin can set all title types to inactive at once', function () {
     Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
@@ -385,6 +411,9 @@ test('admin can set all title types to inactive at once', function () {
         ],
         'dateTypes' => [
             ['id' => $dateType->id, 'active' => true],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 5,
         'maxLicenses' => 5,
@@ -406,6 +435,7 @@ test('admin can set all date types to inactive at once', function () {
     Setting::create(['key' => 'max_licenses', 'value' => '5']);
     $this->actingAs($user);
 
+    $descType = DescriptionType::create(['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true]);
     $this->post(route('settings.update'), [
         'resourceTypes' => [
             ['id' => $type->id, 'name' => 'Dataset', 'active' => true, 'elmo_active' => true],
@@ -422,6 +452,9 @@ test('admin can set all date types to inactive at once', function () {
         'dateTypes' => [
             ['id' => $dt1->id, 'active' => false],
             ['id' => $dt2->id, 'active' => false],
+        ],
+        'descriptionTypes' => [
+            ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
         ],
         'maxTitles' => 5,
         'maxLicenses' => 5,
