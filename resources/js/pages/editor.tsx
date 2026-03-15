@@ -185,7 +185,7 @@ export default function Editor({
             >
                 {error && (
                     <p role="alert" className="text-red-600">
-                        Unable to load resource or title types, licenses, languages, or role options.
+                        Unable to load resource types, title types, description types, date types, licenses, languages, or role options.
                     </p>
                 )}
                 {(resourceTypes === null ||
@@ -199,7 +199,7 @@ export default function Editor({
                     authorRoles === null) &&
                     !error && (
                         <p role="status" aria-live="polite">
-                            Loading resource and title types, licenses, languages, and role options...
+                            Loading resource types, title types, description types, date types, licenses, languages, and role options...
                         </p>
                     )}
                 {resourceTypes &&

@@ -250,17 +250,24 @@ class EditorSettingsController extends Controller
             // Update description types (Abstract is always forced active)
             /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $descriptionTypes */
             $descriptionTypes = $validated['descriptionTypes'];
-            $abstractId = DB::table('description_types')->where('slug', 'Abstract')->value('id');
             foreach ($descriptionTypes as $descType) {
-                $isAbstract = $descType['id'] === $abstractId;
                 DB::table('description_types')
                     ->where('id', $descType['id'])
                     ->update([
-                        'is_active' => $isAbstract ? true : $descType['active'],
-                        'is_elmo_active' => $isAbstract ? true : $descType['elmo_active'],
+                        'is_active' => $descType['active'],
+                        'is_elmo_active' => $descType['elmo_active'],
                         'updated_at' => now(),
                     ]);
             }
+
+            // Ensure Abstract is always active, regardless of what was submitted
+            DB::table('description_types')
+                ->where('slug', 'Abstract')
+                ->update([
+                    'is_active' => true,
+                    'is_elmo_active' => true,
+                    'updated_at' => now(),
+                ]);
 
             // Update max settings - inside transaction to ensure atomicity
             Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
