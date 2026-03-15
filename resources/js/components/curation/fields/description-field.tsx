@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
+import type { DescriptionType as DescriptionTypeFromApi } from '@/types';
 
 export type DescriptionType = 'Abstract' | 'Methods' | 'SeriesInformation' | 'TableOfContents' | 'TechnicalInfo' | 'Other';
 
@@ -16,70 +17,77 @@ export interface DescriptionEntry {
 interface DescriptionFieldProps {
     descriptions: DescriptionEntry[];
     onChange: (descriptions: DescriptionEntry[]) => void;
+    availableTypes: DescriptionTypeFromApi[];
     // Validation props for Abstract field
     abstractValidationMessages?: ValidationMessage[];
     abstractTouched?: boolean;
     onAbstractValidationBlur?: () => void;
 }
 
-const DESCRIPTION_TYPES: {
-    value: DescriptionType;
-    label: string;
-    placeholder: string;
-    required?: boolean;
-    helpText?: string;
-}[] = [
+/** UI metadata for each description type (labels, placeholders, help texts). */
+const DESCRIPTION_TYPE_META: Record<
+    string,
     {
-        value: 'Abstract',
+        label: string;
+        placeholder: string;
+        required?: boolean;
+        helpText?: string;
+    }
+> = {
+    Abstract: {
         label: 'Abstract',
         placeholder: 'Enter a brief summary of the resource...',
         required: true,
         helpText:
             'A brief description of the resource and the context in which the resource was created. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
     },
-    {
-        value: 'Methods',
+    Methods: {
         label: 'Methods',
         placeholder: 'Describe the methods used to create or collect this resource...',
         helpText:
             'The methodology employed for the study or research. Recommended for discovery. Full documentation about methods supports open science.',
     },
-    {
-        value: 'SeriesInformation',
+    SeriesInformation: {
         label: 'Series Information',
         placeholder: 'Provide information about the series this resource belongs to...',
         helpText:
             'Information about a repeating series, such as volume, issue, number. Note: This information should now be explicitly provided using the RelatedItem property with relationType "IsPublishedIn".',
     },
-    {
-        value: 'TableOfContents',
+    TableOfContents: {
         label: 'Table of Contents',
         placeholder: 'Enter the table of contents...',
         helpText:
             'A listing of the Table of Contents. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
     },
-    {
-        value: 'TechnicalInfo',
+    TechnicalInfo: {
         label: 'Technical Info',
         placeholder: 'Provide technical details about the resource...',
         helpText:
             'Detailed information that may be associated with design, implementation, operation, use, and/or maintenance of a process, system, or instrument. For software, this may include readme contents and environmental information.',
     },
-    {
-        value: 'Other',
+    Other: {
         label: 'Other',
         placeholder: 'Enter other relevant description information...',
         helpText: 'Other description information that does not fit into an existing category.',
     },
-];
+};
 
 export default function DescriptionField({
     descriptions,
     onChange,
+    availableTypes,
     abstractValidationMessages = [],
     abstractTouched = false,
     onAbstractValidationBlur,
 }: DescriptionFieldProps) {
+    // Build the visible types list from API data, ensuring Abstract is always included
+    const visibleTypes = useMemo(() => {
+        const slugs = new Set(availableTypes.map((t) => t.slug));
+        // Always ensure Abstract is present (mandatory)
+        slugs.add('Abstract');
+        return Array.from(slugs).filter((slug) => slug in DESCRIPTION_TYPE_META) as DescriptionType[];
+    }, [availableTypes]);
+
     const [activeTab, setActiveTab] = useState<DescriptionType>('Abstract');
 
     // Use ref to always access current descriptions without recreating the callback.
@@ -128,78 +136,82 @@ export default function DescriptionField({
     // Optional chaining (?.) with fallback (?? 0) handles edge cases gracefully.
     const contentStatus = useMemo(() => {
         const status = new Map<DescriptionType, { hasContent: boolean; charCount: number }>();
-        for (const type of DESCRIPTION_TYPES) {
-            const value = descriptionValuesMap.get(type.value) || '';
-            status.set(type.value, {
+        for (const type of visibleTypes) {
+            const value = descriptionValuesMap.get(type) || '';
+            status.set(type, {
                 hasContent: value.trim().length > 0,
                 charCount: value.length,
             });
         }
         return status;
-    }, [descriptionValuesMap]);
+    }, [descriptionValuesMap, visibleTypes]);
 
     return (
         <div className="space-y-4">
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DescriptionType)}>
-                <TabsList className="grid w-full grid-cols-6">
-                    {DESCRIPTION_TYPES.map((desc) => (
-                        <TabsTrigger key={desc.value} value={desc.value} className="relative">
-                            {desc.label}
-                            {desc.required && (
-                                <span className="ml-0.5 text-destructive" aria-label="Required">
-                                    *
-                                </span>
-                            )}
-                            {contentStatus.get(desc.value)?.hasContent && (
-                                <span
-                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                    aria-label="Has content"
-                                    title="This description has content"
-                                />
-                            )}
-                        </TabsTrigger>
-                    ))}
+                <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${visibleTypes.length}, minmax(0, 1fr))` }}>
+                    {visibleTypes.map((type) => {
+                        const meta = DESCRIPTION_TYPE_META[type];
+                        return (
+                            <TabsTrigger key={type} value={type} className="relative">
+                                {meta.label}
+                                {meta.required && (
+                                    <span className="ml-0.5 text-destructive" aria-label="Required">
+                                        *
+                                    </span>
+                                )}
+                                {contentStatus.get(type)?.hasContent && (
+                                    <span
+                                        className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                        aria-label="Has content"
+                                        title="This description has content"
+                                    />
+                                )}
+                            </TabsTrigger>
+                        );
+                    })}
                 </TabsList>
 
-                {DESCRIPTION_TYPES.map((desc) => {
-                    const isAbstract = desc.value === 'Abstract';
+                {visibleTypes.map((type) => {
+                    const meta = DESCRIPTION_TYPE_META[type];
+                    const isAbstract = type === 'Abstract';
                     const hasValidationError = isAbstract && abstractTouched && abstractValidationMessages.length > 0;
-                    const charCount = contentStatus.get(desc.value)?.charCount ?? 0;
+                    const charCount = contentStatus.get(type)?.charCount ?? 0;
                     const isNearLimit = charCount > 15750; // 90% of 17500
                     const isTooShort = charCount > 0 && charCount < 50;
 
                     return (
-                        <TabsContent key={desc.value} value={desc.value} className="space-y-2">
+                        <TabsContent key={type} value={type} className="space-y-2">
                             <div className="space-y-2">
-                                <Label htmlFor={`description-${desc.value}`}>
-                                    {desc.label}
-                                    {desc.required ? (
+                                <Label htmlFor={`description-${type}`}>
+                                    {meta.label}
+                                    {meta.required ? (
                                         <span className="ml-2 text-sm font-normal text-destructive">(Required)</span>
                                     ) : (
                                         <span className="ml-2 text-sm font-normal text-muted-foreground">(Optional)</span>
                                     )}
                                 </Label>
-                                {desc.helpText && <p className="text-sm text-muted-foreground">{desc.helpText}</p>}
+                                {meta.helpText && <p className="text-sm text-muted-foreground">{meta.helpText}</p>}
                                 <Textarea
-                                    id={`description-${desc.value}`}
-                                    value={getDescriptionValue(desc.value)}
-                                    onChange={(e) => handleDescriptionChange(desc.value, e.target.value)}
+                                    id={`description-${type}`}
+                                    value={getDescriptionValue(type)}
+                                    onChange={(e) => handleDescriptionChange(type, e.target.value)}
                                     onBlur={() => {
                                         if (isAbstract && onAbstractValidationBlur) {
                                             onAbstractValidationBlur();
                                         }
                                     }}
-                                    placeholder={desc.placeholder}
+                                    placeholder={meta.placeholder}
                                     rows={8}
                                     className="resize-y"
-                                    aria-describedby={`description-${desc.value}-count ${isAbstract ? 'description-abstract-validation' : ''}`}
+                                    aria-describedby={`description-${type}-count ${isAbstract ? 'description-abstract-validation' : ''}`}
                                     aria-invalid={hasValidationError}
-                                    required={desc.required}
+                                    required={meta.required}
                                     data-testid={isAbstract ? 'abstract-textarea' : undefined}
                                 />
                                 {isAbstract && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
                                 <div
-                                    id={`description-${desc.value}-count`}
+                                    id={`description-${type}-count`}
                                     className={`text-right text-sm ${
                                         hasValidationError
                                             ? 'text-destructive'

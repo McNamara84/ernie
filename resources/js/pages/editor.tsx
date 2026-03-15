@@ -10,6 +10,7 @@ import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
     type DateType,
+    type DescriptionType,
     type InstrumentSelection,
     type Language,
     type License,
@@ -75,6 +76,7 @@ export default function Editor({
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [dateTypes, setDateTypes] = useState<DateType[] | null>(null);
+    const [descriptionTypes, setDescriptionTypes] = useState<DescriptionType[] | null>(null);
     const [licenses, setLicenses] = useState<License[] | null>(null);
     const [languages, setLanguages] = useState<Language[] | null>(null);
     const [contributorPersonRoles, setContributorPersonRoles] = useState<Role[] | null>(null);
@@ -118,6 +120,7 @@ export default function Editor({
                 return Promise.all([
                     fetch('/api/v1/title-types/ernie'),
                     fetch('/api/v1/date-types/ernie'),
+                    fetch('/api/v1/description-types/ernie'),
                     fetch('/api/v1/licenses/ernie'),
                     fetch('/api/v1/languages/ernie'),
                     fetch('/api/v1/roles/contributor-persons/ernie'),
@@ -125,10 +128,11 @@ export default function Editor({
                     fetch('/api/v1/roles/authors/ernie'),
                 ]);
             })
-            .then(async ([titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
+            .then(async ([titleRes, dateRes, descTypeRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
                 if (
                     !titleRes.ok ||
                     !dateRes.ok ||
+                    !descTypeRes.ok ||
                     !licenseRes.ok ||
                     !languageRes.ok ||
                     !contributorPersonRes.ok ||
@@ -137,9 +141,10 @@ export default function Editor({
                 ) {
                     throw new Error('Network error');
                 }
-                const [tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
+                const [tData, dData, descData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
                     titleRes.json() as Promise<TitleType[]>,
                     dateRes.json() as Promise<DateType[]>,
+                    descTypeRes.json() as Promise<DescriptionType[]>,
                     licenseRes.json() as Promise<License[]>,
                     languageRes.json() as Promise<Language[]>,
                     contributorPersonRes.json() as Promise<Role[]>,
@@ -148,6 +153,7 @@ export default function Editor({
                 ]);
                 setTitleTypes(tData);
                 setDateTypes(dData);
+                setDescriptionTypes(descData);
                 setLicenses(lData);
                 setLanguages(langData);
                 setContributorPersonRoles(contributorPersonData);
@@ -169,6 +175,7 @@ export default function Editor({
                     resourceTypes === null ||
                     titleTypes === null ||
                     dateTypes === null ||
+                    descriptionTypes === null ||
                     licenses === null ||
                     languages === null ||
                     contributorPersonRoles === null ||
@@ -184,6 +191,7 @@ export default function Editor({
                 {(resourceTypes === null ||
                     titleTypes === null ||
                     dateTypes === null ||
+                    descriptionTypes === null ||
                     licenses === null ||
                     languages === null ||
                     contributorPersonRoles === null ||
@@ -197,6 +205,7 @@ export default function Editor({
                 {resourceTypes &&
                     titleTypes &&
                     dateTypes &&
+                    descriptionTypes &&
                     licenses &&
                     languages &&
                     contributorPersonRoles &&
@@ -206,6 +215,7 @@ export default function Editor({
                             resourceTypes={resourceTypes}
                             titleTypes={titleTypes}
                             dateTypes={dateTypes}
+                            descriptionTypes={descriptionTypes}
                             licenses={licenses}
                             languages={languages}
                             contributorPersonRoles={contributorPersonRoles}

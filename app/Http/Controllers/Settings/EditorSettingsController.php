@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\ContributorType;
 use App\Models\DateType;
+use App\Models\DescriptionType;
 use App\Models\LandingPageDomain;
 use App\Models\Language;
 use App\Models\PidSetting;
@@ -76,6 +77,14 @@ class EditorSettingsController extends Controller
             'elmo_active' => false, // DateType doesn't have is_elmo_active
         ]);
 
+        $descriptionTypes = DescriptionType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($d) => [
+            'id' => $d->id,
+            'name' => $d->name,
+            'slug' => $d->slug,
+            'active' => $d->is_active,
+            'elmo_active' => $d->is_elmo_active,
+        ]);
+
         // Get thesaurus settings with local status information
         $thesauri = ThesaurusSetting::orderBy('id')->get()->map(function (ThesaurusSetting $thesaurus) {
             $localStatus = $this->thesaurusStatusService->getLocalStatus($thesaurus);
@@ -131,6 +140,7 @@ class EditorSettingsController extends Controller
             'licenses' => $licenses,
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
             'dateTypes' => $dateTypes,
+            'descriptionTypes' => $descriptionTypes,
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'thesauri' => $thesauri,
@@ -233,6 +243,19 @@ class EditorSettingsController extends Controller
                     ->where('id', $dateType['id'])
                     ->update([
                         'is_active' => $dateType['active'],
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            // Update description types
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $descriptionTypes */
+            $descriptionTypes = $validated['descriptionTypes'];
+            foreach ($descriptionTypes as $descType) {
+                DB::table('description_types')
+                    ->where('id', $descType['id'])
+                    ->update([
+                        'is_active' => $descType['active'],
+                        'is_elmo_active' => $descType['elmo_active'],
                         'updated_at' => now(),
                     ]);
             }

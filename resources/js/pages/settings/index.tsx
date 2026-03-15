@@ -59,6 +59,14 @@ interface DateTypeRow {
     active: boolean;
 }
 
+interface DescriptionTypeRow {
+    id: number;
+    name: string;
+    slug: string;
+    active: boolean;
+    elmo_active: boolean;
+}
+
 interface LandingPageDomainRow {
     id: number;
     domain: string;
@@ -70,6 +78,7 @@ interface EditorSettingsProps {
     licenses: LicenseRow[];
     languages: LanguageRow[];
     dateTypes: DateTypeRow[];
+    descriptionTypes: DescriptionTypeRow[];
     maxTitles: number;
     maxLicenses: number;
     thesauri: ThesaurusData[];
@@ -88,6 +97,7 @@ export default function EditorSettings({
     licenses,
     languages,
     dateTypes,
+    descriptionTypes,
     maxTitles,
     maxLicenses,
     thesauri,
@@ -177,6 +187,13 @@ export default function EditorSettings({
             slug: d.slug,
             description: d.description,
             active: d.active,
+        })),
+        descriptionTypes: descriptionTypes.map((d) => ({
+            id: d.id,
+            name: d.name,
+            slug: d.slug,
+            active: d.active,
+            elmo_active: d.elmo_active,
         })),
         maxTitles,
         maxLicenses,
@@ -300,6 +317,20 @@ export default function EditorSettings({
         );
     };
 
+    const handleDescriptionTypeActiveChange = (index: number, value: boolean) => {
+        setData(
+            'descriptionTypes',
+            data.descriptionTypes.map((d, i) => (i === index ? { ...d, active: value } : d)),
+        );
+    };
+
+    const handleDescriptionTypeElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'descriptionTypes',
+            data.descriptionTypes.map((d, i) => (i === index ? { ...d, elmo_active: value } : d)),
+        );
+    };
+
     const handleThesaurusActiveChange = (type: string, isActive: boolean) => {
         setData(
             'thesauri',
@@ -383,6 +414,12 @@ export default function EditorSettings({
     const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
     const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
     const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
+    const descTypeErnieState = getSelectAllState(
+        data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.active),
+    );
+    const descTypeElmoState = getSelectAllState(
+        data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.elmo_active),
+    );
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(settings().url);
@@ -906,6 +943,104 @@ export default function EditorSettings({
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Description Types */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Description Types</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Slug</TableHead>
+                                                <TableHead className="text-center">
+                                                    ERNIE
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={descTypeErnieState.allChecked}
+                                                            indeterminate={descTypeErnieState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'descriptionTypes',
+                                                                    data.descriptionTypes.map((d) =>
+                                                                        d.slug === 'Abstract' ? d : { ...d, active: checked === true },
+                                                                    ),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ERNIE active for Description Types"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="text-center">
+                                                    ELMO
+                                                    <br />
+                                                    active
+                                                    <div className="mt-1">
+                                                        <Checkbox
+                                                            checked={descTypeElmoState.allChecked}
+                                                            indeterminate={descTypeElmoState.indeterminate}
+                                                            onCheckedChange={(checked) => {
+                                                                setData(
+                                                                    'descriptionTypes',
+                                                                    data.descriptionTypes.map((d) =>
+                                                                        d.slug === 'Abstract' ? d : { ...d, elmo_active: checked === true },
+                                                                    ),
+                                                                );
+                                                            }}
+                                                            aria-label="Select all ELMO active for Description Types"
+                                                        />
+                                                    </div>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {data.descriptionTypes.map((descType, index) => {
+                                                const isAbstract = descType.slug === 'Abstract';
+                                                return (
+                                                    <TableRow key={descType.id}>
+                                                        <TableCell>{descType.id}</TableCell>
+                                                        <TableCell>{descType.name}</TableCell>
+                                                        <TableCell>{descType.slug}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Label htmlFor={`desc-active-${descType.id}`} className="sr-only">
+                                                                ERNIE active
+                                                            </Label>
+                                                            <Checkbox
+                                                                id={`desc-active-${descType.id}`}
+                                                                checked={descType.active}
+                                                                disabled={isAbstract}
+                                                                onCheckedChange={(checked) =>
+                                                                    handleDescriptionTypeActiveChange(index, checked === true)
+                                                                }
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Label htmlFor={`desc-elmo-active-${descType.id}`} className="sr-only">
+                                                                ELMO active
+                                                            </Label>
+                                                            <Checkbox
+                                                                id={`desc-elmo-active-${descType.id}`}
+                                                                checked={descType.elmo_active}
+                                                                disabled={isAbstract}
+                                                                onCheckedChange={(checked) =>
+                                                                    handleDescriptionTypeElmoActiveChange(index, checked === true)
+                                                                }
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
                                         </TableBody>
                                     </Table>
                                 </div>
