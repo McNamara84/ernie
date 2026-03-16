@@ -104,4 +104,10 @@ describe('GET /api/v1/identifier-types/elmo', function (): void {
     test('rejects request without API key', function (): void {
         $this->getJson('/api/v1/identifier-types/elmo')->assertUnauthorized();
     });
+
+    test('rejects request with invalid API key', function (): void {
+        $this->getJson('/api/v1/identifier-types/elmo', [
+            'X-API-Key' => 'wrong-key',
+        ])->assertUnauthorized();
+    });
 });

@@ -120,23 +120,33 @@ class UpdateSettingsRequest extends FormRequest
             return;
         }
 
-        $patternTypes = DB::table('identifier_type_patterns')
+        $patternRows = DB::table('identifier_type_patterns')
             ->whereIn('id', $allPatternIds)
-            ->pluck('type', 'id');
+            ->get(['id', 'identifier_type_id', 'type'])
+            ->keyBy('id');
 
         foreach ($identifierTypes as $itIndex => $identifierType) {
             /** @var array<string, true> $seen */
             $seen = [];
             foreach ($identifierType['patterns'] ?? [] as $pIndex => $pattern) {
-                $type = $patternTypes[$pattern['id']] ?? null;
-                if ($type === null) {
+                $row = $patternRows[$pattern['id']] ?? null;
+                if ($row === null) {
                     continue;
                 }
-                $key = $type . '|' . $pattern['pattern'];
+
+                if ((int) $row->identifier_type_id !== (int) $identifierType['id']) {
+                    $validator->errors()->add(
+                        "identifierTypes.{$itIndex}.patterns.{$pIndex}.id",
+                        'This pattern does not belong to the given identifier type.'
+                    );
+                    continue;
+                }
+
+                $key = $row->type . '|' . $pattern['pattern'];
                 if (isset($seen[$key])) {
                     $validator->errors()->add(
                         "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
-                        'This pattern already exists for this identifier type and category.'
+                        'This pattern already exists for this identifier type and type.'
                     );
                 }
                 $seen[$key] = true;
