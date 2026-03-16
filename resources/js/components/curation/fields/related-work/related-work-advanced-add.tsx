@@ -101,10 +101,10 @@ export default function RelatedWorkAdvancedAdd({
         <div className="space-y-4">
             {/* Header */}
             <div className="space-y-2">
-                <Label className="text-base font-semibold">Advanced Mode - All Relation Types</Label>
+                <Label className="text-base font-semibold">Advanced Mode</Label>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                    <p>Browse all {filteredRelationTypes.length} DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
+                    <p>Browse {filteredRelationTypes.length} active DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
                 </div>
             </div>
 

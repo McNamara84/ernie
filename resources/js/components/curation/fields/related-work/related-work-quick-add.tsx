@@ -99,10 +99,12 @@ export default function RelatedWorkQuickAdd({
     const handleRelationTypeChange = (value: string) => {
         onRelationTypeChange(value as RelationType);
         const opposite = getOppositeRelationType(value as RelationType);
-        setShowSuggestion(!!opposite);
+        const oppositeIsActive = !activeRelationTypes || (opposite && activeRelationTypes.includes(opposite));
+        setShowSuggestion(!!opposite && !!oppositeIsActive);
     };
 
     const oppositeRelation = getOppositeRelationType(relationType);
+    const oppositeIsAvailable = !activeRelationTypes || (oppositeRelation && activeRelationTypes.includes(oppositeRelation));
 
     // Quick suggestion for opposite relation
     const handleUseSuggestion = () => {
@@ -212,7 +214,7 @@ export default function RelatedWorkQuickAdd({
             </div>
 
             {/* Bidirectional Suggestion */}
-            {showSuggestion && oppositeRelation && (
+            {showSuggestion && oppositeRelation && oppositeIsAvailable && (
                 <Alert className="border-blue-200 bg-blue-50">
                     <Lightbulb className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="flex items-center justify-between">

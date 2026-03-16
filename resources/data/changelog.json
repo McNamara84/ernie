@@ -13,7 +13,7 @@
             },
             {
                 "title": "Identifier Type Patterns Database",
-                "description": "Validation and detection regex patterns for identifier types are now stored in the database (identifier_type_patterns table) instead of being hardcoded. Each pattern has a type (validation or detection), an active toggle, and a priority for ordering. Patterns are seeded from the existing detection logic and can be managed in Editor Settings."
+                "description": "Validation and detection regex patterns for identifier types are now stored in the database (identifier_type_patterns table) alongside the existing frontend detection logic. Each pattern has a type (validation or detection), an active toggle, and a priority for ordering. Patterns are seeded from the existing detection logic and can be managed in Editor Settings."
             },
             {
                 "title": "Configurable Description Types",

@@ -14,7 +14,7 @@ class RelatedIdentifierTypeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $types = IdentifierType::with(['patterns' => fn ($q) => $q->orderByDesc('priority')])
+        $types = IdentifierType::with(['patterns' => fn ($q) => $q->active()->orderByDesc('priority')])
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 

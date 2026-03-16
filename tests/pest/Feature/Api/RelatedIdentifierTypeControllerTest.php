@@ -55,13 +55,13 @@ describe('GET /api/v1/identifier-types', function (): void {
             ->assertJsonStructure([['id', 'name', 'slug', 'patterns' => ['validation', 'detection']]]);
     });
 
-    test('includes all patterns (including inactive)', function (): void {
+    test('returns only active patterns', function (): void {
         $response = $this->getJson('/api/v1/identifier-types')->assertOk();
 
         $doi = collect($response->json())->firstWhere('slug', 'DOI');
-        // 1 validation pattern + 2 detection patterns (including inactive one)
+        // 1 validation pattern + 1 active detection pattern (inactive one filtered out)
         expect($doi['patterns']['validation'])->toHaveCount(1)
-            ->and($doi['patterns']['detection'])->toHaveCount(2);
+            ->and($doi['patterns']['detection'])->toHaveCount(1);
     });
 });
 
