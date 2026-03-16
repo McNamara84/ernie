@@ -1451,93 +1451,106 @@ export default function EditorSettings({
                                                                 {idType.patterns.length}
                                                             </TableCell>
                                                         </TableRow>
-                                                        {isExpanded &&
-                                                            idType.patterns.map((pattern, patternIndex) => (
-                                                                <TableRow
-                                                                    key={`pattern-${pattern.id}`}
-                                                                    className="bg-muted/50"
-                                                                >
-                                                                    <TableCell />
-                                                                    <TableCell className="text-xs text-muted-foreground">
-                                                                        {pattern.type}
-                                                                    </TableCell>
-                                                                    <TableCell colSpan={2}>
-                                                                        <Input
-                                                                            value={pattern.pattern}
-                                                                            className="font-mono text-xs"
-                                                                            aria-label={`${idType.name} ${pattern.type} pattern`}
-                                                                            onChange={(e) => {
-                                                                                setData(
-                                                                                    'identifierTypes',
-                                                                                    data.identifierTypes.map((it, i) =>
-                                                                                        i === typeIndex
-                                                                                            ? {
-                                                                                                  ...it,
-                                                                                                  patterns: it.patterns.map((p, pi) =>
-                                                                                                      pi === patternIndex
-                                                                                                          ? { ...p, pattern: e.target.value }
-                                                                                                          : p,
-                                                                                                  ),
-                                                                                              }
-                                                                                            : it,
-                                                                                    ),
-                                                                                );
-                                                                            }}
-                                                                        />
-                                                                    </TableCell>
-                                                                    <TableCell className="text-center">
-                                                                        <Checkbox
-                                                                            checked={pattern.is_active}
-                                                                            aria-label={`${idType.name} ${pattern.type} pattern active`}
-                                                                            onCheckedChange={(checked) => {
-                                                                                setData(
-                                                                                    'identifierTypes',
-                                                                                    data.identifierTypes.map((it, i) =>
-                                                                                        i === typeIndex
-                                                                                            ? {
-                                                                                                  ...it,
-                                                                                                  patterns: it.patterns.map((p, pi) =>
-                                                                                                      pi === patternIndex
-                                                                                                          ? { ...p, is_active: checked === true }
-                                                                                                          : p,
-                                                                                                  ),
-                                                                                              }
-                                                                                            : it,
-                                                                                    ),
-                                                                                );
-                                                                            }}
-                                                                        />
-                                                                    </TableCell>
-                                                                    <TableCell className="text-center">
-                                                                        <Input
-                                                                            type="number"
-                                                                            min={0}
-                                                                            max={100}
-                                                                            value={pattern.priority}
-                                                                            className="mx-auto w-16 text-center text-xs"
-                                                                            aria-label={`${idType.name} ${pattern.type} pattern priority`}
-                                                                            onChange={(e) => {
-                                                                                setData(
-                                                                                    'identifierTypes',
-                                                                                    data.identifierTypes.map((it, i) =>
-                                                                                        i === typeIndex
-                                                                                            ? {
-                                                                                                  ...it,
-                                                                                                  patterns: it.patterns.map((p, pi) =>
-                                                                                                      pi === patternIndex
-                                                                                                          ? { ...p, priority: Number(e.target.value) }
-                                                                                                          : p,
-                                                                                                  ),
-                                                                                              }
-                                                                                            : it,
-                                                                                    ),
-                                                                                );
-                                                                            }}
-                                                                        />
-                                                                    </TableCell>
-                                                                    <TableCell />
-                                                                </TableRow>
-                                                            ))}
+                                                        {isExpanded && (
+                                                            <TableRow className="bg-muted/50">
+                                                                <TableCell />
+                                                                <TableCell colSpan={6} className="p-2">
+                                                                    <Table>
+                                                                        <TableHeader>
+                                                                            <TableRow>
+                                                                                <TableHead className="text-xs">Type</TableHead>
+                                                                                <TableHead className="text-xs">Pattern</TableHead>
+                                                                                <TableHead className="text-center text-xs">Active</TableHead>
+                                                                                <TableHead className="text-center text-xs">Priority</TableHead>
+                                                                            </TableRow>
+                                                                        </TableHeader>
+                                                                        <TableBody>
+                                                                            {idType.patterns.map((pattern, patternIndex) => (
+                                                                                <TableRow key={`pattern-${pattern.id}`}>
+                                                                                    <TableCell className="text-xs text-muted-foreground">
+                                                                                        {pattern.type}
+                                                                                    </TableCell>
+                                                                                    <TableCell>
+                                                                                        <Input
+                                                                                            value={pattern.pattern}
+                                                                                            className="font-mono text-xs"
+                                                                                            aria-label={`${idType.name} ${pattern.type} pattern`}
+                                                                                            onChange={(e) => {
+                                                                                                setData(
+                                                                                                    'identifierTypes',
+                                                                                                    data.identifierTypes.map((it, i) =>
+                                                                                                        i === typeIndex
+                                                                                                            ? {
+                                                                                                                  ...it,
+                                                                                                                  patterns: it.patterns.map((p, pi) =>
+                                                                                                                      pi === patternIndex
+                                                                                                                          ? { ...p, pattern: e.target.value }
+                                                                                                                          : p,
+                                                                                                                  ),
+                                                                                                              }
+                                                                                                            : it,
+                                                                                                    ),
+                                                                                                );
+                                                                                            }}
+                                                                                        />
+                                                                                    </TableCell>
+                                                                                    <TableCell className="text-center">
+                                                                                        <Checkbox
+                                                                                            checked={pattern.is_active}
+                                                                                            aria-label={`${idType.name} ${pattern.type} pattern active`}
+                                                                                            onCheckedChange={(checked) => {
+                                                                                                setData(
+                                                                                                    'identifierTypes',
+                                                                                                    data.identifierTypes.map((it, i) =>
+                                                                                                        i === typeIndex
+                                                                                                            ? {
+                                                                                                                  ...it,
+                                                                                                                  patterns: it.patterns.map((p, pi) =>
+                                                                                                                      pi === patternIndex
+                                                                                                                          ? { ...p, is_active: checked === true }
+                                                                                                                          : p,
+                                                                                                                  ),
+                                                                                                              }
+                                                                                                            : it,
+                                                                                                    ),
+                                                                                                );
+                                                                                            }}
+                                                                                        />
+                                                                                    </TableCell>
+                                                                                    <TableCell className="text-center">
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            min={0}
+                                                                                            max={100}
+                                                                                            value={pattern.priority}
+                                                                                            className="mx-auto w-16 text-center text-xs"
+                                                                                            aria-label={`${idType.name} ${pattern.type} pattern priority`}
+                                                                                            onChange={(e) => {
+                                                                                                setData(
+                                                                                                    'identifierTypes',
+                                                                                                    data.identifierTypes.map((it, i) =>
+                                                                                                        i === typeIndex
+                                                                                                            ? {
+                                                                                                                  ...it,
+                                                                                                                  patterns: it.patterns.map((p, pi) =>
+                                                                                                                      pi === patternIndex
+                                                                                                                          ? { ...p, priority: Number(e.target.value) }
+                                                                                                                          : p,
+                                                                                                                  ),
+                                                                                                              }
+                                                                                                            : it,
+                                                                                                    ),
+                                                                                                );
+                                                                                            }}
+                                                                                        />
+                                                                                    </TableCell>
+                                                                                </TableRow>
+                                                                            ))}
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
                                                     </Fragment>
                                                 );
                                             })}

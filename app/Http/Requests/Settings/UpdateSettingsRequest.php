@@ -148,6 +148,20 @@ class UpdateSettingsRequest extends FormRequest
                         "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
                         'This pattern already exists for this identifier type and type.'
                     );
+                } else {
+                    $existsInDb = DB::table('identifier_type_patterns')
+                        ->where('identifier_type_id', $identifierType['id'])
+                        ->where('type', $row->type)
+                        ->where('pattern', $pattern['pattern'])
+                        ->where('id', '!=', $pattern['id'])
+                        ->exists();
+
+                    if ($existsInDb) {
+                        $validator->errors()->add(
+                            "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
+                            'This pattern already exists for this identifier type and type.'
+                        );
+                    }
                 }
                 $seen[$key] = true;
             }
