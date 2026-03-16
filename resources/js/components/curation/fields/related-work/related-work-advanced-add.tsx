@@ -104,7 +104,7 @@ export default function RelatedWorkAdvancedAdd({
                 <Label className="text-base font-semibold">Advanced Mode</Label>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                    <p>Browse {filteredRelationTypes.length} active DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
+                    <p>Browse {filteredRelationTypes.length}{activeRelationTypes ? ' active' : ''} DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
                 </div>
             </div>
 

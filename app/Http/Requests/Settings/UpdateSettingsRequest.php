@@ -125,6 +125,25 @@ class UpdateSettingsRequest extends FormRequest
             ->get(['id', 'identifier_type_id', 'type'])
             ->keyBy('id');
 
+        $identifierTypeIds = array_unique(array_column($identifierTypes, 'id'));
+        $existingPatterns = DB::table('identifier_type_patterns')
+            ->whereIn('identifier_type_id', $identifierTypeIds)
+            ->get(['id', 'identifier_type_id', 'type', 'pattern']);
+
+        /** @var array<int, array<string, int>> $existingByTypeKey */
+        $existingByTypeKey = [];
+        foreach ($existingPatterns as $ep) {
+            $key = $ep->identifier_type_id . '|' . $ep->type . '|' . $ep->pattern;
+            $existingByTypeKey[$ep->id] = $key;
+        }
+
+        /** @var array<string, int> $existingKeyToId */
+        $existingKeyToId = [];
+        foreach ($existingPatterns as $ep) {
+            $key = $ep->identifier_type_id . '|' . $ep->type . '|' . $ep->pattern;
+            $existingKeyToId[$key] = (int) $ep->id;
+        }
+
         foreach ($identifierTypes as $itIndex => $identifierType) {
             /** @var array<string, true> $seen */
             $seen = [];
@@ -149,14 +168,10 @@ class UpdateSettingsRequest extends FormRequest
                         'This pattern already exists for this identifier type and type.'
                     );
                 } else {
-                    $existsInDb = DB::table('identifier_type_patterns')
-                        ->where('identifier_type_id', $identifierType['id'])
-                        ->where('type', $row->type)
-                        ->where('pattern', $pattern['pattern'])
-                        ->where('id', '!=', $pattern['id'])
-                        ->exists();
+                    $dbKey = $identifierType['id'] . '|' . $row->type . '|' . $pattern['pattern'];
+                    $existingId = $existingKeyToId[$dbKey] ?? null;
 
-                    if ($existsInDb) {
+                    if ($existingId !== null && $existingId !== (int) $pattern['id']) {
                         $validator->errors()->add(
                             "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
                             'This pattern already exists for this identifier type and type.'
