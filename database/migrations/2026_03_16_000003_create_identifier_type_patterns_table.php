@@ -14,7 +14,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('identifier_type_id')->constrained()->cascadeOnDelete();
             $table->enum('type', ['validation', 'detection']);
-            $table->string('pattern', 1024);
+            $table->string('pattern', 500);
             $table->boolean('is_active')->default(true);
             $table->unsignedSmallInteger('priority')->default(0);
             $table->timestamps();

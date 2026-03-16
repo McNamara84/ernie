@@ -11,7 +11,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('identifier_type_patterns', function (Blueprint $table): void {
-            $table->string('pattern', 500)->change();
             $table->unique(['identifier_type_id', 'type', 'pattern'], 'identifier_type_patterns_unique');
         });
     }
@@ -20,7 +19,6 @@ return new class extends Migration
     {
         Schema::table('identifier_type_patterns', function (Blueprint $table): void {
             $table->dropUnique('identifier_type_patterns_unique');
-            $table->string('pattern', 1024)->change();
         });
     }
 };

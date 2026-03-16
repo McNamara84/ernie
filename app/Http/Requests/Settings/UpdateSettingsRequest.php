@@ -9,7 +9,9 @@ use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateSettingsRequest extends FormRequest
 {
@@ -93,5 +95,52 @@ class UpdateSettingsRequest extends FormRequest
             'identifierTypes.*.patterns.*.is_active' => ['required', 'boolean'],
             'identifierTypes.*.patterns.*.priority' => ['required', 'integer', 'min:0', 'max:100'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $this->validateUniquePatterns($validator);
+        });
+    }
+
+    private function validateUniquePatterns(Validator $validator): void
+    {
+        /** @var array<int, array{id: int, patterns?: array<int, array{id: int, pattern: string}>}> $identifierTypes */
+        $identifierTypes = $this->input('identifierTypes', []);
+
+        $allPatternIds = [];
+        foreach ($identifierTypes as $identifierType) {
+            foreach ($identifierType['patterns'] ?? [] as $pattern) {
+                $allPatternIds[] = $pattern['id'];
+            }
+        }
+
+        if ($allPatternIds === []) {
+            return;
+        }
+
+        $patternTypes = DB::table('identifier_type_patterns')
+            ->whereIn('id', $allPatternIds)
+            ->pluck('type', 'id');
+
+        foreach ($identifierTypes as $itIndex => $identifierType) {
+            /** @var array<string, true> $seen */
+            $seen = [];
+            foreach ($identifierType['patterns'] ?? [] as $pIndex => $pattern) {
+                $type = $patternTypes[$pattern['id']] ?? null;
+                if ($type === null) {
+                    continue;
+                }
+                $key = $type . '|' . $pattern['pattern'];
+                if (isset($seen[$key])) {
+                    $validator->errors()->add(
+                        "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
+                        'This pattern already exists for this identifier type and category.'
+                    );
+                }
+                $seen[$key] = true;
+            }
+        }
     }
 }

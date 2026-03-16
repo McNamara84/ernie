@@ -499,10 +499,10 @@
             "get": {
                 "tags": ["Editor Configuration"],
                 "summary": "List all identifier types with patterns",
-                "description": "Returns all DataCite identifier types defined in the system with their validation and detection regex patterns, regardless of activation status. No authentication required.",
+                "description": "Returns all DataCite identifier types defined in the system with    their active validation and detection regex patterns. Only patterns that are currently active are included. No authentication required.",
                 "responses": {
                     "200": {
-                        "description": "List of all identifier types with patterns",
+                        "description": "List of all identifier types with active patterns",
                         "content": {
                             "application/json": {
                                 "schema": {

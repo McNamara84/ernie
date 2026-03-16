@@ -88,7 +88,7 @@ entity "identifier_type_patterns" as identifier_type_patterns {
     --
     * identifier_type_id : BIGINT <<FK>>
     * type : ENUM //validation|detection//
-    * pattern : VARCHAR(1024)
+    * pattern : VARCHAR(500)
     * is_active : BOOLEAN
     * priority : SMALLINT
     created_at : TIMESTAMP

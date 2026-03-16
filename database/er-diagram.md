@@ -70,7 +70,7 @@ erDiagram
         bigint id PK
         bigint identifier_type_id FK
         enum type "validation|detection"
-        varchar(1024) pattern
+        varchar(500) pattern
         boolean is_active
         smallint priority
         timestamp created_at
