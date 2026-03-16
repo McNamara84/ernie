@@ -78,6 +78,19 @@ entity "identifier_types" as identifier_types {
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
+    * is_elmo_active : BOOLEAN
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "identifier_type_patterns" as identifier_type_patterns {
+    * **id** : BIGINT <<PK>>
+    --
+    * identifier_type_id : BIGINT <<FK>>
+    * type : ENUM //validation|detection//
+    * pattern : VARCHAR(1024)
+    * is_active : BOOLEAN
+    * priority : SMALLINT
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -88,6 +101,7 @@ entity "relation_types" as relation_types {
     * name : VARCHAR
     * slug : VARCHAR <<UK>>
     * is_active : BOOLEAN
+    * is_elmo_active : BOOLEAN
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -674,6 +688,7 @@ resource_contributors ||--o{ rc_ct
 rc_ct }o--|| contributor_types
 related_identifiers }o--|| identifier_types
 related_identifiers }o--|| relation_types
+identifier_type_patterns }o--|| identifier_types
 funding_references }o--o| funder_identifier_types
 
 ' Rights pivot
