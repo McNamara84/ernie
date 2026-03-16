@@ -199,6 +199,10 @@ export interface DataCiteFormProps {
     initialInstruments?: InstrumentSelection[];
     /** Optional: Whether the current user is an admin (used for DOI editing permissions) */
     isUserAdmin?: boolean;
+    /** Active relation type slugs from the backend (only these are shown in the editor) */
+    activeRelationTypes?: string[];
+    /** Active identifier type slugs from the backend (only these are shown in the editor) */
+    activeIdentifierTypes?: string[];
 }
 
 // ============================================================================

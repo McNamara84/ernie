@@ -77,6 +77,21 @@ class UpdateSettingsRequest extends FormRequest
             'contributorBothRoles.*.active' => ['required', 'boolean'],
             'contributorBothRoles.*.elmo_active' => ['required', 'boolean'],
             'contributorBothRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
+            // Relation types (optional)
+            'relationTypes' => ['sometimes', 'array'],
+            'relationTypes.*.id' => ['required', 'integer', 'exists:relation_types,id'],
+            'relationTypes.*.active' => ['required', 'boolean'],
+            'relationTypes.*.elmo_active' => ['required', 'boolean'],
+            // Identifier types with patterns (optional)
+            'identifierTypes' => ['sometimes', 'array'],
+            'identifierTypes.*.id' => ['required', 'integer', 'exists:identifier_types,id'],
+            'identifierTypes.*.active' => ['required', 'boolean'],
+            'identifierTypes.*.elmo_active' => ['required', 'boolean'],
+            'identifierTypes.*.patterns' => ['sometimes', 'array'],
+            'identifierTypes.*.patterns.*.id' => ['required', 'integer', 'exists:identifier_type_patterns,id'],
+            'identifierTypes.*.patterns.*.pattern' => ['required', 'string', 'max:1024'],
+            'identifierTypes.*.patterns.*.is_active' => ['required', 'boolean'],
+            'identifierTypes.*.patterns.*.priority' => ['required', 'integer', 'min:0', 'max:100'],
         ];
     }
 }

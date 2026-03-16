@@ -39,6 +39,8 @@ function detectIdentifierType(identifier: string): IdentifierType {
 interface RelatedWorkCsvImportProps {
     onImport: (data: RelatedIdentifierFormData[]) => void;
     onClose: () => void;
+    activeRelationTypes?: string[];
+    activeIdentifierTypes?: string[];
 }
 
 interface CsvRow {
@@ -63,7 +65,7 @@ interface ValidationError {
  * - Preview of parsed data
  * - Example CSV template download
  */
-export default function RelatedWorkCsvImport({ onImport, onClose }: RelatedWorkCsvImportProps) {
+export default function RelatedWorkCsvImport({ onImport, onClose, activeRelationTypes, activeIdentifierTypes }: RelatedWorkCsvImportProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -72,7 +74,7 @@ export default function RelatedWorkCsvImport({ onImport, onClose }: RelatedWorkC
     const [parsedData, setParsedData] = useState<RelatedIdentifierFormData[]>([]);
 
     const parseCSV = useCallback(async (csvFile: File) => {
-        const validIdentifierTypes = [
+        const defaultIdentifierTypes = [
             'DOI',
             'URL',
             'Handle',
@@ -94,7 +96,7 @@ export default function RelatedWorkCsvImport({ onImport, onClose }: RelatedWorkC
             'w3id',
         ];
 
-        const validRelationTypes = [
+        const defaultRelationTypes = [
             'Cites',
             'IsCitedBy',
             'References',
@@ -130,6 +132,9 @@ export default function RelatedWorkCsvImport({ onImport, onClose }: RelatedWorkC
             'IsRequiredBy',
             'Requires',
         ];
+
+        const validIdentifierTypes = activeIdentifierTypes ?? defaultIdentifierTypes;
+        const validRelationTypes = activeRelationTypes ?? defaultRelationTypes;
 
         setIsProcessing(true);
         setErrors([]);
@@ -277,7 +282,7 @@ export default function RelatedWorkCsvImport({ onImport, onClose }: RelatedWorkC
         } finally {
             setIsProcessing(false);
         }
-    }, []);
+    }, [activeRelationTypes, activeIdentifierTypes]);
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];

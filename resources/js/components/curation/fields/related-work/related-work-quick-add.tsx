@@ -1,5 +1,5 @@
 import { Info, Lightbulb, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ interface RelatedWorkQuickAddProps {
     identifierType: IdentifierType;
     relationType: RelationType;
     onRelationTypeChange: (value: RelationType) => void;
+    activeRelationTypes?: string[];
 }
 
 /**
@@ -41,8 +42,18 @@ export default function RelatedWorkQuickAdd({
     identifierType,
     relationType,
     onRelationTypeChange,
+    activeRelationTypes,
 }: RelatedWorkQuickAddProps) {
     const [showSuggestion, setShowSuggestion] = useState(false);
+
+    // Filter most-used relation types to only show active ones
+    const filteredRelationTypes = useMemo(
+        () =>
+            activeRelationTypes
+                ? MOST_USED_RELATION_TYPES.filter((t) => activeRelationTypes.includes(t))
+                : MOST_USED_RELATION_TYPES,
+        [activeRelationTypes],
+    );
 
     // Validate identifier with API
     const validation = useIdentifierValidation({
@@ -173,7 +184,7 @@ export default function RelatedWorkQuickAdd({
                         </SelectTrigger>
                         <SelectContent>
                             <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
-                            {MOST_USED_RELATION_TYPES.map((type) => (
+                            {filteredRelationTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
                                         <span>{type}</span>

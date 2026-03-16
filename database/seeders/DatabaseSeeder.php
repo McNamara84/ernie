@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             DescriptionTypeSeeder::class,
             ContributorTypeSeeder::class,
             IdentifierTypeSeeder::class,
+            IdentifierTypePatternSeeder::class,
             RelationTypeSeeder::class,
             FunderIdentifierTypeSeeder::class,
             LanguageSeeder::class,

@@ -46,6 +46,8 @@ interface EditorProps {
     fundingReferences?: FundingReferenceEntry[];
     mslLaboratories?: MSLLaboratory[];
     instruments?: InstrumentSelection[];
+    activeRelationTypes?: string[];
+    activeIdentifierTypes?: string[];
 }
 
 export default function Editor({
@@ -72,6 +74,8 @@ export default function Editor({
     fundingReferences = [],
     mslLaboratories = [],
     instruments = [],
+    activeRelationTypes,
+    activeIdentifierTypes,
 }: EditorProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -245,6 +249,8 @@ export default function Editor({
                             initialMslLaboratories={mslLaboratories}
                             initialInstruments={instruments}
                             isUserAdmin={isUserAdmin}
+                            activeRelationTypes={activeRelationTypes}
+                            activeIdentifierTypes={activeIdentifierTypes}
                         />
                     )}
             </div>

@@ -108,6 +108,8 @@ export default function DataCiteForm({
     initialRelatedWorks = [],
     initialFundingReferences = [],
     isUserAdmin,
+    activeRelationTypes,
+    activeIdentifierTypes,
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -2416,7 +2418,12 @@ export default function DataCiteForm({
                             tooltip="DOIs, URLs, and Handles supported. Use Quick Add for common relation types."
                             counter={{ current: relatedWorks.length, max: 100 }}
                         />
-                        <RelatedWorkField relatedWorks={relatedWorks} onChange={setRelatedWorks} />
+                        <RelatedWorkField
+                            relatedWorks={relatedWorks}
+                            onChange={setRelatedWorks}
+                            activeRelationTypes={activeRelationTypes}
+                            activeIdentifierTypes={activeIdentifierTypes}
+                        />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="used-instruments" data-testid="used-instruments-section">

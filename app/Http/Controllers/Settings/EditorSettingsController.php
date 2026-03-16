@@ -10,9 +10,11 @@ use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\IdentifierType;
 use App\Models\LandingPageDomain;
 use App\Models\Language;
 use App\Models\PidSetting;
+use App\Models\RelationType;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Setting;
@@ -134,6 +136,32 @@ class EditorSettingsController extends Controller
         $contributorBothRoles = ContributorType::where('category', ContributorCategory::BOTH)
             ->orderBy('name')->get()->map($contributorTypeMapper);
 
+        $relationTypes = RelationType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
+            'id' => $r->id,
+            'name' => $r->name,
+            'slug' => $r->slug,
+            'active' => $r->is_active,
+            'elmo_active' => $r->is_elmo_active,
+        ]);
+
+        $identifierTypes = IdentifierType::with(['patterns' => fn ($q) => $q->orderByDesc('priority')])
+            ->orderBy('id')
+            ->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])
+            ->map(fn ($it) => [
+                'id' => $it->id,
+                'name' => $it->name,
+                'slug' => $it->slug,
+                'active' => $it->is_active,
+                'elmo_active' => $it->is_elmo_active,
+                'patterns' => $it->patterns->map(fn ($p) => [
+                    'id' => $p->id,
+                    'type' => $p->type,
+                    'pattern' => $p->pattern,
+                    'is_active' => $p->is_active,
+                    'priority' => $p->priority,
+                ])->toArray(),
+            ]);
+
         return Inertia::render('settings/index', [
             'resourceTypes' => $resourceTypes,
             'titleTypes' => $titleTypes,
@@ -149,6 +177,8 @@ class EditorSettingsController extends Controller
             'contributorPersonRoles' => $contributorPersonRoles,
             'contributorInstitutionRoles' => $contributorInstitutionRoles,
             'contributorBothRoles' => $contributorBothRoles,
+            'relationTypes' => $relationTypes,
+            'identifierTypes' => $identifierTypes,
         ]);
     }
 
@@ -323,6 +353,49 @@ class EditorSettingsController extends Controller
                             'category' => $role['category'],
                             'updated_at' => $now,
                         ]);
+                }
+            }
+
+            // Update relation types
+            if (isset($validated['relationTypes'])) {
+                /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $relationTypes */
+                $relationTypes = $validated['relationTypes'];
+                foreach ($relationTypes as $type) {
+                    DB::table('relation_types')
+                        ->where('id', $type['id'])
+                        ->update([
+                            'is_active' => $type['active'],
+                            'is_elmo_active' => $type['elmo_active'],
+                            'updated_at' => $now,
+                        ]);
+                }
+            }
+
+            // Update identifier types with patterns
+            if (isset($validated['identifierTypes'])) {
+                /** @var array<int, array{id: int, active: bool, elmo_active: bool, patterns?: array<int, array{id: int, pattern: string, is_active: bool, priority: int}>}> $identifierTypes */
+                $identifierTypes = $validated['identifierTypes'];
+                foreach ($identifierTypes as $type) {
+                    DB::table('identifier_types')
+                        ->where('id', $type['id'])
+                        ->update([
+                            'is_active' => $type['active'],
+                            'is_elmo_active' => $type['elmo_active'],
+                            'updated_at' => $now,
+                        ]);
+
+                    if (isset($type['patterns'])) {
+                        foreach ($type['patterns'] as $pattern) {
+                            DB::table('identifier_type_patterns')
+                                ->where('id', $pattern['id'])
+                                ->update([
+                                    'pattern' => $pattern['pattern'],
+                                    'is_active' => $pattern['is_active'],
+                                    'priority' => $pattern['priority'],
+                                    'updated_at' => $now,
+                                ]);
+                        }
+                    }
                 }
             }
         });
