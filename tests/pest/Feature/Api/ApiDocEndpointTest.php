@@ -17,7 +17,7 @@ it('renders the API documentation with Swagger UI', function () {
 it('returns the OpenAPI documentation as JSON', function () {
     getJson('/api/v1/doc')
         ->assertOk()
-        ->assertJsonPath('openapi', '3.2.0')
+        ->assertJsonPath('openapi', '3.1.0')
         ->assertJsonPath('tags.0.name', 'Editor Configuration')
         ->assertJsonPath('tags.1.name', 'Vocabularies')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.tags.0', 'Editor Configuration')

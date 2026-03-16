@@ -1465,6 +1465,7 @@ export default function EditorSettings({
                                                                         <Input
                                                                             value={pattern.pattern}
                                                                             className="font-mono text-xs"
+                                                                            aria-label={`${idType.name} ${pattern.type} pattern`}
                                                                             onChange={(e) => {
                                                                                 setData(
                                                                                     'identifierTypes',
@@ -1487,6 +1488,7 @@ export default function EditorSettings({
                                                                     <TableCell className="text-center">
                                                                         <Checkbox
                                                                             checked={pattern.is_active}
+                                                                            aria-label={`${idType.name} ${pattern.type} pattern active`}
                                                                             onCheckedChange={(checked) => {
                                                                                 setData(
                                                                                     'identifierTypes',
@@ -1513,6 +1515,7 @@ export default function EditorSettings({
                                                                             max={100}
                                                                             value={pattern.priority}
                                                                             className="mx-auto w-16 text-center text-xs"
+                                                                            aria-label={`${idType.name} ${pattern.type} pattern priority`}
                                                                             onChange={(e) => {
                                                                                 setData(
                                                                                     'identifierTypes',
