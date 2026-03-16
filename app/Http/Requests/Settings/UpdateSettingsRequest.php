@@ -130,13 +130,6 @@ class UpdateSettingsRequest extends FormRequest
             ->whereIn('identifier_type_id', $identifierTypeIds)
             ->get(['id', 'identifier_type_id', 'type', 'pattern']);
 
-        /** @var array<int, array<string, int>> $existingByTypeKey */
-        $existingByTypeKey = [];
-        foreach ($existingPatterns as $ep) {
-            $key = $ep->identifier_type_id . '|' . $ep->type . '|' . $ep->pattern;
-            $existingByTypeKey[$ep->id] = $key;
-        }
-
         /** @var array<string, int> $existingKeyToId */
         $existingKeyToId = [];
         foreach ($existingPatterns as $ep) {
