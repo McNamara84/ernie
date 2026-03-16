@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\DescriptionType;
 use App\Models\ThesaurusSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -232,6 +233,12 @@ describe('EditorSettings with Thesauri', function () {
             'slug' => 'Created',
             'is_active' => true,
         ]);
+        $descType = DescriptionType::create([
+            'name' => 'Abstract',
+            'slug' => 'Abstract',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]);
 
         $user = User::factory()->admin()->create();
 
@@ -252,6 +259,9 @@ describe('EditorSettings with Thesauri', function () {
             ],
             'dateTypes' => [
                 ['id' => $dateType->id, 'active' => true],
+            ],
+            'descriptionTypes' => [
+                ['id' => $descType->id, 'active' => true, 'elmo_active' => true],
             ],
             'maxTitles' => 10,
             'maxLicenses' => 10,

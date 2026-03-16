@@ -5,7 +5,7 @@
  * Extracted from datacite-form.tsx for better maintainability.
  */
 
-import type { DateType, InstrumentSelection, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type { DateType, DescriptionType, InstrumentSelection, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 
 import type { FundingReferenceEntry } from '../fields/funding-reference';
 import type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
@@ -153,6 +153,7 @@ export interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
     dateTypes: DateType[];
+    descriptionTypes: DescriptionType[];
     licenses: License[];
     languages: Language[];
     contributorPersonRoles?: Role[];

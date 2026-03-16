@@ -78,6 +78,7 @@ export default function DataCiteForm({
     resourceTypes,
     titleTypes,
     dateTypes,
+    descriptionTypes,
     licenses,
     languages,
     contributorPersonRoles = [],
@@ -2237,6 +2238,7 @@ export default function DataCiteForm({
                         <DescriptionField
                             descriptions={descriptions}
                             onChange={handleDescriptionChange}
+                            availableTypes={descriptionTypes}
                             abstractValidationMessages={getFieldMessages('abstract')}
                             abstractTouched={getFieldState('abstract').touched}
                             onAbstractValidationBlur={() => markFieldTouched('abstract')}

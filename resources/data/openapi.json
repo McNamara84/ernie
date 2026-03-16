@@ -227,6 +227,80 @@
                 }
             }
         },
+        "/api/v1/description-types": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List all description types",
+                "description": "Returns all description types defined in the system, regardless of their activation status. No authentication required.",
+                "responses": {
+                    "200": {
+                        "description": "List of all description types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DescriptionType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/description-types/elmo": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List description types enabled for ELMO",
+                "description": "Returns all description types that are enabled for ELMO (both `is_active` and `is_elmo_active` must be true). Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of description types enabled for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DescriptionType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/description-types/ernie": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List description types enabled for ERNIE",
+                "description": "Returns all description types that are active for the ERNIE editor. No authentication required.",
+                "responses": {
+                    "200": {
+                        "description": "List of active description types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DescriptionType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/languages/elmo": {
             "get": {
                 "tags": ["Editor Configuration"],
@@ -870,6 +944,26 @@
                     }
                 },
                 "required": ["id", "name", "slug", "description"]
+            },
+            "DescriptionType": {
+                "type": "object",
+                "description": "A description type for categorizing resource descriptions according to DataCite schema 4.7",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Abstract"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "Abstract"
+                    }
+                },
+                "required": ["id", "name", "slug"]
             },
             "License": {
                 "type": "object",

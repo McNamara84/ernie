@@ -45,6 +45,10 @@ class UpdateSettingsRequest extends FormRequest
             'dateTypes' => ['required', 'array'],
             'dateTypes.*.id' => ['required', 'integer', 'exists:date_types,id'],
             'dateTypes.*.active' => ['required', 'boolean'],
+            'descriptionTypes' => ['required', 'array'],
+            'descriptionTypes.*.id' => ['required', 'integer', 'exists:description_types,id'],
+            'descriptionTypes.*.active' => ['required', 'boolean'],
+            'descriptionTypes.*.elmo_active' => ['required', 'boolean'],
             'maxTitles' => ['required', 'integer', 'min:1'],
             'maxLicenses' => ['required', 'integer', 'min:1'],
             // Thesaurus settings (optional - only sent when thesauri card is present)
