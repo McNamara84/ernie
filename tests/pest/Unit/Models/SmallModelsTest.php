@@ -222,7 +222,7 @@ describe('IdentifierType', function () {
     it('has correct fillable fields', function () {
         $model = new IdentifierType;
 
-        expect($model->getFillable())->toBe(['name', 'slug', 'is_active']);
+        expect($model->getFillable())->toBe(['name', 'slug', 'is_active', 'is_elmo_active']);
     });
 
     it('casts is_active to boolean', function () {
@@ -253,7 +253,7 @@ describe('RelationType', function () {
     it('has correct fillable fields', function () {
         $model = new RelationType;
 
-        expect($model->getFillable())->toBe(['name', 'slug', 'is_active']);
+        expect($model->getFillable())->toBe(['name', 'slug', 'is_active', 'is_elmo_active']);
     });
 
     it('casts is_active to boolean', function () {
