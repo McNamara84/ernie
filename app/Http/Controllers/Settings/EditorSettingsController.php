@@ -388,6 +388,7 @@ class EditorSettingsController extends Controller
                         foreach ($type['patterns'] as $pattern) {
                             DB::table('identifier_type_patterns')
                                 ->where('id', $pattern['id'])
+                                ->where('identifier_type_id', $type['id'])
                                 ->update([
                                     'pattern' => $pattern['pattern'],
                                     'is_active' => $pattern['is_active'],

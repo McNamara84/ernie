@@ -1,7 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { ChevronDown, ChevronRight, Globe, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 
 import { type ContributorRoleRow, ContributorRolesCard } from '@/components/settings/contributor-roles-card';
@@ -1380,8 +1380,8 @@ export default function EditorSettings({
                                             {data.identifierTypes.map((idType, typeIndex) => {
                                                 const isExpanded = expandedIdentifierTypes.has(idType.id);
                                                 return (
-                                                    <>
-                                                        <TableRow key={idType.id}>
+                                                    <Fragment key={idType.id}>
+                                                        <TableRow>
                                                             <TableCell>
                                                                 {idType.patterns.length > 0 && (
                                                                     <Button
@@ -1535,7 +1535,7 @@ export default function EditorSettings({
                                                                     <TableCell />
                                                                 </TableRow>
                                                             ))}
-                                                    </>
+                                                    </Fragment>
                                                 );
                                             })}
                                         </TableBody>

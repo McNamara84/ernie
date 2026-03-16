@@ -88,7 +88,7 @@ class UpdateSettingsRequest extends FormRequest
             'identifierTypes.*.active' => ['required', 'boolean'],
             'identifierTypes.*.elmo_active' => ['required', 'boolean'],
             'identifierTypes.*.patterns' => ['sometimes', 'array'],
-            'identifierTypes.*.patterns.*.id' => ['required', 'integer', 'exists:identifier_type_patterns,id'],
+            'identifierTypes.*.patterns.*.id' => ['required', 'integer'],
             'identifierTypes.*.patterns.*.pattern' => ['required', 'string', 'max:1024'],
             'identifierTypes.*.patterns.*.is_active' => ['required', 'boolean'],
             'identifierTypes.*.patterns.*.priority' => ['required', 'integer', 'min:0', 'max:100'],
