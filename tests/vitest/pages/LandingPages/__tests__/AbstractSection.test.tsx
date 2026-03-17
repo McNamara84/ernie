@@ -143,6 +143,44 @@ describe('AbstractSection', () => {
         });
     });
 
+    describe('methods section', () => {
+        it('renders methods section when methods description exists', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[
+                        createDescription(),
+                        createDescription({ id: 2, value: 'Seismic reflection profiling was used.', description_type: 'Methods' }),
+                    ]}
+                />
+            );
+
+            expect(screen.getByTestId('methods-section')).toBeInTheDocument();
+            expect(screen.getByText('Methods')).toBeInTheDocument();
+            expect(screen.getByTestId('methods-text')).toHaveTextContent('Seismic reflection profiling was used.');
+        });
+
+        it('does not render methods section when no methods description exists', () => {
+            render(<AbstractSection {...defaultProps} />);
+
+            expect(screen.queryByTestId('methods-section')).not.toBeInTheDocument();
+        });
+
+        it('finds methods case-insensitively', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[
+                        createDescription(),
+                        createDescription({ id: 2, value: 'Some methods.', description_type: 'METHODS' }),
+                    ]}
+                />
+            );
+
+            expect(screen.getByTestId('methods-section')).toBeInTheDocument();
+        });
+    });
+
     describe('creators section', () => {
         it('renders creators section when creators exist', () => {
             render(
@@ -255,6 +293,147 @@ describe('AbstractSection', () => {
             
             expect(screen.getByText('Doe, John')).toBeInTheDocument();
             expect(screen.getByText('Smith, Jane')).toBeInTheDocument();
+        });
+    });
+
+    describe('contributors section', () => {
+        const createContributor = (overrides: Partial<{
+            id: number;
+            position: number;
+            contributor_types: string[];
+            affiliations: Array<{ id: number; name: string; affiliation_identifier: string | null; affiliation_identifier_scheme: string | null }>;
+            contributorable: {
+                type: string;
+                id: number;
+                given_name?: string;
+                family_name?: string;
+                name_identifier?: string;
+                name_identifier_scheme?: string;
+                name?: string;
+            };
+        }> = {}) => ({
+            id: 1,
+            position: 1,
+            contributor_types: [],
+            affiliations: [],
+            contributorable: {
+                type: 'Person',
+                id: 1,
+                given_name: 'Alice',
+                family_name: 'Wonder',
+            },
+            ...overrides,
+        });
+
+        it('renders contributors section when contributors exist', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor()]}
+                />
+            );
+
+            expect(screen.getByTestId('contributors-section')).toBeInTheDocument();
+            expect(screen.getByText('Contributors')).toBeInTheDocument();
+        });
+
+        it('does not render contributors section when no contributors', () => {
+            render(<AbstractSection {...defaultProps} />);
+
+            expect(screen.queryByTestId('contributors-section')).not.toBeInTheDocument();
+        });
+
+        it('displays person contributor with family name, given name format', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor()]}
+                />
+            );
+
+            expect(screen.getByText('Wonder, Alice')).toBeInTheDocument();
+        });
+
+        it('displays institution contributor with name', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        contributorable: {
+                            type: 'Institution',
+                            id: 1,
+                            name: 'Helmholtz Centre Potsdam',
+                        },
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('Helmholtz Centre Potsdam')).toBeInTheDocument();
+        });
+
+        it('renders ORCID link for contributor with ORCID', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        contributorable: {
+                            type: 'Person',
+                            id: 1,
+                            given_name: 'Alice',
+                            family_name: 'Wonder',
+                            name_identifier: '0000-0001-2345-6789',
+                            name_identifier_scheme: 'ORCID',
+                        },
+                    })]}
+                />
+            );
+
+            const orcidLink = screen.getByRole('link', { name: /ORCID/i });
+            expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0001-2345-6789');
+            expect(orcidLink).toHaveAttribute('target', '_blank');
+        });
+
+        it('renders affiliation with ROR link for contributor', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        affiliations: [createAffiliation({
+                            name: 'GFZ Potsdam',
+                            affiliation_identifier: 'https://ror.org/04z8jg394',
+                            affiliation_identifier_scheme: 'ROR',
+                        })],
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
+            const rorLink = screen.getByRole('link', { name: /ROR/i });
+            expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
+        });
+
+        it('displays contributor types in brackets', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        contributor_types: ['DataCollector', 'ProjectLeader'],
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('(DataCollector, ProjectLeader)')).toBeInTheDocument();
+        });
+
+        it('does not display contributor type brackets when no types', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({ contributor_types: [] })]}
+                />
+            );
+
+            expect(screen.queryByText(/^\(.*\)$/)).not.toBeInTheDocument();
         });
     });
 

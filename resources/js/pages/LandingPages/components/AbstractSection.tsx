@@ -90,7 +90,8 @@ function KeywordBadge({ subject }: { subject: Subject }) {
 /**
  * Abstract Section
  *
- * Zeigt die Abstract-Description, Creators, Funders und Subjects an.
+ * Renders the Abstract, Methods (if available), Creators, Contributors,
+ * Funders, Subjects/Keywords, and Download Metadata sections.
  */
 export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId }: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
