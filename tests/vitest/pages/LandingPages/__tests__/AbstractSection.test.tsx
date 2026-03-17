@@ -494,8 +494,8 @@ describe('AbstractSection', () => {
         });
     });
 
-    describe('subjects section - free keywords', () => {
-        it('renders free keywords section when subjects without scheme exist', () => {
+    describe('subjects section - unified keywords', () => {
+        it('renders keywords section with heading "Keywords" when free keywords exist', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -504,21 +504,28 @@ describe('AbstractSection', () => {
             );
             
             expect(screen.getByTestId('subjects-section')).toBeInTheDocument();
-            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
+            expect(screen.getByText('Keywords')).toBeInTheDocument();
         });
 
-        it('does not render free keywords when all subjects have schemes', () => {
+        it('renders keywords section when only thesauri keywords exist', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject_scheme: 'Science Keywords' })]}
+                    subjects={[createSubject({ subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
                 />
             );
+            
+            expect(screen.getByTestId('subjects-section')).toBeInTheDocument();
+            expect(screen.getByText('Keywords')).toBeInTheDocument();
+        });
+
+        it('does not render keywords section when no subjects exist', () => {
+            render(<AbstractSection {...defaultProps} subjects={[]} />);
             
             expect(screen.queryByTestId('subjects-section')).not.toBeInTheDocument();
         });
 
-        it('displays keyword badges', () => {
+        it('displays free keyword badges', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -562,22 +569,42 @@ describe('AbstractSection', () => {
             const link = screen.getByRole('link', { name: /Rock & Soil/i });
             expect(link).toHaveAttribute('href', '/portal?keywords[]=Rock%20%26%20Soil');
         });
-    });
 
-    describe('subjects section - GCMD keywords', () => {
-        it('renders GCMD Science Keywords section', () => {
+        it('renders thesauri keywords as badges', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' }),
+                        createSubject({ id: 2, subject: 'SATELLITES', subject_scheme: 'Platforms' }),
+                        createSubject({ id: 3, subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' }),
+                        createSubject({ id: 4, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' }),
+                    ]}
                 />
             );
             
-            expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
             expect(screen.getByText('EARTH SCIENCE')).toBeInTheDocument();
+            expect(screen.getByText('SATELLITES')).toBeInTheDocument();
+            expect(screen.getByText('GPS RECEIVERS')).toBeInTheDocument();
+            expect(screen.getByText('Rock mechanics')).toBeInTheDocument();
         });
 
-        it('renders GCMD keyword badges as links to the portal', () => {
+        it('renders GEMET and ICS Chronostratigraphic keywords', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' }),
+                        createSubject({ id: 2, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' }),
+                    ]}
+                />
+            );
+            
+            expect(screen.getByText('Air pollution')).toBeInTheDocument();
+            expect(screen.getByText('Cenozoic')).toBeInTheDocument();
+        });
+
+        it('renders thesauri keyword badges as links to the portal', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -590,43 +617,43 @@ describe('AbstractSection', () => {
             expect(link).toHaveAttribute('target', '_blank');
         });
 
-        it('renders GCMD Platforms section', () => {
-            render(
+        it('renders separator when both thesauri and free keywords exist', () => {
+            const { container } = render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'SATELLITES', subject_scheme: 'Platforms' })]}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' }),
+                        createSubject({ id: 2, subject: 'Free Keyword', subject_scheme: null }),
+                    ]}
                 />
             );
             
-            expect(screen.getByText('GCMD Platforms')).toBeInTheDocument();
-            expect(screen.getByText('SATELLITES')).toBeInTheDocument();
+            expect(container.querySelector('hr')).toBeInTheDocument();
         });
 
-        it('renders GCMD Instruments section', () => {
-            render(
+        it('does not render separator when only free keywords exist', () => {
+            const { container } = render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' })]}
+                    subjects={[createSubject({ id: 1, subject: 'Free Keyword', subject_scheme: null })]}
                 />
             );
             
-            expect(screen.getByText('GCMD Instruments')).toBeInTheDocument();
-            expect(screen.getByText('GPS RECEIVERS')).toBeInTheDocument();
+            expect(container.querySelector('hr')).not.toBeInTheDocument();
         });
 
-        it('renders MSL Vocabularies section', () => {
-            render(
+        it('does not render separator when only thesauri keywords exist', () => {
+            const { container } = render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' })]}
+                    subjects={[createSubject({ id: 1, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
                 />
             );
             
-            expect(screen.getByText('MSL Vocabularies')).toBeInTheDocument();
-            expect(screen.getByText('Rock mechanics')).toBeInTheDocument();
+            expect(container.querySelector('hr')).not.toBeInTheDocument();
         });
 
-        it('groups subjects by scheme correctly', () => {
+        it('renders thesauri keywords before free keywords in the DOM', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -640,11 +667,13 @@ describe('AbstractSection', () => {
                 />
             );
             
-            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
-            expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
-            expect(screen.getByText('GCMD Platforms')).toBeInTheDocument();
-            expect(screen.getByText('GCMD Instruments')).toBeInTheDocument();
-            expect(screen.getByText('MSL Vocabularies')).toBeInTheDocument();
+            expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+            expect(screen.getByTestId('keywords-list')).toBeInTheDocument();
+
+            // Thesauri list should come before free keywords list in the DOM
+            const thesauriList = screen.getByTestId('thesauri-keywords-list');
+            const freeList = screen.getByTestId('keywords-list');
+            expect(thesauriList.compareDocumentPosition(freeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
     });
 

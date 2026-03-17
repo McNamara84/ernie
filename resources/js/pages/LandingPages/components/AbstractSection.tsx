@@ -17,18 +17,39 @@ interface AbstractSectionProps {
     resourceId: number;
 }
 
+/** Badge color per thesaurus scheme */
+const SCHEME_COLORS: Record<string, string> = {
+    'Science Keywords': 'bg-blue-600',
+    Platforms: 'bg-emerald-600',
+    Instruments: 'bg-amber-600',
+    'EPOS MSL vocabulary': 'bg-purple-600',
+    'GEMET - GEneral Multilingual Environmental Thesaurus': 'bg-rose-600',
+    'International Chronostratigraphic Chart': 'bg-teal-600',
+};
+
+/** Ordered list of thesaurus schemes for display */
+const THESAURUS_SCHEMES = [
+    'Science Keywords',
+    'Platforms',
+    'Instruments',
+    'EPOS MSL vocabulary',
+    'GEMET - GEneral Multilingual Environmental Thesaurus',
+    'International Chronostratigraphic Chart',
+];
+
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject }: { subject: LandingPageSubject }) {
+function KeywordBadge({ subject, colorClass }: { subject: LandingPageSubject; colorClass?: string }) {
     const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
+    const bgColor = colorClass ?? SCHEME_COLORS[subject.subject_scheme ?? ''] ?? 'bg-gfz-primary';
 
     return (
         <a
             href={portalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground transition-opacity hover:opacity-80"
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-80 ${bgColor}`}
             title={`Search for "${subject.subject}" in the portal`}
         >
             {subject.subject}
@@ -62,12 +83,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
         return null;
     }
 
-    // Group subjects by scheme
+    // Group subjects: thesauri keywords (ordered) vs free keywords
+    const thesauriKeywords = THESAURUS_SCHEMES.flatMap((scheme) => subjects.filter((s) => s.subject_scheme === scheme));
     const freeKeywords = subjects.filter((s) => !s.subject_scheme || s.subject_scheme === '');
-    const gcmdScienceKeywords = subjects.filter((s) => s.subject_scheme === 'Science Keywords');
-    const gcmdPlatforms = subjects.filter((s) => s.subject_scheme === 'Platforms');
-    const gcmdInstruments = subjects.filter((s) => s.subject_scheme === 'Instruments');
-    const mslVocabularies = subjects.filter((s) => s.subject_scheme === 'EPOS MSL vocabulary');
+    const hasAnyKeywords = thesauriKeywords.length > 0 || freeKeywords.length > 0;
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="abstract-section">
@@ -261,63 +280,33 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                 </div>
             )}
 
-            {/* Free Keywords Section */}
-            {freeKeywords.length > 0 && (
+            {/* Keywords Section (Thesauri + Free Keywords) */}
+            {hasAnyKeywords && (
                 <div className="mt-6" data-testid="subjects-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Free Keywords</h3>
-                    <div className="flex flex-wrap gap-2" data-testid="keywords-list">
-                        {freeKeywords.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    <h3 className="text-lg font-semibold text-gray-900">Keywords</h3>
 
-            {/* GCMD Science Keywords Section */}
-            {gcmdScienceKeywords.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">GCMD Science Keywords</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {gcmdScienceKeywords.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    {/* Thesauri Keywords */}
+                    {thesauriKeywords.length > 0 && (
+                        <div className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                            {thesauriKeywords.map((subject) => (
+                                <KeywordBadge key={subject.id} subject={subject} />
+                            ))}
+                        </div>
+                    )}
 
-            {/* GCMD Platforms Section */}
-            {gcmdPlatforms.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">GCMD Platforms</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {gcmdPlatforms.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    {/* Separator between thesauri and free keywords */}
+                    {thesauriKeywords.length > 0 && freeKeywords.length > 0 && (
+                        <hr className="my-3 border-gray-200" />
+                    )}
 
-            {/* GCMD Instruments Section */}
-            {gcmdInstruments.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">GCMD Instruments</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {gcmdInstruments.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* MSL Vocabularies Section */}
-            {mslVocabularies.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">MSL Vocabularies</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {mslVocabularies.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
+                    {/* Free Keywords */}
+                    {freeKeywords.length > 0 && (
+                        <div className="flex flex-wrap gap-2" data-testid="keywords-list">
+                            {freeKeywords.map((subject) => (
+                                <KeywordBadge key={subject.id} subject={subject} colorClass="bg-gfz-primary" />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
