@@ -207,47 +207,11 @@ class GemetApiService
      */
     public function fetchConceptCountsByGroup(array $groups, string $language = 'en', int $timeout = 30): array
     {
-        $url = self::BASE_URL.'getRelatedConcepts';
-        $groupUris = array_map(fn (array $group): string => $group['uri'], $groups);
-
-        $responses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($url, $groupUris, $language, $timeout): array {
-            $requests = [];
-            foreach ($groupUris as $groupUri) {
-                $requests[] = $pool->timeout($timeout)
-                    ->accept('application/json')
-                    ->get($url, [
-                        'concept_uri' => $groupUri,
-                        'relation_uri' => self::RELATION_GROUP_MEMBER,
-                        'language' => $language,
-                    ]);
-            }
-
-            return $requests;
-        });
+        $results = $this->fetchRelatedConceptsPooled($groups, $language, $timeout);
 
         $counts = [];
-        foreach ($groupUris as $index => $groupUri) {
-            $response = $responses[$index];
-
-            if ($response instanceof \Throwable) {
-                throw new RuntimeException(
-                    "HTTP request failed for group {$groupUri}: {$response->getMessage()}"
-                );
-            }
-
-            if (! $response->successful()) {
-                throw new RuntimeException(
-                    "Failed to fetch concepts for group {$groupUri}: HTTP {$response->status()}"
-                );
-            }
-
-            $data = $response->json();
-
-            if (is_array($data) && $data !== [] && ! array_is_list($data)) {
-                $data = [$data];
-            }
-
-            $counts[$groupUri] = is_array($data) ? count($data) : 0;
+        foreach ($results as $groupUri => $data) {
+            $counts[$groupUri] = is_array($data) ? count($this->parseEntities($data)) : 0;
         }
 
         return $counts;
@@ -265,6 +229,33 @@ class GemetApiService
      * @throws RuntimeException If any API request fails
      */
     public function fetchAllConceptsByGroupConcurrently(array $groups, string $language = 'en', int $timeout = 30): array
+    {
+        $results = $this->fetchRelatedConceptsPooled($groups, $language, $timeout);
+
+        $conceptsByGroup = [];
+        foreach ($results as $groupUri => $data) {
+            if (! is_array($data)) {
+                throw new RuntimeException("Unexpected GEMET API response format for group members: {$groupUri}");
+            }
+
+            $conceptsByGroup[$groupUri] = $this->parseEntities($data);
+        }
+
+        return $conceptsByGroup;
+    }
+
+    /**
+     * Fetch related concepts for multiple groups using concurrent HTTP requests.
+     *
+     * Shared pool logic used by both {@see fetchConceptCountsByGroup()} and
+     * {@see fetchAllConceptsByGroupConcurrently()}.
+     *
+     * @param  array<int, array{uri: string}>  $groups
+     * @return array<string, mixed> Map of group URI => decoded JSON response
+     *
+     * @throws RuntimeException If any API request fails
+     */
+    private function fetchRelatedConceptsPooled(array $groups, string $language, int $timeout): array
     {
         $url = self::BASE_URL.'getRelatedConcepts';
         $groupUris = array_map(fn (array $group): string => $group['uri'], $groups);
@@ -284,7 +275,7 @@ class GemetApiService
             return $requests;
         });
 
-        $conceptsByGroup = [];
+        $results = [];
         foreach ($groupUris as $index => $groupUri) {
             $response = $responses[$index];
 
@@ -300,16 +291,10 @@ class GemetApiService
                 );
             }
 
-            $data = $response->json();
-
-            if (! is_array($data)) {
-                throw new RuntimeException("Unexpected GEMET API response format for group members: {$groupUri}");
-            }
-
-            $conceptsByGroup[$groupUri] = $this->parseEntities($data);
+            $results[$groupUri] = $response->json();
         }
 
-        return $conceptsByGroup;
+        return $results;
     }
 
     /**
