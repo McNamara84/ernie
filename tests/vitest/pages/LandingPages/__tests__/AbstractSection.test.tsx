@@ -29,11 +29,11 @@ const createCreator = (overrides: Partial<{
     creatorable: {
         type: string;
         id: number;
-        given_name?: string;
-        family_name?: string;
-        name_identifier?: string;
-        name_identifier_scheme?: string;
-        name?: string;
+        given_name: string | null;
+        family_name: string | null;
+        name_identifier: string | null;
+        name_identifier_scheme: string | null;
+        name: string | null;
     };
 }> = {}) => ({
     id: 1,
@@ -44,6 +44,9 @@ const createCreator = (overrides: Partial<{
         id: 1,
         given_name: 'John',
         family_name: 'Doe',
+        name_identifier: null,
+        name_identifier_scheme: null,
+        name: null,
     },
     ...overrides,
 });
@@ -219,6 +222,10 @@ describe('AbstractSection', () => {
                         creatorable: {
                             type: 'Institution',
                             id: 1,
+                            given_name: null,
+                            family_name: null,
+                            name_identifier: null,
+                            name_identifier_scheme: null,
                             name: 'GFZ German Research Centre',
                         },
                     })]}
@@ -240,6 +247,7 @@ describe('AbstractSection', () => {
                             family_name: 'Doe',
                             name_identifier: '0000-0002-1825-0097',
                             name_identifier_scheme: 'ORCID',
+                            name: null,
                         },
                     })]}
                 />
@@ -285,8 +293,8 @@ describe('AbstractSection', () => {
                 <AbstractSection
                     {...defaultProps}
                     creators={[
-                        createCreator({ id: 1, creatorable: { type: 'Person', id: 1, given_name: 'John', family_name: 'Doe' } }),
-                        createCreator({ id: 2, creatorable: { type: 'Person', id: 2, given_name: 'Jane', family_name: 'Smith' } }),
+                        createCreator({ id: 1, creatorable: { type: 'Person', id: 1, given_name: 'John', family_name: 'Doe', name_identifier: null, name_identifier_scheme: null, name: null } }),
+                        createCreator({ id: 2, creatorable: { type: 'Person', id: 2, given_name: 'Jane', family_name: 'Smith', name_identifier: null, name_identifier_scheme: null, name: null } }),
                     ]}
                 />
             );
@@ -305,11 +313,11 @@ describe('AbstractSection', () => {
             contributorable: {
                 type: string;
                 id: number;
-                given_name?: string;
-                family_name?: string;
-                name_identifier?: string;
-                name_identifier_scheme?: string;
-                name?: string;
+                given_name: string | null;
+                family_name: string | null;
+                name_identifier: string | null;
+                name_identifier_scheme: string | null;
+                name: string | null;
             };
         }> = {}) => ({
             id: 1,
@@ -321,6 +329,9 @@ describe('AbstractSection', () => {
                 id: 1,
                 given_name: 'Alice',
                 family_name: 'Wonder',
+                name_identifier: null,
+                name_identifier_scheme: null,
+                name: null,
             },
             ...overrides,
         });
@@ -362,6 +373,10 @@ describe('AbstractSection', () => {
                         contributorable: {
                             type: 'Institution',
                             id: 1,
+                            given_name: null,
+                            family_name: null,
+                            name_identifier: null,
+                            name_identifier_scheme: null,
                             name: 'Helmholtz Centre Potsdam',
                         },
                     })]}
@@ -383,6 +398,7 @@ describe('AbstractSection', () => {
                             family_name: 'Wonder',
                             name_identifier: '0000-0001-2345-6789',
                             name_identifier_scheme: 'ORCID',
+                            name: null,
                         },
                     })]}
                 />

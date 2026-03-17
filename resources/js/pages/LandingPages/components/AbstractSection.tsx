@@ -36,11 +36,11 @@ interface Subject {
 interface Contributorable {
     type: string;
     id: number;
-    given_name?: string;
-    family_name?: string;
-    name_identifier?: string;
-    name_identifier_scheme?: string;
-    name?: string;
+    given_name: string | null;
+    family_name: string | null;
+    name_identifier: string | null;
+    name_identifier_scheme: string | null;
+    name: string | null;
 }
 
 interface Creator {
@@ -85,6 +85,16 @@ function KeywordBadge({ subject }: { subject: Subject }) {
             <ExternalLink className="h-3 w-3 opacity-70" />
         </a>
     );
+}
+
+/**
+ * Formats a person's name defensively, handling null values.
+ */
+function formatPersonName(familyName: string | null, givenName: string | null): string {
+    if (familyName && givenName) return `${familyName}, ${givenName}`;
+    if (familyName) return familyName;
+    if (givenName) return givenName;
+    return 'Unknown';
 }
 
 /**
@@ -146,7 +156,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                     {/* Creator Name */}
                                     {isPerson ? (
                                         <span>
-                                            {creatorable.family_name}, {creatorable.given_name}
+                                            {formatPersonName(creatorable.family_name, creatorable.given_name)}
                                         </span>
                                     ) : (
                                         <span>{creatorable.name}</span>
@@ -209,7 +219,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                     {/* Contributor Name */}
                                     {isPerson ? (
                                         <span>
-                                            {contributorable.family_name}, {contributorable.given_name}
+                                            {formatPersonName(contributorable.family_name, contributorable.given_name)}
                                         </span>
                                     ) : (
                                         <span>{contributorable.name}</span>

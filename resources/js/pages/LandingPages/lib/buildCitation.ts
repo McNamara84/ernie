@@ -1,8 +1,8 @@
 interface Creatorable {
     type: string;
-    given_name?: string;
-    family_name?: string;
-    name?: string;
+    given_name?: string | null;
+    family_name?: string | null;
+    name?: string | null;
 }
 
 interface Creator {

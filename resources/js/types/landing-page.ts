@@ -90,14 +90,14 @@ export interface LandingPageCreatorable {
     type: string;
     id: number;
     /** Person: given name */
-    given_name?: string;
+    given_name: string | null;
     /** Person: family name */
-    family_name?: string;
+    family_name: string | null;
     /** Person: ORCID or other identifier */
-    name_identifier?: string;
-    name_identifier_scheme?: string;
+    name_identifier: string | null;
+    name_identifier_scheme: string | null;
     /** Institution: organization name */
-    name?: string;
+    name: string | null;
 }
 
 /**
