@@ -6,6 +6,7 @@ use App\Console\Commands\GetGemetThesaurus;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 covers(GetGemetThesaurus::class);
 
@@ -27,7 +28,7 @@ function fakeGemetApiResponses(): void
         ],
     ];
 
-    $broaderConcepts = [
+    $broaderConcept = [
             'uri' => 'http://www.eionet.europa.eu/gemet/supergroup/1234',
             'preferredLabel' => ['string' => 'THE ENVIRONMENT, MAN AND NATURE', 'language' => 'en'],
         ];
@@ -45,7 +46,7 @@ function fakeGemetApiResponses(): void
         ],
     ];
 
-    Http::fake(function (Request $request) use ($superGroups, $groups, $broaderConcepts, $groupMembers) {
+    Http::fake(function (Request $request) use ($superGroups, $groups, $broaderConcept, $groupMembers) {
         $url = $request->url();
         $thesaurusUri = $request->data()['thesaurus_uri'] ?? '';
         $relationUri = $request->data()['relation_uri'] ?? '';
@@ -59,7 +60,7 @@ function fakeGemetApiResponses(): void
         }
 
         if (str_contains($url, 'getRelatedConcepts') && $relationUri === 'http://www.w3.org/2004/02/skos/core#broader') {
-            return Http::response($broaderConcepts, 200);
+            return Http::response($broaderConcept, 200);
         }
 
         if (str_contains($url, 'getRelatedConcepts') && $relationUri === 'http://www.eionet.europa.eu/gemet/2004/06/gemet-schema.rdf#groupMember') {
@@ -71,6 +72,7 @@ function fakeGemetApiResponses(): void
 }
 
 it('successfully fetches and saves GEMET thesaurus', function (): void {
+    Storage::fake('local');
     fakeGemetApiResponses();
 
     Artisan::call('get-gemet-thesaurus');
@@ -85,6 +87,7 @@ it('successfully fetches and saves GEMET thesaurus', function (): void {
 });
 
 it('builds correct hierarchy with concepts nested under groups and supergroups', function (): void {
+    Storage::fake('local');
     fakeGemetApiResponses();
 
     Artisan::call('get-gemet-thesaurus');

@@ -200,7 +200,7 @@ class GemetApiService
      * of concepts per group (not the full data), using concurrent HTTP requests
      * for better performance when only counts are needed.
      *
-     * @param  array<int, array{uri: string, label: string, definition: string}>  $groups
+     * @param  array<int, array{uri: string}>  $groups
      * @return array<string, int> Map of group URI => concept count
      *
      * @throws RuntimeException If any API request fails
@@ -254,7 +254,7 @@ class GemetApiService
      * Uses Http::pool() for parallel fetching, significantly faster than
      * the sequential {@see fetchAllConceptsByGroup()} method.
      *
-     * @param  array<int, array{uri: string, label: string, definition: string}>  $groups
+     * @param  array<int, array{uri: string}>  $groups
      * @return array<string, array<int, array{uri: string, label: string, definition: string}>> Map of group URI => concepts
      *
      * @throws RuntimeException If any API request fails
