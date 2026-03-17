@@ -17,39 +17,34 @@ interface AbstractSectionProps {
     resourceId: number;
 }
 
-/** Badge color per thesaurus scheme */
-const SCHEME_COLORS: Record<string, string> = {
-    'Science Keywords': 'bg-blue-600',
-    Platforms: 'bg-emerald-600',
-    Instruments: 'bg-amber-600',
-    'EPOS MSL vocabulary': 'bg-purple-600',
-    'GEMET - GEneral Multilingual Environmental Thesaurus': 'bg-rose-600',
-    'International Chronostratigraphic Chart': 'bg-teal-600',
-};
-
-/** Ordered list of thesaurus schemes for display */
-const THESAURUS_SCHEMES = [
-    'Science Keywords',
-    'Platforms',
-    'Instruments',
-    'EPOS MSL vocabulary',
-    'GEMET - GEneral Multilingual Environmental Thesaurus',
-    'International Chronostratigraphic Chart',
+/** Single source of truth: ordered thesaurus definitions with badge styling */
+const THESAURUS_DEFINITIONS: { scheme: string; bgClass: string; textClass: string }[] = [
+    { scheme: 'Science Keywords', bgClass: 'bg-blue-600', textClass: 'text-white' },
+    { scheme: 'Platforms', bgClass: 'bg-emerald-600', textClass: 'text-white' },
+    { scheme: 'Instruments', bgClass: 'bg-amber-600', textClass: 'text-white' },
+    { scheme: 'EPOS MSL vocabulary', bgClass: 'bg-purple-600', textClass: 'text-white' },
+    { scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus', bgClass: 'bg-rose-600', textClass: 'text-white' },
+    { scheme: 'International Chronostratigraphic Chart', bgClass: 'bg-teal-600', textClass: 'text-white' },
 ];
+
+const THESAURUS_SCHEMES = THESAURUS_DEFINITIONS.map((d) => d.scheme);
+const SCHEME_STYLES = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass }]));
+
+const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
 
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject, colorClass }: { subject: LandingPageSubject; colorClass?: string }) {
+function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style?: { bg: string; text: string } }) {
     const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
-    const bgColor = colorClass ?? SCHEME_COLORS[subject.subject_scheme ?? ''] ?? 'bg-gfz-primary';
+    const { bg, text } = style ?? SCHEME_STYLES[subject.subject_scheme ?? ''] ?? FREE_KEYWORD_STYLE;
 
     return (
         <a
             href={portalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-80 ${bgColor}`}
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${bg} ${text}`}
             title={`Search for "${subject.subject}" in the portal`}
         >
             {subject.subject}
@@ -303,7 +298,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                     {freeKeywords.length > 0 && (
                         <div className="flex flex-wrap gap-2" data-testid="keywords-list">
                             {freeKeywords.map((subject) => (
-                                <KeywordBadge key={subject.id} subject={subject} colorClass="bg-gfz-primary" />
+                                <KeywordBadge key={subject.id} subject={subject} style={FREE_KEYWORD_STYLE} />
                             ))}
                         </div>
                     )}

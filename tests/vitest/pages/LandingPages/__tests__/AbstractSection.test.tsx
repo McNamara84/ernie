@@ -686,6 +686,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
             expect(link.className).toContain('bg-blue-600');
+            expect(link.className).toContain('text-white');
         });
 
         it('applies distinct badge color for GCMD Platforms', () => {
@@ -698,6 +699,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /SATELLITES/i });
             expect(link.className).toContain('bg-emerald-600');
+            expect(link.className).toContain('text-white');
         });
 
         it('applies distinct badge color for GCMD Instruments', () => {
@@ -710,6 +712,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /GPS RECEIVERS/i });
             expect(link.className).toContain('bg-amber-600');
+            expect(link.className).toContain('text-white');
         });
 
         it('applies distinct badge color for MSL Vocabularies', () => {
@@ -722,6 +725,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /Rock mechanics/i });
             expect(link.className).toContain('bg-purple-600');
+            expect(link.className).toContain('text-white');
         });
 
         it('applies distinct badge color for GEMET keywords', () => {
@@ -734,6 +738,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /Air pollution/i });
             expect(link.className).toContain('bg-rose-600');
+            expect(link.className).toContain('text-white');
         });
 
         it('applies distinct badge color for ICS Chronostratigraphic keywords', () => {
@@ -746,9 +751,10 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /Cenozoic/i });
             expect(link.className).toContain('bg-teal-600');
+            expect(link.className).toContain('text-white');
         });
 
-        it('applies GFZ primary color for free keywords', () => {
+        it('applies GFZ primary color and semantic text token for free keywords', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -758,9 +764,10 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /my-keyword/i });
             expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies GFZ primary color for free keywords with empty string scheme', () => {
+        it('applies GFZ primary color and semantic text token for free keywords with empty string scheme', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -770,6 +777,7 @@ describe('AbstractSection', () => {
 
             const link = screen.getByRole('link', { name: /another-keyword/i });
             expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
         it('renders only thesauri-keywords-list when no free keywords exist', () => {
