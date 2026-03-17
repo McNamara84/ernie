@@ -30,9 +30,10 @@ class UpdateThesaurusJob implements ShouldQueue
      * The maximum number of seconds the job can run.
      *
      * Thesaurus updates typically take 30-90 seconds depending on the
-     * vocabulary size and network conditions.
+     * vocabulary size and network conditions. GEMET updates may take
+     * longer due to the large number of API requests (32+ groups).
      */
-    public int $timeout = 300; // 5 minutes
+    public int $timeout = 600; // 10 minutes
 
     /**
      * The number of times the job may be attempted.

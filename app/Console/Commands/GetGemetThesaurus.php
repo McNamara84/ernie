@@ -44,19 +44,13 @@ class GetGemetThesaurus extends Command
             $groupToSuperGroupMap = $api->fetchGroupToSuperGroupMapping($groups);
             $this->info('Mapped '.count($groupToSuperGroupMap).' groups to super groups');
 
-            // Step 4: Fetch concepts for each group
+            // Step 4: Fetch concepts for each group (concurrently)
             $this->info('Fetching concepts for each group...');
-            $conceptsByGroup = [];
-            $totalConcepts = 0;
-            $groupIndex = 0;
-            $groupCount = count($groups);
+            $conceptsByGroup = $api->fetchAllConceptsByGroupConcurrently($groups);
 
-            foreach ($groups as $group) {
-                $groupIndex++;
-                $concepts = $api->fetchConceptsForGroup($group['uri']);
-                $conceptsByGroup[$group['uri']] = $concepts;
+            $totalConcepts = 0;
+            foreach ($conceptsByGroup as $groupUri => $concepts) {
                 $totalConcepts += count($concepts);
-                $this->info("  [{$groupIndex}/{$groupCount}] {$group['label']} (".count($concepts).' concepts)');
             }
 
             $this->info("Fetched {$totalConcepts} concept assignments (before deduplication)");

@@ -28,11 +28,9 @@ function fakeGemetApiResponses(): void
     ];
 
     $broaderConcepts = [
-        [
             'uri' => 'http://www.eionet.europa.eu/gemet/supergroup/1234',
             'preferredLabel' => ['string' => 'THE ENVIRONMENT, MAN AND NATURE', 'language' => 'en'],
-        ],
-    ];
+        ];
 
     $groupMembers = [
         [
@@ -83,9 +81,24 @@ it('successfully fetches and saves GEMET thesaurus', function (): void {
         ->toContain('Fetched 1 super groups')
         ->toContain('Fetched 1 groups')
         ->toContain('Mapped 1 groups to super groups')
-        ->toContain('ATMOSPHERE')
-        ->toContain('2 concepts')
         ->toContain('gemet-thesaurus.json');
+});
+
+it('builds correct hierarchy with concepts nested under groups and supergroups', function (): void {
+    fakeGemetApiResponses();
+
+    Artisan::call('get-gemet-thesaurus');
+
+    $json = json_decode(\Illuminate\Support\Facades\Storage::get('gemet-thesaurus.json'), true);
+
+    // Hierarchy: SuperGroup → Group → Concepts (not just 4 flat root nodes)
+    expect($json['data'])->toHaveCount(1)
+        ->and($json['data'][0]['text'])->toBe('THE ENVIRONMENT, MAN AND NATURE')
+        ->and($json['data'][0]['children'])->toHaveCount(1)
+        ->and($json['data'][0]['children'][0]['text'])->toBe('ATMOSPHERE')
+        ->and($json['data'][0]['children'][0]['children'])->toHaveCount(2)
+        ->and($json['data'][0]['children'][0]['children'][0]['text'])->toBe('air pollution')
+        ->and($json['data'][0]['children'][0]['children'][1]['text'])->toBe('climate change');
 });
 
 it('fails when SuperGroups API request fails', function (): void {
