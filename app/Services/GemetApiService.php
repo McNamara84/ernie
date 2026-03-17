@@ -242,6 +242,11 @@ class GemetApiService
             }
 
             $data = $response->json();
+
+            if (is_array($data) && $data !== [] && ! array_is_list($data)) {
+                $data = [$data];
+            }
+
             $counts[$groupUri] = is_array($data) ? count($data) : 0;
         }
 
