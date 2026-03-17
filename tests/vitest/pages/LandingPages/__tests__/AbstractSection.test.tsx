@@ -675,6 +675,200 @@ describe('AbstractSection', () => {
             const freeList = screen.getByTestId('keywords-list');
             expect(thesauriList.compareDocumentPosition(freeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
+
+        it('applies distinct badge color for GCMD Science Keywords', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
+            expect(link.className).toContain('bg-blue-600');
+        });
+
+        it('applies distinct badge color for GCMD Platforms', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'SATELLITES', subject_scheme: 'Platforms' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /SATELLITES/i });
+            expect(link.className).toContain('bg-emerald-600');
+        });
+
+        it('applies distinct badge color for GCMD Instruments', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /GPS RECEIVERS/i });
+            expect(link.className).toContain('bg-amber-600');
+        });
+
+        it('applies distinct badge color for MSL Vocabularies', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /Rock mechanics/i });
+            expect(link.className).toContain('bg-purple-600');
+        });
+
+        it('applies distinct badge color for GEMET keywords', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /Air pollution/i });
+            expect(link.className).toContain('bg-rose-600');
+        });
+
+        it('applies distinct badge color for ICS Chronostratigraphic keywords', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /Cenozoic/i });
+            expect(link.className).toContain('bg-teal-600');
+        });
+
+        it('applies GFZ primary color for free keywords', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'my-keyword', subject_scheme: null })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /my-keyword/i });
+            expect(link.className).toContain('bg-gfz-primary');
+        });
+
+        it('applies GFZ primary color for free keywords with empty string scheme', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'another-keyword', subject_scheme: '' })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /another-keyword/i });
+            expect(link.className).toContain('bg-gfz-primary');
+        });
+
+        it('renders only thesauri-keywords-list when no free keywords exist', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
+                />
+            );
+
+            expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+            expect(screen.queryByTestId('keywords-list')).not.toBeInTheDocument();
+        });
+
+        it('renders only keywords-list when no thesauri keywords exist', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({ id: 1, subject: 'Free Keyword', subject_scheme: null })]}
+                />
+            );
+
+            expect(screen.queryByTestId('thesauri-keywords-list')).not.toBeInTheDocument();
+            expect(screen.getByTestId('keywords-list')).toBeInTheDocument();
+        });
+
+        it('renders thesauri keywords in correct order across all schemes', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' }),
+                        createSubject({ id: 2, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' }),
+                        createSubject({ id: 3, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' }),
+                        createSubject({ id: 4, subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' }),
+                        createSubject({ id: 5, subject: 'SATELLITES', subject_scheme: 'Platforms' }),
+                        createSubject({ id: 6, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' }),
+                    ]}
+                />
+            );
+
+            const thesauriList = screen.getByTestId('thesauri-keywords-list');
+            const badges = thesauriList.querySelectorAll('a');
+            
+            // Order: Science Keywords → Platforms → Instruments → MSL → GEMET → ICS
+            expect(badges[0]).toHaveTextContent('EARTH SCIENCE');
+            expect(badges[1]).toHaveTextContent('SATELLITES');
+            expect(badges[2]).toHaveTextContent('GPS RECEIVERS');
+            expect(badges[3]).toHaveTextContent('Rock mechanics');
+            expect(badges[4]).toHaveTextContent('Air pollution');
+            expect(badges[5]).toHaveTextContent('Cenozoic');
+        });
+
+        it('renders all six thesaurus types and free keywords together', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' }),
+                        createSubject({ id: 2, subject: 'SATELLITES', subject_scheme: 'Platforms' }),
+                        createSubject({ id: 3, subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' }),
+                        createSubject({ id: 4, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' }),
+                        createSubject({ id: 5, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' }),
+                        createSubject({ id: 6, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' }),
+                        createSubject({ id: 7, subject: 'my-free-keyword', subject_scheme: null }),
+                    ]}
+                />
+            );
+
+            // All badges rendered
+            expect(screen.getByText('EARTH SCIENCE')).toBeInTheDocument();
+            expect(screen.getByText('SATELLITES')).toBeInTheDocument();
+            expect(screen.getByText('GPS RECEIVERS')).toBeInTheDocument();
+            expect(screen.getByText('Rock mechanics')).toBeInTheDocument();
+            expect(screen.getByText('Air pollution')).toBeInTheDocument();
+            expect(screen.getByText('Cenozoic')).toBeInTheDocument();
+            expect(screen.getByText('my-free-keyword')).toBeInTheDocument();
+
+            // Both lists present
+            expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+            expect(screen.getByTestId('keywords-list')).toBeInTheDocument();
+        });
+
+        it('ignores subjects with unknown schemes (treats them as neither thesauri nor free)', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[
+                        createSubject({ id: 1, subject: 'Unknown Term', subject_scheme: 'Some Unknown Scheme' }),
+                    ]}
+                />
+            );
+
+            // Unknown scheme is neither in THESAURUS_SCHEMES nor free (has a non-empty scheme)
+            // So it should not appear in either list
+            expect(screen.queryByTestId('thesauri-keywords-list')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('keywords-list')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('subjects-section')).not.toBeInTheDocument();
+        });
     });
 
     describe('download metadata section', () => {
