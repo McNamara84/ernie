@@ -26,26 +26,29 @@ const createCreator = (overrides: Partial<{
     id: number;
     position: number;
     affiliations: Array<{ id: number; name: string; affiliation_identifier: string | null; affiliation_identifier_scheme: string | null }>;
-    creatorable: {
+    creatorable: Partial<{
         type: string;
         id: number;
-        given_name?: string;
-        family_name?: string;
-        name_identifier?: string;
-        name_identifier_scheme?: string;
-        name?: string;
-    };
+        given_name: string | null;
+        family_name: string | null;
+        name_identifier: string | null;
+        name_identifier_scheme: string | null;
+        name: string | null;
+    }>;
 }> = {}) => ({
-    id: 1,
-    position: 1,
-    affiliations: [],
+    id: overrides.id ?? 1,
+    position: overrides.position ?? 1,
+    affiliations: overrides.affiliations ?? [],
     creatorable: {
         type: 'Person',
         id: 1,
-        given_name: 'John',
-        family_name: 'Doe',
+        given_name: 'John' as string | null,
+        family_name: 'Doe' as string | null,
+        name_identifier: null as string | null,
+        name_identifier_scheme: null as string | null,
+        name: null as string | null,
+        ...overrides.creatorable,
     },
-    ...overrides,
 });
 
 const createFundingReference = (overrides: Partial<{
@@ -89,6 +92,7 @@ const createSubject = (overrides: Partial<{
 const defaultProps = {
     descriptions: [createDescription()],
     creators: [],
+    contributors: [],
     fundingReferences: [],
     subjects: [],
     resourceId: 123,
@@ -142,6 +146,44 @@ describe('AbstractSection', () => {
         });
     });
 
+    describe('methods section', () => {
+        it('renders methods section when methods description exists', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[
+                        createDescription(),
+                        createDescription({ id: 2, value: 'Seismic reflection profiling was used.', description_type: 'Methods' }),
+                    ]}
+                />
+            );
+
+            expect(screen.getByTestId('methods-section')).toBeInTheDocument();
+            expect(screen.getByText('Methods')).toBeInTheDocument();
+            expect(screen.getByTestId('methods-text')).toHaveTextContent('Seismic reflection profiling was used.');
+        });
+
+        it('does not render methods section when no methods description exists', () => {
+            render(<AbstractSection {...defaultProps} />);
+
+            expect(screen.queryByTestId('methods-section')).not.toBeInTheDocument();
+        });
+
+        it('finds methods case-insensitively', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[
+                        createDescription(),
+                        createDescription({ id: 2, value: 'Some methods.', description_type: 'METHODS' }),
+                    ]}
+                />
+            );
+
+            expect(screen.getByTestId('methods-section')).toBeInTheDocument();
+        });
+    });
+
     describe('creators section', () => {
         it('renders creators section when creators exist', () => {
             render(
@@ -179,7 +221,6 @@ describe('AbstractSection', () => {
                     creators={[createCreator({
                         creatorable: {
                             type: 'Institution',
-                            id: 1,
                             name: 'GFZ German Research Centre',
                         },
                     })]}
@@ -195,10 +236,6 @@ describe('AbstractSection', () => {
                     {...defaultProps}
                     creators={[createCreator({
                         creatorable: {
-                            type: 'Person',
-                            id: 1,
-                            given_name: 'John',
-                            family_name: 'Doe',
                             name_identifier: '0000-0002-1825-0097',
                             name_identifier_scheme: 'ORCID',
                         },
@@ -246,14 +283,153 @@ describe('AbstractSection', () => {
                 <AbstractSection
                     {...defaultProps}
                     creators={[
-                        createCreator({ id: 1, creatorable: { type: 'Person', id: 1, given_name: 'John', family_name: 'Doe' } }),
-                        createCreator({ id: 2, creatorable: { type: 'Person', id: 2, given_name: 'Jane', family_name: 'Smith' } }),
+                        createCreator({ id: 1, creatorable: { given_name: 'John', family_name: 'Doe' } }),
+                        createCreator({ id: 2, creatorable: { id: 2, given_name: 'Jane', family_name: 'Smith' } }),
                     ]}
                 />
             );
             
             expect(screen.getByText('Doe, John')).toBeInTheDocument();
             expect(screen.getByText('Smith, Jane')).toBeInTheDocument();
+        });
+    });
+
+    describe('contributors section', () => {
+        const createContributor = (overrides: Partial<{
+            id: number;
+            position: number;
+            contributor_types: string[];
+            affiliations: Array<{ id: number; name: string; affiliation_identifier: string | null; affiliation_identifier_scheme: string | null }>;
+            contributorable: Partial<{
+                type: string;
+                id: number;
+                given_name: string | null;
+                family_name: string | null;
+                name_identifier: string | null;
+                name_identifier_scheme: string | null;
+                name: string | null;
+            }>;
+        }> = {}) => ({
+            id: overrides.id ?? 1,
+            position: overrides.position ?? 1,
+            contributor_types: overrides.contributor_types ?? [],
+            affiliations: overrides.affiliations ?? [],
+            contributorable: {
+                type: 'Person',
+                id: 1,
+                given_name: 'Alice' as string | null,
+                family_name: 'Wonder' as string | null,
+                name_identifier: null as string | null,
+                name_identifier_scheme: null as string | null,
+                name: null as string | null,
+                ...overrides.contributorable,
+            },
+        });
+
+        it('renders contributors section when contributors exist', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor()]}
+                />
+            );
+
+            expect(screen.getByTestId('contributors-section')).toBeInTheDocument();
+            expect(screen.getByText('Contributors')).toBeInTheDocument();
+        });
+
+        it('does not render contributors section when no contributors', () => {
+            render(<AbstractSection {...defaultProps} />);
+
+            expect(screen.queryByTestId('contributors-section')).not.toBeInTheDocument();
+        });
+
+        it('displays person contributor with family name, given name format', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor()]}
+                />
+            );
+
+            expect(screen.getByText('Wonder, Alice')).toBeInTheDocument();
+        });
+
+        it('displays institution contributor with name', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        contributorable: {
+                            type: 'Institution',
+                            name: 'Helmholtz Centre Potsdam',
+                        },
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('Helmholtz Centre Potsdam')).toBeInTheDocument();
+        });
+
+        it('renders ORCID link for contributor with ORCID', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        contributorable: {
+                            name_identifier: '0000-0001-2345-6789',
+                            name_identifier_scheme: 'ORCID',
+                        },
+                    })]}
+                />
+            );
+
+            const orcidLink = screen.getByRole('link', { name: /ORCID/i });
+            expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0001-2345-6789');
+            expect(orcidLink).toHaveAttribute('target', '_blank');
+        });
+
+        it('renders affiliation with ROR link for contributor', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        affiliations: [createAffiliation({
+                            name: 'GFZ Potsdam',
+                            affiliation_identifier: 'https://ror.org/04z8jg394',
+                            affiliation_identifier_scheme: 'ROR',
+                        })],
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
+            const rorLink = screen.getByRole('link', { name: /ROR/i });
+            expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
+        });
+
+        it('displays contributor types in brackets', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({
+                        contributor_types: ['DataCollector', 'ProjectLeader'],
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('(DataCollector, ProjectLeader)')).toBeInTheDocument();
+        });
+
+        it('does not display contributor type brackets when no types', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    contributors={[createContributor({ contributor_types: [] })]}
+                />
+            );
+
+            expect(screen.queryByText(/^\(.*\)$/)).not.toBeInTheDocument();
         });
     });
 

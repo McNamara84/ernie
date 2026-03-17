@@ -90,14 +90,14 @@ export interface LandingPageCreatorable {
     type: string;
     id: number;
     /** Person: given name */
-    given_name?: string;
+    given_name: string | null;
     /** Person: family name */
-    family_name?: string;
+    family_name: string | null;
     /** Person: ORCID or other identifier */
-    name_identifier?: string;
-    name_identifier_scheme?: string;
+    name_identifier: string | null;
+    name_identifier_scheme: string | null;
     /** Institution: organization name */
-    name?: string;
+    name: string | null;
 }
 
 /**
@@ -109,6 +109,17 @@ export interface LandingPageCreator {
     is_contact_person?: boolean;
     affiliations: LandingPageAffiliation[];
     creatorable: LandingPageCreatorable;
+}
+
+/**
+ * Contributor entry for landing pages
+ */
+export interface LandingPageContributor {
+    id: number;
+    position: number;
+    contributor_types: string[];
+    affiliations: LandingPageAffiliation[];
+    contributorable: LandingPageCreatorable;
 }
 
 /**
@@ -296,6 +307,7 @@ export interface LandingPageResource {
     titles?: LandingPageTitle[];
     descriptions?: LandingPageDescription[];
     creators?: LandingPageCreator[];
+    contributors?: LandingPageContributor[];
     licenses?: LandingPageLicense[];
     related_identifiers?: LandingPageRelatedIdentifier[];
     funding_references?: LandingPageFundingReference[];
