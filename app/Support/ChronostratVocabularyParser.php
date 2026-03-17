@@ -169,7 +169,7 @@ class ChronostratVocabularyParser
     {
         return str_starts_with($label, 'Base of ')
             || str_starts_with($label, 'GSSP ')
-            || str_contains($label, 'Stratigraphic point');
+            || str_starts_with($label, 'Stratotype Point');
     }
 
     /**

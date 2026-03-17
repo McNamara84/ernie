@@ -123,8 +123,10 @@ class GemetApiService
             $data = $response->json();
 
             if (is_array($data) && count($data) > 0) {
-                $firstParent = $data[0];
-                $parentUri = $firstParent['uri'] ?? ($firstParent['preferredLabel']['uri'] ?? null);
+                // GEMET API returns a single object when there is exactly one
+                // related concept, or a numeric array when there are multiple.
+                $firstParent = array_is_list($data) ? $data[0] : $data;
+                $parentUri = $firstParent['uri'] ?? null;
                 if (is_string($parentUri) && $parentUri !== '') {
                     $mapping[$group['uri']] = $parentUri;
                 }
@@ -198,12 +200,62 @@ class GemetApiService
      * of concepts per group (not the full data), using concurrent HTTP requests
      * for better performance when only counts are needed.
      *
-     * @param  array<int, array{uri: string, label: string, definition: string}>  $groups
+     * @param  array<int, array{uri: string}>  $groups
      * @return array<string, int> Map of group URI => concept count
      *
      * @throws RuntimeException If any API request fails
      */
     public function fetchConceptCountsByGroup(array $groups, string $language = 'en', int $timeout = 30): array
+    {
+        $results = $this->fetchRelatedConceptsPooled($groups, $language, $timeout);
+
+        $counts = [];
+        foreach ($results as $groupUri => $data) {
+            $counts[$groupUri] = is_array($data) ? count($this->parseEntities($data)) : 0;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Fetch all concepts organized by group using concurrent HTTP requests.
+     *
+     * Uses Http::pool() for parallel fetching, significantly faster than
+     * the sequential {@see fetchAllConceptsByGroup()} method.
+     *
+     * @param  array<int, array{uri: string}>  $groups
+     * @return array<string, array<int, array{uri: string, label: string, definition: string}>> Map of group URI => concepts
+     *
+     * @throws RuntimeException If any API request fails
+     */
+    public function fetchAllConceptsByGroupConcurrently(array $groups, string $language = 'en', int $timeout = 30): array
+    {
+        $results = $this->fetchRelatedConceptsPooled($groups, $language, $timeout);
+
+        $conceptsByGroup = [];
+        foreach ($results as $groupUri => $data) {
+            if (! is_array($data)) {
+                throw new RuntimeException("Unexpected GEMET API response format for group members: {$groupUri}");
+            }
+
+            $conceptsByGroup[$groupUri] = $this->parseEntities($data);
+        }
+
+        return $conceptsByGroup;
+    }
+
+    /**
+     * Fetch related concepts for multiple groups using concurrent HTTP requests.
+     *
+     * Shared pool logic used by both {@see fetchConceptCountsByGroup()} and
+     * {@see fetchAllConceptsByGroupConcurrently()}.
+     *
+     * @param  array<int, array{uri: string}>  $groups
+     * @return array<string, mixed> Map of group URI => decoded JSON response
+     *
+     * @throws RuntimeException If any API request fails
+     */
+    private function fetchRelatedConceptsPooled(array $groups, string $language, int $timeout): array
     {
         $url = self::BASE_URL.'getRelatedConcepts';
         $groupUris = array_map(fn (array $group): string => $group['uri'], $groups);
@@ -223,7 +275,7 @@ class GemetApiService
             return $requests;
         });
 
-        $counts = [];
+        $results = [];
         foreach ($groupUris as $index => $groupUri) {
             $response = $responses[$index];
 
@@ -239,21 +291,30 @@ class GemetApiService
                 );
             }
 
-            $data = $response->json();
-            $counts[$groupUri] = is_array($data) ? count($data) : 0;
+            $results[$groupUri] = $response->json();
         }
 
-        return $counts;
+        return $results;
     }
 
     /**
      * Parse API response entities into a normalized format.
      *
-     * @param  array<int, mixed>  $data
+     * The GEMET API returns a numeric array of objects when there are multiple
+     * results, but a single associative object when there is exactly one result.
+     * This method normalizes both formats.
+     *
+     * @param  array<int|string, mixed>  $data
      * @return array<int, array{uri: string, label: string, definition: string}>
      */
     private function parseEntities(array $data): array
     {
+        // GEMET API returns a single object (associative array) for exactly one
+        // result. Wrap it in a list so the loop below processes it correctly.
+        if (! array_is_list($data) && isset($data['uri'])) {
+            $data = [$data];
+        }
+
         $entities = [];
 
         foreach ($data as $item) {

@@ -44,6 +44,12 @@ describe('handle', function (): void {
                 'prefLabel' => ['_value' => 'GSSP for Base of Jurassic', '_lang' => 'en'],
                 'broader' => 'http://resource.geosciml.org/classifier/ics/ischart/Jurassic',
             ],
+            // Stratotype Point concept – should be filtered out
+            [
+                '_about' => 'http://resource.geosciml.org/classifier/ics/ischart/StratotypePointBaseJurassic',
+                'prefLabel' => ['_value' => 'Stratotype Point Base of Jurassic', '_lang' => 'en'],
+                'broader' => 'http://resource.geosciml.org/classifier/ics/ischart/Jurassic',
+            ],
         ];
 
         Http::fake([
