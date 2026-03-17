@@ -1,0 +1,111 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\CacheKey;
+use App\Services\VocabularyCacheService;
+use Illuminate\Support\Facades\Cache;
+
+covers(VocabularyCacheService::class);
+
+describe('VocabularyCacheService', function () {
+    beforeEach(function () {
+        $this->service = new VocabularyCacheService;
+        Cache::flush();
+    });
+
+    describe('cacheGcmdScienceKeywords', function () {
+        it('caches and returns science keywords', function () {
+            $keywords = [['label' => 'Earth Science', 'uri' => 'http://example.com']];
+
+            $result = $this->service->cacheGcmdScienceKeywords(fn () => $keywords);
+
+            expect($result)->toBe($keywords);
+        });
+
+        it('returns cached value on subsequent calls', function () {
+            $callCount = 0;
+            $callback = function () use (&$callCount) {
+                $callCount++;
+
+                return ['keyword1'];
+            };
+
+            $this->service->cacheGcmdScienceKeywords($callback);
+            $this->service->cacheGcmdScienceKeywords($callback);
+
+            expect($callCount)->toBe(1);
+        });
+    });
+
+    describe('cacheGcmdInstruments', function () {
+        it('caches and returns instruments', function () {
+            $instruments = [['name' => 'Seismometer']];
+
+            $result = $this->service->cacheGcmdInstruments(fn () => $instruments);
+
+            expect($result)->toBe($instruments);
+        });
+    });
+
+    describe('cacheGcmdPlatforms', function () {
+        it('caches and returns platforms', function () {
+            $platforms = [['name' => 'ISS']];
+
+            $result = $this->service->cacheGcmdPlatforms(fn () => $platforms);
+
+            expect($result)->toBe($platforms);
+        });
+    });
+
+    describe('cacheGcmdProviders', function () {
+        it('caches and returns providers', function () {
+            $providers = [['name' => 'NASA']];
+
+            $result = $this->service->cacheGcmdProviders(fn () => $providers);
+
+            expect($result)->toBe($providers);
+        });
+    });
+
+    describe('cacheMslKeywords', function () {
+        it('caches and returns MSL keywords', function () {
+            $keywords = [['label' => 'Rock Physics']];
+
+            $result = $this->service->cacheMslKeywords(fn () => $keywords);
+
+            expect($result)->toBe($keywords);
+        });
+    });
+
+    describe('cacheVocabulary', function () {
+        it('caches arbitrary vocabulary using CacheKey enum', function () {
+            $data = ['test' => 'data'];
+
+            $result = $this->service->cacheVocabulary(
+                CacheKey::CHRONOSTRAT_TIMESCALE,
+                fn () => $data
+            );
+
+            expect($result)->toBe($data);
+        });
+    });
+
+    describe('invalidateAllVocabularyCaches', function () {
+        it('flushes vocabulary caches', function () {
+            $this->service->cacheGcmdScienceKeywords(fn () => ['cached']);
+
+            $this->service->invalidateAllVocabularyCaches();
+
+            // After invalidation, callback should be called again
+            $callCount = 0;
+            $this->service->cacheGcmdScienceKeywords(function () use (&$callCount) {
+                $callCount++;
+
+                return ['fresh'];
+            });
+
+            expect($callCount)->toBe(1);
+        });
+    });
+});
