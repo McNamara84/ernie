@@ -149,7 +149,7 @@ export class LandingPage {
     // Explicit timeout needed: in CI, php artisan serve is single-threaded,
     // so parallel test workers can cause requests to queue behind each other.
     const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`, {
-      timeout: 30_000,
+      timeout: 60_000,
     });
 
     if (!response.ok()) {
@@ -211,7 +211,7 @@ export class LandingPage {
       );
     }
 
-    await this.page.goto(data.public_url, { timeout: 60_000 });
+    await this.page.goto(data.public_url, { timeout: 90_000 });
   }
 
   /**
