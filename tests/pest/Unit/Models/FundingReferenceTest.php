@@ -15,7 +15,7 @@ describe('fillable', function () {
             'funder_name',
             'funder_identifier',
             'funder_identifier_type_id',
-            'funder_identifier_scheme_uri',
+            'scheme_uri',
             'award_number',
             'award_uri',
             'award_title',

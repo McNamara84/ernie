@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $funder_name
  * @property string|null $funder_identifier
  * @property int|null $funder_identifier_type_id
- * @property string|null $funder_identifier_scheme_uri
+ * @property string|null $scheme_uri
  * @property string|null $award_number
  * @property string|null $award_uri
  * @property string|null $award_title
@@ -39,7 +39,7 @@ class FundingReference extends Model
         'funder_name',
         'funder_identifier',
         'funder_identifier_type_id',
-        'funder_identifier_scheme_uri',
+        'scheme_uri',
         'award_number',
         'award_uri',
         'award_title',

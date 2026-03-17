@@ -726,7 +726,6 @@ describe('transformFundingReferences', function (): void {
             'resource_id' => $this->resource->id,
             'funder_name' => 'DFG',
             'funder_identifier' => 'https://doi.org/10.13039/501100001659',
-            'funder_identifier_type' => 'Crossref Funder ID',
             'award_number' => 'ABC-123',
             'award_uri' => 'https://dfg.de/award/123',
             'award_title' => 'Research Grant',
@@ -736,7 +735,6 @@ describe('transformFundingReferences', function (): void {
             'resource_id' => $this->resource->id,
             'funder_name' => 'EU',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
-            'funder_identifier_type' => 'Crossref Funder ID',
             'award_number' => 'XYZ-789',
             'award_uri' => null,
             'award_title' => null,
@@ -752,6 +750,53 @@ describe('transformFundingReferences', function (): void {
             ->and($result[0]['awardTitle'])->toBe('Research Grant')
             ->and($result[1]['awardUri'])->toBe('')
             ->and($result[1]['awardTitle'])->toBe('');
+    });
+
+    it('returns funderIdentifierType name from relationship', function (): void {
+        $rorType = \App\Models\FunderIdentifierType::firstOrCreate(
+            ['slug' => 'ROR'],
+            ['name' => 'ROR', 'is_active' => true]
+        );
+        $crossrefType = \App\Models\FunderIdentifierType::firstOrCreate(
+            ['slug' => 'Crossref Funder ID'],
+            ['name' => 'Crossref Funder ID', 'is_active' => true]
+        );
+
+        \App\Models\FundingReference::create([
+            'resource_id' => $this->resource->id,
+            'funder_name' => 'DFG',
+            'funder_identifier' => 'https://ror.org/018mejw64',
+            'funder_identifier_type_id' => $rorType->id,
+            'position' => 1,
+        ]);
+        \App\Models\FundingReference::create([
+            'resource_id' => $this->resource->id,
+            'funder_name' => 'EU',
+            'funder_identifier' => 'https://doi.org/10.13039/501100000780',
+            'funder_identifier_type_id' => $crossrefType->id,
+            'position' => 2,
+        ]);
+        $this->resource->load('fundingReferences.funderIdentifierType');
+
+        $result = $this->transformer->transformFundingReferences($this->resource);
+
+        expect($result[0]['funderIdentifierType'])->toBe('ROR')
+            ->and($result[1]['funderIdentifierType'])->toBe('Crossref Funder ID');
+    });
+
+    it('returns empty string for funderIdentifierType when none is set', function (): void {
+        \App\Models\FundingReference::create([
+            'resource_id' => $this->resource->id,
+            'funder_name' => 'Generic Funder',
+            'funder_identifier' => null,
+            'funder_identifier_type_id' => null,
+            'position' => 1,
+        ]);
+        $this->resource->load('fundingReferences.funderIdentifierType');
+
+        $result = $this->transformer->transformFundingReferences($this->resource);
+
+        expect($result[0]['funderIdentifierType'])->toBe('');
     });
 });
 

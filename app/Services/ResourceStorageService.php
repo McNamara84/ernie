@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Language;
@@ -940,16 +941,22 @@ class ResourceStorageService
             $resource->fundingReferences()->delete();
         }
 
+        // Pre-fetch funder identifier type IDs (consistent with storeRelatedIdentifiers)
+        /** @var array<string, int> $funderTypeLookup */
+        $funderTypeLookup = FunderIdentifierType::pluck('id', 'slug')->all();
+
         $fundingReferences = $data['fundingReferences'] ?? [];
 
         foreach ($fundingReferences as $index => $fundingReference) {
             // Only save if funder name is not empty (required field)
             if (! empty(trim($fundingReference['funderName']))) {
+                $typeName = ! empty($fundingReference['funderIdentifierType']) ? $fundingReference['funderIdentifierType'] : null;
+
                 $resource->fundingReferences()->create([
                     'funder_name' => trim($fundingReference['funderName']),
                     'funder_identifier' => ! empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
-                    'funder_identifier_type_id' => ! empty($fundingReference['funderIdentifierType']) ? $this->getFunderIdentifierTypeId($fundingReference['funderIdentifierType']) : null,
-                    'scheme_uri' => null,
+                    'funder_identifier_type_id' => $typeName !== null ? ($funderTypeLookup[$typeName] ?? null) : null,
+                    'scheme_uri' => $this->getFunderIdentifierSchemeUri($typeName),
                     'award_number' => ! empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
                     'award_uri' => ! empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
                     'award_title' => ! empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
@@ -959,16 +966,21 @@ class ResourceStorageService
     }
 
     /**
-     * Get or create funder identifier type by name.
+     * Get the scheme URI for a funder identifier type.
      */
-    private function getFunderIdentifierTypeId(string $typeName): ?int
+    private function getFunderIdentifierSchemeUri(?string $typeName): ?string
     {
-        $type = IdentifierType::query()
-            ->where('name', $typeName)
-            ->orWhere('slug', Str::slug($typeName))
-            ->first();
+        if (empty($typeName)) {
+            return null;
+        }
 
-        return $type?->id;
+        return match ($typeName) {
+            'ROR' => 'https://ror.org/',
+            'Crossref Funder ID' => 'https://doi.org/10.13039/',
+            'ISNI' => 'https://isni.org/',
+            'GRID' => 'https://www.grid.ac/',
+            default => null,
+        };
     }
 
     /**
