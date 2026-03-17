@@ -7,6 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { getSchemeLabel } from '@/lib/keyword-schemes';
 import type { KeywordSuggestion } from '@/types/portal';
 
 interface PortalKeywordFilterProps {
@@ -16,22 +17,6 @@ interface PortalKeywordFilterProps {
     selectedKeywords: string[];
     /** Callback when keywords change */
     onKeywordsChange: (keywords: string[]) => void;
-}
-
-/** Scheme display labels for keyword groups */
-const SCHEME_LABELS: Record<string, string> = {
-    '': 'Free Keywords',
-    'Science Keywords': 'GCMD Science Keywords',
-    Platforms: 'GCMD Platforms',
-    Instruments: 'GCMD Instruments',
-    'EPOS MSL vocabulary': 'MSL Vocabularies',
-};
-
-/**
- * Get user-friendly label for a keyword scheme.
- */
-function getSchemeLabel(scheme: string | null): string {
-    return SCHEME_LABELS[scheme ?? ''] ?? (scheme || 'Free Keywords');
 }
 
 /**
@@ -141,10 +126,10 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                     <Command
                         filter={(value, search) => {
-                            // The value is "scheme-keyword". Only match against the keyword part
-                            // so that typing a scheme name (e.g. "msl") doesn't match items.
-                            const separatorIndex = value.indexOf('-');
-                            const keyword = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : value;
+                            // The value is "scheme::keyword". Only match against the keyword part
+                            // so that typing a scheme name doesn't match unrelated items.
+                            const separatorIndex = value.indexOf('::');
+                            const keyword = separatorIndex >= 0 ? value.slice(separatorIndex + 2) : value;
                             return keyword.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
                         }}
                     >
@@ -158,7 +143,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                                         return (
                                             <CommandItem
                                                 key={`${scheme}-${suggestion.value}`}
-                                                value={`${suggestion.scheme ?? ''}-${suggestion.value}`}
+                                                value={`${suggestion.scheme ?? ''}::${suggestion.value}`}
                                                 onSelect={() => handleSelect(suggestion.value)}
                                             >
                                                 <Check
@@ -176,7 +161,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                 </PopoverContent>
             </Popover>
 
-            <p className="text-xs text-muted-foreground">Filter by free keywords, GCMD or MSL vocabularies</p>
+            <p className="text-xs text-muted-foreground">Filter by free keywords or controlled vocabularies (GCMD, MSL, GEMET, ICS)</p>
         </div>
     );
 }

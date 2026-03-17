@@ -1,5 +1,13 @@
 import { ExternalLink, FileCode, FileJson } from 'lucide-react';
 
+import {
+    SCHEME_GCMD_INSTRUMENTS,
+    SCHEME_GCMD_PLATFORMS,
+    SCHEME_GCMD_SCIENCE,
+    SCHEME_GEMET,
+    SCHEME_ICS_CHRONOSTRAT,
+    SCHEME_MSL,
+} from '@/lib/keyword-schemes';
 import type {
     LandingPageContributor,
     LandingPageCreator,
@@ -17,18 +25,34 @@ interface AbstractSectionProps {
     resourceId: number;
 }
 
+/** Single source of truth: ordered thesaurus definitions with badge styling */
+const THESAURUS_DEFINITIONS: { scheme: string; bgClass: string; textClass: string }[] = [
+    { scheme: SCHEME_GCMD_SCIENCE, bgClass: 'bg-blue-600', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_PLATFORMS, bgClass: 'bg-emerald-600', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_INSTRUMENTS, bgClass: 'bg-amber-600', textClass: 'text-white' },
+    { scheme: SCHEME_MSL, bgClass: 'bg-purple-600', textClass: 'text-white' },
+    { scheme: SCHEME_GEMET, bgClass: 'bg-rose-600', textClass: 'text-white' },
+    { scheme: SCHEME_ICS_CHRONOSTRAT, bgClass: 'bg-teal-600', textClass: 'text-white' },
+];
+
+const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
+const SCHEME_STYLES = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass }]));
+
+const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
+
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject }: { subject: LandingPageSubject }) {
+function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style?: { bg: string; text: string } }) {
     const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
+    const { bg, text } = style ?? SCHEME_STYLES[subject.subject_scheme ?? ''] ?? FREE_KEYWORD_STYLE;
 
     return (
         <a
             href={portalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full bg-gfz-primary px-3 py-1 text-xs font-medium text-gfz-primary-foreground transition-opacity hover:opacity-80"
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${bg} ${text}`}
             title={`Search for "${subject.subject}" in the portal`}
         >
             {subject.subject}
@@ -62,12 +86,23 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
         return null;
     }
 
-    // Group subjects by scheme
-    const freeKeywords = subjects.filter((s) => !s.subject_scheme || s.subject_scheme === '');
-    const gcmdScienceKeywords = subjects.filter((s) => s.subject_scheme === 'Science Keywords');
-    const gcmdPlatforms = subjects.filter((s) => s.subject_scheme === 'Platforms');
-    const gcmdInstruments = subjects.filter((s) => s.subject_scheme === 'Instruments');
-    const mslVocabularies = subjects.filter((s) => s.subject_scheme === 'EPOS MSL vocabulary');
+    // Single-pass grouping: bucket subjects by scheme, then emit in defined order
+    const schemeGroups = new Map<string, LandingPageSubject[]>();
+    const freeKeywords: LandingPageSubject[] = [];
+    for (const s of subjects) {
+        if (!s.subject_scheme || s.subject_scheme === '') {
+            freeKeywords.push(s);
+        } else if (THESAURUS_SCHEMES.has(s.subject_scheme)) {
+            const group = schemeGroups.get(s.subject_scheme);
+            if (group) {
+                group.push(s);
+            } else {
+                schemeGroups.set(s.subject_scheme, [s]);
+            }
+        }
+    }
+    const thesauriKeywords = THESAURUS_DEFINITIONS.flatMap((d) => schemeGroups.get(d.scheme) ?? []);
+    const hasAnyKeywords = thesauriKeywords.length > 0 || freeKeywords.length > 0;
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="abstract-section">
@@ -261,63 +296,33 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                 </div>
             )}
 
-            {/* Free Keywords Section */}
-            {freeKeywords.length > 0 && (
+            {/* Keywords Section (Thesauri + Free Keywords) */}
+            {hasAnyKeywords && (
                 <div className="mt-6" data-testid="subjects-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Free Keywords</h3>
-                    <div className="flex flex-wrap gap-2" data-testid="keywords-list">
-                        {freeKeywords.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    <h3 className="text-lg font-semibold text-gray-900">Keywords</h3>
 
-            {/* GCMD Science Keywords Section */}
-            {gcmdScienceKeywords.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">GCMD Science Keywords</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {gcmdScienceKeywords.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    {/* Thesauri Keywords */}
+                    {thesauriKeywords.length > 0 && (
+                        <div className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                            {thesauriKeywords.map((subject) => (
+                                <KeywordBadge key={subject.id} subject={subject} />
+                            ))}
+                        </div>
+                    )}
 
-            {/* GCMD Platforms Section */}
-            {gcmdPlatforms.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">GCMD Platforms</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {gcmdPlatforms.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    {/* Separator between thesauri and free keywords */}
+                    {thesauriKeywords.length > 0 && freeKeywords.length > 0 && (
+                        <hr className="my-3 border-gray-200" />
+                    )}
 
-            {/* GCMD Instruments Section */}
-            {gcmdInstruments.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">GCMD Instruments</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {gcmdInstruments.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* MSL Vocabularies Section */}
-            {mslVocabularies.length > 0 && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">MSL Vocabularies</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {mslVocabularies.map((subject) => (
-                            <KeywordBadge key={subject.id} subject={subject} />
-                        ))}
-                    </div>
+                    {/* Free Keywords */}
+                    {freeKeywords.length > 0 && (
+                        <div className="flex flex-wrap gap-2" data-testid="keywords-list">
+                            {freeKeywords.map((subject) => (
+                                <KeywordBadge key={subject.id} subject={subject} style={FREE_KEYWORD_STYLE} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
