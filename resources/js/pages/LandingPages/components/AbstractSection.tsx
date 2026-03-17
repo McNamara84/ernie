@@ -3,7 +3,6 @@ import { ExternalLink, FileCode, FileJson } from 'lucide-react';
 import type {
     LandingPageContributor,
     LandingPageCreator,
-    LandingPageCreatorable,
     LandingPageDescription,
     LandingPageFundingReference,
     LandingPageSubject,
