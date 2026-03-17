@@ -126,10 +126,10 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                     <Command
                         filter={(value, search) => {
-                            // The value is "scheme-keyword". Only match against the keyword part
-                            // so that typing a scheme name (e.g. "msl") doesn't match items.
-                            const separatorIndex = value.indexOf('-');
-                            const keyword = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : value;
+                            // The value is "scheme::keyword". Only match against the keyword part
+                            // so that typing a scheme name doesn't match unrelated items.
+                            const separatorIndex = value.indexOf('::');
+                            const keyword = separatorIndex >= 0 ? value.slice(separatorIndex + 2) : value;
                             return keyword.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
                         }}
                     >
@@ -143,7 +143,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                                         return (
                                             <CommandItem
                                                 key={`${scheme}-${suggestion.value}`}
-                                                value={`${suggestion.scheme ?? ''}-${suggestion.value}`}
+                                                value={`${suggestion.scheme ?? ''}::${suggestion.value}`}
                                                 onSelect={() => handleSelect(suggestion.value)}
                                             >
                                                 <Check
@@ -161,7 +161,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                 </PopoverContent>
             </Popover>
 
-            <p className="text-xs text-muted-foreground">Filter by free keywords, GCMD or MSL vocabularies</p>
+            <p className="text-xs text-muted-foreground">Filter by free keywords or controlled vocabularies (GCMD, MSL, GEMET, ICS)</p>
         </div>
     );
 }
