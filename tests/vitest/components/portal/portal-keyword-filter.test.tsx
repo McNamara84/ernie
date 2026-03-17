@@ -71,7 +71,7 @@ describe('PortalKeywordFilter', () => {
         it('renders the helper text', () => {
             render(<PortalKeywordFilter {...defaultProps} />);
 
-            expect(screen.getByText('Filter by free keywords, GCMD or MSL vocabularies')).toBeInTheDocument();
+            expect(screen.getByText('Filter by free keywords or controlled vocabularies (GCMD, MSL, GEMET, ICS)')).toBeInTheDocument();
         });
     });
 
