@@ -1,5 +1,13 @@
 import { ExternalLink, FileCode, FileJson } from 'lucide-react';
 
+import {
+    SCHEME_GCMD_INSTRUMENTS,
+    SCHEME_GCMD_PLATFORMS,
+    SCHEME_GCMD_SCIENCE,
+    SCHEME_GEMET,
+    SCHEME_ICS_CHRONOSTRAT,
+    SCHEME_MSL,
+} from '@/lib/keyword-schemes';
 import type {
     LandingPageContributor,
     LandingPageCreator,
@@ -19,15 +27,15 @@ interface AbstractSectionProps {
 
 /** Single source of truth: ordered thesaurus definitions with badge styling */
 const THESAURUS_DEFINITIONS: { scheme: string; bgClass: string; textClass: string }[] = [
-    { scheme: 'Science Keywords', bgClass: 'bg-blue-600', textClass: 'text-white' },
-    { scheme: 'Platforms', bgClass: 'bg-emerald-600', textClass: 'text-white' },
-    { scheme: 'Instruments', bgClass: 'bg-amber-600', textClass: 'text-white' },
-    { scheme: 'EPOS MSL vocabulary', bgClass: 'bg-purple-600', textClass: 'text-white' },
-    { scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus', bgClass: 'bg-rose-600', textClass: 'text-white' },
-    { scheme: 'International Chronostratigraphic Chart', bgClass: 'bg-teal-600', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_SCIENCE, bgClass: 'bg-blue-600', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_PLATFORMS, bgClass: 'bg-emerald-600', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_INSTRUMENTS, bgClass: 'bg-amber-600', textClass: 'text-white' },
+    { scheme: SCHEME_MSL, bgClass: 'bg-purple-600', textClass: 'text-white' },
+    { scheme: SCHEME_GEMET, bgClass: 'bg-rose-600', textClass: 'text-white' },
+    { scheme: SCHEME_ICS_CHRONOSTRAT, bgClass: 'bg-teal-600', textClass: 'text-white' },
 ];
 
-const THESAURUS_SCHEMES = THESAURUS_DEFINITIONS.map((d) => d.scheme);
+const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
 const SCHEME_STYLES = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass }]));
 
 const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
@@ -78,9 +86,22 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
         return null;
     }
 
-    // Group subjects: thesauri keywords (ordered) vs free keywords
-    const thesauriKeywords = THESAURUS_SCHEMES.flatMap((scheme) => subjects.filter((s) => s.subject_scheme === scheme));
-    const freeKeywords = subjects.filter((s) => !s.subject_scheme || s.subject_scheme === '');
+    // Single-pass grouping: bucket subjects by scheme, then emit in defined order
+    const schemeGroups = new Map<string, LandingPageSubject[]>();
+    const freeKeywords: LandingPageSubject[] = [];
+    for (const s of subjects) {
+        if (!s.subject_scheme || s.subject_scheme === '') {
+            freeKeywords.push(s);
+        } else if (THESAURUS_SCHEMES.has(s.subject_scheme)) {
+            const group = schemeGroups.get(s.subject_scheme);
+            if (group) {
+                group.push(s);
+            } else {
+                schemeGroups.set(s.subject_scheme, [s]);
+            }
+        }
+    }
+    const thesauriKeywords = THESAURUS_DEFINITIONS.flatMap((d) => schemeGroups.get(d.scheme) ?? []);
     const hasAnyKeywords = thesauriKeywords.length > 0 || freeKeywords.length > 0;
 
     return (

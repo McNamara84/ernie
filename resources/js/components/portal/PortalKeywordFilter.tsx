@@ -7,6 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { getSchemeLabel } from '@/lib/keyword-schemes';
 import type { KeywordSuggestion } from '@/types/portal';
 
 interface PortalKeywordFilterProps {
@@ -16,22 +17,6 @@ interface PortalKeywordFilterProps {
     selectedKeywords: string[];
     /** Callback when keywords change */
     onKeywordsChange: (keywords: string[]) => void;
-}
-
-/** Scheme display labels for keyword groups */
-const SCHEME_LABELS: Record<string, string> = {
-    '': 'Free Keywords',
-    'Science Keywords': 'GCMD Science Keywords',
-    Platforms: 'GCMD Platforms',
-    Instruments: 'GCMD Instruments',
-    'EPOS MSL vocabulary': 'MSL Vocabularies',
-};
-
-/**
- * Get user-friendly label for a keyword scheme.
- */
-function getSchemeLabel(scheme: string | null): string {
-    return SCHEME_LABELS[scheme ?? ''] ?? (scheme || 'Free Keywords');
 }
 
 /**
