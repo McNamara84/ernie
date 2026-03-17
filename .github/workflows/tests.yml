@@ -103,8 +103,19 @@ jobs:
           php artisan config:show app.url || echo "Could not show app.url"
 
       - name: Tests
+        env:
+          XDEBUG_MODE: coverage
         run: |
           # Run serial tests first (tests that modify shared resources like log files)
-          ./vendor/bin/pest --group=serial
+          ./vendor/bin/pest --group=serial --coverage-clover=coverage-serial.xml
           # Run remaining tests in parallel (excluding serial group)
-          ./vendor/bin/pest --parallel --exclude-group=serial
+          ./vendor/bin/pest --parallel --exclude-group=serial --coverage-clover=coverage-parallel.xml
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-serial.xml,coverage-parallel.xml
+          flags: backend
+          fail_ci_if_error: false

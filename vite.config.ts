@@ -88,7 +88,7 @@ export default defineConfig(() => {
             },
             coverage: {
                 provider: 'v8' as const,
-                reporter: ['text', 'json-summary'],
+                reporter: ['text', 'json-summary', 'lcov'],
                 reportsDirectory: 'coverage',
                 include: ['resources/js/**/*.{js,ts,jsx,tsx}'],
                 exclude: [

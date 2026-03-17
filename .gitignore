@@ -1,5 +1,9 @@
 /.phpunit.cache
 /bootstrap/ssr
+/coverage
+clover.xml
+coverage-serial.xml
+coverage-parallel.xml
 /node_modules
 /public/build
 /public/hot
