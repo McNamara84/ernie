@@ -349,13 +349,13 @@ describe('Funder identifier type persistence', function () {
         $this->assertDatabaseHas('funding_references', [
             'funder_name' => 'DFG',
             'funder_identifier_type_id' => $rorType->id,
-            'scheme_uri' => 'https://ror.org',
+            'scheme_uri' => 'https://ror.org/',
         ]);
 
         $this->assertDatabaseHas('funding_references', [
             'funder_name' => 'EU',
             'funder_identifier_type_id' => $crossrefType->id,
-            'scheme_uri' => 'https://doi.org/10.13039',
+            'scheme_uri' => 'https://doi.org/10.13039/',
         ]);
     });
 
@@ -365,7 +365,7 @@ describe('Funder identifier type persistence', function () {
                 [
                     'funderName' => 'Unknown Funder',
                     'funderIdentifier' => '',
-                    'funderIdentifierType' => '',
+                    'funderIdentifierType' => null,
                     'awardNumber' => '',
                     'awardUri' => '',
                     'awardTitle' => '',

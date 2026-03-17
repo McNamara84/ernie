@@ -673,7 +673,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             expect($funding->funder_name)->toBe('Deutsche Forschungsgemeinschaft')
                 ->and($funding->funder_identifier)->toBe('https://ror.org/018mejw64')
                 ->and($funding->funder_identifier_type_id)->toBe($rorType->id)
-                ->and($funding->scheme_uri)->toBe('https://ror.org');
+                ->and($funding->scheme_uri)->toBe('https://ror.org/');
         });
 
         it('stores funder_identifier_type_id correctly for Crossref Funder ID', function () {
@@ -706,7 +706,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
             $funding = $resource->fundingReferences()->first();
             expect($funding->funder_identifier_type_id)->toBe($crossrefType->id)
-                ->and($funding->scheme_uri)->toBe('https://doi.org/10.13039');
+                ->and($funding->scheme_uri)->toBe('https://doi.org/10.13039/');
         });
 
         it('stores null funder_identifier_type_id when no type is provided', function () {
@@ -726,7 +726,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
                     [
                         'funderName' => 'Generic Funder',
                         'funderIdentifier' => '',
-                        'funderIdentifierType' => '',
+                        'funderIdentifierType' => null,
                         'awardNumber' => '',
                         'awardUri' => '',
                         'awardTitle' => '',

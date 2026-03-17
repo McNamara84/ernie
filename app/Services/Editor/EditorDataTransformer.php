@@ -474,10 +474,13 @@ class EditorDataTransformer
         return $resource->fundingReferences
             ->sortBy('position')
             ->map(function ($funding): array {
+                /** @var \App\Models\FundingReference $funding */
+                $identifierType = $funding->funderIdentifierType;
+
                 return [
                     'funderName' => $funding->funder_name,
                     'funderIdentifier' => $funding->funder_identifier ?? '',
-                    'funderIdentifierType' => $funding->funderIdentifierType->name ?? '',
+                    'funderIdentifierType' => $identifierType !== null ? $identifierType->name : '',
                     'awardNumber' => $funding->award_number ?? '',
                     'awardUri' => $funding->award_uri ?? '',
                     'awardTitle' => $funding->award_title ?? '',

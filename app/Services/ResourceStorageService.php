@@ -982,10 +982,10 @@ class ResourceStorageService
         }
 
         return match ($typeName) {
-            'ROR' => 'https://ror.org',
-            'Crossref Funder ID' => 'https://doi.org/10.13039',
-            'ISNI' => 'https://isni.org',
-            'GRID' => 'https://grid.ac',
+            'ROR' => 'https://ror.org/',
+            'Crossref Funder ID' => 'https://doi.org/10.13039/',
+            'ISNI' => 'https://isni.org/',
+            'GRID' => 'https://grid.ac/',
             default => null,
         };
     }
