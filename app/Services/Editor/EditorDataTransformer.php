@@ -477,7 +477,7 @@ class EditorDataTransformer
                 return [
                     'funderName' => $funding->funder_name,
                     'funderIdentifier' => $funding->funder_identifier ?? '',
-                    'funderIdentifierType' => $funding->funder_identifier_type ?? '',
+                    'funderIdentifierType' => $funding->funderIdentifierType->name ?? '',
                     'awardNumber' => $funding->award_number ?? '',
                     'awardUri' => $funding->award_uri ?? '',
                     'awardTitle' => $funding->award_title ?? '',

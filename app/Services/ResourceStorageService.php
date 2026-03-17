@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Language;
@@ -949,7 +950,7 @@ class ResourceStorageService
                     'funder_name' => trim($fundingReference['funderName']),
                     'funder_identifier' => ! empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
                     'funder_identifier_type_id' => ! empty($fundingReference['funderIdentifierType']) ? $this->getFunderIdentifierTypeId($fundingReference['funderIdentifierType']) : null,
-                    'scheme_uri' => null,
+                    'scheme_uri' => $this->getFunderIdentifierSchemeUri($fundingReference['funderIdentifierType'] ?? null),
                     'award_number' => ! empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
                     'award_uri' => ! empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
                     'award_title' => ! empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
@@ -959,16 +960,34 @@ class ResourceStorageService
     }
 
     /**
-     * Get or create funder identifier type by name.
+     * Get funder identifier type ID by name.
      */
     private function getFunderIdentifierTypeId(string $typeName): ?int
     {
-        $type = IdentifierType::query()
+        $type = FunderIdentifierType::query()
             ->where('name', $typeName)
-            ->orWhere('slug', Str::slug($typeName))
+            ->orWhere('slug', $typeName)
             ->first();
 
         return $type?->id;
+    }
+
+    /**
+     * Get the scheme URI for a funder identifier type.
+     */
+    private function getFunderIdentifierSchemeUri(?string $typeName): ?string
+    {
+        if (empty($typeName)) {
+            return null;
+        }
+
+        return match ($typeName) {
+            'ROR' => 'https://ror.org',
+            'Crossref Funder ID' => 'https://doi.org/10.13039',
+            'ISNI' => 'https://isni.org',
+            'GRID' => 'https://grid.ac',
+            default => null,
+        };
     }
 
     /**

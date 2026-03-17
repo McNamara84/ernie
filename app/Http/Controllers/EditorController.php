@@ -196,7 +196,7 @@ class EditorController extends Controller
                 'geoLocations',
                 'relatedIdentifiers.identifierType',
                 'relatedIdentifiers.relationType',
-                'fundingReferences',
+                'fundingReferences.funderIdentifierType',
                 'instruments',
             ])
             ->findOrFail($resourceId);
