@@ -83,6 +83,7 @@ export default function DefaultGfzTemplate() {
                             <AbstractSection
                                 descriptions={resource.descriptions || []}
                                 creators={resource.creators || []}
+                                contributors={resource.contributors || []}
                                 fundingReferences={resource.funding_references || []}
                                 subjects={resource.subjects || []}
                                 resourceId={resource.id}

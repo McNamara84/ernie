@@ -112,6 +112,17 @@ export interface LandingPageCreator {
 }
 
 /**
+ * Contributor entry for landing pages
+ */
+export interface LandingPageContributor {
+    id: number;
+    position: number;
+    contributor_types: string[];
+    affiliations: LandingPageAffiliation[];
+    contributorable: LandingPageCreatorable;
+}
+
+/**
  * Title entry for landing pages
  */
 export interface LandingPageTitle {
@@ -296,6 +307,7 @@ export interface LandingPageResource {
     titles?: LandingPageTitle[];
     descriptions?: LandingPageDescription[];
     creators?: LandingPageCreator[];
+    contributors?: LandingPageContributor[];
     licenses?: LandingPageLicense[];
     related_identifiers?: LandingPageRelatedIdentifier[];
     funding_references?: LandingPageFundingReference[];

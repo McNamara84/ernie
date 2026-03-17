@@ -89,6 +89,7 @@ const createSubject = (overrides: Partial<{
 const defaultProps = {
     descriptions: [createDescription()],
     creators: [],
+    contributors: [],
     fundingReferences: [],
     subjects: [],
     resourceId: 123,

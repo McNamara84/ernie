@@ -33,24 +33,35 @@ interface Subject {
     classification_code: string | null;
 }
 
+interface Contributorable {
+    type: string;
+    id: number;
+    given_name?: string;
+    family_name?: string;
+    name_identifier?: string;
+    name_identifier_scheme?: string;
+    name?: string;
+}
+
 interface Creator {
     id: number;
     position: number;
     affiliations: Affiliation[];
-    creatorable: {
-        type: string;
-        id: number;
-        given_name?: string;
-        family_name?: string;
-        name_identifier?: string;
-        name_identifier_scheme?: string;
-        name?: string;
-    };
+    creatorable: Contributorable;
+}
+
+interface Contributor {
+    id: number;
+    position: number;
+    contributor_types: string[];
+    affiliations: Affiliation[];
+    contributorable: Contributorable;
 }
 
 interface AbstractSectionProps {
     descriptions: Description[];
     creators: Creator[];
+    contributors: Contributor[];
     fundingReferences: FundingReference[];
     subjects: Subject[];
     resourceId: number;
@@ -81,9 +92,10 @@ function KeywordBadge({ subject }: { subject: Subject }) {
  *
  * Zeigt die Abstract-Description, Creators, Funders und Subjects an.
  */
-export function AbstractSection({ descriptions, creators, fundingReferences, subjects, resourceId }: AbstractSectionProps) {
+export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId }: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
     const abstract = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'abstract');
+    const methods = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'methods');
 
     if (!abstract) {
         return null;
@@ -104,6 +116,18 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                     {abstract.value}
                 </p>
             </div>
+
+            {/* Methods Section */}
+            {methods && (
+                <div className="mt-6" data-testid="methods-section">
+                    <h3 className="text-lg font-semibold text-gray-900">Methods</h3>
+                    <div className="prose prose-sm max-w-none text-gray-700">
+                        <p className="mt-0 whitespace-pre-wrap" data-testid="methods-text">
+                            {methods.value}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Creators Section */}
             {creators.length > 0 && (
@@ -160,6 +184,73 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                                                 </a>
                                             )}
                                         </>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
+
+            {/* Contributors Section */}
+            {contributors.length > 0 && (
+                <div className="mt-6" data-testid="contributors-section">
+                    <h3 className="text-lg font-semibold text-gray-900">Contributors</h3>
+                    <ul className="space-y-2" data-testid="contributors-list">
+                        {contributors.map((contributor) => {
+                            const contributorable = contributor.contributorable;
+                            const firstAffiliation = contributor.affiliations[0];
+                            const isPerson = contributorable.type === 'Person';
+                            const hasOrcid = isPerson && contributorable.name_identifier && contributorable.name_identifier_scheme === 'ORCID';
+
+                            return (
+                                <li key={contributor.id} className="flex items-center gap-1 text-sm text-gray-700">
+                                    {/* Contributor Name */}
+                                    {isPerson ? (
+                                        <span>
+                                            {contributorable.family_name}, {contributorable.given_name}
+                                        </span>
+                                    ) : (
+                                        <span>{contributorable.name}</span>
+                                    )}
+
+                                    {/* ORCID Icon (only for persons) */}
+                                    {hasOrcid && (
+                                        <a
+                                            href={`https://orcid.org/${contributorable.name_identifier}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0"
+                                            title={`ORCID: ${contributorable.name_identifier}`}
+                                        >
+                                            <img src="/images/pid-icons/orcid-icon.png" alt="ORCID" className="h-4 w-4" />
+                                        </a>
+                                    )}
+
+                                    {/* Affiliation */}
+                                    {firstAffiliation && (
+                                        <>
+                                            {(!isPerson || !hasOrcid) && <span>; </span>}
+                                            <span>{firstAffiliation.name}</span>
+
+                                            {/* ROR Icon */}
+                                            {firstAffiliation.affiliation_identifier && firstAffiliation.affiliation_identifier_scheme === 'ROR' && (
+                                                <a
+                                                    href={firstAffiliation.affiliation_identifier}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="shrink-0"
+                                                    title={`ROR ID: ${firstAffiliation.affiliation_identifier}`}
+                                                >
+                                                    <img src="/images/pid-icons/ror-icon.png" alt="ROR" className="h-4 w-4" />
+                                                </a>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* Contributor Types */}
+                                    {contributor.contributor_types.length > 0 && (
+                                        <span className="text-gray-500">({contributor.contributor_types.join(', ')})</span>
                                     )}
                                 </li>
                             );
