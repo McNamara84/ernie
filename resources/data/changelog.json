@@ -4,6 +4,10 @@
         "date": "2026-03-17",
         "features": [
             {
+                "title": "Unified Keywords Section on Landing Pages",
+                "description": "The landing page for regular datasets now shows all keywords in a single 'Keywords' section instead of separate sections per thesaurus. Thesauri keywords (GCMD Science Keywords, Platforms, Instruments, MSL Vocabularies, GEMET, ICS Chronostratigraphic Chart) are displayed first with distinct badge colors per thesaurus type, followed by a visual separator and free keywords in GFZ blue. All keyword badges remain clickable and link to the portal with the keyword pre-filtered."
+            },
+            {
                 "title": "Extended Default Landing Page Template",
                 "description": "The default GFZ landing page template for regular datasets now displays a 'Methods' section below the Abstract (when a Methods description is available), a 'Contributors' section after Creators (showing contributor names with ORCID/ROR icons and contributor types in brackets), and the 'Funders' section has been repositioned from between Creators and Keywords to after Contributors for a more logical grouping."
             },
