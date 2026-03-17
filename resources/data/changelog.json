@@ -1,8 +1,20 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-15",
+        "date": "2026-03-16",
         "features": [
+            {
+                "title": "Configurable Relation Types and Identifier Types",
+                "description": "Relation Types and Identifier Types (for Related Identifiers) can now be individually activated or deactivated for ERNIE and ELMO in the Editor Settings. The editor dynamically shows only active types in the relation type and identifier type dropdowns. Identifier Types additionally support configurable validation and detection regex patterns with priority ordering."
+            },
+            {
+                "title": "Relation Types and Identifier Types API Endpoints",
+                "description": "New API endpoints for retrieving relation types: GET /api/v1/relation-types (all), GET /api/v1/relation-types/ernie (active for ERNIE), GET /api/v1/relation-types/elmo (active for ELMO, requires API key). Similarly for identifier types: GET /api/v1/identifier-types (all with patterns), GET /api/v1/identifier-types/ernie (active for ERNIE), GET /api/v1/identifier-types/elmo (active for ELMO with patterns, requires API key)."
+            },
+            {
+                "title": "Identifier Type Patterns Database",
+                "description": "Validation and detection regex patterns for identifier types are now stored in the database (identifier_type_patterns table) alongside the existing frontend detection logic. Each pattern has a type (validation or detection), an active toggle, and a priority for ordering. Patterns are seeded from the existing detection logic and can be managed in Editor Settings."
+            },
             {
                 "title": "Configurable Description Types",
                 "description": "Description Types can now be individually activated or deactivated for ERNIE and ELMO in the Editor Settings. The editor dynamically shows only active description type tabs. The Abstract type is always active as it is a mandatory field."

@@ -61,6 +61,18 @@ erDiagram
         varchar name
         varchar slug UK
         boolean is_active
+        boolean is_elmo_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    identifier_type_patterns {
+        bigint id PK
+        bigint identifier_type_id FK
+        enum type "validation|detection"
+        varchar(500) pattern
+        boolean is_active
+        smallint priority
         timestamp created_at
         timestamp updated_at
     }
@@ -70,6 +82,7 @@ erDiagram
         varchar name
         varchar slug UK
         boolean is_active
+        boolean is_elmo_active
         timestamp created_at
         timestamp updated_at
     }
@@ -613,6 +626,7 @@ erDiagram
     resource_contributor_contributor_type }o--|| contributor_types : "type"
     related_identifiers }o--|| identifier_types : "identifier type"
     related_identifiers }o--|| relation_types : "relation type"
+    identifier_type_patterns }o--|| identifier_types : "patterns for"
     funding_references }o--o| funder_identifier_types : "identifier type"
 
     %% Rights pivot

@@ -14,6 +14,8 @@ import RelatedWorkQuickAdd from './related-work-quick-add';
 interface RelatedWorkFieldProps {
     relatedWorks: RelatedIdentifier[];
     onChange: (relatedWorks: RelatedIdentifier[]) => void;
+    activeRelationTypes?: string[];
+    activeIdentifierTypes?: string[];
 }
 
 /**
@@ -58,7 +60,7 @@ function isDuplicate(identifier: string, identifierType: string, relationType: s
     });
 }
 
-export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWorkFieldProps) {
+export default function RelatedWorkField({ relatedWorks, onChange, activeRelationTypes, activeIdentifierTypes }: RelatedWorkFieldProps) {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
@@ -168,7 +170,12 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
             {/* CSV Import Modal */}
             {showCsvImport ? (
                 <div className="rounded-lg border bg-card p-6">
-                    <RelatedWorkCsvImport onImport={handleBulkImport} onClose={() => setShowCsvImport(false)} />
+                    <RelatedWorkCsvImport
+                        onImport={handleBulkImport}
+                        onClose={() => setShowCsvImport(false)}
+                        activeRelationTypes={activeRelationTypes}
+                        activeIdentifierTypes={activeIdentifierTypes}
+                    />
                 </div>
             ) : (
                 <>
@@ -183,6 +190,7 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
                             identifierType={identifierType}
                             relationType={relationType}
                             onRelationTypeChange={setRelationType}
+                            activeRelationTypes={activeRelationTypes}
                         />
                     ) : (
                         <>
@@ -196,6 +204,8 @@ export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWork
                                 onRelationTypeChange={setRelationType}
                                 relationTypeInformation={relationTypeInformation}
                                 onRelationTypeInformationChange={setRelationTypeInformation}
+                                activeRelationTypes={activeRelationTypes}
+                                activeIdentifierTypes={activeIdentifierTypes}
                             />
                             <div className="pt-2">
                                 <button

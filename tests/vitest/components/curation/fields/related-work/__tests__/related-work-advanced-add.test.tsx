@@ -43,7 +43,7 @@ describe('RelatedWorkAdvancedAdd', () => {
     it('renders the advanced mode header', () => {
         render(<RelatedWorkAdvancedAdd {...defaultProps} />);
 
-        expect(screen.getByText(/Advanced Mode - All Relation Types/)).toBeInTheDocument();
+        expect(screen.getByText(/Advanced Mode/)).toBeInTheDocument();
     });
 
     it('renders the identifier input', () => {

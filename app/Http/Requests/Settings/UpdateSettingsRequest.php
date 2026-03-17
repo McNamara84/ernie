@@ -9,7 +9,9 @@ use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateSettingsRequest extends FormRequest
 {
@@ -77,6 +79,100 @@ class UpdateSettingsRequest extends FormRequest
             'contributorBothRoles.*.active' => ['required', 'boolean'],
             'contributorBothRoles.*.elmo_active' => ['required', 'boolean'],
             'contributorBothRoles.*.category' => ['required', 'string', Rule::in($categoryValues)],
+            // Relation types (optional)
+            'relationTypes' => ['sometimes', 'array'],
+            'relationTypes.*.id' => ['required', 'integer', 'exists:relation_types,id'],
+            'relationTypes.*.active' => ['required', 'boolean'],
+            'relationTypes.*.elmo_active' => ['required', 'boolean'],
+            // Identifier types with patterns (optional)
+            'identifierTypes' => ['sometimes', 'array'],
+            'identifierTypes.*.id' => ['required', 'integer', 'exists:identifier_types,id'],
+            'identifierTypes.*.active' => ['required', 'boolean'],
+            'identifierTypes.*.elmo_active' => ['required', 'boolean'],
+            'identifierTypes.*.patterns' => ['sometimes', 'array'],
+            'identifierTypes.*.patterns.*.id' => ['required', 'integer', 'exists:identifier_type_patterns,id'],
+            'identifierTypes.*.patterns.*.pattern' => ['required', 'string', 'max:500'],
+            'identifierTypes.*.patterns.*.is_active' => ['required', 'boolean'],
+            'identifierTypes.*.patterns.*.priority' => ['required', 'integer', 'min:0', 'max:100'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $this->validateUniquePatterns($validator);
+        });
+    }
+
+    private function validateUniquePatterns(Validator $validator): void
+    {
+        /** @var array<int, array{id: int, patterns?: array<int, array{id: int, pattern: string}>}> $identifierTypes */
+        $identifierTypes = $this->input('identifierTypes', []);
+
+        $allPatternIds = [];
+        foreach ($identifierTypes as $identifierType) {
+            foreach ($identifierType['patterns'] ?? [] as $pattern) {
+                $allPatternIds[] = $pattern['id'];
+            }
+        }
+
+        if ($allPatternIds === []) {
+            return;
+        }
+
+        $patternRows = DB::table('identifier_type_patterns')
+            ->whereIn('id', $allPatternIds)
+            ->get(['id', 'identifier_type_id', 'type'])
+            ->keyBy('id');
+
+        $identifierTypeIds = array_unique(array_column($identifierTypes, 'id'));
+        $existingPatterns = DB::table('identifier_type_patterns')
+            ->whereIn('identifier_type_id', $identifierTypeIds)
+            ->get(['id', 'identifier_type_id', 'type', 'pattern']);
+
+        /** @var array<string, int> $existingKeyToId */
+        $existingKeyToId = [];
+        foreach ($existingPatterns as $ep) {
+            $key = $ep->identifier_type_id . '|' . $ep->type . '|' . $ep->pattern;
+            $existingKeyToId[$key] = (int) $ep->id;
+        }
+
+        foreach ($identifierTypes as $itIndex => $identifierType) {
+            /** @var array<string, true> $seen */
+            $seen = [];
+            foreach ($identifierType['patterns'] ?? [] as $pIndex => $pattern) {
+                $row = $patternRows[$pattern['id']] ?? null;
+                if ($row === null) {
+                    continue;
+                }
+
+                if ((int) $row->identifier_type_id !== (int) $identifierType['id']) {
+                    $validator->errors()->add(
+                        "identifierTypes.{$itIndex}.patterns.{$pIndex}.id",
+                        'This pattern does not belong to the given identifier type.'
+                    );
+                    continue;
+                }
+
+                $key = $row->type . '|' . $pattern['pattern'];
+                if (isset($seen[$key])) {
+                    $validator->errors()->add(
+                        "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
+                        'This pattern already exists for this identifier type and type.'
+                    );
+                } else {
+                    $dbKey = $identifierType['id'] . '|' . $row->type . '|' . $pattern['pattern'];
+                    $existingId = $existingKeyToId[$dbKey] ?? null;
+
+                    if ($existingId !== null && $existingId !== (int) $pattern['id']) {
+                        $validator->errors()->add(
+                            "identifierTypes.{$itIndex}.patterns.{$pIndex}.pattern",
+                            'This pattern already exists for this identifier type and type.'
+                        );
+                    }
+                }
+                $seen[$key] = true;
+            }
+        }
     }
 }

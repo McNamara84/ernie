@@ -1,5 +1,5 @@
 import { Info } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,8 @@ interface RelatedWorkAdvancedAddProps {
     onRelationTypeChange: (value: RelationType) => void;
     relationTypeInformation?: string;
     onRelationTypeInformationChange?: (value: string) => void;
+    activeRelationTypes?: string[];
+    activeIdentifierTypes?: string[];
 }
 
 /**
@@ -39,10 +41,30 @@ export default function RelatedWorkAdvancedAdd({
     onRelationTypeChange,
     relationTypeInformation: externalRelationTypeInformation,
     onRelationTypeInformationChange,
+    activeRelationTypes,
+    activeIdentifierTypes,
 }: RelatedWorkAdvancedAddProps) {
     const [internalRelationTypeInfo, setInternalRelationTypeInfo] = useState('');
     const relationTypeInformation = externalRelationTypeInformation ?? internalRelationTypeInfo;
     const setRelationTypeInformation = onRelationTypeInformationChange ?? setInternalRelationTypeInfo;
+
+    // Filter types to only show active ones from backend
+    const filteredRelationTypes = useMemo(
+        () =>
+            activeRelationTypes
+                ? getAllRelationTypes().filter((t) => activeRelationTypes.includes(t))
+                : getAllRelationTypes(),
+        [activeRelationTypes],
+    );
+
+    const filteredIdentifierTypes = useMemo(
+        () =>
+            activeIdentifierTypes
+                ? identifierTypes.filter((t) => activeIdentifierTypes.includes(t))
+                : [...identifierTypes],
+        [activeIdentifierTypes],
+    );
+
     // Validate identifier with API
     const validation = useIdentifierValidation({
         identifier,
@@ -79,10 +101,10 @@ export default function RelatedWorkAdvancedAdd({
         <div className="space-y-4">
             {/* Header */}
             <div className="space-y-2">
-                <Label className="text-base font-semibold">Advanced Mode - All Relation Types</Label>
+                <Label className="text-base font-semibold">Advanced Mode</Label>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                    <p>Browse all {getAllRelationTypes().length} DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
+                    <p>Browse {filteredRelationTypes.length}{activeRelationTypes ? ' active' : ''} DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
                 </div>
             </div>
 
@@ -135,7 +157,7 @@ export default function RelatedWorkAdvancedAdd({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {identifierTypes.map((type) => (
+                            {filteredIdentifierTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     {type}
                                 </SelectItem>
@@ -152,7 +174,7 @@ export default function RelatedWorkAdvancedAdd({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-[400px]">
-                            {getAllRelationTypes().map((type) => (
+                            {filteredRelationTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
                                         <span className="font-medium">{type}</span>

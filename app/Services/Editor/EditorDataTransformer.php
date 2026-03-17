@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Editor;
 
 use App\Models\Affiliation;
+use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
@@ -81,6 +83,8 @@ class EditorDataTransformer
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'googleMapsApiKey' => config('services.google_maps.api_key'),
+            'activeRelationTypes' => RelationType::active()->orderByName()->pluck('slug')->values()->all(),
+            'activeIdentifierTypes' => IdentifierType::active()->orderByName()->pluck('slug')->values()->all(),
         ];
     }
 

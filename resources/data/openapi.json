@@ -421,6 +421,154 @@
                 }
             }
         },
+        "/api/v1/relation-types": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List all relation types",
+                "description": "Returns all DataCite relation types defined in the system, regardless of their activation status. No authentication required.",
+                "responses": {
+                    "200": {
+                        "description": "List of all relation types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RelationType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/relation-types/ernie": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List relation types enabled for ERNIE",
+                "description": "Returns all relation types that are active for the ERNIE editor (`is_active` is true). No authentication required.",
+                "responses": {
+                    "200": {
+                        "description": "List of active relation types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RelationType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/relation-types/elmo": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List relation types enabled for ELMO",
+                "description": "Returns all relation types that are enabled for ELMO (both `is_active` and `is_elmo_active` must be true). Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of relation types enabled for ELMO",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RelationType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/v1/identifier-types": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List all identifier types with patterns",
+                "description": "Returns all DataCite identifier types defined in the system with their active validation and detection regex patterns. Only patterns that are currently active are included. No authentication required.",
+                "responses": {
+                    "200": {
+                        "description": "List of all identifier types with active patterns",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/IdentifierType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/identifier-types/ernie": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List identifier types enabled for ERNIE",
+                "description": "Returns all identifier types that are active for the ERNIE editor (`is_active` is true) with their active patterns. No authentication required.",
+                "responses": {
+                    "200": {
+                        "description": "List of active identifier types with active patterns",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/IdentifierType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/identifier-types/elmo": {
+            "get": {
+                "tags": ["Editor Configuration"],
+                "summary": "List identifier types enabled for ELMO",
+                "description": "Returns all identifier types that are enabled for ELMO (both `is_active` and `is_elmo_active` must be true) with their active validation and detection regex patterns. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of identifier types enabled for ELMO with patterns",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/IdentifierType"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/gcmd-science-keywords": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -1363,6 +1511,90 @@
                     }
                 },
                 "required": ["lastUpdated", "total", "data"]
+            },
+            "RelationType": {
+                "type": "object",
+                "description": "A DataCite relationType value used for Related Identifiers (e.g. Cites, IsSupplementTo)",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Human-readable name of the relation type",
+                        "example": "Cites"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Machine-readable slug matching the DataCite schema value",
+                        "example": "Cites"
+                    }
+                },
+                "required": ["id", "name", "slug"]
+            },
+            "IdentifierType": {
+                "type": "object",
+                "description": "A DataCite relatedIdentifierType value (e.g. DOI, URL, Handle) with optional validation and detection regex patterns",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Human-readable name of the identifier type",
+                        "example": "DOI"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Machine-readable slug matching the DataCite schema value",
+                        "example": "DOI"
+                    },
+                    "patterns": {
+                        "type": "object",
+                        "description": "Grouped regex patterns for this identifier type",
+                        "properties": {
+                            "validation": {
+                                "type": "array",
+                                "description": "Regex patterns to validate whether a given string is a valid identifier of this type",
+                                "items": {
+                                    "$ref": "#/components/schemas/IdentifierTypePattern"
+                                }
+                            },
+                            "detection": {
+                                "type": "array",
+                                "description": "Regex patterns to auto-detect this identifier type from a raw input string",
+                                "items": {
+                                    "$ref": "#/components/schemas/IdentifierTypePattern"
+                                }
+                            }
+                        },
+                        "required": ["validation", "detection"]
+                    }
+                },
+                "required": ["id", "name", "slug", "patterns"]
+            },
+            "IdentifierTypePattern": {
+                "type": "object",
+                "description": "A single regex pattern for validating or detecting an identifier type",
+                "properties": {
+                    "pattern": {
+                        "type": "string",
+                        "description": "JavaScript-compatible regex pattern (without delimiters)",
+                        "example": "^10\\.\\d{4,}\\/\\S+$"
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "description": "Priority for ordering patterns (higher = checked first)",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "example": 10
+                    }
+                },
+                "required": ["pattern", "priority"]
             }
         }
     }

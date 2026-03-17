@@ -1,5 +1,5 @@
 import { Info, Lightbulb, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ interface RelatedWorkQuickAddProps {
     identifierType: IdentifierType;
     relationType: RelationType;
     onRelationTypeChange: (value: RelationType) => void;
+    activeRelationTypes?: string[];
 }
 
 /**
@@ -41,8 +42,18 @@ export default function RelatedWorkQuickAdd({
     identifierType,
     relationType,
     onRelationTypeChange,
+    activeRelationTypes,
 }: RelatedWorkQuickAddProps) {
     const [showSuggestion, setShowSuggestion] = useState(false);
+
+    // Filter most-used relation types to only show active ones
+    const filteredRelationTypes = useMemo(
+        () =>
+            activeRelationTypes
+                ? MOST_USED_RELATION_TYPES.filter((t) => activeRelationTypes.includes(t))
+                : MOST_USED_RELATION_TYPES,
+        [activeRelationTypes],
+    );
 
     // Validate identifier with API
     const validation = useIdentifierValidation({
@@ -88,10 +99,12 @@ export default function RelatedWorkQuickAdd({
     const handleRelationTypeChange = (value: string) => {
         onRelationTypeChange(value as RelationType);
         const opposite = getOppositeRelationType(value as RelationType);
-        setShowSuggestion(!!opposite);
+        const oppositeIsActive = !activeRelationTypes || (opposite && activeRelationTypes.includes(opposite));
+        setShowSuggestion(!!opposite && !!oppositeIsActive);
     };
 
     const oppositeRelation = getOppositeRelationType(relationType);
+    const oppositeIsAvailable = !activeRelationTypes || (oppositeRelation && activeRelationTypes.includes(oppositeRelation));
 
     // Quick suggestion for opposite relation
     const handleUseSuggestion = () => {
@@ -173,7 +186,7 @@ export default function RelatedWorkQuickAdd({
                         </SelectTrigger>
                         <SelectContent>
                             <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
-                            {MOST_USED_RELATION_TYPES.map((type) => (
+                            {filteredRelationTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
                                         <span>{type}</span>
@@ -201,7 +214,7 @@ export default function RelatedWorkQuickAdd({
             </div>
 
             {/* Bidirectional Suggestion */}
-            {showSuggestion && oppositeRelation && (
+            {showSuggestion && oppositeRelation && oppositeIsAvailable && (
                 <Alert className="border-blue-200 bg-blue-50">
                     <Lightbulb className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="flex items-center justify-between">
