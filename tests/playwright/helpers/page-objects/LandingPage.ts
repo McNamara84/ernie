@@ -145,8 +145,12 @@ export class LandingPage {
    * @requires APP_ENV=local or APP_ENV=testing for the test helper API to be available
    */
   async goto(slug: string) {
-    // Use the test helper API to get the landing page URL by slug
-    const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`);
+    // Use the test helper API to get the landing page URL by slug.
+    // Explicit timeout needed: in CI, php artisan serve is single-threaded,
+    // so parallel test workers can cause requests to queue behind each other.
+    const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`, {
+      timeout: 30_000,
+    });
 
     if (!response.ok()) {
       const status = response.status();
@@ -207,7 +211,7 @@ export class LandingPage {
       );
     }
 
-    await this.page.goto(data.public_url);
+    await this.page.goto(data.public_url, { timeout: 60_000 });
   }
 
   /**
