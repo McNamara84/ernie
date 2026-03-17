@@ -631,4 +631,114 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             expect($resource->instruments()->count())->toBe(0);
         });
     });
+
+    // =========================================================================
+    // Funding References – funder_identifier_type_id regression tests
+    // =========================================================================
+
+    describe('Funding References', function () {
+        beforeEach(function () {
+            $this->artisan('db:seed', ['--class' => 'FunderIdentifierTypeSeeder']);
+        });
+
+        it('stores funder_identifier_type_id correctly for ROR funders', function () {
+            $resourceType = ResourceType::first();
+            $rorType = \App\Models\FunderIdentifierType::where('name', 'ROR')->first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2025,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'ROR Funder Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Alice', 'lastName' => 'Test', 'position' => 0],
+                ],
+                'fundingReferences' => [
+                    [
+                        'funderName' => 'Deutsche Forschungsgemeinschaft',
+                        'funderIdentifier' => 'https://ror.org/018mejw64',
+                        'funderIdentifierType' => 'ROR',
+                        'awardNumber' => 'DFG-2025-001',
+                        'awardUri' => '',
+                        'awardTitle' => '',
+                    ],
+                ],
+            ];
+
+            [$resource] = $this->service->store($data, $this->user->id);
+
+            $funding = $resource->fundingReferences()->first();
+            expect($funding->funder_name)->toBe('Deutsche Forschungsgemeinschaft')
+                ->and($funding->funder_identifier)->toBe('https://ror.org/018mejw64')
+                ->and($funding->funder_identifier_type_id)->toBe($rorType->id)
+                ->and($funding->scheme_uri)->toBe('https://ror.org');
+        });
+
+        it('stores funder_identifier_type_id correctly for Crossref Funder ID', function () {
+            $resourceType = ResourceType::first();
+            $crossrefType = \App\Models\FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2025,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'Crossref Funder Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Bob', 'lastName' => 'Test', 'position' => 0],
+                ],
+                'fundingReferences' => [
+                    [
+                        'funderName' => 'European Commission',
+                        'funderIdentifier' => 'https://doi.org/10.13039/501100000780',
+                        'funderIdentifierType' => 'Crossref Funder ID',
+                        'awardNumber' => 'EC-2025-001',
+                        'awardUri' => '',
+                        'awardTitle' => '',
+                    ],
+                ],
+            ];
+
+            [$resource] = $this->service->store($data, $this->user->id);
+
+            $funding = $resource->fundingReferences()->first();
+            expect($funding->funder_identifier_type_id)->toBe($crossrefType->id)
+                ->and($funding->scheme_uri)->toBe('https://doi.org/10.13039');
+        });
+
+        it('stores null funder_identifier_type_id when no type is provided', function () {
+            $resourceType = ResourceType::first();
+
+            $data = [
+                'resourceId' => null,
+                'year' => 2025,
+                'resourceType' => $resourceType->id,
+                'titles' => [
+                    ['title' => 'No Type Test', 'titleType' => 'MainTitle'],
+                ],
+                'authors' => [
+                    ['type' => 'person', 'firstName' => 'Carol', 'lastName' => 'Test', 'position' => 0],
+                ],
+                'fundingReferences' => [
+                    [
+                        'funderName' => 'Generic Funder',
+                        'funderIdentifier' => '',
+                        'funderIdentifierType' => '',
+                        'awardNumber' => '',
+                        'awardUri' => '',
+                        'awardTitle' => '',
+                    ],
+                ],
+            ];
+
+            [$resource] = $this->service->store($data, $this->user->id);
+
+            $funding = $resource->fundingReferences()->first();
+            expect($funding->funder_identifier_type_id)->toBeNull()
+                ->and($funding->scheme_uri)->toBeNull();
+        });
+    });
 });

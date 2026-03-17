@@ -312,3 +312,76 @@ describe('Validation', function () {
         $response->assertJsonValidationErrors(['fundingReferences.0.awardUri']);
     });
 });
+
+describe('Funder identifier type persistence', function () {
+    it('persists funder_identifier_type_id for ROR and Crossref funders', function () {
+        $this->artisan('db:seed', ['--class' => 'FunderIdentifierTypeSeeder']);
+
+        $rorType = \App\Models\FunderIdentifierType::where('name', 'ROR')->first();
+        $crossrefType = \App\Models\FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
+
+        $payload = getValidPayload([
+            'fundingReferences' => [
+                [
+                    'funderName' => 'DFG',
+                    'funderIdentifier' => 'https://ror.org/018mejw64',
+                    'funderIdentifierType' => 'ROR',
+                    'awardNumber' => '',
+                    'awardUri' => '',
+                    'awardTitle' => '',
+                ],
+                [
+                    'funderName' => 'EU',
+                    'funderIdentifier' => 'https://doi.org/10.13039/501100000780',
+                    'funderIdentifierType' => 'Crossref Funder ID',
+                    'awardNumber' => '',
+                    'awardUri' => '',
+                    'awardTitle' => '',
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('funding_references', [
+            'funder_name' => 'DFG',
+            'funder_identifier_type_id' => $rorType->id,
+            'scheme_uri' => 'https://ror.org',
+        ]);
+
+        $this->assertDatabaseHas('funding_references', [
+            'funder_name' => 'EU',
+            'funder_identifier_type_id' => $crossrefType->id,
+            'scheme_uri' => 'https://doi.org/10.13039',
+        ]);
+    });
+
+    it('persists null funder_identifier_type_id when no type is sent', function () {
+        $payload = getValidPayload([
+            'fundingReferences' => [
+                [
+                    'funderName' => 'Unknown Funder',
+                    'funderIdentifier' => '',
+                    'funderIdentifierType' => '',
+                    'awardNumber' => '',
+                    'awardUri' => '',
+                    'awardTitle' => '',
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('funding_references', [
+            'funder_name' => 'Unknown Funder',
+            'funder_identifier_type_id' => null,
+            'scheme_uri' => null,
+        ]);
+    });
+});
