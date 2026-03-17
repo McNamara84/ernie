@@ -3,19 +3,24 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\DataCiteImportController;
+use App\Jobs\ImportFromDataCiteJob;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 
 covers(DataCiteImportController::class);
 
 describe('POST /datacite/import/start', function (): void {
     test('admin can start import', function (): void {
+        Bus::fake();
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)
             ->postJson('/datacite/import/start')
             ->assertOk()
             ->assertJsonStructure(['import_id', 'message']);
+
+        Bus::assertDispatched(ImportFromDataCiteJob::class);
     });
 
     test('beginner cannot start import', function (): void {

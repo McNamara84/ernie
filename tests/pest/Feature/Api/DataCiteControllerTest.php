@@ -27,7 +27,7 @@ describe('GET /api/v1/datacite/citation/{doi}', function (): void {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/v1/datacite/citation/10.5880/test.2024.001');
+        $response = $this->getJson('/api/datacite/citation/10.5880/test.2024.001');
 
         $response->assertOk()
             ->assertJsonPath('doi', '10.5880/test.2024.001')
@@ -42,7 +42,7 @@ describe('GET /api/v1/datacite/citation/{doi}', function (): void {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/v1/datacite/citation/10.5880/nonexistent');
+        $response = $this->getJson('/api/datacite/citation/10.5880/nonexistent');
 
         $response->assertNotFound()
             ->assertJsonPath('error', 'Metadata not found for DOI');
