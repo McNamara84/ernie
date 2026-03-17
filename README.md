@@ -7,9 +7,8 @@
 ![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-4-000000?logo=shadcnui&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 ![Pest](https://img.shields.io/badge/Pest-4-F24C6A?logo=pestphp&logoColor=white)
-![Pest Coverage](https://github.com/McNamara84/ernie/blob/image-data/coverage.svg?raw=true)
 ![PHPStan](https://img.shields.io/badge/PHPStan-8-4B8BBE?logo=php&logoColor=white)
-![Vitest Coverage](https://github.com/McNamara84/ernie/blob/image-data/vitest-coverage.svg?raw=true)
+[![codecov](https://codecov.io/gh/McNamara84/ernie/graph/badge.svg)](https://codecov.io/gh/McNamara84/ernie)
 
 A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
 
