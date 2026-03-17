@@ -26,7 +26,7 @@ const createCreator = (overrides: Partial<{
     id: number;
     position: number;
     affiliations: Array<{ id: number; name: string; affiliation_identifier: string | null; affiliation_identifier_scheme: string | null }>;
-    creatorable: {
+    creatorable: Partial<{
         type: string;
         id: number;
         given_name: string | null;
@@ -34,21 +34,21 @@ const createCreator = (overrides: Partial<{
         name_identifier: string | null;
         name_identifier_scheme: string | null;
         name: string | null;
-    };
+    }>;
 }> = {}) => ({
-    id: 1,
-    position: 1,
-    affiliations: [],
+    id: overrides.id ?? 1,
+    position: overrides.position ?? 1,
+    affiliations: overrides.affiliations ?? [],
     creatorable: {
         type: 'Person',
         id: 1,
-        given_name: 'John',
-        family_name: 'Doe',
-        name_identifier: null,
-        name_identifier_scheme: null,
-        name: null,
+        given_name: 'John' as string | null,
+        family_name: 'Doe' as string | null,
+        name_identifier: null as string | null,
+        name_identifier_scheme: null as string | null,
+        name: null as string | null,
+        ...overrides.creatorable,
     },
-    ...overrides,
 });
 
 const createFundingReference = (overrides: Partial<{
@@ -221,11 +221,6 @@ describe('AbstractSection', () => {
                     creators={[createCreator({
                         creatorable: {
                             type: 'Institution',
-                            id: 1,
-                            given_name: null,
-                            family_name: null,
-                            name_identifier: null,
-                            name_identifier_scheme: null,
                             name: 'GFZ German Research Centre',
                         },
                     })]}
@@ -241,13 +236,8 @@ describe('AbstractSection', () => {
                     {...defaultProps}
                     creators={[createCreator({
                         creatorable: {
-                            type: 'Person',
-                            id: 1,
-                            given_name: 'John',
-                            family_name: 'Doe',
                             name_identifier: '0000-0002-1825-0097',
                             name_identifier_scheme: 'ORCID',
-                            name: null,
                         },
                     })]}
                 />
@@ -293,8 +283,8 @@ describe('AbstractSection', () => {
                 <AbstractSection
                     {...defaultProps}
                     creators={[
-                        createCreator({ id: 1, creatorable: { type: 'Person', id: 1, given_name: 'John', family_name: 'Doe', name_identifier: null, name_identifier_scheme: null, name: null } }),
-                        createCreator({ id: 2, creatorable: { type: 'Person', id: 2, given_name: 'Jane', family_name: 'Smith', name_identifier: null, name_identifier_scheme: null, name: null } }),
+                        createCreator({ id: 1, creatorable: { given_name: 'John', family_name: 'Doe' } }),
+                        createCreator({ id: 2, creatorable: { id: 2, given_name: 'Jane', family_name: 'Smith' } }),
                     ]}
                 />
             );
@@ -310,7 +300,7 @@ describe('AbstractSection', () => {
             position: number;
             contributor_types: string[];
             affiliations: Array<{ id: number; name: string; affiliation_identifier: string | null; affiliation_identifier_scheme: string | null }>;
-            contributorable: {
+            contributorable: Partial<{
                 type: string;
                 id: number;
                 given_name: string | null;
@@ -318,22 +308,22 @@ describe('AbstractSection', () => {
                 name_identifier: string | null;
                 name_identifier_scheme: string | null;
                 name: string | null;
-            };
+            }>;
         }> = {}) => ({
-            id: 1,
-            position: 1,
-            contributor_types: [],
-            affiliations: [],
+            id: overrides.id ?? 1,
+            position: overrides.position ?? 1,
+            contributor_types: overrides.contributor_types ?? [],
+            affiliations: overrides.affiliations ?? [],
             contributorable: {
                 type: 'Person',
                 id: 1,
-                given_name: 'Alice',
-                family_name: 'Wonder',
-                name_identifier: null,
-                name_identifier_scheme: null,
-                name: null,
+                given_name: 'Alice' as string | null,
+                family_name: 'Wonder' as string | null,
+                name_identifier: null as string | null,
+                name_identifier_scheme: null as string | null,
+                name: null as string | null,
+                ...overrides.contributorable,
             },
-            ...overrides,
         });
 
         it('renders contributors section when contributors exist', () => {
@@ -372,11 +362,6 @@ describe('AbstractSection', () => {
                     contributors={[createContributor({
                         contributorable: {
                             type: 'Institution',
-                            id: 1,
-                            given_name: null,
-                            family_name: null,
-                            name_identifier: null,
-                            name_identifier_scheme: null,
                             name: 'Helmholtz Centre Potsdam',
                         },
                     })]}
@@ -392,13 +377,8 @@ describe('AbstractSection', () => {
                     {...defaultProps}
                     contributors={[createContributor({
                         contributorable: {
-                            type: 'Person',
-                            id: 1,
-                            given_name: 'Alice',
-                            family_name: 'Wonder',
                             name_identifier: '0000-0001-2345-6789',
                             name_identifier_scheme: 'ORCID',
-                            name: null,
                         },
                     })]}
                 />

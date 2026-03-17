@@ -1,76 +1,27 @@
 import { ExternalLink, FileCode, FileJson } from 'lucide-react';
 
-interface Description {
-    id: number;
-    value: string;
-    description_type: string | null;
-}
-
-interface Affiliation {
-    id: number;
-    name: string;
-    affiliation_identifier: string | null;
-    affiliation_identifier_scheme: string | null;
-}
-
-interface FundingReference {
-    id: number;
-    funder_name: string;
-    funder_identifier: string | null;
-    funder_identifier_type: string | null;
-    award_number: string | null;
-    award_uri: string | null;
-    award_title: string | null;
-    position: number;
-}
-
-interface Subject {
-    id: number;
-    subject: string;
-    subject_scheme: string | null;
-    scheme_uri: string | null;
-    value_uri: string | null;
-    classification_code: string | null;
-}
-
-interface Contributorable {
-    type: string;
-    id: number;
-    given_name: string | null;
-    family_name: string | null;
-    name_identifier: string | null;
-    name_identifier_scheme: string | null;
-    name: string | null;
-}
-
-interface Creator {
-    id: number;
-    position: number;
-    affiliations: Affiliation[];
-    creatorable: Contributorable;
-}
-
-interface Contributor {
-    id: number;
-    position: number;
-    contributor_types: string[];
-    affiliations: Affiliation[];
-    contributorable: Contributorable;
-}
+import type {
+    LandingPageContributor,
+    LandingPageCreator,
+    LandingPageCreatorable,
+    LandingPageDescription,
+    LandingPageFundingReference,
+    LandingPageSubject,
+} from '@/types/landing-page';
 
 interface AbstractSectionProps {
-    descriptions: Description[];
-    creators: Creator[];
-    contributors: Contributor[];
-    fundingReferences: FundingReference[];
-    subjects: Subject[];
+    descriptions: LandingPageDescription[];
+    creators: LandingPageCreator[];
+    contributors: LandingPageContributor[];
+    fundingReferences: LandingPageFundingReference[];
+    subjects: LandingPageSubject[];
     resourceId: number;
 }
 
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject }: { subject: Subject }) {
+function KeywordBadge({ subject }: { subject: LandingPageSubject }) {
     const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
 
     return (
