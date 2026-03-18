@@ -109,8 +109,9 @@ describe('ThesaurusStatusService', function () {
             Http::fake([
                 'cmr.earthdata.nasa.gov/*' => Http::response(
                     '<?xml version="1.0" encoding="UTF-8"?>'
-                    .'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
-                    .'<gcmd:totalResults xmlns:gcmd="https://gcmd.earthdata.nasa.gov/">4200</gcmd:totalResults>'
+                    .'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"'
+                    .' xmlns:gcmd="https://gcmd.earthdata.nasa.gov/kms#">'
+                    .'<gcmd:gcmd><gcmd:hits>4200</gcmd:hits></gcmd:gcmd>'
                     .'</rdf:RDF>',
                     200,
                     ['Content-Type' => 'application/rdf+xml']
@@ -158,8 +159,9 @@ describe('ThesaurusStatusService', function () {
             Http::fake([
                 'cmr.earthdata.nasa.gov/*' => Http::response(
                     '<?xml version="1.0" encoding="UTF-8"?>'
-                    .'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
-                    .'<gcmd:totalResults xmlns:gcmd="https://gcmd.earthdata.nasa.gov/">100</gcmd:totalResults>'
+                    .'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"'
+                    .' xmlns:gcmd="https://gcmd.earthdata.nasa.gov/kms#">'
+                    .'<gcmd:gcmd><gcmd:hits>100</gcmd:hits></gcmd:gcmd>'
                     .'</rdf:RDF>',
                     200,
                     ['Content-Type' => 'application/rdf+xml']
@@ -190,8 +192,9 @@ describe('ThesaurusStatusService', function () {
             Http::fake([
                 'cmr.earthdata.nasa.gov/*' => Http::response(
                     '<?xml version="1.0" encoding="UTF-8"?>'
-                    .'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
-                    .'<gcmd:totalResults xmlns:gcmd="https://gcmd.earthdata.nasa.gov/">2</gcmd:totalResults>'
+                    .'<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"'
+                    .' xmlns:gcmd="https://gcmd.earthdata.nasa.gov/kms#">'
+                    .'<gcmd:gcmd><gcmd:hits>2</gcmd:hits></gcmd:gcmd>'
                     .'</rdf:RDF>',
                     200,
                     ['Content-Type' => 'application/rdf+xml']
