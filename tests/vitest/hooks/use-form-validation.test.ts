@@ -9,6 +9,7 @@ describe('useFormValidation', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 

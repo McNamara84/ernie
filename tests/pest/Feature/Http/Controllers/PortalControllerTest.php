@@ -28,28 +28,27 @@ beforeEach(function () {
         'name' => 'MainTitle',
         'slug' => 'main-title',
     ]);
+
+    $this->createPublishedPortalResource = function (string $title = 'Test Dataset', ?string $doi = null): Resource {
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $this->datasetType->id,
+            'doi' => $doi ?? '10.5880/gfz.' . fake()->unique()->numerify('####.###'),
+            'publication_year' => 2025,
+        ]);
+
+        Title::factory()->create([
+            'resource_id' => $resource->id,
+            'value' => $title,
+            'title_type_id' => $this->mainTitleType->id,
+        ]);
+
+        LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+        ]);
+
+        return $resource;
+    };
 });
-
-function createPublishedPortalResource(ResourceType $type, TitleType $titleType, string $title = 'Test Dataset', ?string $doi = null): Resource
-{
-    $resource = Resource::factory()->create([
-        'resource_type_id' => $type->id,
-        'doi' => $doi ?? '10.5880/gfz.' . fake()->unique()->numerify('####.###'),
-        'publication_year' => 2025,
-    ]);
-
-    Title::factory()->create([
-        'resource_id' => $resource->id,
-        'value' => $title,
-        'title_type_id' => $titleType->id,
-    ]);
-
-    LandingPage::factory()->published()->create([
-        'resource_id' => $resource->id,
-    ]);
-
-    return $resource;
-}
 
 describe('index', function () {
     it('renders the portal page', function () {
@@ -72,7 +71,7 @@ describe('index', function () {
     });
 
     it('returns published resources', function () {
-        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Seismic Dataset');
+        ($this->createPublishedPortalResource)('Seismic Dataset');
 
         $response = $this->get('/portal');
 
@@ -86,7 +85,7 @@ describe('index', function () {
 
     it('excludes unpublished resources', function () {
         // Published resource
-        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Published Dataset');
+        ($this->createPublishedPortalResource)('Published Dataset');
 
         // Unpublished resource (no landing page)
         $unpublished = Resource::factory()->create([
@@ -105,8 +104,8 @@ describe('index', function () {
     });
 
     it('filters by search query', function () {
-        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Seismic Wave Analysis');
-        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Climate Data');
+        ($this->createPublishedPortalResource)('Seismic Wave Analysis');
+        ($this->createPublishedPortalResource)('Climate Data');
 
         $response = $this->get('/portal?q=Seismic');
 
@@ -127,7 +126,7 @@ describe('index', function () {
     });
 
     it('returns keyword suggestions', function () {
-        $resource = createPublishedPortalResource($this->datasetType, $this->mainTitleType);
+        $resource = ($this->createPublishedPortalResource)();
         Subject::factory()->create([
             'resource_id' => $resource->id,
             'value' => 'Seismology',
@@ -152,7 +151,7 @@ describe('index', function () {
     });
 
     it('returns map data', function () {
-        $resource = createPublishedPortalResource($this->datasetType, $this->mainTitleType);
+        $resource = ($this->createPublishedPortalResource)();
         GeoLocation::factory()->create([
             'resource_id' => $resource->id,
             'point_latitude' => 52.3792,

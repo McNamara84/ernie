@@ -11,17 +11,14 @@ use Illuminate\Http\Client\RequestException;
 
 covers(DataCiteSyncService::class);
 
-function createSyncService(?DataCiteServiceInterface $service = null): DataCiteSyncService
-{
-    return new DataCiteSyncService(
+describe('syncIfRegistered', function (): void {
+    $createSyncService = fn (?DataCiteServiceInterface $service = null): DataCiteSyncService => new DataCiteSyncService(
         $service ?? Mockery::mock(DataCiteServiceInterface::class),
     );
-}
 
-describe('syncIfRegistered', function (): void {
-    test('returns notRequired when resource has no DOI', function (): void {
+    test('returns notRequired when resource has no DOI', function () use ($createSyncService): void {
         $resource = Resource::factory()->create(['doi' => null]);
-        $service = createSyncService();
+        $service = $createSyncService();
 
         $result = $service->syncIfRegistered($resource);
 
@@ -29,18 +26,18 @@ describe('syncIfRegistered', function (): void {
         expect($result->success)->toBeTrue();
     });
 
-    test('returns notRequired when resource has empty DOI', function (): void {
+    test('returns notRequired when resource has empty DOI', function () use ($createSyncService): void {
         $resource = Resource::factory()->create(['doi' => '']);
-        $service = createSyncService();
+        $service = $createSyncService();
 
         $result = $service->syncIfRegistered($resource);
 
         expect($result->attempted)->toBeFalse();
     });
 
-    test('returns failed when resource has DOI but no landing page', function (): void {
+    test('returns failed when resource has DOI but no landing page', function () use ($createSyncService): void {
         $resource = Resource::factory()->create(['doi' => '10.5880/test.2024.001']);
-        $service = createSyncService();
+        $service = $createSyncService();
 
         $result = $service->syncIfRegistered($resource);
 
@@ -49,7 +46,7 @@ describe('syncIfRegistered', function (): void {
         expect($result->doi)->toBe('10.5880/test.2024.001');
     });
 
-    test('returns succeeded when update succeeds', function (): void {
+    test('returns succeeded when update succeeds', function () use ($createSyncService): void {
         $resource = Resource::factory()->create(['doi' => '10.5880/test.2024.001']);
         LandingPage::create([
             'resource_id' => $resource->id,
@@ -62,14 +59,14 @@ describe('syncIfRegistered', function (): void {
             ->with(Mockery::on(fn ($r) => $r->id === $resource->id))
             ->once();
 
-        $service = createSyncService($mockRegistration);
+        $service = $createSyncService($mockRegistration);
         $result = $service->syncIfRegistered($resource);
 
         expect($result->success)->toBeTrue();
         expect($result->doi)->toBe('10.5880/test.2024.001');
     });
 
-    test('returns failed on RuntimeException', function (): void {
+    test('returns failed on RuntimeException', function () use ($createSyncService): void {
         $resource = Resource::factory()->create(['doi' => '10.5880/test.2024.001']);
         LandingPage::create([
             'resource_id' => $resource->id,
@@ -81,7 +78,7 @@ describe('syncIfRegistered', function (): void {
         $mockRegistration->shouldReceive('updateMetadata')
             ->andThrow(new RuntimeException('Connection timeout'));
 
-        $service = createSyncService($mockRegistration);
+        $service = $createSyncService($mockRegistration);
         $result = $service->syncIfRegistered($resource);
 
         expect($result->success)->toBeFalse();
