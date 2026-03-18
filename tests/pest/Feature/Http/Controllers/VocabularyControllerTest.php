@@ -177,12 +177,14 @@ describe('pid4inst instruments', function () {
 
 describe('chronostrat timescale', function () {
     it('returns vocabulary when thesaurus is active', function () {
-        ThesaurusSetting::create([
-            'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
-            'display_name' => 'Chronostratigraphy',
-            'is_active' => true,
-            'is_elmo_active' => true,
-        ]);
+        ThesaurusSetting::firstOrCreate(
+            ['type' => ThesaurusSetting::TYPE_CHRONOSTRAT],
+            [
+                'display_name' => 'Chronostratigraphy',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        );
 
         Storage::put('chronostrat-timescale.json', json_encode([['era' => 'Cenozoic']]));
 
@@ -196,12 +198,14 @@ describe('chronostrat timescale', function () {
 
 describe('gemet thesaurus', function () {
     it('returns vocabulary when thesaurus is active', function () {
-        ThesaurusSetting::create([
-            'type' => ThesaurusSetting::TYPE_GEMET,
-            'display_name' => 'GEMET',
-            'is_active' => true,
-            'is_elmo_active' => true,
-        ]);
+        ThesaurusSetting::firstOrCreate(
+            ['type' => ThesaurusSetting::TYPE_GEMET],
+            [
+                'display_name' => 'GEMET',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        );
 
         Storage::put('gemet-thesaurus.json', json_encode([['concept' => 'geology']]));
 

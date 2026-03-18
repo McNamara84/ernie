@@ -9,14 +9,14 @@ covers(ApiDocController::class);
 
 describe('JSON response', function () {
     it('returns OpenAPI spec as JSON when JSON is requested', function () {
-        $response = $this->getJson('/api-docs');
+        $response = $this->getJson('/api/v1/doc');
 
         $response->assertOk()
             ->assertJsonStructure(['openapi', 'info', 'paths']);
     });
 
     it('contains app URL in server configuration', function () {
-        $response = $this->getJson('/api-docs');
+        $response = $this->getJson('/api/v1/doc');
 
         $response->assertOk();
         $data = $response->json();
@@ -25,7 +25,7 @@ describe('JSON response', function () {
     });
 
     it('replaces terms of service URL with app URL', function () {
-        $response = $this->getJson('/api-docs');
+        $response = $this->getJson('/api/v1/doc');
 
         $response->assertOk();
         $data = $response->json();
@@ -38,7 +38,7 @@ describe('JSON response', function () {
 
 describe('HTML response', function () {
     it('returns HTML view when not requesting JSON', function () {
-        $response = $this->get('/api-docs');
+        $response = $this->get('/api/v1/doc');
 
         $response->assertOk();
     });
@@ -52,7 +52,7 @@ describe('error handling', function () {
         File::move($path, $backupPath);
 
         try {
-            $response = $this->getJson('/api-docs');
+            $response = $this->getJson('/api/v1/doc');
             $response->assertStatus(500);
         } finally {
             File::move($backupPath, $path);
