@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { initializeTheme, useAppearance } from '@/hooks/use-appearance';
@@ -55,20 +55,20 @@ describe('useAppearance', () => {
 
     it('persists appearance to localStorage', () => {
         const { result } = renderHook(() => useAppearance());
-        result.current.updateAppearance('dark');
+        act(() => result.current.updateAppearance('dark'));
         expect(localStorage.getItem('appearance')).toBe('dark');
     });
 
     it('applies dark class when set to dark', () => {
         const { result } = renderHook(() => useAppearance());
-        result.current.updateAppearance('dark');
+        act(() => result.current.updateAppearance('dark'));
         expect(document.documentElement.classList.contains('dark')).toBe(true);
     });
 
     it('removes dark class when set to light', () => {
         document.documentElement.classList.add('dark');
         const { result } = renderHook(() => useAppearance());
-        result.current.updateAppearance('light');
+        act(() => result.current.updateAppearance('light'));
         expect(document.documentElement.classList.contains('dark')).toBe(false);
     });
 });
