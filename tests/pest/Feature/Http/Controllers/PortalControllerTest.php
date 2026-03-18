@@ -30,7 +30,7 @@ beforeEach(function () {
     ]);
 });
 
-function createPublishedResource(ResourceType $type, TitleType $titleType, string $title = 'Test Dataset', ?string $doi = null): Resource
+function createPublishedPortalResource(ResourceType $type, TitleType $titleType, string $title = 'Test Dataset', ?string $doi = null): Resource
 {
     $resource = Resource::factory()->create([
         'resource_type_id' => $type->id,
@@ -72,7 +72,7 @@ describe('index', function () {
     });
 
     it('returns published resources', function () {
-        createPublishedResource($this->datasetType, $this->mainTitleType, 'Seismic Dataset');
+        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Seismic Dataset');
 
         $response = $this->get('/portal');
 
@@ -86,7 +86,7 @@ describe('index', function () {
 
     it('excludes unpublished resources', function () {
         // Published resource
-        createPublishedResource($this->datasetType, $this->mainTitleType, 'Published Dataset');
+        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Published Dataset');
 
         // Unpublished resource (no landing page)
         $unpublished = Resource::factory()->create([
@@ -105,8 +105,8 @@ describe('index', function () {
     });
 
     it('filters by search query', function () {
-        createPublishedResource($this->datasetType, $this->mainTitleType, 'Seismic Wave Analysis');
-        createPublishedResource($this->datasetType, $this->mainTitleType, 'Climate Data');
+        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Seismic Wave Analysis');
+        createPublishedPortalResource($this->datasetType, $this->mainTitleType, 'Climate Data');
 
         $response = $this->get('/portal?q=Seismic');
 
@@ -127,7 +127,7 @@ describe('index', function () {
     });
 
     it('returns keyword suggestions', function () {
-        $resource = createPublishedResource($this->datasetType, $this->mainTitleType);
+        $resource = createPublishedPortalResource($this->datasetType, $this->mainTitleType);
         Subject::factory()->create([
             'resource_id' => $resource->id,
             'value' => 'Seismology',
@@ -152,7 +152,7 @@ describe('index', function () {
     });
 
     it('returns map data', function () {
-        $resource = createPublishedResource($this->datasetType, $this->mainTitleType);
+        $resource = createPublishedPortalResource($this->datasetType, $this->mainTitleType);
         GeoLocation::factory()->create([
             'resource_id' => $resource->id,
             'point_latitude' => 52.3792,
