@@ -114,6 +114,10 @@ describe('buildCsrfHeaders', () => {
         vi.spyOn(console, 'error').mockImplementation(() => {});
     });
 
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it('includes X-CSRF-TOKEN from meta tag', () => {
         const meta = document.createElement('meta');
         meta.name = 'csrf-token';

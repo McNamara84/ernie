@@ -8,7 +8,6 @@ describe('version', () => {
     });
 
     it('follows semver format', () => {
-        // Match semver with optional pre-release suffix
-        expect(latestVersion).toMatch(/^\d+\.\d+\.\d+/);
+        expect(latestVersion).toMatch(/^\d+\.\d+\.\d+(-?[\da-zA-Z-]+(\.[\da-zA-Z-]+)*)?(\+[\da-zA-Z-]+(\.[\da-zA-Z-]+)*)?$/);
     });
 });
