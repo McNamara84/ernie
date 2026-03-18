@@ -35,6 +35,8 @@
             <file>app/Http/Controllers/OldDataStatisticsController.php</file>
             <file>app/Services/OldDatasetEditorLoader.php</file>
             <file>app/Services/OldDatasetKeywordTransformer.php</file>
+            <!-- Legacy migration backups (not active, should not be counted) -->
+            <directory suffix=".php">database/migrations_backup</directory>
         </exclude>
     </source>
     <php>
