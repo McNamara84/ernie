@@ -1,10 +1,12 @@
 import { act,renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useIsMobile } from '@/hooks/use-mobile';
 
 describe('useIsMobile', () => {
     let listeners: Array<() => void>;
+    const originalMatchMedia = window.matchMedia;
+    const originalInnerWidth = window.innerWidth;
 
     beforeEach(() => {
         listeners = [];
@@ -17,6 +19,11 @@ describe('useIsMobile', () => {
                 listeners = listeners.filter((l) => l !== listener);
             },
         }));
+    });
+
+    afterEach(() => {
+        window.matchMedia = originalMatchMedia;
+        window.innerWidth = originalInnerWidth;
     });
 
     it('returns true when width below breakpoint', () => {

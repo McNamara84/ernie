@@ -26,6 +26,7 @@ describe('usePid4instInstruments', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
     it('fetches instruments on mount', async () => {

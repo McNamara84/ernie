@@ -66,6 +66,13 @@ describe('HandleAppearance', function () {
 */
 
 describe('SetUrlRoot', function () {
+    afterEach(function () {
+        // Reset global URL generator state to prevent cross-test pollution
+        URL::forceRootUrl('');
+        URL::forceScheme('http');
+        app()->detectEnvironment(fn () => 'testing');
+    });
+
     it('does not change URL root in non-production environment', function () {
         app()->detectEnvironment(fn () => 'testing');
 
@@ -98,9 +105,6 @@ describe('SetUrlRoot', function () {
 
         expect(URL::to('/'))->toBe('https://ernie.example.org');
         expect($request->server->get('HTTPS'))->toBe('on');
-
-        // Reset environment
-        app()->detectEnvironment(fn () => 'testing');
     });
 
     it('forces HTTPS scheme in production for https app URL', function () {
@@ -113,9 +117,6 @@ describe('SetUrlRoot', function () {
         $middleware->handle($request, fn ($req) => response('ok'));
 
         expect(URL::to('/path'))->toStartWith('https://');
-
-        // Reset environment
-        app()->detectEnvironment(fn () => 'testing');
     });
 
     it('does not force HTTPS for http app URL in production', function () {
@@ -129,9 +130,6 @@ describe('SetUrlRoot', function () {
 
         expect(URL::to('/'))->toBe('http://ernie.local');
         expect($request->server->get('HTTPS'))->not->toBe('on');
-
-        // Reset environment
-        app()->detectEnvironment(fn () => 'testing');
     });
 });
 
