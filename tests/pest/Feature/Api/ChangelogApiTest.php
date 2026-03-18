@@ -19,16 +19,19 @@ it('returns changelog data grouped by release', function () {
 });
 
 it('returns an error when changelog JSON is invalid', function () {
-    $path = resource_path('data/changelog.json');
-    $original = File::get($path);
-    File::put($path, '{invalid');
-    try {
-        getJson('/api/changelog')
-            ->assertStatus(500)
-            ->assertJson([
-                'error' => 'Invalid changelog data',
-            ]);
-    } finally {
-        File::put($path, $original);
-    }
+    File::shouldReceive('exists')
+        ->once()
+        ->with(resource_path('data/changelog.json'))
+        ->andReturn(true);
+
+    File::shouldReceive('get')
+        ->once()
+        ->with(resource_path('data/changelog.json'))
+        ->andReturn('{invalid');
+
+    getJson('/api/changelog')
+        ->assertStatus(500)
+        ->assertJson([
+            'error' => 'Invalid changelog data',
+        ]);
 });

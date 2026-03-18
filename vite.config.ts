@@ -105,9 +105,13 @@ export default defineConfig(() => {
                     'resources/js/swagger.tsx',
                     // Third-party UI library (shadcn/ui components)
                     'resources/js/components/ui/**',
-                    // Type definitions (no executable code)
-                    'resources/js/types/**',
+                    // Pure type definition files (no executable code)
                     'resources/js/**/*.d.ts',
+                    'resources/js/types/affiliations.ts',
+                    'resources/js/types/docs.ts',
+                    'resources/js/types/old-datasets.ts',
+                    'resources/js/types/portal.ts',
+                    'resources/js/types/resources.ts',
                 ],
             },
         },

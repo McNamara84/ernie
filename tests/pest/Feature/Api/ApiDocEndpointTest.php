@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\File;
+
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
 
@@ -111,47 +113,41 @@ it('returns the OpenAPI documentation as JSON', function () {
 });
 
 it('returns 500 when the OpenAPI file is missing (JSON)', function () {
-    $path = resource_path('data/openapi.json');
-    $backup = $path.'.bak';
-    rename($path, $backup);
+    File::shouldReceive('exists')
+        ->once()
+        ->with(resource_path('data/openapi.json'))
+        ->andReturn(false);
 
-    try {
-        getJson('/api/v1/doc')
-            ->assertStatus(500)
-            ->assertJson(['message' => 'API specification unavailable']);
-    } finally {
-        rename($backup, $path);
-    }
+    getJson('/api/v1/doc')
+        ->assertStatus(500)
+        ->assertJson(['message' => 'API specification unavailable']);
 });
 
 it('returns 500 when the OpenAPI file is missing (HTML)', function () {
-    $path = resource_path('data/openapi.json');
-    $backup = $path.'.bak';
-    rename($path, $backup);
+    File::shouldReceive('exists')
+        ->once()
+        ->with(resource_path('data/openapi.json'))
+        ->andReturn(false);
 
-    try {
-        get('/api/v1/doc')
-            ->assertStatus(500)
-            ->assertSee('API documentation unavailable');
-    } finally {
-        rename($backup, $path);
-    }
+    get('/api/v1/doc')
+        ->assertStatus(500)
+        ->assertSee('API documentation unavailable');
 });
 
 it('returns 500 when the OpenAPI file contains invalid JSON', function () {
-    $path = resource_path('data/openapi.json');
-    $backup = $path.'.bak';
-    rename($path, $backup);
-    file_put_contents($path, '{invalid');
+    File::shouldReceive('exists')
+        ->once()
+        ->with(resource_path('data/openapi.json'))
+        ->andReturn(true);
 
-    try {
-        getJson('/api/v1/doc')
-            ->assertStatus(500)
-            ->assertJson(['message' => 'API specification unavailable']);
-    } finally {
-        unlink($path);
-        rename($backup, $path);
-    }
+    File::shouldReceive('get')
+        ->once()
+        ->with(resource_path('data/openapi.json'))
+        ->andReturn('{invalid');
+
+    getJson('/api/v1/doc')
+        ->assertStatus(500)
+        ->assertJson(['message' => 'API specification unavailable']);
 });
 
 it('dynamically replaces URLs with current APP_URL', function () {

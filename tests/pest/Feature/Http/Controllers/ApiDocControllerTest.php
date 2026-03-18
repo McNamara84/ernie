@@ -46,16 +46,12 @@ describe('HTML response', function () {
 
 describe('error handling', function () {
     it('returns 500 when OpenAPI file does not exist', function () {
-        $path = resource_path('data/openapi.json');
-        $backupPath = $path . '.bak';
+        File::shouldReceive('exists')
+            ->once()
+            ->with(resource_path('data/openapi.json'))
+            ->andReturn(false);
 
-        File::move($path, $backupPath);
-
-        try {
-            $response = $this->getJson('/api/v1/doc');
-            $response->assertStatus(500);
-        } finally {
-            File::move($backupPath, $path);
-        }
+        $response = $this->getJson('/api/v1/doc');
+        $response->assertStatus(500);
     });
 });
