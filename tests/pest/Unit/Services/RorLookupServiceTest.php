@@ -136,3 +136,65 @@ describe('resolveWithFallback', function (): void {
         expect($service->resolveWithFallback(''))->toBeNull();
     });
 });
+
+describe('findByName', function (): void {
+    test('finds organization by exact name', function (): void {
+        Storage::fake('local');
+        Storage::disk('local')->put('ror/ror-affiliations.json', json_encode([
+            'data' => [
+                ['rorId' => 'https://ror.org/04z8jg394', 'prefLabel' => 'GFZ German Research Centre for Geosciences'],
+                ['rorId' => 'https://ror.org/03bnmw459', 'prefLabel' => 'University of Potsdam'],
+            ],
+        ]));
+
+        $service = new RorLookupService;
+        $result = $service->findByName('GFZ German Research Centre for Geosciences');
+
+        expect($result)->toBe([
+            'value' => 'GFZ German Research Centre for Geosciences',
+            'rorId' => 'https://ror.org/04z8jg394',
+        ]);
+    });
+
+    test('finds organization case-insensitively', function (): void {
+        Storage::fake('local');
+        Storage::disk('local')->put('ror/ror-affiliations.json', json_encode([
+            'data' => [
+                ['rorId' => 'https://ror.org/04z8jg394', 'prefLabel' => 'GFZ German Research Centre for Geosciences'],
+            ],
+        ]));
+
+        $service = new RorLookupService;
+        $result = $service->findByName('gfz german research centre for geosciences');
+
+        expect($result)->not->toBeNull();
+        expect($result['rorId'])->toBe('https://ror.org/04z8jg394');
+    });
+
+    test('returns null for unknown organization name', function (): void {
+        Storage::fake('local');
+        Storage::disk('local')->put('ror/ror-affiliations.json', json_encode([
+            'data' => [
+                ['rorId' => 'https://ror.org/04z8jg394', 'prefLabel' => 'GFZ German Research Centre for Geosciences'],
+            ],
+        ]));
+
+        $service = new RorLookupService;
+
+        expect($service->findByName('Nonexistent University'))->toBeNull();
+    });
+
+    test('returns null when file does not exist', function (): void {
+        Storage::fake('local');
+
+        $service = new RorLookupService;
+
+        expect($service->findByName('Any Name'))->toBeNull();
+    });
+
+    test('returns null for empty name', function (): void {
+        $service = new RorLookupService;
+
+        expect($service->findByName(''))->toBeNull();
+    });
+});

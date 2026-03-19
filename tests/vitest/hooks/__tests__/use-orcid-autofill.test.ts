@@ -112,7 +112,7 @@ describe('useOrcidAutofill', () => {
                     creditName: null,
                     emails: ['jane@example.com'],
                     affiliations: [
-                        { type: 'employment', name: 'University of Testing', role: null, department: null },
+                        { type: 'employment', name: 'University of Testing', role: null, department: null, rorId: null },
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -294,7 +294,7 @@ describe('useOrcidAutofill', () => {
             );
         });
 
-        it('merges new affiliations from ORCID', async () => {
+        it('stores new affiliations as pending data instead of merging', async () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
@@ -304,8 +304,8 @@ describe('useOrcidAutofill', () => {
                     creditName: null,
                     emails: [],
                     affiliations: [
-                        { type: 'employment', name: 'New University', role: null, department: null },
-                        { type: 'education', name: 'Should be ignored', role: null, department: null }, // Only employment is used
+                        { type: 'employment', name: 'New University', role: null, department: null, rorId: null },
+                        { type: 'education', name: 'Should be ignored', role: null, department: null, rorId: null }, // Only employment is used
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -328,17 +328,16 @@ describe('useOrcidAutofill', () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
             });
 
-            expect(onEntryChange).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    affiliations: expect.arrayContaining([
-                        { value: 'Existing Affiliation', rorId: null },
-                        { value: 'New University', rorId: null },
-                    ]),
-                }),
-            );
+            // Affiliations should NOT be merged — existing affiliations stay unchanged
+            const call = onEntryChange.mock.calls[0][0];
+            expect(call.affiliations).toEqual([{ value: 'Existing Affiliation', rorId: null }]);
+
+            // New affiliations should be in pendingOrcidData instead
+            expect(result.current.pendingOrcidData).not.toBeNull();
+            expect(result.current.pendingOrcidData?.affiliations.length).toBeGreaterThan(0);
         });
 
-        it('does not duplicate existing affiliations', async () => {
+        it('does not add existing affiliations to pending data', async () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
@@ -348,7 +347,7 @@ describe('useOrcidAutofill', () => {
                     creditName: null,
                     emails: [],
                     affiliations: [
-                        { type: 'employment', name: 'Same University', role: null, department: null },
+                        { type: 'employment', name: 'Same University', role: null, department: null, rorId: null },
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -371,9 +370,12 @@ describe('useOrcidAutofill', () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
             });
 
-            // affiliations should not be updated since they're the same
+            // Existing affiliations should not be modified
             const call = onEntryChange.mock.calls[0][0];
             expect(call.affiliations).toEqual([{ value: 'Same University', rorId: null }]);
+
+            // No pending data since affiliation already exists
+            expect(result.current.pendingOrcidData).toBeNull();
         });
     });
 

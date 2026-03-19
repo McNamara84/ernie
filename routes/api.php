@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DataCiteController;
+use App\Http\Controllers\Api\RorResolveController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\DateTypeController;
@@ -63,6 +64,7 @@ Route::middleware('ernie.api-key')->get(
     [RoleController::class, 'contributorInstitutionRolesForElmo'],
 );
 Route::get('/v1/ror-affiliations', RorAffiliationController::class);
+Route::middleware('throttle:60,1')->post('/v1/ror-resolve', RorResolveController::class);
 
 // ORCID routes - rate limited to prevent API abuse
 // Allows 30 requests per minute per IP address

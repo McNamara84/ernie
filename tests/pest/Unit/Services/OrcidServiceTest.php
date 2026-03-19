@@ -421,3 +421,177 @@ describe('Retries', function () {
         Http::assertSentCount(3);
     });
 });
+
+describe('ROR ID extraction from affiliations', function () {
+    it('extracts ROR ID from employment disambiguated-organization', function () {
+        $mockFullRecord = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Jane'],
+                    'family-name' => ['value' => 'Doe'],
+                ],
+                'emails' => ['email' => []],
+            ],
+            'activities-summary' => [
+                'employments' => [
+                    'affiliation-group' => [
+                        [
+                            'summaries' => [
+                                [
+                                    'employment-summary' => [
+                                        'organization' => [
+                                            'name' => 'GFZ German Research Centre for Geosciences',
+                                            'disambiguated-organization' => [
+                                                'disambiguated-organization-identifier' => 'https://ror.org/04z8jg394',
+                                                'disambiguation-source' => 'ROR',
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'educations' => ['affiliation-group' => []],
+            ],
+        ];
+
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097' => Http::response($mockFullRecord, 200),
+        ]);
+
+        $result = $this->service->fetchOrcidRecord('0000-0002-1825-0097');
+
+        expect($result['success'])->toBeTrue();
+        expect($result['data']['affiliations'])->toHaveCount(1);
+        expect($result['data']['affiliations'][0]['rorId'])->toBe('https://ror.org/04z8jg394');
+    });
+
+    it('extracts ROR ID from education disambiguated-organization', function () {
+        $mockFullRecord = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Jane'],
+                    'family-name' => ['value' => 'Doe'],
+                ],
+                'emails' => ['email' => []],
+            ],
+            'activities-summary' => [
+                'employments' => ['affiliation-group' => []],
+                'educations' => [
+                    'affiliation-group' => [
+                        [
+                            'summaries' => [
+                                [
+                                    'education-summary' => [
+                                        'organization' => [
+                                            'name' => 'University of Potsdam',
+                                            'disambiguated-organization' => [
+                                                'disambiguated-organization-identifier' => '03bnmw459',
+                                                'disambiguation-source' => 'ROR',
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097' => Http::response($mockFullRecord, 200),
+        ]);
+
+        $result = $this->service->fetchOrcidRecord('0000-0002-1825-0097');
+
+        expect($result['success'])->toBeTrue();
+        expect($result['data']['affiliations'])->toHaveCount(1);
+        expect($result['data']['affiliations'][0]['rorId'])->toBe('https://ror.org/03bnmw459');
+    });
+
+    it('returns null rorId when disambiguation source is not ROR', function () {
+        $mockFullRecord = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Jane'],
+                    'family-name' => ['value' => 'Doe'],
+                ],
+                'emails' => ['email' => []],
+            ],
+            'activities-summary' => [
+                'employments' => [
+                    'affiliation-group' => [
+                        [
+                            'summaries' => [
+                                [
+                                    'employment-summary' => [
+                                        'organization' => [
+                                            'name' => 'Some University',
+                                            'disambiguated-organization' => [
+                                                'disambiguated-organization-identifier' => 'grid.12345',
+                                                'disambiguation-source' => 'GRID',
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'educations' => ['affiliation-group' => []],
+            ],
+        ];
+
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097' => Http::response($mockFullRecord, 200),
+        ]);
+
+        $result = $this->service->fetchOrcidRecord('0000-0002-1825-0097');
+
+        expect($result['success'])->toBeTrue();
+        expect($result['data']['affiliations'])->toHaveCount(1);
+        expect($result['data']['affiliations'][0]['rorId'])->toBeNull();
+    });
+
+    it('returns null rorId when no disambiguated-organization is present', function () {
+        $mockFullRecord = [
+            'person' => [
+                'name' => [
+                    'given-names' => ['value' => 'Jane'],
+                    'family-name' => ['value' => 'Doe'],
+                ],
+                'emails' => ['email' => []],
+            ],
+            'activities-summary' => [
+                'employments' => [
+                    'affiliation-group' => [
+                        [
+                            'summaries' => [
+                                [
+                                    'employment-summary' => [
+                                        'organization' => [
+                                            'name' => 'Unknown Lab',
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'educations' => ['affiliation-group' => []],
+            ],
+        ];
+
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097' => Http::response($mockFullRecord, 200),
+        ]);
+
+        $result = $this->service->fetchOrcidRecord('0000-0002-1825-0097');
+
+        expect($result['success'])->toBeTrue();
+        expect($result['data']['affiliations'])->toHaveCount(1);
+        expect($result['data']['affiliations'][0]['rorId'])->toBeNull();
+    });
+});

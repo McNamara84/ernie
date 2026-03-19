@@ -123,6 +123,31 @@ class RorLookupService
     }
 
     /**
+     * Try to find a ROR entry by organization name (case-insensitive exact match).
+     *
+     * @param  string  $organizationName  The organization name to search for
+     * @return array{value: string, rorId: string}|null The matched entry or null
+     */
+    public function findByName(string $organizationName): ?array
+    {
+        $this->ensureLoaded();
+
+        $normalizedSearch = mb_strtolower(trim($organizationName));
+
+        if ($normalizedSearch === '' || $this->affiliationMap === null) {
+            return null;
+        }
+
+        foreach ($this->affiliationMap as $rorUrl => $prefLabel) {
+            if (mb_strtolower($prefLabel) === $normalizedSearch) {
+                return ['value' => $prefLabel, 'rorId' => $rorUrl];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Ensure the affiliation map is loaded from disk.
      */
     private function ensureLoaded(): void

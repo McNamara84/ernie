@@ -501,6 +501,7 @@ class OrcidService
                             $affiliations[] = [
                                 'type' => 'employment',
                                 'name' => $employment['organization']['name'] ?? null,
+                                'rorId' => $this->extractDisambiguatedRorId($employment['organization'] ?? []),
                                 'role' => $employment['role-title'] ?? null,
                                 'department' => $employment['department-name'] ?? null,
                             ];
@@ -524,6 +525,7 @@ class OrcidService
                             $affiliations[] = [
                                 'type' => 'education',
                                 'name' => $education['organization']['name'] ?? null,
+                                'rorId' => $this->extractDisambiguatedRorId($education['organization'] ?? []),
                                 'role' => $education['role-title'] ?? null,
                                 'department' => $education['department-name'] ?? null,
                             ];
@@ -608,5 +610,43 @@ class OrcidService
         }
 
         return $results;
+    }
+
+    /**
+     * Extract a ROR ID from the ORCID API's disambiguated-organization field.
+     *
+     * The ORCID API v3.0 may include a disambiguated-organization object within
+     * the organization data of employment/education summaries. When the source
+     * is "ROR", the identifier is a usable ROR ID.
+     *
+     * @param  array<string, mixed>  $organization  The organization data from ORCID API
+     * @return string|null The ROR ID (e.g. "https://ror.org/04z8jg394") or null
+     */
+    private function extractDisambiguatedRorId(array $organization): ?string
+    {
+        $disambiguated = $organization['disambiguated-organization'] ?? null;
+
+        if (! is_array($disambiguated)) {
+            return null;
+        }
+
+        $source = $disambiguated['disambiguation-source'] ?? null;
+
+        if ($source !== 'ROR') {
+            return null;
+        }
+
+        $identifier = $disambiguated['disambiguated-organization-identifier'] ?? null;
+
+        if (! is_string($identifier) || $identifier === '') {
+            return null;
+        }
+
+        // Ensure the ROR ID is in canonical URL format
+        if (! str_starts_with($identifier, 'https://ror.org/')) {
+            return 'https://ror.org/' . ltrim($identifier, '/');
+        }
+
+        return $identifier;
     }
 }

@@ -23,6 +23,7 @@ export interface OrcidPersonData {
 export interface OrcidAffiliation {
     type: 'employment' | 'education';
     name: string | null;
+    rorId: string | null;
     role: string | null;
     department: string | null;
 }

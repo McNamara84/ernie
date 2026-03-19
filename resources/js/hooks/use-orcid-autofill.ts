@@ -7,7 +7,8 @@
  * Features:
  * - Auto-verify ORCID when a valid format is entered
  * - Auto-suggest ORCIDs based on name and affiliations
- * - Fetch and merge ORCID data (name, affiliations)
+ * - Auto-fill name/email only when fields are empty
+ * - Store additional ORCID data (affiliations, name diffs) as pending for curator review
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -48,6 +49,46 @@ export interface OrcidAutofillData {
     affiliationsInput?: string;
     orcidVerified: boolean;
     orcidVerifiedAt: string;
+}
+
+/**
+ * A single pending ORCID affiliation that the curator can review
+ */
+export interface PendingOrcidAffiliation {
+    /** Organization name from ORCID */
+    value: string;
+    /** ROR ID if resolved (from ORCID API or reverse lookup) */
+    rorId: string | null;
+    /** Whether this is new (not in current affiliations) or different (same org, different name) */
+    status: 'new' | 'different';
+    /** If status='different': the current affiliation value it differs from */
+    existingValue?: string;
+    /** If resolved via ROR: the preferred label from ROR registry */
+    resolvedName?: string;
+}
+
+/**
+ * Data from ORCID that is available but not auto-applied — pending curator review
+ */
+export interface PendingOrcidData {
+    /** Affiliations from ORCID that aren't in the current entry */
+    affiliations: PendingOrcidAffiliation[];
+    /** Name difference: ORCID firstName differs from current */
+    firstNameDiff: { orcid: string; current: string } | null;
+    /** Name difference: ORCID lastName differs from current */
+    lastNameDiff: { orcid: string; current: string } | null;
+    /** Email from ORCID not in current entry (authors only) */
+    emailSuggestion: string | null;
+}
+
+/**
+ * Data selected by the curator to apply from the pending ORCID suggestions
+ */
+export interface SelectedPendingData {
+    affiliations: PendingOrcidAffiliation[];
+    applyFirstName: boolean;
+    applyLastName: boolean;
+    applyEmail: boolean;
 }
 
 /**
@@ -98,39 +139,147 @@ export interface UseOrcidAutofillReturn {
     errorType: OrcidErrorType;
     /** Whether ORCID format and checksum are valid (offline validation) */
     isFormatValid: boolean;
+    /** Additional ORCID data available for curator review (null = nothing pending) */
+    pendingOrcidData: PendingOrcidData | null;
+    /** Clear all pending ORCID data (discard) */
+    clearPendingOrcidData: () => void;
+    /** Apply selected pending data to the entry */
+    applyPendingData: (selected: SelectedPendingData) => void;
 }
 
 /**
- * Extract employment affiliations from ORCID record
+ * Response shape from POST /api/v1/ror-resolve
  */
-function extractEmploymentAffiliations(
+interface RorResolveResult {
+    name: string;
+    rorId: string;
+    matchedName: string;
+}
+
+/**
+ * Resolve organization names to ROR IDs via backend API.
+ * Returns a map of lowercased name → { rorId, matchedName }.
+ */
+async function resolveNamesToRor(names: string[]): Promise<Map<string, { rorId: string; matchedName: string }>> {
+    const map = new Map<string, { rorId: string; matchedName: string }>();
+
+    if (names.length === 0) return map;
+
+    try {
+        const response = await fetch('/api/v1/ror-resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ names }),
+        });
+
+        if (response.ok) {
+            const data: { results: RorResolveResult[] } = await response.json();
+            for (const result of data.results) {
+                map.set(result.name.toLowerCase().trim(), {
+                    rorId: result.rorId,
+                    matchedName: result.matchedName,
+                });
+            }
+        }
+    } catch {
+        // Silently fail — we'll proceed without ROR resolution
+    }
+
+    return map;
+}
+
+/**
+ * Compare ORCID affiliations against existing entry affiliations.
+ * Returns pending items (new + different) instead of merging directly.
+ */
+async function computePendingAffiliations(
     orcidAffiliations: OrcidAffiliation[],
     existingAffiliations: AffiliationTag[],
-): { affiliations: AffiliationTag[]; affiliationsInput: string } | null {
-    const employmentAffiliations = orcidAffiliations
-        .filter((aff) => aff.type === 'employment' && aff.name)
-        .map((aff) => ({
-            value: aff.name!,
-            rorId: null,
-        }));
+): Promise<PendingOrcidAffiliation[]> {
+    const pending: PendingOrcidAffiliation[] = [];
 
-    if (employmentAffiliations.length === 0) {
-        return null;
+    // Build lookup structures from existing affiliations
+    const existingByRor = new Map<string, AffiliationTag>();
+    const existingByName = new Map<string, AffiliationTag>();
+    for (const aff of existingAffiliations) {
+        if (aff.rorId) existingByRor.set(aff.rorId, aff);
+        existingByName.set(aff.value.toLowerCase().trim(), aff);
     }
 
-    const existingValues = new Set(existingAffiliations.map((a) => a.value));
-    const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
+    // Filter to affiliations with a name
+    const namedAffiliations = orcidAffiliations.filter((a) => a.name);
 
-    if (newAffiliations.length === 0) {
-        return null;
+    // Try to resolve names without ROR IDs to ROR IDs via backend
+    const unresolvedNames = namedAffiliations.filter((a) => !a.rorId).map((a) => a.name!);
+    const resolvedMap = await resolveNamesToRor(unresolvedNames);
+
+    // Deduplicate ORCID affiliations among themselves (by ROR ID)
+    const seenRorIds = new Set<string>();
+
+    for (const orcidAff of namedAffiliations) {
+        const name = orcidAff.name!;
+        const nameLower = name.toLowerCase().trim();
+
+        // Determine ROR ID: from ORCID API or resolved via backend
+        const rorId = orcidAff.rorId ?? resolvedMap.get(nameLower)?.rorId ?? null;
+        const resolvedName = resolvedMap.get(nameLower)?.matchedName ?? null;
+
+        // Skip duplicates among ORCID results themselves
+        if (rorId) {
+            if (seenRorIds.has(rorId)) continue;
+            seenRorIds.add(rorId);
+        }
+
+        // Case 1: ROR match — same institution exists in entry (possibly different name)
+        if (rorId && existingByRor.has(rorId)) {
+            const existing = existingByRor.get(rorId)!;
+            if (existing.value.toLowerCase().trim() !== nameLower) {
+                // Same institution (by ROR), different name spelling
+                pending.push({
+                    value: name,
+                    rorId,
+                    status: 'different',
+                    existingValue: existing.value,
+                    resolvedName: resolvedName ?? undefined,
+                });
+            }
+            // Exact match by ROR + name → already present, skip
+            continue;
+        }
+
+        // Case 2: Exact name match (case-insensitive)
+        if (existingByName.has(nameLower)) {
+            continue;
+        }
+
+        // Case 3: Resolved name matches an existing entry by ROR
+        if (rorId && resolvedName) {
+            const resolvedLower = resolvedName.toLowerCase().trim();
+            if (existingByName.has(resolvedLower)) {
+                const existing = existingByName.get(resolvedLower)!;
+                if (existing.value.toLowerCase().trim() !== nameLower) {
+                    pending.push({
+                        value: name,
+                        rorId,
+                        status: 'different',
+                        existingValue: existing.value,
+                        resolvedName,
+                    });
+                }
+                continue;
+            }
+        }
+
+        // Case 4: Truly new affiliation
+        pending.push({
+            value: name,
+            rorId,
+            status: 'new',
+            resolvedName: resolvedName ?? undefined,
+        });
     }
 
-    const mergedAffiliations = [...existingAffiliations, ...(newAffiliations as AffiliationTag[])];
-
-    return {
-        affiliations: mergedAffiliations,
-        affiliationsInput: mergedAffiliations.map((a) => a.value).join(', '),
-    };
+    return pending;
 }
 
 /**
@@ -141,7 +290,72 @@ function isPersonEntry<T extends BaseEntry>(entry: T): entry is T & PersonEntry 
 }
 
 /**
+ * Process ORCID data after successful fetch: auto-fill empty fields and compute pending data.
+ */
+async function processOrcidData<T extends BaseEntry>(
+    personEntry: T & PersonEntry,
+    data: { firstName: string; lastName: string; emails: string[]; affiliations: OrcidAffiliation[] },
+    includeEmail: boolean,
+): Promise<{ updatedEntry: T; pendingData: PendingOrcidData | null }> {
+    const updatedEntry = {
+        ...personEntry,
+        orcidVerified: true,
+        orcidVerifiedAt: new Date().toISOString(),
+    } as T;
+
+    // Auto-fill name ONLY when fields are empty
+    if (!personEntry.firstName && data.firstName) {
+        (updatedEntry as unknown as PersonEntry).firstName = data.firstName;
+    }
+    if (!personEntry.lastName && data.lastName) {
+        (updatedEntry as unknown as PersonEntry).lastName = data.lastName;
+    }
+
+    // Auto-fill email ONLY when field is empty (authors only)
+    if (includeEmail && data.emails.length > 0 && 'email' in personEntry && !personEntry.email) {
+        (updatedEntry as T & { email: string }).email = data.emails[0];
+    }
+
+    // Compute pending affiliations (not auto-applied)
+    const pendingAffiliations = await computePendingAffiliations(data.affiliations, personEntry.affiliations);
+
+    // Compute name differences (only when fields are NOT empty)
+    const firstNameDiff =
+        personEntry.firstName && data.firstName && personEntry.firstName.trim() !== data.firstName.trim()
+            ? { orcid: data.firstName, current: personEntry.firstName }
+            : null;
+
+    const lastNameDiff =
+        personEntry.lastName && data.lastName && personEntry.lastName.trim() !== data.lastName.trim()
+            ? { orcid: data.lastName, current: personEntry.lastName }
+            : null;
+
+    // Compute email suggestion (only when email field exists and is NOT empty)
+    const emailSuggestion =
+        includeEmail && data.emails.length > 0 && 'email' in personEntry && personEntry.email && personEntry.email !== data.emails[0]
+            ? data.emails[0]
+            : null;
+
+    const hasPendingData = pendingAffiliations.length > 0 || firstNameDiff !== null || lastNameDiff !== null || emailSuggestion !== null;
+
+    return {
+        updatedEntry,
+        pendingData: hasPendingData
+            ? {
+                  affiliations: pendingAffiliations,
+                  firstNameDiff,
+                  lastNameDiff,
+                  emailSuggestion,
+              }
+            : null,
+    };
+}
+
+/**
  * useOrcidAutofill - Shared hook for ORCID verification and auto-fill
+ *
+ * Affiliations from ORCID are NOT auto-merged. Instead, they are stored as
+ * pendingOrcidData for the curator to review via the OrcidSuggestionsModal.
  */
 export function useOrcidAutofill<T extends BaseEntry>({
     entry,
@@ -160,6 +374,9 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
+    // Pending ORCID data for curator review
+    const [pendingOrcidData, setPendingOrcidData] = useState<PendingOrcidData | null>(null);
+
     // Track retry trigger
     const [retryTrigger, setRetryTrigger] = useState(0);
 
@@ -169,6 +386,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         setCanRetry(false);
     }, []);
     const hideSuggestions = useCallback(() => setShowSuggestions(false), []);
+    const clearPendingOrcidData = useCallback(() => setPendingOrcidData(null), []);
 
     // Check if current ORCID has valid format and checksum (offline validation)
     const isFormatValid = useMemo(() => {
@@ -184,6 +402,45 @@ export function useOrcidAutofill<T extends BaseEntry>({
         clearError();
         setRetryTrigger((prev) => prev + 1);
     }, [entry, clearError]);
+
+    /**
+     * Apply selected pending data to the entry
+     */
+    const applyPendingData = useCallback(
+        (selected: SelectedPendingData) => {
+            if (!isPersonEntry(entry) || !pendingOrcidData) return;
+
+            const updatedEntry = { ...entry } as T;
+
+            // Apply selected affiliations
+            if (selected.affiliations.length > 0) {
+                const newAffiliations: AffiliationTag[] = selected.affiliations.map((a) => ({
+                    value: a.resolvedName ?? a.value,
+                    rorId: a.rorId ?? null,
+                }));
+
+                updatedEntry.affiliations = [...entry.affiliations, ...newAffiliations];
+                updatedEntry.affiliationsInput = updatedEntry.affiliations.map((a) => a.value).join(', ');
+            }
+
+            // Apply name corrections
+            if (selected.applyFirstName && pendingOrcidData.firstNameDiff) {
+                (updatedEntry as unknown as PersonEntry).firstName = pendingOrcidData.firstNameDiff.orcid;
+            }
+            if (selected.applyLastName && pendingOrcidData.lastNameDiff) {
+                (updatedEntry as unknown as PersonEntry).lastName = pendingOrcidData.lastNameDiff.orcid;
+            }
+
+            // Apply email
+            if (selected.applyEmail && pendingOrcidData.emailSuggestion && 'email' in updatedEntry) {
+                (updatedEntry as T & { email: string }).email = pendingOrcidData.emailSuggestion;
+            }
+
+            onEntryChange(updatedEntry);
+            setPendingOrcidData(null);
+        },
+        [entry, pendingOrcidData, onEntryChange],
+    );
 
     /**
      * Handle ORCID selection (from search dialog or suggestions)
@@ -204,30 +461,10 @@ export function useOrcidAutofill<T extends BaseEntry>({
                     return;
                 }
 
-                const data = response.data;
-
-                // Build updated entry with ORCID data
-                const updatedEntry = {
-                    ...entry,
-                    orcid,
-                    firstName: data.firstName || entry.firstName,
-                    lastName: data.lastName || entry.lastName,
-                    orcidVerified: true,
-                    orcidVerifiedAt: new Date().toISOString(),
-                } as T;
-
-                // Include email for authors if available
-                if (includeEmail && data.emails.length > 0 && 'email' in entry && !entry.email) {
-                    (updatedEntry as T & { email: string }).email = data.emails[0];
-                }
-
-                // Merge affiliations from ORCID
-                const affiliationResult = extractEmploymentAffiliations(data.affiliations, entry.affiliations);
-                if (affiliationResult) {
-                    updatedEntry.affiliations = affiliationResult.affiliations;
-                    updatedEntry.affiliationsInput = affiliationResult.affiliationsInput;
-                }
-
+                // Update ORCID field on the entry for selection
+                const entryWithOrcid = { ...entry, orcid } as T & PersonEntry;
+                const { updatedEntry, pendingData } = await processOrcidData(entryWithOrcid, response.data, includeEmail);
+                setPendingOrcidData(pendingData);
                 onEntryChange(updatedEntry);
             } catch (error) {
                 console.error('ORCID fetch error:', error);
@@ -390,29 +627,8 @@ export function useOrcidAutofill<T extends BaseEntry>({
                     return;
                 }
 
-                const data = response.data;
-
-                // Build updated entry
-                const updatedEntry = {
-                    ...personEntry,
-                    firstName: data.firstName || personEntry.firstName,
-                    lastName: data.lastName || personEntry.lastName,
-                    orcidVerified: true,
-                    orcidVerifiedAt: new Date().toISOString(),
-                } as T;
-
-                // Include email for authors if available
-                if (includeEmail && data.emails.length > 0 && 'email' in personEntry && !personEntry.email) {
-                    (updatedEntry as T & { email: string }).email = data.emails[0];
-                }
-
-                // Merge affiliations from ORCID
-                const affiliationResult = extractEmploymentAffiliations(data.affiliations, personEntry.affiliations);
-                if (affiliationResult) {
-                    updatedEntry.affiliations = affiliationResult.affiliations;
-                    updatedEntry.affiliationsInput = affiliationResult.affiliationsInput;
-                }
-
+                const { updatedEntry, pendingData } = await processOrcidData(personEntry, response.data, includeEmail);
+                setPendingOrcidData(pendingData);
                 onEntryChange(updatedEntry);
             } catch (error) {
                 console.error('Auto-verify ORCID error:', error);
@@ -443,5 +659,8 @@ export function useOrcidAutofill<T extends BaseEntry>({
         retryVerification,
         errorType,
         isFormatValid,
+        pendingOrcidData,
+        clearPendingOrcidData,
+        applyPendingData,
     };
 }
