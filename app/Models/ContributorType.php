@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ContributorCategory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,15 +24,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/contributor/
  */
+#[Fillable(['name', 'slug', 'category', 'is_active', 'is_elmo_active'])]
 class ContributorType extends Model
 {
-    protected $fillable = [
-        'name',
-        'slug',
-        'category',
-        'is_active',
-        'is_elmo_active',
-    ];
 
     protected $casts = [
         'category' => ContributorCategory::class,

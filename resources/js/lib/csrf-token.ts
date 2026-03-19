@@ -124,7 +124,7 @@ export const buildCsrfHeaders = (): Record<string, string> => {
  * Syncs the XSRF-TOKEN cookie to the axios default `X-XSRF-TOKEN` header.
  *
  * **Important:** The XSRF-TOKEN cookie is **encrypted** by Laravel's
- * `EncryptCookies` middleware. Laravel's `VerifyCsrfToken` middleware only
+ * `EncryptCookies` middleware. Laravel's `PreventRequestForgery` middleware only
  * decrypts values received via the `X-XSRF-TOKEN` header. The `X-CSRF-TOKEN`
  * header and the `<meta name="csrf-token">` tag must contain the
  * **unencrypted** session token (rendered server-side) and must NOT be

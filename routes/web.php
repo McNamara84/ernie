@@ -33,7 +33,7 @@ Route::get('/health', function () {
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
 // Sanctum itself is not installed – this lightweight route provides the
-// same contract: the VerifyCsrfToken middleware automatically sets the
+// same contract: the PreventRequestForgery middleware automatically sets the
 // XSRF-TOKEN cookie on every response, so this endpoint only needs to
 // return 204 No Content.
 // Used by the session warmup hook and the 419 CSRF retry handler.

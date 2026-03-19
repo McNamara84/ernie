@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -26,19 +27,11 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/#affiliation
  */
+#[Fillable(['affiliatable_type', 'affiliatable_id', 'name', 'identifier', 'identifier_scheme', 'scheme_uri'])]
 class Affiliation extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'affiliatable_type',
-        'affiliatable_id',
-        'name',
-        'identifier',
-        'identifier_scheme',
-        'scheme_uri',
-    ];
 
     /** @return MorphTo<Model, static> */
     public function affiliatable(): MorphTo

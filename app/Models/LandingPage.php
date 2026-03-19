@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Services\SlugGeneratorService;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -80,30 +81,11 @@ use Illuminate\Support\Str;
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
  */
+#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'ftp_url', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
 class LandingPage extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageFactory> */
     use HasFactory;
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'resource_id',
-        'doi_prefix',
-        'slug',
-        'template',
-        'ftp_url',
-        'external_domain_id',
-        'external_path',
-        'is_published',
-        'preview_token',
-        'published_at',
-        'view_count',
-        'last_viewed_at',
-    ];
 
     /**
      * The attributes that should be cast.

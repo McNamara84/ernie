@@ -30,9 +30,6 @@ export default defineConfig(() => {
                 }
             }
         },
-        esbuild: {
-            jsx: 'automatic' as const,
-        },
         define: {
             global: 'globalThis',
         },

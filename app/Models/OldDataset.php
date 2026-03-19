@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $first_author_firstname First author's first name (joined from resourceagent table)
  * @property string|null $first_author_name First author's full name (joined from resourceagent table)
  */
+#[Fillable(['publicstatus', 'identifier', 'publisher', 'publicationyear', 'keywords', 'version', 'language', 'identifiertype', 'resourcetype', 'resourcetypegeneral', 'publicid', 'progress', 'curator'])]
 class OldDataset extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -130,27 +132,6 @@ class OldDataset extends Model
      * @var list<string>
      */
     protected $appends = [];
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'publicstatus',
-        'identifier',
-        'publisher',
-        'publicationyear',
-        'keywords',
-        'version',
-        'language',
-        'identifiertype',
-        'resourcetype',
-        'resourcetypegeneral',
-        'publicid',
-        'progress',
-        'curator',
-    ];
 
     /**
      * Get all resources with their titles, ordered by created_at descending.

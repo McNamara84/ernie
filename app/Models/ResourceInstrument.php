@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,20 +27,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://docs.pidinst.org/en/latest/white-paper/linking-datasets.html
  */
+#[Fillable(['resource_id', 'instrument_pid', 'instrument_pid_type', 'instrument_name', 'position'])]
 class ResourceInstrument extends Model
 {
     /** @use HasFactory<\Database\Factories\ResourceInstrumentFactory> */
     use HasFactory;
-    /**
-     * @var list<string>
-     */
-    protected $fillable = [
-        'resource_id',
-        'instrument_pid',
-        'instrument_pid_type',
-        'instrument_name',
-        'position',
-    ];
 
     /**
      * @return array<string, string>

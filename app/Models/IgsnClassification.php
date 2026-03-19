@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
  */
+#[Fillable(['resource_id', 'value', 'position'])]
 class IgsnClassification extends Model
 {
     /**
@@ -29,17 +31,6 @@ class IgsnClassification extends Model
      * @var string
      */
     protected $table = 'igsn_classifications';
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'resource_id',
-        'value',
-        'position',
-    ];
 
     /**
      * The attributes that should be cast.
