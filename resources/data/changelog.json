@@ -4,6 +4,10 @@
         "date": "2026-03-19",
         "features": [
             {
+                "title": "ORCID Affiliation Review Modal",
+                "description": "When verifying an ORCID ID, affiliations from the ORCID profile are no longer auto-merged into the form. Instead, a review modal allows curators to selectively accept new affiliations, name corrections, and email suggestions. The system intelligently deduplicates ORCID affiliations against existing entries using ROR IDs and name matching, and badges indicate whether data is 'New' or 'Different'. This prevents ORCID data from overwriting affiliations loaded from XML uploads."
+            },
+            {
                 "title": "Laravel 13 Upgrade",
                 "description": "Upgraded the application framework from Laravel 12 to Laravel 13.1, including Symfony 8, Vite 8, laravel-vite-plugin 3.0, and laravel/tinker 3.0. Migrated all 21 models from the $fillable property to the new #[Fillable] class attribute. Updated CSRF middleware from ValidateCsrfToken to PreventRequestForgery. Added JSON session serialization for improved security. Created a database migration to update cache table expiration columns to bigInteger for Y2038 compliance."
             },
