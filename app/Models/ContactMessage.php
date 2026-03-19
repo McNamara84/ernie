@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,22 +30,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Resource $resource
  * @property-read ResourceCreator|null $resourceCreator
  */
+#[Fillable(['resource_id', 'resource_creator_id', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'sent_at'])]
 class ContactMessage extends Model
 {
     /** @use HasFactory<\Database\Factories\ContactMessageFactory> */
     use HasFactory;
-
-    protected $fillable = [
-        'resource_id',
-        'resource_creator_id',
-        'send_to_all',
-        'sender_name',
-        'sender_email',
-        'message',
-        'copy_to_sender',
-        'ip_address',
-        'sent_at',
-    ];
 
     /**
      * @var array<string, string>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,21 +30,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/fundingreference/
  */
+#[Fillable(['resource_id', 'funder_name', 'funder_identifier', 'funder_identifier_type_id', 'scheme_uri', 'award_number', 'award_uri', 'award_title'])]
 class FundingReference extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'resource_id',
-        'funder_name',
-        'funder_identifier',
-        'funder_identifier_type_id',
-        'scheme_uri',
-        'award_number',
-        'award_uri',
-        'award_title',
-    ];
 
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo

@@ -827,7 +827,10 @@ class ResourceController extends Controller
                         $join->on('resource_creators.creatorable_id', '=', 'institutions.id')
                             ->where('resource_creators.creatorable_type', '=', Institution::class);
                     })
-                    ->orderByRaw("COALESCE(persons.family_name, institutions.name) {$sortDirection}")
+                    ->orderByRaw(match ($sortDirection) {
+                        'desc' => 'COALESCE(persons.family_name, institutions.name) desc',
+                        default => 'COALESCE(persons.family_name, institutions.name) asc',
+                    })
                     ->select('resources.*');
                 break;
 

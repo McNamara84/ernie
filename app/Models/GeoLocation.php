@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,27 +35,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/geolocation/
  */
+#[Fillable(['resource_id', 'geo_type', 'place', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
 class GeoLocation extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'resource_id',
-        'geo_type',
-        'place',
-        'point_longitude',
-        'point_latitude',
-        'elevation',
-        'elevation_unit',
-        'west_bound_longitude',
-        'east_bound_longitude',
-        'south_bound_latitude',
-        'north_bound_latitude',
-        'polygon_points',
-        'in_polygon_point_longitude',
-        'in_polygon_point_latitude',
-    ];
 
     protected $casts = [
         'point_longitude' => 'decimal:8',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -17,21 +18,12 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active'])]
 class PidSetting extends Model
 {
     public const TYPE_PID4INST = 'pid4inst';
 
     public const TYPE_ROR = 'ror';
-
-    /**
-     * @var list<string>
-     */
-    protected $fillable = [
-        'type',
-        'display_name',
-        'is_active',
-        'is_elmo_active',
-    ];
 
     /**
      * @return array<string, string>
