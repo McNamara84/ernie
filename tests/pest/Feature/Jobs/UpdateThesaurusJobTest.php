@@ -68,7 +68,7 @@ describe('getCacheKey', function () {
 // =========================================================================
 
 describe('handle', function () {
-    it('sets cache status to running then completed on success', function () {
+    it('sets cache status to completed on success', function () {
         $uuid = (string) Str::uuid();
         $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
 

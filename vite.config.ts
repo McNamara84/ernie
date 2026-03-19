@@ -98,12 +98,20 @@ export default defineConfig(() => {
                     // Auto-generated Wayfinder files (Laravel route helpers)
                     'resources/js/actions/**',
                     'resources/js/routes/**',
+                    'resources/js/routes.ts',
                     // Application entry points (not unit-testable)
                     'resources/js/app.tsx',
                     'resources/js/ssr.tsx',
-                    // Type definitions (no executable code)
-                    'resources/js/types/**/*.d.ts',
+                    'resources/js/swagger.tsx',
+                    // Third-party UI library (shadcn/ui components)
+                    'resources/js/components/ui/**',
+                    // Pure type definition files (no executable code)
                     'resources/js/**/*.d.ts',
+                    'resources/js/types/affiliations.ts',
+                    'resources/js/types/docs.ts',
+                    'resources/js/types/old-datasets.ts',
+                    'resources/js/types/portal.ts',
+                    'resources/js/types/resources.ts',
                 ],
             },
         },
