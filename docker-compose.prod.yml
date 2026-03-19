@@ -118,7 +118,7 @@ services:
       target: app
     container_name: dockerized-laravel-queue
     restart: unless-stopped
-    command: php artisan queue:work --verbose --tries=3 --timeout=90
+    command: php artisan queue:work --queue=vocabularies,default,imports --verbose --tries=3 --timeout=7200
     volumes:
       - storage-data:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache

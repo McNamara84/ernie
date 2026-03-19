@@ -6,6 +6,8 @@ namespace App\Console\Commands;
 
 use App\Services\ArdcApiService;
 use App\Support\ChronostratVocabularyParser;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,11 +15,10 @@ use Illuminate\Support\Facades\Storage;
  * Fetch the International Chronostratigraphic Chart from the ARDC Linked Data API
  * and save as hierarchical JSON file.
  */
+#[Description('Fetch ICS Chronostratigraphic Timescale from ARDC API and save as hierarchical JSON')]
+#[Signature('get-chronostrat-timescale')]
 class GetChronostratTimescale extends Command
 {
-    protected $signature = 'get-chronostrat-timescale';
-
-    protected $description = 'Fetch ICS Chronostratigraphic Timescale from ARDC API and save as hierarchical JSON';
 
     private const OUTPUT_FILE = 'chronostrat-timescale.json';
 

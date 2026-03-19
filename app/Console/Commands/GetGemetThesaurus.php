@@ -6,6 +6,8 @@ namespace App\Console\Commands;
 
 use App\Services\GemetApiService;
 use App\Support\GemetVocabularyParser;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,11 +15,10 @@ use Illuminate\Support\Facades\Storage;
  * Fetch the GEMET Thesaurus from the EEA GEMET REST API
  * and save as hierarchical JSON file.
  */
+#[Description('Fetch GEMET Thesaurus from EEA API and save as hierarchical JSON')]
+#[Signature('get-gemet-thesaurus')]
 class GetGemetThesaurus extends Command
 {
-    protected $signature = 'get-gemet-thesaurus';
-
-    protected $description = 'Fetch GEMET Thesaurus from EEA API and save as hierarchical JSON';
 
     private const OUTPUT_FILE = 'gemet-thesaurus.json';
 

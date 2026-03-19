@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Attributes\Connection;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +26,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $first_author_firstname First author's first name (joined from resourceagent table)
  * @property string|null $first_author_name First author's full name (joined from resourceagent table)
  */
+#[Connection('metaworks')]
 #[Fillable(['publicstatus', 'identifier', 'publisher', 'publicationyear', 'keywords', 'version', 'language', 'identifiertype', 'resourcetype', 'resourcetypegeneral', 'publicid', 'progress', 'curator'])]
+#[Table('resource')]
 class OldDataset extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -37,34 +41,6 @@ class OldDataset extends Model
      * @var string
      */
     private const ROLE_CREATOR = 'Creator';
-
-    /**
-     * The connection name for the model.
-     *
-     * @var string
-     */
-    protected $connection = 'metaworks';
-
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'resource';
-
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
-    protected $primaryKey = 'id';
-
-    /**
-     * Indicates if the model should be timestamped.
-     *
-     * @var bool
-     */
-    public $timestamps = true;
 
     /**
      * Map old database role names to new database role slugs.

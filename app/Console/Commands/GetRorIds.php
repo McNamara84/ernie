@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Carbon\Carbon;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
@@ -13,21 +15,10 @@ use Illuminate\Support\Str;
 use JsonException;
 use Throwable;
 
+#[Description('Fetch the latest ROR affiliation identifiers and cache them as JSON.')]
+#[Signature('get-ror-ids {--output= : Override the output file path}')]
 class GetRorIds extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'get-ror-ids {--output= : Override the output file path}';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Fetch the latest ROR affiliation identifiers and cache them as JSON.';
 
     private const METADATA_URL = 'https://zenodo.org/api/records/';
 

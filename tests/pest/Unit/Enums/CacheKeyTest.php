@@ -79,3 +79,39 @@ it('all cache keys have unique values', function () {
 
     expect($values)->toHaveCount(count(array_unique($values)));
 });
+
+it('returns all vocabulary keys', function () {
+    $vocabularyKeys = CacheKey::vocabularyKeys();
+
+    expect($vocabularyKeys)->toBeArray()
+        ->toHaveCount(8)
+        ->each->toBeInstanceOf(CacheKey::class);
+
+    $expectedKeys = [
+        CacheKey::GCMD_SCIENCE_KEYWORDS,
+        CacheKey::GCMD_INSTRUMENTS,
+        CacheKey::GCMD_PLATFORMS,
+        CacheKey::GCMD_PROVIDERS,
+        CacheKey::MSL_KEYWORDS,
+        CacheKey::PID4INST_INSTRUMENTS,
+        CacheKey::CHRONOSTRAT_TIMESCALE,
+        CacheKey::GEMET_THESAURUS,
+    ];
+
+    expect($vocabularyKeys)->toEqual($expectedKeys);
+});
+
+it('vocabulary keys all have vocabularies tag', function () {
+    foreach (CacheKey::vocabularyKeys() as $key) {
+        expect($key->tags())->toContain('vocabularies');
+    }
+});
+
+it('vocabulary keys do not include non-vocabulary keys', function () {
+    $vocabularyKeys = CacheKey::vocabularyKeys();
+
+    expect($vocabularyKeys)->not->toContain(CacheKey::RESOURCE_LIST)
+        ->not->toContain(CacheKey::ROR_AFFILIATION)
+        ->not->toContain(CacheKey::ORCID_PERSON)
+        ->not->toContain(CacheKey::CACHE_STATS);
+});

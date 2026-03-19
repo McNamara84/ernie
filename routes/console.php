@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\User;
+use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -27,3 +29,10 @@ Artisan::command('add-user {name} {email} {password}', function (string $name, s
         $this->info("User {$user->email} created as BEGINNER.");
     }
 })->purpose('Add a new user to the database');
+
+// Extend vocabulary cache TTLs every 12 hours without re-fetching data
+Schedule::call(function () {
+    app(VocabularyCacheService::class)->touchAllVocabularyCaches();
+})->twiceDaily(1, 13)
+    ->name('touch-vocabulary-caches')
+    ->withoutOverlapping();

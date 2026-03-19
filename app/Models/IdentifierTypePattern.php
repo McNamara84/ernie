@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,15 +23,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[Fillable(['identifier_type_id', 'type', 'pattern', 'is_active', 'priority'])]
 class IdentifierTypePattern extends Model
 {
-    protected $fillable = [
-        'identifier_type_id',
-        'type',
-        'pattern',
-        'is_active',
-        'priority',
-    ];
 
     protected $casts = [
         'is_active' => 'boolean',

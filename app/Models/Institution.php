@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -25,17 +26,11 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/creator/
  */
+#[Fillable(['name', 'name_identifier', 'name_identifier_scheme', 'name_identifier_scheme_uri'])]
 class Institution extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'name',
-        'name_identifier',
-        'name_identifier_scheme',
-        'name_identifier_scheme_uri',
-    ];
 
     /** @return MorphMany<ResourceCreator, static> */
     public function resourceCreators(): MorphMany

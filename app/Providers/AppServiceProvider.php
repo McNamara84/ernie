@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Jobs\ImportFromDataCiteJob;
+use App\Jobs\UpdatePidJob;
+use App\Jobs\UpdateThesaurusJob;
 use App\Models\Resource;
 use App\Models\User;
 use App\Observers\ResourceObserver;
@@ -14,6 +17,7 @@ use App\Services\RorLookupService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,6 +49,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Define authorization gates
         $this->defineGates();
+
+        // Route jobs to dedicated queues to prevent long-running imports
+        // from blocking shorter vocabulary/PID update tasks
+        Queue::route(ImportFromDataCiteJob::class, queue: 'imports');
+        Queue::route(UpdatePidJob::class, queue: 'vocabularies');
+        Queue::route(UpdateThesaurusJob::class, queue: 'vocabularies');
     }
 
     /**

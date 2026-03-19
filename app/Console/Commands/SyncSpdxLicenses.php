@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Right;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
+#[Description('Sync licenses from SPDX and store them in the rights table')]
+#[Signature('spdx:sync-licenses')]
 class SyncSpdxLicenses extends Command
 {
-    protected $signature = 'spdx:sync-licenses';
-
-    protected $description = 'Sync licenses from SPDX and store them in the rights table';
 
     public function handle(): int
     {

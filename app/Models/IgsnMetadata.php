@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -54,49 +56,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read Resource|null $parentResource
  * @property-read Collection<int, IgsnMetadata> $children
  */
+#[Fillable([
+    'resource_id', 'parent_resource_id', 'sample_type', 'material', 'is_private',
+    'depth_min', 'depth_max', 'depth_scale', 'sample_purpose',
+    'collection_method', 'collection_method_description', 'collection_date_precision',
+    'cruise_field_program', 'platform_type', 'platform_name', 'platform_description',
+    'current_archive', 'current_archive_contact', 'sample_access', 'operator',
+    'coordinate_system', 'user_code', 'description_json',
+    'upload_status', 'upload_error_message', 'csv_filename', 'csv_row_number',
+])]
+#[Table('igsn_metadata')]
 class IgsnMetadata extends Model
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'igsn_metadata';
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'resource_id',
-        'parent_resource_id',
-        'sample_type',
-        'material',
-        'is_private',
-        'depth_min',
-        'depth_max',
-        'depth_scale',
-        'sample_purpose',
-        'collection_method',
-        'collection_method_description',
-        'collection_date_precision',
-        'cruise_field_program',
-        'platform_type',
-        'platform_name',
-        'platform_description',
-        'current_archive',
-        'current_archive_contact',
-        'sample_access',
-        'operator',
-        'coordinate_system',
-        'user_code',
-        'description_json',
-        'upload_status',
-        'upload_error_message',
-        'csv_filename',
-        'csv_row_number',
-    ];
 
     /**
      * The attributes that should be cast.

@@ -132,4 +132,23 @@ enum CacheKey: string
             self::CACHE_STATS => ['system'],
         };
     }
+
+    /**
+     * Get all vocabulary-related cache keys.
+     *
+     * @return array<int, self>
+     */
+    public static function vocabularyKeys(): array
+    {
+        return [
+            self::GCMD_SCIENCE_KEYWORDS,
+            self::GCMD_INSTRUMENTS,
+            self::GCMD_PLATFORMS,
+            self::GCMD_PROVIDERS,
+            self::MSL_KEYWORDS,
+            self::PID4INST_INSTRUMENTS,
+            self::CHRONOSTRAT_TIMESCALE,
+            self::GEMET_THESAURUS,
+        ];
+    }
 }

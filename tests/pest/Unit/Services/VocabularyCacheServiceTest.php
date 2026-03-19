@@ -108,4 +108,52 @@ describe('VocabularyCacheService', function () {
             expect($callCount)->toBe(1);
         });
     });
+
+    describe('touchVocabularyCache', function () {
+        it('returns false when key does not exist in cache', function () {
+            $result = $this->service->touchVocabularyCache(CacheKey::GCMD_SCIENCE_KEYWORDS);
+
+            expect($result)->toBeFalse();
+        });
+
+        it('returns true when key exists in cache', function () {
+            $this->service->cacheGcmdScienceKeywords(fn () => ['data']);
+
+            $result = $this->service->touchVocabularyCache(CacheKey::GCMD_SCIENCE_KEYWORDS);
+
+            expect($result)->toBeTrue();
+        });
+    });
+
+    describe('touchAllVocabularyCaches', function () {
+        it('returns results for all vocabulary keys', function () {
+            $results = $this->service->touchAllVocabularyCaches();
+
+            expect($results)->toBeArray()
+                ->toHaveCount(8);
+
+            foreach (CacheKey::vocabularyKeys() as $key) {
+                expect($results)->toHaveKey($key->value);
+            }
+        });
+
+        it('returns false for all keys when no caches exist', function () {
+            $results = $this->service->touchAllVocabularyCaches();
+
+            foreach ($results as $result) {
+                expect($result)->toBeFalse();
+            }
+        });
+
+        it('returns true for keys that exist in cache', function () {
+            $this->service->cacheGcmdScienceKeywords(fn () => ['keywords']);
+            $this->service->cacheMslKeywords(fn () => ['msl']);
+
+            $results = $this->service->touchAllVocabularyCaches();
+
+            expect($results[CacheKey::GCMD_SCIENCE_KEYWORDS->value])->toBeTrue();
+            expect($results[CacheKey::MSL_KEYWORDS->value])->toBeTrue();
+            expect($results[CacheKey::GCMD_INSTRUMENTS->value])->toBeFalse();
+        });
+    });
 });

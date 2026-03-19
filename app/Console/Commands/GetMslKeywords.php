@@ -5,23 +5,14 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\MslVocabularyService;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
+#[Description('Fetch MSL keywords from GitHub and save as JSON')]
+#[Signature('get-msl-keywords')]
 class GetMslKeywords extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'get-msl-keywords';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Fetch MSL keywords from GitHub and save as JSON';
 
     /**
      * Execute the console command.

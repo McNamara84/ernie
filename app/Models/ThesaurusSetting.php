@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active'])]
 class ThesaurusSetting extends Model
 {
     public const TYPE_SCIENCE_KEYWORDS = 'science_keywords';
@@ -28,16 +30,6 @@ class ThesaurusSetting extends Model
     public const TYPE_CHRONOSTRAT = 'chronostratigraphy';
 
     public const TYPE_GEMET = 'gemet';
-
-    /**
-     * @var list<string>
-     */
-    protected $fillable = [
-        'type',
-        'display_name',
-        'is_active',
-        'is_elmo_active',
-    ];
 
     /**
      * @return array<string, string>

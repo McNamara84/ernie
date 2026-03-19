@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -28,20 +29,11 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/rights/
  */
+#[Fillable(['identifier', 'name', 'uri', 'scheme_uri', 'is_active', 'is_elmo_active', 'usage_count'])]
 class Right extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'identifier',
-        'name',
-        'uri',
-        'scheme_uri',
-        'is_active',
-        'is_elmo_active',
-        'usage_count',
-    ];
 
     protected $casts = [
         'is_active' => 'boolean',
