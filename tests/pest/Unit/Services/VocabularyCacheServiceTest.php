@@ -117,7 +117,7 @@ describe('VocabularyCacheService', function () {
         });
 
         it('returns true when key exists in cache', function () {
-            Cache::put(CacheKey::GCMD_SCIENCE_KEYWORDS->key(), ['data'], 60);
+            $this->service->cacheGcmdScienceKeywords(fn () => ['data']);
 
             $result = $this->service->touchVocabularyCache(CacheKey::GCMD_SCIENCE_KEYWORDS);
 
@@ -146,8 +146,8 @@ describe('VocabularyCacheService', function () {
         });
 
         it('returns true for keys that exist in cache', function () {
-            Cache::put(CacheKey::GCMD_SCIENCE_KEYWORDS->key(), ['keywords'], 60);
-            Cache::put(CacheKey::MSL_KEYWORDS->key(), ['msl'], 60);
+            $this->service->cacheGcmdScienceKeywords(fn () => ['keywords']);
+            $this->service->cacheMslKeywords(fn () => ['msl']);
 
             $results = $this->service->touchAllVocabularyCaches();
 

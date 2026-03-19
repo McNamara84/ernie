@@ -154,15 +154,15 @@ class VocabularyCacheService
     /**
      * Extend the TTL of a vocabulary cache without re-fetching the value.
      *
-     * Uses Cache::touch() which sends a single EXPIRE command to Redis,
-     * avoiding the wire transfer of potentially large vocabulary data.
+     * Uses the same cache repository as writes (tagged when supported)
+     * to ensure the correct key namespace is used.
      *
      * @param  CacheKey  $key  The vocabulary cache key
      * @return bool True if the key existed and TTL was extended
      */
     public function touchVocabularyCache(CacheKey $key): bool
     {
-        return Cache::touch($key->key(), $key->ttl());
+        return $this->getCacheInstance($key->tags())->touch($key->key(), $key->ttl());
     }
 
     /**

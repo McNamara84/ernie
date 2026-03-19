@@ -256,7 +256,7 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-    command: php artisan queue:work --queue=imports,vocabularies,default --sleep=3 --tries=3
+    command: php artisan queue:work --queue=vocabularies,default,imports --sleep=3 --tries=3
 
 networks:
   ernie-dev-network:
