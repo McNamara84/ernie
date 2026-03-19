@@ -55,7 +55,7 @@ describe('elmoForResourceType', function () {
     it('returns licenses available for a specific resource type', function () {
         $resourceType = ResourceType::factory()->create(['slug' => 'dataset']);
 
-        // No exclusions — both elmo-active licenses should be available
+        // No exclusions — the single elmo-active license (CC-BY-4.0) should be available
         $response = $this->getJson('/api/v1/licenses/elmo/dataset', [
             'X-API-Key' => config('services.ernie.api_key'),
         ]);
