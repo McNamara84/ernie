@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,21 +56,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
+#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'created_by_user_id', 'updated_by_user_id'])]
 class Resource extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'doi',
-        'publication_year',
-        'resource_type_id',
-        'version',
-        'language_id',
-        'publisher_id',
-        'created_by_user_id',
-        'updated_by_user_id',
-    ];
 
     protected $casts = [
         'publication_year' => 'integer',

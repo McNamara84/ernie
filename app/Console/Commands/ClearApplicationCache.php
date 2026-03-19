@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
@@ -15,24 +17,12 @@ use Illuminate\Support\Facades\Cache;
  * allowing administrators to clear specific cache categories without
  * affecting the entire cache system.
  */
+#[Description('Clear application caches by category')]
+#[Signature('cache:clear-app
+                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, system, all)}')]
 class ClearApplicationCache extends Command
 {
     use ChecksCacheTagging;
-
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'cache:clear-app
-                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, system, all)}';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Clear application caches by category';
 
     /**
      * Execute the console command.

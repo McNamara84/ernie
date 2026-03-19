@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,19 +25,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/publisher/
  */
+#[Fillable(['name', 'identifier', 'identifier_scheme', 'scheme_uri', 'language', 'is_default'])]
 class Publisher extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    protected $fillable = [
-        'name',
-        'identifier',
-        'identifier_scheme',
-        'scheme_uri',
-        'language',
-        'is_default',
-    ];
 
     protected $casts = [
         'is_default' => 'boolean',

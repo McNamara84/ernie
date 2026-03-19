@@ -5,24 +5,15 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Right;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
+#[Description('Update usage count for all rights based on resource associations')]
+#[Signature('rights:update-usage-count')]
 class UpdateLicenseUsageCount extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'rights:update-usage-count';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Update usage count for all rights based on resource associations';
 
     /**
      * Execute the console command.

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,24 +30,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/date/
  */
+#[Fillable(['resource_id', 'date_value', 'start_date', 'end_date', 'date_type_id', 'date_information'])]
+#[Table('dates')]
 class ResourceDate extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
-
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'dates';
-
-    protected $fillable = [
-        'resource_id',
-        'date_value',
-        'start_date',
-        'end_date',
-        'date_type_id',
-        'date_information',
-    ];
 
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo

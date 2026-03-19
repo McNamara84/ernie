@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\LandingPage;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
@@ -16,24 +18,13 @@ use Illuminate\Console\Command;
  *
  * @see database/migrations/2026_01_03_050440_populate_doi_prefix_for_existing_landing_pages.php
  */
-class ValidateLandingPageDois extends Command
-{
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'landing-pages:validate-dois
+#[Description('Validate DOI formats in landing pages and report invalid entries. Use --strict for deployment checks.')]
+#[Signature('landing-pages:validate-dois
                             {--fix : Attempt to fix common DOI format issues}
                             {--dry-run : Show what would be fixed without making changes}
-                            {--strict : Exit with error code if any invalid DOIs are found (for CI/deployment)}';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Validate DOI formats in landing pages and report invalid entries. Use --strict for deployment checks.';
+                            {--strict : Exit with error code if any invalid DOIs are found (for CI/deployment)}')]
+class ValidateLandingPageDois extends Command
+{
 
     /**
      * DOI format pattern matching LandingPagePublicController::validateDoiPrefixFormat()

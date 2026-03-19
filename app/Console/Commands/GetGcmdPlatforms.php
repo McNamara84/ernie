@@ -4,21 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
+
+#[Description('Fetch GCMD Platforms from NASA KMS API and save as hierarchical JSON')]
+#[Signature('get-gcmd-platforms')]
 class GetGcmdPlatforms extends BaseGcmdCommand
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'get-gcmd-platforms';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Fetch GCMD Platforms from NASA KMS API and save as hierarchical JSON';
 
     /**
      * Get the vocabulary type

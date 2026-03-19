@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
@@ -19,11 +21,10 @@ use Illuminate\Support\Facades\Storage;
  * @see https://docs.eudat.eu/b2inst/httpapi/
  * @see https://docs.pidinst.org/en/latest/white-paper/linking-datasets.html
  */
+#[Description('Fetch all instruments from the b2inst API and store locally')]
+#[Signature('get-pid4inst-instruments')]
 class GetPid4instInstruments extends Command
 {
-    protected $signature = 'get-pid4inst-instruments';
-
-    protected $description = 'Fetch all instruments from the b2inst API and store locally';
 
     public function handle(): int
     {
