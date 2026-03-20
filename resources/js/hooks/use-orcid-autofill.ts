@@ -230,7 +230,10 @@ async function computePendingAffiliations(
     const namedAffiliations = orcidAffiliations.filter((a) => a.name);
 
     // Try to resolve names without ROR IDs to ROR IDs via backend
-    const unresolvedNames = namedAffiliations.filter((a) => !a.rorId).map((a) => a.name!);
+    // Only resolve names not already matched by an existing affiliation name
+    const unresolvedNames = namedAffiliations
+        .filter((a) => !a.rorId && !existingByName.has(a.name!.toLowerCase().trim()))
+        .map((a) => a.name!);
     const resolvedMap = await resolveNamesToRor(unresolvedNames);
 
     // Deduplicate ORCID affiliations among themselves (by ROR ID or name)
@@ -457,9 +460,10 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
                     if (pending.status === 'different') {
                         // Replace the existing affiliation that this differs from
+                        const pendingRorTrimmed = pending.rorId?.trim();
                         const idx = mergedAffiliations.findIndex(
                             (a) =>
-                                (pending.rorId && a.rorId === pending.rorId) ||
+                                (pendingRorTrimmed && a.rorId?.trim() === pendingRorTrimmed) ||
                                 (pending.existingValue && a.value.toLowerCase().trim() === pending.existingValue.toLowerCase().trim()),
                         );
                         if (idx !== -1) {
