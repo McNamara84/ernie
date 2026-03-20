@@ -30,6 +30,9 @@ use Illuminate\Validation\ValidationException;
 
 class ResourceStorageService
 {
+    /** @var array<string>|null Cached Contact Person name/slug for role matching */
+    private ?array $contactPersonNames = null;
+
     public function __construct(
         protected PersonService $personService,
         protected InstitutionService $institutionService,
@@ -364,9 +367,8 @@ class ResourceStorageService
     /**
      * Check if the contributor data includes the "Contact Person" role.
      *
-     * Uses the same DB-based name/slug resolution as {@see syncContributorTypes()}
-     * to avoid inconsistent state where email/website are stored but the
-     * Contact Person contributor type is not actually synced.
+     * Uses cached name/slug values from the database to stay consistent
+     * with {@see syncContributorTypes()} without issuing per-contributor queries.
      *
      * @param  array<string, mixed>  $data
      */
@@ -387,9 +389,19 @@ class ResourceStorageService
             return false;
         }
 
-        return ContributorType::where('slug', 'ContactPerson')
-            ->where(fn ($query) => $query->whereIn('name', $validRoles)->orWhereIn('slug', $validRoles))
-            ->exists();
+        if ($this->contactPersonNames === null) {
+            $type = ContributorType::where('slug', 'ContactPerson')->first(['name', 'slug']);
+            $this->contactPersonNames = $type ? [$type->name, $type->slug] : [];
+        }
+
+        if ($this->contactPersonNames === []) {
+            return false;
+        }
+
+        return array_any(
+            $validRoles,
+            fn (string $role): bool => in_array(trim($role), $this->contactPersonNames, true),
+        );
     }
 
     /**
