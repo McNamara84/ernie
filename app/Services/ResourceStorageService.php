@@ -364,6 +364,10 @@ class ResourceStorageService
     /**
      * Check if the contributor data includes the "Contact Person" role.
      *
+     * Uses the same DB-based name/slug resolution as {@see syncContributorTypes()}
+     * to avoid inconsistent state where email/website are stored but the
+     * Contact Person contributor type is not actually synced.
+     *
      * @param  array<string, mixed>  $data
      */
     private function hasContactPersonRole(array $data): bool
@@ -374,11 +378,18 @@ class ResourceStorageService
             return false;
         }
 
-        return array_any(
+        $validRoles = array_values(array_filter(
             $roles,
-            fn (mixed $role): bool => is_string($role)
-                && strcasecmp(preg_replace('/\s+/', '', trim($role)) ?? '', 'ContactPerson') === 0
-        );
+            fn (mixed $role): bool => is_string($role) && trim($role) !== '',
+        ));
+
+        if ($validRoles === []) {
+            return false;
+        }
+
+        return ContributorType::where('slug', 'ContactPerson')
+            ->where(fn ($query) => $query->whereIn('name', $validRoles)->orWhereIn('slug', $validRoles))
+            ->exists();
     }
 
     /**

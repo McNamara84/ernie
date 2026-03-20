@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\ContributorType;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
@@ -950,11 +951,14 @@ class StoreResourceRequest extends FormRequest
 
                     // Require email when Contact Person role is assigned to a person contributor
                     if ($type === 'person' && is_array($roles)) {
-                        $hasContactPerson = array_any(
+                        $validRoles = array_values(array_filter(
                             $roles,
-                            fn (mixed $r): bool => is_string($r)
-                                && strcasecmp(preg_replace('/\s+/', '', trim($r)) ?? '', 'ContactPerson') === 0
-                        );
+                            fn (mixed $r): bool => is_string($r) && trim($r) !== '',
+                        ));
+
+                        $hasContactPerson = $validRoles !== [] && ContributorType::where('slug', 'ContactPerson')
+                            ->where(fn ($query) => $query->whereIn('name', $validRoles)->orWhereIn('slug', $validRoles))
+                            ->exists();
 
                         if ($hasContactPerson) {
                             $email = trim((string) ($contributor['email'] ?? ''));

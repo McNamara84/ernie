@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\ContributorType;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -46,6 +47,11 @@ beforeEach(function () {
     TitleType::factory()->count(5)->create();
     $this->resourceType = ResourceType::factory()->create();
     $this->right = Right::factory()->create();
+
+    ContributorType::firstOrCreate(
+        ['slug' => 'ContactPerson'],
+        ['name' => 'Contact Person', 'category' => 'person'],
+    );
 });
 
 // =========================================================================
