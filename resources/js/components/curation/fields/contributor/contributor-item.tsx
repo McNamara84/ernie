@@ -88,7 +88,10 @@ export default function ContributorItem({
 
     // Detect whether this contributor has the "Contact Person" role
     const hasContactPersonRole = useMemo(
-        () => contributor.roles.some((role) => role.value.toLowerCase() === 'contact person'),
+        () =>
+            contributor.roles.some(
+                (role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson',
+            ),
         [contributor.roles],
     );
 

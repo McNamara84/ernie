@@ -1589,7 +1589,7 @@ export default function DataCiteForm({
                     const lastName = contributor.lastName.trim();
 
                     const hasContactPersonRole = contributor.roles.some(
-                        (role) => role.value.toLowerCase() === 'contact person',
+                        (role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson',
                     );
 
                     return {

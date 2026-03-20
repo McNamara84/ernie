@@ -952,7 +952,8 @@ class StoreResourceRequest extends FormRequest
                     if ($type === 'person' && is_array($roles)) {
                         $hasContactPerson = array_any(
                             $roles,
-                            fn (mixed $r): bool => is_string($r) && strcasecmp(trim($r), 'Contact Person') === 0
+                            fn (mixed $r): bool => is_string($r)
+                                && strcasecmp(preg_replace('/\s+/', '', trim($r)) ?? '', 'ContactPerson') === 0
                         );
 
                         if ($hasContactPerson) {

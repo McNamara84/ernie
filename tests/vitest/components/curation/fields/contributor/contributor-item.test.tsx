@@ -185,4 +185,18 @@ describe('ContributorItem Component', () => {
         expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Website')).not.toBeInTheDocument();
     });
+
+    it('shows email and website fields when ContactPerson slug role is used', () => {
+        const contactPersonContributor: ContributorEntry = {
+            ...mockPersonContributor,
+            roles: [{ value: 'ContactPerson' }],
+            rolesInput: 'ContactPerson',
+            email: 'slug@example.org',
+            website: 'https://slug.example.org',
+        };
+        render(<ContributorItem contributor={contactPersonContributor} {...mockProps} />);
+        
+        expect(screen.getByDisplayValue('slug@example.org')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://slug.example.org')).toBeInTheDocument();
+    });
 });

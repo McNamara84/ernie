@@ -148,6 +148,20 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             ->and($contributor->website)->toBeNull();
     });
 
+    it('detects Contact Person role by slug form (ContactPerson)', function () {
+        $data = contributorResourceData([
+            'roles' => ['ContactPerson'],
+            'email' => 'slug@example.org',
+            'website' => 'https://slug.example.org',
+        ]);
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $contributor = $resource->contributors()->first();
+        expect($contributor->email)->toBe('slug@example.org')
+            ->and($contributor->website)->toBe('https://slug.example.org');
+    });
+
     it('handles missing roles key gracefully', function () {
         $data = contributorResourceData();
         // Remove the roles key entirely from contributor data

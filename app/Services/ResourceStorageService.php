@@ -377,7 +377,7 @@ class ResourceStorageService
         return array_any(
             $roles,
             fn (mixed $role): bool => is_string($role)
-                && strcasecmp(trim($role), 'Contact Person') === 0
+                && strcasecmp(preg_replace('/\s+/', '', trim($role)) ?? '', 'ContactPerson') === 0
         );
     }
 

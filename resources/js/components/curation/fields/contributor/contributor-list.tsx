@@ -82,7 +82,7 @@ export default function ContributorList({
             orcid: parsed.orcid || '',
             firstName: parsed.firstName || '',
             lastName: parsed.lastName || '',
-            email: '',
+            email: parsed.email || '',
             website: '',
             orcidVerified: false,
             roles: parsed.contributorRole ? [{ value: parsed.contributorRole }] : [],

@@ -456,6 +456,26 @@ describe('contributor contact person validation', function () {
         $response->assertJsonMissingValidationErrors(['contributors.0.email']);
     });
 
+    it('requires email when ContactPerson slug role is used', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Contact',
+                'lastName' => 'Person',
+                'roles' => ['ContactPerson'],
+                'email' => '',
+                'website' => '',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonValidationErrors(['contributors.0.email']);
+    });
+
     it('rejects invalid email format on contributor', function () {
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
         $data['contributors'] = [
