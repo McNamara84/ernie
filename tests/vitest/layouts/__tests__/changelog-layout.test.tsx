@@ -102,16 +102,14 @@ describe('ChangelogLayout', () => {
             expect(backLink).toHaveAttribute('href', '/dashboard');
         });
 
-        it('shows "Portal" for unauthenticated users', () => {
+        it('shows "Back to Portal" for unauthenticated users', () => {
             usePageMock.mockReturnValue({
                 props: { auth: { user: null } },
                 url: '/changelog',
             });
             render(<ChangelogLayout><div /></ChangelogLayout>);
-            const portalLinks = screen.getAllByRole('link', { name: /portal/i });
-            // Back button + nav link = 2 portal links
-            expect(portalLinks).toHaveLength(2);
-            expect(portalLinks[0]).toHaveAttribute('href', '/portal');
+            const backLink = screen.getByRole('link', { name: /back to portal/i });
+            expect(backLink).toHaveAttribute('href', '/portal');
             expect(screen.queryByText(/back to dashboard/i)).not.toBeInTheDocument();
         });
 

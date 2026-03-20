@@ -9,8 +9,7 @@ import { changelog as changelogRoute, dashboard, portal } from '@/routes';
 import { type SharedData } from '@/types';
 
 export default function ChangelogLayout({ children }: PropsWithChildren) {
-    const { auth } = usePage<SharedData>().props;
-    const currentUrl = usePage().url;
+    const { props: { auth }, url: currentUrl } = usePage<SharedData>();
 
     const navLinks = [
         { label: 'Portal', href: portal().url },
@@ -30,7 +29,7 @@ export default function ChangelogLayout({ children }: PropsWithChildren) {
                         ) : (
                             <Link href={portal().url}>
                                 <ArrowLeft className="mr-1.5 h-4 w-4" />
-                                Portal
+                                Back to Portal
                             </Link>
                         )}
                     </Button>
