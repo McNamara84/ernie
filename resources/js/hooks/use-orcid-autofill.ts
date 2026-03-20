@@ -222,7 +222,7 @@ async function computePendingAffiliations(
     const existingByRor = new Map<string, AffiliationTag>();
     const existingByName = new Map<string, AffiliationTag>();
     for (const aff of existingAffiliations) {
-        if (aff.rorId) existingByRor.set(aff.rorId, aff);
+        if (aff.rorId) existingByRor.set(aff.rorId.trim(), aff);
         existingByName.set(aff.value.toLowerCase().trim(), aff);
     }
 
@@ -242,7 +242,8 @@ async function computePendingAffiliations(
         const nameLower = name.toLowerCase().trim();
 
         // Determine ROR ID: from ORCID API or resolved via backend
-        const rorId = orcidAff.rorId ?? resolvedMap.get(nameLower)?.rorId ?? null;
+        const rawRorId = orcidAff.rorId ?? resolvedMap.get(nameLower)?.rorId ?? null;
+        const rorId = rawRorId?.trim() ?? null;
         const resolvedName = resolvedMap.get(nameLower)?.matchedName ?? null;
 
         // Skip duplicates among ORCID results themselves
@@ -450,8 +451,8 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
                 for (const pending of selected.affiliations) {
                     const tag: AffiliationTag = {
-                        value: pending.resolvedName ?? pending.value,
-                        rorId: pending.rorId ?? null,
+                        value: pending.value,
+                        rorId: pending.rorId?.trim() ?? null,
                     };
 
                     if (pending.status === 'different') {

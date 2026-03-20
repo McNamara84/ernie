@@ -5,7 +5,7 @@
  * Tests the {pendingOrcidData && <OrcidSuggestionsButton />} branch.
  */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ContributorItem from '@/components/curation/fields/contributor/contributor-item';
@@ -93,10 +93,8 @@ describe('ContributorItem with pendingOrcidData', () => {
         vi.clearAllMocks();
     });
 
-    afterEach(async () => {
+    afterEach(() => {
         cleanup();
-        await new Promise(resolve => setTimeout(resolve, 350));
-        await waitFor(() => Promise.resolve());
     });
 
     it('renders OrcidSuggestionsButton when pendingOrcidData is present', () => {

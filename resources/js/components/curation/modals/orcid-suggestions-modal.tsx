@@ -211,6 +211,11 @@ function AffiliationRow({
                             {affiliation.status === 'new' ? 'New' : 'Different'}
                         </Badge>
                     </div>
+                    {affiliation.resolvedName && affiliation.resolvedName !== affiliation.value && (
+                        <p className="text-xs text-muted-foreground">
+                            Canonical: <span className="font-medium">{affiliation.resolvedName}</span>
+                        </p>
+                    )}
                     {affiliation.status === 'different' && affiliation.existingValue && (
                         <p className="text-xs text-muted-foreground">
                             Currently: <span className="font-medium">{affiliation.existingValue}</span>

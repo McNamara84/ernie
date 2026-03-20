@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -88,16 +88,8 @@ describe('ContributorItem Component', () => {
         vi.clearAllMocks();
     });
 
-    afterEach(async () => {
-        // Clean up all components
+    afterEach(() => {
         cleanup();
-        // Wait for Tagify's timeout (300ms) to complete
-        await new Promise(resolve => setTimeout(resolve, 350));
-        // Flush microtasks to ensure all pending promises are resolved
-        await waitFor(() => {
-            // Wait for any Tagify events to be processed
-            return Promise.resolve();
-        });
     });
 
     it('renders person contributor correctly', () => {
