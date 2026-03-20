@@ -67,6 +67,8 @@ describe('ContributorItem with pendingOrcidData', () => {
         orcid: '0000-0001-2345-6789',
         firstName: 'Jane',
         lastName: 'Smith',
+        email: '',
+        website: '',
         roles: [{ value: 'DataCollector' }],
         rolesInput: 'DataCollector',
         orcidVerified: true,

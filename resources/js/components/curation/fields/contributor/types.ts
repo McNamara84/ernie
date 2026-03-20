@@ -37,6 +37,8 @@ export interface PersonContributorEntry extends BaseContributorEntry {
     orcid: string;
     firstName: string;
     lastName: string;
+    email: string;
+    website: string;
     // ORCID verification status
     orcidVerified?: boolean;
     orcidVerifiedAt?: string;

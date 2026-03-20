@@ -206,6 +206,8 @@ class EditorDataTransformer
                 $data['firstName'] = $person->given_name ?? '';
                 $data['lastName'] = $person->family_name ?? '';
                 $data['orcid'] = $person->name_identifier ?? '';
+                $data['email'] = $contributor->email ?? '';
+                $data['website'] = $contributor->website ?? '';
             } elseif ($contributor->contributorable_type === Institution::class) {
                 /** @var Institution $institution */
                 $institution = $contributor->contributorable;

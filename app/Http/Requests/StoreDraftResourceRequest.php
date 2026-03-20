@@ -89,6 +89,8 @@ class StoreDraftResourceRequest extends FormRequest
             'contributors.*.affiliations' => ['array'],
             'contributors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
             'contributors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
+            'contributors.*.email' => ['nullable', 'string', 'email', 'max:255'],
+            'contributors.*.website' => ['nullable', 'string', 'url:http,https', 'max:255'],
             // Descriptions are optional for drafts
             'descriptions' => ['nullable', 'array'],
             'descriptions.*.descriptionType' => [
@@ -454,6 +456,8 @@ class StoreDraftResourceRequest extends FormRequest
                 'orcid' => $this->normalizeString($contributor['orcid'] ?? null),
                 'firstName' => $this->normalizeString($contributor['firstName'] ?? null),
                 'lastName' => $this->normalizeString($contributor['lastName'] ?? null),
+                'email' => $this->normalizeString($contributor['email'] ?? null),
+                'website' => $this->normalizeString($contributor['website'] ?? null),
                 'roles' => $roles,
                 'affiliations' => $affiliations,
                 'position' => (int) $index,

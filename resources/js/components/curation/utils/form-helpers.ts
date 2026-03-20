@@ -231,6 +231,8 @@ export const createEmptyPersonContributor = (): PersonContributorEntry => ({
     orcid: '',
     firstName: '',
     lastName: '',
+    email: '',
+    website: '',
     affiliations: [],
     affiliationsInput: '',
     orcidVerified: false,
@@ -318,13 +320,15 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
     }
 
     const base = createEmptyPersonContributor();
-    const personContributor = contributor as { orcid?: string | null; firstName?: string | null; lastName?: string | null };
+    const personContributor = contributor as { orcid?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null; website?: string | null };
 
     return {
         ...base,
         orcid: normalizeOrcid(personContributor.orcid),
         firstName: typeof personContributor.firstName === 'string' ? personContributor.firstName.trim() : '',
         lastName: typeof personContributor.lastName === 'string' ? personContributor.lastName.trim() : '',
+        email: typeof personContributor.email === 'string' ? personContributor.email.trim() : '',
+        website: typeof personContributor.website === 'string' ? personContributor.website.trim() : '',
         affiliations,
         affiliationsInput,
         roles,

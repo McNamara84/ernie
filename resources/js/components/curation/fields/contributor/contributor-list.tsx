@@ -82,6 +82,8 @@ export default function ContributorList({
             orcid: parsed.orcid || '',
             firstName: parsed.firstName || '',
             lastName: parsed.lastName || '',
+            email: '',
+            website: '',
             orcidVerified: false,
             roles: parsed.contributorRole ? [{ value: parsed.contributorRole }] : [],
             rolesInput: parsed.contributorRole || '',
@@ -137,6 +139,8 @@ export default function ContributorList({
                       orcid: '',
                       firstName: '',
                       lastName: '',
+                      email: '',
+                      website: '',
                       roles: contributor.roles,
                       rolesInput: contributor.rolesInput,
                       affiliations: contributor.affiliations,
@@ -167,7 +171,7 @@ export default function ContributorList({
     };
 
     // Helper: Handle person field change
-    const handlePersonFieldChange = (index: number, field: 'orcid' | 'firstName' | 'lastName', value: string) => {
+    const handlePersonFieldChange = (index: number, field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
         const contributor = contributors[index];
         if (contributor.type !== 'person') return;
 

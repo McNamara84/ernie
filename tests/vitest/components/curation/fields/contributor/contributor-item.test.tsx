@@ -52,6 +52,8 @@ describe('ContributorItem Component', () => {
         orcid: '',
         firstName: 'Jane',
         lastName: 'Smith',
+        email: '',
+        website: '',
         roles: [{ value: 'DataCollector' }],
         rolesInput: 'DataCollector',
         orcidVerified: false,

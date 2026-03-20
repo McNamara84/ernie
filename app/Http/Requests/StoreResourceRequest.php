@@ -79,6 +79,8 @@ class StoreResourceRequest extends FormRequest
             'contributors.*.affiliations' => ['array'],
             'contributors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
             'contributors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
+            'contributors.*.email' => ['nullable', 'string', 'email', 'max:255'],
+            'contributors.*.website' => ['nullable', 'string', 'url:http,https', 'max:255'],
             'descriptions' => ['nullable', 'array'],
             'descriptions.*.descriptionType' => [
                 'required',
@@ -446,6 +448,8 @@ class StoreResourceRequest extends FormRequest
                 'orcid' => $this->normalizeString($contributor['orcid'] ?? null),
                 'firstName' => $this->normalizeString($contributor['firstName'] ?? null),
                 'lastName' => $this->normalizeString($contributor['lastName'] ?? null),
+                'email' => $this->normalizeString($contributor['email'] ?? null),
+                'website' => $this->normalizeString($contributor['website'] ?? null),
                 'roles' => $roles,
                 'affiliations' => $affiliations,
                 'position' => (int) $index,
@@ -942,6 +946,24 @@ class StoreResourceRequest extends FormRequest
                             "contributors.$index.roles",
                             'At least one role must be provided for each contributor.',
                         );
+                    }
+
+                    // Require email when Contact Person role is assigned to a person contributor
+                    if ($type === 'person' && is_array($roles)) {
+                        $hasContactPerson = array_any(
+                            $roles,
+                            fn (mixed $r): bool => is_string($r) && strcasecmp(trim($r), 'Contact Person') === 0
+                        );
+
+                        if ($hasContactPerson) {
+                            $email = trim((string) ($contributor['email'] ?? ''));
+                            if ($email === '') {
+                                $validator->errors()->add(
+                                    "contributors.$index.email",
+                                    'A contact email is required when the Contact Person role is assigned.',
+                                );
+                            }
+                        }
                     }
                 }
             },

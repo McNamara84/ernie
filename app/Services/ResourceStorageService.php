@@ -349,12 +349,36 @@ class ResourceStorageService
     {
         $person = $this->personService->findOrCreate($data);
 
+        $hasContactPersonRole = $this->hasContactPersonRole($data);
+
         return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
             'position' => $position,
+            'email' => $hasContactPersonRole ? ($data['email'] ?? null) : null,
+            'website' => $hasContactPersonRole ? ($data['website'] ?? null) : null,
         ]);
+    }
+
+    /**
+     * Check if the contributor data includes the "Contact Person" role.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function hasContactPersonRole(array $data): bool
+    {
+        $roles = $data['roles'] ?? [];
+
+        if (! is_array($roles)) {
+            return false;
+        }
+
+        return array_any(
+            $roles,
+            fn (mixed $role): bool => is_string($role)
+                && strcasecmp(trim($role), 'Contact Person') === 0
+        );
     }
 
     /**
