@@ -20,7 +20,7 @@ class RorResolveRequest extends FormRequest
     {
         return [
             'names' => ['required', 'array', 'min:1', 'max:20'],
-            'names.*' => ['required', 'string', 'max:500'],
+            'names.*' => ['required', 'string', 'filled', 'max:500'],
         ];
     }
 }
