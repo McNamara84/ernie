@@ -412,6 +412,13 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const hideSuggestions = useCallback(() => setShowSuggestions(false), []);
     const clearPendingOrcidData = useCallback(() => setPendingOrcidData(null), []);
 
+    // Clear stale pending data when ORCID value or entry type changes
+    const orcidValue = isPersonEntry(entry) ? entry.orcid : null;
+    const entryType = entry.type;
+    useEffect(() => {
+        setPendingOrcidData(null);
+    }, [orcidValue, entryType]);
+
     // Check if current ORCID has valid format and checksum (offline validation)
     const isFormatValid = useMemo(() => {
         if (!isPersonEntry(entry) || !entry.orcid?.trim()) {
@@ -495,6 +502,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         async (orcid: string) => {
             if (!isPersonEntry(entry)) return;
 
+            setPendingOrcidData(null);
             setVerificationError(null);
             setIsVerifying(true);
 
