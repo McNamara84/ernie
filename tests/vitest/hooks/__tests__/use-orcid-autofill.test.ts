@@ -112,7 +112,7 @@ describe('useOrcidAutofill', () => {
                     creditName: null,
                     emails: ['jane@example.com'],
                     affiliations: [
-                        { type: 'employment', name: 'University of Testing', role: null, department: null },
+                        { type: 'employment', name: 'University of Testing', role: null, department: null, rorId: null },
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -294,7 +294,7 @@ describe('useOrcidAutofill', () => {
             );
         });
 
-        it('merges new affiliations from ORCID', async () => {
+        it('stores new affiliations as pending data instead of merging', async () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
@@ -304,8 +304,8 @@ describe('useOrcidAutofill', () => {
                     creditName: null,
                     emails: [],
                     affiliations: [
-                        { type: 'employment', name: 'New University', role: null, department: null },
-                        { type: 'education', name: 'Should be ignored', role: null, department: null }, // Only employment is used
+                        { type: 'employment', name: 'New University', role: null, department: null, rorId: null },
+                        { type: 'education', name: 'Education University', role: null, department: null, rorId: null },
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -328,17 +328,16 @@ describe('useOrcidAutofill', () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
             });
 
-            expect(onEntryChange).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    affiliations: expect.arrayContaining([
-                        { value: 'Existing Affiliation', rorId: null },
-                        { value: 'New University', rorId: null },
-                    ]),
-                }),
-            );
+            // Affiliations should NOT be merged — existing affiliations stay unchanged
+            const call = onEntryChange.mock.calls[0][0];
+            expect(call.affiliations).toEqual([{ value: 'Existing Affiliation', rorId: null }]);
+
+            // New affiliations should be in pendingOrcidData instead (both employment and education)
+            expect(result.current.pendingOrcidData).not.toBeNull();
+            expect(result.current.pendingOrcidData?.affiliations).toHaveLength(2);
         });
 
-        it('does not duplicate existing affiliations', async () => {
+        it('does not add existing affiliations to pending data', async () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
                 data: {
@@ -348,7 +347,7 @@ describe('useOrcidAutofill', () => {
                     creditName: null,
                     emails: [],
                     affiliations: [
-                        { type: 'employment', name: 'Same University', role: null, department: null },
+                        { type: 'employment', name: 'Same University', role: null, department: null, rorId: null },
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -371,9 +370,12 @@ describe('useOrcidAutofill', () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
             });
 
-            // affiliations should not be updated since they're the same
+            // Existing affiliations should not be modified
             const call = onEntryChange.mock.calls[0][0];
             expect(call.affiliations).toEqual([{ value: 'Same University', rorId: null }]);
+
+            // No pending data since affiliation already exists
+            expect(result.current.pendingOrcidData).toBeNull();
         });
     });
 
@@ -894,6 +896,707 @@ describe('useOrcidAutofill', () => {
 
             expect(result.current.verificationError).toBeNull();
             expect(result.current.errorType).toBeNull();
+        });
+    });
+
+    describe('processOrcidData (via handleOrcidSelect)', () => {
+        it('computes name diffs when firstName differs', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Johann',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData).not.toBeNull();
+            expect(result.current.pendingOrcidData?.firstNameDiff).toEqual({
+                orcid: 'Johann',
+                current: 'John',
+            });
+            expect(result.current.pendingOrcidData?.lastNameDiff).toBeNull();
+        });
+
+        it('computes name diffs when lastName differs', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Mueller',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Müller' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData?.lastNameDiff).toEqual({
+                orcid: 'Mueller',
+                current: 'Müller',
+            });
+        });
+
+        it('computes email suggestion when email differs', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: ['new@example.com'],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = { ...createPersonEntry({ firstName: 'John', lastName: 'Doe' }), email: 'old@example.com' };
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData?.emailSuggestion).toBe('new@example.com');
+        });
+
+        it('does not suggest email when same as current', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: ['same@example.com'],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = { ...createPersonEntry({ firstName: 'John', lastName: 'Doe' }), email: 'same@example.com' };
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData).toBeNull();
+        });
+
+        it('returns null pendingData when no diffs exist', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData).toBeNull();
+        });
+    });
+
+    describe('computePendingAffiliations (via handleOrcidSelect)', () => {
+        beforeEach(() => {
+            // Mock fetch for ROR resolution using stubGlobal to avoid leaking
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ results: [] }),
+            }));
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            vi.restoreAllMocks();
+        });
+
+        it('marks truly new affiliations as "new"', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        { type: 'employment', name: 'New University', role: null, department: null, rorId: null },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData?.affiliations).toEqual([
+                expect.objectContaining({
+                    value: 'New University',
+                    status: 'new',
+                }),
+            ]);
+        });
+
+        it('skips affiliations that match existing by exact name', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        { type: 'employment', name: 'Existing University', role: null, department: null, rorId: null },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({
+                firstName: 'John',
+                lastName: 'Doe',
+                affiliations: [{ value: 'Existing University', rorId: null }],
+            });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData).toBeNull();
+        });
+
+        it('marks as "different" when same ROR but different name', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'Helmholtz-Zentrum Potsdam',
+                            role: null,
+                            department: null,
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({
+                firstName: 'John',
+                lastName: 'Doe',
+                affiliations: [{ value: 'GFZ German Research Centre', rorId: 'https://ror.org/04z8jg394' }],
+            });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData?.affiliations).toEqual([
+                expect.objectContaining({
+                    value: 'Helmholtz-Zentrum Potsdam',
+                    status: 'different',
+                    existingValue: 'GFZ German Research Centre',
+                    rorId: 'https://ror.org/04z8jg394',
+                }),
+            ]);
+        });
+
+        it('resolves names to ROR via fetch and marks resolved matches as "different"', async () => {
+            vi.mocked(global.fetch).mockResolvedValue({
+                ok: true,
+                json: () =>
+                    Promise.resolve({
+                        results: [
+                            {
+                                name: 'Helmholtz Centre Potsdam',
+                                rorId: 'https://ror.org/04z8jg394',
+                                matchedName: 'GFZ German Research Centre',
+                            },
+                        ],
+                    }),
+            } as Response);
+
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'Helmholtz Centre Potsdam',
+                            role: null,
+                            department: null,
+                            rorId: null,
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({
+                firstName: 'John',
+                lastName: 'Doe',
+                affiliations: [{ value: 'GFZ German Research Centre', rorId: 'https://ror.org/04z8jg394' }],
+            });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            // Should have called /api/v1/ror-resolve
+            expect(global.fetch).toHaveBeenCalledWith(
+                '/api/v1/ror-resolve',
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ names: ['Helmholtz Centre Potsdam'] }),
+                }),
+            );
+
+            expect(result.current.pendingOrcidData?.affiliations).toEqual([
+                expect.objectContaining({
+                    value: 'Helmholtz Centre Potsdam',
+                    status: 'different',
+                    rorId: 'https://ror.org/04z8jg394',
+                }),
+            ]);
+        });
+
+        it('handles fetch error for ROR resolution gracefully', async () => {
+            vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
+
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        { type: 'employment', name: 'Some University', role: null, department: null, rorId: null },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            // Should still have created pending data despite fetch failure
+            expect(result.current.pendingOrcidData?.affiliations).toEqual([
+                expect.objectContaining({
+                    value: 'Some University',
+                    status: 'new',
+                    rorId: null,
+                }),
+            ]);
+        });
+
+        it('deduplicates ORCID affiliations by ROR ID', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'GFZ Potsdam',
+                            role: null,
+                            department: null,
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                        {
+                            type: 'education',
+                            name: 'GFZ German Research Centre for Geosciences',
+                            role: null,
+                            department: null,
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            // Only the first one should be in pending (deduplicated)
+            expect(result.current.pendingOrcidData?.affiliations).toHaveLength(1);
+            expect(result.current.pendingOrcidData?.affiliations[0].value).toBe('GFZ Potsdam');
+        });
+    });
+
+    describe('applyPendingData', () => {
+        it('applies selected affiliations to entry', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        { type: 'employment', name: 'New University', role: null, department: null, rorId: 'https://ror.org/xxx' },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({
+                firstName: 'John',
+                lastName: 'Doe',
+                affiliations: [{ value: 'Old University', rorId: null }],
+            });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            // Now apply the pending data
+            onEntryChange.mockClear();
+            act(() => {
+                result.current.applyPendingData({
+                    affiliations: result.current.pendingOrcidData!.affiliations,
+                    applyFirstName: false,
+                    applyLastName: false,
+                    applyEmail: false,
+                });
+            });
+
+            expect(onEntryChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    affiliations: [
+                        { value: 'Old University', rorId: null },
+                        { value: 'New University', rorId: 'https://ror.org/xxx' },
+                    ],
+                }),
+            );
+            // pendingOrcidData should be cleared
+            expect(result.current.pendingOrcidData).toBeNull();
+        });
+
+        it('replaces existing affiliation when applying "different" status', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'Helmholtz-Zentrum Potsdam',
+                            role: null,
+                            department: null,
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({
+                firstName: 'John',
+                lastName: 'Doe',
+                affiliations: [
+                    { value: 'GFZ German Research Centre', rorId: 'https://ror.org/04z8jg394' },
+                    { value: 'Other University', rorId: null },
+                ],
+            });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            // Should be marked as 'different'
+            expect(result.current.pendingOrcidData?.affiliations[0].status).toBe('different');
+
+            onEntryChange.mockClear();
+            act(() => {
+                result.current.applyPendingData({
+                    affiliations: result.current.pendingOrcidData!.affiliations,
+                    applyFirstName: false,
+                    applyLastName: false,
+                    applyEmail: false,
+                });
+            });
+
+            // Should replace, not append — total count stays 2
+            const affiliations = onEntryChange.mock.calls[0][0].affiliations;
+            expect(affiliations).toHaveLength(2);
+            // The first affiliation should be replaced with the ORCID version
+            expect(affiliations[0]).toEqual({
+                value: 'Helmholtz-Zentrum Potsdam',
+                rorId: 'https://ror.org/04z8jg394',
+            });
+            // The second should be unchanged
+            expect(affiliations[1]).toEqual({ value: 'Other University', rorId: null });
+        });
+
+        it('applies name corrections when selected', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Johann',
+                    lastName: 'Mueller',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Muller' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            onEntryChange.mockClear();
+            act(() => {
+                result.current.applyPendingData({
+                    affiliations: [],
+                    applyFirstName: true,
+                    applyLastName: true,
+                    applyEmail: false,
+                });
+            });
+
+            expect(onEntryChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    firstName: 'Johann',
+                    lastName: 'Mueller',
+                }),
+            );
+        });
+
+        it('applies email when selected', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: ['new@example.com'],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = { ...createPersonEntry({ firstName: 'John', lastName: 'Doe' }), email: 'old@example.com' };
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            onEntryChange.mockClear();
+            act(() => {
+                result.current.applyPendingData({
+                    affiliations: [],
+                    applyFirstName: false,
+                    applyLastName: false,
+                    applyEmail: true,
+                });
+            });
+
+            expect(onEntryChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    email: 'new@example.com',
+                }),
+            );
+        });
+
+        it('does nothing for institution entries', () => {
+            const entry = {
+                id: 'test-1',
+                type: 'institution' as const,
+                affiliations: [],
+                affiliationsInput: '',
+            };
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            act(() => {
+                result.current.applyPendingData({
+                    affiliations: [],
+                    applyFirstName: false,
+                    applyLastName: false,
+                    applyEmail: false,
+                });
+            });
+
+            expect(onEntryChange).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('clearPendingOrcidData', () => {
+        it('clears pending data', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Johann',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ firstName: 'John', lastName: 'Doe' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.pendingOrcidData).not.toBeNull();
+
+            act(() => {
+                result.current.clearPendingOrcidData();
+            });
+
+            expect(result.current.pendingOrcidData).toBeNull();
         });
     });
 });

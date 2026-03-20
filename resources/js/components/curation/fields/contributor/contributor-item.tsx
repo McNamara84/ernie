@@ -20,6 +20,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
+
+import { OrcidSuggestionsButton } from '../orcid-suggestions-button';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import InputField from '../input-field';
@@ -98,6 +100,9 @@ export default function ContributorItem({
         retryVerification,
         errorType,
         isFormatValid,
+        pendingOrcidData,
+        clearPendingOrcidData,
+        applyPendingData,
     } = useOrcidAutofill({
         entry: contributor,
         onEntryChange: onContributorChange,
@@ -401,6 +406,17 @@ export default function ContributorItem({
                         tagifySettings={affiliationTagifySettings}
                         aria-describedby={affiliationsDescriptionId}
                     />
+
+                    {/* ORCID Suggestions Button */}
+                    {pendingOrcidData && (
+                        <div className="col-span-full flex items-center">
+                            <OrcidSuggestionsButton
+                                pendingData={pendingOrcidData}
+                                onAccept={applyPendingData}
+                                onDiscard={clearPendingOrcidData}
+                            />
+                        </div>
+                    )}
 
                     {/* ROR ID Badges */}
                     {affiliationsWithRorId.length > 0 && (

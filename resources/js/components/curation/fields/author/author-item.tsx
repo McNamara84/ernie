@@ -21,6 +21,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
+
+import { OrcidSuggestionsButton } from '../orcid-suggestions-button';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import InputField from '../input-field';
@@ -96,6 +98,9 @@ export default function AuthorItem({
         retryVerification,
         errorType,
         isFormatValid,
+        pendingOrcidData,
+        clearPendingOrcidData,
+        applyPendingData,
     } = useOrcidAutofill<AuthorEntry>({
         entry: author,
         onEntryChange: onAuthorChange,
@@ -360,6 +365,17 @@ export default function AuthorItem({
                         tagifySettings={tagifySettings}
                         aria-describedby={affiliationsDescriptionId}
                     />
+
+                    {/* ORCID Suggestions Button */}
+                    {pendingOrcidData && (
+                        <div className="col-span-full flex items-center">
+                            <OrcidSuggestionsButton
+                                pendingData={pendingOrcidData}
+                                onAccept={applyPendingData}
+                                onDiscard={clearPendingOrcidData}
+                            />
+                        </div>
+                    )}
 
                     {/* Email and Website for Contact Person */}
                     {isPerson && author.isContact && (

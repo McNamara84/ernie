@@ -30,6 +30,14 @@ class RorLookupService
     private ?array $affiliationMap = null;
 
     /**
+     * Reverse index: lowercased organization name → canonical ROR URL.
+     * Built during ensureLoaded() for O(1) findByName() lookups.
+     *
+     * @var array<string, string>
+     */
+    private array $nameMap = [];
+
+    /**
      * Resolve a ROR identifier to an organization name.
      *
      * @param  string  $rorId  A ROR identifier (URL or bare ID)
@@ -123,6 +131,31 @@ class RorLookupService
     }
 
     /**
+     * Try to find a ROR entry by organization name (case-insensitive exact match).
+     *
+     * @param  string  $organizationName  The organization name to search for
+     * @return array{value: string, rorId: string}|null The matched entry or null
+     */
+    public function findByName(string $organizationName): ?array
+    {
+        $normalizedSearch = mb_strtolower(trim($organizationName));
+
+        if ($normalizedSearch === '') {
+            return null;
+        }
+
+        $this->ensureLoaded();
+
+        $rorUrl = $this->nameMap[$normalizedSearch] ?? null;
+
+        if ($rorUrl === null || $this->affiliationMap === null) {
+            return null;
+        }
+
+        return ['value' => $this->affiliationMap[$rorUrl], 'rorId' => $rorUrl];
+    }
+
+    /**
      * Ensure the affiliation map is loaded from disk.
      */
     private function ensureLoaded(): void
@@ -174,6 +207,7 @@ class RorLookupService
                 }
 
                 $this->affiliationMap[$rorId] = $label;
+                $this->nameMap[mb_strtolower($label)] = $rorId;
             }
         } catch (JsonException) {
             // Ignore invalid file contents; map stays empty.
