@@ -15,8 +15,6 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
-vi.mock('@/routes', () => ({}));
-
 vi.mock('@/components/app-footer', () => ({
     AppFooter: () => <footer data-testid="app-footer">Footer</footer>,
 }));

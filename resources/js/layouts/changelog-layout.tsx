@@ -35,17 +35,20 @@ export default function ChangelogLayout({ children }: PropsWithChildren) {
                     </Button>
 
                     <div className="flex items-center gap-1">
-                        {navLinks.map((link) => (
-                            <Button
-                                key={link.href}
-                                variant="ghost"
-                                size="sm"
-                                asChild
-                                className={cn(currentUrl.startsWith(link.href) && 'bg-accent font-medium')}
-                            >
-                                <Link href={link.href}>{link.label}</Link>
-                            </Button>
-                        ))}
+                        {navLinks.map((link) => {
+                            const isActive = currentUrl.startsWith(link.href);
+                            return (
+                                <Button
+                                    key={link.href}
+                                    variant="ghost"
+                                    size="sm"
+                                    asChild
+                                    className={cn(isActive && 'bg-accent font-medium')}
+                                >
+                                    <Link href={link.href} aria-current={isActive ? 'page' : undefined}>{link.label}</Link>
+                                </Button>
+                            );
+                        })}
                     </div>
                 </nav>
             </header>

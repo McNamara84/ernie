@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Changelog Navigation",
-                "description": "Added a dedicated navigation header to the Changelog page with a context-aware back button ('Back to Dashboard' for authenticated users, 'Portal' for guests) and navigation links to Portal and Changelog. Removed the Dashboard link from the Portal page header for a cleaner public experience."
+                "description": "Added a dedicated navigation header to the Changelog page with a context-aware back button ('Back to Dashboard' for authenticated users, 'Back to Portal' for guests) and navigation links to Portal and Changelog. Removed the Dashboard link from the Portal page header for a cleaner public experience."
             },
             {
                 "title": "Contact Person Email and Website for Contributors",

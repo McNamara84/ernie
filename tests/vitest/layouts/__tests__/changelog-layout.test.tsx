@@ -85,12 +85,14 @@ describe('ChangelogLayout', () => {
             const changelogLink = screen.getByRole('link', { name: 'Changelog' });
             expect(changelogLink).toHaveClass('bg-accent');
             expect(changelogLink).toHaveClass('font-medium');
+            expect(changelogLink).toHaveAttribute('aria-current', 'page');
         });
 
         it('does not highlight non-current pages', () => {
             render(<ChangelogLayout><div /></ChangelogLayout>);
             const portalLink = screen.getByRole('link', { name: 'Portal' });
             expect(portalLink).not.toHaveClass('bg-accent');
+            expect(portalLink).not.toHaveAttribute('aria-current');
         });
     });
 
