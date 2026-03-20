@@ -1,5 +1,5 @@
 import { ExternalLink, Sparkles } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,19 @@ export function OrcidSuggestionsModal({ open, onOpenChange, pendingData, onAccep
     const [applyFirstName, setApplyFirstName] = useState(false);
     const [applyLastName, setApplyLastName] = useState(false);
     const [applyEmail, setApplyEmail] = useState(false);
+
+    // Reset selection state when pendingData changes or modal opens
+    useEffect(() => {
+        if (!open) return;
+        const initial = new Set<number>();
+        pendingData.affiliations.forEach((aff, idx) => {
+            if (aff.status === 'new') initial.add(idx);
+        });
+        setSelectedAffiliations(initial);
+        setApplyFirstName(false);
+        setApplyLastName(false);
+        setApplyEmail(false);
+    }, [open, pendingData]);
 
     const toggleAffiliation = useCallback((index: number) => {
         setSelectedAffiliations((prev) => {

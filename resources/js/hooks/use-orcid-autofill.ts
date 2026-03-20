@@ -163,26 +163,37 @@ interface RorResolveResult {
 async function resolveNamesToRor(names: string[]): Promise<Map<string, { rorId: string; matchedName: string }>> {
     const map = new Map<string, { rorId: string; matchedName: string }>();
 
-    if (names.length === 0) return map;
+    // Deduplicate names (case-insensitive) before sending
+    const uniqueNames = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+    if (uniqueNames.length === 0) return map;
 
-    try {
-        const response = await fetch('/api/v1/ror-resolve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ names }),
-        });
+    // Chunk into batches of 20 to match backend validation limit
+    const BATCH_SIZE = 20;
+    const batches: string[][] = [];
+    for (let i = 0; i < uniqueNames.length; i += BATCH_SIZE) {
+        batches.push(uniqueNames.slice(i, i + BATCH_SIZE));
+    }
 
-        if (response.ok) {
-            const data: { results: RorResolveResult[] } = await response.json();
-            for (const result of data.results) {
-                map.set(result.name.toLowerCase().trim(), {
-                    rorId: result.rorId,
-                    matchedName: result.matchedName,
-                });
+    for (const batch of batches) {
+        try {
+            const response = await fetch('/api/v1/ror-resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ names: batch }),
+            });
+
+            if (response.ok) {
+                const data: { results: RorResolveResult[] } = await response.json();
+                for (const result of data.results) {
+                    map.set(result.name.toLowerCase().trim(), {
+                        rorId: result.rorId,
+                        matchedName: result.matchedName,
+                    });
+                }
             }
+        } catch {
+            // Silently fail — we'll proceed without ROR resolution for this batch
         }
-    } catch {
-        // Silently fail — we'll proceed without ROR resolution
     }
 
     return map;
@@ -414,12 +425,34 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
             // Apply selected affiliations
             if (selected.affiliations.length > 0) {
-                const newAffiliations: AffiliationTag[] = selected.affiliations.map((a) => ({
-                    value: a.resolvedName ?? a.value,
-                    rorId: a.rorId ?? null,
-                }));
+                // Start with a copy of existing affiliations
+                const mergedAffiliations = [...entry.affiliations];
 
-                updatedEntry.affiliations = [...entry.affiliations, ...newAffiliations];
+                for (const pending of selected.affiliations) {
+                    const tag: AffiliationTag = {
+                        value: pending.resolvedName ?? pending.value,
+                        rorId: pending.rorId ?? null,
+                    };
+
+                    if (pending.status === 'different') {
+                        // Replace the existing affiliation that this differs from
+                        const idx = mergedAffiliations.findIndex(
+                            (a) =>
+                                (pending.rorId && a.rorId === pending.rorId) ||
+                                (pending.existingValue && a.value.toLowerCase().trim() === pending.existingValue.toLowerCase().trim()),
+                        );
+                        if (idx !== -1) {
+                            mergedAffiliations[idx] = tag;
+                        } else {
+                            mergedAffiliations.push(tag);
+                        }
+                    } else {
+                        // New affiliation — append
+                        mergedAffiliations.push(tag);
+                    }
+                }
+
+                updatedEntry.affiliations = mergedAffiliations;
                 updatedEntry.affiliationsInput = updatedEntry.affiliations.map((a) => a.value).join(', ');
             }
 

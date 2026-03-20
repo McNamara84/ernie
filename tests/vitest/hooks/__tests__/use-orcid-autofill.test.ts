@@ -305,7 +305,7 @@ describe('useOrcidAutofill', () => {
                     emails: [],
                     affiliations: [
                         { type: 'employment', name: 'New University', role: null, department: null, rorId: null },
-                        { type: 'education', name: 'Should be ignored', role: null, department: null, rorId: null }, // Only employment is used
+                        { type: 'education', name: 'Education University', role: null, department: null, rorId: null },
                     ],
                     verifiedAt: new Date().toISOString(),
                 },
@@ -332,9 +332,9 @@ describe('useOrcidAutofill', () => {
             const call = onEntryChange.mock.calls[0][0];
             expect(call.affiliations).toEqual([{ value: 'Existing Affiliation', rorId: null }]);
 
-            // New affiliations should be in pendingOrcidData instead
+            // New affiliations should be in pendingOrcidData instead (both employment and education)
             expect(result.current.pendingOrcidData).not.toBeNull();
-            expect(result.current.pendingOrcidData?.affiliations.length).toBeGreaterThan(0);
+            expect(result.current.pendingOrcidData?.affiliations).toHaveLength(2);
         });
 
         it('does not add existing affiliations to pending data', async () => {
@@ -1051,14 +1051,15 @@ describe('useOrcidAutofill', () => {
 
     describe('computePendingAffiliations (via handleOrcidSelect)', () => {
         beforeEach(() => {
-            // Mock fetch for ROR resolution
-            global.fetch = vi.fn().mockResolvedValue({
+            // Mock fetch for ROR resolution using stubGlobal to avoid leaking
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve({ results: [] }),
-            });
+            }));
         });
 
         afterEach(() => {
+            vi.unstubAllGlobals();
             vi.restoreAllMocks();
         });
 
@@ -1179,7 +1180,7 @@ describe('useOrcidAutofill', () => {
         });
 
         it('resolves names to ROR via fetch and marks resolved matches as "different"', async () => {
-            (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+            vi.mocked(global.fetch).mockResolvedValue({
                 ok: true,
                 json: () =>
                     Promise.resolve({
@@ -1191,7 +1192,7 @@ describe('useOrcidAutofill', () => {
                             },
                         ],
                     }),
-            });
+            } as Response);
 
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
@@ -1248,7 +1249,7 @@ describe('useOrcidAutofill', () => {
         });
 
         it('handles fetch error for ROR resolution gracefully', async () => {
-            (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
+            vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
 
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
@@ -1385,6 +1386,71 @@ describe('useOrcidAutofill', () => {
             );
             // pendingOrcidData should be cleared
             expect(result.current.pendingOrcidData).toBeNull();
+        });
+
+        it('replaces existing affiliation when applying "different" status', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'Helmholtz-Zentrum Potsdam',
+                            role: null,
+                            department: null,
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({
+                firstName: 'John',
+                lastName: 'Doe',
+                affiliations: [
+                    { value: 'GFZ German Research Centre', rorId: 'https://ror.org/04z8jg394' },
+                    { value: 'Other University', rorId: null },
+                ],
+            });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            // Should be marked as 'different'
+            expect(result.current.pendingOrcidData?.affiliations[0].status).toBe('different');
+
+            onEntryChange.mockClear();
+            act(() => {
+                result.current.applyPendingData({
+                    affiliations: result.current.pendingOrcidData!.affiliations,
+                    applyFirstName: false,
+                    applyLastName: false,
+                    applyEmail: false,
+                });
+            });
+
+            // Should replace, not append — total count stays 2
+            const affiliations = onEntryChange.mock.calls[0][0].affiliations;
+            expect(affiliations).toHaveLength(2);
+            // The first affiliation should be replaced with the ORCID version
+            expect(affiliations[0]).toEqual({
+                value: 'Helmholtz-Zentrum Potsdam',
+                rorId: 'https://ror.org/04z8jg394',
+            });
+            // The second should be unchanged
+            expect(affiliations[1]).toEqual({ value: 'Other University', rorId: null });
         });
 
         it('applies name corrections when selected', async () => {
