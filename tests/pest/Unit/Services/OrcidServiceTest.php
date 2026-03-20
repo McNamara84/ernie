@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\OrcidService;
+use App\Services\RorLookupService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 covers(OrcidService::class);
 
 beforeEach(function () {
-    $this->service = new OrcidService;
+    $this->service = new OrcidService(new RorLookupService);
     Cache::flush();
 });
 

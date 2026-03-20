@@ -138,17 +138,17 @@ class RorLookupService
      */
     public function findByName(string $organizationName): ?array
     {
-        $this->ensureLoaded();
-
         $normalizedSearch = mb_strtolower(trim($organizationName));
 
-        if ($normalizedSearch === '' || $this->affiliationMap === null) {
+        if ($normalizedSearch === '') {
             return null;
         }
 
+        $this->ensureLoaded();
+
         $rorUrl = $this->nameMap[$normalizedSearch] ?? null;
 
-        if ($rorUrl === null) {
+        if ($rorUrl === null || $this->affiliationMap === null) {
             return null;
         }
 

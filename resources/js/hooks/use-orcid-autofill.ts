@@ -163,8 +163,17 @@ interface RorResolveResult {
 async function resolveNamesToRor(names: string[]): Promise<Map<string, { rorId: string; matchedName: string }>> {
     const map = new Map<string, { rorId: string; matchedName: string }>();
 
-    // Deduplicate names (case-insensitive) before sending
-    const uniqueNames = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+    // Deduplicate names case-insensitively while preserving original casing
+    const seen = new Set<string>();
+    const uniqueNames: string[] = [];
+    for (const raw of names) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
+        const key = trimmed.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        uniqueNames.push(trimmed);
+    }
     if (uniqueNames.length === 0) return map;
 
     // Chunk into batches of 20 to match backend validation limit
@@ -224,8 +233,9 @@ async function computePendingAffiliations(
     const unresolvedNames = namedAffiliations.filter((a) => !a.rorId).map((a) => a.name!);
     const resolvedMap = await resolveNamesToRor(unresolvedNames);
 
-    // Deduplicate ORCID affiliations among themselves (by ROR ID)
+    // Deduplicate ORCID affiliations among themselves (by ROR ID or name)
     const seenRorIds = new Set<string>();
+    const seenNames = new Set<string>();
 
     for (const orcidAff of namedAffiliations) {
         const name = orcidAff.name!;
@@ -239,6 +249,9 @@ async function computePendingAffiliations(
         if (rorId) {
             if (seenRorIds.has(rorId)) continue;
             seenRorIds.add(rorId);
+        } else {
+            if (seenNames.has(nameLower)) continue;
+            seenNames.add(nameLower);
         }
 
         // Case 1: ROR match — same institution exists in entry (possibly different name)

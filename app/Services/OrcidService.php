@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\Log;
  */
 class OrcidService
 {
+    public function __construct(
+        private readonly RorLookupService $rorLookupService,
+    ) {}
+
     /**
      * ORCID Public API Base URL
      */
@@ -642,11 +646,6 @@ class OrcidService
             return null;
         }
 
-        // Ensure the ROR ID is in canonical URL format
-        if (! str_starts_with($identifier, 'https://ror.org/')) {
-            return 'https://ror.org/' . ltrim($identifier, '/');
-        }
-
-        return $identifier;
+        return $this->rorLookupService->canonicalise($identifier);
     }
 }

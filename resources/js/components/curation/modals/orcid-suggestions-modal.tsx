@@ -203,31 +203,32 @@ function AffiliationRow({
     return (
         <div className="flex items-start gap-3 rounded-md border p-3">
             <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5" />
-            <Label htmlFor={id} className="flex-1 cursor-pointer space-y-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{affiliation.value}</span>
-                    <Badge variant={affiliation.status === 'new' ? 'default' : 'secondary'} className="text-[10px] uppercase">
-                        {affiliation.status === 'new' ? 'New' : 'Different'}
-                    </Badge>
-                </div>
-                {affiliation.status === 'different' && affiliation.existingValue && (
-                    <p className="text-xs text-muted-foreground">
-                        Currently: <span className="font-medium">{affiliation.existingValue}</span>
-                    </p>
-                )}
+            <div className="flex-1 space-y-1">
+                <Label htmlFor={id} className="cursor-pointer">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{affiliation.value}</span>
+                        <Badge variant={affiliation.status === 'new' ? 'default' : 'secondary'} className="text-[10px] uppercase">
+                            {affiliation.status === 'new' ? 'New' : 'Different'}
+                        </Badge>
+                    </div>
+                    {affiliation.status === 'different' && affiliation.existingValue && (
+                        <p className="text-xs text-muted-foreground">
+                            Currently: <span className="font-medium">{affiliation.existingValue}</span>
+                        </p>
+                    )}
+                </Label>
                 {affiliation.rorId && (
                     <a
                         href={affiliation.rorId}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
                     >
                         ROR: {affiliation.rorId}
                         <ExternalLink className="h-3 w-3" />
                     </a>
                 )}
-            </Label>
+            </div>
         </div>
     );
 }
