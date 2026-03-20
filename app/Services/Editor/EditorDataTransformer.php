@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Editor;
 
 use App\Models\Affiliation;
+use App\Models\ContributorType;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Person;
@@ -206,6 +207,11 @@ class EditorDataTransformer
                 $data['firstName'] = $person->given_name ?? '';
                 $data['lastName'] = $person->family_name ?? '';
                 $data['orcid'] = $person->name_identifier ?? '';
+
+                $hasContactPersonRole = $contributor->contributorTypes
+                    ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');
+                $data['email'] = $hasContactPersonRole ? ($contributor->email ?? '') : '';
+                $data['website'] = $hasContactPersonRole ? ($contributor->website ?? '') : '';
             } elseif ($contributor->contributorable_type === Institution::class) {
                 /** @var Institution $institution */
                 $institution = $contributor->contributorable;

@@ -20,12 +20,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
-
-import { OrcidSuggestionsButton } from '../orcid-suggestions-button';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import InputField from '../input-field';
 import { OrcidSearchDialog } from '../orcid-search-dialog';
+import { OrcidSuggestionsButton } from '../orcid-suggestions-button';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
 import type { ContributorEntry, ContributorRoleTag, ContributorType } from './types';
@@ -35,7 +34,7 @@ interface ContributorItemProps {
     index: number;
     onTypeChange: (type: ContributorType) => void;
     onRolesChange: (value: { raw: string; tags: ContributorRoleTag[] }) => void;
-    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName', value: string) => void;
+    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => void;
     onInstitutionNameChange: (value: string) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
     onContributorChange: (contributor: ContributorEntry) => void; // For bulk updates (e.g., ORCID verification)
@@ -80,12 +79,21 @@ export default function ContributorItem({
 
     // Wrapper for onPersonFieldChange that marks user interaction for name fields only
     // Only firstName/lastName changes should enable ORCID auto-suggest, not orcid field itself
-    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName', value: string) => {
+    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
         if (field === 'firstName' || field === 'lastName') {
             setHasUserInteracted(true);
         }
         onPersonFieldChange(field, value);
     };
+
+    // Detect whether this contributor has the "Contact Person" role
+    const hasContactPersonRole = useMemo(
+        () =>
+            contributor.roles.some(
+                (role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson',
+            ),
+        [contributor.roles],
+    );
 
     // ORCID verification, auto-fill, and suggestions via shared hook
     const {
@@ -368,6 +376,29 @@ export default function ContributorItem({
                             containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                             required
                         />
+
+                        {/* Contact Person email & website fields */}
+                        {hasContactPersonRole && (
+                            <>
+                                <InputField
+                                    id={`${contributor.id}-email`}
+                                    label="Email"
+                                    type="email"
+                                    value={contributor.email || ''}
+                                    onChange={(event) => handlePersonFieldChange('email', event.target.value)}
+                                    containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
+                                    required
+                                />
+                                <InputField
+                                    id={`${contributor.id}-website`}
+                                    label="Website"
+                                    type="url"
+                                    value={contributor.website || ''}
+                                    onChange={(event) => handlePersonFieldChange('website', event.target.value)}
+                                    containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
+                                />
+                            </>
+                        )}
                     </div>
                 ) : (
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">

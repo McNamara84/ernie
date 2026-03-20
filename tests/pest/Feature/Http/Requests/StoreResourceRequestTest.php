@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\ContributorType;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -46,6 +47,11 @@ beforeEach(function () {
     TitleType::factory()->count(5)->create();
     $this->resourceType = ResourceType::factory()->create();
     $this->right = Right::factory()->create();
+
+    ContributorType::firstOrCreate(
+        ['slug' => 'ContactPerson'],
+        ['name' => 'Contact Person', 'category' => 'person'],
+    );
 });
 
 // =========================================================================
@@ -388,5 +394,130 @@ describe('funding references validation', function () {
             ->postJson('/editor/resources', $data);
 
         $response->assertJsonValidationErrors(['fundingReferences.0.awardUri']);
+    });
+});
+
+// =========================================================================
+// Contributor Contact Person email/website validation
+// =========================================================================
+
+describe('contributor contact person validation', function () {
+    it('requires email when Contact Person role is assigned', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Contact',
+                'lastName' => 'Person',
+                'roles' => ['Contact Person'],
+                'email' => '',
+                'website' => '',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonValidationErrors(['contributors.0.email']);
+    });
+
+    it('accepts valid email when Contact Person role is assigned', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Contact',
+                'lastName' => 'Person',
+                'roles' => ['Contact Person'],
+                'email' => 'contact@example.org',
+                'website' => 'https://example.org',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['contributors.0.email', 'contributors.0.website']);
+    });
+
+    it('does not require email when no Contact Person role', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Other',
+                'lastName' => 'Contributor',
+                'roles' => ['DataCollector'],
+                'email' => '',
+                'website' => '',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['contributors.0.email']);
+    });
+
+    it('requires email when ContactPerson slug role is used', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Contact',
+                'lastName' => 'Person',
+                'roles' => ['ContactPerson'],
+                'email' => '',
+                'website' => '',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonValidationErrors(['contributors.0.email']);
+    });
+
+    it('rejects invalid email format on contributor', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Bad',
+                'lastName' => 'Email',
+                'roles' => ['Contact Person'],
+                'email' => 'not-an-email',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonValidationErrors(['contributors.0.email']);
+    });
+
+    it('rejects invalid website URL on contributor', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Bad',
+                'lastName' => 'Website',
+                'roles' => ['Contact Person'],
+                'email' => 'ok@example.org',
+                'website' => 'not-a-url',
+                'affiliations' => [],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonValidationErrors(['contributors.0.website']);
     });
 });

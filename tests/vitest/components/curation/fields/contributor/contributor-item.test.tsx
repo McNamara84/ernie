@@ -52,6 +52,8 @@ describe('ContributorItem Component', () => {
         orcid: '',
         firstName: 'Jane',
         lastName: 'Smith',
+        email: '',
+        website: '',
         roles: [{ value: 'DataCollector' }],
         rolesInput: 'DataCollector',
         orcidVerified: false,
@@ -161,5 +163,40 @@ describe('ContributorItem Component', () => {
         render(<ContributorItem contributor={verifiedContributor} {...mockProps} />);
         
         expect(screen.getByText('Verified')).toBeInTheDocument();
+    });
+
+    it('shows email and website fields when Contact Person role is assigned', () => {
+        const contactPersonContributor: ContributorEntry = {
+            ...mockPersonContributor,
+            roles: [{ value: 'Contact Person' }],
+            rolesInput: 'Contact Person',
+            email: 'contact@example.org',
+            website: 'https://example.org',
+        };
+        render(<ContributorItem contributor={contactPersonContributor} {...mockProps} />);
+        
+        expect(screen.getByDisplayValue('contact@example.org')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://example.org')).toBeInTheDocument();
+    });
+
+    it('does not show email and website fields without Contact Person role', () => {
+        render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
+        
+        expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Website')).not.toBeInTheDocument();
+    });
+
+    it('shows email and website fields when ContactPerson slug role is used', () => {
+        const contactPersonContributor: ContributorEntry = {
+            ...mockPersonContributor,
+            roles: [{ value: 'ContactPerson' }],
+            rolesInput: 'ContactPerson',
+            email: 'slug@example.org',
+            website: 'https://slug.example.org',
+        };
+        render(<ContributorItem contributor={contactPersonContributor} {...mockProps} />);
+        
+        expect(screen.getByDisplayValue('slug@example.org')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://slug.example.org')).toBeInTheDocument();
     });
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\ContributorType;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
@@ -79,6 +80,8 @@ class StoreResourceRequest extends FormRequest
             'contributors.*.affiliations' => ['array'],
             'contributors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
             'contributors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
+            'contributors.*.email' => ['nullable', 'string', 'email', 'max:255'],
+            'contributors.*.website' => ['nullable', 'string', 'url:http,https', 'max:255'],
             'descriptions' => ['nullable', 'array'],
             'descriptions.*.descriptionType' => [
                 'required',
@@ -446,6 +449,8 @@ class StoreResourceRequest extends FormRequest
                 'orcid' => $this->normalizeString($contributor['orcid'] ?? null),
                 'firstName' => $this->normalizeString($contributor['firstName'] ?? null),
                 'lastName' => $this->normalizeString($contributor['lastName'] ?? null),
+                'email' => $this->normalizeString($contributor['email'] ?? null),
+                'website' => $this->normalizeString($contributor['website'] ?? null),
                 'roles' => $roles,
                 'affiliations' => $affiliations,
                 'position' => (int) $index,
@@ -904,9 +909,15 @@ class StoreResourceRequest extends FormRequest
                 /** @var mixed $candidateContributors */
                 $candidateContributors = $this->input('contributors', []);
 
-                if (! is_array($candidateContributors)) {
+                if (! is_array($candidateContributors) || $candidateContributors === []) {
                     return;
                 }
+
+                // Load Contact Person role identifiers once to avoid N+1 queries
+                $contactPersonType = ContributorType::where('slug', 'ContactPerson')->first(['name', 'slug']);
+                $contactPersonNames = $contactPersonType
+                    ? [$contactPersonType->name, $contactPersonType->slug]
+                    : [];
 
                 foreach ($candidateContributors as $index => $contributor) {
                     if (! is_array($contributor)) {
@@ -942,6 +953,24 @@ class StoreResourceRequest extends FormRequest
                             "contributors.$index.roles",
                             'At least one role must be provided for each contributor.',
                         );
+                    }
+
+                    // Require email when Contact Person role is assigned to a person contributor
+                    if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {
+                        $hasContactPerson = array_any(
+                            $roles,
+                            fn (mixed $r): bool => is_string($r) && in_array(trim($r), $contactPersonNames, true),
+                        );
+
+                        if ($hasContactPerson) {
+                            $email = trim((string) ($contributor['email'] ?? ''));
+                            if ($email === '') {
+                                $validator->errors()->add(
+                                    "contributors.$index.email",
+                                    'A contact email is required when the Contact Person role is assigned.',
+                                );
+                            }
+                        }
                     }
                 }
             },

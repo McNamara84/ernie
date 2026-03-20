@@ -87,6 +87,8 @@ export type SerializedContributor =
           orcid: string | null;
           firstName: string | null;
           lastName: string;
+          email: string | null;
+          website: string | null;
           roles: string[];
           affiliations: SerializedAffiliation[];
           position: number;
@@ -139,6 +141,8 @@ export type InitialContributor =
           orcid?: string | null;
           firstName?: string | null;
           lastName?: string | null;
+          email?: string | null;
+          website?: string | null;
       })
     | (BaseInitialContributor & {
           type: 'institution';

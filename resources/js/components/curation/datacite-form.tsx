@@ -1588,11 +1588,17 @@ export default function DataCiteForm({
                     const firstName = contributor.firstName.trim();
                     const lastName = contributor.lastName.trim();
 
+                    const hasContactPersonRole = contributor.roles.some(
+                        (role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson',
+                    );
+
                     return {
                         type: 'person',
                         orcid: orcid || null,
                         firstName: firstName || null,
                         lastName,
+                        email: hasContactPersonRole ? (contributor.email.trim() || null) : null,
+                        website: hasContactPersonRole ? (contributor.website.trim() || null) : null,
                         roles,
                         affiliations,
                         position: index,

@@ -30,6 +30,9 @@ use Illuminate\Validation\ValidationException;
 
 class ResourceStorageService
 {
+    /** @var array<string>|null Cached Contact Person name/slug for role matching */
+    private ?array $contactPersonNames = null;
+
     public function __construct(
         protected PersonService $personService,
         protected InstitutionService $institutionService,
@@ -349,12 +352,56 @@ class ResourceStorageService
     {
         $person = $this->personService->findOrCreate($data);
 
+        $hasContactPersonRole = $this->hasContactPersonRole($data);
+
         return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
             'position' => $position,
+            'email' => $hasContactPersonRole ? ($data['email'] ?? null) : null,
+            'website' => $hasContactPersonRole ? ($data['website'] ?? null) : null,
         ]);
+    }
+
+    /**
+     * Check if the contributor data includes the "Contact Person" role.
+     *
+     * Uses cached name/slug values from the database to stay consistent
+     * with {@see syncContributorTypes()} without issuing per-contributor queries.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function hasContactPersonRole(array $data): bool
+    {
+        $roles = $data['roles'] ?? [];
+
+        if (! is_array($roles)) {
+            return false;
+        }
+
+        $validRoles = array_values(array_filter(
+            $roles,
+            fn (mixed $role): bool => is_string($role) && trim($role) !== '',
+        ));
+
+        if ($validRoles === []) {
+            return false;
+        }
+
+        if ($this->contactPersonNames === null) {
+            $type = ContributorType::where('slug', 'ContactPerson')->first(['name', 'slug']);
+            $this->contactPersonNames = $type ? [$type->name, $type->slug] : [];
+        }
+
+        if ($this->contactPersonNames === []) {
+            return false;
+        }
+
+        return array_any(
+            $validRoles,
+            fn (string $role): bool => in_array(trim($role), $this->contactPersonNames, true),
+        );
     }
 
     /**

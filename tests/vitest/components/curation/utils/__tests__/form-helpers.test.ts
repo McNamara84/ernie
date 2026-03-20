@@ -369,6 +369,8 @@ describe('empty entry creators', () => {
         expect(entry.orcid).toBe('');
         expect(entry.firstName).toBe('');
         expect(entry.lastName).toBe('');
+        expect(entry.email).toBe('');
+        expect(entry.website).toBe('');
         expect(entry.roles).toEqual([]);
         expect(entry.rolesInput).toBe('');
         expect(entry.affiliations).toEqual([]);
@@ -480,6 +482,8 @@ describe('mapInitialContributorToEntry', () => {
             orcid: '0000-0001-2345-6789',
             firstName: ' Jane ',
             lastName: ' Smith ',
+            email: 'jane@example.org',
+            website: 'https://example.org',
             roles: ['Editor', 'DataCollector'],
             affiliations: [{ value: 'University B' }],
         };
@@ -493,8 +497,26 @@ describe('mapInitialContributorToEntry', () => {
         expect(personResult.orcid).toBe('0000-0001-2345-6789');
         expect(personResult.firstName).toBe('Jane');
         expect(personResult.lastName).toBe('Smith');
+        expect(personResult.email).toBe('jane@example.org');
+        expect(personResult.website).toBe('https://example.org');
         expect(personResult.roles).toHaveLength(2);
         expect(personResult.affiliations).toHaveLength(1);
+    });
+
+    it('maps person contributor with missing email/website to empty strings', () => {
+        const initial = {
+            type: 'person' as const,
+            orcid: '0000-0001-2345-6789',
+            firstName: 'Jane',
+            lastName: 'Smith',
+            roles: ['Editor'],
+            affiliations: [],
+        };
+
+        const result = mapInitialContributorToEntry(initial);
+        const personResult = result as PersonContributorEntry;
+        expect(personResult.email).toBe('');
+        expect(personResult.website).toBe('');
     });
 
     it('maps institution contributor correctly', () => {
