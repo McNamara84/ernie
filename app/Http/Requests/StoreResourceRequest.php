@@ -913,6 +913,12 @@ class StoreResourceRequest extends FormRequest
                     return;
                 }
 
+                // Load Contact Person role identifiers once to avoid N+1 queries
+                $contactPersonType = ContributorType::where('slug', 'ContactPerson')->first(['name', 'slug']);
+                $contactPersonNames = $contactPersonType
+                    ? [$contactPersonType->name, $contactPersonType->slug]
+                    : [];
+
                 foreach ($candidateContributors as $index => $contributor) {
                     if (! is_array($contributor)) {
                         $validator->errors()->add(
@@ -950,15 +956,11 @@ class StoreResourceRequest extends FormRequest
                     }
 
                     // Require email when Contact Person role is assigned to a person contributor
-                    if ($type === 'person' && is_array($roles)) {
-                        $validRoles = array_values(array_filter(
+                    if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {
+                        $hasContactPerson = array_any(
                             $roles,
-                            fn (mixed $r): bool => is_string($r) && trim($r) !== '',
-                        ));
-
-                        $hasContactPerson = $validRoles !== [] && ContributorType::where('slug', 'ContactPerson')
-                            ->where(fn ($query) => $query->whereIn('name', $validRoles)->orWhereIn('slug', $validRoles))
-                            ->exists();
+                            fn (mixed $r): bool => is_string($r) && in_array(trim($r), $contactPersonNames, true),
+                        );
 
                         if ($hasContactPerson) {
                             $email = trim((string) ($contributor['email'] ?? ''));
