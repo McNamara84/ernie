@@ -2861,16 +2861,16 @@
         },
         {
             "name": "php-standard-library/php-standard-library",
-            "version": "6.1.0",
+            "version": "6.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-standard-library/php-standard-library.git",
-                "reference": "819b59a9613fd77d29e7c9aaf073716c73f7e053"
+                "reference": "b7d151cb1c21589cdde17a6adff50d3375de0919"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-standard-library/php-standard-library/zipball/819b59a9613fd77d29e7c9aaf073716c73f7e053",
-                "reference": "819b59a9613fd77d29e7c9aaf073716c73f7e053",
+                "url": "https://api.github.com/repos/php-standard-library/php-standard-library/zipball/b7d151cb1c21589cdde17a6adff50d3375de0919",
+                "reference": "b7d151cb1c21589cdde17a6adff50d3375de0919",
                 "shasum": ""
             },
             "require": {
@@ -2954,7 +2954,7 @@
                 "php-standard-library/vec": "self.version"
             },
             "require-dev": {
-                "carthage-software/mago": "^1.14.0",
+                "carthage-software/mago": "^1.15.2",
                 "ext-brotli": "*",
                 "infection/infection": "^0.32.6",
                 "php-coveralls/php-coveralls": "^2.9.1",
@@ -3108,7 +3108,7 @@
             "description": "PHP Standard Library",
             "support": {
                 "issues": "https://github.com/php-standard-library/php-standard-library/issues",
-                "source": "https://github.com/php-standard-library/php-standard-library/tree/6.1.0"
+                "source": "https://github.com/php-standard-library/php-standard-library/tree/6.1.1"
             },
             "funding": [
                 {
@@ -3120,7 +3120,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-19T16:33:51+00:00"
+            "time": "2026-03-20T08:09:20+00:00"
         },
         {
             "name": "phpoption/phpoption",
