@@ -241,6 +241,8 @@ erDiagram
         varchar contributorable_type "Person|Institution"
         bigint contributorable_id
         int position
+        varchar email "nullable, Contact Person only"
+        varchar website "nullable, Contact Person only"
         timestamp created_at
         timestamp updated_at
     }

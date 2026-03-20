@@ -273,6 +273,8 @@ entity "resource_contributors" as resource_contributors {
     * contributorable_type : VARCHAR //Person|Institution//
     * contributorable_id : BIGINT
     * position : INT = 0
+    email : VARCHAR //nullable, Contact Person only//
+    website : VARCHAR //nullable, Contact Person only//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
