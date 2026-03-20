@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import Changelog from '@/pages/changelog';
 
-vi.mock('@/layouts/public-layout', () => ({
+vi.mock('@/layouts/changelog-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 

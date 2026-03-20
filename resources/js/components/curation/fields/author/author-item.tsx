@@ -21,12 +21,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
-
-import { OrcidSuggestionsButton } from '../orcid-suggestions-button';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import InputField from '../input-field';
 import { OrcidSearchDialog } from '../orcid-search-dialog';
+import { OrcidSuggestionsButton } from '../orcid-suggestions-button';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
 import type { AuthorEntry, AuthorType } from './types';

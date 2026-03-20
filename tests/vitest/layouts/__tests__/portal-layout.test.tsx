@@ -1,11 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
-import { createMockUser } from '@test-helpers/types';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const usePageMock = vi.fn();
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ href, children, ...props }: { href: unknown; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
@@ -16,12 +13,9 @@ vi.mock('@inertiajs/react', () => ({
                 : '';
         return <a href={resolvedHref} {...props}>{children}</a>;
     },
-    usePage: () => usePageMock(),
 }));
 
-vi.mock('@/routes', () => ({
-    dashboard: () => ({ url: '/dashboard' }),
-}));
+vi.mock('@/routes', () => ({}));
 
 vi.mock('@/components/app-footer', () => ({
     AppFooter: () => <footer data-testid="app-footer">Footer</footer>,
@@ -30,12 +24,6 @@ vi.mock('@/components/app-footer', () => ({
 import PortalLayout from '@/layouts/portal-layout';
 
 describe('PortalLayout', () => {
-    beforeEach(() => {
-        usePageMock.mockReturnValue({
-            props: { auth: { user: createMockUser() } },
-        });
-    });
-
     describe('rendering', () => {
         it('renders children', () => {
             render(
@@ -60,20 +48,15 @@ describe('PortalLayout', () => {
         });
     });
 
-    describe('auth-dependent rendering', () => {
-        it('shows dashboard link for authenticated users', () => {
-            render(<PortalLayout><div /></PortalLayout>);
-            const dashboardLink = screen.getByText('Dashboard');
-            expect(dashboardLink).toBeInTheDocument();
-            expect(dashboardLink.closest('a')).toHaveAttribute('href', '/dashboard');
-        });
-
-        it('hides dashboard link for unauthenticated users', () => {
-            usePageMock.mockReturnValue({
-                props: { auth: { user: null } },
-            });
+    describe('no auth links', () => {
+        it('does not show dashboard link', () => {
             render(<PortalLayout><div /></PortalLayout>);
             expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+        });
+
+        it('does not show login link', () => {
+            render(<PortalLayout><div /></PortalLayout>);
+            expect(screen.queryByText('Log in')).not.toBeInTheDocument();
         });
     });
 });
