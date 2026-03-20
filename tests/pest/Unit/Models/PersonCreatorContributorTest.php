@@ -194,6 +194,8 @@ describe('ResourceContributor model', function (): void {
             'contributorable_type',
             'contributorable_id',
             'position',
+            'email',
+            'website',
         ]);
     });
 
