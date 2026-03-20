@@ -909,7 +909,7 @@ class StoreResourceRequest extends FormRequest
                 /** @var mixed $candidateContributors */
                 $candidateContributors = $this->input('contributors', []);
 
-                if (! is_array($candidateContributors)) {
+                if (! is_array($candidateContributors) || $candidateContributors === []) {
                     return;
                 }
 
