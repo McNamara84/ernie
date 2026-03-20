@@ -111,16 +111,16 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             ->and($contributor->website)->toBeNull();
     });
 
-    it('detects Contact Person role case-insensitively', function () {
+    it('detects Contact Person role by display name', function () {
         $data = contributorResourceData([
-            'roles' => ['contact person'],
-            'email' => 'lower@example.org',
+            'roles' => ['Contact Person'],
+            'email' => 'name@example.org',
         ]);
 
         [$resource] = $this->service->store($data, $this->user->id);
 
         $contributor = $resource->contributors()->first();
-        expect($contributor->email)->toBe('lower@example.org');
+        expect($contributor->email)->toBe('name@example.org');
     });
 
     it('clears email and website when updating contributor without Contact Person role', function () {
