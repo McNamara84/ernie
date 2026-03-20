@@ -164,4 +164,25 @@ describe('ContributorItem Component', () => {
         
         expect(screen.getByText('Verified')).toBeInTheDocument();
     });
+
+    it('shows email and website fields when Contact Person role is assigned', () => {
+        const contactPersonContributor: ContributorEntry = {
+            ...mockPersonContributor,
+            roles: [{ value: 'Contact Person' }],
+            rolesInput: 'Contact Person',
+            email: 'contact@example.org',
+            website: 'https://example.org',
+        };
+        render(<ContributorItem contributor={contactPersonContributor} {...mockProps} />);
+        
+        expect(screen.getByDisplayValue('contact@example.org')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('https://example.org')).toBeInTheDocument();
+    });
+
+    it('does not show email and website fields without Contact Person role', () => {
+        render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
+        
+        expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Website')).not.toBeInTheDocument();
+    });
 });

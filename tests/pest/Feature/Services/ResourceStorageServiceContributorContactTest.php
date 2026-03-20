@@ -147,4 +147,16 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
         expect($contributor->email)->toBeNull()
             ->and($contributor->website)->toBeNull();
     });
+
+    it('handles missing roles key gracefully', function () {
+        $data = contributorResourceData();
+        // Remove the roles key entirely from contributor data
+        unset($data['contributors'][0]['roles']);
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $contributor = $resource->contributors()->first();
+        expect($contributor->email)->toBeNull()
+            ->and($contributor->website)->toBeNull();
+    });
 });
