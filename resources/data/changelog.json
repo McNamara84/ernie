@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-19",
+        "date": "2026-03-20",
         "features": [
+            {
+                "title": "Contact Person Email and Website for Contributors",
+                "description": "When a contributor in the Data Editor is assigned the 'Contact Person' role, two additional input fields are displayed: Email (required) and Website (optional). These fields are stored in the database and preserved across edits but are not exported to the DataCite schema."
+            },
             {
                 "title": "ORCID Affiliation Review Modal",
                 "description": "When verifying an ORCID ID, affiliations from the ORCID profile are no longer auto-merged into the form. Instead, a review modal allows curators to selectively accept new affiliations, name corrections, and email suggestions. The system intelligently deduplicates ORCID affiliations against existing entries using ROR IDs and name matching, and badges indicate whether data is 'New' or 'Different'. This prevents ORCID data from overwriting affiliations loaded from XML uploads."
