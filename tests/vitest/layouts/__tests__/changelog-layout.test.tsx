@@ -30,7 +30,7 @@ vi.mock('@/components/app-footer', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, className, asChild, ...props }: { children?: React.ReactNode; className?: string; asChild?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) => {
+    Button: ({ children, className, asChild, variant: _v, size: _s, ...props }: { children?: React.ReactNode; className?: string; asChild?: boolean; variant?: string; size?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) => {
         if (asChild && React.isValidElement(children)) {
             return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, { className, ...props });
         }
