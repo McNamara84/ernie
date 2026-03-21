@@ -4,6 +4,10 @@
         "date": "2026-03-20",
         "features": [
             {
+                "title": "Changelog Navigation",
+                "description": "Added a dedicated navigation header to the Changelog page with a context-aware back button ('Back to Dashboard' for authenticated users, 'Back to Portal' for guests) and navigation links to Portal and Changelog. Removed the Dashboard link from the Portal page header for a cleaner public experience."
+            },
+            {
                 "title": "Contact Person Email and Website for Contributors",
                 "description": "When a contributor in the Data Editor is assigned the 'Contact Person' role, two additional input fields are displayed: Email (required) and Website (optional). These fields are stored in the database and preserved across edits but are not exported to the DataCite schema."
             },

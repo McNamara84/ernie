@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseJsonFromBlob, extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { extractErrorMessageFromBlob, parseJsonFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 
 describe('parseJsonFromBlob', () => {
     it('parses valid JSON from blob', async () => {

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
 import { Button } from '@/components/ui/button';
-import PublicLayout from '@/layouts/public-layout';
+import ChangelogLayout from '@/layouts/changelog-layout';
 
 // Type declaration for test helpers exposed on window object
 declare global {
@@ -309,7 +309,7 @@ export default function Changelog() {
     }, [releases, active, handleNavigate]);
 
     return (
-        <PublicLayout>
+        <ChangelogLayout>
             <Head title="Changelog" />
             <ChangelogTimelineNav releases={releases} activeIndex={active} onNavigate={handleNavigate} />
 
@@ -486,6 +486,6 @@ export default function Changelog() {
                     })}
                 </ul>
             )}
-        </PublicLayout>
+        </ChangelogLayout>
     );
 }
