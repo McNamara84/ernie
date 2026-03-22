@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-interface SpinnerProps extends Omit<LucideProps, 'ref'> {
+interface SpinnerProps extends Omit<LucideProps, 'ref' | 'size'> {
     /** Size preset for the spinner */
     size?: SpinnerSize;
 }

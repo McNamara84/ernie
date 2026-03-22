@@ -17,7 +17,7 @@ describe('Alert', () => {
         );
         const alert = screen.getByRole('alert');
         expect(alert).toHaveAttribute('data-slot', 'alert');
-        expect(alert).not.toHaveClass('text-destructive-foreground');
+        expect(alert).not.toHaveClass('text-destructive');
         expect(screen.getByText('Warning')).toHaveAttribute('data-slot', 'alert-title');
         expect(screen.getByText(ALERT_TEXT)).toHaveAttribute('data-slot', 'alert-description');
     });
@@ -25,7 +25,7 @@ describe('Alert', () => {
     it('applies destructive variant styles', () => {
         render(<Alert variant="destructive">{ALERT_TEXT}</Alert>);
         const alert = screen.getByRole('alert');
-        expect(alert).toHaveClass('text-destructive-foreground');
+        expect(alert).toHaveClass('text-destructive');
     });
 });
 

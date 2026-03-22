@@ -5,7 +5,7 @@
  * Tests the {pendingOrcidData && <OrcidSuggestionsButton />} branch.
  */
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorItem from '@/components/curation/fields/author/author-item';
