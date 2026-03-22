@@ -239,7 +239,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                 onValueChange={(value) => handleRoleChange(user.id, value)}
                                                                 disabled={isProcessing}
                                                             >
-                                                                <SelectTrigger className="w-[140px]">
+                                                                <SelectTrigger size="sm" className="w-[140px]">
                                                                     <SelectValue>
                                                                         <UserRoleBadge role={user.role} label={user.role_label} />
                                                                     </SelectValue>

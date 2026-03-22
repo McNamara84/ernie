@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
 import type { RelatedIdentifier, RelationType } from '@/types';
 
@@ -39,45 +39,39 @@ export default function RelatedWorkItem({ item, index, onRemove, validationStatu
 
         if (validationStatus === 'valid') {
             return (
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <CheckCircle2 className="h-4 w-4 text-green-600" aria-label="Valid" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="text-sm">Identifier validated successfully</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <CheckCircle2 className="h-4 w-4 text-green-600" aria-label="Valid" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="text-sm">Identifier validated successfully</p>
+                    </TooltipContent>
+                </Tooltip>
             );
         }
 
         if (validationStatus === 'warning') {
             return (
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <AlertCircle className="h-4 w-4 text-yellow-600" aria-label="Warning" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="text-sm">{validationMessage || 'Validation warning'}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <AlertCircle className="h-4 w-4 text-yellow-600" aria-label="Warning" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="text-sm">{validationMessage || 'Validation warning'}</p>
+                    </TooltipContent>
+                </Tooltip>
             );
         }
 
         return (
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <AlertCircle className="h-4 w-4 text-red-600" aria-label="Invalid" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p className="text-sm">{validationMessage || 'Validation failed'}</p>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <AlertCircle className="h-4 w-4 text-red-600" aria-label="Invalid" />
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p className="text-sm">{validationMessage || 'Validation failed'}</p>
+                </TooltipContent>
+            </Tooltip>
         );
     };
 
@@ -87,16 +81,14 @@ export default function RelatedWorkItem({ item, index, onRemove, validationStatu
                 <div className="flex-1 space-y-2">
                     {/* Relation Type with Tooltip */}
                     <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="text-sm font-semibold text-foreground">{item.relation_type}</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="max-w-xs text-sm">{description}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="text-sm font-semibold text-foreground">{item.relation_type}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs text-sm">{description}</p>
+                            </TooltipContent>
+                        </Tooltip>
                         <Badge variant="secondary" className="text-xs" data-testid="identifier-type-badge">
                             {item.identifier_type}
                         </Badge>

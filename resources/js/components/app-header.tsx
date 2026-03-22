@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { NavigationMenu, NavigationMenuItem, NavigationMenuList, navigationMenuTriggerStyle } from '@/components/ui/navigation-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
@@ -162,25 +162,23 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                 {rightNavItems.map((item) => {
                                     const href = typeof item.href === 'string' ? item.href : item.href.url;
                                     return (
-                                        <TooltipProvider key={item.title} delayDuration={0}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Link
-                                                        href={href}
-                                                        prefetch
-                                                        className="group ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent p-0 text-sm font-medium text-[var(--header-foreground)] ring-offset-background transition-colors hover:bg-[var(--header-hover)] hover:text-[var(--header-foreground)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-                                                    >
-                                                        <span className="sr-only">{item.title}</span>
-                                                        {item.icon && (
-                                                            <Icon iconNode={item.icon} className="size-5 opacity-80 group-hover:opacity-100" />
-                                                        )}
-                                                    </Link>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{item.title}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        <Tooltip key={item.title}>
+                                            <TooltipTrigger asChild>
+                                                <Link
+                                                    href={href}
+                                                    prefetch
+                                                    className="group ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent p-0 text-sm font-medium text-[var(--header-foreground)] ring-offset-background transition-colors hover:bg-[var(--header-hover)] hover:text-[var(--header-foreground)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                                                >
+                                                    <span className="sr-only">{item.title}</span>
+                                                    {item.icon && (
+                                                        <Icon iconNode={item.icon} className="size-5 opacity-80 group-hover:opacity-100" />
+                                                    )}
+                                                </Link>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{item.title}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     );
                                 })}
                             </div>

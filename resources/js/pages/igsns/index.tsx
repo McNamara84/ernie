@@ -25,7 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { SortableTableHeader, type SortDirection, type SortState } from '@/components/ui/sortable-table-header';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
@@ -560,78 +560,72 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="flex items-center gap-0.5">
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        onClick={() => handleExportJson(igsn)}
-                                                                        disabled={exportingIgsns.has(igsn.id)}
-                                                                        aria-label="Export as DataCite JSON"
-                                                                    >
-                                                                        <FileJson className="size-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>Export as DataCite JSON</TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        onClick={() => handleSetupLandingPage(igsn)}
-                                                                        aria-label="Setup Landing Page"
-                                                                    >
-                                                                        <Globe className="size-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>Setup Landing Page</TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() => handleExportJson(igsn)}
+                                                                    disabled={exportingIgsns.has(igsn.id)}
+                                                                    aria-label="Export as DataCite JSON"
+                                                                >
+                                                                    <FileJson className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>Export as DataCite JSON</TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() => handleSetupLandingPage(igsn)}
+                                                                    aria-label="Setup Landing Page"
+                                                                >
+                                                                    <Globe className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>Setup Landing Page</TooltipContent>
+                                                        </Tooltip>
                                                         {canRegister && (
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span tabIndex={0} className="inline-flex">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        onClick={() => handleRegister(igsn)}
-                                                                        disabled={
-                                                                            !igsn.has_landing_page ||
-                                                                            registeringIgsns.has(igsn.id)
-                                                                        }
-                                                                        aria-label={
-                                                                            igsn.upload_status === 'registered'
-                                                                                ? 'Update Metadata at DataCite'
-                                                                                : 'Register at DataCite'
-                                                                        }
-                                                                    >
-                                                                        {registeringIgsns.has(igsn.id) ? (
-                                                                            <Spinner size="sm" />
-                                                                        ) : igsn.upload_status === 'registered' ? (
-                                                                            <RefreshCw className="size-4" />
-                                                                        ) : (
-                                                                            <CloudUpload className="size-4" />
-                                                                        )}
-                                                                    </Button>
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    {!igsn.has_landing_page
-                                                                        ? 'Set up a landing page first'
-                                                                        : igsn.upload_status === 'registered'
-                                                                          ? 'Update Metadata at DataCite'
-                                                                          : 'Register at DataCite'}
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span tabIndex={0} className="inline-flex">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() => handleRegister(igsn)}
+                                                                    disabled={
+                                                                        !igsn.has_landing_page ||
+                                                                        registeringIgsns.has(igsn.id)
+                                                                    }
+                                                                    aria-label={
+                                                                        igsn.upload_status === 'registered'
+                                                                            ? 'Update Metadata at DataCite'
+                                                                            : 'Register at DataCite'
+                                                                    }
+                                                                >
+                                                                    {registeringIgsns.has(igsn.id) ? (
+                                                                        <Spinner size="sm" />
+                                                                    ) : igsn.upload_status === 'registered' ? (
+                                                                        <RefreshCw className="size-4" />
+                                                                    ) : (
+                                                                        <CloudUpload className="size-4" />
+                                                                    )}
+                                                                </Button>
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                {!igsn.has_landing_page
+                                                                    ? 'Set up a landing page first'
+                                                                    : igsn.upload_status === 'registered'
+                                                                      ? 'Update Metadata at DataCite'
+                                                                      : 'Register at DataCite'}
+                                                            </TooltipContent>
+                                                        </Tooltip>
                                                         )}
                                                         </div>
                                                     </TableCell>
@@ -654,20 +648,18 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         })()}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span>
-                                                                        <IgsnStatusBadge status={igsn.upload_status} />
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                {igsn.upload_error_message && (
-                                                                    <TooltipContent className="max-w-xs">
-                                                                        <p className="text-destructive">{igsn.upload_error_message}</p>
-                                                                    </TooltipContent>
-                                                                )}
-                                                            </Tooltip>
-                                                        </TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span>
+                                                                    <IgsnStatusBadge status={igsn.upload_status} />
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            {igsn.upload_error_message && (
+                                                                <TooltipContent className="max-w-xs">
+                                                                    <p className="text-destructive">{igsn.upload_error_message}</p>
+                                                                </TooltipContent>
+                                                            )}
+                                                        </Tooltip>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}

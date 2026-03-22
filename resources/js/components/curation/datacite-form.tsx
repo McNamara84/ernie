@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
 import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
@@ -2479,58 +2479,54 @@ export default function DataCiteForm({
                 }
             />
             <div className="flex justify-end gap-3">
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
-                                    Drafts are partial saves — legacy keyword replacement is only
-                                    required for full validation (Save & Validate). */}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    data-testid="save-draft-button"
-                                    disabled={!isDraftSaveable || isSavingDraft || isSaving}
-                                    aria-busy={isSavingDraft}
-                                    onClick={handleSaveDraft}
-                                >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    {isSavingDraft ? 'Saving…' : 'Save Draft'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {!isDraftSaveable && !isSavingDraft && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <p className="text-sm">Enter a Main Title to save as draft.</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                <Button
-                                    type="submit"
-                                    data-testid="save-resource-button"
-                                    disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                                    aria-busy={isSaving}
-                                    aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                                >
-                                    {isSaving ? 'Saving…' : 'Save & Validate'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {hasLegacyKeywords && !isSaving && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
-                                    <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                                </div>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                            {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                                Drafts are partial saves — legacy keyword replacement is only
+                                required for full validation (Save & Validate). */}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                data-testid="save-draft-button"
+                                disabled={!isDraftSaveable || isSavingDraft || isSaving}
+                                aria-busy={isSavingDraft}
+                                onClick={handleSaveDraft}
+                            >
+                                <Save className="mr-2 h-4 w-4" />
+                                {isSavingDraft ? 'Saving…' : 'Save Draft'}
+                            </Button>
+                        </span>
+                    </TooltipTrigger>
+                    {!isDraftSaveable && !isSavingDraft && (
+                        <TooltipContent side="top" align="end" className="max-w-sm">
+                            <p className="text-sm">Enter a Main Title to save as draft.</p>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                            <Button
+                                type="submit"
+                                data-testid="save-resource-button"
+                                disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                aria-busy={isSaving}
+                                aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                            >
+                                {isSaving ? 'Saving…' : 'Save & Validate'}
+                            </Button>
+                        </span>
+                    </TooltipTrigger>
+                    {hasLegacyKeywords && !isSaving && (
+                        <TooltipContent side="top" align="end" className="max-w-sm">
+                            <div className="space-y-2">
+                                <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
+                                <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
+                            </div>
+                        </TooltipContent>
+                    )}
+                </Tooltip>
             </div>
             <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
                 <DialogContent>
