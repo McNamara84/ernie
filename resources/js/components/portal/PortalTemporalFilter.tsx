@@ -60,11 +60,15 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
                 // Date type from URL is not in available ranges – clear the filter
                 onTemporalChange(null);
             }
-        } else if (currentRange) {
-            setYearFrom(currentRange.min);
-            setYearTo(currentRange.max);
+        } else {
+            // No active filter – ensure selectedType is still valid after availableTypes changed
+            setSelectedType((prev) => (availableTypes.includes(prev) ? prev : (availableTypes[0] ?? 'Created')));
+            if (currentRange) {
+                setYearFrom(currentRange.min);
+                setYearTo(currentRange.max);
+            }
         }
-    }, [temporal, currentRange]);
+    }, [temporal, currentRange, availableTypes, onTemporalChange]);
 
     // Cleanup debounce on unmount
     useEffect(() => {

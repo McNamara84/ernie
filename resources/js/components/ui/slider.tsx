@@ -3,6 +3,13 @@ import { Slider as SliderPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+function defaultThumbLabel(index: number, total: number): string {
+  if (total === 1) return 'Value';
+  if (index === 0) return 'Minimum value';
+  if (index === total - 1) return 'Maximum value';
+  return `Value ${index + 1}`;
+}
+
 function Slider({
   className,
   defaultValue,
@@ -20,8 +27,8 @@ function Slider({
         ? value
         : Array.isArray(defaultValue)
           ? defaultValue
-          : [min, max],
-    [value, defaultValue, min, max]
+          : [min],
+    [value, defaultValue, min]
   )
 
   return (
@@ -54,7 +61,7 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          aria-label={thumbLabels?.[index]}
+          aria-label={thumbLabels?.[index] ?? defaultThumbLabel(index, _values.length)}
           className="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
         />
       ))}
