@@ -560,73 +560,73 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="flex items-center gap-0.5">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                    onClick={() => handleExportJson(igsn)}
-                                                                    disabled={exportingIgsns.has(igsn.id)}
-                                                                    aria-label="Export as DataCite JSON"
-                                                                >
-                                                                    <FileJson className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Export as DataCite JSON</TooltipContent>
-                                                        </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                    onClick={() => handleSetupLandingPage(igsn)}
-                                                                    aria-label="Setup Landing Page"
-                                                                >
-                                                                    <Globe className="size-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Setup Landing Page</TooltipContent>
-                                                        </Tooltip>
-                                                        {canRegister && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span tabIndex={0} className="inline-flex">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="size-8"
-                                                                    onClick={() => handleRegister(igsn)}
-                                                                    disabled={
-                                                                        !igsn.has_landing_page ||
-                                                                        registeringIgsns.has(igsn.id)
-                                                                    }
-                                                                    aria-label={
-                                                                        igsn.upload_status === 'registered'
-                                                                            ? 'Update Metadata at DataCite'
-                                                                            : 'Register at DataCite'
-                                                                    }
-                                                                >
-                                                                    {registeringIgsns.has(igsn.id) ? (
-                                                                        <Spinner size="sm" />
-                                                                    ) : igsn.upload_status === 'registered' ? (
-                                                                        <RefreshCw className="size-4" />
-                                                                    ) : (
-                                                                        <CloudUpload className="size-4" />
-                                                                    )}
-                                                                </Button>
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                {!igsn.has_landing_page
-                                                                    ? 'Set up a landing page first'
-                                                                    : igsn.upload_status === 'registered'
-                                                                      ? 'Update Metadata at DataCite'
-                                                                      : 'Register at DataCite'}
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                        )}
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() => handleExportJson(igsn)}
+                                                                        disabled={exportingIgsns.has(igsn.id)}
+                                                                        aria-label="Export as DataCite JSON"
+                                                                    >
+                                                                        <FileJson className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Export as DataCite JSON</TooltipContent>
+                                                            </Tooltip>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() => handleSetupLandingPage(igsn)}
+                                                                        aria-label="Setup Landing Page"
+                                                                    >
+                                                                        <Globe className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Setup Landing Page</TooltipContent>
+                                                            </Tooltip>
+                                                            {canRegister && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span tabIndex={0} className="inline-flex">
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="size-8"
+                                                                                onClick={() => handleRegister(igsn)}
+                                                                                disabled={
+                                                                                    !igsn.has_landing_page ||
+                                                                                    registeringIgsns.has(igsn.id)
+                                                                                }
+                                                                                aria-label={
+                                                                                    igsn.upload_status === 'registered'
+                                                                                        ? 'Update Metadata at DataCite'
+                                                                                        : 'Register at DataCite'
+                                                                                }
+                                                                            >
+                                                                                {registeringIgsns.has(igsn.id) ? (
+                                                                                    <Spinner size="sm" />
+                                                                                ) : igsn.upload_status === 'registered' ? (
+                                                                                    <RefreshCw className="size-4" />
+                                                                                ) : (
+                                                                                    <CloudUpload className="size-4" />
+                                                                                )}
+                                                                            </Button>
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        {!igsn.has_landing_page
+                                                                            ? 'Set up a landing page first'
+                                                                            : igsn.upload_status === 'registered'
+                                                                              ? 'Update Metadata at DataCite'
+                                                                              : 'Register at DataCite'}
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            )}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="font-mono text-sm">

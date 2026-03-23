@@ -297,7 +297,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
                 {/* Resource Type Select */}
                 <Select value={resourceTypeValue} onValueChange={handleResourceTypeChange} disabled={isLoading || !filterOptions}>
-                        <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by resource type">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by resource type">
                         <SelectValue placeholder="Resource Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -312,7 +312,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
                 {/* Status Select */}
                 <Select value={statusValue} onValueChange={handleStatusChange} disabled={isLoading || !filterOptions}>
-                        <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by publication status">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by publication status">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -327,7 +327,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
                 {/* Curator Select */}
                 <Select value={curatorValue} onValueChange={handleCuratorChange} disabled={isLoading || !filterOptions}>
-                        <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by curator">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by curator">
                         <SelectValue placeholder="Curator" />
                     </SelectTrigger>
                     <SelectContent>
