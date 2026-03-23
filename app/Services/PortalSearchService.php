@@ -371,18 +371,20 @@ class PortalSearchService
      * Build a cross-database SQL expression that extracts the year from a date column.
      *
      * Handles variable-granularity date strings (YYYY, YYYY-MM, YYYY-MM-DD).
-     * SQLite uses CAST(SUBSTR(...) AS INTEGER), MySQL uses CAST(LEFT(...) AS UNSIGNED).
+     * SQLite uses SUBSTR, MySQL/MariaDB use LEFT with UNSIGNED, PostgreSQL uses
+     * LEFT with INTEGER.
      *
      * @param  literal-string  $column
      * @return literal-string
      */
     private function yearExpression(string $column): string
     {
-        if (DB::getDriverName() === 'sqlite') {
-            return "CAST(SUBSTR({$column}, 1, 4) AS INTEGER)";
-        }
-
-        return "CAST(LEFT({$column}, 4) AS UNSIGNED)";
+        return match (DB::getDriverName()) {
+            'sqlite' => "CAST(SUBSTR({$column}, 1, 4) AS INTEGER)",
+            'pgsql' => "CAST(LEFT({$column}, 4) AS INTEGER)",
+            'mysql', 'mariadb' => "CAST(LEFT({$column}, 4) AS UNSIGNED)",
+            default => throw new \RuntimeException('Unsupported database driver: ' . DB::getDriverName()),
+        };
     }
 
     /**

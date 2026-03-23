@@ -35,7 +35,11 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
         return preferredOrder.filter((key) => temporalRange[key] !== undefined);
     }, [temporalRange]);
 
-    const [selectedType, setSelectedType] = useState<TemporalDateType>(() => temporal?.dateType ?? availableTypes[0] ?? 'Created');
+    const [selectedType, setSelectedType] = useState<TemporalDateType>(() => {
+        const preferred = temporal?.dateType;
+        if (preferred && availableTypes.includes(preferred)) return preferred;
+        return availableTypes[0] ?? 'Created';
+    });
 
     const currentRange = useMemo(() => temporalRange[selectedType], [temporalRange, selectedType]);
 
@@ -45,11 +49,17 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Sync local state when temporal filter changes from URL
+    // Also normalize selectedType if the current selection is no longer available
     useEffect(() => {
         if (temporal) {
-            setSelectedType(temporal.dateType);
-            setYearFrom(temporal.yearFrom);
-            setYearTo(temporal.yearTo);
+            if (availableTypes.includes(temporal.dateType)) {
+                setSelectedType(temporal.dateType);
+                setYearFrom(temporal.yearFrom);
+                setYearTo(temporal.yearTo);
+            } else {
+                // Date type from URL is not in available ranges – clear the filter
+                onTemporalChange(null);
+            }
         } else if (currentRange) {
             setYearFrom(currentRange.min);
             setYearTo(currentRange.max);
@@ -100,7 +110,7 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
             if (range) {
                 setYearFrom(range.min);
                 setYearTo(range.max);
-                // Reset to full range on tab change – clear filter
+                // Apply filter for the new date type using its full range
                 onTemporalChange({ dateType, yearFrom: range.min, yearTo: range.max });
             }
         },
