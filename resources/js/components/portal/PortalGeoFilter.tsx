@@ -76,17 +76,13 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: P
 
     const handleClear = useCallback(() => {
         onToggle(false);
-        onBoundsChange(null);
-    }, [onToggle, onBoundsChange]);
+    }, [onToggle]);
 
     const handleToggle = useCallback(
         (checked: boolean) => {
             onToggle(checked);
-            if (!checked) {
-                onBoundsChange(null);
-            }
         },
-        [onToggle, onBoundsChange],
+        [onToggle],
     );
 
     return (

@@ -148,13 +148,34 @@ function MapBoundsUpdater({ bounds }: { bounds: GeoBounds | null }) {
         if (prevBoundsRef.current === boundsKey) return;
         prevBoundsRef.current = boundsKey;
 
-        map.fitBounds(
-            [
-                [bounds.south, bounds.west],
-                [bounds.north, bounds.east],
-            ],
-            { padding: [20, 20], animate: true },
-        );
+        // Handle anti-meridian crossing (west > east means the box wraps around 180°)
+        if (bounds.west > bounds.east) {
+            // Calculate center and zoom manually for wrapped bounds
+            const centerLat = (bounds.north + bounds.south) / 2;
+            // Shift longitudes to 0..360 system to find the true center
+            const westNorm = bounds.west < 0 ? bounds.west + 360 : bounds.west;
+            const eastNorm = bounds.east < 0 ? bounds.east + 360 : bounds.east;
+            let centerLng = (westNorm + eastNorm) / 2;
+            // Normalize back to -180..180
+            if (centerLng > 180) centerLng -= 360;
+
+            // Estimate appropriate zoom from longitude span
+            const lngSpan = (eastNorm - westNorm + 360) % 360 || 360;
+            const latSpan = bounds.north - bounds.south;
+            const maxSpan = Math.max(lngSpan, latSpan);
+            // Rough zoom estimate: 360° ≈ zoom 1, halving span ≈ +1 zoom
+            const zoom = Math.max(1, Math.min(18, Math.round(Math.log2(360 / maxSpan)) + 1));
+
+            map.setView([centerLat, centerLng], zoom, { animate: true });
+        } else {
+            map.fitBounds(
+                [
+                    [bounds.south, bounds.west],
+                    [bounds.north, bounds.east],
+                ],
+                { padding: [20, 20], animate: true },
+            );
+        }
     }, [map, bounds]);
 
     return null;

@@ -467,6 +467,31 @@ describe('PortalMap', () => {
             );
         });
 
+        it('uses setView instead of fitBounds when flyToBounds crosses anti-meridian', () => {
+            mockMapInstance.setView.mockClear();
+            mockMapInstance.fitBounds.mockClear();
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 170 }, bounds: null, polygon: null },
+                ]),
+            ];
+            // west=170 > east=-170 means anti-meridian crossing
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    flyToBounds={{ north: 60, south: 40, east: -170, west: 170 }}
+                />,
+            );
+
+            // Should use setView with center/zoom instead of fitBounds
+            expect(mockMapInstance.setView).toHaveBeenCalledWith(
+                [50, 180],
+                expect.any(Number),
+                { animate: true },
+            );
+        });
+
         it('renders with null flyToBounds prop without calling fitBounds for bounds', () => {
             mockMapInstance.fitBounds.mockClear();
             const resources = [

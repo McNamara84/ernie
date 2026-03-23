@@ -103,7 +103,7 @@ describe('PortalGeoFilter', () => {
             expect(onToggle).toHaveBeenCalledWith(true);
         });
 
-        it('calls onToggle and onBoundsChange(null) when toggled off', async () => {
+        it('calls only onToggle(false) when toggled off (parent clears bounds)', async () => {
             const onToggle = vi.fn();
             const onBoundsChange = vi.fn();
             const user = userEvent.setup();
@@ -119,7 +119,7 @@ describe('PortalGeoFilter', () => {
             await user.click(screen.getByRole('switch'));
 
             expect(onToggle).toHaveBeenCalledWith(false);
-            expect(onBoundsChange).toHaveBeenCalledWith(null);
+            expect(onBoundsChange).not.toHaveBeenCalled();
         });
     });
 
@@ -244,7 +244,7 @@ describe('PortalGeoFilter', () => {
     });
 
     describe('Clear Button', () => {
-        it('calls onToggle(false) and onBoundsChange(null) when Clear is clicked', async () => {
+        it('calls only onToggle(false) when Clear is clicked (parent clears bounds)', async () => {
             const onToggle = vi.fn();
             const onBoundsChange = vi.fn();
             const user = userEvent.setup();
@@ -261,7 +261,7 @@ describe('PortalGeoFilter', () => {
             await user.click(screen.getByRole('button', { name: /clear/i }));
 
             expect(onToggle).toHaveBeenCalledWith(false);
-            expect(onBoundsChange).toHaveBeenCalledWith(null);
+            expect(onBoundsChange).not.toHaveBeenCalled();
         });
     });
 
