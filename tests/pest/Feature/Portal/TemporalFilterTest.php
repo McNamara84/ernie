@@ -363,12 +363,13 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             dateValue: '2023',
         );
 
+        // year_from/year_to are clamped to the computed range (2023–2023)
         $this->get('/portal?date_type=Created&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal.dateType', 'Created')
-                ->where('filters.temporal.yearFrom', 2020)
-                ->where('filters.temporal.yearTo', 2025)
+                ->where('filters.temporal.yearFrom', 2023)
+                ->where('filters.temporal.yearTo', 2023)
                 ->where('pagination.total', 1)
             );
     });
@@ -450,6 +451,43 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         );
 
         $this->get('/portal?date_type=Coverage&year_from=2020&year_to=2025')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.temporal', null)
+            );
+    });
+
+    it('clamps year_from and year_to to the computed temporal range', function () {
+        createPublishedResourceWithDate(
+            $this->datasetType, 'Dataset A', $this->createdType,
+            dateValue: '2015',
+        );
+        createPublishedResourceWithDate(
+            $this->datasetType, 'Dataset B', $this->createdType,
+            dateValue: '2020',
+        );
+
+        // Range is 2015–2020. year_from=2010 should clamp to 2015, year_to=2025 should clamp to 2020.
+        $this->get('/portal?date_type=Created&year_from=2010&year_to=2025')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.temporal.dateType', 'Created')
+                ->where('filters.temporal.yearFrom', 2015)
+                ->where('filters.temporal.yearTo', 2020)
+            );
+    });
+
+    it('discards temporal filter when clamping inverts the range', function () {
+        createPublishedResourceWithDate(
+            $this->datasetType, 'Dataset', $this->createdType,
+            dateValue: '2020',
+        );
+
+        // Range is 2020–2020. year_from=2021 clamps to max(2021,2020)=2021 > year_to=2020 → null
+        // Actually year_from=2021 > year_to, so basic validation already rejects.
+        // Use a case where both are valid individually but clamping inverts:
+        // Range 2020–2020, year_from=1900 year_to=2019 → clamped to 2020..2019 → inverted → null
+        $this->get('/portal?date_type=Created&year_from=1900&year_to=2019')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)

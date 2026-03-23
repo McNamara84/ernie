@@ -61,14 +61,19 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
                 onTemporalChange(null);
             }
         } else {
-            // No active filter – ensure selectedType is still valid after availableTypes changed
-            setSelectedType((prev) => (availableTypes.includes(prev) ? prev : (availableTypes[0] ?? 'Created')));
-            if (currentRange) {
-                setYearFrom(currentRange.min);
-                setYearTo(currentRange.max);
-            }
+            // No active filter – compute next valid type and its range directly
+            // to avoid reading stale currentRange (which depends on the previous selectedType)
+            setSelectedType((prev) => {
+                const nextType = availableTypes.includes(prev) ? prev : (availableTypes[0] ?? 'Created');
+                const nextRange = temporalRange[nextType];
+                if (nextRange) {
+                    setYearFrom(nextRange.min);
+                    setYearTo(nextRange.max);
+                }
+                return nextType;
+            });
         }
-    }, [temporal, currentRange, availableTypes, onTemporalChange]);
+    }, [temporal, temporalRange, availableTypes, onTemporalChange]);
 
     // Cleanup debounce on unmount
     useEffect(() => {

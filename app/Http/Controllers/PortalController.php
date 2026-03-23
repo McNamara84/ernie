@@ -181,6 +181,18 @@ class PortalController extends Controller
             return null;
         }
 
+        // Clamp to the computed temporal range for this date type
+        // so crafted URLs cannot push the slider into an invalid state
+        $rangeMin = $temporalRange[$dateType]['min'];
+        $rangeMax = $temporalRange[$dateType]['max'];
+        $yearFrom = max($yearFrom, $rangeMin);
+        $yearTo = min($yearTo, $rangeMax);
+
+        // After clamping, the range may have inverted – discard if so
+        if ($yearFrom > $yearTo) {
+            return null;
+        }
+
         return [
             'dateType' => $dateType,
             'yearFrom' => $yearFrom,
