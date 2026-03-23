@@ -24,6 +24,7 @@ const setTypeMock = vi.fn();
 const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
 const clearBoundsMock = vi.fn();
+const setTemporalMock = vi.fn();
 
 vi.mock('@/hooks/use-portal-filters', () => ({
     usePortalFilters: () => ({
@@ -34,6 +35,7 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         removeKeyword: vi.fn(),
         setBounds: setBoundsMock,
         clearBounds: clearBoundsMock,
+        setTemporal: setTemporalMock,
         clearFilters: clearFiltersMock,
         hasActiveFilters: false,
     }),
@@ -49,6 +51,9 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         geoFilterEnabled,
         onGeoFilterToggle,
         onBoundsChange,
+        temporalFilterEnabled,
+        onTemporalFilterToggle,
+        onTemporalChange,
     }: {
         filters: PortalPageProps['filters'];
         totalResults: number;
@@ -57,6 +62,9 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         geoFilterEnabled?: boolean;
         onGeoFilterToggle?: (enabled: boolean) => void;
         onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number } | null) => void;
+        temporalFilterEnabled?: boolean;
+        onTemporalFilterToggle?: (enabled: boolean) => void;
+        onTemporalChange?: (temporal: { dateType: string; yearFrom: number; yearTo: number } | null) => void;
     }) => (
         <div data-testid="portal-filters">
             <span data-testid="total-results">{totalResults}</span>
@@ -83,6 +91,28 @@ vi.mock('@/components/portal/PortalFilters', () => ({
                         onClick={() => onBoundsChange(null)}
                     >
                         Clear Bounds
+                    </button>
+                </>
+            )}
+            <span data-testid="temporal-filter-enabled">{String(temporalFilterEnabled ?? false)}</span>
+            {onTemporalFilterToggle && (
+                <button data-testid="temporal-toggle" onClick={() => onTemporalFilterToggle(!temporalFilterEnabled)}>
+                    Toggle Temporal
+                </button>
+            )}
+            {onTemporalChange && (
+                <>
+                    <button
+                        data-testid="apply-temporal"
+                        onClick={() => onTemporalChange({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 })}
+                    >
+                        Apply Temporal
+                    </button>
+                    <button
+                        data-testid="clear-temporal"
+                        onClick={() => onTemporalChange(null)}
+                    >
+                        Clear Temporal
                     </button>
                 </>
             )}
@@ -556,6 +586,107 @@ describe('Portal', () => {
 
             const calledUrl = routerMock.get.mock.calls[0][0] as string;
             expect(calledUrl).toContain('keywords');
+        });
+    });
+
+    describe('Temporal Filter Integration', () => {
+        it('passes temporalFilterEnabled to PortalFilters', () => {
+            render(<Portal {...defaultProps} />);
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
+        });
+
+        it('initializes temporalFilterEnabled from URL temporal', () => {
+            const propsWithTemporal = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    temporal: { dateType: 'Created' as const, yearFrom: 2010, yearTo: 2020 },
+                },
+            };
+            render(<Portal {...propsWithTemporal} />);
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
+        });
+
+        it('handles temporal filter toggle enable', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
+            await user.click(screen.getByTestId('temporal-toggle'));
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
+        });
+
+        it('handles temporal filter toggle disable and clears temporal', async () => {
+            const user = userEvent.setup();
+            const propsWithTemporal = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    temporal: { dateType: 'Created' as const, yearFrom: 2010, yearTo: 2020 },
+                },
+            };
+            render(<Portal {...propsWithTemporal} />);
+
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
+            await user.click(screen.getByTestId('temporal-toggle'));
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
+            expect(setTemporalMock).toHaveBeenCalledWith(null);
+        });
+
+        it('calls setTemporal when apply temporal is clicked', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            await user.click(screen.getByTestId('apply-temporal'));
+            expect(setTemporalMock).toHaveBeenCalledWith({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 });
+        });
+
+        it('calls setTemporal(null) when clear temporal is clicked', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            await user.click(screen.getByTestId('clear-temporal'));
+            expect(setTemporalMock).toHaveBeenCalledWith(null);
+        });
+
+        it('resets temporalFilterEnabled on handleClearAllFilters', async () => {
+            const user = userEvent.setup();
+            const propsWithTemporal = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    temporal: { dateType: 'Created' as const, yearFrom: 2010, yearTo: 2020 },
+                },
+            };
+            render(<Portal {...propsWithTemporal} />);
+
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
+            await user.click(screen.getByTestId('clear-filters'));
+            expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
+            expect(clearFiltersMock).toHaveBeenCalled();
+        });
+
+        it('preserves temporal params on page change', async () => {
+            const user = userEvent.setup();
+            const propsWithTemporal = {
+                ...defaultProps,
+                filters: {
+                    query: '',
+                    type: 'all' as const,
+                    keywords: [],
+                    bounds: null,
+                    temporal: { dateType: 'Created' as const, yearFrom: 2010, yearTo: 2020 },
+                },
+            };
+            render(<Portal {...propsWithTemporal} />);
+
+            const nextButtons = screen.getAllByTestId('next-page');
+            await user.click(nextButtons[0]);
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('date_type=Created');
+            expect(calledUrl).toContain('year_from=2010');
+            expect(calledUrl).toContain('year_to=2020');
         });
     });
 });

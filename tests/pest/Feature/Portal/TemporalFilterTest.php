@@ -314,6 +314,21 @@ describe('Temporal Range Data', function () {
         expect($ranges)->toBeEmpty();
     });
 
+    it('returns empty range when all date types are inactive', function () {
+        $this->createdType->update(['is_active' => false]);
+        $this->collectedType->update(['is_active' => false]);
+        $this->coverageType->update(['is_active' => false]);
+
+        createPublishedResourceWithDate(
+            $this->datasetType, 'Some Dataset', $this->createdType,
+            dateValue: '2020',
+        );
+
+        $ranges = $this->searchService->getTemporalRange();
+
+        expect($ranges)->toBeEmpty();
+    });
+
     it('considers date ranges for min/max calculation', function () {
         createPublishedResourceWithDate(
             $this->datasetType, 'Range Resource', $this->collectedType,
@@ -385,6 +400,31 @@ describe('Temporal Filter - Controller URL Parsing', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('temporalRange')
+            );
+    });
+
+    it('ignores temporal filter when year_from is not numeric', function () {
+        $this->get('/portal?date_type=Created&year_from=abc&year_to=2025')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.temporal', null)
+            );
+    });
+
+    it('ignores temporal filter when year_from is out of range (too low)', function () {
+        $this->get('/portal?date_type=Created&year_from=1800&year_to=2025')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.temporal', null)
+            );
+    });
+
+    it('ignores temporal filter when year_to is out of range (too high)', function () {
+        $futureYear = (int) date('Y') + 5;
+        $this->get("/portal?date_type=Created&year_from=2000&year_to={$futureYear}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.temporal', null)
             );
     });
 });

@@ -532,4 +532,116 @@ describe('usePortalFilters', () => {
             expect(result.current.hasActiveFilters).toBe(false);
         });
     });
+
+    describe('setTemporal', () => {
+        it('navigates with temporal URL params', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
+            );
+
+            act(() => {
+                result.current.setTemporal({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 });
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('date_type=Created');
+            expect(calledUrl).toContain('year_from=2010');
+            expect(calledUrl).toContain('year_to=2020');
+        });
+
+        it('navigates without temporal params when null is passed', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        query: null,
+                        type: 'all',
+                        keywords: [],
+                        bounds: null,
+                        temporal: { dateType: 'Created', yearFrom: 2010, yearTo: 2020 },
+                    },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setTemporal(null);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('date_type');
+            expect(calledUrl).not.toContain('year_from');
+            expect(calledUrl).not.toContain('year_to');
+        });
+
+        it('preserves existing query and bounds when setting temporal', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        query: 'test',
+                        type: 'doi',
+                        keywords: [],
+                        bounds: { north: 53, south: 51, east: 14, west: 12 },
+                        temporal: null,
+                    },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setTemporal({ dateType: 'Collected', yearFrom: 2000, yearTo: 2024 });
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('q=test');
+            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('north=53.000000');
+            expect(calledUrl).toContain('date_type=Collected');
+            expect(calledUrl).toContain('year_from=2000');
+            expect(calledUrl).toContain('year_to=2024');
+        });
+
+        it('resets page to 1 when setting temporal', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
+            );
+
+            act(() => {
+                result.current.setTemporal({ dateType: 'Created', yearFrom: 2010, yearTo: 2020 });
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('page=');
+        });
+    });
+
+    describe('hasActiveFilters with temporal', () => {
+        it('reports active filters when temporal is set', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        query: null,
+                        type: 'all',
+                        keywords: [],
+                        bounds: null,
+                        temporal: { dateType: 'Created', yearFrom: 2010, yearTo: 2020 },
+                    },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+
+        it('does not report active filters when temporal is null', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: [],
+                        bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(false);
+        });
+    });
 });

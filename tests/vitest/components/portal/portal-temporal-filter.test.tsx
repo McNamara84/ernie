@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';
@@ -250,6 +250,268 @@ describe('PortalTemporalFilter', () => {
             );
 
             expect(screen.getByText(/when the data was collected/i)).toBeInTheDocument();
+        });
+    });
+
+    describe('Year Input Handlers', () => {
+        it('emits debounced change when yearFrom input is changed', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            const minInput = screen.getByLabelText(/minimum year/i);
+            fireEvent.change(minInput, { target: { value: '2010' } });
+
+            // Should not have been called yet (debounced)
+            expect(onTemporalChange).not.toHaveBeenCalled();
+
+            // Advance past 300ms debounce
+            act(() => {
+                vi.advanceTimersByTime(350);
+            });
+
+            expect(onTemporalChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dateType: 'Created',
+                    yearFrom: 2010,
+                }),
+            );
+
+            vi.useRealTimers();
+        });
+
+        it('emits debounced change when yearTo input is changed', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            const maxInput = screen.getByLabelText(/maximum year/i);
+            fireEvent.change(maxInput, { target: { value: '2020' } });
+
+            act(() => {
+                vi.advanceTimersByTime(350);
+            });
+
+            expect(onTemporalChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dateType: 'Created',
+                    yearTo: 2020,
+                }),
+            );
+
+            vi.useRealTimers();
+        });
+
+        it('clamps yearFrom to not exceed yearTo', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            const minInput = screen.getByLabelText(/minimum year/i);
+            // yearTo is 2024, so 2025 should clamp to 2024
+            fireEvent.change(minInput, { target: { value: '2025' } });
+
+            act(() => {
+                vi.advanceTimersByTime(350);
+            });
+
+            expect(onTemporalChange).toHaveBeenCalledWith(
+                expect.objectContaining({ yearFrom: 2024 }),
+            );
+
+            vi.useRealTimers();
+        });
+
+        it('clamps yearTo to not be below yearFrom', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            const temporal: TemporalFilterValue = {
+                dateType: 'Created',
+                yearFrom: 2010,
+                yearTo: 2024,
+            };
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    temporal={temporal}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            const maxInput = screen.getByLabelText(/maximum year/i);
+            // yearFrom is 2010, so 2005 should clamp to 2010
+            fireEvent.change(maxInput, { target: { value: '2005' } });
+
+            act(() => {
+                vi.advanceTimersByTime(350);
+            });
+
+            expect(onTemporalChange).toHaveBeenCalledWith(
+                expect.objectContaining({ yearTo: 2010 }),
+            );
+
+            vi.useRealTimers();
+        });
+
+        it('ignores NaN input for yearFrom', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            const minInput = screen.getByLabelText(/minimum year/i);
+            fireEvent.change(minInput, { target: { value: 'abc' } });
+
+            act(() => {
+                vi.advanceTimersByTime(350);
+            });
+
+            // Should not have been called because NaN input is ignored
+            expect(onTemporalChange).not.toHaveBeenCalled();
+
+            vi.useRealTimers();
+        });
+
+        it('ignores NaN input for yearTo', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            const maxInput = screen.getByLabelText(/maximum year/i);
+            fireEvent.change(maxInput, { target: { value: '' } });
+
+            act(() => {
+                vi.advanceTimersByTime(350);
+            });
+
+            expect(onTemporalChange).not.toHaveBeenCalled();
+
+            vi.useRealTimers();
+        });
+    });
+
+    describe('Toggle Clears Debounce', () => {
+        it('cancels pending debounce and emits null when toggled off', () => {
+            vi.useFakeTimers();
+            const onTemporalChange = vi.fn();
+            const onToggle = vi.fn();
+            render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    onToggle={onToggle}
+                    onTemporalChange={onTemporalChange}
+                />,
+            );
+
+            // Type in yearFrom to trigger debounce via fireEvent
+            const minInput = screen.getByLabelText(/minimum year/i);
+            fireEvent.change(minInput, { target: { value: '2010' } });
+
+            // Toggle off before debounce fires
+            fireEvent.click(screen.getByRole('switch'));
+
+            // The debounced change should NOT fire, only null from toggle
+            act(() => {
+                vi.advanceTimersByTime(500);
+            });
+
+            expect(onToggle).toHaveBeenCalledWith(false);
+            // onTemporalChange should have been called with null (from toggle off), not with the debounced value
+            expect(onTemporalChange).toHaveBeenCalledWith(null);
+
+            vi.useRealTimers();
+        });
+    });
+
+    describe('Sync Effect', () => {
+        it('syncs local state when temporal prop changes', () => {
+            const { rerender } = render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                />,
+            );
+
+            // Initially shows Created range defaults
+            expect((screen.getByLabelText(/minimum year/i) as HTMLInputElement).value).toBe('2000');
+
+            // Rerender with a temporal prop
+            const temporal: TemporalFilterValue = {
+                dateType: 'Created',
+                yearFrom: 2005,
+                yearTo: 2018,
+            };
+            rerender(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    temporal={temporal}
+                />,
+            );
+
+            expect((screen.getByLabelText(/minimum year/i) as HTMLInputElement).value).toBe('2005');
+            expect((screen.getByLabelText(/maximum year/i) as HTMLInputElement).value).toBe('2018');
+        });
+
+        it('resets to range defaults when temporal is cleared', () => {
+            const temporal: TemporalFilterValue = {
+                dateType: 'Created',
+                yearFrom: 2005,
+                yearTo: 2018,
+            };
+            const { rerender } = render(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    temporal={temporal}
+                />,
+            );
+
+            expect((screen.getByLabelText(/minimum year/i) as HTMLInputElement).value).toBe('2005');
+
+            // Clear temporal
+            rerender(
+                <PortalTemporalFilter
+                    {...defaultProps}
+                    enabled={true}
+                    temporal={null}
+                />,
+            );
+
+            // Should reset to Created range min/max
+            expect((screen.getByLabelText(/minimum year/i) as HTMLInputElement).value).toBe('2000');
+            expect((screen.getByLabelText(/maximum year/i) as HTMLInputElement).value).toBe('2024');
         });
     });
 });
