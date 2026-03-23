@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
 import { PortalKeywordFilter } from '@/components/portal/PortalKeywordFilter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { KeywordSuggestion, PortalFilters, PortalTypeFilter } from '@/types/portal';
+import type { GeoBounds, KeywordSuggestion, PortalFilters, PortalTypeFilter } from '@/types/portal';
 
 interface PortalFiltersProps {
     filters: PortalFilters;
@@ -21,6 +22,9 @@ interface PortalFiltersProps {
     onToggleCollapse: () => void;
     totalResults: number;
     keywordSuggestions: KeywordSuggestion[];
+    geoFilterEnabled: boolean;
+    onGeoFilterToggle: (enabled: boolean) => void;
+    onBoundsChange: (bounds: GeoBounds | null) => void;
 }
 
 export function PortalFilters({
@@ -34,6 +38,9 @@ export function PortalFilters({
     onToggleCollapse,
     totalResults,
     keywordSuggestions,
+    geoFilterEnabled,
+    onGeoFilterToggle,
+    onBoundsChange,
 }: PortalFiltersProps) {
     const [searchInput, setSearchInput] = useState(filters.query ?? '');
 
@@ -142,6 +149,14 @@ export function PortalFilters({
                         suggestions={keywordSuggestions}
                         selectedKeywords={filters.keywords ?? []}
                         onKeywordsChange={onKeywordsChange}
+                    />
+
+                    {/* Geographic Filter */}
+                    <PortalGeoFilter
+                        enabled={geoFilterEnabled}
+                        onToggle={onGeoFilterToggle}
+                        bounds={filters.bounds}
+                        onBoundsChange={onBoundsChange}
                     />
 
                     {/* Type Filter */}

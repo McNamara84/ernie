@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-20",
+        "date": "2026-03-23",
         "features": [
+            {
+                "title": "Spatial Filter for Data Portal",
+                "description": "Added geographic/spatial filtering to the public Data Portal. When the 'Filter by Map Area' toggle is activated, zooming and panning the map automatically filters the result list to show only datasets whose geographic locations intersect with the visible map area. Manual coordinate input fields (North, South, East, West) in the filter panel allow precise bounding box entry and are bidirectionally synchronized with the map viewport. The spatial filter supports point-in-bbox and rectangle intersection matching, handles anti-meridian crossings, and is URL-persistent for sharing filtered views via bookmarks."
+            },
             {
                 "title": "Changelog Navigation",
                 "description": "Added a dedicated navigation header to the Changelog page with a context-aware back button ('Back to Dashboard' for authenticated users, 'Back to Portal' for guests) and navigation links to Portal and Changelog. Removed the Dashboard link from the Portal page header for a cleaner public experience."

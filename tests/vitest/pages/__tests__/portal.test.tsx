@@ -112,6 +112,7 @@ const defaultProps: PortalPageProps = {
         query: '',
         type: 'all',
         keywords: [],
+        bounds: null,
     },
     keywordSuggestions: [],
 };
@@ -160,7 +161,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithQuery = {
             ...defaultProps,
-            filters: { query: 'climate', type: 'all' as const, keywords: [] },
+            filters: { query: 'climate', type: 'all' as const, keywords: [], bounds: null },
         };
         render(<Portal {...propsWithQuery} />);
 
@@ -174,7 +175,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithType = {
             ...defaultProps,
-            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'], keywords: [] },
+            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'], keywords: [], bounds: null },
         };
         render(<Portal {...propsWithType} />);
 

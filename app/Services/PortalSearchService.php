@@ -32,6 +32,7 @@ class PortalSearchService
      *     query?: string|null,
      *     type?: string|null,
      *     keywords?: string[]|null,
+     *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     page?: int,
      *     per_page?: int,
      * }  $filters
@@ -55,17 +56,20 @@ class PortalSearchService
      *
      * Returns a simplified dataset optimized for map rendering,
      * including only resources that have at least one geo location.
+     * Bounds filter is intentionally NOT applied so all markers remain
+     * visible on the map for spatial context.
      *
      * @param  array{
      *     query?: string|null,
      *     type?: string|null,
      *     keywords?: string[]|null,
+     *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      * }  $filters
      * @return \Illuminate\Database\Eloquent\Collection<int, Resource>
      */
     public function getMapData(array $filters = []): \Illuminate\Database\Eloquent\Collection
     {
-        return $this->buildQuery($filters)
+        return $this->buildQuery($filters, applyBounds: false)
             ->whereHas('geoLocations')
             ->with(['geoLocations', 'titles.titleType', 'creators.creatorable', 'resourceType'])
             ->get();
@@ -78,10 +82,11 @@ class PortalSearchService
      *     query?: string|null,
      *     type?: string|null,
      *     keywords?: string[]|null,
+     *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      * }  $filters
      * @return Builder<Resource>
      */
-    private function buildQuery(array $filters): Builder
+    private function buildQuery(array $filters, bool $applyBounds = true): Builder
     {
         $query = Resource::query()
             ->with([
@@ -111,6 +116,11 @@ class PortalSearchService
 
         // Apply keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
+
+        // Apply spatial bounds filter (skipped for map data to keep all markers visible)
+        if ($applyBounds) {
+            $this->applyBoundsFilter($query, $filters['bounds'] ?? null);
+        }
 
         return $query;
     }
@@ -214,6 +224,63 @@ class PortalSearchService
                 $q->where('value', $keyword);
             });
         }
+    }
+
+    /**
+     * Apply spatial bounding box filter with intersects logic.
+     *
+     * A resource matches if ANY of its geo locations intersects the
+     * search bounding box. Handles points (within bbox), bounding boxes
+     * (rectangle overlap), and anti-meridian crossing.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  array{north: float, south: float, east: float, west: float}|null  $bounds
+     */
+    private function applyBoundsFilter(Builder $query, ?array $bounds): void
+    {
+        if ($bounds === null) {
+            return;
+        }
+
+        $query->whereHas('geoLocations', function (Builder $q) use ($bounds): void {
+            $q->where(function (Builder $inner) use ($bounds): void {
+                $crossesAntiMeridian = $bounds['west'] > $bounds['east'];
+
+                // Point within bounding box
+                $inner->where(function (Builder $point) use ($bounds, $crossesAntiMeridian): void {
+                    $point->whereNotNull('point_latitude')
+                        ->whereNotNull('point_longitude')
+                        ->where('point_latitude', '>=', $bounds['south'])
+                        ->where('point_latitude', '<=', $bounds['north']);
+
+                    if ($crossesAntiMeridian) {
+                        $point->where(function (Builder $lng) use ($bounds): void {
+                            $lng->where('point_longitude', '>=', $bounds['west'])
+                                ->orWhere('point_longitude', '<=', $bounds['east']);
+                        });
+                    } else {
+                        $point->where('point_longitude', '>=', $bounds['west'])
+                            ->where('point_longitude', '<=', $bounds['east']);
+                    }
+                })
+                // Bounding box overlaps (rectangle intersection)
+                ->orWhere(function (Builder $box) use ($bounds, $crossesAntiMeridian): void {
+                    $box->whereNotNull('west_bound_longitude')
+                        ->where('north_bound_latitude', '>=', $bounds['south'])
+                        ->where('south_bound_latitude', '<=', $bounds['north']);
+
+                    if ($crossesAntiMeridian) {
+                        $box->where(function (Builder $lng) use ($bounds): void {
+                            $lng->where('east_bound_longitude', '>=', $bounds['west'])
+                                ->orWhere('west_bound_longitude', '<=', $bounds['east']);
+                        });
+                    } else {
+                        $box->where('east_bound_longitude', '>=', $bounds['west'])
+                            ->where('west_bound_longitude', '<=', $bounds['east']);
+                    }
+                });
+            });
+        });
     }
 
     /**

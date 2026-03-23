@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type { PortalCreator, PortalResource } from '@/types/portal';
+import type { GeoBounds, PortalCreator, PortalResource } from '@/types/portal';
 
 // Fix Leaflet default marker icons
 const iconPrototype: unknown = L.Icon.Default.prototype;
@@ -31,6 +31,12 @@ interface PortalMapProps {
     className?: string;
     /** Hide the header (used when header is rendered externally) */
     hideHeader?: boolean;
+    /** Whether the geo filter is currently active */
+    geoFilterEnabled?: boolean;
+    /** Callback when the map viewport changes (debounced externally) */
+    onViewportChange?: (bounds: GeoBounds) => void;
+    /** Bounds to fly to when set from coordinate input */
+    flyToBounds?: GeoBounds | null;
 }
 
 /**
@@ -101,6 +107,60 @@ function FitBoundsControl({ resources }: { resources: PortalResource[] }) {
 }
 
 /**
+ * Track map viewport changes and report bounds.
+ */
+function ViewportTracker({ onViewportChange }: { onViewportChange: (bounds: GeoBounds) => void }) {
+    const map = useMap();
+
+    useEffect(() => {
+        const handler = () => {
+            const b = map.getBounds();
+            onViewportChange({
+                north: b.getNorth(),
+                south: b.getSouth(),
+                east: b.getEast(),
+                west: b.getWest(),
+            });
+        };
+
+        map.on('moveend', handler);
+        return () => {
+            map.off('moveend', handler);
+        };
+    }, [map, onViewportChange]);
+
+    return null;
+}
+
+/**
+ * Fly the map to specific bounds (triggered by manual coordinate input).
+ */
+function MapBoundsUpdater({ bounds }: { bounds: GeoBounds | null }) {
+    const map = useMap();
+    const prevBoundsRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!bounds) return;
+
+        const boundsKey = `${bounds.north},${bounds.south},${bounds.east},${bounds.west}`;
+
+        // Only fly if bounds actually changed (avoid loops when viewport reports same bounds)
+        if (prevBoundsRef.current === boundsKey) return;
+        prevBoundsRef.current = boundsKey;
+
+        map.fitBounds(
+            [
+                [bounds.south, bounds.west],
+                [bounds.north, bounds.east],
+            ],
+            { padding: [20, 20], animate: true },
+        );
+    }, [map, bounds]);
+
+    return null;
+}
+
+/**
  * Popup content for a resource marker.
  */
 function ResourcePopupContent({ resource }: { resource: PortalResource }) {
@@ -136,7 +196,7 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
 /**
  * Interactive map displaying resources with geo locations.
  */
-export function PortalMap({ resources, className, hideHeader = false }: PortalMapProps) {
+export function PortalMap({ resources, className, hideHeader = false, geoFilterEnabled = false, onViewportChange, flyToBounds }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const mapRef = useRef<L.Map | null>(null);
 
@@ -181,6 +241,14 @@ export function PortalMap({ resources, className, hideHeader = false }: PortalMa
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitBoundsControl resources={resourcesWithGeo} />
+
+            {geoFilterEnabled && onViewportChange && (
+                <ViewportTracker onViewportChange={onViewportChange} />
+            )}
+
+            {flyToBounds && (
+                <MapBoundsUpdater bounds={flyToBounds} />
+            )}
 
             {resourcesWithGeo.map((resource) =>
                 resource.geoLocations.map((geo) => {

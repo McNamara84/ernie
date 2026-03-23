@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom/vitest';
+﻿import '@testing-library/jest-dom/vitest';
 
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,6 +20,7 @@ describe('usePortalFilters', () => {
         query: null,
         type: 'all',
         keywords: [],
+        bounds: null,
     };
 
     beforeEach(() => {
@@ -44,7 +45,8 @@ describe('usePortalFilters', () => {
         it('reports active filters when query is set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'all', keywords: [] },
+                    filters: { query: 'test', type: 'all', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -54,7 +56,8 @@ describe('usePortalFilters', () => {
         it('reports active filters when type is not "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi', keywords: [] },
+                    filters: { query: null, type: 'doi', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -64,7 +67,8 @@ describe('usePortalFilters', () => {
         it('does not report active filters for empty/whitespace query', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: '   ', type: 'all', keywords: [] },
+                    filters: { query: '   ', type: 'all', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -156,7 +160,8 @@ describe('usePortalFilters', () => {
         it('navigates without type param when set to "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi', keywords: [] },
+                    filters: { query: null, type: 'doi', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -175,7 +180,8 @@ describe('usePortalFilters', () => {
         it('preserves existing query when changing type', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'existing', type: 'all', keywords: [] },
+                    filters: { query: 'existing', type: 'all', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -194,7 +200,8 @@ describe('usePortalFilters', () => {
         it('navigates to /portal without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi', keywords: [] },
+                    filters: { query: 'test', type: 'doi', keywords: [],
+                        bounds: null, },
                     currentPage: 2,
                 }),
             );
@@ -229,7 +236,8 @@ describe('usePortalFilters', () => {
         it('navigates without keywords param when empty array is passed', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -248,7 +256,8 @@ describe('usePortalFilters', () => {
         it('preserves existing query and type when setting keywords', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi', keywords: [] },
+                    filters: { query: 'test', type: 'doi', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -281,7 +290,8 @@ describe('usePortalFilters', () => {
         it('adds a keyword to the existing list', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -298,7 +308,8 @@ describe('usePortalFilters', () => {
         it('does not add duplicate keywords', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -328,7 +339,8 @@ describe('usePortalFilters', () => {
         it('removes a specific keyword from the list', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology', 'Geology'] },
+                    filters: { query: null, type: 'all', keywords: ['Seismology', 'Geology'],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -345,7 +357,8 @@ describe('usePortalFilters', () => {
         it('navigates without keywords param when removing the last keyword', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -366,7 +379,8 @@ describe('usePortalFilters', () => {
         it('reports active filters when keywords are non-empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'] },
+                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );
@@ -377,7 +391,8 @@ describe('usePortalFilters', () => {
         it('does not report active filters when keywords are empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: [] },
+                    filters: { query: null, type: 'all', keywords: [],
+                        bounds: null, },
                     currentPage: 1,
                 }),
             );

@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 
-import type { PortalFilters, PortalTypeFilter } from '@/types/portal';
+import type { GeoBounds, PortalFilters, PortalTypeFilter } from '@/types/portal';
 
 interface UsePortalFiltersOptions {
     filters: PortalFilters;
@@ -15,6 +15,8 @@ interface UsePortalFiltersReturn {
     setKeywords: (keywords: string[]) => void;
     addKeyword: (keyword: string) => void;
     removeKeyword: (keyword: string) => void;
+    setBounds: (bounds: GeoBounds | null) => void;
+    clearBounds: () => void;
     clearFilters: () => void;
     hasActiveFilters: boolean;
 }
@@ -33,6 +35,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const query = newFilters.query !== undefined ? newFilters.query : filters.query;
             const type = newFilters.type !== undefined ? newFilters.type : filters.type;
             const keywords = newFilters.keywords !== undefined ? newFilters.keywords : filters.keywords;
+            const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
 
             if (query && query.trim() !== '') {
                 params.set('q', query.trim());
@@ -46,6 +49,13 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
                 keywords.forEach((kw) => {
                     params.append('keywords[]', kw);
                 });
+            }
+
+            if (bounds) {
+                params.set('north', bounds.north.toFixed(6));
+                params.set('south', bounds.south.toFixed(6));
+                params.set('east', bounds.east.toFixed(6));
+                params.set('west', bounds.west.toFixed(6));
             }
 
             if (!resetPage && currentPage > 1) {
@@ -99,6 +109,17 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         [updateFilters, filters.keywords],
     );
 
+    const setBounds = useCallback(
+        (bounds: GeoBounds | null) => {
+            updateFilters({ bounds }, true);
+        },
+        [updateFilters],
+    );
+
+    const clearBounds = useCallback(() => {
+        updateFilters({ bounds: null }, true);
+    }, [updateFilters]);
+
     const clearFilters = useCallback(() => {
         router.get('/portal', {}, { preserveState: true, preserveScroll: true });
     }, []);
@@ -107,7 +128,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         return (
             (filters.query !== null && filters.query.trim() !== '') ||
             filters.type !== 'all' ||
-            (filters.keywords !== undefined && filters.keywords.length > 0)
+            (filters.keywords !== undefined && filters.keywords.length > 0) ||
+            filters.bounds !== null
         );
     }, [filters]);
 
@@ -118,6 +140,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         setKeywords,
         addKeyword,
         removeKeyword,
+        setBounds,
+        clearBounds,
         clearFilters,
         hasActiveFilters,
     };

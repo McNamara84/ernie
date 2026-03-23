@@ -74,6 +74,7 @@ export interface PortalFilters {
     query: string | null;
     type: 'all' | 'doi' | 'igsn';
     keywords: string[];
+    bounds: GeoBounds | null;
 }
 
 /**

@@ -12,6 +12,7 @@ describe('PortalFilters', () => {
         query: '',
         type: 'all',
         keywords: [],
+        bounds: null,
     };
 
     const defaultProps = {
@@ -25,6 +26,9 @@ describe('PortalFilters', () => {
         onToggleCollapse: vi.fn(),
         totalResults: 42,
         keywordSuggestions: [],
+        geoFilterEnabled: false,
+        onGeoFilterToggle: vi.fn(),
+        onBoundsChange: vi.fn(),
     };
 
     beforeEach(() => {
