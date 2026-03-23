@@ -23,7 +23,7 @@ const mockMapInstance = vi.hoisted(() => ({
 
 // Mock react-leaflet components since Leaflet requires DOM and canvas
 vi.mock('react-leaflet', () => ({
-    MapContainer: ({ children, className, ref: _ref }: { children: React.ReactNode; className?: string; ref?: unknown }) => (
+    MapContainer: ({ children, className }: { children: React.ReactNode; className?: string }) => (
         <div data-testid="map-container" className={className}>
             {children}
         </div>
