@@ -141,15 +141,12 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
     );
 
     // Handle temporal filter toggle
-    const handleTemporalFilterToggle = useCallback(
-        (enabled: boolean) => {
-            setTemporalFilterEnabled(enabled);
-            if (!enabled) {
-                setTemporal(null);
-            }
-        },
-        [setTemporal],
-    );
+    // Note: The child component (PortalTemporalFilter) already calls
+    // onTemporalChange(null) when toggled off, so we only manage the
+    // local toggle state here to avoid duplicate navigations.
+    const handleTemporalFilterToggle = useCallback((enabled: boolean) => {
+        setTemporalFilterEnabled(enabled);
+    }, []);
 
     // Handle temporal filter value change
     const handleTemporalChange = useCallback(

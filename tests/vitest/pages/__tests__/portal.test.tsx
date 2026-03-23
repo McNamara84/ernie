@@ -616,7 +616,7 @@ describe('Portal', () => {
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
         });
 
-        it('handles temporal filter toggle disable and clears temporal', async () => {
+        it('handles temporal filter toggle disable without duplicate navigation', async () => {
             const user = userEvent.setup();
             const propsWithTemporal = {
                 ...defaultProps,
@@ -630,7 +630,10 @@ describe('Portal', () => {
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
             await user.click(screen.getByTestId('temporal-toggle'));
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
-            expect(setTemporalMock).toHaveBeenCalledWith(null);
+            // Parent toggle handler no longer calls setTemporal(null) –
+            // the child component (PortalTemporalFilter) handles clearing
+            // to avoid duplicate navigations.
+            expect(setTemporalMock).not.toHaveBeenCalled();
         });
 
         it('calls setTemporal when apply temporal is clicked', async () => {

@@ -339,6 +339,7 @@ class PortalSearchService
                     DB::raw($maxYearExpr),
                 )
                 ->groupBy('date_types.slug')
+                ->orderBy('date_types.slug')
                 ->get();
 
             $ranges = [];
