@@ -319,12 +319,20 @@ class PortalSearchService
             $sdYear = $this->yearExpression('dates.start_date');
             $edYear = $this->yearExpression('dates.end_date');
 
+            // Fallback for open-ended ranges (NULL end_date) – treat as current year
+            // so the slider range aligns with applyTemporalFilter() semantics.
+            // Only applies when start_date is set (true date range), not for single dates.
+            /** @var literal-string $currentYearFallback */
+            $currentYearFallback = (string) date('Y');
+            /** @var literal-string $openEndedMax */
+            $openEndedMax = "CASE WHEN dates.start_date IS NOT NULL AND dates.end_date IS NULL THEN {$currentYearFallback} ELSE COALESCE({$edYear}, 0) END";
+
             if ($isSqlite) {
                 $minYearExpr = "MIN(MIN(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
-                $maxYearExpr = "MAX(MAX(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), COALESCE({$edYear}, 0))) as max_year";
+                $maxYearExpr = "MAX(MAX(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
             } else {
                 $minYearExpr = "MIN(LEAST(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
-                $maxYearExpr = "MAX(GREATEST(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), COALESCE({$edYear}, 0))) as max_year";
+                $maxYearExpr = "MAX(GREATEST(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
             }
 
             $results = DB::table('dates')

@@ -341,6 +341,19 @@ describe('Temporal Range Data', function () {
         expect($ranges['Collected']['min'])->toBe(1985);
         expect($ranges['Collected']['max'])->toBe(2020);
     });
+
+    it('treats open-ended ranges as extending to current year for max calculation', function () {
+        createPublishedResourceWithDate(
+            $this->datasetType, 'Open Ended Range', $this->collectedType,
+            startDate: '2010',
+        );
+
+        $ranges = $this->searchService->getTemporalRange();
+
+        expect($ranges)->toHaveKey('Collected');
+        expect($ranges['Collected']['min'])->toBe(2010);
+        expect($ranges['Collected']['max'])->toBe((int) date('Y'));
+    });
 });
 
 describe('Temporal Filter - Controller URL Parsing', function () {

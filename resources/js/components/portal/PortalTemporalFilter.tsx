@@ -1,4 +1,5 @@
 import { Calendar } from 'lucide-react';
+import type { ChangeEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
@@ -29,10 +30,10 @@ interface PortalTemporalFilterProps {
 }
 
 export function PortalTemporalFilter({ enabled, onToggle, temporalRange, temporal, onTemporalChange }: PortalTemporalFilterProps) {
-    const availableTypes = useMemo(
-        () => (Object.keys(temporalRange) as TemporalDateType[]).filter((key) => temporalRange[key] !== undefined),
-        [temporalRange],
-    );
+    const availableTypes = useMemo(() => {
+        const preferredOrder: TemporalDateType[] = ['Created', 'Collected', 'Coverage'];
+        return preferredOrder.filter((key) => temporalRange[key] !== undefined);
+    }, [temporalRange]);
 
     const [selectedType, setSelectedType] = useState<TemporalDateType>(() => temporal?.dateType ?? availableTypes[0] ?? 'Created');
 
@@ -88,6 +89,11 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
 
     const handleTabChange = useCallback(
         (type: string) => {
+            // Cancel any pending debounced emission from the previous tab
+            if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+                debounceRef.current = null;
+            }
             const dateType = type as TemporalDateType;
             setSelectedType(dateType);
             const range = temporalRange[dateType];
@@ -102,7 +108,7 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
     );
 
     const handleYearFromInput = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
+        (e: ChangeEvent<HTMLInputElement>) => {
             const val = parseInt(e.target.value, 10);
             if (isNaN(val) || !currentRange) return;
             const clamped = Math.max(currentRange.min, Math.min(val, yearTo));
@@ -113,7 +119,7 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
     );
 
     const handleYearToInput = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
+        (e: ChangeEvent<HTMLInputElement>) => {
             const val = parseInt(e.target.value, 10);
             if (isNaN(val) || !currentRange) return;
             const clamped = Math.min(currentRange.max, Math.max(val, yearFrom));
