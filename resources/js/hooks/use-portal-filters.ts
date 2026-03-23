@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 
-import type { GeoBounds, PortalFilters, PortalTypeFilter } from '@/types/portal';
+import type { GeoBounds, PortalFilters, PortalTypeFilter, TemporalFilterValue } from '@/types/portal';
 
 interface UsePortalFiltersOptions {
     filters: PortalFilters;
@@ -17,6 +17,7 @@ interface UsePortalFiltersReturn {
     removeKeyword: (keyword: string) => void;
     setBounds: (bounds: GeoBounds | null) => void;
     clearBounds: () => void;
+    setTemporal: (temporal: TemporalFilterValue | null) => void;
     clearFilters: () => void;
     hasActiveFilters: boolean;
 }
@@ -36,6 +37,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const type = newFilters.type !== undefined ? newFilters.type : filters.type;
             const keywords = newFilters.keywords !== undefined ? newFilters.keywords : filters.keywords;
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
+            const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
 
             if (query && query.trim() !== '') {
                 params.set('q', query.trim());
@@ -56,6 +58,12 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
                 params.set('south', bounds.south.toFixed(6));
                 params.set('east', bounds.east.toFixed(6));
                 params.set('west', bounds.west.toFixed(6));
+            }
+
+            if (temporal) {
+                params.set('date_type', temporal.dateType);
+                params.set('year_from', String(temporal.yearFrom));
+                params.set('year_to', String(temporal.yearTo));
             }
 
             if (!resetPage && currentPage > 1) {
@@ -120,6 +128,13 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         updateFilters({ bounds: null }, true);
     }, [updateFilters]);
 
+    const setTemporal = useCallback(
+        (temporal: TemporalFilterValue | null) => {
+            updateFilters({ temporal }, true);
+        },
+        [updateFilters],
+    );
+
     const clearFilters = useCallback(() => {
         router.get('/portal', {}, { preserveState: true, preserveScroll: true });
     }, []);
@@ -129,7 +144,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             (filters.query !== null && filters.query.trim() !== '') ||
             filters.type !== 'all' ||
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
-            filters.bounds !== null
+            filters.bounds !== null ||
+            filters.temporal !== null
         );
     }, [filters]);
 
@@ -142,6 +158,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         removeKeyword,
         setBounds,
         clearBounds,
+        setTemporal,
         clearFilters,
         hasActiveFilters,
     };

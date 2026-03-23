@@ -38,6 +38,7 @@ enum CacheKey: string
 
     // Portal cache keys
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
+    case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
 
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
@@ -95,6 +96,9 @@ enum CacheKey: string
             // Portal keyword suggestions - 1 hour
             self::PORTAL_KEYWORD_SUGGESTIONS => 3600,
 
+            // Portal temporal range - 1 hour (year boundaries change infrequently)
+            self::PORTAL_TEMPORAL_RANGE => 3600,
+
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
         };
@@ -128,6 +132,8 @@ enum CacheKey: string
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
 
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
+
+            self::PORTAL_TEMPORAL_RANGE => ['portal', 'temporal'],
 
             self::CACHE_STATS => ['system'],
         };

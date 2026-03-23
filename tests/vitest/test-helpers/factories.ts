@@ -318,6 +318,7 @@ export function createMockPortalFilters(overrides?: Partial<PortalFilters>): Por
         type: 'all',
         keywords: [],
         bounds: null,
+        temporal: null,
         ...overrides,
     };
 }
@@ -340,6 +341,8 @@ export function createMockPortalPageProps(overrides?: {
             ...overrides?.pagination,
         }),
         filters: createMockPortalFilters(overrides?.filters),
+        keywordSuggestions: [],
+        temporalRange: {},
     };
 }
 

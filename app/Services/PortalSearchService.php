@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
+use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
@@ -12,6 +14,8 @@ use App\Models\ResourceCreator;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Service for searching and filtering resources in the public portal.
@@ -33,6 +37,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      *     page?: int,
      *     per_page?: int,
      * }  $filters
@@ -64,6 +69,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
      * @return \Illuminate\Database\Eloquent\Collection<int, Resource>
      */
@@ -83,6 +89,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
      * @return Builder<Resource>
      */
@@ -116,6 +123,9 @@ class PortalSearchService
 
         // Apply keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
+
+        // Apply temporal date filter
+        $this->applyTemporalFilter($query, $filters['temporal'] ?? null);
 
         // Apply spatial bounds filter (skipped for map data to keep all markers visible)
         if ($applyBounds) {
@@ -224,6 +234,157 @@ class PortalSearchService
                 $q->where('value', $keyword);
             });
         }
+    }
+
+    /**
+     * Apply temporal date filter.
+     *
+     * Matches resources that have a date of the specified type whose year
+     * overlaps the requested [yearFrom, yearTo] range. Handles single dates,
+     * closed ranges, and open-ended ranges.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  array{dateType: string, yearFrom: int, yearTo: int}|null  $temporal
+     */
+    private function applyTemporalFilter(Builder $query, ?array $temporal): void
+    {
+        if ($temporal === null) {
+            return;
+        }
+
+        $slug = $temporal['dateType'];
+        $yearFrom = $temporal['yearFrom'];
+        $yearTo = $temporal['yearTo'];
+
+        $dvYear = $this->yearExpression('date_value');
+        $sdYear = $this->yearExpression('start_date');
+        $edYear = $this->yearExpression('end_date');
+
+        $query->whereHas('dates', function (Builder $q) use ($slug, $yearFrom, $yearTo, $dvYear, $sdYear, $edYear): void {
+            $q->whereHas('dateType', fn (Builder $dt): Builder => $dt->where('slug', $slug));
+
+            $q->where(function (Builder $dateQ) use ($yearFrom, $yearTo, $dvYear, $sdYear, $edYear): void {
+                // Case 1: Single date (date_value) – year within range
+                $dateQ->where(function (Builder $single) use ($yearFrom, $yearTo, $dvYear): void {
+                    $single->whereNotNull('date_value')
+                        ->whereRaw("{$dvYear} >= ?", [$yearFrom])
+                        ->whereRaw("{$dvYear} <= ?", [$yearTo]);
+                })
+                // Case 2: Date range (start_date/end_date) – overlap check
+                ->orWhere(function (Builder $range) use ($yearFrom, $yearTo, $sdYear, $edYear): void {
+                    $range->whereNotNull('start_date')
+                        ->whereRaw("{$sdYear} <= ?", [$yearTo])
+                        ->where(function (Builder $endCheck) use ($yearFrom, $edYear): void {
+                            $endCheck->whereRaw("{$edYear} >= ?", [$yearFrom])
+                                ->orWhereNull('end_date');
+                        });
+                });
+            });
+        });
+    }
+
+    /**
+     * Get the available year ranges for temporal filtering.
+     *
+     * Returns min/max years for each active date type that has data
+     * in published resources. Results are cached for 1 hour.
+     *
+     * @return array<string, array{min: int, max: int}>
+     */
+    public function getTemporalRange(): array
+    {
+        $cacheKey = CacheKey::PORTAL_TEMPORAL_RANGE;
+
+        /** @var array<string, array{min: int, max: int}> */
+        return Cache::remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+            $slugs = ['Created', 'Collected', 'Coverage'];
+
+            $activeSlugs = DateType::query()
+                ->where('is_active', true)
+                ->whereIn('slug', $slugs)
+                ->pluck('slug')
+                ->all();
+
+            if ($activeSlugs === []) {
+                return [];
+            }
+
+            // Query min/max years across date_value, start_date, and end_date
+            // Only for resources with published landing pages
+            $isSqlite = DB::getDriverName() === 'sqlite';
+
+            // SQLite: MIN/MAX with multiple args act as scalar LEAST/GREATEST
+            // MySQL: requires dedicated LEAST/GREATEST functions
+            $dvYear = $this->yearExpression('dates.date_value');
+            $sdYear = $this->yearExpression('dates.start_date');
+            $edYear = $this->yearExpression('dates.end_date');
+
+            // Fallback for open-ended ranges (NULL end_date) – treat as current year
+            // so the slider range aligns with applyTemporalFilter() semantics.
+            // Only applies when start_date is set (true date range), not for single dates.
+            /** @var literal-string $currentYearFallback */
+            $currentYearFallback = (string) date('Y');
+            /** @var literal-string $openEndedMax */
+            $openEndedMax = "CASE WHEN dates.start_date IS NOT NULL AND dates.end_date IS NULL THEN {$currentYearFallback} ELSE COALESCE({$edYear}, 0) END";
+
+            if ($isSqlite) {
+                $minYearExpr = "MIN(MIN(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
+                $maxYearExpr = "MAX(MAX(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
+            } else {
+                $minYearExpr = "MIN(LEAST(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
+                $maxYearExpr = "MAX(GREATEST(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), {$openEndedMax})) as max_year";
+            }
+
+            $results = DB::table('dates')
+                ->join('date_types', 'dates.date_type_id', '=', 'date_types.id')
+                ->join('resources', 'dates.resource_id', '=', 'resources.id')
+                ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                ->where('landing_pages.is_published', true)
+                ->whereIn('date_types.slug', $activeSlugs)
+                ->select(
+                    'date_types.slug',
+                    DB::raw($minYearExpr),
+                    DB::raw($maxYearExpr),
+                )
+                ->groupBy('date_types.slug')
+                ->orderBy('date_types.slug')
+                ->get();
+
+            $ranges = [];
+            foreach ($results as $row) {
+                $minYear = (int) $row->min_year;
+                $maxYear = (int) $row->max_year;
+
+                if ($minYear > 0 && $maxYear > 0 && $minYear <= $maxYear) {
+                    $ranges[$row->slug] = [
+                        'min' => $minYear,
+                        'max' => $maxYear,
+                    ];
+                }
+            }
+
+            return $ranges;
+        });
+    }
+
+    /**
+     * Build a cross-database SQL expression that extracts the year from a date column.
+     *
+     * Handles variable-granularity date strings (YYYY, YYYY-MM, YYYY-MM-DD).
+     * SQLite uses SUBSTR, MySQL/MariaDB use LEFT with UNSIGNED, PostgreSQL uses
+     * LEFT with INTEGER.
+     *
+     * @param  literal-string  $column
+     * @return literal-string
+     */
+    private function yearExpression(string $column): string
+    {
+        return match (DB::getDriverName()) {
+            'sqlite' => "CAST(SUBSTR({$column}, 1, 4) AS INTEGER)",
+            'pgsql' => "CAST(LEFT({$column}, 4) AS INTEGER)",
+            'mysql', 'mariadb' => "CAST(LEFT({$column}, 4) AS UNSIGNED)",
+            default => throw new \RuntimeException('Unsupported database driver: ' . DB::getDriverName()),
+        };
     }
 
     /**

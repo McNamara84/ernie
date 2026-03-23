@@ -75,6 +75,34 @@ export interface PortalFilters {
     type: 'all' | 'doi' | 'igsn';
     keywords: string[];
     bounds: GeoBounds | null;
+    temporal: TemporalFilterValue | null;
+}
+
+/**
+ * Temporal date types available for filtering.
+ */
+export type TemporalDateType = 'Created' | 'Collected' | 'Coverage';
+
+/**
+ * Year range for a single date type.
+ */
+export interface TemporalYearRange {
+    min: number;
+    max: number;
+}
+
+/**
+ * Available temporal ranges from backend (keyed by date type slug).
+ */
+export type TemporalRange = Partial<Record<TemporalDateType, TemporalYearRange>>;
+
+/**
+ * Active temporal filter value.
+ */
+export interface TemporalFilterValue {
+    dateType: TemporalDateType;
+    yearFrom: number;
+    yearTo: number;
 }
 
 /**
@@ -95,6 +123,7 @@ export interface PortalPageProps {
     pagination: PortalPagination;
     filters: PortalFilters;
     keywordSuggestions: KeywordSuggestion[];
+    temporalRange: TemporalRange;
 }
 
 /**

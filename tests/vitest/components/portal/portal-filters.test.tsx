@@ -13,6 +13,7 @@ describe('PortalFilters', () => {
         type: 'all',
         keywords: [],
         bounds: null,
+        temporal: null,
     };
 
     const defaultProps = {
@@ -29,6 +30,10 @@ describe('PortalFilters', () => {
         geoFilterEnabled: false,
         onGeoFilterToggle: vi.fn(),
         onBoundsChange: vi.fn(),
+        temporalRange: { Created: { min: 2000, max: 2024 } },
+        temporalFilterEnabled: false,
+        onTemporalFilterToggle: vi.fn(),
+        onTemporalChange: vi.fn(),
     };
 
     beforeEach(() => {
