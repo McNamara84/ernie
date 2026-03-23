@@ -317,6 +317,7 @@ export function createMockPortalFilters(overrides?: Partial<PortalFilters>): Por
         query: null,
         type: 'all',
         keywords: [],
+        bounds: null,
         ...overrides,
     };
 }

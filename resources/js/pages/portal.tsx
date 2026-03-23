@@ -1,15 +1,16 @@
 import { Head, router } from '@inertiajs/react';
-import { Map as MapIcon, PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Map as MapIcon, MapPin, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { PortalFilters } from '@/components/portal/PortalFilters';
 import { PortalMap } from '@/components/portal/PortalMap';
 import { PortalResultList } from '@/components/portal/PortalResultList';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
-import type { PortalPageProps } from '@/types/portal';
+import type { GeoBounds, PortalPageProps } from '@/types/portal';
 
 const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
 const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
@@ -57,10 +58,92 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
     }, []);
 
-    const { setSearch, setType, setKeywords, clearFilters, hasActiveFilters } = usePortalFilters({
+    const { setSearch, setType, setKeywords, setBounds, clearBounds, clearFilters, hasActiveFilters } = usePortalFilters({
         filters,
         currentPage: pagination.current_page,
     });
+
+    // Geo filter toggle state – initialized from URL params
+    const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
+
+    // Bounds from manual coordinate input (triggers map fly-to)
+    const [flyToBounds, setFlyToBounds] = useState<GeoBounds | null>(null);
+
+    // Debounce timer ref for viewport changes
+    const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Sync geo filter enabled state when URL bounds change
+    useEffect(() => {
+        if (filters.bounds !== null) {
+            setGeoFilterEnabled(true);
+        }
+    }, [filters.bounds]);
+
+    // Handle map viewport changes with 500ms debounce
+    const handleViewportChange = useCallback(
+        (bounds: GeoBounds) => {
+            if (!geoFilterEnabled) return;
+
+            if (viewportTimerRef.current) {
+                clearTimeout(viewportTimerRef.current);
+            }
+
+            viewportTimerRef.current = setTimeout(() => {
+                setBounds(bounds);
+            }, 500);
+        },
+        [geoFilterEnabled, setBounds],
+    );
+
+    // Cleanup debounce timer
+    useEffect(() => {
+        return () => {
+            if (viewportTimerRef.current) {
+                clearTimeout(viewportTimerRef.current);
+            }
+        };
+    }, []);
+
+    // Handle geo filter toggle
+    const handleGeoFilterToggle = useCallback(
+        (enabled: boolean) => {
+            setGeoFilterEnabled(enabled);
+            if (!enabled) {
+                if (viewportTimerRef.current) {
+                    clearTimeout(viewportTimerRef.current);
+                    viewportTimerRef.current = null;
+                }
+                clearBounds();
+                setFlyToBounds(null);
+            }
+        },
+        [clearBounds],
+    );
+
+    // Handle manual bounds change from coordinate inputs
+    const handleBoundsChange = useCallback(
+        (bounds: GeoBounds | null) => {
+            if (bounds) {
+                setFlyToBounds(bounds);
+                setBounds(bounds);
+            } else {
+                setFlyToBounds(null);
+                clearBounds();
+            }
+        },
+        [setBounds, clearBounds],
+    );
+
+    // Extended clear that also resets geo filter
+    const handleClearAllFilters = useCallback(() => {
+        if (viewportTimerRef.current) {
+            clearTimeout(viewportTimerRef.current);
+            viewportTimerRef.current = null;
+        }
+        setGeoFilterEnabled(false);
+        setFlyToBounds(null);
+        clearFilters();
+    }, [clearFilters]);
 
     // Count geo locations for display
     const geoCount = useMemo(() => {
@@ -83,6 +166,13 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 filters.keywords.forEach((kw) => {
                     params.append('keywords[]', kw);
                 });
+            }
+
+            if (filters.bounds) {
+                params.set('north', filters.bounds.north.toFixed(6));
+                params.set('south', filters.bounds.south.toFixed(6));
+                params.set('east', filters.bounds.east.toFixed(6));
+                params.set('west', filters.bounds.west.toFixed(6));
             }
 
             // Page is passed as Inertia data, not URL parameter
@@ -113,12 +203,15 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         onSearchChange={setSearch}
                         onTypeChange={setType}
                         onKeywordsChange={setKeywords}
-                        onClearFilters={clearFilters}
+                        onClearFilters={handleClearAllFilters}
                         hasActiveFilters={hasActiveFilters}
                         isCollapsed={isFilterCollapsed}
                         onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
                         totalResults={pagination.total}
                         keywordSuggestions={keywordSuggestions}
+                        geoFilterEnabled={geoFilterEnabled}
+                        onGeoFilterToggle={handleGeoFilterToggle}
+                        onBoundsChange={handleBoundsChange}
                     />
 
                     {/* Results + Map Container - Stacked layout for smaller screens */}
@@ -130,7 +223,12 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
 
                         {/* Map - collapsible on smaller screens */}
                         <div className="border-t">
-                            <PortalMap resources={mapData} />
+                            <PortalMap
+                                resources={mapData}
+                                geoFilterEnabled={geoFilterEnabled}
+                                onViewportChange={handleViewportChange}
+                                flyToBounds={flyToBounds}
+                            />
                         </div>
                     </div>
 
@@ -159,6 +257,12 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                                                 <span className="text-sm text-muted-foreground">
                                                     ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
                                                 </span>
+                                                {geoFilterEnabled && filters.bounds && (
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        <MapPin className="mr-1 h-3 w-3" />
+                                                        Spatial filter
+                                                    </Badge>
+                                                )}
                                             </div>
                                             <Button variant="ghost" size="icon" onClick={() => setIsMapCollapsed(true)} title="Collapse map">
                                                 <PanelRightClose className="h-4 w-4" />
@@ -166,7 +270,13 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                                         </div>
                                         {/* Map Content */}
                                         <div className="flex-1">
-                                            <PortalMap resources={mapData} hideHeader />
+                                            <PortalMap
+                                                resources={mapData}
+                                                hideHeader
+                                                geoFilterEnabled={geoFilterEnabled}
+                                                onViewportChange={handleViewportChange}
+                                                flyToBounds={flyToBounds}
+                                            />
                                         </div>
                                     </div>
                                 </ResizablePanel>

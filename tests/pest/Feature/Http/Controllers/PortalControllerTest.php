@@ -164,3 +164,153 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page->has('mapData'));
     });
 });
+
+describe('bounds parameter parsing', function () {
+    it('passes valid bounds to filters', function () {
+        $response = $this->get('/portal?north=53&south=51&east=14&west=12');
+
+        $response->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->component('portal')
+                    ->where('filters.bounds', fn ($bounds) => $bounds['north'] == 53
+                        && $bounds['south'] == 51
+                        && $bounds['east'] == 14
+                        && $bounds['west'] == 12
+                    )
+            );
+    });
+
+    it('passes null bounds when no bounds params are present', function () {
+        $response = $this->get('/portal');
+
+        $response->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->component('portal')
+                    ->where('filters.bounds', null)
+            );
+    });
+
+    it('passes null bounds when only some params are present', function () {
+        $response = $this->get('/portal?north=53&south=51');
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
+    });
+
+    it('passes null bounds for non-numeric values', function () {
+        $response = $this->get('/portal?north=abc&south=51&east=14&west=12');
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
+    });
+
+    it('passes null bounds when latitude is out of range', function () {
+        $response = $this->get('/portal?north=95&south=51&east=14&west=12');
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
+    });
+
+    it('passes null bounds when longitude is out of range', function () {
+        $response = $this->get('/portal?north=53&south=51&east=200&west=12');
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
+    });
+
+    it('passes null bounds when north is less than south', function () {
+        $response = $this->get('/portal?north=40&south=50&east=14&west=12');
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page->where('filters.bounds', null));
+    });
+
+    it('accepts boundary values at range limits', function () {
+        $response = $this->get('/portal?north=90&south=-90&east=180&west=-180');
+
+        $response->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->where('filters.bounds', fn ($bounds) => $bounds['north'] == 90
+                        && $bounds['south'] == -90
+                        && $bounds['east'] == 180
+                        && $bounds['west'] == -180
+                    )
+            );
+    });
+
+    it('accepts north equal to south', function () {
+        $response = $this->get('/portal?north=52&south=52&east=14&west=12');
+
+        $response->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->where('filters.bounds', fn ($bounds) => $bounds['north'] == 52
+                        && $bounds['south'] == 52
+                    )
+            );
+    });
+
+    it('filters results when bounds are provided', function () {
+        // Resource inside bounds (Berlin area)
+        $inside = ($this->createPublishedPortalResource)('Berlin Dataset');
+        GeoLocation::factory()->create([
+            'resource_id' => $inside->id,
+            'point_latitude' => 52.52,
+            'point_longitude' => 13.405,
+        ]);
+
+        // Resource outside bounds (Rio)
+        $outside = ($this->createPublishedPortalResource)('Rio Dataset');
+        GeoLocation::factory()->create([
+            'resource_id' => $outside->id,
+            'point_latitude' => -22.9,
+            'point_longitude' => -43.2,
+        ]);
+
+        $response = $this->get('/portal?north=54&south=50&east=15&west=11');
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page->has('resources', 1));
+    });
+
+    it('keeps all markers on map data even with bounds filter', function () {
+        $inside = ($this->createPublishedPortalResource)('Berlin Dataset');
+        GeoLocation::factory()->create([
+            'resource_id' => $inside->id,
+            'point_latitude' => 52.52,
+            'point_longitude' => 13.405,
+        ]);
+
+        $outside = ($this->createPublishedPortalResource)('Rio Dataset');
+        GeoLocation::factory()->create([
+            'resource_id' => $outside->id,
+            'point_latitude' => -22.9,
+            'point_longitude' => -43.2,
+        ]);
+
+        $response = $this->get('/portal?north=54&south=50&east=15&west=11');
+
+        // Results should be filtered (1 resource), but mapData should show both
+        $response->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->has('resources', 1)
+                    ->has('mapData', 2)
+            );
+    });
+
+    it('accepts decimal bounds values', function () {
+        $response = $this->get('/portal?north=52.517400&south=51.349700&east=13.761200&west=12.237100');
+
+        $response->assertOk()
+            ->assertInertia(
+                fn ($page) => $page
+                    ->where('filters.bounds', fn ($bounds) => abs($bounds['north'] - 52.5174) < 0.0001
+                        && abs($bounds['south'] - 51.3497) < 0.0001
+                    )
+            );
+    });
+});

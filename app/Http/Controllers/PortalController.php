@@ -35,11 +35,12 @@ class PortalController extends Controller
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
             ), 0, 20),
+            'bounds' => $this->parseBounds($request),
             'page' => (int) $request->query('page', 1),
             'per_page' => 20,
         ];
 
-        // Get paginated results
+        // Get paginated results (with bounds filter)
         $paginator = $this->searchService->search($filters);
 
         // Transform resources for frontend
@@ -47,7 +48,7 @@ class PortalController extends Controller
             ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
             ->all();
 
-        // Get map data (all matching resources with geo locations)
+        // Get map data (WITHOUT bounds filter – all matching markers stay visible)
         $mapData = $this->searchService->getMapData($filters)
             ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
             ->all();
@@ -67,8 +68,59 @@ class PortalController extends Controller
                 'query' => $filters['query'],
                 'type' => $filters['type'],
                 'keywords' => array_values($filters['keywords']),
+                'bounds' => $filters['bounds'],
             ],
             'keywordSuggestions' => $this->keywordService->getSuggestions(),
         ]);
+    }
+
+    /**
+     * Parse and validate bounding box parameters from the request.
+     *
+     * All four parameters (north, south, east, west) must be present
+     * and valid for the bounds filter to be active.
+     *
+     * @return array{north: float, south: float, east: float, west: float}|null
+     */
+    private function parseBounds(Request $request): ?array
+    {
+        $north = $request->query('north');
+        $south = $request->query('south');
+        $east = $request->query('east');
+        $west = $request->query('west');
+
+        if ($north === null || $south === null || $east === null || $west === null) {
+            return null;
+        }
+
+        if (! is_numeric($north) || ! is_numeric($south) || ! is_numeric($east) || ! is_numeric($west)) {
+            return null;
+        }
+
+        $north = (float) $north;
+        $south = (float) $south;
+        $east = (float) $east;
+        $west = (float) $west;
+
+        // Validate latitude range (-90 to 90) and longitude range (-180 to 180)
+        if ($north < -90.0 || $north > 90.0 || $south < -90.0 || $south > 90.0) {
+            return null;
+        }
+
+        if ($east < -180.0 || $east > 180.0 || $west < -180.0 || $west > 180.0) {
+            return null;
+        }
+
+        // North must be greater than or equal to south
+        if ($north < $south) {
+            return null;
+        }
+
+        return [
+            'north' => $north,
+            'south' => $south,
+            'east' => $east,
+            'west' => $west,
+        ];
     }
 }

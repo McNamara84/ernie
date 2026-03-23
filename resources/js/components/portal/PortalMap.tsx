@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type { PortalCreator, PortalResource } from '@/types/portal';
+import type { GeoBounds, PortalCreator, PortalResource } from '@/types/portal';
 
 // Fix Leaflet default marker icons
 const iconPrototype: unknown = L.Icon.Default.prototype;
@@ -31,6 +31,12 @@ interface PortalMapProps {
     className?: string;
     /** Hide the header (used when header is rendered externally) */
     hideHeader?: boolean;
+    /** Whether the geo filter is currently active */
+    geoFilterEnabled?: boolean;
+    /** Callback when the map viewport changes (debounced externally) */
+    onViewportChange?: (bounds: GeoBounds) => void;
+    /** Bounds to fly to when set from coordinate input */
+    flyToBounds?: GeoBounds | null;
 }
 
 /**
@@ -101,6 +107,89 @@ function FitBoundsControl({ resources }: { resources: PortalResource[] }) {
 }
 
 /**
+ * Track map viewport changes and report bounds.
+ * Skips the next moveend event when skipNextMoveEnd flag is set (after programmatic fly-to).
+ */
+function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChange: (bounds: GeoBounds) => void; skipNextMoveEnd: React.RefObject<boolean> }) {
+    const map = useMap();
+
+    useEffect(() => {
+        const handler = () => {
+            if (skipNextMoveEnd.current) {
+                skipNextMoveEnd.current = false;
+                return;
+            }
+            const b = map.getBounds();
+            onViewportChange({
+                north: b.getNorth(),
+                south: b.getSouth(),
+                east: b.getEast(),
+                west: b.getWest(),
+            });
+        };
+
+        map.on('moveend', handler);
+        return () => {
+            map.off('moveend', handler);
+        };
+    }, [map, onViewportChange, skipNextMoveEnd]);
+
+    return null;
+}
+
+/**
+ * Fly the map to specific bounds (triggered by manual coordinate input).
+ */
+function MapBoundsUpdater({ bounds, skipNextMoveEnd }: { bounds: GeoBounds | null; skipNextMoveEnd: React.RefObject<boolean> }) {
+    const map = useMap();
+    const prevBoundsRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!bounds) return;
+
+        const boundsKey = `${bounds.north},${bounds.south},${bounds.east},${bounds.west}`;
+
+        // Only fly if bounds actually changed (avoid loops when viewport reports same bounds)
+        if (prevBoundsRef.current === boundsKey) return;
+        prevBoundsRef.current = boundsKey;
+
+        // Suppress the next moveend so ViewportTracker doesn't overwrite manual bounds
+        skipNextMoveEnd.current = true;
+
+        // Handle anti-meridian crossing (west > east means the box wraps around 180°)
+        if (bounds.west > bounds.east) {
+            // Calculate center and zoom manually for wrapped bounds
+            const centerLat = (bounds.north + bounds.south) / 2;
+            // Shift longitudes to 0..360 system to find the true center
+            const westNorm = bounds.west < 0 ? bounds.west + 360 : bounds.west;
+            const eastNorm = bounds.east < 0 ? bounds.east + 360 : bounds.east;
+            let centerLng = (westNorm + eastNorm) / 2;
+            // Normalize back to -180..180
+            if (centerLng > 180) centerLng -= 360;
+
+            // Estimate appropriate zoom from longitude span
+            const lngSpan = (eastNorm - westNorm + 360) % 360 || 360;
+            const latSpan = bounds.north - bounds.south;
+            const maxSpan = Math.max(lngSpan, latSpan);
+            // Rough zoom estimate: 360° ≈ zoom 1, halving span ≈ +1 zoom
+            const zoom = Math.max(1, Math.min(18, Math.round(Math.log2(360 / maxSpan)) + 1));
+
+            map.setView([centerLat, centerLng], zoom, { animate: true });
+        } else {
+            map.fitBounds(
+                [
+                    [bounds.south, bounds.west],
+                    [bounds.north, bounds.east],
+                ],
+                { padding: [20, 20], animate: true },
+            );
+        }
+    }, [map, bounds, skipNextMoveEnd]);
+
+    return null;
+}
+
+/**
  * Popup content for a resource marker.
  */
 function ResourcePopupContent({ resource }: { resource: PortalResource }) {
@@ -136,9 +225,10 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
 /**
  * Interactive map displaying resources with geo locations.
  */
-export function PortalMap({ resources, className, hideHeader = false }: PortalMapProps) {
+export function PortalMap({ resources, className, hideHeader = false, geoFilterEnabled = false, onViewportChange, flyToBounds }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const mapRef = useRef<L.Map | null>(null);
+    const skipNextMoveEnd = useRef(false);
 
     // Filter resources that have geo locations
     const resourcesWithGeo = useMemo(
@@ -181,6 +271,14 @@ export function PortalMap({ resources, className, hideHeader = false }: PortalMa
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <FitBoundsControl resources={resourcesWithGeo} />
+
+            {geoFilterEnabled && onViewportChange && (
+                <ViewportTracker onViewportChange={onViewportChange} skipNextMoveEnd={skipNextMoveEnd} />
+            )}
+
+            {flyToBounds && (
+                <MapBoundsUpdater bounds={flyToBounds} skipNextMoveEnd={skipNextMoveEnd} />
+            )}
 
             {resourcesWithGeo.map((resource) =>
                 resource.geoLocations.map((geo) => {
