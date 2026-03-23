@@ -148,6 +148,10 @@
         ],
         "fixes": [
             {
+                "title": "Documentation role visibility aligned with actual permissions",
+                "description": "Fixed documentation sections being shown to users without access to the described features: Legacy Import now requires Admin, Editor Settings visible to Group Leaders, Landing Pages visible to Curators and above. Corrected role descriptions for Curator and Group Leader to accurately reflect their capabilities."
+            },
+            {
                 "title": "GEMET Thesaurus API Compatibility",
                 "description": "Fixed GEMET thesaurus update failing with 'HTTP 400' errors. The EIONET GEMET REST API removed four legacy method names (getSuperGroupsForScheme, getGroupsForScheme, getBroaderConcepts, getGroupMembers). Migrated all API calls to the current endpoints: getTopmostConcepts for fetching SuperGroups and Groups, and getRelatedConcepts with explicit relation URIs for group hierarchy mapping and concept retrieval."
             },

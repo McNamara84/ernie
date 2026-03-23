@@ -223,7 +223,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('logs.clear');
     });
 
-    // Thesaurus settings routes (Admin only)
+    // Thesaurus settings routes (Admin and Group Leader)
     Route::middleware(['can:manage-thesauri'])->prefix('thesauri')->group(function () {
         Route::get('/', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'index'])
             ->name('thesauri.index');
@@ -235,7 +235,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('thesauri.update-status');
     });
 
-    // PID settings routes (Admin only) - PID4INST instrument registry
+    // PID settings routes (Admin and Group Leader) - PID4INST instrument registry
     Route::middleware(['can:manage-thesauri'])->prefix('pid-settings')->group(function () {
         Route::post('/{type}/check', [\App\Http\Controllers\Settings\PidSettingsController::class, 'checkStatus'])
             ->name('pid-settings.check');

@@ -64,7 +64,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { auth } = usePage<SharedData>().props;
-    const isAdmin = auth.user?.role === 'admin';
+    const canManageThesauri = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -276,7 +276,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                     )}
                 </Button>
 
-                {updateInfo?.updateAvailable && isAdmin && !isUpdating && (
+                {updateInfo?.updateAvailable && canManageThesauri && !isUpdating && (
                     <Button size="sm" onClick={triggerUpdate}>
                         <RefreshCw className="mr-1 h-3.5 w-3.5" />
                         Update Now
@@ -307,7 +307,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                             <span>
                                 ERNIE contains {updateInfo.localCount.toLocaleString()} concepts, but NASA/GCMD contains{' '}
                                 {updateInfo.remoteCount.toLocaleString()} concepts.
-                                {isAdmin ? ' Would you like to update the thesaurus?' : ' Contact an administrator to update.'}
+                                {canManageThesauri ? ' Would you like to update the thesaurus?' : ' Contact an admin or group leader to update.'}
                             </span>
                         </>
                     ) : (
