@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\DateType;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
@@ -133,7 +134,7 @@ class PortalController extends Controller
      * All three parameters (date_type, year_from, year_to) must be present
      * and valid for the temporal filter to be active.
      *
-     * @return array{date_type: string, year_from: int, year_to: int}|null
+     * @return array{dateType: string, yearFrom: int, yearTo: int}|null
      */
     private function parseTemporal(Request $request): ?array
     {
@@ -146,6 +147,11 @@ class PortalController extends Controller
         }
 
         if (! is_string($dateType) || ! in_array($dateType, ['Created', 'Collected', 'Coverage'], true)) {
+            return null;
+        }
+
+        // Ensure the requested date type is actually active in the database
+        if (! DateType::query()->where('slug', $dateType)->where('is_active', true)->exists()) {
             return null;
         }
 
@@ -171,9 +177,9 @@ class PortalController extends Controller
         }
 
         return [
-            'date_type' => $dateType,
-            'year_from' => $yearFrom,
-            'year_to' => $yearTo,
+            'dateType' => $dateType,
+            'yearFrom' => $yearFrom,
+            'yearTo' => $yearTo,
         ];
     }
 }

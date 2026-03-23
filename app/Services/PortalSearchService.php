@@ -37,7 +37,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
-     *     temporal?: array{date_type: string, year_from: int, year_to: int}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      *     page?: int,
      *     per_page?: int,
      * }  $filters
@@ -69,7 +69,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
-     *     temporal?: array{date_type: string, year_from: int, year_to: int}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
      * @return \Illuminate\Database\Eloquent\Collection<int, Resource>
      */
@@ -89,7 +89,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
-     *     temporal?: array{date_type: string, year_from: int, year_to: int}|null,
+     *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
      * @return Builder<Resource>
      */
@@ -244,7 +244,7 @@ class PortalSearchService
      * closed ranges, and open-ended ranges.
      *
      * @param  Builder<Resource>  $query
-     * @param  array{date_type: string, year_from: int, year_to: int}|null  $temporal
+     * @param  array{dateType: string, yearFrom: int, yearTo: int}|null  $temporal
      */
     private function applyTemporalFilter(Builder $query, ?array $temporal): void
     {
@@ -252,9 +252,9 @@ class PortalSearchService
             return;
         }
 
-        $slug = $temporal['date_type'];
-        $yearFrom = $temporal['year_from'];
-        $yearTo = $temporal['year_to'];
+        $slug = $temporal['dateType'];
+        $yearFrom = $temporal['yearFrom'];
+        $yearTo = $temporal['yearTo'];
 
         $dvYear = $this->yearExpression('date_value');
         $sdYear = $this->yearExpression('start_date');

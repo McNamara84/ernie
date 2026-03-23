@@ -104,7 +104,7 @@ describe('Temporal Filter - Single Dates', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Created', 'year_from' => 2020, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Created', 'yearFrom' => 2020, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -121,7 +121,7 @@ describe('Temporal Filter - Single Dates', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Collected', 'year_from' => 2020, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Collected', 'yearFrom' => 2020, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -134,7 +134,7 @@ describe('Temporal Filter - Single Dates', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Created', 'year_from' => 2020, 'year_to' => 2020],
+            'temporal' => ['dateType' => 'Created', 'yearFrom' => 2020, 'yearTo' => 2020],
         ]);
 
         expect($results->total())->toBe(1);
@@ -155,7 +155,7 @@ describe('Temporal Filter - Date Ranges', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Collected', 'year_from' => 2018, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Collected', 'yearFrom' => 2018, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -174,7 +174,7 @@ describe('Temporal Filter - Date Ranges', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Collected', 'year_from' => 2018, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Collected', 'yearFrom' => 2018, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -188,7 +188,7 @@ describe('Temporal Filter - Date Ranges', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Collected', 'year_from' => 2010, 'year_to' => 2020],
+            'temporal' => ['dateType' => 'Collected', 'yearFrom' => 2010, 'yearTo' => 2020],
         ]);
 
         expect($results->total())->toBe(1);
@@ -205,7 +205,7 @@ describe('Temporal Filter - Coverage Date Type', function () {
         );
 
         $results = $this->searchService->search([
-            'temporal' => ['date_type' => 'Coverage', 'year_from' => 2020, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Coverage', 'yearFrom' => 2020, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -246,7 +246,7 @@ describe('Temporal Filter - Combined With Other Filters', function () {
 
         $results = $this->searchService->search([
             'query' => 'Earthquake',
-            'temporal' => ['date_type' => 'Created', 'year_from' => 2020, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Created', 'yearFrom' => 2020, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -269,7 +269,7 @@ describe('Temporal Filter - Combined With Other Filters', function () {
 
         $results = $this->searchService->search([
             'type' => 'doi',
-            'temporal' => ['date_type' => 'Created', 'year_from' => 2020, 'year_to' => 2025],
+            'temporal' => ['dateType' => 'Created', 'yearFrom' => 2020, 'yearTo' => 2025],
         ]);
 
         expect($results->total())->toBe(1);
@@ -353,9 +353,9 @@ describe('Temporal Filter - Controller URL Parsing', function () {
         $this->get('/portal?date_type=Created&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('filters.temporal.date_type', 'Created')
-                ->where('filters.temporal.year_from', 2020)
-                ->where('filters.temporal.year_to', 2025)
+                ->where('filters.temporal.dateType', 'Created')
+                ->where('filters.temporal.yearFrom', 2020)
+                ->where('filters.temporal.yearTo', 2025)
                 ->where('pagination.total', 1)
             );
     });
@@ -422,6 +422,21 @@ describe('Temporal Filter - Controller URL Parsing', function () {
     it('ignores temporal filter when year_to is out of range (too high)', function () {
         $futureYear = (int) date('Y') + 5;
         $this->get("/portal?date_type=Created&year_from=2000&year_to={$futureYear}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.temporal', null)
+            );
+    });
+
+    it('ignores temporal filter when date_type exists but is inactive', function () {
+        $this->coverageType->update(['is_active' => false]);
+
+        createPublishedResourceWithDate(
+            $this->datasetType, 'Coverage Dataset', $this->coverageType,
+            dateValue: '2022',
+        );
+
+        $this->get('/portal?date_type=Coverage&year_from=2020&year_to=2025')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.temporal', null)

@@ -185,6 +185,7 @@ export function PortalTemporalFilter({ enabled, onToggle, temporalRange, tempora
                                         step={1}
                                         onValueChange={handleSliderChange}
                                         aria-label="Temporal filter year range"
+                                        thumbLabels={['Year range minimum', 'Year range maximum']}
                                     />
 
                                     {/* Year inputs */}

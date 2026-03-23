@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';

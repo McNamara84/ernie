@@ -77,16 +77,12 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
 
     // Sync geo filter enabled state when URL bounds change
     useEffect(() => {
-        if (filters.bounds !== null) {
-            setGeoFilterEnabled(true);
-        }
+        setGeoFilterEnabled(filters.bounds !== null);
     }, [filters.bounds]);
 
     // Sync temporal filter enabled state when URL temporal changes
     useEffect(() => {
-        if (filters.temporal !== null) {
-            setTemporalFilterEnabled(true);
-        }
+        setTemporalFilterEnabled(filters.temporal !== null);
     }, [filters.temporal]);
 
     // Handle map viewport changes with 500ms debounce
