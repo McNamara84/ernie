@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';

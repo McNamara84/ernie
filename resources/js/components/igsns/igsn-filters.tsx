@@ -270,7 +270,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
                 {/* Prefix Select */}
                 <Select value={prefixValue} onValueChange={handlePrefixChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by IGSN prefix">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by IGSN prefix">
                         <SelectValue placeholder="All Prefixes" />
                     </SelectTrigger>
                     <SelectContent>
@@ -285,7 +285,7 @@ export function IgsnFilters({ filters, onFilterChange, filterOptions, resultCoun
 
                 {/* Status Select */}
                 <Select value={statusValue} onValueChange={handleStatusChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by upload status">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by upload status">
                         <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>

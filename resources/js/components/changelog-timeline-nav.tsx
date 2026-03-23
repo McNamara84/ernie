@@ -3,7 +3,7 @@ import { History } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 type Release = {
@@ -67,24 +67,22 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
     if (isMobile) {
         return (
             <div className="fixed right-6 bottom-6 z-50">
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-12 w-12 rounded-full bg-white shadow-lg hover:shadow-xl dark:bg-gray-800"
-                                onClick={() => setIsOpen(!isOpen)}
-                                aria-label="Toggle timeline navigation"
-                            >
-                                <History className="h-5 w-5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="left">
-                            <p>Timeline Navigation</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-12 w-12 rounded-full bg-white shadow-lg hover:shadow-xl dark:bg-gray-800"
+                            onClick={() => setIsOpen(!isOpen)}
+                            aria-label="Toggle timeline navigation"
+                        >
+                            <History className="h-5 w-5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                        <p>Timeline Navigation</p>
+                    </TooltipContent>
+                </Tooltip>
 
                 {isOpen && (
                     <motion.div
@@ -134,10 +132,9 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                     const color = getVersionColor(index);
 
                     return (
-                        <TooltipProvider key={release.version}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <motion.button
+                        <Tooltip key={release.version}>
+                            <TooltipTrigger asChild>
+                                <motion.button
                                         whileHover={prefersReducedMotion ? {} : { scale: 1.3 }}
                                         whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
                                         onClick={() => onNavigate(index)}
@@ -159,14 +156,13 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                         )}
                                     </motion.button>
                                 </TooltipTrigger>
-                                <TooltipContent side="left" className="text-xs">
-                                    <div>
-                                        <p className="font-semibold">Version {release.version}</p>
-                                        <p className="text-gray-700 dark:text-gray-300">{release.date}</p>
-                                    </div>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                            <TooltipContent side="left" className="text-xs">
+                                <div>
+                                    <p className="font-semibold">Version {release.version}</p>
+                                    <p className="text-gray-700 dark:text-gray-300">{release.date}</p>
+                                </div>
+                            </TooltipContent>
+                        </Tooltip>
                     );
                 })}
             </div>

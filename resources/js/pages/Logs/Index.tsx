@@ -286,7 +286,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                         <div className="mb-4 flex flex-wrap items-center gap-4">
                             <div className="flex items-center gap-2">
                                 <Select value={level || 'all'} onValueChange={handleLevelChange}>
-                                    <SelectTrigger className="w-40">
+                                    <SelectTrigger size="sm" className="w-40">
                                         <SelectValue placeholder="Filter by level" />
                                     </SelectTrigger>
                                     <SelectContent>

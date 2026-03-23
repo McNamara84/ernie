@@ -10,7 +10,7 @@ describe('Separator', () => {
     render(<Separator data-testid="separator" />);
     const separator = screen.getByTestId('separator');
     expect(separator).toHaveAttribute('data-orientation', 'horizontal');
-    expect(separator).toHaveAttribute('data-slot', 'separator-root');
+    expect(separator).toHaveAttribute('data-slot', 'separator');
   });
 
   it('supports vertical orientation', () => {
