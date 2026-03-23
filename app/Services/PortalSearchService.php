@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
+use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\Person;
@@ -12,6 +14,8 @@ use App\Models\ResourceCreator;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Service for searching and filtering resources in the public portal.
@@ -33,6 +37,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{date_type: string, year_from: int, year_to: int}|null,
      *     page?: int,
      *     per_page?: int,
      * }  $filters
@@ -64,6 +69,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{date_type: string, year_from: int, year_to: int}|null,
      * }  $filters
      * @return \Illuminate\Database\Eloquent\Collection<int, Resource>
      */
@@ -83,6 +89,7 @@ class PortalSearchService
      *     type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
+     *     temporal?: array{date_type: string, year_from: int, year_to: int}|null,
      * }  $filters
      * @return Builder<Resource>
      */
@@ -116,6 +123,9 @@ class PortalSearchService
 
         // Apply keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
+
+        // Apply temporal date filter
+        $this->applyTemporalFilter($query, $filters['temporal'] ?? null);
 
         // Apply spatial bounds filter (skipped for map data to keep all markers visible)
         if ($applyBounds) {
@@ -224,6 +234,116 @@ class PortalSearchService
                 $q->where('value', $keyword);
             });
         }
+    }
+
+    /**
+     * Apply temporal date filter.
+     *
+     * Matches resources that have a date of the specified type whose year
+     * overlaps the requested [yearFrom, yearTo] range. Handles single dates,
+     * closed ranges, and open-ended ranges.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  array{date_type: string, year_from: int, year_to: int}|null  $temporal
+     */
+    private function applyTemporalFilter(Builder $query, ?array $temporal): void
+    {
+        if ($temporal === null) {
+            return;
+        }
+
+        $slug = $temporal['date_type'];
+        $yearFrom = $temporal['year_from'];
+        $yearTo = $temporal['year_to'];
+
+        $query->whereHas('dates', function (Builder $q) use ($slug, $yearFrom, $yearTo): void {
+            $q->whereHas('dateType', fn (Builder $dt): Builder => $dt->where('slug', $slug));
+
+            $q->where(function (Builder $dateQ) use ($yearFrom, $yearTo): void {
+                // Case 1: Single date (date_value) – year within range
+                $dateQ->where(function (Builder $single) use ($yearFrom, $yearTo): void {
+                    $single->whereNotNull('date_value')
+                        ->whereRaw('CAST(LEFT(date_value, 4) AS UNSIGNED) >= ?', [$yearFrom])
+                        ->whereRaw('CAST(LEFT(date_value, 4) AS UNSIGNED) <= ?', [$yearTo]);
+                })
+                // Case 2: Date range (start_date/end_date) – overlap check
+                ->orWhere(function (Builder $range) use ($yearFrom, $yearTo): void {
+                    $range->whereNotNull('start_date')
+                        ->whereRaw('CAST(LEFT(start_date, 4) AS UNSIGNED) <= ?', [$yearTo])
+                        ->where(function (Builder $endCheck) use ($yearFrom): void {
+                            $endCheck->whereRaw('CAST(LEFT(end_date, 4) AS UNSIGNED) >= ?', [$yearFrom])
+                                ->orWhereNull('end_date');
+                        });
+                });
+            });
+        });
+    }
+
+    /**
+     * Get the available year ranges for temporal filtering.
+     *
+     * Returns min/max years for each active date type that has data
+     * in published resources. Results are cached for 1 hour.
+     *
+     * @return array<string, array{min: int, max: int}>
+     */
+    public function getTemporalRange(): array
+    {
+        $cacheKey = CacheKey::PORTAL_TEMPORAL_RANGE;
+
+        /** @var array<string, array{min: int, max: int}> */
+        return Cache::remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+            $slugs = ['Created', 'Collected', 'Coverage'];
+
+            $activeSlugs = DateType::query()
+                ->where('is_active', true)
+                ->whereIn('slug', $slugs)
+                ->pluck('slug')
+                ->all();
+
+            if ($activeSlugs === []) {
+                return [];
+            }
+
+            // Query min/max years across date_value, start_date, and end_date
+            // Only for resources with published landing pages
+            $results = DB::table('dates')
+                ->join('date_types', 'dates.date_type_id', '=', 'date_types.id')
+                ->join('resources', 'dates.resource_id', '=', 'resources.id')
+                ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                ->where('landing_pages.is_published', true)
+                ->whereIn('date_types.slug', $activeSlugs)
+                ->select(
+                    'date_types.slug',
+                    DB::raw('MIN(LEAST(
+                        COALESCE(CAST(LEFT(dates.date_value, 4) AS UNSIGNED), 9999),
+                        COALESCE(CAST(LEFT(dates.start_date, 4) AS UNSIGNED), 9999),
+                        COALESCE(CAST(LEFT(dates.end_date, 4) AS UNSIGNED), 9999)
+                    )) as min_year'),
+                    DB::raw('MAX(GREATEST(
+                        COALESCE(CAST(LEFT(dates.date_value, 4) AS UNSIGNED), 0),
+                        COALESCE(CAST(LEFT(dates.start_date, 4) AS UNSIGNED), 0),
+                        COALESCE(CAST(LEFT(dates.end_date, 4) AS UNSIGNED), 0)
+                    )) as max_year'),
+                )
+                ->groupBy('date_types.slug')
+                ->get();
+
+            $ranges = [];
+            foreach ($results as $row) {
+                $minYear = (int) $row->min_year;
+                $maxYear = (int) $row->max_year;
+
+                if ($minYear > 0 && $maxYear > 0 && $minYear <= $maxYear) {
+                    $ranges[$row->slug] = [
+                        'min' => $minYear,
+                        'max' => $maxYear,
+                    ];
+                }
+            }
+
+            return $ranges;
+        });
     }
 
     /**

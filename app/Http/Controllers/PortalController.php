@@ -36,6 +36,7 @@ class PortalController extends Controller
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
             ), 0, 20),
             'bounds' => $this->parseBounds($request),
+            'temporal' => $this->parseTemporal($request),
             'page' => (int) $request->query('page', 1),
             'per_page' => 20,
         ];
@@ -69,8 +70,10 @@ class PortalController extends Controller
                 'type' => $filters['type'],
                 'keywords' => array_values($filters['keywords']),
                 'bounds' => $filters['bounds'],
+                'temporal' => $filters['temporal'],
             ],
             'keywordSuggestions' => $this->keywordService->getSuggestions(),
+            'temporalRange' => $this->searchService->getTemporalRange(),
         ]);
     }
 
@@ -121,6 +124,56 @@ class PortalController extends Controller
             'south' => $south,
             'east' => $east,
             'west' => $west,
+        ];
+    }
+
+    /**
+     * Parse and validate temporal filter parameters from the request.
+     *
+     * All three parameters (date_type, year_from, year_to) must be present
+     * and valid for the temporal filter to be active.
+     *
+     * @return array{date_type: string, year_from: int, year_to: int}|null
+     */
+    private function parseTemporal(Request $request): ?array
+    {
+        $dateType = $request->query('date_type');
+        $yearFrom = $request->query('year_from');
+        $yearTo = $request->query('year_to');
+
+        if ($dateType === null || $yearFrom === null || $yearTo === null) {
+            return null;
+        }
+
+        if (! is_string($dateType) || ! in_array($dateType, ['Created', 'Collected', 'Coverage'], true)) {
+            return null;
+        }
+
+        if (! is_numeric($yearFrom) || ! is_numeric($yearTo)) {
+            return null;
+        }
+
+        $yearFrom = (int) $yearFrom;
+        $yearTo = (int) $yearTo;
+
+        $currentYear = (int) date('Y');
+
+        if ($yearFrom < 1900 || $yearFrom > $currentYear + 1) {
+            return null;
+        }
+
+        if ($yearTo < 1900 || $yearTo > $currentYear + 1) {
+            return null;
+        }
+
+        if ($yearFrom > $yearTo) {
+            return null;
+        }
+
+        return [
+            'date_type' => $dateType,
+            'year_from' => $yearFrom,
+            'year_to' => $yearTo,
         ];
     }
 }

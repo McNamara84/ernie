@@ -4,6 +4,10 @@
         "date": "2026-03-23",
         "features": [
             {
+                "title": "Temporal Filter for Data Portal",
+                "description": "Added a temporal/date filter to the public Data Portal. Users can filter datasets by year range using a dual-range slider with three date type tabs: Created (when the data was created), Collected (when sampling occurred), and Coverage (temporal coverage period). The filter is toggle-activated, positioned between Keywords and Geographic filters, and supports URL persistence for sharing filtered views. Coverage tab visibility is dynamic based on active date types in the database. The available year range is cached and computed from published resources."
+            },
+            {
                 "title": "Spatial Filter for Data Portal",
                 "description": "Added geographic/spatial filtering to the public Data Portal. When the 'Filter by Map Area' toggle is activated, zooming and panning the map automatically filters the result list to show only datasets whose geographic locations intersect with the visible map area. Manual coordinate input fields (North, South, East, West) in the filter panel allow precise bounding box entry and are bidirectionally synchronized with the map viewport. The spatial filter supports point-in-bbox and rectangle intersection matching, handles anti-meridian crossings, and is URL-persistent for sharing filtered views via bookmarks."
             },

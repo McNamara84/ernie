@@ -21,6 +21,7 @@ describe('usePortalFilters', () => {
         type: 'all',
         keywords: [],
         bounds: null,
+        temporal: null,
     };
 
     beforeEach(() => {
@@ -46,7 +47,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'test', type: 'all', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -57,7 +58,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'doi', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -68,7 +69,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: '   ', type: 'all', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -161,7 +162,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'doi', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -181,7 +182,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'existing', type: 'all', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -201,7 +202,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'test', type: 'doi', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 2,
                 }),
             );
@@ -237,7 +238,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: ['Seismology'],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -257,7 +258,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'test', type: 'doi', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -291,7 +292,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: ['Seismology'],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -309,7 +310,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: ['Seismology'],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -340,7 +341,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: ['Seismology', 'Geology'],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -358,7 +359,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: ['Seismology'],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -380,7 +381,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: ['Seismology'],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -392,7 +393,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -426,6 +427,7 @@ describe('usePortalFilters', () => {
                         type: 'all',
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
+                        temporal: null,
                     },
                     currentPage: 1,
                 }),
@@ -446,7 +448,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: 'test', type: 'doi', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
@@ -484,6 +486,7 @@ describe('usePortalFilters', () => {
                         type: 'all',
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
+                        temporal: null,
                     },
                     currentPage: 1,
                 }),
@@ -508,6 +511,7 @@ describe('usePortalFilters', () => {
                         type: 'all',
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
+                        temporal: null,
                     },
                     currentPage: 1,
                 }),
@@ -520,7 +524,7 @@ describe('usePortalFilters', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
                     filters: { query: null, type: 'all', keywords: [],
-                        bounds: null, },
+                        bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );

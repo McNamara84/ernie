@@ -166,8 +166,10 @@ const defaultProps: PortalPageProps = {
         type: 'all',
         keywords: [],
         bounds: null,
+        temporal: null,
     },
     keywordSuggestions: [],
+    temporalRange: { Created: { min: 2000, max: 2024 } },
 };
 
 describe('Portal', () => {
@@ -214,7 +216,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithQuery = {
             ...defaultProps,
-            filters: { query: 'climate', type: 'all' as const, keywords: [], bounds: null },
+            filters: { query: 'climate', type: 'all' as const, keywords: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithQuery} />);
 
@@ -228,7 +230,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithType = {
             ...defaultProps,
-            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'], keywords: [], bounds: null },
+            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'], keywords: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithType} />);
 
@@ -347,6 +349,7 @@ describe('Portal', () => {
                     type: 'all' as const,
                     keywords: [],
                     bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    temporal: null,
                 },
             };
             render(<Portal {...propsWithBounds} />);
@@ -543,6 +546,7 @@ describe('Portal', () => {
                     type: 'all' as const,
                     keywords: ['Seismology', 'Geology'],
                     bounds: null,
+                    temporal: null,
                 },
             };
             render(<Portal {...propsWithKeywords} />);

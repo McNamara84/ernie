@@ -10,14 +10,14 @@ import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
-import type { GeoBounds, PortalPageProps } from '@/types/portal';
+import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
 
 const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
 const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions }: PortalPageProps) {
+export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
     // Initialize map collapsed state from localStorage
@@ -58,13 +58,16 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
     }, []);
 
-    const { setSearch, setType, setKeywords, setBounds, clearBounds, clearFilters, hasActiveFilters } = usePortalFilters({
+    const { setSearch, setType, setKeywords, setBounds, clearBounds, setTemporal, clearFilters, hasActiveFilters } = usePortalFilters({
         filters,
         currentPage: pagination.current_page,
     });
 
     // Geo filter toggle state – initialized from URL params
     const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
+
+    // Temporal filter toggle state – initialized from URL params
+    const [temporalFilterEnabled, setTemporalFilterEnabled] = useState(() => filters.temporal !== null);
 
     // Bounds from manual coordinate input (triggers map fly-to)
     const [flyToBounds, setFlyToBounds] = useState<GeoBounds | null>(null);
@@ -78,6 +81,13 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
             setGeoFilterEnabled(true);
         }
     }, [filters.bounds]);
+
+    // Sync temporal filter enabled state when URL temporal changes
+    useEffect(() => {
+        if (filters.temporal !== null) {
+            setTemporalFilterEnabled(true);
+        }
+    }, [filters.temporal]);
 
     // Handle map viewport changes with 500ms debounce
     const handleViewportChange = useCallback(
@@ -134,13 +144,37 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         [setBounds, clearBounds],
     );
 
-    // Extended clear that also resets geo filter
+    // Handle temporal filter toggle
+    const handleTemporalFilterToggle = useCallback(
+        (enabled: boolean) => {
+            setTemporalFilterEnabled(enabled);
+            if (!enabled) {
+                setTemporal(null);
+            }
+        },
+        [setTemporal],
+    );
+
+    // Handle temporal filter value change
+    const handleTemporalChange = useCallback(
+        (temporal: TemporalFilterValue | null) => {
+            if (temporal) {
+                setTemporal(temporal);
+            } else {
+                setTemporal(null);
+            }
+        },
+        [setTemporal],
+    );
+
+    // Extended clear that also resets geo and temporal filters
     const handleClearAllFilters = useCallback(() => {
         if (viewportTimerRef.current) {
             clearTimeout(viewportTimerRef.current);
             viewportTimerRef.current = null;
         }
         setGeoFilterEnabled(false);
+        setTemporalFilterEnabled(false);
         setFlyToBounds(null);
         clearFilters();
     }, [clearFilters]);
@@ -173,6 +207,12 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 params.set('south', filters.bounds.south.toFixed(6));
                 params.set('east', filters.bounds.east.toFixed(6));
                 params.set('west', filters.bounds.west.toFixed(6));
+            }
+
+            if (filters.temporal) {
+                params.set('date_type', filters.temporal.dateType);
+                params.set('year_from', String(filters.temporal.yearFrom));
+                params.set('year_to', String(filters.temporal.yearTo));
             }
 
             // Page is passed as Inertia data, not URL parameter
@@ -212,6 +252,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         geoFilterEnabled={geoFilterEnabled}
                         onGeoFilterToggle={handleGeoFilterToggle}
                         onBoundsChange={handleBoundsChange}
+                        temporalRange={temporalRange}
+                        temporalFilterEnabled={temporalFilterEnabled}
+                        onTemporalFilterToggle={handleTemporalFilterToggle}
+                        onTemporalChange={handleTemporalChange}
                     />
 
                     {/* Results + Map Container - Stacked layout for smaller screens */}
