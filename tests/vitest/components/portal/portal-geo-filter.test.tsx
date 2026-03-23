@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';

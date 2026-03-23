@@ -138,6 +138,7 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: P
                             value={north}
                             onChange={(e) => setNorth(e.target.value)}
                             className="h-8 text-xs"
+                            aria-label="North latitude"
                         />
                     </div>
 
@@ -157,6 +158,7 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: P
                                 value={west}
                                 onChange={(e) => setWest(e.target.value)}
                                 className="h-8 text-xs"
+                                aria-label="West longitude"
                             />
                         </div>
                         <div className="flex flex-1 items-center gap-2">
@@ -173,6 +175,7 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: P
                                 value={east}
                                 onChange={(e) => setEast(e.target.value)}
                                 className="h-8 text-xs"
+                                aria-label="East longitude"
                             />
                         </div>
                     </div>
@@ -192,6 +195,7 @@ export function PortalGeoFilter({ enabled, onToggle, bounds, onBoundsChange }: P
                             value={south}
                             onChange={(e) => setSouth(e.target.value)}
                             className="h-8 text-xs"
+                            aria-label="South latitude"
                         />
                     </div>
 

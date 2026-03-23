@@ -586,6 +586,50 @@ describe('bounds filtering', function () {
             ->and($results->items()[0]->id)->toBe($pacific->id);
     });
 
+    it('handles stored bounding box crossing anti-meridian', function () {
+        // Stored bounding box that crosses anti-meridian (west=170, east=-170)
+        $crossingBox = createPublishedResourceForSearch('Fiji Region', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: 170.0, east: -170.0, south: -20.0, north: -10.0
+        )->create([
+            'resource_id' => $crossingBox->id,
+        ]);
+
+        // Normal box in Europe (should be excluded)
+        $europe = createPublishedResourceForSearch('Europe Region', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: 10.0, east: 15.0, south: 50.0, north: 55.0
+        )->create([
+            'resource_id' => $europe->id,
+        ]);
+
+        // Search with a normal bbox in the Pacific that overlaps the stored crossing box
+        $results = $this->service->search([
+            'bounds' => ['north' => -5.0, 'south' => -25.0, 'east' => 175.0, 'west' => 165.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($crossingBox->id);
+    });
+
+    it('handles both search and stored box crossing anti-meridian', function () {
+        // Stored bounding box that crosses anti-meridian
+        $crossingBox = createPublishedResourceForSearch('Pacific Crossing', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: 170.0, east: -170.0, south: -10.0, north: 10.0
+        )->create([
+            'resource_id' => $crossingBox->id,
+        ]);
+
+        // Search also crossing anti-meridian
+        $results = $this->service->search([
+            'bounds' => ['north' => 15.0, 'south' => -15.0, 'east' => -165.0, 'west' => 165.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($crossingBox->id);
+    });
+
     it('combines bounds filter with text search', function () {
         $matchingBoth = createPublishedResourceForSearch('Seismic Berlin Data', $this->titleType);
         \App\Models\GeoLocation::factory()->create([

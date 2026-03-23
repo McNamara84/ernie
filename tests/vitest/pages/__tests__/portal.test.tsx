@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { act, render, screen } from '@tests/vitest/utils/render';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -314,6 +314,18 @@ describe('Portal', () => {
             };
             render(<Portal {...propsWithBounds} />);
             expect(screen.getByText('Spatial filter')).toBeInTheDocument();
+        });
+
+        it('does not show spatial filter badge when enabled but no bounds applied', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            // Enable geo filter (no bounds yet)
+            await user.click(screen.getByTestId('geo-toggle'));
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+
+            // Badge should NOT be shown since bounds are null
+            expect(screen.queryByText('Spatial filter')).not.toBeInTheDocument();
         });
 
         it('renders geo toggle button in filter panel', () => {

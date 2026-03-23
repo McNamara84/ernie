@@ -109,6 +109,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         (enabled: boolean) => {
             setGeoFilterEnabled(enabled);
             if (!enabled) {
+                if (viewportTimerRef.current) {
+                    clearTimeout(viewportTimerRef.current);
+                    viewportTimerRef.current = null;
+                }
                 clearBounds();
                 setFlyToBounds(null);
             }
@@ -132,6 +136,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
 
     // Extended clear that also resets geo filter
     const handleClearAllFilters = useCallback(() => {
+        if (viewportTimerRef.current) {
+            clearTimeout(viewportTimerRef.current);
+            viewportTimerRef.current = null;
+        }
         setGeoFilterEnabled(false);
         setFlyToBounds(null);
         clearFilters();
@@ -249,7 +257,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                                                 <span className="text-sm text-muted-foreground">
                                                     ({geoCount} {geoCount === 1 ? 'location' : 'locations'})
                                                 </span>
-                                                {geoFilterEnabled && (
+                                                {geoFilterEnabled && filters.bounds && (
                                                     <Badge variant="secondary" className="text-xs">
                                                         <MapPin className="mr-1 h-3 w-3" />
                                                         Spatial filter
