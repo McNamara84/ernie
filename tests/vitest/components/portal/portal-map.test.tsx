@@ -492,6 +492,39 @@ describe('PortalMap', () => {
             );
         });
 
+        it('suppresses moveend after programmatic flyToBounds to prevent overwriting manual bounds', () => {
+            const onViewportChange = vi.fn();
+            mockMapInstance.on.mockClear();
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    onViewportChange={onViewportChange}
+                    flyToBounds={{ north: 53, south: 51, east: 14, west: 12 }}
+                />,
+            );
+
+            // Extract the moveend handler registered by ViewportTracker
+            const moveendCall = mockMapInstance.on.mock.calls.find(
+                (call: unknown[]) => call[0] === 'moveend',
+            );
+            expect(moveendCall).toBeDefined();
+            const handler = moveendCall![1] as () => void;
+
+            // First moveend after programmatic fly-to should be suppressed
+            act(() => handler());
+            expect(onViewportChange).not.toHaveBeenCalled();
+
+            // Second moveend (user-initiated) should fire normally
+            act(() => handler());
+            expect(onViewportChange).toHaveBeenCalledTimes(1);
+        });
+
         it('renders with null flyToBounds prop without calling fitBounds for bounds', () => {
             mockMapInstance.fitBounds.mockClear();
             const resources = [

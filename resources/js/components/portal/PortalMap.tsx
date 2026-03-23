@@ -108,12 +108,17 @@ function FitBoundsControl({ resources }: { resources: PortalResource[] }) {
 
 /**
  * Track map viewport changes and report bounds.
+ * Skips the next moveend event when skipNextMoveEnd flag is set (after programmatic fly-to).
  */
-function ViewportTracker({ onViewportChange }: { onViewportChange: (bounds: GeoBounds) => void }) {
+function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChange: (bounds: GeoBounds) => void; skipNextMoveEnd: React.RefObject<boolean> }) {
     const map = useMap();
 
     useEffect(() => {
         const handler = () => {
+            if (skipNextMoveEnd.current) {
+                skipNextMoveEnd.current = false;
+                return;
+            }
             const b = map.getBounds();
             onViewportChange({
                 north: b.getNorth(),
@@ -127,7 +132,7 @@ function ViewportTracker({ onViewportChange }: { onViewportChange: (bounds: GeoB
         return () => {
             map.off('moveend', handler);
         };
-    }, [map, onViewportChange]);
+    }, [map, onViewportChange, skipNextMoveEnd]);
 
     return null;
 }
@@ -135,7 +140,7 @@ function ViewportTracker({ onViewportChange }: { onViewportChange: (bounds: GeoB
 /**
  * Fly the map to specific bounds (triggered by manual coordinate input).
  */
-function MapBoundsUpdater({ bounds }: { bounds: GeoBounds | null }) {
+function MapBoundsUpdater({ bounds, skipNextMoveEnd }: { bounds: GeoBounds | null; skipNextMoveEnd: React.RefObject<boolean> }) {
     const map = useMap();
     const prevBoundsRef = useRef<string | null>(null);
 
@@ -147,6 +152,9 @@ function MapBoundsUpdater({ bounds }: { bounds: GeoBounds | null }) {
         // Only fly if bounds actually changed (avoid loops when viewport reports same bounds)
         if (prevBoundsRef.current === boundsKey) return;
         prevBoundsRef.current = boundsKey;
+
+        // Suppress the next moveend so ViewportTracker doesn't overwrite manual bounds
+        skipNextMoveEnd.current = true;
 
         // Handle anti-meridian crossing (west > east means the box wraps around 180°)
         if (bounds.west > bounds.east) {
@@ -176,7 +184,7 @@ function MapBoundsUpdater({ bounds }: { bounds: GeoBounds | null }) {
                 { padding: [20, 20], animate: true },
             );
         }
-    }, [map, bounds]);
+    }, [map, bounds, skipNextMoveEnd]);
 
     return null;
 }
@@ -220,6 +228,7 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
 export function PortalMap({ resources, className, hideHeader = false, geoFilterEnabled = false, onViewportChange, flyToBounds }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const mapRef = useRef<L.Map | null>(null);
+    const skipNextMoveEnd = useRef(false);
 
     // Filter resources that have geo locations
     const resourcesWithGeo = useMemo(
@@ -264,11 +273,11 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
             <FitBoundsControl resources={resourcesWithGeo} />
 
             {geoFilterEnabled && onViewportChange && (
-                <ViewportTracker onViewportChange={onViewportChange} />
+                <ViewportTracker onViewportChange={onViewportChange} skipNextMoveEnd={skipNextMoveEnd} />
             )}
 
             {flyToBounds && (
-                <MapBoundsUpdater bounds={flyToBounds} />
+                <MapBoundsUpdater bounds={flyToBounds} skipNextMoveEnd={skipNextMoveEnd} />
             )}
 
             {resourcesWithGeo.map((resource) =>
