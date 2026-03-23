@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\DateType;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -11,6 +12,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\PortalSearchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
@@ -19,6 +21,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     withoutVite();
+    Cache::forget(CacheKey::PORTAL_TEMPORAL_RANGE->key());
 
     $this->datasetType = ResourceType::factory()->create([
         'name' => 'Dataset',

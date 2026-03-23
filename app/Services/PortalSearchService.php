@@ -256,22 +256,26 @@ class PortalSearchService
         $yearFrom = $temporal['year_from'];
         $yearTo = $temporal['year_to'];
 
-        $query->whereHas('dates', function (Builder $q) use ($slug, $yearFrom, $yearTo): void {
+        $dvYear = $this->yearExpression('date_value');
+        $sdYear = $this->yearExpression('start_date');
+        $edYear = $this->yearExpression('end_date');
+
+        $query->whereHas('dates', function (Builder $q) use ($slug, $yearFrom, $yearTo, $dvYear, $sdYear, $edYear): void {
             $q->whereHas('dateType', fn (Builder $dt): Builder => $dt->where('slug', $slug));
 
-            $q->where(function (Builder $dateQ) use ($yearFrom, $yearTo): void {
+            $q->where(function (Builder $dateQ) use ($yearFrom, $yearTo, $dvYear, $sdYear, $edYear): void {
                 // Case 1: Single date (date_value) – year within range
-                $dateQ->where(function (Builder $single) use ($yearFrom, $yearTo): void {
+                $dateQ->where(function (Builder $single) use ($yearFrom, $yearTo, $dvYear): void {
                     $single->whereNotNull('date_value')
-                        ->whereRaw('CAST(LEFT(date_value, 4) AS UNSIGNED) >= ?', [$yearFrom])
-                        ->whereRaw('CAST(LEFT(date_value, 4) AS UNSIGNED) <= ?', [$yearTo]);
+                        ->whereRaw("{$dvYear} >= ?", [$yearFrom])
+                        ->whereRaw("{$dvYear} <= ?", [$yearTo]);
                 })
                 // Case 2: Date range (start_date/end_date) – overlap check
-                ->orWhere(function (Builder $range) use ($yearFrom, $yearTo): void {
+                ->orWhere(function (Builder $range) use ($yearFrom, $yearTo, $sdYear, $edYear): void {
                     $range->whereNotNull('start_date')
-                        ->whereRaw('CAST(LEFT(start_date, 4) AS UNSIGNED) <= ?', [$yearTo])
-                        ->where(function (Builder $endCheck) use ($yearFrom): void {
-                            $endCheck->whereRaw('CAST(LEFT(end_date, 4) AS UNSIGNED) >= ?', [$yearFrom])
+                        ->whereRaw("{$sdYear} <= ?", [$yearTo])
+                        ->where(function (Builder $endCheck) use ($yearFrom, $edYear): void {
+                            $endCheck->whereRaw("{$edYear} >= ?", [$yearFrom])
                                 ->orWhereNull('end_date');
                         });
                 });
@@ -307,6 +311,22 @@ class PortalSearchService
 
             // Query min/max years across date_value, start_date, and end_date
             // Only for resources with published landing pages
+            $isSqlite = DB::getDriverName() === 'sqlite';
+
+            // SQLite: MIN/MAX with multiple args act as scalar LEAST/GREATEST
+            // MySQL: requires dedicated LEAST/GREATEST functions
+            $dvYear = $this->yearExpression('dates.date_value');
+            $sdYear = $this->yearExpression('dates.start_date');
+            $edYear = $this->yearExpression('dates.end_date');
+
+            if ($isSqlite) {
+                $minYearExpr = "MIN(MIN(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
+                $maxYearExpr = "MAX(MAX(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), COALESCE({$edYear}, 0))) as max_year";
+            } else {
+                $minYearExpr = "MIN(LEAST(COALESCE({$dvYear}, 9999), COALESCE({$sdYear}, 9999), COALESCE({$edYear}, 9999))) as min_year";
+                $maxYearExpr = "MAX(GREATEST(COALESCE({$dvYear}, 0), COALESCE({$sdYear}, 0), COALESCE({$edYear}, 0))) as max_year";
+            }
+
             $results = DB::table('dates')
                 ->join('date_types', 'dates.date_type_id', '=', 'date_types.id')
                 ->join('resources', 'dates.resource_id', '=', 'resources.id')
@@ -315,16 +335,8 @@ class PortalSearchService
                 ->whereIn('date_types.slug', $activeSlugs)
                 ->select(
                     'date_types.slug',
-                    DB::raw('MIN(LEAST(
-                        COALESCE(CAST(LEFT(dates.date_value, 4) AS UNSIGNED), 9999),
-                        COALESCE(CAST(LEFT(dates.start_date, 4) AS UNSIGNED), 9999),
-                        COALESCE(CAST(LEFT(dates.end_date, 4) AS UNSIGNED), 9999)
-                    )) as min_year'),
-                    DB::raw('MAX(GREATEST(
-                        COALESCE(CAST(LEFT(dates.date_value, 4) AS UNSIGNED), 0),
-                        COALESCE(CAST(LEFT(dates.start_date, 4) AS UNSIGNED), 0),
-                        COALESCE(CAST(LEFT(dates.end_date, 4) AS UNSIGNED), 0)
-                    )) as max_year'),
+                    DB::raw($minYearExpr),
+                    DB::raw($maxYearExpr),
                 )
                 ->groupBy('date_types.slug')
                 ->get();
@@ -344,6 +356,24 @@ class PortalSearchService
 
             return $ranges;
         });
+    }
+
+    /**
+     * Build a cross-database SQL expression that extracts the year from a date column.
+     *
+     * Handles variable-granularity date strings (YYYY, YYYY-MM, YYYY-MM-DD).
+     * SQLite uses CAST(SUBSTR(...) AS INTEGER), MySQL uses CAST(LEFT(...) AS UNSIGNED).
+     *
+     * @param  literal-string  $column
+     * @return literal-string
+     */
+    private function yearExpression(string $column): string
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            return "CAST(SUBSTR({$column}, 1, 4) AS INTEGER)";
+        }
+
+        return "CAST(LEFT({$column}, 4) AS UNSIGNED)";
     }
 
     /**
