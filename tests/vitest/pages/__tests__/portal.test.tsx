@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -71,21 +71,38 @@ vi.mock('@/components/portal/PortalFilters', () => ({
                 </button>
             )}
             {onBoundsChange && (
-                <button
-                    data-testid="apply-bounds"
-                    onClick={() => onBoundsChange({ north: 53, south: 51, east: 14, west: 12 })}
-                >
-                    Apply Bounds
-                </button>
+                <>
+                    <button
+                        data-testid="apply-bounds"
+                        onClick={() => onBoundsChange({ north: 53, south: 51, east: 14, west: 12 })}
+                    >
+                        Apply Bounds
+                    </button>
+                    <button
+                        data-testid="clear-bounds"
+                        onClick={() => onBoundsChange(null)}
+                    >
+                        Clear Bounds
+                    </button>
+                </>
             )}
         </div>
     ),
 }));
 
 vi.mock('@/components/portal/PortalMap', () => ({
-    PortalMap: ({ resources }: { resources: unknown[] }) => (
+    PortalMap: ({ resources, onViewportChange, geoFilterEnabled }: { resources: unknown[]; onViewportChange?: (bounds: { north: number; south: number; east: number; west: number }) => void; geoFilterEnabled?: boolean }) => (
         <div data-testid="portal-map">
             <span data-testid="map-resource-count">{(resources as unknown[]).length}</span>
+            <span data-testid="map-geo-enabled">{String(geoFilterEnabled ?? false)}</span>
+            {onViewportChange && (
+                <button
+                    data-testid="trigger-viewport-change"
+                    onClick={() => onViewportChange({ north: 54, south: 50, east: 15, west: 11 })}
+                >
+                    Viewport Change
+                </button>
+            )}
         </div>
     ),
 }));
@@ -111,7 +128,19 @@ vi.mock('@/components/portal/PortalResultList', () => ({
 }));
 
 vi.mock('@/components/ui/resizable', () => ({
-    ResizablePanelGroup: ({ children }: { children?: React.ReactNode }) => <div data-testid="resizable-group">{children}</div>,
+    ResizablePanelGroup: ({ children, onLayoutChanged }: { children?: React.ReactNode; onLayoutChanged?: (layout: Record<string, number>) => void }) => (
+        <div data-testid="resizable-group">
+            {children}
+            {onLayoutChanged && (
+                <button
+                    data-testid="trigger-layout-change"
+                    onClick={() => onLayoutChanged({ results: 60, map: 40 })}
+                >
+                    Layout Change
+                </button>
+            )}
+        </div>
+    ),
     ResizablePanel: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     ResizableHandle: () => <div data-testid="resizable-handle" />,
 }));
@@ -318,6 +347,199 @@ describe('Portal', () => {
             expect(calledUrl).toContain('south=51.000000');
             expect(calledUrl).toContain('east=14.000000');
             expect(calledUrl).toContain('west=12.000000');
+        });
+
+        it('calls handleGeoFilterToggle when geo toggle is clicked (enable)', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            // Initially geo filter is disabled
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+
+            // Click the geo toggle to enable
+            await user.click(screen.getByTestId('geo-toggle'));
+
+            // After toggling, geo filter should be enabled
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+        });
+
+        it('calls handleGeoFilterToggle when geo toggle is clicked (disable)', async () => {
+            const user = userEvent.setup();
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+
+            // Initially geo filter is enabled (has bounds)
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+
+            // Click the geo toggle to disable
+            await user.click(screen.getByTestId('geo-toggle'));
+
+            // After toggling, geo filter should be disabled and clearBounds called
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+            expect(clearBoundsMock).toHaveBeenCalled();
+        });
+
+        it('calls handleBoundsChange when apply bounds is clicked', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            // Click the apply bounds button in mock PortalFilters
+            await user.click(screen.getByTestId('apply-bounds'));
+
+            // setBounds should have been called with the bounds from the mock
+            expect(setBoundsMock).toHaveBeenCalledWith({ north: 53, south: 51, east: 14, west: 12 });
+        });
+
+        it('calls handleClearAllFilters when clear filters is clicked', async () => {
+            const user = userEvent.setup();
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+
+            // Initially geo filter is enabled
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+
+            // Click clear all filters
+            await user.click(screen.getByTestId('clear-filters'));
+
+            // clearFilters should have been called and geo filter disabled
+            expect(clearFiltersMock).toHaveBeenCalled();
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+        });
+
+        it('calls handleViewportChange via PortalMap callback with debounce', () => {
+            vi.useFakeTimers();
+
+            // Enable geo filter via bounds in initial state
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+
+            // Trigger viewport change via the map mock
+            const triggerButtons = screen.getAllByTestId('trigger-viewport-change');
+            act(() => {
+                triggerButtons[0].click();
+            });
+
+            // setBounds should NOT have been called yet (debounce)
+            expect(setBoundsMock).not.toHaveBeenCalled();
+
+            // Advance timer past the 500ms debounce
+            act(() => {
+                vi.advanceTimersByTime(600);
+            });
+
+            // Now setBounds should have been called
+            expect(setBoundsMock).toHaveBeenCalledWith({ north: 54, south: 50, east: 15, west: 11 });
+
+            vi.useRealTimers();
+        });
+
+        it('calls handleLayoutChanged when layout changes', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            const triggerButton = screen.getByTestId('trigger-layout-change');
+            await user.click(triggerButton);
+
+            // Layout should be persisted to localStorage
+            const saved = localStorage.getItem('portal-panel-layout');
+            expect(saved).toBe(JSON.stringify({ results: 60, map: 40 }));
+        });
+
+        it('resets debounce timer when viewport changes rapidly', () => {
+            vi.useFakeTimers();
+
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+
+            const triggerButtons = screen.getAllByTestId('trigger-viewport-change');
+
+            // Fire first viewport change
+            act(() => {
+                triggerButtons[0].click();
+            });
+
+            // Advance only 200ms (less than 500ms debounce)
+            act(() => {
+                vi.advanceTimersByTime(200);
+            });
+
+            // Fire second viewport change (should reset the debounce timer)
+            act(() => {
+                triggerButtons[0].click();
+            });
+
+            // Advance 400ms (total 600ms from first, but only 400ms from second)
+            act(() => {
+                vi.advanceTimersByTime(400);
+            });
+
+            // setBounds should still not have been called (second fire reset the timer)
+            expect(setBoundsMock).not.toHaveBeenCalled();
+
+            // Advance another 200ms (now 600ms after second fire)
+            act(() => {
+                vi.advanceTimersByTime(200);
+            });
+
+            // Now it should have been called once
+            expect(setBoundsMock).toHaveBeenCalledTimes(1);
+
+            vi.useRealTimers();
+        });
+
+        it('calls handleBoundsChange with null to clear bounds', async () => {
+            const user = userEvent.setup();
+            render(<Portal {...defaultProps} />);
+
+            // Click the clear bounds button
+            await user.click(screen.getByTestId('clear-bounds'));
+
+            // clearBounds should have been called
+            expect(clearBoundsMock).toHaveBeenCalled();
+        });
+
+        it('preserves keywords params on page change', async () => {
+            const user = userEvent.setup();
+            const propsWithKeywords = {
+                ...defaultProps,
+                filters: {
+                    query: '',
+                    type: 'all' as const,
+                    keywords: ['Seismology', 'Geology'],
+                    bounds: null,
+                },
+            };
+            render(<Portal {...propsWithKeywords} />);
+
+            const nextButtons = screen.getAllByTestId('next-page');
+            await user.click(nextButtons[0]);
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('keywords');
         });
     });
 });

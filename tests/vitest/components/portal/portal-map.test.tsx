@@ -1,14 +1,29 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PortalGeoLocation, PortalResource } from '@/types/portal';
 
+// Hoisted stable mock for useMap so we can assert on calls
+const mockMapInstance = vi.hoisted(() => ({
+    fitBounds: vi.fn(),
+    setView: vi.fn(),
+    invalidateSize: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    getBounds: vi.fn(() => ({
+        getNorth: () => 53,
+        getSouth: () => 51,
+        getEast: () => 14,
+        getWest: () => 12,
+    })),
+}));
+
 // Mock react-leaflet components since Leaflet requires DOM and canvas
 vi.mock('react-leaflet', () => ({
-    MapContainer: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    MapContainer: ({ children, className, ref: _ref }: { children: React.ReactNode; className?: string; ref?: unknown }) => (
         <div data-testid="map-container" className={className}>
             {children}
         </div>
@@ -29,19 +44,7 @@ vi.mock('react-leaflet', () => ({
     Polyline: ({ children }: { children?: React.ReactNode }) => (
         <div data-testid="map-polyline">{children}</div>
     ),
-    useMap: () => ({
-        fitBounds: vi.fn(),
-        setView: vi.fn(),
-        invalidateSize: vi.fn(),
-        on: vi.fn(),
-        off: vi.fn(),
-        getBounds: vi.fn(() => ({
-            getNorth: () => 53,
-            getSouth: () => 51,
-            getEast: () => 14,
-            getWest: () => 12,
-        })),
-    }),
+    useMap: () => mockMapInstance,
 }));
 
 // Mock leaflet
@@ -373,13 +376,13 @@ describe('PortalMap', () => {
             expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
         });
 
-        it('renders without crashing when geoFilterEnabled is true with onViewportChange', () => {
+        it('registers moveend handler when geoFilterEnabled is true', () => {
+            const onViewportChange = vi.fn();
             const resources = [
                 createMockResourceWithGeo(1, [
                     { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
                 ]),
             ];
-            const onViewportChange = vi.fn();
             render(
                 <PortalMap
                     resources={resources}
@@ -388,10 +391,62 @@ describe('PortalMap', () => {
                 />,
             );
 
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+            // ViewportTracker should have registered moveend handler via useMap().on
+            expect(mockMapInstance.on).toHaveBeenCalledWith('moveend', expect.any(Function));
         });
 
-        it('renders with flyToBounds prop', () => {
+        it('calls onViewportChange with bounds when moveend fires', () => {
+            const onViewportChange = vi.fn();
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    onViewportChange={onViewportChange}
+                />,
+            );
+
+            // Extract the moveend handler and call it
+            const moveendCall = mockMapInstance.on.mock.calls.find(
+                (call: unknown[]) => call[0] === 'moveend',
+            );
+            expect(moveendCall).toBeDefined();
+            const handler = moveendCall![1] as () => void;
+            act(() => handler());
+
+            expect(onViewportChange).toHaveBeenCalledWith({
+                north: 53,
+                south: 51,
+                east: 14,
+                west: 12,
+            });
+        });
+
+        it('cleans up moveend handler on unmount', () => {
+            const onViewportChange = vi.fn();
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            const { unmount } = render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    onViewportChange={onViewportChange}
+                />,
+            );
+
+            unmount();
+
+            expect(mockMapInstance.off).toHaveBeenCalledWith('moveend', expect.any(Function));
+        });
+
+        it('calls fitBounds when flyToBounds is provided', () => {
             const resources = [
                 createMockResourceWithGeo(1, [
                     { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
@@ -405,10 +460,15 @@ describe('PortalMap', () => {
                 />,
             );
 
-            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+            // MapBoundsUpdater should have called fitBounds
+            expect(mockMapInstance.fitBounds).toHaveBeenCalledWith(
+                [[51, 12], [53, 14]],
+                { padding: [20, 20], animate: true },
+            );
         });
 
-        it('renders with null flyToBounds prop', () => {
+        it('renders with null flyToBounds prop without calling fitBounds for bounds', () => {
+            mockMapInstance.fitBounds.mockClear();
             const resources = [
                 createMockResourceWithGeo(1, [
                     { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
@@ -422,10 +482,12 @@ describe('PortalMap', () => {
                 />,
             );
 
+            // fitBounds is called for FitBoundsControl but not for MapBoundsUpdater
             expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
         });
 
-        it('does not render ViewportTracker when geoFilterEnabled is false', () => {
+        it('does not register moveend handler when geoFilterEnabled is false', () => {
+            mockMapInstance.on.mockClear();
             const onViewportChange = vi.fn();
             const resources = [
                 createMockResourceWithGeo(1, [
@@ -440,8 +502,84 @@ describe('PortalMap', () => {
                 />,
             );
 
-            // The map mock's useMap should not have registered moveend handlers
-            // We verify by checking the map renders fine without viewport tracking
+            // ViewportTracker should NOT be rendered, so no moveend registration
+            const moveendCalls = mockMapInstance.on.mock.calls.filter(
+                (call: unknown[]) => call[0] === 'moveend',
+            );
+            expect(moveendCalls.length).toBe(0);
+        });
+    });
+
+    describe('Line Geo Locations', () => {
+        it('renders polyline for line type geo locations', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    {
+                        id: 1,
+                        type: 'line',
+                        point: null,
+                        bounds: null,
+                        polygon: [
+                            { lat: 52.5, lng: 13.4 },
+                            { lat: 48.2, lng: 11.8 },
+                        ],
+                    },
+                ]),
+            ];
+            render(<PortalMap resources={resources} />);
+
+            expect(screen.getAllByTestId('map-polyline').length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('Author Formatting', () => {
+        it('shows two authors joined with ampersand', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            resources[0].creators = [{ name: 'Smith' }, { name: 'Jones' }];
+            render(<PortalMap resources={resources} />);
+
+            expect(screen.getAllByText(/Smith & Jones/).length).toBeGreaterThan(0);
+        });
+
+        it('shows "et al." for three or more authors', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            resources[0].creators = [{ name: 'Smith' }, { name: 'Jones' }, { name: 'Brown' }];
+            render(<PortalMap resources={resources} />);
+
+            expect(screen.getAllByText(/Smith et al\./).length).toBeGreaterThan(0);
+        });
+
+        it('shows "Unknown" when no authors', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            resources[0].creators = [];
+            render(<PortalMap resources={resources} />);
+
+            expect(screen.getAllByText(/Unknown/).length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('Header Modes', () => {
+        it('hides collapsible header when hideHeader is true', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(<PortalMap resources={resources} hideHeader />);
+
+            // Map should render but the collapsible section should not
             expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
         });
     });
