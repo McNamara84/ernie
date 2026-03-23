@@ -400,4 +400,132 @@ describe('usePortalFilters', () => {
             expect(result.current.hasActiveFilters).toBe(false);
         });
     });
+
+    describe('setBounds', () => {
+        it('navigates with bounds URL params', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
+            );
+
+            act(() => {
+                result.current.setBounds({ north: 53, south: 51, east: 14, west: 12 });
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('north=53.000000');
+            expect(calledUrl).toContain('south=51.000000');
+            expect(calledUrl).toContain('east=14.000000');
+            expect(calledUrl).toContain('west=12.000000');
+        });
+
+        it('navigates without bounds params when null is passed', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        query: null,
+                        type: 'all',
+                        keywords: [],
+                        bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setBounds(null);
+            });
+
+            expect(routerMock.get).toHaveBeenCalledWith(
+                '/portal',
+                {},
+                expect.objectContaining({ preserveState: true }),
+            );
+        });
+
+        it('preserves existing query and type when setting bounds', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: 'test', type: 'doi', keywords: [],
+                        bounds: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setBounds({ north: 53, south: 51, east: 14, west: 12 });
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('q=test');
+            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('north=53.000000');
+        });
+
+        it('resets page to 1 when setting bounds', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 3 }),
+            );
+
+            act(() => {
+                result.current.setBounds({ north: 53, south: 51, east: 14, west: 12 });
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('page=');
+        });
+    });
+
+    describe('clearBounds', () => {
+        it('navigates without bounds params', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        query: null,
+                        type: 'all',
+                        keywords: [],
+                        bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.clearBounds();
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('north');
+            expect(calledUrl).not.toContain('south');
+        });
+    });
+
+    describe('hasActiveFilters with bounds', () => {
+        it('reports active filters when bounds are set', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: {
+                        query: null,
+                        type: 'all',
+                        keywords: [],
+                        bounds: { north: 53, south: 51, east: 14, west: 12 },
+                    },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+
+        it('does not report active filters when bounds are null', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: 'all', keywords: [],
+                        bounds: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(false);
+        });
+    });
 });

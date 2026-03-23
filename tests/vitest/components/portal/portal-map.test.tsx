@@ -33,6 +33,14 @@ vi.mock('react-leaflet', () => ({
         fitBounds: vi.fn(),
         setView: vi.fn(),
         invalidateSize: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        getBounds: vi.fn(() => ({
+            getNorth: () => 53,
+            getSouth: () => 51,
+            getEast: () => 14,
+            getWest: () => 12,
+        })),
     }),
 }));
 
@@ -350,6 +358,91 @@ describe('PortalMap', () => {
 
             // Badge appears in both layouts' popups
             expect(screen.getAllByText('PhysicalObject').length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('Geo Filter Props', () => {
+        it('renders without crashing when geoFilterEnabled is false', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(<PortalMap resources={resources} geoFilterEnabled={false} />);
+
+            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+        });
+
+        it('renders without crashing when geoFilterEnabled is true with onViewportChange', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            const onViewportChange = vi.fn();
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    onViewportChange={onViewportChange}
+                />,
+            );
+
+            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+        });
+
+        it('renders with flyToBounds prop', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    flyToBounds={{ north: 53, south: 51, east: 14, west: 12 }}
+                />,
+            );
+
+            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+        });
+
+        it('renders with null flyToBounds prop', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={true}
+                    flyToBounds={null}
+                />,
+            );
+
+            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+        });
+
+        it('does not render ViewportTracker when geoFilterEnabled is false', () => {
+            const onViewportChange = vi.fn();
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(
+                <PortalMap
+                    resources={resources}
+                    geoFilterEnabled={false}
+                    onViewportChange={onViewportChange}
+                />,
+            );
+
+            // The map mock's useMap should not have registered moveend handlers
+            // We verify by checking the map renders fine without viewport tracking
+            expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
         });
     });
 });

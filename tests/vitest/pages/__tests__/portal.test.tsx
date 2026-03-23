@@ -22,6 +22,8 @@ vi.mock('@/layouts/portal-layout', () => ({
 const setSearchMock = vi.fn();
 const setTypeMock = vi.fn();
 const clearFiltersMock = vi.fn();
+const setBoundsMock = vi.fn();
+const clearBoundsMock = vi.fn();
 
 vi.mock('@/hooks/use-portal-filters', () => ({
     usePortalFilters: () => ({
@@ -30,6 +32,8 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         setKeywords: vi.fn(),
         addKeyword: vi.fn(),
         removeKeyword: vi.fn(),
+        setBounds: setBoundsMock,
+        clearBounds: clearBoundsMock,
         clearFilters: clearFiltersMock,
         hasActiveFilters: false,
     }),
@@ -42,11 +46,17 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         totalResults,
         onSearchChange,
         onClearFilters,
+        geoFilterEnabled,
+        onGeoFilterToggle,
+        onBoundsChange,
     }: {
         filters: PortalPageProps['filters'];
         totalResults: number;
         onSearchChange: (s: string) => void;
         onClearFilters: () => void;
+        geoFilterEnabled?: boolean;
+        onGeoFilterToggle?: (enabled: boolean) => void;
+        onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number } | null) => void;
     }) => (
         <div data-testid="portal-filters">
             <span data-testid="total-results">{totalResults}</span>
@@ -54,6 +64,20 @@ vi.mock('@/components/portal/PortalFilters', () => ({
             <button data-testid="clear-filters" onClick={onClearFilters}>
                 Clear
             </button>
+            <span data-testid="geo-filter-enabled">{String(geoFilterEnabled ?? false)}</span>
+            {onGeoFilterToggle && (
+                <button data-testid="geo-toggle" onClick={() => onGeoFilterToggle(!geoFilterEnabled)}>
+                    Toggle Geo
+                </button>
+            )}
+            {onBoundsChange && (
+                <button
+                    data-testid="apply-bounds"
+                    onClick={() => onBoundsChange({ north: 53, south: 51, east: 14, west: 12 })}
+                >
+                    Apply Bounds
+                </button>
+            )}
         </div>
     ),
 }));
@@ -231,5 +255,69 @@ describe('Portal', () => {
         render(<Portal {...defaultProps} />);
         // defaultProps has 1 geoLocation
         expect(screen.getByText(/1 location\b/)).toBeInTheDocument();
+    });
+
+    describe('Geo Filter Integration', () => {
+        it('passes geoFilterEnabled to PortalFilters', () => {
+            render(<Portal {...defaultProps} />);
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('false');
+        });
+
+        it('initializes geoFilterEnabled from URL bounds', () => {
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+            expect(screen.getByTestId('geo-filter-enabled')).toHaveTextContent('true');
+        });
+
+        it('shows spatial filter badge when geo filter is enabled with bounds', () => {
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    ...defaultProps.filters,
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+            expect(screen.getByText('Spatial filter')).toBeInTheDocument();
+        });
+
+        it('renders geo toggle button in filter panel', () => {
+            render(<Portal {...defaultProps} />);
+            expect(screen.getByTestId('geo-toggle')).toBeInTheDocument();
+        });
+
+        it('renders apply bounds button in filter panel', () => {
+            render(<Portal {...defaultProps} />);
+            expect(screen.getByTestId('apply-bounds')).toBeInTheDocument();
+        });
+
+        it('preserves bounds params on page change', async () => {
+            const user = userEvent.setup();
+            const propsWithBounds = {
+                ...defaultProps,
+                filters: {
+                    query: '',
+                    type: 'all' as const,
+                    keywords: [],
+                    bounds: { north: 53, south: 51, east: 14, west: 12 },
+                },
+            };
+            render(<Portal {...propsWithBounds} />);
+
+            const nextButtons = screen.getAllByTestId('next-page');
+            await user.click(nextButtons[0]);
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('north=53.000000');
+            expect(calledUrl).toContain('south=51.000000');
+            expect(calledUrl).toContain('east=14.000000');
+            expect(calledUrl).toContain('west=12.000000');
+        });
     });
 });

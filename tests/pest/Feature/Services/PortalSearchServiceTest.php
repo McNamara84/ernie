@@ -402,4 +402,275 @@ describe('getMapData', function () {
         expect($results)->toHaveCount(1)
             ->and($results->first()->id)->toBe($resourceWithGeo->id);
     });
+
+    it('does NOT apply bounds filter to map data', function () {
+        // Two resources with different geo locations
+        $insideBounds = createPublishedResourceForSearch('Inside', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $insideBounds->id,
+            'point_latitude' => 52.5,
+            'point_longitude' => 13.4,
+        ]);
+
+        $outsideBounds = createPublishedResourceForSearch('Outside', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $outsideBounds->id,
+            'point_latitude' => 10.0,
+            'point_longitude' => -50.0,
+        ]);
+
+        // Map data should return BOTH resources (bounds are not applied)
+        $results = $this->service->getMapData([
+            'bounds' => ['north' => 54, 'south' => 50, 'east' => 15, 'west' => 11],
+        ]);
+
+        expect($results)->toHaveCount(2);
+    });
+});
+
+// =========================================================================
+// Spatial bounds filtering
+// =========================================================================
+
+describe('bounds filtering', function () {
+    it('filters resources by point within bounding box', function () {
+        $inside = createPublishedResourceForSearch('Inside Berlin', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $inside->id,
+            'point_latitude' => 52.52,
+            'point_longitude' => 13.405,
+        ]);
+
+        $outside = createPublishedResourceForSearch('Outside Rio', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $outside->id,
+            'point_latitude' => -22.9,
+            'point_longitude' => -43.2,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($inside->id);
+    });
+
+    it('filters resources by bounding box overlap', function () {
+        $overlapping = createPublishedResourceForSearch('Overlapping', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: 12.0, east: 14.0, south: 51.0, north: 53.0
+        )->create([
+            'resource_id' => $overlapping->id,
+        ]);
+
+        $nonOverlapping = createPublishedResourceForSearch('Non-overlapping', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: -50.0, east: -40.0, south: -30.0, north: -20.0
+        )->create([
+            'resource_id' => $nonOverlapping->id,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($overlapping->id);
+    });
+
+    it('returns all resources when bounds is null', function () {
+        $resource1 = createPublishedResourceForSearch('Paper A', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $resource1->id,
+            'point_latitude' => 52.5,
+            'point_longitude' => 13.4,
+        ]);
+
+        $resource2 = createPublishedResourceForSearch('Paper B', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $resource2->id,
+            'point_latitude' => -22.9,
+            'point_longitude' => -43.2,
+        ]);
+
+        $results = $this->service->search(['bounds' => null]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('includes resources with partially overlapping bounding boxes', function () {
+        // Resource bbox that partially overlaps with search bounds
+        $partial = createPublishedResourceForSearch('Partial Overlap', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: 10.0, east: 12.5, south: 49.0, north: 51.0
+        )->create([
+            'resource_id' => $partial->id,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1);
+    });
+
+    it('excludes resources with no geo locations when bounds filter is active', function () {
+        // Resource WITH geo but outside bounds
+        $withGeo = createPublishedResourceForSearch('Has Geo', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $withGeo->id,
+            'point_latitude' => -50.0,
+            'point_longitude' => -50.0,
+        ]);
+
+        // Resource WITHOUT any geo
+        createPublishedResourceForSearch('No Geo', $this->titleType);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(0);
+    });
+
+    it('handles anti-meridian crossing for points', function () {
+        // Point in the Pacific (east of anti-meridian)
+        $pacific = createPublishedResourceForSearch('Pacific Island', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $pacific->id,
+            'point_latitude' => 0.0,
+            'point_longitude' => 175.0,
+        ]);
+
+        // Point in Europe (should be excluded)
+        $europe = createPublishedResourceForSearch('Europe', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $europe->id,
+            'point_latitude' => 52.0,
+            'point_longitude' => 13.0,
+        ]);
+
+        // Anti-meridian crossing bbox: west=170, east=-170 (wraps around)
+        $results = $this->service->search([
+            'bounds' => ['north' => 10.0, 'south' => -10.0, 'east' => -170.0, 'west' => 170.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($pacific->id);
+    });
+
+    it('handles anti-meridian crossing for bounding boxes', function () {
+        // Bounding box in western Pacific (does NOT itself cross anti-meridian)
+        $pacific = createPublishedResourceForSearch('Pacific Region', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: 172.0, east: 178.0, south: -5.0, north: 5.0
+        )->create([
+            'resource_id' => $pacific->id,
+        ]);
+
+        // Bounding box in Atlantic (should be excluded)
+        $atlantic = createPublishedResourceForSearch('Atlantic Region', $this->titleType);
+        \App\Models\GeoLocation::factory()->withBox(
+            west: -30.0, east: -20.0, south: 10.0, north: 20.0
+        )->create([
+            'resource_id' => $atlantic->id,
+        ]);
+
+        // Search bbox crossing anti-meridian
+        $results = $this->service->search([
+            'bounds' => ['north' => 10.0, 'south' => -10.0, 'east' => -165.0, 'west' => 165.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($pacific->id);
+    });
+
+    it('combines bounds filter with text search', function () {
+        $matchingBoth = createPublishedResourceForSearch('Seismic Berlin Data', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $matchingBoth->id,
+            'point_latitude' => 52.52,
+            'point_longitude' => 13.405,
+        ]);
+
+        $matchingTextOnly = createPublishedResourceForSearch('Seismic Tokyo Data', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $matchingTextOnly->id,
+            'point_latitude' => 35.68,
+            'point_longitude' => 139.69,
+        ]);
+
+        $results = $this->service->search([
+            'query' => 'Seismic',
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matchingBoth->id);
+    });
+
+    it('combines bounds filter with keyword filter', function () {
+        $matchingBoth = createPublishedResourceForSearch('Paper A', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $matchingBoth->id,
+            'point_latitude' => 52.52,
+            'point_longitude' => 13.405,
+        ]);
+        Subject::factory()->create(['resource_id' => $matchingBoth->id, 'value' => 'Seismology']);
+
+        $matchingGeoOnly = createPublishedResourceForSearch('Paper B', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $matchingGeoOnly->id,
+            'point_latitude' => 52.0,
+            'point_longitude' => 13.0,
+        ]);
+
+        $results = $this->service->search([
+            'keywords' => ['Seismology'],
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matchingBoth->id);
+    });
+
+    it('matches resource with multiple geo locations if any one intersects', function () {
+        $resource = createPublishedResourceForSearch('Multi Geo', $this->titleType);
+
+        // One geo location outside bounds
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $resource->id,
+            'point_latitude' => -40.0,
+            'point_longitude' => -60.0,
+        ]);
+
+        // Another geo location inside bounds
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 52.5,
+            'point_longitude' => 13.4,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1);
+    });
+
+    it('matches point on boundary edge', function () {
+        $resource = createPublishedResourceForSearch('Edge Point', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 50.0,
+            'point_longitude' => 11.0,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1);
+    });
 });
