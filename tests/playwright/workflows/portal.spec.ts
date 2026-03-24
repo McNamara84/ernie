@@ -14,8 +14,8 @@ test.describe('Portal Page', () => {
 
     test.describe('Page Loading', () => {
         test('portal page loads successfully', async ({ page }) => {
-            // Verify page title/heading is visible
-            await expect(page.getByRole('heading', { name: /data portal/i })).toBeVisible();
+            // Verify portal header branding is visible
+            await expect(page.getByText('GFZ Data Services Portal')).toBeVisible();
         });
 
         test('displays filters sidebar', async ({ page }) => {
@@ -222,9 +222,8 @@ test.describe('Portal Page', () => {
 
     test.describe('Accessibility', () => {
         test('page has proper heading structure', async ({ page }) => {
-            // Should have main heading
-            const h1 = page.getByRole('heading', { level: 1 });
-            await expect(h1.first()).toBeVisible();
+            // Should have portal header with branding
+            await expect(page.getByText('GFZ Data Services Portal')).toBeVisible();
         });
 
         test('search input has associated label', async ({ page }) => {

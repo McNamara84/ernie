@@ -15,6 +15,10 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
+vi.mock('@/components/portal/PortalHeader', () => ({
+    PortalHeader: () => <header data-testid="portal-header">GFZ Data Services Portal</header>,
+}));
+
 vi.mock('@/components/app-footer', () => ({
     AppFooter: () => <footer data-testid="app-footer">Footer</footer>,
 }));
@@ -33,11 +37,10 @@ describe('PortalLayout', () => {
             expect(screen.getByText('Hello Portal')).toBeInTheDocument();
         });
 
-        it('renders ERNIE brand link', () => {
+        it('renders portal header', () => {
             render(<PortalLayout><div /></PortalLayout>);
-            const brandLink = screen.getByText('ERNIE');
-            expect(brandLink).toBeInTheDocument();
-            expect(brandLink.closest('a')).toHaveAttribute('href', '/');
+            expect(screen.getByTestId('portal-header')).toBeInTheDocument();
+            expect(screen.getByText('GFZ Data Services Portal')).toBeInTheDocument();
         });
 
         it('renders footer', () => {

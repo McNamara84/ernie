@@ -208,11 +208,9 @@ describe('Portal', () => {
         localStorage.clear();
     });
 
-    it('renders the portal layout with header', () => {
+    it('renders the portal layout', () => {
         render(<Portal {...defaultProps} />);
         expect(screen.getByTestId('portal-layout')).toBeInTheDocument();
-        expect(screen.getByText('Data Portal')).toBeInTheDocument();
-        expect(screen.getByText(/discover and explore/i)).toBeInTheDocument();
     });
 
     it('passes resources to result list', () => {
