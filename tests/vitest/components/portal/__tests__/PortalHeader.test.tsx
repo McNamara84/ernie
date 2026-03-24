@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen, within } from '@tests/vitest/utils/render';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -116,9 +116,10 @@ describe('PortalHeader', () => {
             const menuButton = screen.getByLabelText('Open menu');
             fireEvent.click(menuButton);
 
-            // Click a mobile nav item - get all "Home" links and click the last one (mobile)
-            const homeLinks = screen.getAllByText('Home');
-            fireEvent.click(homeLinks[homeLinks.length - 1]);
+            // Click a mobile nav item within the mobile dropdown
+            const mobileMenu = screen.getByTestId('mobile-menu');
+            const homeLink = within(mobileMenu).getByText('Home');
+            fireEvent.click(homeLink);
 
             // Menu should close, button label back to "Open menu"
             expect(screen.getByLabelText('Open menu')).toBeInTheDocument();

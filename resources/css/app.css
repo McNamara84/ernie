@@ -122,9 +122,9 @@
     --gfz-primary-foreground: #ffffff;
 
     /* Portal Header */
-    --portal-header: #1A3E74;
+    --portal-header: #1a3e74;
     --portal-header-foreground: #ffffff;
-    --portal-nav: #CCDDEB;
+    --portal-nav: #ccddeb;
     --portal-nav-foreground: #1e3a5f;
     --portal-nav-active: #a8c8e0;
 }

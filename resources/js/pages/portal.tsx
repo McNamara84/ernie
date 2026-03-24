@@ -221,7 +221,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         <PortalLayout>
             <Head title="Data Portal" />
 
-            <div className="flex h-[calc(100vh-7rem)] flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">
                 {/* Main Content */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Filter Sidebar */}

@@ -121,7 +121,7 @@ export function PortalHeader() {
 
                 {/* Mobile menu dropdown */}
                 {mobileMenuOpen && (
-                    <div className="border-t border-portal-nav-active md:hidden">
+                    <div className="border-t border-portal-nav-active md:hidden" data-testid="mobile-menu">
                         <ul className="py-1">
                             {NAV_ITEMS.map((item) => (
                                 <li key={item.label}>
