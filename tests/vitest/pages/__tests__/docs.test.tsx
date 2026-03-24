@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
 import type { EditorSettings } from '@/types/docs';
+import { render, screen } from '@tests/vitest/utils/render';
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -125,5 +126,77 @@ describe('Docs page', () => {
         expect(screen.getByRole('tab', { name: /Datasets/i })).toBeInTheDocument();
         // Verify tabs are rendered correctly for users with GCMD enabled
         expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
+
+    it('shows editor settings for group_leader', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        // 'Editor Configuration' is the unique h3 inside the Editor Settings section
+        expect(screen.getByText('Editor Configuration')).toBeInTheDocument();
+    });
+
+    it('hides editor settings for curator', () => {
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        // Editor Configuration is the h3 inside the Editor Settings section
+        expect(screen.queryByText('Editor Configuration')).not.toBeInTheDocument();
+    });
+
+    it('hides legacy import for curator', async () => {
+        const user = userEvent.setup();
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        // Switch to Datasets tab where Legacy Import lives
+        const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
+        await user.click(datasetsTab);
+        // Verify tab switched by checking Datasets-only content is rendered
+        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        // Legacy Import requires admin role
+        expect(screen.queryByText('Importing from Old Datasets')).not.toBeInTheDocument();
+    });
+
+    it('shows legacy import for admin', async () => {
+        const user = userEvent.setup();
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        // Switch to Datasets tab
+        const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
+        await user.click(datasetsTab);
+        // Verify tab switched and admin sees Legacy Import
+        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        expect(screen.getByText('Importing from Old Datasets')).toBeInTheDocument();
+    });
+
+    it('hides landing pages documentation for beginner', async () => {
+        const user = userEvent.setup();
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
+        // Switch to Datasets tab where Landing Pages lives
+        const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
+        await user.click(datasetsTab);
+        // Verify tab switched by checking Datasets-only content is rendered
+        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        // Landing Pages requires curator role
+        expect(screen.queryByText('Creating Landing Pages')).not.toBeInTheDocument();
+    });
+
+    it('shows landing pages documentation for curator', async () => {
+        const user = userEvent.setup();
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        // Switch to Datasets tab
+        const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
+        await user.click(datasetsTab);
+        // Verify tab switched and curator sees Landing Pages
+        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+    });
+
+    it('shows thesaurus update actions for admin in editor settings', () => {
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        expect(screen.getByText('Check for updates by comparing local vs. NASA remote counts')).toBeInTheDocument();
+        expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
+        expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
+    });
+
+    it('shows thesaurus update actions for group_leader in editor settings', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        expect(screen.getByText('Check for updates by comparing local vs. NASA remote counts')).toBeInTheDocument();
+        expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
+        expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
     });
 });

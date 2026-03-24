@@ -215,11 +215,11 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Group Leader</h5>
-                                <p className="text-sm text-muted-foreground">Manage curator/beginner users, register production DOIs</p>
+                                <p className="text-sm text-muted-foreground">Manage users, view statistics, editor settings, landing page management, production DOI registration</p>
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Curator</h5>
-                                <p className="text-sm text-muted-foreground">Standard curation features, test DOI registration only</p>
+                                <p className="text-sm text-muted-foreground">Standard curation features, landing page management, production DOI registration</p>
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Beginner</h5>
@@ -241,12 +241,12 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                 id: 'editor-settings',
                 title: 'Editor Settings',
                 icon: Settings,
-                minRole: 'admin',
+                minRole: 'group_leader',
                 content: (
                     <>
                         <h3>Editor Configuration</h3>
                         <p>
-                            As an admin, you can configure the Data Editor at <code>/settings</code> (Editor Settings):
+                            You can configure the Data Editor at <code>/settings</code> (Editor Settings):
                         </p>
 
                         <h4>Configurable Options</h4>
@@ -311,9 +311,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
-                            <li>
-                                Check for updates by comparing local item count with the remote registry
-                            </li>
+                            <li>Check for updates by comparing local item count with the remote registry</li>
                             <li>Trigger background downloads of the full vocabulary data</li>
                         </ul>
                     </>
@@ -947,7 +945,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'landing-pages',
                 title: 'Landing Pages',
                 icon: Globe,
-                minRole: 'beginner',
+                minRole: 'curator',
                 content: (
                     <>
                         <h3>Creating Landing Pages</h3>
@@ -1062,7 +1060,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'legacy-import',
                 title: 'Legacy Dataset Import',
                 icon: FolderOpen,
-                minRole: 'curator',
+                minRole: 'admin',
                 content: (
                     <>
                         <h3>Importing from Old Datasets</h3>

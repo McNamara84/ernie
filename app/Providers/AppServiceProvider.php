@@ -137,9 +137,9 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === UserRole::ADMIN;
         });
 
-        // Manage thesauri (trigger updates) - Admin only
+        // Manage thesauri (check & trigger updates) - Admin and Group Leader
         Gate::define('manage-thesauri', function (User $user): bool {
-            return $user->role === UserRole::ADMIN;
+            return in_array($user->role, [UserRole::ADMIN, UserRole::GROUP_LEADER], true);
         });
 
         // Delete all resources (bulk cleanup) - Admin only

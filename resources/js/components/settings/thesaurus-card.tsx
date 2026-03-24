@@ -64,7 +64,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { auth } = usePage<SharedData>().props;
-    const isAdmin = auth.user?.role === 'admin';
+    const canManageThesauri = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -260,63 +260,66 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 </div>
             </div>
 
-            {/* Update check section */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
-                    {checkStatus === 'loading' ? (
-                        <>
-                            <Spinner size="xs" className="mr-1" />
-                            Checking...
-                        </>
-                    ) : (
-                        <>
-                            <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                            Check for Updates
-                        </>
+            {/* Update check section – visible to admins and group leaders (routes require manage-thesauri) */}
+            {canManageThesauri && (
+                <>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
+                            {checkStatus === 'loading' ? (
+                                <>
+                                    <Spinner size="xs" className="mr-1" />
+                                    Checking...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                    Check for Updates
+                                </>
+                            )}
+                        </Button>
+
+                        {updateInfo?.updateAvailable && !isUpdating && (
+                            <Button size="sm" onClick={triggerUpdate}>
+                                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                Update Now
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Check error message */}
+                    {checkStatus === 'error' && checkError && (
+                        <div className="mt-3 flex items-start gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                            <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                            <span>Failed to check for updates: {checkError}</span>
+                        </div>
                     )}
-                </Button>
 
-                {updateInfo?.updateAvailable && isAdmin && !isUpdating && (
-                    <Button size="sm" onClick={triggerUpdate}>
-                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                        Update Now
-                    </Button>
-                )}
-            </div>
-
-            {/* Check error message */}
-            {checkStatus === 'error' && checkError && (
-                <div className="mt-3 flex items-start gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                    <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>Failed to check for updates: {checkError}</span>
-                </div>
-            )}
-
-            {/* Update info message */}
-            {updateInfo && checkStatus === 'done' && (
-                <div
-                    className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
-                        updateInfo.updateAvailable
-                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
-                            : 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
-                    }`}
-                >
-                    {updateInfo.updateAvailable ? (
-                        <>
-                            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                            <span>
-                                ERNIE contains {updateInfo.localCount.toLocaleString()} concepts, but NASA/GCMD contains{' '}
-                                {updateInfo.remoteCount.toLocaleString()} concepts.
-                                {isAdmin ? ' Would you like to update the thesaurus?' : ' Contact an administrator to update.'}
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                            <span>Thesaurus is up to date ({updateInfo.localCount.toLocaleString()} concepts)</span>
-                        </>
+                    {/* Update info message */}
+                    {updateInfo && checkStatus === 'done' && (
+                        <div
+                            className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
+                                updateInfo.updateAvailable
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400'
+                                    : 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-400'
+                            }`}
+                        >
+                            {updateInfo.updateAvailable ? (
+                                <>
+                                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                                    <span>
+                                        ERNIE contains {updateInfo.localCount.toLocaleString()} concepts, but NASA/GCMD contains{' '}
+                                        {updateInfo.remoteCount.toLocaleString()} concepts. Would you like to update the thesaurus?
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                                    <span>Thesaurus is up to date ({updateInfo.localCount.toLocaleString()} concepts)</span>
+                                </>
+                            )}
+                        </div>
                     )}
-                </div>
+                </>
             )}
 
             {/* Update progress */}

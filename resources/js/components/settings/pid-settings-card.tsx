@@ -68,7 +68,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { auth } = usePage<SharedData>().props;
-    const isAdmin = auth.user?.role === 'admin';
+    const canManageThesauri = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -264,8 +264,8 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                 </div>
             </div>
 
-            {/* Update check section – only visible to admins (routes require manage-thesauri) */}
-            {isAdmin && (
+            {/* Update check section – visible to admins and group leaders (routes require manage-thesauri) */}
+            {canManageThesauri && (
                 <>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                         <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={checkStatus === 'loading' || isUpdating}>
