@@ -142,6 +142,10 @@
         ],
         "improvements": [
             {
+                "title": "Portal Header Redesign",
+                "description": "Redesigned the public Data Portal header to match the GFZ Data Services branding. The header now features a top bar with 'GFZ Data Services Portal' title and white GFZ logo on GFZ blue background (#1A3E74), followed by a horizontal navigation menu on light blue background (#CCDDEB) with links to Home, Find, Publish Data, Samples (IGSN), Support, About Us, Legal Notice, and Data Protection. The 'Find' menu item is visually highlighted when on the portal page. On mobile devices, the menu collapses into a hamburger menu. The previous 'Data Portal' heading and subtitle were removed for a cleaner layout."
+            },
+            {
                 "title": "Context-Aware Availability Endpoints for ELMO",
                 "description": "Dedicated ELMO availability endpoints are now available at /api/v1/elmo/vocabularies/thesauri-availability and /api/v1/elmo/vocabularies/pid-availability. These routes require an X-API-Key header and return is_elmo_active status. The unauthenticated /api/v1/vocabularies/*-availability endpoints always return is_active status for the ERNIE frontend, regardless of any headers sent."
             }
