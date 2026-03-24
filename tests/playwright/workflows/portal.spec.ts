@@ -222,8 +222,10 @@ test.describe('Portal Page', () => {
 
     test.describe('Accessibility', () => {
         test('page has proper heading structure', async ({ page }) => {
-            // Should have portal header with branding
-            await expect(page.getByText('GFZ Data Services Portal')).toBeVisible();
+            // Should have a level-1 heading for accessibility/SEO
+            const h1 = page.getByRole('heading', { level: 1 });
+            await expect(h1.first()).toBeVisible();
+            await expect(h1.first()).toHaveText('GFZ Data Services Portal');
         });
 
         test('search input has associated label', async ({ page }) => {

@@ -77,9 +77,9 @@ export function PortalHeader() {
             {/* Top Branding Bar */}
             <div className="bg-portal-header">
                 <div className="flex h-16 items-center justify-between px-6">
-                    <span className="text-xl font-semibold tracking-wide text-portal-header-foreground">
+                    <h1 className="text-xl font-semibold tracking-wide text-portal-header-foreground">
                         GFZ Data Services Portal
-                    </span>
+                    </h1>
                     <img
                         src="/images/gfz-logo_en.svg"
                         alt="GFZ Helmholtz Centre for Geosciences"
@@ -106,7 +106,7 @@ export function PortalHeader() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            onClick={() => setMobileMenuOpen((prev) => !prev)}
                             aria-expanded={mobileMenuOpen}
                             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                             className="text-portal-nav-foreground hover:bg-portal-nav-active"

@@ -20,9 +20,11 @@ import { PortalHeader } from '@/components/portal/PortalHeader';
 
 describe('PortalHeader', () => {
     describe('branding bar', () => {
-        it('renders portal title', () => {
+        it('renders portal title as h1 heading', () => {
             render(<PortalHeader />);
-            expect(screen.getByText('GFZ Data Services Portal')).toBeInTheDocument();
+            const heading = screen.getByRole('heading', { level: 1 });
+            expect(heading).toBeInTheDocument();
+            expect(heading).toHaveTextContent('GFZ Data Services Portal');
         });
 
         it('renders GFZ logo', () => {
