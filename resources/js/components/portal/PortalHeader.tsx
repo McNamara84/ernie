@@ -28,10 +28,11 @@ function NavLink({ item }: { item: NavItem }) {
         'px-3 py-2 text-sm font-medium transition-colors hover:bg-portal-nav-active rounded-sm';
     const activeClasses = item.active ? 'bg-portal-nav-active font-semibold' : '';
     const className = `${baseClasses} ${activeClasses}`.trim();
+    const ariaCurrent = item.active ? ('page' as const) : undefined;
 
     if (item.external) {
         return (
-            <a href={item.href} className={`flex items-center gap-1.5 text-portal-nav-foreground ${className}`}>
+            <a href={item.href} className={`flex items-center gap-1.5 text-portal-nav-foreground ${className}`} aria-current={ariaCurrent}>
                 {item.icon}
                 {item.label}
             </a>
@@ -39,7 +40,7 @@ function NavLink({ item }: { item: NavItem }) {
     }
 
     return (
-        <Link href={item.href} className={`flex items-center gap-1.5 text-portal-nav-foreground ${className}`}>
+        <Link href={item.href} className={`flex items-center gap-1.5 text-portal-nav-foreground ${className}`} aria-current={ariaCurrent}>
             {item.icon}
             {item.label}
         </Link>
@@ -51,10 +52,11 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
         'block w-full px-4 py-3 text-sm font-medium transition-colors hover:bg-portal-nav-active';
     const activeClasses = item.active ? 'bg-portal-nav-active font-semibold' : '';
     const className = `${baseClasses} ${activeClasses}`.trim();
+    const ariaCurrent = item.active ? ('page' as const) : undefined;
 
     if (item.external) {
         return (
-            <a href={item.href} className={`flex items-center gap-2 text-portal-nav-foreground ${className}`} onClick={onClick}>
+            <a href={item.href} className={`flex items-center gap-2 text-portal-nav-foreground ${className}`} onClick={onClick} aria-current={ariaCurrent}>
                 {item.icon}
                 {item.label}
             </a>
@@ -62,7 +64,7 @@ function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }
     }
 
     return (
-        <Link href={item.href} className={`flex items-center gap-2 text-portal-nav-foreground ${className}`} onClick={onClick}>
+        <Link href={item.href} className={`flex items-center gap-2 text-portal-nav-foreground ${className}`} onClick={onClick} aria-current={ariaCurrent}>
             {item.icon}
             {item.label}
         </Link>

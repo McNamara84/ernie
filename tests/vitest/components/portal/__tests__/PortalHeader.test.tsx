@@ -71,6 +71,13 @@ describe('PortalHeader', () => {
             const findLink = screen.getByText('Find').closest('a');
             expect(findLink?.className).toContain('bg-portal-nav-active');
             expect(findLink?.className).toContain('font-semibold');
+            expect(findLink).toHaveAttribute('aria-current', 'page');
+        });
+
+        it('does not set aria-current on inactive items', () => {
+            render(<PortalHeader />);
+            const homeLink = screen.getByText('Home').closest('a');
+            expect(homeLink).not.toHaveAttribute('aria-current');
         });
 
         it('has correct external link targets', () => {
