@@ -106,6 +106,7 @@ export function PortalHeader() {
                     <div className="flex w-full items-center justify-between py-2 md:hidden">
                         <span className="text-sm font-semibold text-portal-nav-foreground">Menu</span>
                         <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => setMobileMenuOpen((prev) => !prev)}
