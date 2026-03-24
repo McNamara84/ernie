@@ -3,6 +3,7 @@ import { Home, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { legalNotice, portal } from '@/routes';
 
 interface NavItem {
     label: string;
@@ -14,12 +15,12 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
     { label: 'Home', href: 'https://dataservices.gfz.de/web', external: true, icon: <Home className="h-4 w-4" /> },
-    { label: 'Find', href: '/portal', external: false, active: true },
+    { label: 'Find', href: portal().url, external: false, active: true },
     { label: 'Publish Data', href: 'https://dataservices.gfz.de/web/publish-data/publication-instructions', external: true },
     { label: 'Samples (IGSN)', href: 'https://dataservices.gfz.de/web/samples/introduction', external: true },
     { label: 'Support', href: 'https://dataservices.gfz.de/web/about-us', external: true },
     { label: 'About Us', href: 'https://dataservices.gfz.de/web/about-us', external: true },
-    { label: 'Legal Notice', href: '/legal-notice', external: false },
+    { label: 'Legal Notice', href: legalNotice().url, external: false },
     { label: 'Data Protection', href: 'https://dataservices.gfz.de/web/about-us/data-protection', external: true },
 ];
 

@@ -97,9 +97,10 @@ describe('PortalHeader', () => {
     describe('mobile menu', () => {
         it('does not show mobile menu by default', () => {
             render(<PortalHeader />);
-            // Mobile menu items are rendered in the desktop nav too,
-            // but the mobile dropdown should not be visible
+            // Hamburger button is present
             expect(screen.getByLabelText('Open menu')).toBeInTheDocument();
+            // Mobile dropdown is NOT in the DOM
+            expect(screen.queryByTestId('mobile-menu')).not.toBeInTheDocument();
         });
 
         it('opens mobile menu on hamburger click', () => {
