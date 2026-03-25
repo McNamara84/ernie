@@ -221,13 +221,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         <PortalLayout>
             <Head title="Data Portal" />
 
-            <div className="flex h-[calc(100vh-8rem)] flex-col">
-                {/* Page Header */}
-                <div className="border-b px-6 py-4">
-                    <h1 className="text-2xl font-bold">Data Portal</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">Discover and explore published research datasets</p>
-                </div>
-
+            <div className="flex min-h-0 flex-1 flex-col">
                 {/* Main Content */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Filter Sidebar */}

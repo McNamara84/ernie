@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@tests/vitest/utils/render';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,6 +13,10 @@ vi.mock('@inertiajs/react', () => ({
                 : '';
         return <a href={resolvedHref} {...props}>{children}</a>;
     },
+}));
+
+vi.mock('@/components/portal/PortalHeader', () => ({
+    PortalHeader: () => <header data-testid="portal-header">GFZ Data Services Portal</header>,
 }));
 
 vi.mock('@/components/app-footer', () => ({
@@ -33,11 +37,10 @@ describe('PortalLayout', () => {
             expect(screen.getByText('Hello Portal')).toBeInTheDocument();
         });
 
-        it('renders ERNIE brand link', () => {
+        it('renders portal header', () => {
             render(<PortalLayout><div /></PortalLayout>);
-            const brandLink = screen.getByText('ERNIE');
-            expect(brandLink).toBeInTheDocument();
-            expect(brandLink.closest('a')).toHaveAttribute('href', '/');
+            expect(screen.getByTestId('portal-header')).toBeInTheDocument();
+            expect(screen.getByText('GFZ Data Services Portal')).toBeInTheDocument();
         });
 
         it('renders footer', () => {
