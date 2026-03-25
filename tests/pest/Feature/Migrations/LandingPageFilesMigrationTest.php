@@ -8,14 +8,6 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-/**
- * Require the migration file and return its anonymous class instance.
- */
-function getLandingPageFilesMigration(): Migration
-{
-    return require database_path('migrations/2026_03_25_070134_create_landing_page_files_table.php');
-}
-
 describe('landing_page_files migration', function () {
     it('creates the landing_page_files table with correct columns', function () {
         expect(Schema::hasTable('landing_page_files'))->toBeTrue();
@@ -31,7 +23,8 @@ describe('landing_page_files migration', function () {
     });
 
     it('can rollback and re-apply the migration', function () {
-        $migration = getLandingPageFilesMigration();
+        /** @var Migration $migration */
+        $migration = require database_path('migrations/2026_03_25_070134_create_landing_page_files_table.php');
 
         // Rollback by calling down() directly
         $migration->down();

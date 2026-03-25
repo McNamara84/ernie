@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('position')->default(0);
             $table->timestamps();
 
-            $table->index('landing_page_id');
+            $table->index(['landing_page_id', 'position']);
         });
     }
 

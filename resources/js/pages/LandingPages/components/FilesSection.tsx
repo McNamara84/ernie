@@ -47,7 +47,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
     const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
 
     // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
-    const hasDownloadUrl = downloadUrl && downloadUrl !== '#' && downloadUrl.trim() !== '';
+    const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
     const effectiveDownloads =
         downloadFiles && downloadFiles.length > 0 ? downloadFiles.map((f) => f.url) : hasDownloadUrl ? [downloadUrl!] : [];
 
