@@ -115,6 +115,10 @@ class ImportFromDataCiteJob implements ShouldQueue
             // Maximum entries to store in cache (to prevent memory issues)
             $maxStoredDois = 100;
 
+            // Circuit-breaker: if metaworks DB fails, skip all subsequent lookups
+            // to avoid flooding logs and adding latency for every DOI.
+            $metaworksUnavailable = false;
+
             // Process DOIs one by one using the generator
             // Each DOI is processed in its own transaction for resilience
             foreach ($importService->fetchAllDois() as $doiRecord) {
@@ -188,19 +192,20 @@ class ImportFromDataCiteJob implements ShouldQueue
                     /** @var Resource $importedResource */
                     $importedResource = $result['resource'];
 
-                    // Skip metaworks lookup entirely if a landing page already exists
-                    // (e.g., transformer created it, or a race condition).
-                    if (! LandingPage::where('resource_id', $importedResource->id)->exists()) {
+                    // Skip metaworks lookup if the connection already failed (circuit-breaker)
+                    // or if a landing page already exists for this resource.
+                    if (! $metaworksUnavailable && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
                         // Step 1: Look up download URLs (separate try/catch for clear error attribution)
                         /** @var array{urls: array<int, string>, allPublic: bool} $fileResult */
                         $fileResult = ['urls' => [], 'allPublic' => false];
                         try {
                             $fileResult = $metaworksService->lookupFileUrls($doi);
                         } catch (\Throwable $e) {
-                            Log::warning('Failed to look up download URLs from metaworks', [
+                            Log::warning('Metaworks DB unavailable, disabling lookups for remaining DOIs', [
                                 'doi' => $doi,
                                 'error' => $e->getMessage(),
                             ]);
+                            $metaworksUnavailable = true;
                         }
 
                         // Step 2: Create landing page with files if URLs were found.

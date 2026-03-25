@@ -72,8 +72,10 @@ class MetaworksDownloadUrlService
                 }
 
                 $uri = UriHelper::parse($url);
+                $scheme = $uri?->getScheme();
+                $isHttp = $scheme !== null && in_array(strtolower($scheme), ['http', 'https'], true);
 
-                if ($uri === null || ! UriHelper::isHttpUrl($url) || $uri->getHost() === null || $uri->getHost() === '') {
+                if ($uri === null || ! $isHttp || $uri->getHost() === null || $uri->getHost() === '') {
                     Log::warning('Skipping invalid metaworks URL', ['doi' => $doi, 'url' => $url]);
 
                     return false;
