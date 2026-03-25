@@ -365,7 +365,7 @@ class EditorDataTransformer
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',
                 ];
-            })->toArray();
+            })->values()->toArray();
     }
 
     /**
@@ -386,7 +386,7 @@ class EditorDataTransformer
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',
                 ];
-            })->toArray();
+            })->values()->toArray();
     }
 
     /**

@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-23",
+        "date": "2026-03-25",
         "features": [
             {
                 "title": "Temporal Filter for Data Portal",
@@ -151,6 +151,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Editor Crash When Editing Resources with Keywords",
+                "description": "Fixed a bug where opening an existing resource in the Data Editor would crash with a 'TypeError: is not iterable' error. The issue occurred when GCMD or GEMET keywords had non-sequential database IDs after filtering, causing PHP to serialize the data as a JSON object instead of an array. Resources with certain keyword combinations were affected while others worked, making the bug appear random."
+            },
             {
                 "title": "Documentation role visibility aligned with actual permissions",
                 "description": "Fixed documentation sections being shown to users without access to the described features: Legacy Import now requires Admin, Editor Settings visible to Group Leaders, Landing Pages visible to Curators and above. Corrected role descriptions for Curator and Group Leader to accurately reflect their capabilities."
