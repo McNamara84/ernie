@@ -46,8 +46,8 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
                     setCitation(data.citation);
                     setDoi(supplementTo.identifier);
                 }
-            } catch (err) {
-                if (err instanceof DOMException && err.name === 'AbortError') {
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
                     return;
                 }
             } finally {

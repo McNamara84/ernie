@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach,describe, expect, it, vi } from 'vitest';
 
 import { RelatedWorkSection } from '@/pages/LandingPages/components/RelatedWorkSection';

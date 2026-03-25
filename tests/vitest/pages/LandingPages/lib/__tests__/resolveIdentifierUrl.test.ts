@@ -45,9 +45,9 @@ describe('resolveIdentifierUrl', () => {
         );
     });
 
-    it('resolves RAiD to doi.org', () => {
+    it('resolves RAiD to raid.org', () => {
         expect(resolveIdentifierUrl('10.25518/raid.12345', 'RAiD')).toBe(
-            'https://doi.org/10.25518/raid.12345',
+            'https://raid.org/10.25518/raid.12345',
         );
     });
 

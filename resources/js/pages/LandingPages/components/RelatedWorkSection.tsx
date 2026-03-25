@@ -101,8 +101,8 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                 .then((data) => {
                     setCitations((prev) => new Map(prev).set(doi, { citation: data.citation, loading: false, error: false }));
                 })
-                .catch((err) => {
-                    if (err instanceof DOMException && err.name === 'AbortError') {
+                .catch((err: unknown) => {
+                    if (err instanceof Error && err.name === 'AbortError') {
                         return;
                     }
                     setCitations((prev) => new Map(prev).set(doi, { citation: '', loading: false, error: true }));

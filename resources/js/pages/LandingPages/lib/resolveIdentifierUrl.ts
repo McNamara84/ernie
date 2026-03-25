@@ -3,32 +3,34 @@
  *
  * Supports the most common DataCite identifier types used in geosciences.
  * Returns null for unsupported types or invalid/empty identifiers —
- * callers should display the raw identifier as text in that case.
+ * callers skip rendering those items entirely.
  */
 export function resolveIdentifierUrl(identifier: string, identifierType: string): string | null {
-    if (!identifier.trim()) {
+    const id = identifier.trim();
+
+    if (!id) {
         return null;
     }
 
     switch (identifierType) {
         case 'DOI':
-            return `https://doi.org/${identifier}`;
+            return `https://doi.org/${id}`;
         case 'URL':
-            return isSafeHttpUrl(identifier) ? identifier : null;
+            return isSafeHttpUrl(id) ? id : null;
         case 'Handle':
-            return `https://hdl.handle.net/${identifier}`;
+            return `https://hdl.handle.net/${id}`;
         case 'arXiv':
-            return `https://arxiv.org/abs/${identifier}`;
+            return `https://arxiv.org/abs/${id}`;
         case 'IGSN':
-            return `https://igsn.org/${identifier}`;
+            return `https://igsn.org/${id}`;
         case 'ISBN':
-            return `https://search.worldcat.org/isbn/${identifier}`;
+            return `https://search.worldcat.org/isbn/${id}`;
         case 'ISSN':
-            return `https://portal.issn.org/resource/ISSN/${identifier}`;
+            return `https://portal.issn.org/resource/ISSN/${id}`;
         case 'URN':
-            return `https://nbn-resolving.org/${identifier}`;
+            return `https://nbn-resolving.org/${id}`;
         case 'RAiD':
-            return `https://doi.org/${identifier}`;
+            return `https://raid.org/${id}`;
         default:
             return null;
     }
