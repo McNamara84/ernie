@@ -232,6 +232,9 @@ class LandingPagePublicController extends Controller
         $resource = Resource::with($transformer->requiredRelations())
             ->findOrFail($landingPage->resource_id);
 
+        // Eager-load file entries for download URL display
+        $landingPage->loadMissing('files');
+
         $resourceData = $transformer->transform($resource);
 
         $data = [

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
@@ -269,6 +270,19 @@ class LandingPage extends Model
         $relation = $this->belongsTo(Resource::class);
 
         return $relation;
+    }
+
+    /**
+     * Get the file entries associated with this landing page.
+     *
+     * Files are imported from the legacy metaworks database during DataCite import.
+     * Ordered by position for consistent display.
+     *
+     * @return HasMany<LandingPageFile, $this>
+     */
+    public function files(): HasMany
+    {
+        return $this->hasMany(LandingPageFile::class)->orderBy('position');
     }
 
     /**

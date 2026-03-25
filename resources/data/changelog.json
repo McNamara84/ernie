@@ -4,6 +4,10 @@
         "date": "2026-03-25",
         "features": [
             {
+                "title": "Download URL Import from Legacy Database",
+                "description": "During DataCite import, download URLs are now automatically imported from the legacy metaworks database. For each newly imported resource, the system looks up file download URLs by DOI and determines whether all files are publicly visible. If all files are public, the landing page is published immediately; otherwise it is created as a draft. Landing pages support multiple download files, displayed as individual download buttons. The SetupLandingPageModal shows imported files as a read-only list."
+            },
+            {
                 "title": "Temporal Filter for Data Portal",
                 "description": "Added a temporal/date filter to the public Data Portal. Users can filter datasets by year range using a dual-range slider with three date type tabs: Created (when the data was created), Collected (when sampling occurred), and Coverage (temporal coverage period). The filter is toggle-activated, positioned between Keywords and Geographic filters, and supports URL persistence for sharing filtered views. Coverage tab visibility is dynamic based on active date types in the database. The available year range is cached and computed from published resources."
             },

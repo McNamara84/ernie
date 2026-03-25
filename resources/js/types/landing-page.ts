@@ -13,6 +13,23 @@ export interface LandingPageDomain {
 }
 
 /**
+ * Landing Page File
+ *
+ * Represents a download file entry from the landing_page_files table.
+ * Files are imported from the legacy metaworks database during DataCite import.
+ */
+export interface LandingPageFile {
+    /** Primary key */
+    id: number;
+
+    /** Download URL */
+    url: string;
+
+    /** Display order */
+    position: number;
+}
+
+/**
  * Landing Page Configuration Type
  *
  * Represents the database model for landing_pages table
@@ -71,6 +88,9 @@ export interface LandingPageConfig {
 
     /** Computed: preview URL with token */
     preview_url: string;
+
+    /** Download file entries from landing_page_files table */
+    files?: LandingPageFile[];
 }
 
 /**

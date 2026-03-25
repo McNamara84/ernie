@@ -436,7 +436,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             </div>
                         )}
 
-                        {/* FTP URL (hidden for external landing pages) */}
+                        {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
                         {!isExternal && (
                             <div className="space-y-2">
                                 <Label htmlFor="ftp-url">Download URL (FTP)</Label>
@@ -446,8 +446,38 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     placeholder="https://datapub.gfz-potsdam.de/download/..."
                                     value={ftpUrl}
                                     onChange={(e) => setFtpUrl(e.target.value)}
+                                    disabled={existingConfig?.files && existingConfig.files.length > 0}
                                 />
-                                <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
+                                {existingConfig?.files && existingConfig.files.length > 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        This field is not used because imported download files are available below.
+                                    </p>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Imported download files (read-only, from legacy database) */}
+                        {!isExternal && existingConfig?.files && existingConfig.files.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Imported Download Files</Label>
+                                <div className="space-y-1 rounded-md border bg-muted/50 p-3">
+                                    {existingConfig.files.map((file) => (
+                                        <a
+                                            key={file.id ?? file.url}
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
+                                        >
+                                            {file.url}
+                                        </a>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    These files were imported from the legacy database and cannot be edited here.
+                                </p>
                             </div>
                         )}
 

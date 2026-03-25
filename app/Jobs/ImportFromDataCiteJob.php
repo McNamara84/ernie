@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\MetaworksDownloadUrlService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -73,7 +75,8 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     public function handle(
         DataCiteImportService $importService,
-        DataCiteToResourceTransformer $transformer
+        DataCiteToResourceTransformer $transformer,
+        MetaworksDownloadUrlService $metaworksService
     ): void {
         Log::info('Starting DataCite import job', [
             'import_id' => $this->importId,
@@ -111,6 +114,10 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             // Maximum entries to store in cache (to prevent memory issues)
             $maxStoredDois = 100;
+
+            // Circuit-breaker: if metaworks DB fails, skip all subsequent lookups
+            // to avoid flooding logs and adding latency for every DOI.
+            $metaworksUnavailable = false;
 
             // Process DOIs one by one using the generator
             // Each DOI is processed in its own transaction for resilience
@@ -159,15 +166,15 @@ class ImportFromDataCiteJob implements ShouldQueue
                     $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
                         // Check inside transaction - unique constraint on DOI provides ultimate protection
                         if (Resource::where('doi', $doi)->exists()) {
-                            return 'skipped';
+                            return ['status' => 'skipped', 'resource' => null];
                         }
 
-                        $transformer->transform($doiRecord, $this->userId);
+                        $resource = $transformer->transform($doiRecord, $this->userId);
 
-                        return 'imported';
+                        return ['status' => 'imported', 'resource' => $resource];
                     });
 
-                    if ($result === 'skipped') {
+                    if ($result['status'] === 'skipped') {
                         $skipped++;
                         if (count($skippedDois) < $maxStoredDois) {
                             $skippedDois[] = $doi;
@@ -179,6 +186,43 @@ class ImportFromDataCiteJob implements ShouldQueue
                     }
 
                     $imported++;
+
+                    // Enrich newly imported resource with download URLs from legacy metaworks DB.
+                    // This is non-critical — failures are logged but don't affect the import.
+                    /** @var Resource $importedResource */
+                    $importedResource = $result['resource'];
+
+                    // Skip metaworks lookup if the connection already failed (circuit-breaker)
+                    // or if a landing page already exists for this resource.
+                    if (! $metaworksUnavailable && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
+                        // Step 1: Look up download URLs (separate try/catch for clear error attribution)
+                        /** @var array{urls: array<int, string>, allPublic: bool} $fileResult */
+                        $fileResult = ['urls' => [], 'allPublic' => false];
+                        try {
+                            $fileResult = $metaworksService->lookupFileUrls($doi);
+                        } catch (\Throwable $e) {
+                            Log::warning('Metaworks DB unavailable, disabling lookups for remaining DOIs', [
+                                'doi' => $doi,
+                                'error' => $e->getMessage(),
+                            ]);
+                            $metaworksUnavailable = true;
+                        }
+
+                        // Step 2: Create landing page with files if URLs were found.
+                        // Published status depends on file visibility in the legacy DB:
+                        // all public -> published, any non-public -> draft.
+                        if ($fileResult['urls'] !== []) {
+                            try {
+                                $this->createLandingPageWithFiles($importedResource, $fileResult['urls'], $fileResult['allPublic']);
+                            } catch (\Throwable $e) {
+                                Log::warning('Failed to create landing page with download files', [
+                                    'doi' => $doi,
+                                    'resource_id' => $importedResource->id,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    }
 
                     Log::debug('Imported DOI', ['doi' => $doi]);
 
@@ -353,6 +397,57 @@ class ImportFromDataCiteJob implements ShouldQueue
     private function getCacheKey(): string
     {
         return "datacite_import:{$this->importId}";
+    }
+
+    /**
+     * Create a landing page with file entries for a newly imported resource.
+     *
+     * The landing page is created with the default_gfz template. Its published status
+     * depends on the file visibility in the legacy metaworks database:
+     * - All files public -> landing page is published immediately
+     * - Any file non-public -> landing page is created as draft
+     *
+     * The slug, preview_token, and doi_prefix are auto-generated by the
+     * LandingPage model's boot event. The resource relation is set before save()
+     * so boot() can derive doi_prefix and slug without extra queries.
+     *
+     * The resource's titles.titleType are preloaded to avoid N+1 queries during
+     * slug generation in the boot event.
+     *
+     * The landing page and all files are wrapped in a transaction for atomicity.
+     *
+     * @param  Resource  $resource  The newly imported resource
+     * @param  array<int, string>  $fileUrls  Download URLs from the metaworks database
+     * @param  bool  $isPublished  Whether the landing page should be published
+     */
+    private function createLandingPageWithFiles(Resource $resource, array $fileUrls, bool $isPublished): void
+    {
+        // Preload titles.titleType so LandingPage::boot() slug generation
+        // doesn't trigger additional queries per resource in the import loop.
+        $resource->loadMissing('titles.titleType');
+
+        // Wrap in transaction for atomicity: either all files are created or none.
+        DB::transaction(function () use ($resource, $fileUrls, $isPublished): void {
+            $landingPage = new LandingPage([
+                'resource_id' => $resource->id,
+                'template' => 'default_gfz',
+                'ftp_url' => $fileUrls[0], // Backward compat: first URL as ftp_url
+                'is_published' => $isPublished,
+                'published_at' => $isPublished ? now() : null,
+            ]);
+
+            // Set relation so boot() auto-populates doi_prefix and generates
+            // the slug from the in-memory resource without extra queries.
+            $landingPage->setRelation('resource', $resource);
+            $landingPage->save();
+
+            foreach ($fileUrls as $position => $url) {
+                $landingPage->files()->create([
+                    'url' => $url,
+                    'position' => $position,
+                ]);
+            }
+        });
     }
 
     /**
