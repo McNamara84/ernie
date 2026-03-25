@@ -456,9 +456,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             <div className="space-y-2">
                                 <Label>Imported Download Files</Label>
                                 <div className="space-y-1 rounded-md border bg-muted/50 p-3">
-                                    {existingConfig.files.map((file, index) => (
+                                    {existingConfig.files.map((file) => (
                                         <a
-                                            key={file.id ?? index}
+                                            key={file.id ?? file.url}
                                             href={file.url}
                                             target="_blank"
                                             rel="noopener noreferrer"

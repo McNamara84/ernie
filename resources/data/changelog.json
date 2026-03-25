@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Download URL Import from Legacy Database",
-                "description": "During DataCite import, download URLs are now automatically imported from the legacy metaworks database. For each newly imported resource, the system looks up public file download URLs by DOI and creates a landing page with all associated download links. Landing pages support multiple download files, displayed as individual download buttons. The SetupLandingPageModal shows imported files as a read-only list."
+                "description": "During DataCite import, download URLs are now automatically imported from the legacy metaworks database. For each newly imported resource, the system looks up file download URLs by DOI and determines whether all files are publicly visible. If all files are public, the landing page is published immediately; otherwise it is created as a draft. Landing pages support multiple download files, displayed as individual download buttons. The SetupLandingPageModal shows imported files as a read-only list."
             },
             {
                 "title": "Temporal Filter for Data Portal",

@@ -103,7 +103,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                         <div className="space-y-2">
                             {effectiveDownloads.map((url, index) => (
                                 <a
-                                    key={index}
+                                    key={url}
                                     href={url}
                                     target="_blank"
                                     rel="noopener noreferrer"
