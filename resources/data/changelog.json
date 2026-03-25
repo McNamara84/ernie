@@ -153,7 +153,7 @@
         "fixes": [
             {
                 "title": "Editor Crash When Editing Resources with Keywords",
-                "description": "Fixed a bug where opening an existing resource in the Data Editor would crash with a 'TypeError: is not iterable' error. The issue occurred when GCMD or GEMET keywords had non-sequential database IDs after filtering, causing PHP to serialize the data as a JSON object instead of an array. Resources with certain keyword combinations were affected while others worked, making the bug appear random."
+                "description": "Fixed a bug where opening an existing resource in the Data Editor would crash with a 'TypeError: is not iterable' error. The issue occurred when GCMD or GEMET keywords had non-sequential PHP array keys after filtering, causing PHP to serialize the data as a JSON object instead of an array. Resources with certain keyword combinations were affected while others worked, making the bug appear random."
             },
             {
                 "title": "Documentation role visibility aligned with actual permissions",
