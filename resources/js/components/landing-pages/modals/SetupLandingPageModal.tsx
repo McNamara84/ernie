@@ -436,7 +436,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             </div>
                         )}
 
-                        {/* FTP URL (hidden for external landing pages) */}
+                        {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
                         {!isExternal && (
                             <div className="space-y-2">
                                 <Label htmlFor="ftp-url">Download URL (FTP)</Label>
@@ -446,8 +446,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     placeholder="https://datapub.gfz-potsdam.de/download/..."
                                     value={ftpUrl}
                                     onChange={(e) => setFtpUrl(e.target.value)}
+                                    disabled={existingConfig?.files && existingConfig.files.length > 0}
                                 />
-                                <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
+                                {existingConfig?.files && existingConfig.files.length > 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        This field is not used because imported download files are available below.
+                                    </p>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
+                                )}
                             </div>
                         )}
 

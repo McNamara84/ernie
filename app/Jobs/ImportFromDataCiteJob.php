@@ -430,11 +430,10 @@ class ImportFromDataCiteJob implements ShouldQueue
                 'ftp_url' => $fileUrls[0], // Backward compat: first URL as ftp_url
                 'is_published' => $isPublished,
                 'published_at' => $isPublished ? now() : null,
-                'doi_prefix' => $resource->doi,
             ]);
 
-            // Set relation so boot() slug generation uses in-memory resource
-            // instead of triggering a Resource::find() query.
+            // Set relation so boot() auto-populates doi_prefix and generates
+            // the slug from the in-memory resource without extra queries.
             $landingPage->setRelation('resource', $resource);
             $landingPage->save();
 

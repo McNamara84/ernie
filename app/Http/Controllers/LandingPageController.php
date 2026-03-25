@@ -273,7 +273,7 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load(['externalDomain', 'files']);
+        $landingPage->load('externalDomain');
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
