@@ -298,7 +298,7 @@ describe('RelatedWorkSection', () => {
         expect(screen.queryByText('References')).not.toBeInTheDocument();
     });
 
-    it('deduplicates citation fetch for same DOI with different relation types', () => {
+    it('deduplicates citation fetch for same DOI with different relation types', async () => {
         const relatedIdentifiers = [
             {
                 id: 1,
@@ -322,10 +322,12 @@ describe('RelatedWorkSection', () => {
         render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
 
         // Should only fetch once for the deduplicated DOI
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+        });
     });
 
-    it('fetches citations only for DOI types, not for URL or Handle', () => {
+    it('fetches citations only for DOI types, not for URL or Handle', async () => {
         const relatedIdentifiers = [
             {
                 id: 1,
@@ -355,11 +357,13 @@ describe('RelatedWorkSection', () => {
         render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
 
         // Only the DOI should trigger a fetch
-        expect(global.fetch).toHaveBeenCalledTimes(1);
-        expect(global.fetch).toHaveBeenCalledWith(
-            expect.stringContaining('10.5880%2Fdoi-test'),
-            expect.objectContaining({ signal: expect.any(AbortSignal) }),
-        );
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(global.fetch).toHaveBeenCalledWith(
+                expect.stringContaining('10.5880%2Fdoi-test'),
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
+            );
+        });
     });
 
     it('sorts relation types alphabetically', () => {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\Log;
  */
 class DataCiteApiService
 {
+    use ChecksCacheTagging;
+
+    /** Sentinel value stored in cache to represent a confirmed 404 / error. */
+    private const CACHE_NULL_SENTINEL = '__NULL__';
     /**
      * Ruft Metadaten für eine DOI über Content Negotiation ab.
      *
@@ -30,10 +35,36 @@ class DataCiteApiService
     {
         $cleanDoi = str_replace(['https://doi.org/', 'http://doi.org/'], '', $doi);
         $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
+        $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
 
-        return Cache::remember($cacheKey, CacheKey::DOI_CITATION->ttl(), function () use ($cleanDoi, $doi): ?array {
-            return $this->fetchMetadataFromApi($cleanDoi, $doi);
-        });
+        $cached = $cache->get($cacheKey);
+
+        if ($cached === self::CACHE_NULL_SENTINEL) {
+            return null;
+        }
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $result = $this->fetchMetadataFromApi($cleanDoi, $doi);
+
+        $cache->put($cacheKey, $result ?? self::CACHE_NULL_SENTINEL, CacheKey::DOI_CITATION->ttl());
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string>  $tags
+     * @return \Illuminate\Contracts\Cache\Repository
+     */
+    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
+    {
+        if ($this->supportsTagging()) {
+            return Cache::tags($tags);
+        }
+
+        return Cache::store();
     }
 
     /**

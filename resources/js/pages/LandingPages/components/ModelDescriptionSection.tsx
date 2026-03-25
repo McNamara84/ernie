@@ -29,7 +29,7 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     const supplementTo = relatedIdentifiers.find((rel) => rel.relation_type === 'IsSupplementTo');
 
     useEffect(() => {
-        if (!supplementTo || supplementTo.identifier_type !== 'DOI') {
+        if (!supplementTo || supplementTo.identifier_type !== 'DOI' || !supplementTo.identifier.trim()) {
             return;
         }
 
@@ -67,6 +67,10 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     }
 
     const resolvedUrl = resolveIdentifierUrl(supplementTo.identifier, supplementTo.identifier_type);
+
+    if (!resolvedUrl) {
+        return null;
+    }
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

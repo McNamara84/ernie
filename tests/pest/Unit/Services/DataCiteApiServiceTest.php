@@ -268,20 +268,26 @@ describe('caching', function (): void {
 
         $this->service->getMetadata('10.5880/key-test');
 
-        $cacheKey = CacheKey::DOI_CITATION->key('10.5880/key-test');
-        expect(Cache::has($cacheKey))->toBeTrue();
+        // Second call should not trigger another HTTP request (proves caching works)
+        $this->service->getMetadata('10.5880/key-test');
+
+        Http::assertSentCount(1);
+        expect(CacheKey::DOI_CITATION->key('10.5880/key-test'))->toBe('doi:citation:10.5880/key-test');
     });
 
-    it('does not cache null responses from 404s', function (): void {
+    it('caches null responses using sentinel value to prevent repeated HTTP requests', function (): void {
         Http::fake([
             'doi.org/*' => Http::response('Not Found', 404),
         ]);
 
-        $this->service->getMetadata('10.5880/not-found');
+        // First call - should trigger HTTP request
+        $first = $this->service->getMetadata('10.5880/not-found');
+        expect($first)->toBeNull();
 
-        $cacheKey = CacheKey::DOI_CITATION->key('10.5880/not-found');
-        // Cache::remember stores null too, but a second request with a different fake
-        // will still return the cached null - this is correct behavior
-        expect(Cache::get($cacheKey))->toBeNull();
+        // Second call - should use cached sentinel, not trigger another HTTP request
+        $second = $this->service->getMetadata('10.5880/not-found');
+        expect($second)->toBeNull();
+
+        Http::assertSentCount(1);
     });
 });

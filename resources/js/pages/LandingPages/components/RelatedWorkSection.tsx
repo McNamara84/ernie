@@ -78,11 +78,19 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
             }
         });
 
-        doisToFetch.forEach((doi) => {
-            // Initialisiere mit loading state
-            setCitations((prev) => new Map(prev).set(doi, { citation: '', loading: true, error: false }));
+        // Batch-initialize all DOIs as loading in a single state update
+        if (doisToFetch.size > 0) {
+            setCitations((prev) => {
+                const next = new Map(prev);
+                doisToFetch.forEach((doi) => {
+                    next.set(doi, { citation: '', loading: true, error: false });
+                });
+                return next;
+            });
+        }
 
-            // Lade Citation asynchron
+        // Fetch each DOI citation, updating individually on resolve
+        doisToFetch.forEach((doi) => {
             fetch(`/api/datacite/citation/${encodeURIComponent(doi)}`, { signal: controller.signal })
                 .then((response) => {
                     if (response.ok) {

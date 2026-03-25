@@ -90,6 +90,17 @@ it('clears only system cache', function () {
     expect(Cache::tags(['system'])->has('system-key'))->toBeFalse();
 });
 
+it('clears only DOI citation cache', function () {
+    Cache::tags(['resources'])->put('resource-key', 'value', 3600);
+    Cache::tags(['doi'])->put('doi-key', 'value', 3600);
+
+    $this->artisan('cache:clear-app', ['category' => 'doi'])
+        ->assertSuccessful();
+
+    expect(Cache::tags(['resources'])->has('resource-key'))->toBeTrue();
+    expect(Cache::tags(['doi'])->has('doi-key'))->toBeFalse();
+});
+
 it('fails with invalid category', function () {
     $this->artisan('cache:clear-app', ['category' => 'invalid'])
         ->assertFailed()

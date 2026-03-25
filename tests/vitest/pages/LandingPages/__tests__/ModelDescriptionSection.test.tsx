@@ -189,7 +189,7 @@ describe('ModelDescriptionSection', () => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
-    it('encodes DOI identifier in the API URL', () => {
+    it('encodes DOI identifier in the API URL', async () => {
         const relatedIdentifiers = [
             {
                 id: 1,
@@ -206,10 +206,12 @@ describe('ModelDescriptionSection', () => {
 
         render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
 
-        expect(global.fetch).toHaveBeenCalledWith(
-            '/api/datacite/citation/10.5880%2Fspecial%2Fchars',
-            expect.objectContaining({ signal: expect.any(AbortSignal) }),
-        );
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                '/api/datacite/citation/10.5880%2Fspecial%2Fchars',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
+            );
+        });
     });
 
     it('renders fallback link when fetch fails but related_title exists', async () => {
@@ -235,6 +237,91 @@ describe('ModelDescriptionSection', () => {
             const link = screen.getByRole('link');
             expect(link).toHaveTextContent('Model Title');
             expect(link).toHaveAttribute('href', 'https://doi.org/10.5880/test');
+        });
+    });
+
+    it('returns null when identifier is empty (unresolvable URL)', () => {
+        const relatedIdentifiers = [
+            {
+                id: 1,
+                identifier: '',
+                identifier_type: 'DOI',
+                relation_type: 'IsSupplementTo',
+            },
+        ];
+
+        global.fetch = vi.fn();
+
+        const { container } = render(
+            <ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />,
+        );
+
+        expect(container.firstChild).toBeNull();
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns null when URL identifier uses dangerous scheme', () => {
+        const relatedIdentifiers = [
+            {
+                id: 1,
+                identifier: 'javascript:alert(1)',
+                identifier_type: 'URL',
+                relation_type: 'IsSupplementTo',
+            },
+        ];
+
+        global.fetch = vi.fn();
+
+        const { container } = render(
+            <ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />,
+        );
+
+        expect(container.firstChild).toBeNull();
+    });
+
+    it('renders nothing when fetch fails and no related_title exists', async () => {
+        const relatedIdentifiers = [
+            {
+                id: 1,
+                identifier: '10.5880/test',
+                identifier_type: 'DOI',
+                relation_type: 'IsSupplementTo',
+            },
+        ];
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            status: 404,
+        });
+
+        render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
+
+        await waitFor(() => {
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        });
+
+        // Section still renders with title but no link content
+        expect(screen.getByRole('heading', { name: 'Model Description' })).toBeInTheDocument();
+    });
+
+    it('handles network errors gracefully', async () => {
+        const relatedIdentifiers = [
+            {
+                id: 1,
+                identifier: '10.5880/test',
+                identifier_type: 'DOI',
+                relation_type: 'IsSupplementTo',
+                related_title: 'Fallback Title',
+            },
+        ];
+
+        global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+        render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
+
+        await waitFor(() => {
+            const link = screen.getByRole('link');
+            expect(link).toHaveTextContent('Fallback Title');
         });
     });
 });

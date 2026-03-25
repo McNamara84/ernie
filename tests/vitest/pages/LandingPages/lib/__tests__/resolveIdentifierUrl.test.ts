@@ -58,7 +58,32 @@ describe('resolveIdentifierUrl', () => {
         expect(resolveIdentifierUrl('12345', 'UnknownType')).toBeNull();
     });
 
-    it('handles empty identifier string', () => {
-        expect(resolveIdentifierUrl('', 'DOI')).toBe('https://doi.org/');
+    it('returns null for empty identifier string', () => {
+        expect(resolveIdentifierUrl('', 'DOI')).toBeNull();
+    });
+
+    it('returns null for whitespace-only identifier string', () => {
+        expect(resolveIdentifierUrl('   ', 'DOI')).toBeNull();
+        expect(resolveIdentifierUrl('\t', 'URL')).toBeNull();
+    });
+
+    it('returns null for dangerous URL schemes (javascript:)', () => {
+        expect(resolveIdentifierUrl('javascript:alert(1)', 'URL')).toBeNull();
+    });
+
+    it('returns null for data: URL scheme', () => {
+        expect(resolveIdentifierUrl('data:text/html,<script>alert(1)</script>', 'URL')).toBeNull();
+    });
+
+    it('returns null for relative URLs', () => {
+        expect(resolveIdentifierUrl('/some/path', 'URL')).toBeNull();
+    });
+
+    it('allows https URLs', () => {
+        expect(resolveIdentifierUrl('https://example.com/data', 'URL')).toBe('https://example.com/data');
+    });
+
+    it('allows http URLs', () => {
+        expect(resolveIdentifierUrl('http://example.com/data', 'URL')).toBe('http://example.com/data');
     });
 });
