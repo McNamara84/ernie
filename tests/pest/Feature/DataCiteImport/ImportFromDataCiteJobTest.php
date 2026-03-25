@@ -6,6 +6,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\MetaworksDownloadUrlService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -20,6 +21,11 @@ beforeEach(function () {
     // Mock the transformer for isolated job testing
     $this->transformer = Mockery::mock(DataCiteToResourceTransformer::class);
     $this->app->instance(DataCiteToResourceTransformer::class, $this->transformer);
+
+    // Mock the metaworks service (returns empty arrays by default)
+    $this->metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+    $this->metaworksService->shouldReceive('lookupFileUrls')->andReturn([]);
+    $this->app->instance(MetaworksDownloadUrlService::class, $this->metaworksService);
 });
 
 afterEach(function () {
@@ -65,7 +71,7 @@ describe('ImportFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, $this->transformer);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         // Check final cache state
         $status = Cache::get("datacite_import:{$importId}");
@@ -99,7 +105,7 @@ describe('ImportFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, $this->transformer);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['skipped'])->toBe(1);
@@ -140,7 +146,7 @@ describe('ImportFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, $this->transformer);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         // Verify the cache was written with status tracking
         $status = Cache::get("datacite_import:{$importId}");
@@ -179,7 +185,7 @@ describe('ImportFromDataCiteJob', function () {
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, $this->transformer);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         $status = Cache::get("datacite_import:{$importId}");
         // Failed DOIs array should be capped at 100

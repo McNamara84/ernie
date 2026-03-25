@@ -273,7 +273,7 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load('externalDomain');
+        $landingPage->load(['externalDomain', 'files']);
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
@@ -399,7 +399,7 @@ class LandingPageController extends Controller
         $this->invalidateCache($resource->id);
 
         $freshLandingPage = $landingPage->fresh();
-        $freshLandingPage?->load('externalDomain');
+        $freshLandingPage?->load(['externalDomain', 'files']);
 
         return response()->json([
             'message' => 'Landing page updated successfully',
@@ -457,7 +457,7 @@ class LandingPageController extends Controller
             ], 404);
         }
 
-        $landingPage->load('externalDomain');
+        $landingPage->load(['externalDomain', 'files']);
 
         return response()->json([
             'landing_page' => $landingPage,

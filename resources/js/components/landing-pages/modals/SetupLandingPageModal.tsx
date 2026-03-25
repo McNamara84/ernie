@@ -451,6 +451,29 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             </div>
                         )}
 
+                        {/* Imported download files (read-only, from legacy database) */}
+                        {!isExternal && existingConfig?.files && existingConfig.files.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Imported Download Files</Label>
+                                <div className="space-y-1 rounded-md border bg-muted/50 p-3">
+                                    {existingConfig.files.map((file, index) => (
+                                        <a
+                                            key={file.id ?? index}
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
+                                        >
+                                            {file.url}
+                                        </a>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    These files were imported from the legacy database and cannot be edited here.
+                                </p>
+                            </div>
+                        )}
+
                         {/* Unsaved Changes Warning */}
                         {hasUnsavedChanges && (
                             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">

@@ -69,6 +69,7 @@ export default function DefaultGfzTemplate() {
                         <div className="space-y-6 lg:col-span-1">
                             <FilesSection
                                 downloadUrl={landingPage?.ftp_url}
+                                downloadFiles={landingPage?.files}
                                 licenses={resource.licenses || []}
                                 contactPersons={resource.contact_persons || []}
                                 datasetTitle={mainTitle}

@@ -26,6 +26,7 @@ interface ContactPerson {
 
 interface FilesSectionProps {
     downloadUrl?: string | null;
+    downloadFiles?: { url: string }[];
     licenses: License[];
     contactPersons?: ContactPerson[];
     datasetTitle?: string;
@@ -41,12 +42,14 @@ interface FilesSectionProps {
  */
 type FallbackMode = 'download' | 'contact-form' | 'website' | 'fallback-message';
 
-export function FilesSection({ downloadUrl, licenses, contactPersons = [], datasetTitle }: FilesSectionProps) {
+export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPersons = [], datasetTitle }: FilesSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
 
-    // Check if downloadUrl is a valid, non-empty URL (not just '#' or empty string)
+    // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = downloadUrl && downloadUrl !== '#' && downloadUrl.trim() !== '';
+    const effectiveDownloads =
+        downloadFiles && downloadFiles.length > 0 ? downloadFiles.map((f) => f.url) : hasDownloadUrl ? [downloadUrl!] : [];
 
     // Find contact persons for fallback options
     const contactPersonWithEmail = contactPersons.find((p) => p.has_email);
@@ -59,7 +62,8 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
      * - Contact form (email) is preferred over website link for better UX
      * - Website link is a last resort before the fallback message
      */
-    const displayMode: FallbackMode = hasDownloadUrl
+    const displayMode: FallbackMode =
+        effectiveDownloads.length > 0
         ? 'download'
         : contactPersonWithEmail
           ? 'contact-form'
@@ -83,10 +87,10 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
                 <h3 className="mb-4 text-lg font-semibold text-gray-900">Files</h3>
 
                 <div className="space-y-3">
-                    {/* Download Link - shown when FTP URL is configured */}
-                    {displayMode === 'download' && downloadUrl && (
+                    {/* Download Link(s) - shown when download URLs are available */}
+                    {displayMode === 'download' && effectiveDownloads.length === 1 && (
                         <a
-                            href={downloadUrl}
+                            href={effectiveDownloads[0]}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="gfz-action-button flex items-center gap-2 rounded-lg bg-[#0C2A63] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
@@ -94,6 +98,22 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
                             <Download className="h-4 w-4" />
                             Download data and description
                         </a>
+                    )}
+                    {displayMode === 'download' && effectiveDownloads.length > 1 && (
+                        <div className="space-y-2">
+                            {effectiveDownloads.map((url, index) => (
+                                <a
+                                    key={index}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="gfz-action-button flex items-center gap-2 rounded-lg bg-[#0C2A63] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    <span className="truncate">Download ({index + 1})</span>
+                                </a>
+                            ))}
+                        </div>
                     )}
 
                     {/* Contact Form Button - shown when no download URL but contact person with email exists */}
