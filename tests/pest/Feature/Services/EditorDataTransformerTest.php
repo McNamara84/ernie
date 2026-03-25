@@ -575,6 +575,49 @@ describe('transformGcmdKeywords', function (): void {
 
         expect($result)->toBeEmpty();
     });
+
+    it('returns sequential array keys when free keywords precede GCMD keywords', function (): void {
+        // Create free-text keywords first (these will be filtered OUT, creating gaps in keys)
+        Subject::factory()->count(5)->create([
+            'resource_id' => $this->resource->id,
+            'subject_scheme' => null,
+        ]);
+        // Create GCMD keywords after (their collection keys will be 5, 6, 7)
+        Subject::factory()->gcmd()->count(3)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        $this->resource->load('subjects');
+
+        $result = $this->transformer->transformGcmdKeywords($this->resource);
+
+        expect($result)->toHaveCount(3)
+            ->and(array_keys($result))->toBe([0, 1, 2]);
+    });
+});
+
+describe('transformGemetKeywords', function (): void {
+    it('returns sequential array keys when non-GEMET keywords precede GEMET keywords', function (): void {
+        // Create GCMD keywords first (these will be filtered OUT, creating gaps in keys)
+        Subject::factory()->gcmd()->count(4)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+        // Create GEMET keywords after (their collection keys will be 4, 5)
+        Subject::factory()->count(2)->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Environmental monitoring',
+            'subject_scheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
+            'scheme_uri' => 'https://www.eionet.europa.eu/gemet/',
+            'value_uri' => 'https://www.eionet.europa.eu/gemet/concept/' . fake()->numberBetween(1000, 9999),
+        ]);
+        $this->resource->load('subjects');
+
+        $result = $this->transformer->transformGemetKeywords($this->resource);
+
+        expect($result)->toHaveCount(2)
+            ->and(array_keys($result))->toBe([0, 1])
+            ->and($result[0]['text'])->toBe('Environmental monitoring')
+            ->and($result[0]['scheme'])->toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
+    });
 });
 
 // =========================================================================
