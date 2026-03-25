@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,19 +21,29 @@ class DataCiteApiService
     /**
      * Ruft Metadaten für eine DOI über Content Negotiation ab.
      *
-     * Funktioniert mit DOIs von allen Registraren (DataCite, Crossref, etc.)
+     * Results are cached for 24 hours to reduce load on doi.org.
      *
      * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
      * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
      */
     public function getMetadata(string $doi): ?array
     {
+        $cleanDoi = str_replace(['https://doi.org/', 'http://doi.org/'], '', $doi);
+        $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
+
+        return Cache::remember($cacheKey, CacheKey::DOI_CITATION->ttl(), function () use ($cleanDoi, $doi): ?array {
+            return $this->fetchMetadataFromApi($cleanDoi, $doi);
+        });
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function fetchMetadataFromApi(string $cleanDoi, string $originalDoi): ?array
+    {
         try {
-            // DOI bereinigen (https://doi.org/ Prefix entfernen falls vorhanden)
-            $cleanDoi = str_replace(['https://doi.org/', 'http://doi.org/'], '', $doi);
             $url = "https://doi.org/{$cleanDoi}";
 
-            // JSON-LD Format anfordern (CSL JSON für Zitationsdaten)
             $response = Http::timeout(10)
                 ->withHeaders([
                     'Accept' => 'application/vnd.citationstyles.csl+json',
@@ -43,19 +55,19 @@ class DataCiteApiService
             }
 
             if ($response->status() === 404) {
-                Log::info("DOI nicht gefunden: {$doi}");
+                Log::info("DOI not found: {$originalDoi}");
 
                 return null;
             }
 
-            Log::warning("DOI-Auflösungsfehler für {$doi}", [
+            Log::warning("DOI resolution error for {$originalDoi}", [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
 
             return null;
         } catch (\Exception $e) {
-            Log::error("Fehler beim Abrufen der DOI-Metadaten für {$doi}", [
+            Log::error("Error fetching DOI metadata for {$originalDoi}", [
                 'error' => $e->getMessage(),
             ]);
 

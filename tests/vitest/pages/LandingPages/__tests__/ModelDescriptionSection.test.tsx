@@ -184,6 +184,7 @@ describe('ModelDescriptionSection', () => {
         // Should only fetch the first IsSupplementTo
         expect(global.fetch).toHaveBeenCalledWith(
             expect.stringContaining('10.5880%2Ffirst'),
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
         expect(global.fetch).toHaveBeenCalledTimes(1);
     });
@@ -207,6 +208,7 @@ describe('ModelDescriptionSection', () => {
 
         expect(global.fetch).toHaveBeenCalledWith(
             '/api/datacite/citation/10.5880%2Fspecial%2Fchars',
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
     });
 
