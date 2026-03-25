@@ -193,7 +193,7 @@ describe('MetaworksDownloadUrlService', function () {
         $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
 
         DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
-        Log::shouldReceive('warning')->times(3); // 3 non-http URLs skipped
+        Log::shouldReceive('warning')->times(3); // 3 invalid URLs skipped
 
         $service = new MetaworksDownloadUrlService;
         $result = $service->lookupFileUrls('10.5880/GFZ.xss.test');
@@ -287,5 +287,35 @@ describe('MetaworksDownloadUrlService', function () {
         expect($result['urls'])->toHaveCount(1)
             ->and($result['urls'][0])->toBe('https://datapub.gfz.de/download/internal.zip')
             ->and($result['allPublic'])->toBeFalse();
+    });
+
+    it('filters out URLs without a host component', function () {
+        $resourceQuery = Mockery::mock();
+        $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.nohost.test')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 66]);
+
+        $fileQuery = Mockery::mock();
+        $fileQuery->shouldReceive('where')->with('resource_id', 66)->andReturnSelf();
+        $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
+        $fileQuery->shouldReceive('get')->with(['url', 'visible'])->andReturn(collect([
+            (object) ['url' => 'http:foo', 'visible' => 'public'],
+            (object) ['url' => 'https://', 'visible' => 'public'],
+            (object) ['url' => 'https://datapub.gfz.de/download/valid.zip', 'visible' => 'public'],
+        ]));
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
+        $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
+
+        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        Log::shouldReceive('warning')->times(2); // 2 hostless URLs skipped
+
+        $service = new MetaworksDownloadUrlService;
+        $result = $service->lookupFileUrls('10.5880/GFZ.nohost.test');
+
+        expect($result['urls'])->toHaveCount(1)
+            ->and($result['urls'][0])->toBe('https://datapub.gfz.de/download/valid.zip')
+            ->and($result['allPublic'])->toBeTrue();
     });
 });

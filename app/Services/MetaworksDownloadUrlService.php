@@ -58,8 +58,9 @@ class MetaworksDownloadUrlService
         // Determine if all files are publicly visible
         $allPublic = $files->every(fn (object $file): bool => $file->visible === 'public');
 
-        // Deduplicate URLs and filter to valid HTTP(S) only (max 2048 chars)
-        // to prevent XSS from legacy data containing javascript:, data: or other unsafe schemes.
+        // Deduplicate URLs and filter to valid absolute HTTP(S) links (max 2048 chars)
+        // to prevent XSS from legacy data containing javascript:, data: or other unsafe schemes,
+        // and reject malformed URLs like "http:foo" that lack a host component.
         $urls = $files->pluck('url')
             ->unique()
             ->values()
@@ -70,8 +71,10 @@ class MetaworksDownloadUrlService
                     return false;
                 }
 
-                if (! UriHelper::isHttpUrl($url)) {
-                    Log::warning('Skipping non-HTTP metaworks URL', ['doi' => $doi, 'url' => $url]);
+                $uri = UriHelper::parse($url);
+
+                if ($uri === null || ! UriHelper::isHttpUrl($url) || $uri->getHost() === null || $uri->getHost() === '') {
+                    Log::warning('Skipping invalid metaworks URL', ['doi' => $doi, 'url' => $url]);
 
                     return false;
                 }
