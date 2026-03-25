@@ -24,9 +24,9 @@ beforeEach(function () {
     $this->transformer = Mockery::mock(DataCiteToResourceTransformer::class);
     $this->app->instance(DataCiteToResourceTransformer::class, $this->transformer);
 
-    // Mock the metaworks service (returns empty arrays by default)
+    // Mock the metaworks service (returns empty result by default)
     $this->metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-    $this->metaworksService->shouldReceive('lookupFileUrls')->andReturn([]);
+    $this->metaworksService->shouldReceive('lookupFileUrls')->andReturn(['urls' => [], 'allPublic' => false]);
     $this->app->instance(MetaworksDownloadUrlService::class, $this->metaworksService);
 });
 
@@ -243,14 +243,17 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->once()
             ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/lp.test.001']));
 
-        // Override the default mock: return download URLs
+        // Override the default mock: return download URLs (all public)
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
         $metaworksService->shouldReceive('lookupFileUrls')
             ->with('10.5880/lp.test.001')
             ->once()
             ->andReturn([
-                'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip',
-                'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip',
+                'urls' => [
+                    'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip',
+                    'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip',
+                ],
+                'allPublic' => true,
             ]);
 
         $importId = Str::uuid()->toString();
@@ -263,6 +266,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->template)->toBe('default_gfz')
             ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->published_at)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip');
 
         // Verify files were created
@@ -272,6 +276,59 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($files[0]->position)->toBe(0)
             ->and($files[1]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip')
             ->and($files[1]->position)->toBe(1);
+    });
+
+    it('creates unpublished landing page when metaworks files are non-public', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/lp.nonpub.001',
+                    'attributes' => [
+                        'doi' => '10.5880/lp.nonpub.001',
+                        'titles' => [['title' => 'Non-Public Files Dataset']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/lp.nonpub.001']));
+
+        // Return URLs with allPublic=false (some files are non-public)
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileUrls')
+            ->with('10.5880/lp.nonpub.001')
+            ->once()
+            ->andReturn([
+                'urls' => ['https://datapub.gfz.de/download/internal-file.zip'],
+                'allPublic' => false,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        // Verify landing page was created but NOT published
+        $resource = Resource::where('doi', '10.5880/lp.nonpub.001')->first();
+        $landingPage = LandingPage::where('resource_id', $resource->id)->first();
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->is_published)->toBeFalse()
+            ->and($landingPage->published_at)->toBeNull();
+
+        // Files should still be created
+        $files = LandingPageFile::where('landing_page_id', $landingPage->id)->get();
+        expect($files)->toHaveCount(1)
+            ->and($files[0]->url)->toBe('https://datapub.gfz.de/download/internal-file.zip');
     });
 
     it('does not create landing page when metaworks has no files', function () {
@@ -421,7 +478,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
         $metaworksService->shouldReceive('lookupFileUrls')
             ->once()
-            ->andReturn(['https://datapub.gfz.de/download/dupe']);
+            ->andReturn(['urls' => ['https://datapub.gfz.de/download/dupe'], 'allPublic' => true]);
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
