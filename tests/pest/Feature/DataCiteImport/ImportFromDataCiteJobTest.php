@@ -474,11 +474,9 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                 return $resource;
             });
 
-        // MetaworksService returns URLs
+        // MetaworksService should NOT be called since landing page already exists
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileUrls')
-            ->once()
-            ->andReturn(['urls' => ['https://datapub.gfz.de/download/dupe'], 'allPublic' => true]);
+        $metaworksService->shouldNotReceive('lookupFileUrls');
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
