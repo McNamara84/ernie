@@ -4,11 +4,12 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
+    const isDev = command === 'serve';
 
     return {
-        devtools: true,
+        devtools: isDev,
         plugins: [
             laravel({
                 input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx', 'resources/js/pages/dashboard.tsx'],
