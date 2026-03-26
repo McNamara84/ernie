@@ -117,6 +117,11 @@ describe('resolveIdentifierUrl', () => {
             expect(resolveIdentifierUrl('https://dx.doi.org/', 'DOI')).toBeNull();
             expect(resolveIdentifierUrl('http://doi.org/', 'DOI')).toBeNull();
         });
+
+        it('returns null when DOI is a resolver without trailing slash', () => {
+            expect(resolveIdentifierUrl('https://doi.org', 'DOI')).toBeNull();
+            expect(resolveIdentifierUrl('https://dx.doi.org', 'DOI')).toBeNull();
+        });
     });
 
     describe('Handle URL normalization', () => {
@@ -135,6 +140,11 @@ describe('resolveIdentifierUrl', () => {
         it('returns null when Handle is just a resolver prefix', () => {
             expect(resolveIdentifierUrl('https://hdl.handle.net/', 'Handle')).toBeNull();
             expect(resolveIdentifierUrl('http://hdl.handle.net/', 'Handle')).toBeNull();
+        });
+
+        it('returns null when Handle is a resolver without trailing slash', () => {
+            expect(resolveIdentifierUrl('https://hdl.handle.net', 'Handle')).toBeNull();
+            expect(resolveIdentifierUrl('http://hdl.handle.net', 'Handle')).toBeNull();
         });
     });
 });
@@ -167,5 +177,10 @@ describe('normalizeDoiKey', () => {
     it('returns empty string for empty input', () => {
         expect(normalizeDoiKey('')).toBe('');
         expect(normalizeDoiKey('   ')).toBe('');
+    });
+
+    it('returns empty string for resolver-only input without trailing slash', () => {
+        expect(normalizeDoiKey('https://doi.org')).toBe('');
+        expect(normalizeDoiKey('https://dx.doi.org')).toBe('');
     });
 });

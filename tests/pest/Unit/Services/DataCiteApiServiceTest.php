@@ -5,12 +5,15 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Services\DataCiteApiService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 
 covers(DataCiteApiService::class);
 
 beforeEach(function (): void {
-    Cache::flush();
+    // Use array driver so each test starts with a clean, isolated cache
+    // and avoids interfering with other parallel test workers.
+    Config::set('cache.default', 'array');
     $this->service = new DataCiteApiService;
 });
 

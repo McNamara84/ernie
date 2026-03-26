@@ -53,13 +53,13 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
 export function normalizeDoiKey(value: string): string {
     return value
         .trim()
-        .replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+        .replace(/^https?:\/\/(dx\.)?doi\.org\/?/i, '');
 }
 
 /** Strips the Handle resolver URL prefix, returning the bare handle. */
 function stripHandlePrefix(value: string): string {
     return value
-        .replace(/^https?:\/\/hdl\.handle\.net\//i, '');
+        .replace(/^https?:\/\/hdl\.handle\.net\/?/i, '');
 }
 
 /**

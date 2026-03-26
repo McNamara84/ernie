@@ -70,12 +70,12 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
     useEffect(() => {
         const controller = new AbortController();
 
-        // Deduplicate: only fetch each DOI once, normalize to bare DOI
+        // Deduplicate: only fetch DOIs that have a resolvable URL
         const doisToFetch = new Set<string>();
         filteredRelations.forEach((rel) => {
             if (rel.identifier_type === 'DOI') {
                 const doi = normalizeDoiKey(rel.identifier);
-                if (doi) {
+                if (doi && resolveIdentifierUrl(rel.identifier, rel.identifier_type)) {
                     doisToFetch.add(doi);
                 }
             }
@@ -143,7 +143,7 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
 
             <div className="space-y-6" data-testid="related-works-list">
                 {sortedTypes.map((relationType) => {
-                    // Check if group has any renderable items
+                    // Skip groups where no item resolves to a valid URL
                     const items = groupedByType[relationType];
                     const hasRenderableItems = items.some((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null);
 
