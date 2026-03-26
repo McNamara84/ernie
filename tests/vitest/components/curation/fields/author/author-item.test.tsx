@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorItem from '@/components/curation/fields/author/author-item';

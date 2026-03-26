@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';

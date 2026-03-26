@@ -8,6 +8,7 @@ export default defineConfig(() => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
 
     return {
+        devtools: true,
         plugins: [
             laravel({
                 input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx', 'resources/js/pages/dashboard.tsx'],
@@ -24,11 +25,6 @@ export default defineConfig(() => {
             outDir: 'public/build',
             assetsDir: 'assets',
             sourcemap: false,
-            rollupOptions: {
-                output: {
-                    manualChunks: undefined
-                }
-            }
         },
         define: {
             global: 'globalThis',
@@ -45,6 +41,7 @@ export default defineConfig(() => {
             include: ['react', 'react-dom', 'swagger-ui-react'],
         },
         server: {
+            forwardConsole: true,
             warmup: {
                 clientFiles: ['resources/js/swagger.tsx'],
             },
