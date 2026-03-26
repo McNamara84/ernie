@@ -75,7 +75,7 @@ export default function DefaultGfzTemplate() {
                                 datasetTitle={mainTitle}
                             />
                             <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />
-                            <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} />
+                            <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} resource={resource} />
                             <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
                         </div>
 

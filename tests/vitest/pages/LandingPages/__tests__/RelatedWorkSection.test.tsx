@@ -1,15 +1,73 @@
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
+﻿import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach,describe, expect, it, vi } from 'vitest';
 
 import { RelatedWorkSection } from '@/pages/LandingPages/components/RelatedWorkSection';
+import type { LandingPageResource } from '@/types/landing-page';
+
+
+// Mock matchMedia for prefers-reduced-motion
+Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    })),
+});
+
+const mockResource: LandingPageResource = {
+    id: 1,
+    identifier: '10.5880/GFZ.1.2.2024.001',
+    publication_year: 2024,
+    version: '1.0',
+    language: 'en',
+    creators: [
+        {
+            id: 1,
+            position: 1,
+            affiliations: [],
+            creatorable: {
+                type: 'Person',
+                id: 1,
+                given_name: 'John',
+                family_name: 'Doe',
+                name_identifier: null,
+                name_identifier_scheme: null,
+                name: null,
+            },
+        },
+    ],
+    titles: [
+        { id: 1, title: 'Test Dataset', title_type: null },
+    ],
+};
 
 describe('RelatedWorkSection', () => {
     beforeEach(() => {
         vi.resetAllMocks();
+
+        Object.defineProperty(window, 'matchMedia', {
+            writable: true,
+            value: vi.fn().mockImplementation((query: string) => ({
+                matches: true,
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            })),
+        });
     });
 
     it('returns null when no related identifiers', () => {
-        const { container } = render(<RelatedWorkSection relatedIdentifiers={[]} />);
+        const { container } = render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={[]} />);
         expect(container.firstChild).toBeNull();
     });
 
@@ -19,7 +77,7 @@ describe('RelatedWorkSection', () => {
             { id: 2, identifier: '67890', identifier_type: 'EAN13', relation_type: 'IsCitedBy' },
         ];
 
-        const { container } = render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        const { container } = render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
         expect(container.firstChild).toBeNull();
     });
 
@@ -44,7 +102,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         // Should only show the second IsSupplementTo relation
         expect(screen.getByTestId('related-works-section')).toBeInTheDocument();
@@ -65,7 +123,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         expect(screen.getByRole('heading', { name: 'Related Work' })).toBeInTheDocument();
     });
@@ -97,7 +155,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         // Check for relation type headings
         expect(screen.getByText('References')).toBeInTheDocument();
@@ -119,7 +177,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         expect(screen.getByText('Is Documented By')).toBeInTheDocument();
     });
@@ -137,7 +195,7 @@ describe('RelatedWorkSection', () => {
         // Never resolve to keep loading state
         global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         expect(screen.getByText('Loading citation...')).toBeInTheDocument();
     });
@@ -157,7 +215,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Smith, J. (2024). Test Dataset.' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         await waitFor(() => {
             expect(screen.getByText('Smith, J. (2024). Test Dataset.')).toBeInTheDocument();
@@ -178,7 +236,7 @@ describe('RelatedWorkSection', () => {
             ok: false,
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         await waitFor(() => {
             expect(screen.getByText('DOI: 10.5880/test')).toBeInTheDocument();
@@ -197,7 +255,7 @@ describe('RelatedWorkSection', () => {
 
         global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         await waitFor(() => {
             expect(screen.getByText('DOI: 10.5880/test')).toBeInTheDocument();
@@ -219,7 +277,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         await waitFor(() => {
             const link = screen.getByRole('link');
@@ -241,7 +299,7 @@ describe('RelatedWorkSection', () => {
 
         global.fetch = vi.fn();
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         const link = screen.getByRole('link');
         expect(link).toHaveAttribute('href', 'https://example.com/dataset');
@@ -262,7 +320,7 @@ describe('RelatedWorkSection', () => {
 
         global.fetch = vi.fn();
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         const link = screen.getByRole('link');
         expect(link).toHaveAttribute('href', 'https://hdl.handle.net/10013/epic.12345');
@@ -282,7 +340,7 @@ describe('RelatedWorkSection', () => {
 
         global.fetch = vi.fn();
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         const link = screen.getByRole('link');
         expect(link).toHaveAttribute('href', 'https://nbn-resolving.org/urn:nbn:de:kobv:b4-200905193913');
@@ -300,7 +358,7 @@ describe('RelatedWorkSection', () => {
 
         global.fetch = vi.fn();
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         // Section shouldn't render at all since there are no renderable items...
         // Actually the section DOES render because filteredRelations is non-empty,
@@ -329,7 +387,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Shared Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         // Should only fetch once for the deduplicated DOI
         await waitFor(() => {
@@ -364,7 +422,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         // Only the DOI should trigger a fetch
         await waitFor(() => {
@@ -403,7 +461,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'Test Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         const headings = screen.getAllByRole('heading', { level: 4 });
         const headingTexts = headings.map((h) => h.textContent);
@@ -438,7 +496,7 @@ describe('RelatedWorkSection', () => {
                 json: () => Promise.resolve({ citation: 'Citation 2' }),
             });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         await waitFor(() => {
             expect(screen.getByText('Citation 1')).toBeInTheDocument();
@@ -467,7 +525,7 @@ describe('RelatedWorkSection', () => {
             json: () => Promise.resolve({ citation: 'DOI Citation' }),
         });
 
-        render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
         // URL should render immediately
         expect(screen.getByText('https://docs.example.com/manual')).toBeInTheDocument();
@@ -475,6 +533,80 @@ describe('RelatedWorkSection', () => {
         // DOI citation should appear after fetch
         await waitFor(() => {
             expect(screen.getByText('DOI Citation')).toBeInTheDocument();
+        });
+    });
+
+    describe('Relation Browser button', () => {
+        it('renders the Relation Browser icon button', () => {
+            const relatedIdentifiers = [
+                {
+                    id: 1,
+                    identifier: '10.5880/test',
+                    identifier_type: 'DOI',
+                    relation_type: 'References',
+                },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ citation: 'Test Citation' }),
+            });
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            expect(screen.getByTestId('relation-browser-button')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Open Relation Browser' })).toBeInTheDocument();
+        });
+
+        it('opens Relation Browser modal on button click', async () => {
+            const relatedIdentifiers = [
+                {
+                    id: 1,
+                    identifier: '10.5880/test',
+                    identifier_type: 'DOI',
+                    relation_type: 'References',
+                },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ citation: 'Test Citation' }),
+            });
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const button = screen.getByTestId('relation-browser-button');
+            button.click();
+
+            await waitFor(() => {
+                expect(screen.getByText('Relation Browser')).toBeInTheDocument();
+            });
+        });
+
+        it('passes resource and filtered identifiers to modal', async () => {
+            const relatedIdentifiers = [
+                {
+                    id: 1,
+                    identifier: '10.5880/test',
+                    identifier_type: 'DOI',
+                    relation_type: 'References',
+                },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ citation: 'Test Citation' }),
+            });
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const button = screen.getByTestId('relation-browser-button');
+            button.click();
+
+            await waitFor(() => {
+                expect(screen.getByTestId('relation-browser-modal')).toBeInTheDocument();
+                expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
+            });
         });
     });
 });

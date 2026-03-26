@@ -1,9 +1,13 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Network } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import type { LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
+
+import { RelationBrowserModal } from './RelationBrowserModal';
 
 interface RelatedIdentifier {
     id: number;
@@ -15,6 +19,7 @@ interface RelatedIdentifier {
 
 interface RelatedWorkSectionProps {
     relatedIdentifiers: RelatedIdentifier[];
+    resource: LandingPageResource;
 }
 
 interface Citation {
@@ -37,9 +42,10 @@ function formatRelationType(type: string): string {
  * Zeigt alle Related Identifiers gruppiert nach RelationType an.
  * Erste IsSupplementTo-Relation wird ausgeschlossen (die ist in Model Description).
  */
-export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionProps) {
+export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWorkSectionProps) {
     // Citation cache keyed by DOI string (deduplicated across relation types)
     const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
+    const [browserOpen, setBrowserOpen] = useState(false);
 
     // Erste IsSupplementTo-Relation ausschließen
     const firstSupplementToIndex = relatedIdentifiers.findIndex((rel) => rel.relation_type === 'IsSupplementTo');
@@ -139,7 +145,19 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="related-works-section">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">Related Work</h3>
+            <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Related Work</h3>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setBrowserOpen(true)}
+                    aria-label="Open Relation Browser"
+                    title="Open Relation Browser"
+                    data-testid="relation-browser-button"
+                >
+                    <Network className="h-4 w-4 text-gray-500 transition-colors hover:text-[#0C2A63]" />
+                </Button>
+            </div>
 
             <div className="space-y-6" data-testid="related-works-list">
                 {sortedTypes.map((relationType) => {
@@ -224,6 +242,13 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                     );
                 })}
             </div>
+
+            <RelationBrowserModal
+                open={browserOpen}
+                onOpenChange={setBrowserOpen}
+                resource={resource}
+                relatedIdentifiers={filteredRelations}
+            />
         </div>
     );
 }

@@ -1,0 +1,144 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+    EDGE_FALLBACK_COLOR,
+    GFZ_BLUE,
+    getEdgeCategory,
+    getEdgeCategoryColorMap,
+    getEdgeColor,
+    getNodeColor,
+    getNodeColorMap,
+    NODE_FALLBACK_COLOR,
+} from '@/pages/LandingPages/components/relation-browser/graph-colors';
+
+describe('graph-colors', () => {
+    describe('getNodeColor', () => {
+        it('returns GFZ blue for central node', () => {
+            expect(getNodeColor('DOI', true)).toBe(GFZ_BLUE);
+            expect(getNodeColor('URL', true)).toBe(GFZ_BLUE);
+            expect(getNodeColor('unknown', true)).toBe(GFZ_BLUE);
+        });
+
+        it('returns correct color for each known identifier type', () => {
+            expect(getNodeColor('DOI', false)).toBe('#10B981');
+            expect(getNodeColor('URL', false)).toBe('#0EA5E9');
+            expect(getNodeColor('Handle', false)).toBe('#F59E0B');
+            expect(getNodeColor('arXiv', false)).toBe('#F43F5E');
+            expect(getNodeColor('IGSN', false)).toBe('#8B5CF6');
+            expect(getNodeColor('ISBN', false)).toBe('#F97316');
+            expect(getNodeColor('ISSN', false)).toBe('#14B8A6');
+            expect(getNodeColor('URN', false)).toBe('#EC4899');
+            expect(getNodeColor('RAiD', false)).toBe('#06B6D4');
+        });
+
+        it('returns fallback color for unknown identifier types', () => {
+            expect(getNodeColor('PMID', false)).toBe(NODE_FALLBACK_COLOR);
+            expect(getNodeColor('EAN13', false)).toBe(NODE_FALLBACK_COLOR);
+            expect(getNodeColor('unknown', false)).toBe(NODE_FALLBACK_COLOR);
+        });
+
+        it('never returns GFZ blue for non-central nodes', () => {
+            const colorMap = getNodeColorMap();
+            for (const color of Object.values(colorMap)) {
+                expect(color).not.toBe(GFZ_BLUE);
+            }
+            expect(NODE_FALLBACK_COLOR).not.toBe(GFZ_BLUE);
+        });
+    });
+
+    describe('getEdgeColor', () => {
+        it('returns correct color for citation relation types', () => {
+            expect(getEdgeColor('Cites')).toBe('#6366F1');
+            expect(getEdgeColor('IsCitedBy')).toBe('#6366F1');
+            expect(getEdgeColor('References')).toBe('#6366F1');
+            expect(getEdgeColor('IsReferencedBy')).toBe('#6366F1');
+        });
+
+        it('returns correct color for documentation relation types', () => {
+            expect(getEdgeColor('Describes')).toBe('#06B6D4');
+            expect(getEdgeColor('IsDocumentedBy')).toBe('#06B6D4');
+        });
+
+        it('returns correct color for version relation types', () => {
+            expect(getEdgeColor('IsNewVersionOf')).toBe('#7C3AED');
+            expect(getEdgeColor('HasVersion')).toBe('#7C3AED');
+        });
+
+        it('returns correct color for composition relation types', () => {
+            expect(getEdgeColor('HasPart')).toBe('#84CC16');
+            expect(getEdgeColor('IsPartOf')).toBe('#84CC16');
+        });
+
+        it('returns correct color for derivation relation types', () => {
+            expect(getEdgeColor('IsDerivedFrom')).toBe('#E11D48');
+            expect(getEdgeColor('IsSourceOf')).toBe('#E11D48');
+        });
+
+        it('returns correct color for supplement relation types', () => {
+            expect(getEdgeColor('IsSupplementTo')).toBe('#D97706');
+            expect(getEdgeColor('IsSupplementedBy')).toBe('#D97706');
+        });
+
+        it('returns correct color for software relation types', () => {
+            expect(getEdgeColor('Requires')).toBe('#C026D3');
+            expect(getEdgeColor('IsRequiredBy')).toBe('#C026D3');
+        });
+
+        it('returns correct color for metadata relation types', () => {
+            expect(getEdgeColor('HasMetadata')).toBe('#475569');
+            expect(getEdgeColor('IsMetadataFor')).toBe('#475569');
+        });
+
+        it('returns correct color for review relation types', () => {
+            expect(getEdgeColor('Reviews')).toBe('#059669');
+            expect(getEdgeColor('IsReviewedBy')).toBe('#059669');
+        });
+
+        it('returns fallback color for unknown relation types', () => {
+            expect(getEdgeColor('Other')).toBe(EDGE_FALLBACK_COLOR);
+            expect(getEdgeColor('Collects')).toBe(EDGE_FALLBACK_COLOR);
+            expect(getEdgeColor('IsPublishedIn')).toBe(EDGE_FALLBACK_COLOR);
+            expect(getEdgeColor('unknown')).toBe(EDGE_FALLBACK_COLOR);
+        });
+    });
+
+    describe('getEdgeCategory', () => {
+        it('returns correct category for known relation types', () => {
+            expect(getEdgeCategory('Cites')).toBe('Citation');
+            expect(getEdgeCategory('Describes')).toBe('Documentation');
+            expect(getEdgeCategory('HasVersion')).toBe('Version');
+            expect(getEdgeCategory('HasPart')).toBe('Composition');
+            expect(getEdgeCategory('IsDerivedFrom')).toBe('Derivation');
+            expect(getEdgeCategory('IsSupplementTo')).toBe('Supplement');
+            expect(getEdgeCategory('Requires')).toBe('Software');
+            expect(getEdgeCategory('HasMetadata')).toBe('Metadata');
+            expect(getEdgeCategory('Reviews')).toBe('Review');
+        });
+
+        it('returns "Other" for unknown relation types', () => {
+            expect(getEdgeCategory('Other')).toBe('Other');
+            expect(getEdgeCategory('Collects')).toBe('Other');
+            expect(getEdgeCategory('unknown')).toBe('Other');
+        });
+    });
+
+    describe('getNodeColorMap', () => {
+        it('returns a copy of the node color map', () => {
+            const map1 = getNodeColorMap();
+            const map2 = getNodeColorMap();
+            expect(map1).toEqual(map2);
+            map1.DOI = '#000000';
+            expect(getNodeColorMap().DOI).toBe('#10B981');
+        });
+    });
+
+    describe('getEdgeCategoryColorMap', () => {
+        it('returns a copy of the edge category color map', () => {
+            const map1 = getEdgeCategoryColorMap();
+            const map2 = getEdgeCategoryColorMap();
+            expect(map1).toEqual(map2);
+            map1.Citation = '#000000';
+            expect(getEdgeCategoryColorMap().Citation).toBe('#6366F1');
+        });
+    });
+});
