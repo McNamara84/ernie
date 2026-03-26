@@ -41,6 +41,11 @@ class DataCiteApiService
             '',
             trim($doi),
         ));
+
+        if ($cleanDoi === '') {
+            return null;
+        }
+
         $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
         $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
+import { normalizeDoiKey, resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 
 describe('resolveIdentifierUrl', () => {
     it('resolves DOI to doi.org', () => {
@@ -125,5 +125,36 @@ describe('resolveIdentifierUrl', () => {
                 'https://hdl.handle.net/10013/epic.12345',
             );
         });
+    });
+});
+
+describe('normalizeDoiKey', () => {
+    it('returns bare DOI unchanged', () => {
+        expect(normalizeDoiKey('10.5880/GFZ.1.1.2024.002')).toBe('10.5880/GFZ.1.1.2024.002');
+    });
+
+    it('strips https://doi.org/ prefix', () => {
+        expect(normalizeDoiKey('https://doi.org/10.5880/GFZ.1.1.2024.002')).toBe('10.5880/GFZ.1.1.2024.002');
+    });
+
+    it('strips https://dx.doi.org/ prefix', () => {
+        expect(normalizeDoiKey('https://dx.doi.org/10.5880/GFZ.1.1.2024.002')).toBe('10.5880/GFZ.1.1.2024.002');
+    });
+
+    it('strips http://doi.org/ prefix', () => {
+        expect(normalizeDoiKey('http://doi.org/10.5880/GFZ.1.1.2024.002')).toBe('10.5880/GFZ.1.1.2024.002');
+    });
+
+    it('trims whitespace', () => {
+        expect(normalizeDoiKey('  10.5880/test  ')).toBe('10.5880/test');
+    });
+
+    it('strips prefix and trims combined', () => {
+        expect(normalizeDoiKey('  https://dx.doi.org/10.5880/test  ')).toBe('10.5880/test');
+    });
+
+    it('returns empty string for empty input', () => {
+        expect(normalizeDoiKey('')).toBe('');
+        expect(normalizeDoiKey('   ')).toBe('');
     });
 });

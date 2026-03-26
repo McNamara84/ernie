@@ -89,6 +89,16 @@ describe('getMetadata', function (): void {
         Http::assertSent(fn ($request) => str_contains($request->url(), 'doi.org/10.5880/test'));
     });
 
+    it('returns null for empty DOI without calling API', function (): void {
+        Http::fake();
+
+        expect($this->service->getMetadata(''))->toBeNull();
+        expect($this->service->getMetadata('   '))->toBeNull();
+        expect($this->service->getMetadata('https://doi.org/'))->toBeNull();
+
+        Http::assertNothingSent();
+    });
+
     it('returns null for 404 response', function (): void {
         Http::fake([
             'doi.org/*' => Http::response('Not Found', 404),

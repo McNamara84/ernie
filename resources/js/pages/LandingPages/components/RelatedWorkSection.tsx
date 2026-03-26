@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Spinner } from '@/components/ui/spinner';
 
-import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
+import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 
 interface RelatedIdentifier {
     id: number;
@@ -70,11 +70,11 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
     useEffect(() => {
         const controller = new AbortController();
 
-        // Deduplicate: only fetch each DOI once, normalize with trim
+        // Deduplicate: only fetch each DOI once, normalize to bare DOI
         const doisToFetch = new Set<string>();
         filteredRelations.forEach((rel) => {
             if (rel.identifier_type === 'DOI') {
-                const doi = rel.identifier.trim();
+                const doi = normalizeDoiKey(rel.identifier);
                 if (doi) {
                     doisToFetch.add(doi);
                 }
@@ -158,7 +158,8 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
 
                                     // DOI: show citation (fetched async)
                                     if (rel.identifier_type === 'DOI') {
-                                        const citationData = citations.get(rel.identifier.trim());
+                                        const doiKey = normalizeDoiKey(rel.identifier);
+                                        const citationData = citations.get(doiKey);
                                         const isLoading = !citationData || citationData.loading;
 
                                         return (
@@ -190,7 +191,7 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                                                         className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
                                                     >
                                                         <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                        <span className="flex-1">DOI: {rel.identifier}</span>
+                                                        <span className="flex-1">DOI: {doiKey}</span>
                                                     </a>
                                                 )}
                                             </li>

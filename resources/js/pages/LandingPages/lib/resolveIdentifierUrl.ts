@@ -19,7 +19,7 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
 
     switch (identifierType) {
         case 'DOI':
-            return `https://doi.org/${stripDoiPrefix(id)}`;
+            return `https://doi.org/${normalizeDoiKey(id)}`;
         case 'URL':
             return isSafeHttpUrl(id) ? id : null;
         case 'Handle':
@@ -41,9 +41,14 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
     }
 }
 
-/** Strips common DOI resolver URL prefixes, returning the bare DOI. */
-function stripDoiPrefix(value: string): string {
+/**
+ * Strips common DOI resolver URL prefixes and trims whitespace,
+ * returning the bare DOI. Exported so callers can normalize DOI keys
+ * consistently (deduplication, cache keys, display text).
+ */
+export function normalizeDoiKey(value: string): string {
     return value
+        .trim()
         .replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
 }
 
