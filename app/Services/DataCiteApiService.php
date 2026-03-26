@@ -49,6 +49,9 @@ class DataCiteApiService
             return null;
         }
 
+        // DOIs are case-insensitive per spec — lowercase for consistent cache keys
+        $cleanDoi = strtolower($cleanDoi);
+
         $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
         $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
 

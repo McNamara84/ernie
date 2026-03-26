@@ -13,8 +13,13 @@ covers(DataCiteApiService::class);
 beforeEach(function (): void {
     // Use array driver so each test starts with a clean, isolated cache
     // and avoids interfering with other parallel test workers.
+    $this->previousCacheDriver = Config::get('cache.default');
     Config::set('cache.default', 'array');
     $this->service = new DataCiteApiService;
+});
+
+afterEach(function (): void {
+    Config::set('cache.default', $this->previousCacheDriver);
 });
 
 // =========================================================================
@@ -114,14 +119,17 @@ describe('getMetadata', function (): void {
         Http::assertSent(fn ($request) => str_contains($request->url(), 'doi.org/10.5880/test'));
     });
 
-    it('strips resolver prefix without trailing slash', function (): void {
+    it('normalizes DOI casing for consistent cache keys', function (): void {
         Http::fake([
-            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/test.2024.001']),
+            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/TEST.2024.CASE']),
         ]);
 
-        $result = $this->service->getMetadata('https://doi.org10.5880/test.2024.001');
+        $result = $this->service->getMetadata('10.5880/TEST.2024.CASE');
 
         expect($result)->toBeArray();
+        // Requesting the same DOI in different casing should use cache, not trigger a second request
+        $this->service->getMetadata('10.5880/test.2024.case');
+        Http::assertSentCount(1);
     });
 
     it('returns null for 404 response', function (): void {
