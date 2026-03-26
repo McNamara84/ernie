@@ -275,7 +275,7 @@ describe('caching', function (): void {
         expect(CacheKey::DOI_CITATION->key('10.5880/key-test'))->toBe('doi:citation:10.5880/key-test');
     });
 
-    it('caches null responses using sentinel value to prevent repeated HTTP requests', function (): void {
+    it('caches 404 responses using sentinel value for full TTL', function (): void {
         Http::fake([
             'doi.org/*' => Http::response('Not Found', 404),
         ]);
@@ -286,6 +286,22 @@ describe('caching', function (): void {
 
         // Second call - should use cached sentinel, not trigger another HTTP request
         $second = $this->service->getMetadata('10.5880/not-found');
+        expect($second)->toBeNull();
+
+        Http::assertSentCount(1);
+    });
+
+    it('caches transient failures with short TTL so they can recover', function (): void {
+        Http::fake([
+            'doi.org/*' => Http::response('Server Error', 500),
+        ]);
+
+        // First call - should trigger HTTP request
+        $first = $this->service->getMetadata('10.5880/server-error');
+        expect($first)->toBeNull();
+
+        // Second call within 5-minute window - should use cached transient sentinel
+        $second = $this->service->getMetadata('10.5880/server-error');
         expect($second)->toBeNull();
 
         Http::assertSentCount(1);

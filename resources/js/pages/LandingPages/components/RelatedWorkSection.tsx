@@ -70,27 +70,41 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
     useEffect(() => {
         const controller = new AbortController();
 
-        // Deduplicate: only fetch each DOI once
+        // Deduplicate: only fetch each DOI once, normalize with trim
         const doisToFetch = new Set<string>();
         filteredRelations.forEach((rel) => {
             if (rel.identifier_type === 'DOI') {
-                doisToFetch.add(rel.identifier);
+                const doi = rel.identifier.trim();
+                if (doi) {
+                    doisToFetch.add(doi);
+                }
             }
         });
 
-        // Batch-initialize all DOIs as loading in a single state update
-        if (doisToFetch.size > 0) {
-            setCitations((prev) => {
-                const next = new Map(prev);
-                doisToFetch.forEach((doi) => {
-                    next.set(doi, { citation: '', loading: true, error: false });
-                });
-                return next;
-            });
+        // Only fetch DOIs not already loaded or loading
+        const newDois = new Set<string>();
+        doisToFetch.forEach((doi) => {
+            const existing = citations.get(doi);
+            if (!existing || existing.error) {
+                newDois.add(doi);
+            }
+        });
+
+        if (newDois.size === 0) {
+            return;
         }
 
-        // Fetch each DOI citation, updating individually on resolve
-        doisToFetch.forEach((doi) => {
+        // Batch-initialize new DOIs as loading in a single state update
+        setCitations((prev) => {
+            const next = new Map(prev);
+            newDois.forEach((doi) => {
+                next.set(doi, { citation: '', loading: true, error: false });
+            });
+            return next;
+        });
+
+        // Fetch each new DOI citation, updating individually on resolve
+        newDois.forEach((doi) => {
             fetch(`/api/datacite/citation/${encodeURIComponent(doi)}`, { signal: controller.signal })
                 .then((response) => {
                     if (response.ok) {
@@ -144,7 +158,7 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
 
                                     // DOI: show citation (fetched async)
                                     if (rel.identifier_type === 'DOI') {
-                                        const citationData = citations.get(rel.identifier);
+                                        const citationData = citations.get(rel.identifier.trim());
 
                                         return (
                                             <li key={rel.id}>
