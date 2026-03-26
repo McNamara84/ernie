@@ -30,6 +30,10 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
 
     useEffect(() => {
         if (!supplementTo || supplementTo.identifier_type !== 'DOI' || !supplementTo.identifier.trim()) {
+            // Reset state when switching from a valid DOI to a non-DOI/empty value
+            setCitation(null);
+            setDoi(null);
+            setLoading(false);
             return;
         }
 
@@ -59,7 +63,11 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
 
         fetchCitation();
 
-        return () => controller.abort();
+        return () => {
+            controller.abort();
+            // Ensure loading is cleared so the next effect run won't find stuck state
+            setLoading(false);
+        };
     }, [supplementTo]);
 
     if (!supplementTo) {
@@ -91,7 +99,7 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
                     </a>
                 )}
 
-                {!loading && !citation && supplementTo.related_title && resolvedUrl && (
+                {!loading && !citation && resolvedUrl && (
                     <a
                         href={resolvedUrl}
                         target="_blank"
@@ -99,7 +107,9 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
                         className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
                     >
                         <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                        <span className="flex-1">{supplementTo.related_title}</span>
+                        <span className="flex-1">
+                            {supplementTo.related_title || supplementTo.identifier}
+                        </span>
                     </a>
                 )}
             </div>

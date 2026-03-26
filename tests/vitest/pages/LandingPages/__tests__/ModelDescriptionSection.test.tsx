@@ -279,7 +279,7 @@ describe('ModelDescriptionSection', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('renders nothing when fetch fails and no related_title exists', async () => {
+    it('renders identifier as fallback when fetch fails and no related_title exists', async () => {
         const relatedIdentifiers = [
             {
                 id: 1,
@@ -297,11 +297,10 @@ describe('ModelDescriptionSection', () => {
         render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
 
         await waitFor(() => {
-            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            const link = screen.getByRole('link');
+            expect(link).toHaveTextContent('10.5880/test');
+            expect(link).toHaveAttribute('href', 'https://doi.org/10.5880/test');
         });
-
-        // Section still renders with title but no link content
-        expect(screen.getByRole('heading', { name: 'Model Description' })).toBeInTheDocument();
     });
 
     it('handles network errors gracefully', async () => {
@@ -322,6 +321,90 @@ describe('ModelDescriptionSection', () => {
         await waitFor(() => {
             const link = screen.getByRole('link');
             expect(link).toHaveTextContent('Fallback Title');
+        });
+    });
+
+    it('renders non-DOI supplementTo with related_title as link', () => {
+        const relatedIdentifiers = [
+            {
+                id: 1,
+                identifier: 'http://example.com/model',
+                identifier_type: 'URL',
+                relation_type: 'IsSupplementTo',
+                related_title: 'External Model Documentation',
+            },
+        ];
+
+        global.fetch = vi.fn();
+
+        render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
+
+        const link = screen.getByRole('link');
+        expect(link).toHaveTextContent('External Model Documentation');
+        expect(link).toHaveAttribute('href', 'http://example.com/model');
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('renders non-DOI supplementTo with identifier as fallback when no related_title', () => {
+        const relatedIdentifiers = [
+            {
+                id: 1,
+                identifier: 'http://example.com/model',
+                identifier_type: 'URL',
+                relation_type: 'IsSupplementTo',
+            },
+        ];
+
+        global.fetch = vi.fn();
+
+        render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
+
+        const link = screen.getByRole('link');
+        expect(link).toHaveTextContent('http://example.com/model');
+        expect(link).toHaveAttribute('href', 'http://example.com/model');
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('resets stale citation state when supplementTo changes to non-DOI', async () => {
+        const doiRelation = [
+            {
+                id: 1,
+                identifier: '10.5880/test',
+                identifier_type: 'DOI',
+                relation_type: 'IsSupplementTo',
+            },
+        ];
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ citation: 'Old Citation' }),
+        });
+
+        const { rerender } = render(
+            <ModelDescriptionSection relatedIdentifiers={doiRelation} />,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Old Citation')).toBeInTheDocument();
+        });
+
+        // Switch to non-DOI supplementTo
+        const urlRelation = [
+            {
+                id: 2,
+                identifier: 'http://example.com/new-model',
+                identifier_type: 'URL',
+                relation_type: 'IsSupplementTo',
+            },
+        ];
+
+        rerender(<ModelDescriptionSection relatedIdentifiers={urlRelation} />);
+
+        await waitFor(() => {
+            // Old citation should be cleared, show identifier instead
+            expect(screen.queryByText('Old Citation')).not.toBeInTheDocument();
+            const link = screen.getByRole('link');
+            expect(link).toHaveTextContent('http://example.com/new-model');
         });
     });
 });
