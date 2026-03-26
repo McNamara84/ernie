@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import TitleField from '@/components/curation/fields/title-field';

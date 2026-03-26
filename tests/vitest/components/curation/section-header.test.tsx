@@ -1,5 +1,5 @@
-import { render, screen } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { Upload } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 

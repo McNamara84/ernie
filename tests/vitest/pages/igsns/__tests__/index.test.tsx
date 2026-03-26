@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, within } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen, within } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia

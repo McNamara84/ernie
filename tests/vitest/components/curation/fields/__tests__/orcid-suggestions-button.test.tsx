@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 
-import { render, screen } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrcidSuggestionsButton } from '@/components/curation/fields/orcid-suggestions-button';

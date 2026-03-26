@@ -1,5 +1,5 @@
-import { render, screen } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkItem from '@/components/curation/fields/related-work/related-work-item';

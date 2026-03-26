@@ -1,11 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
+import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
 import type { EditorSettings } from '@/types/docs';
-import { render, screen } from '@tests/vitest/utils/render';
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,

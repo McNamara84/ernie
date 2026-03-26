@@ -45,6 +45,7 @@
     "@types/papaparse": "^5.3.16",
     "@types/qrcode.react": "^1.0.5",
     "@types/yaireo__tagify": "^4.27.0",
+    "@vitejs/devtools": "^0.1.11",
     "@vitest/browser": "^4.0.17",
     "@vitest/coverage-v8": "^4.0.17",
     "dotenv": "^17.2.3",
@@ -73,7 +74,7 @@
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
     "@vis.gl/react-google-maps": "^1.5.5",
-    "@vitejs/plugin-react": "^5.1.2",
+    "@vitejs/plugin-react": "^6.0.1",
     "@yaireo/tagify": "^4.35.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -106,7 +107,6 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "4.9.5",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
     "lightningcss-linux-x64-gnu": "^1.29.1"
   }
