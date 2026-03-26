@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,22 +19,93 @@ use Illuminate\Support\Facades\Log;
  */
 class DataCiteApiService
 {
+    use ChecksCacheTagging;
+
+    /** Sentinel value stored in cache to represent a confirmed 404. */
+    private const CACHE_NULL_SENTINEL = '__NULL__';
+
+    /** Sentinel value indicating a transient failure (not cached long-term). */
+    private const CACHE_TRANSIENT_FAILURE = '__TRANSIENT__';
     /**
      * Ruft Metadaten für eine DOI über Content Negotiation ab.
      *
-     * Funktioniert mit DOIs von allen Registraren (DataCite, Crossref, etc.)
+     * Results are cached for 24 hours to reduce load on doi.org.
      *
      * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
      * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
      */
     public function getMetadata(string $doi): ?array
     {
+        $cleanDoi = trim($doi);
+
+        // Strip resolver URL prefixes case-insensitively (doi.org, dx.doi.org, with or without trailing slash)
+        if (preg_match('/^https?:\/\/(?:dx\.)?doi\.org\/?(.*)$/i', $cleanDoi, $matches)) {
+            $cleanDoi = $matches[1];
+        }
+
+        $cleanDoi = trim($cleanDoi);
+
+        if ($cleanDoi === '') {
+            return null;
+        }
+
+        // DOIs are case-insensitive per spec — lowercase for consistent cache keys
+        $cleanDoi = strtolower($cleanDoi);
+
+        $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
+        $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
+
+        $cached = $cache->get($cacheKey);
+
+        if ($cached === self::CACHE_NULL_SENTINEL || $cached === self::CACHE_TRANSIENT_FAILURE) {
+            return null;
+        }
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $result = $this->fetchMetadataFromApi($cleanDoi, $doi);
+
+        if (is_array($result)) {
+            $cache->put($cacheKey, $result, CacheKey::DOI_CITATION->ttl());
+        } elseif ($result === self::CACHE_NULL_SENTINEL) {
+            // Confirmed 404 — cache for full TTL
+            $cache->put($cacheKey, self::CACHE_NULL_SENTINEL, CacheKey::DOI_CITATION->ttl());
+        } else {
+            // Transient failure — cache for 5 minutes to avoid hammering the API
+            $cache->put($cacheKey, self::CACHE_TRANSIENT_FAILURE, 300);
+        }
+
+        return is_array($result) ? $result : null;
+    }
+
+    /**
+     * @param  array<string>  $tags
+     * @return \Illuminate\Contracts\Cache\Repository
+     */
+    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
+    {
+        if ($this->supportsTagging()) {
+            return Cache::tags($tags);
+        }
+
+        return Cache::store();
+    }
+
+    /**
+     * Fetches metadata from doi.org Content Negotiation API.
+     *
+     * Returns the metadata array on success, CACHE_NULL_SENTINEL for confirmed 404s,
+     * or CACHE_TRANSIENT_FAILURE for server errors / exceptions.
+     *
+     * @return array<string, mixed>|string
+     */
+    private function fetchMetadataFromApi(string $cleanDoi, string $originalDoi): array|string
+    {
         try {
-            // DOI bereinigen (https://doi.org/ Prefix entfernen falls vorhanden)
-            $cleanDoi = str_replace(['https://doi.org/', 'http://doi.org/'], '', $doi);
             $url = "https://doi.org/{$cleanDoi}";
 
-            // JSON-LD Format anfordern (CSL JSON für Zitationsdaten)
             $response = Http::timeout(10)
                 ->withHeaders([
                     'Accept' => 'application/vnd.citationstyles.csl+json',
@@ -43,23 +117,23 @@ class DataCiteApiService
             }
 
             if ($response->status() === 404) {
-                Log::info("DOI nicht gefunden: {$doi}");
+                Log::info("DOI not found: {$originalDoi}");
 
-                return null;
+                return self::CACHE_NULL_SENTINEL;
             }
 
-            Log::warning("DOI-Auflösungsfehler für {$doi}", [
+            Log::warning("DOI resolution error for {$originalDoi}", [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
 
-            return null;
+            return self::CACHE_TRANSIENT_FAILURE;
         } catch (\Exception $e) {
-            Log::error("Fehler beim Abrufen der DOI-Metadaten für {$doi}", [
+            Log::error("Error fetching DOI metadata for {$originalDoi}", [
                 'error' => $e->getMessage(),
             ]);
 
-            return null;
+            return self::CACHE_TRANSIENT_FAILURE;
         }
     }
 

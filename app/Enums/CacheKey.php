@@ -40,6 +40,9 @@ enum CacheKey: string
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
     case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
 
+    // DOI citation cache keys
+    case DOI_CITATION = 'doi:citation';
+
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
@@ -99,6 +102,9 @@ enum CacheKey: string
             // Portal temporal range - 1 hour (year boundaries change infrequently)
             self::PORTAL_TEMPORAL_RANGE => 3600,
 
+            // DOI citations are relatively stable - 24 hours
+            self::DOI_CITATION => 86400,
+
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
         };
@@ -134,6 +140,8 @@ enum CacheKey: string
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
 
             self::PORTAL_TEMPORAL_RANGE => ['portal', 'temporal'],
+
+            self::DOI_CITATION => ['doi', 'citations'],
 
             self::CACHE_STATS => ['system'],
         };

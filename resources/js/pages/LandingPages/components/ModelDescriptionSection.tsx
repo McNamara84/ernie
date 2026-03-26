@@ -1,6 +1,8 @@
 import { ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
+
 interface RelatedIdentifier {
     id: number;
     identifier: string;
@@ -27,30 +29,54 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     const supplementTo = relatedIdentifiers.find((rel) => rel.relation_type === 'IsSupplementTo');
 
     useEffect(() => {
-        if (!supplementTo || supplementTo.identifier_type !== 'DOI') {
+        if (!supplementTo || supplementTo.identifier_type !== 'DOI' || !supplementTo.identifier.trim()) {
+            // Reset state when switching from a valid DOI to a non-DOI/empty value
+            setCitation(null);
+            setDoi(null);
+            setLoading(false);
             return;
         }
+
+        const controller = new AbortController();
 
         const fetchCitation = async () => {
             setLoading(true);
             try {
                 const url = `/api/datacite/citation/${encodeURIComponent(supplementTo.identifier)}`;
-                const response = await fetch(url);
+                const response = await fetch(url, { signal: controller.signal });
 
                 if (response.ok) {
                     const data = await response.json();
                     setCitation(data.citation);
                     setDoi(supplementTo.identifier);
                 }
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
+                    return;
+                }
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchCitation();
+
+        return () => {
+            controller.abort();
+            // Ensure loading is cleared so the next effect run won't find stuck state
+            setLoading(false);
+        };
     }, [supplementTo]);
 
     if (!supplementTo) {
+        return null;
+    }
+
+    const resolvedUrl = resolveIdentifierUrl(supplementTo.identifier, supplementTo.identifier_type);
+
+    if (!resolvedUrl) {
         return null;
     }
 
@@ -61,9 +87,9 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
             <div className="space-y-3">
                 {loading && <p className="text-sm text-gray-500">Loading citation...</p>}
 
-                {!loading && citation && doi && (
+                {!loading && citation && doi && resolvedUrl && (
                     <a
-                        href={`https://doi.org/${doi}`}
+                        href={resolvedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
@@ -73,15 +99,17 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
                     </a>
                 )}
 
-                {!loading && !citation && supplementTo.related_title && (
+                {!loading && !citation && resolvedUrl && (
                     <a
-                        href={`https://doi.org/${supplementTo.identifier}`}
+                        href={resolvedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
                     >
                         <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                        <span className="flex-1">{supplementTo.related_title}</span>
+                        <span className="flex-1">
+                            {supplementTo.related_title || supplementTo.identifier}
+                        </span>
                     </a>
                 )}
             </div>

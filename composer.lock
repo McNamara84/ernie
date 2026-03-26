@@ -1538,16 +1538,16 @@
         },
         {
             "name": "laravel/wayfinder",
-            "version": "v0.1.14",
+            "version": "v0.1.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/wayfinder.git",
-                "reference": "57bbd154ae69b11513d459bb97a0db19a8b7c871"
+                "reference": "25b8a947af54d35106dc04e933d05a6b7fad1133"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/wayfinder/zipball/57bbd154ae69b11513d459bb97a0db19a8b7c871",
-                "reference": "57bbd154ae69b11513d459bb97a0db19a8b7c871",
+                "url": "https://api.github.com/repos/laravel/wayfinder/zipball/25b8a947af54d35106dc04e933d05a6b7fad1133",
+                "reference": "25b8a947af54d35106dc04e933d05a6b7fad1133",
                 "shasum": ""
             },
             "require": {
@@ -1597,7 +1597,7 @@
                 "issues": "https://github.com/laravel/wayfinder/issues",
                 "source": "https://github.com/laravel/wayfinder"
             },
-            "time": "2026-02-24T12:51:07+00:00"
+            "time": "2026-03-25T20:46:44+00:00"
         },
         {
             "name": "league/commonmark",
@@ -1790,16 +1790,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.32.0",
+            "version": "3.33.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "254b1595b16b22dbddaaef9ed6ca9fdac4956725"
+                "reference": "570b8871e0ce693764434b29154c54b434905350"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/254b1595b16b22dbddaaef9ed6ca9fdac4956725",
-                "reference": "254b1595b16b22dbddaaef9ed6ca9fdac4956725",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/570b8871e0ce693764434b29154c54b434905350",
+                "reference": "570b8871e0ce693764434b29154c54b434905350",
                 "shasum": ""
             },
             "require": {
@@ -1867,9 +1867,9 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.32.0"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.33.0"
             },
-            "time": "2026-02-25T17:01:41+00:00"
+            "time": "2026-03-25T07:59:30+00:00"
         },
         {
             "name": "league/flysystem-local",
@@ -4007,16 +4007,16 @@
         },
         {
             "name": "saloonphp/xml-wrangler",
-            "version": "v1.4.1",
+            "version": "v1.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/saloonphp/xml-wrangler.git",
-                "reference": "a326f34621ee71ca4d058e70b1cd0dbb497b86ad"
+                "reference": "4f35b68245dee8041193369efd4d73a98ad04a5f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/saloonphp/xml-wrangler/zipball/a326f34621ee71ca4d058e70b1cd0dbb497b86ad",
-                "reference": "a326f34621ee71ca4d058e70b1cd0dbb497b86ad",
+                "url": "https://api.github.com/repos/saloonphp/xml-wrangler/zipball/4f35b68245dee8041193369efd4d73a98ad04a5f",
+                "reference": "4f35b68245dee8041193369efd4d73a98ad04a5f",
                 "shasum": ""
             },
             "require": {
@@ -4032,7 +4032,7 @@
                 "pestphp/pest": "^v3.8.4 || v4.1.4",
                 "phpstan/phpstan": "^1.9",
                 "psr/http-message": "^2.0",
-                "saloonphp/saloon": "^3.0",
+                "saloonphp/saloon": "^4.0",
                 "symfony/var-dumper": "^7.3"
             },
             "suggest": {
@@ -4059,7 +4059,7 @@
             "homepage": "https://github.com/saloonphp/xml-wrangler",
             "support": {
                 "issues": "https://github.com/saloonphp/xml-wrangler/issues",
-                "source": "https://github.com/saloonphp/xml-wrangler/tree/v1.4.1"
+                "source": "https://github.com/saloonphp/xml-wrangler/tree/v1.5.0"
             },
             "funding": [
                 {
@@ -4067,7 +4067,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-11-20T22:31:56+00:00"
+            "time": "2026-03-25T22:32:39+00:00"
         },
         {
             "name": "spatie/array-to-xml",
@@ -10289,11 +10289,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.43",
+            "version": "2.1.44",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/d01bebe3edfd4d49b9666ee5b8271ddca561042f",
-                "reference": "d01bebe3edfd4d49b9666ee5b8271ddca561042f",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/4a88c083c668b2c364a425c9b3171b2d9ea5d218",
+                "reference": "4a88c083c668b2c364a425c9b3171b2d9ea5d218",
                 "shasum": ""
             },
             "require": {
@@ -10338,7 +10338,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-24T20:40:50+00:00"
+            "time": "2026-03-25T17:34:21+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

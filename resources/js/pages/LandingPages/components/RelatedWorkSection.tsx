@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 
 import { Spinner } from '@/components/ui/spinner';
 
+import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
+
 interface RelatedIdentifier {
     id: number;
     identifier: string;
@@ -16,11 +18,9 @@ interface RelatedWorkSectionProps {
 }
 
 interface Citation {
-    doi: string;
     citation: string;
     loading: boolean;
     error: boolean;
-    relatedTitle?: string;
 }
 
 /**
@@ -38,6 +38,7 @@ function formatRelationType(type: string): string {
  * Erste IsSupplementTo-Relation wird ausgeschlossen (die ist in Model Description).
  */
 export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionProps) {
+    // Citation cache keyed by DOI string (deduplicated across relation types)
     const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
 
     // Erste IsSupplementTo-Relation ausschließen
@@ -67,27 +68,45 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
     const sortedTypes = Object.keys(groupedByType).sort();
 
     useEffect(() => {
-        // Lade Citations für alle DOIs
+        const controller = new AbortController();
+
+        // Deduplicate: only fetch DOIs that have a resolvable URL
+        const doisToFetch = new Set<string>();
         filteredRelations.forEach((rel) => {
-            if (rel.identifier_type !== 'DOI') {
-                return;
+            if (rel.identifier_type === 'DOI') {
+                const doi = normalizeDoiKey(rel.identifier);
+                if (doi && resolveIdentifierUrl(rel.identifier, rel.identifier_type)) {
+                    doisToFetch.add(doi);
+                }
             }
+        });
 
-            const key = `${rel.id}`;
+        // Fetch DOIs that are not yet successfully loaded.
+        // Includes loading entries so that a prop-change after abort can retry.
+        const newDois = new Set<string>();
+        doisToFetch.forEach((doi) => {
+            const existing = citations.get(doi);
+            if (!existing || existing.loading || existing.error) {
+                newDois.add(doi);
+            }
+        });
 
-            // Initialisiere mit loading state
-            setCitations((prev) =>
-                new Map(prev).set(key, {
-                    doi: rel.identifier,
-                    citation: '',
-                    loading: true,
-                    error: false,
-                    relatedTitle: rel.related_title,
-                }),
-            );
+        if (newDois.size === 0) {
+            return;
+        }
 
-            // Lade Citation asynchron
-            fetch(`/api/datacite/citation/${encodeURIComponent(rel.identifier)}`)
+        // Batch-initialize new DOIs as loading in a single state update
+        setCitations((prev) => {
+            const next = new Map(prev);
+            newDois.forEach((doi) => {
+                next.set(doi, { citation: '', loading: true, error: false });
+            });
+            return next;
+        });
+
+        // Fetch each new DOI citation, updating individually on resolve
+        newDois.forEach((doi) => {
+            fetch(`/api/datacite/citation/${encodeURIComponent(doi)}`, { signal: controller.signal })
                 .then((response) => {
                     if (response.ok) {
                         return response.json();
@@ -95,32 +114,26 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                     throw new Error('Citation not found');
                 })
                 .then((data) => {
-                    setCitations((prev) =>
-                        new Map(prev).set(key, {
-                            doi: rel.identifier,
-                            citation: data.citation,
-                            loading: false,
-                            error: false,
-                            relatedTitle: rel.related_title,
-                        }),
-                    );
+                    setCitations((prev) => new Map(prev).set(doi, { citation: data.citation, loading: false, error: false }));
                 })
-                .catch(() => {
-                    setCitations((prev) =>
-                        new Map(prev).set(key, {
-                            doi: rel.identifier,
-                            citation: '',
-                            loading: false,
-                            error: true,
-                            relatedTitle: rel.related_title,
-                        }),
-                    );
+                .catch((err: unknown) => {
+                    if (err instanceof Error && err.name === 'AbortError') {
+                        return;
+                    }
+                    setCitations((prev) => new Map(prev).set(doi, { citation: '', loading: false, error: true }));
                 });
         });
+
+        return () => controller.abort();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [relatedIdentifiers]);
 
-    if (filteredRelations.length === 0) {
+    // Only render if at least one relation has a resolvable URL
+    const renderableRelations = filteredRelations.filter(
+        (rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null,
+    );
+
+    if (renderableRelations.length === 0) {
         return null;
     }
 
@@ -129,69 +142,87 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Related Work</h3>
 
             <div className="space-y-6" data-testid="related-works-list">
-                {sortedTypes.map((relationType) => (
-                    <div key={relationType}>
-                        <h4 className="mb-3 text-sm font-semibold text-gray-700">{formatRelationType(relationType)}</h4>
-                        <ul className="space-y-2">
-                            {groupedByType[relationType].map((rel) => {
-                                const key = `${rel.id}`;
-                                const citationData = citations.get(key);
+                {sortedTypes.map((relationType) => {
+                    // Skip groups where no item resolves to a valid URL
+                    const items = groupedByType[relationType];
+                    const hasRenderableItems = items.some((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null);
 
-                                // Nur DOIs anzeigen
-                                if (rel.identifier_type !== 'DOI') {
-                                    return null;
-                                }
+                    if (!hasRenderableItems) {
+                        return null;
+                    }
 
-                                return (
-                                    <li key={rel.id}>
-                                        {citationData?.loading && (
-                                            <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-500">
-                                                <Spinner size="sm" className="mt-0.5 shrink-0" />
-                                                <span>Loading citation...</span>
-                                            </div>
-                                        )}
+                    return (
+                        <div key={relationType}>
+                            <h4 className="mb-3 text-sm font-semibold text-gray-700">{formatRelationType(relationType)}</h4>
+                            <ul className="space-y-2">
+                                {items.map((rel) => {
+                                    const url = resolveIdentifierUrl(rel.identifier, rel.identifier_type);
 
-                                        {!citationData?.loading && citationData?.citation && (
+                                    if (!url) {
+                                        return null;
+                                    }
+
+                                    // DOI: show citation (fetched async)
+                                    if (rel.identifier_type === 'DOI') {
+                                        const doiKey = normalizeDoiKey(rel.identifier);
+                                        const citationData = citations.get(doiKey);
+                                        const isLoading = !citationData || citationData.loading;
+
+                                        return (
+                                            <li key={rel.id}>
+                                                {isLoading && (
+                                                    <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-500">
+                                                        <Spinner size="sm" className="mt-0.5 shrink-0" />
+                                                        <span>Loading citation...</span>
+                                                    </div>
+                                                )}
+
+                                                {!isLoading && citationData?.citation && (
+                                                    <a
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
+                                                        <span className="flex-1">{citationData.citation}</span>
+                                                    </a>
+                                                )}
+
+                                                {!isLoading && citationData?.error && (
+                                                    <a
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
+                                                        <span className="flex-1">DOI: {doiKey}</span>
+                                                    </a>
+                                                )}
+                                            </li>
+                                        );
+                                    }
+
+                                    // Non-DOI: show identifier as link directly
+                                    return (
+                                        <li key={rel.id}>
                                             <a
-                                                href={`https://doi.org/${rel.identifier}`}
+                                                href={url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
                                             >
                                                 <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                <span className="flex-1">{citationData.citation}</span>
+                                                <span className="flex-1">{rel.identifier}</span>
                                             </a>
-                                        )}
-
-                                        {!citationData?.loading && citationData?.error && citationData?.relatedTitle && (
-                                            <a
-                                                href={`https://doi.org/${rel.identifier}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                            >
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                <span className="flex-1">{citationData.relatedTitle}</span>
-                                            </a>
-                                        )}
-
-                                        {!citationData?.loading && citationData?.error && !citationData?.relatedTitle && (
-                                            <a
-                                                href={`https://doi.org/${rel.identifier}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                            >
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                <span className="flex-1">DOI: {rel.identifier}</span>
-                                            </a>
-                                        )}
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                ))}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
