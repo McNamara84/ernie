@@ -36,11 +36,14 @@ class DataCiteApiService
      */
     public function getMetadata(string $doi): ?array
     {
-        $cleanDoi = trim(str_replace(
-            ['https://doi.org/', 'http://doi.org/', 'https://dx.doi.org/', 'http://dx.doi.org/'],
-            '',
-            trim($doi),
-        ));
+        $cleanDoi = trim($doi);
+
+        // Strip resolver URL prefixes case-insensitively (doi.org, dx.doi.org, with or without trailing slash)
+        if (preg_match('/^https?:\/\/(?:dx\.)?doi\.org\/?(.*)$/i', $cleanDoi, $matches)) {
+            $cleanDoi = $matches[1];
+        }
+
+        $cleanDoi = trim($cleanDoi);
 
         if ($cleanDoi === '') {
             return null;

@@ -95,8 +95,30 @@ describe('getMetadata', function (): void {
         expect($this->service->getMetadata(''))->toBeNull();
         expect($this->service->getMetadata('   '))->toBeNull();
         expect($this->service->getMetadata('https://doi.org/'))->toBeNull();
+        expect($this->service->getMetadata('https://doi.org'))->toBeNull();
 
         Http::assertNothingSent();
+    });
+
+    it('strips resolver prefix case-insensitively', function (): void {
+        Http::fake([
+            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/test.2024.001']),
+        ]);
+
+        $result = $this->service->getMetadata('HTTPS://DOI.ORG/10.5880/test.2024.001');
+
+        expect($result)->toBeArray();
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'doi.org/10.5880/test'));
+    });
+
+    it('strips resolver prefix without trailing slash', function (): void {
+        Http::fake([
+            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/test.2024.001']),
+        ]);
+
+        $result = $this->service->getMetadata('https://doi.org10.5880/test.2024.001');
+
+        expect($result)->toBeArray();
     });
 
     it('returns null for 404 response', function (): void {

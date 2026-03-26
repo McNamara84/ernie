@@ -13,6 +13,16 @@ describe('RelatedWorkSection', () => {
         expect(container.firstChild).toBeNull();
     });
 
+    it('returns null when all identifiers have unsupported types', () => {
+        const relatedIdentifiers = [
+            { id: 1, identifier: '12345', identifier_type: 'PMID', relation_type: 'References' },
+            { id: 2, identifier: '67890', identifier_type: 'EAN13', relation_type: 'IsCitedBy' },
+        ];
+
+        const { container } = render(<RelatedWorkSection relatedIdentifiers={relatedIdentifiers} />);
+        expect(container.firstChild).toBeNull();
+    });
+
     it('excludes the first IsSupplementTo relation', () => {
         const relatedIdentifiers = [
             {

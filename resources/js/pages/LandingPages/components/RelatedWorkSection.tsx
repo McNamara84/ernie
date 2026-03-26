@@ -81,11 +81,12 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
             }
         });
 
-        // Only fetch DOIs not already loaded or loading
+        // Fetch DOIs that are not yet successfully loaded.
+        // Includes loading entries so that a prop-change after abort can retry.
         const newDois = new Set<string>();
         doisToFetch.forEach((doi) => {
             const existing = citations.get(doi);
-            if (!existing || existing.error) {
+            if (!existing || existing.loading || existing.error) {
                 newDois.add(doi);
             }
         });
@@ -117,12 +118,6 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                 })
                 .catch((err: unknown) => {
                     if (err instanceof Error && err.name === 'AbortError') {
-                        // Remove entry so the next effect cycle can refetch
-                        setCitations((prev) => {
-                            const next = new Map(prev);
-                            next.delete(doi);
-                            return next;
-                        });
                         return;
                     }
                     setCitations((prev) => new Map(prev).set(doi, { citation: '', loading: false, error: true }));
@@ -133,7 +128,12 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [relatedIdentifiers]);
 
-    if (filteredRelations.length === 0) {
+    // Only render if at least one relation has a resolvable URL
+    const renderableRelations = filteredRelations.filter(
+        (rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null,
+    );
+
+    if (renderableRelations.length === 0) {
         return null;
     }
 
