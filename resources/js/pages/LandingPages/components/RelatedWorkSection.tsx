@@ -159,17 +159,18 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                                     // DOI: show citation (fetched async)
                                     if (rel.identifier_type === 'DOI') {
                                         const citationData = citations.get(rel.identifier.trim());
+                                        const isLoading = !citationData || citationData.loading;
 
                                         return (
                                             <li key={rel.id}>
-                                                {citationData?.loading && (
+                                                {isLoading && (
                                                     <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-500">
                                                         <Spinner size="sm" className="mt-0.5 shrink-0" />
                                                         <span>Loading citation...</span>
                                                     </div>
                                                 )}
 
-                                                {!citationData?.loading && citationData?.citation && (
+                                                {!isLoading && citationData?.citation && (
                                                     <a
                                                         href={url}
                                                         target="_blank"
@@ -181,7 +182,7 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                                                     </a>
                                                 )}
 
-                                                {!citationData?.loading && citationData?.error && (
+                                                {!isLoading && citationData?.error && (
                                                     <a
                                                         href={url}
                                                         target="_blank"

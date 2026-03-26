@@ -56,6 +56,39 @@ describe('getMetadata', function (): void {
         expect($result)->toBeArray();
     });
 
+    it('strips https://dx.doi.org/ prefix before resolving', function (): void {
+        Http::fake([
+            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/test.2024.001']),
+        ]);
+
+        $result = $this->service->getMetadata('https://dx.doi.org/10.5880/test.2024.001');
+
+        expect($result)->toBeArray();
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'doi.org/10.5880/test'));
+    });
+
+    it('strips http://dx.doi.org/ prefix before resolving', function (): void {
+        Http::fake([
+            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/test.2024.001']),
+        ]);
+
+        $result = $this->service->getMetadata('http://dx.doi.org/10.5880/test.2024.001');
+
+        expect($result)->toBeArray();
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'doi.org/10.5880/test'));
+    });
+
+    it('trims whitespace from DOI before resolving', function (): void {
+        Http::fake([
+            'doi.org/10.5880/test*' => Http::response(['DOI' => '10.5880/test.2024.001']),
+        ]);
+
+        $result = $this->service->getMetadata('  10.5880/test.2024.001  ');
+
+        expect($result)->toBeArray();
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'doi.org/10.5880/test'));
+    });
+
     it('returns null for 404 response', function (): void {
         Http::fake([
             'doi.org/*' => Http::response('Not Found', 404),

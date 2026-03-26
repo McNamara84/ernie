@@ -86,4 +86,44 @@ describe('resolveIdentifierUrl', () => {
     it('allows http URLs', () => {
         expect(resolveIdentifierUrl('http://example.com/data', 'URL')).toBe('http://example.com/data');
     });
+
+    describe('DOI URL normalization', () => {
+        it('strips https://doi.org/ prefix from DOI', () => {
+            expect(resolveIdentifierUrl('https://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
+                'https://doi.org/10.5880/GFZ.1.1.2024.002',
+            );
+        });
+
+        it('strips http://doi.org/ prefix from DOI', () => {
+            expect(resolveIdentifierUrl('http://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
+                'https://doi.org/10.5880/GFZ.1.1.2024.002',
+            );
+        });
+
+        it('strips https://dx.doi.org/ prefix from DOI', () => {
+            expect(resolveIdentifierUrl('https://dx.doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
+                'https://doi.org/10.5880/GFZ.1.1.2024.002',
+            );
+        });
+
+        it('strips http://dx.doi.org/ prefix from DOI', () => {
+            expect(resolveIdentifierUrl('http://dx.doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
+                'https://doi.org/10.5880/GFZ.1.1.2024.002',
+            );
+        });
+    });
+
+    describe('Handle URL normalization', () => {
+        it('strips https://hdl.handle.net/ prefix from Handle', () => {
+            expect(resolveIdentifierUrl('https://hdl.handle.net/10013/epic.12345', 'Handle')).toBe(
+                'https://hdl.handle.net/10013/epic.12345',
+            );
+        });
+
+        it('strips http://hdl.handle.net/ prefix from Handle', () => {
+            expect(resolveIdentifierUrl('http://hdl.handle.net/10013/epic.12345', 'Handle')).toBe(
+                'https://hdl.handle.net/10013/epic.12345',
+            );
+        });
+    });
 });

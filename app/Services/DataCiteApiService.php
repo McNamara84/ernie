@@ -36,7 +36,11 @@ class DataCiteApiService
      */
     public function getMetadata(string $doi): ?array
     {
-        $cleanDoi = str_replace(['https://doi.org/', 'http://doi.org/'], '', $doi);
+        $cleanDoi = trim(str_replace(
+            ['https://doi.org/', 'http://doi.org/', 'https://dx.doi.org/', 'http://dx.doi.org/'],
+            '',
+            trim($doi),
+        ));
         $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
         $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
 

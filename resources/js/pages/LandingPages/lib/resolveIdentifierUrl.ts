@@ -4,6 +4,11 @@
  * Supports the most common DataCite identifier types used in geosciences.
  * Returns null for unsupported types or invalid/empty identifiers —
  * callers skip rendering those items entirely.
+ *
+ * DOI and Handle identifiers are normalized: if the stored value is already
+ * a full resolver URL (e.g. https://doi.org/10..., https://dx.doi.org/10...,
+ * https://hdl.handle.net/...), the bare identifier is extracted first to
+ * avoid double-prefixing.
  */
 export function resolveIdentifierUrl(identifier: string, identifierType: string): string | null {
     const id = identifier.trim();
@@ -14,11 +19,11 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
 
     switch (identifierType) {
         case 'DOI':
-            return `https://doi.org/${id}`;
+            return `https://doi.org/${stripDoiPrefix(id)}`;
         case 'URL':
             return isSafeHttpUrl(id) ? id : null;
         case 'Handle':
-            return `https://hdl.handle.net/${id}`;
+            return `https://hdl.handle.net/${stripHandlePrefix(id)}`;
         case 'arXiv':
             return `https://arxiv.org/abs/${id}`;
         case 'IGSN':
@@ -34,6 +39,18 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
         default:
             return null;
     }
+}
+
+/** Strips common DOI resolver URL prefixes, returning the bare DOI. */
+function stripDoiPrefix(value: string): string {
+    return value
+        .replace(/^https?:\/\/(dx\.)?doi\.org\//i, '');
+}
+
+/** Strips the Handle resolver URL prefix, returning the bare handle. */
+function stripHandlePrefix(value: string): string {
+    return value
+        .replace(/^https?:\/\/hdl\.handle\.net\//i, '');
 }
 
 /**
