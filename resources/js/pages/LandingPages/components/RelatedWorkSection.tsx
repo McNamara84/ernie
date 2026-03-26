@@ -117,6 +117,12 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
                 })
                 .catch((err: unknown) => {
                     if (err instanceof Error && err.name === 'AbortError') {
+                        // Remove entry so the next effect cycle can refetch
+                        setCitations((prev) => {
+                            const next = new Map(prev);
+                            next.delete(doi);
+                            return next;
+                        });
                         return;
                     }
                     setCitations((prev) => new Map(prev).set(doi, { citation: '', loading: false, error: true }));

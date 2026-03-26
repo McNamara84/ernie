@@ -111,6 +111,12 @@ describe('resolveIdentifierUrl', () => {
                 'https://doi.org/10.5880/GFZ.1.1.2024.002',
             );
         });
+
+        it('returns null when DOI is just a resolver prefix', () => {
+            expect(resolveIdentifierUrl('https://doi.org/', 'DOI')).toBeNull();
+            expect(resolveIdentifierUrl('https://dx.doi.org/', 'DOI')).toBeNull();
+            expect(resolveIdentifierUrl('http://doi.org/', 'DOI')).toBeNull();
+        });
     });
 
     describe('Handle URL normalization', () => {
@@ -124,6 +130,11 @@ describe('resolveIdentifierUrl', () => {
             expect(resolveIdentifierUrl('http://hdl.handle.net/10013/epic.12345', 'Handle')).toBe(
                 'https://hdl.handle.net/10013/epic.12345',
             );
+        });
+
+        it('returns null when Handle is just a resolver prefix', () => {
+            expect(resolveIdentifierUrl('https://hdl.handle.net/', 'Handle')).toBeNull();
+            expect(resolveIdentifierUrl('http://hdl.handle.net/', 'Handle')).toBeNull();
         });
     });
 });

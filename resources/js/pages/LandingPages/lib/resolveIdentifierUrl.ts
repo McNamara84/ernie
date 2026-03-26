@@ -18,12 +18,16 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
     }
 
     switch (identifierType) {
-        case 'DOI':
-            return `https://doi.org/${normalizeDoiKey(id)}`;
+        case 'DOI': {
+            const doi = normalizeDoiKey(id);
+            return doi ? `https://doi.org/${doi}` : null;
+        }
         case 'URL':
             return isSafeHttpUrl(id) ? id : null;
-        case 'Handle':
-            return `https://hdl.handle.net/${stripHandlePrefix(id)}`;
+        case 'Handle': {
+            const handle = stripHandlePrefix(id);
+            return handle ? `https://hdl.handle.net/${handle}` : null;
+        }
         case 'arXiv':
             return `https://arxiv.org/abs/${id}`;
         case 'IGSN':
