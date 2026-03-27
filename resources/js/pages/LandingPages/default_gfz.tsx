@@ -43,7 +43,7 @@ export default function DefaultGfzTemplate() {
             {isPreview && <div className="bg-yellow-400 px-4 py-2 text-center text-sm font-medium text-gray-900">Preview Mode</div>}
 
             {/* Zentrierter Container für Header, Content und Footer */}
-            <div className="mx-auto max-w-7xl rounded bg-white">
+            <div className="mx-auto max-w-7xl rounded-xl bg-white">
                 {/* Header */}
                 <header className="px-4 py-2">
                     {/* Legal Notice - ganz oben rechts */}
@@ -74,9 +74,9 @@ export default function DefaultGfzTemplate() {
                                 contactPersons={resource.contact_persons || []}
                                 datasetTitle={mainTitle}
                             />
+                            <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
                             <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />
                             <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} resource={resource} />
-                            <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
                         </div>
 
                         {/* Right Column - 2/3 width */}
