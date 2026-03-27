@@ -1,12 +1,9 @@
 import {
     EDGE_FALLBACK_COLOR,
-    GFZ_BLUE,
-    getEdgeCategoryColorMap,
     getEdgeCategory,
-    getEdgeColor,
+    getEdgeCategoryColorMap,
     getNodeColor,
-    getNodeColorMap,
-    NODE_FALLBACK_COLOR,
+    GFZ_BLUE,
 } from './graph-colors';
 
 interface RelationBrowserLegendProps {
@@ -15,7 +12,6 @@ interface RelationBrowserLegendProps {
 }
 
 export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTypes }: RelationBrowserLegendProps) {
-    const nodeColorMap = getNodeColorMap();
     const edgeCategoryColorMap = getEdgeCategoryColorMap();
 
     // Deduplicate relation types by category
