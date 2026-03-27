@@ -3,6 +3,7 @@ import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
 import { getEdgeColor, getNodeColor } from './graph-colors';
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
+import { truncateLabel } from './graph-utils';
 
 interface UseRelationGraphOptions {
     width: number;
@@ -13,14 +14,6 @@ interface UseRelationGraphOptions {
 
 const CENTRAL_RADIUS = 30;
 const NODE_RADIUS = 22;
-const LABEL_MAX_WIDTH = 14;
-
-function truncateLabel(label: string): string {
-    if (label.length <= LABEL_MAX_WIDTH) {
-        return label;
-    }
-    return label.slice(0, LABEL_MAX_WIDTH - 1) + '…';
-}
 
 export function useRelationGraph(
     svgRef: RefObject<SVGSVGElement | null>,
@@ -31,21 +24,21 @@ export function useRelationGraph(
     const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
     const rafRef = useRef<number | null>(null);
 
+    const { width, height, onTooltipChange, onNodeClick } = options;
+
     const hideTooltip = useCallback(() => {
-        options.onTooltipChange({
+        onTooltipChange({
             visible: false,
             x: 0,
             y: 0,
             content: { label: '', identifier: '', identifierType: '' },
             type: 'node',
         });
-    }, [options]);
+    }, [onTooltipChange]);
 
     useEffect(() => {
         const svg = svgRef.current;
         if (!svg || nodes.length === 0) return;
-
-        const { width, height, onTooltipChange, onNodeClick } = options;
 
         // Clear previous
         d3.select(svg).selectAll('*').remove();
@@ -242,8 +235,7 @@ export function useRelationGraph(
                 cancelAnimationFrame(rafRef.current);
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [nodes, links, options.width, options.height]);
+    }, [svgRef, nodes, links, width, height, onTooltipChange, onNodeClick, hideTooltip]);
 
     return { simulation: simulationRef.current };
 }

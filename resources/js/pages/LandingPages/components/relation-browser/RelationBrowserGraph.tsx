@@ -5,19 +5,14 @@ import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/
 
 import { resolveIdentifierUrl } from '../../lib/resolveIdentifierUrl';
 
-import type { CitationLabel, GraphLink, GraphNode, TooltipState } from './graph-types';
+import type { GraphLink, GraphNode, TooltipState } from './graph-types';
+import { truncateLabel } from './graph-utils';
 import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
 import { useRelationGraph } from './use-relation-graph';
 
 const GRAPH_WIDTH = 1000;
 const GRAPH_HEIGHT = 700;
-const LABEL_MAX_WIDTH = 14;
-
-function truncateLabel(label: string): string {
-    if (label.length <= LABEL_MAX_WIDTH) return label;
-    return label.slice(0, LABEL_MAX_WIDTH - 1) + '…';
-}
 
 interface RelationBrowserGraphProps {
     resource: LandingPageResource;
@@ -57,10 +52,13 @@ function buildCentralLabel(resource: LandingPageResource): { shortLabel: string;
     return { shortLabel: 'This Resource', fullLabel: 'This Resource' };
 }
 
+/**
+ * Build graph nodes from pre-filtered related identifiers.
+ * Callers must ensure identifiers have resolvable URLs before passing them here.
+ */
 function buildNodes(
     resource: LandingPageResource,
     relatedIdentifiers: LandingPageRelatedIdentifier[],
-    citationLabels: Map<string, CitationLabel>,
 ): GraphNode[] {
     const centralLabel = buildCentralLabel(resource);
 
@@ -75,37 +73,31 @@ function buildNodes(
         isCentral: true,
     };
 
-    const relatedNodes: GraphNode[] = relatedIdentifiers
-        .filter((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null)
-        .map((rel) => {
-            const key = getCitationKey(rel.identifier_type, rel.identifier);
-            const citation = citationLabels.get(key);
-            const url = resolveIdentifierUrl(rel.identifier, rel.identifier_type);
-
-            return {
-                id: `related-${rel.id}`,
-                label: citation?.shortLabel ?? rel.identifier,
-                fullLabel: citation?.fullCitation ?? rel.identifier,
-                identifier: rel.identifier,
-                identifierType: rel.identifier_type,
-                relationType: rel.relation_type,
-                url,
-                isCentral: false,
-            };
-        });
+    const relatedNodes: GraphNode[] = relatedIdentifiers.map((rel) => ({
+        id: `related-${rel.id}`,
+        label: rel.identifier,
+        fullLabel: rel.identifier,
+        identifier: rel.identifier,
+        identifierType: rel.identifier_type,
+        relationType: rel.relation_type,
+        url: resolveIdentifierUrl(rel.identifier, rel.identifier_type),
+        isCentral: false,
+    }));
 
     return [centralNode, ...relatedNodes];
 }
 
+/**
+ * Build graph links from pre-filtered related identifiers.
+ * Callers must ensure identifiers have resolvable URLs before passing them here.
+ */
 function buildLinks(relatedIdentifiers: LandingPageRelatedIdentifier[]): GraphLink[] {
-    return relatedIdentifiers
-        .filter((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null)
-        .map((rel) => ({
-            source: 'central',
-            target: `related-${rel.id}`,
-            relationType: rel.relation_type,
-            relationLabel: rel.relation_type.replace(/([A-Z])/g, ' $1').trim(),
-        }));
+    return relatedIdentifiers.map((rel) => ({
+        source: 'central',
+        target: `related-${rel.id}`,
+        relationType: rel.relation_type,
+        relationLabel: rel.relation_type.replace(/([A-Z])/g, ' $1').trim(),
+    }));
 }
 
 export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationBrowserGraphProps) {
@@ -124,7 +116,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
     const nodes = useMemo(
-        () => buildNodes(resource, relatedIdentifiers, new Map()),
+        () => buildNodes(resource, relatedIdentifiers),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [resource, relatedIdentifiers],
     );

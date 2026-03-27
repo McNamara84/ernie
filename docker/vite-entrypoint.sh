@@ -18,6 +18,7 @@ fi
 # starting Vite. The plugin will overwrite it with the same content on boot.
 if [ -n "$VITE_DEV_SERVER_URL" ]; then
     echo "Ensuring public/hot file exists..."
+    mkdir -p public
     echo "$VITE_DEV_SERVER_URL" > public/hot
 fi
 
