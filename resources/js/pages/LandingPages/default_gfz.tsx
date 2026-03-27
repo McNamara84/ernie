@@ -1,4 +1,4 @@
-﻿import { usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 

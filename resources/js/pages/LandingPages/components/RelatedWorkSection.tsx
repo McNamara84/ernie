@@ -1,5 +1,5 @@
 import { ExternalLink, Network } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -47,31 +47,35 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
     const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
     const [browserOpen, setBrowserOpen] = useState(false);
 
-    // Erste IsSupplementTo-Relation ausschließen
-    const firstSupplementToIndex = relatedIdentifiers.findIndex((rel) => rel.relation_type === 'IsSupplementTo');
-
-    const filteredRelations = relatedIdentifiers.filter((rel, index) => {
-        // Erste IsSupplementTo ausschließen
-        if (rel.relation_type === 'IsSupplementTo' && index === firstSupplementToIndex) {
-            return false;
-        }
-        return true;
-    });
+    // Erste IsSupplementTo-Relation ausschließen (memoized for referential stability)
+    const filteredRelations = useMemo(() => {
+        const firstSupplementToIndex = relatedIdentifiers.findIndex((rel) => rel.relation_type === 'IsSupplementTo');
+        return relatedIdentifiers.filter((rel, index) => {
+            if (rel.relation_type === 'IsSupplementTo' && index === firstSupplementToIndex) {
+                return false;
+            }
+            return true;
+        });
+    }, [relatedIdentifiers]);
 
     // Nach RelationType gruppieren
-    const groupedByType = filteredRelations.reduce(
-        (acc, rel) => {
-            if (!acc[rel.relation_type]) {
-                acc[rel.relation_type] = [];
-            }
-            acc[rel.relation_type].push(rel);
-            return acc;
-        },
-        {} as Record<string, RelatedIdentifier[]>,
+    const groupedByType = useMemo(
+        () =>
+            filteredRelations.reduce(
+                (acc, rel) => {
+                    if (!acc[rel.relation_type]) {
+                        acc[rel.relation_type] = [];
+                    }
+                    acc[rel.relation_type].push(rel);
+                    return acc;
+                },
+                {} as Record<string, RelatedIdentifier[]>,
+            ),
+        [filteredRelations],
     );
 
     // Sortiere die Gruppen alphabetisch
-    const sortedTypes = Object.keys(groupedByType).sort();
+    const sortedTypes = useMemo(() => Object.keys(groupedByType).sort(), [groupedByType]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -135,8 +139,11 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
     }, [relatedIdentifiers]);
 
     // Only render if at least one relation has a resolvable URL
-    const renderableRelations = filteredRelations.filter(
-        (rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null,
+    const renderableRelations = useMemo(
+        () => filteredRelations.filter(
+            (rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null,
+        ),
+        [filteredRelations],
     );
 
     if (renderableRelations.length === 0) {

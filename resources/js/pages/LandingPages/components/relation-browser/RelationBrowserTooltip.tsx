@@ -1,7 +1,5 @@
 import { ExternalLink } from 'lucide-react';
 
-import { Spinner } from '@/components/ui/spinner';
-
 import type { TooltipState } from './graph-types';
 
 interface RelationBrowserTooltipProps {
@@ -43,31 +41,22 @@ export function RelationBrowserTooltip({ tooltip, containerRect }: RelationBrows
         >
             {tooltip.type === 'node' && (
                 <div className="space-y-1">
-                    {tooltip.content.loading ? (
-                        <div className="flex items-center gap-2 text-gray-500">
-                            <Spinner size="sm" />
-                            <span>Loading citation...</span>
-                        </div>
-                    ) : (
-                        <>
-                            <p className="font-medium text-gray-900 leading-snug">
-                                {tooltip.content.label}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                                {tooltip.content.identifierType}: {tooltip.content.identifier}
-                            </p>
-                            {tooltip.content.relationType && (
-                                <p className="text-xs text-gray-500">
-                                    {formatRelationType(tooltip.content.relationType)}
-                                </p>
-                            )}
-                            {tooltip.content.url && (
-                                <p className="mt-1 flex items-center gap-1 text-xs text-blue-600">
-                                    <ExternalLink className="h-3 w-3" />
-                                    Click to open
-                                </p>
-                            )}
-                        </>
+                    <p className="font-medium text-gray-900 leading-snug">
+                        {tooltip.content.label}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                        {tooltip.content.identifierType}: {tooltip.content.identifier}
+                    </p>
+                    {tooltip.content.relationType && (
+                        <p className="text-xs text-gray-500">
+                            {formatRelationType(tooltip.content.relationType)}
+                        </p>
+                    )}
+                    {tooltip.content.url && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-blue-600">
+                            <ExternalLink className="h-3 w-3" />
+                            Click to open
+                        </p>
                     )}
                 </div>
             )}

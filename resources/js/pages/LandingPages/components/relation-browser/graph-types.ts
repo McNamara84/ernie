@@ -28,7 +28,6 @@ export interface TooltipState {
         identifierType: string;
         relationType?: string;
         url?: string | null;
-        loading?: boolean;
     };
     type: 'node' | 'edge';
 }

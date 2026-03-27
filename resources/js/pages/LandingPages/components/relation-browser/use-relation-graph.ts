@@ -141,7 +141,6 @@ export function useRelationGraph(
                         identifierType: d.identifierType,
                         relationType: d.isCentral ? undefined : d.relationType,
                         url: d.url,
-                        loading: false,
                     },
                     type: 'node',
                 });
