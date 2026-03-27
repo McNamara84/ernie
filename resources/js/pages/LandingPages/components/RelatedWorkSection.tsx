@@ -138,6 +138,17 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [relatedIdentifiers]);
 
+    // Provide fully-loaded citation texts for the relation browser to avoid duplicate fetches
+    const citationTexts = useMemo(() => {
+        const map = new Map<string, string>();
+        citations.forEach((v, k) => {
+            if (!v.loading && !v.error && v.citation) {
+                map.set(k, v.citation);
+            }
+        });
+        return map;
+    }, [citations]);
+
     // Only render if at least one relation has a resolvable URL
     const renderableRelations = useMemo(
         () => filteredRelations.filter(
@@ -157,12 +168,13 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                 <Button
                     variant="ghost"
                     size="icon-sm"
+                    className="group"
                     onClick={() => setBrowserOpen(true)}
                     aria-label="Open Relation Browser"
                     title="Open Relation Browser"
                     data-testid="relation-browser-button"
                 >
-                    <Network className="h-4 w-4 text-gray-500 transition-colors hover:text-[#0C2A63]" />
+                    <Network className="h-4 w-4 text-gray-500 transition-colors group-hover:text-[#0C2A63]" />
                 </Button>
             </div>
 
@@ -255,6 +267,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                 onOpenChange={setBrowserOpen}
                 resource={resource}
                 relatedIdentifiers={filteredRelations}
+                citationTexts={citationTexts}
             />
         </div>
     );

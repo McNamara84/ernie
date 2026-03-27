@@ -44,6 +44,7 @@ function shortenIdentifier(identifier: string, maxLength = 20): string {
 
 export function useCitationLabels(
     identifiers: IdentifierInput[],
+    citationTexts?: Map<string, string>,
 ): Map<string, CitationLabel> {
     const [labels, setLabels] = useState<Map<string, CitationLabel>>(new Map());
     const controllerRef = useRef<AbortController | null>(null);
@@ -61,12 +62,21 @@ export function useCitationLabels(
             if (item.identifier_type === 'DOI') {
                 const doi = normalizeDoiKey(item.identifier);
                 if (doi && !newLabels.has(doi)) {
-                    newLabels.set(doi, {
-                        shortLabel: doi.length > 20 ? shortenIdentifier(doi) : doi,
-                        fullCitation: doi,
-                        loading: true,
-                    });
-                    doisToFetch.push(doi);
+                    const provided = citationTexts?.get(doi);
+                    if (provided) {
+                        newLabels.set(doi, {
+                            shortLabel: extractAuthorYear(provided),
+                            fullCitation: provided,
+                            loading: false,
+                        });
+                    } else {
+                        newLabels.set(doi, {
+                            shortLabel: doi.length > 20 ? shortenIdentifier(doi) : doi,
+                            fullCitation: doi,
+                            loading: true,
+                        });
+                        doisToFetch.push(doi);
+                    }
                 }
             } else {
                 const key = `${item.identifier_type}:${item.identifier}`;
@@ -126,7 +136,7 @@ export function useCitationLabels(
         }
 
         return () => controller.abort();
-    }, [identifiers]);
+    }, [identifiers, citationTexts]);
 
     return labels;
 }

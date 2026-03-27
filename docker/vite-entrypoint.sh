@@ -16,11 +16,9 @@ fi
 # but Docker Desktop on Windows sometimes fails to sync bind-mounted file
 # creation back to the host. As a safety net, create the hot file before
 # starting Vite. The plugin will overwrite it with the same content on boot.
-if [ -n "$VITE_DEV_SERVER_URL" ]; then
-    echo "Ensuring public/hot file exists..."
-    mkdir -p public
-    echo "$VITE_DEV_SERVER_URL" > public/hot
-fi
+echo "Ensuring public/hot file exists..."
+mkdir -p public
+echo "${VITE_DEV_SERVER_URL:-http://localhost:5173}" > public/hot
 
 # Start Vite dev server
 echo "Starting Vite development server..."

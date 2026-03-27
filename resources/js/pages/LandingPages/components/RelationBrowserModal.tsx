@@ -19,6 +19,7 @@ interface RelationBrowserModalProps {
     onOpenChange: (open: boolean) => void;
     resource: LandingPageResource;
     relatedIdentifiers: LandingPageRelatedIdentifier[];
+    citationTexts?: Map<string, string>;
 }
 
 export function RelationBrowserModal({
@@ -26,6 +27,7 @@ export function RelationBrowserModal({
     onOpenChange,
     resource,
     relatedIdentifiers,
+    citationTexts,
 }: RelationBrowserModalProps) {
     // Only include identifiers that have resolvable URLs
     const renderableIdentifiers = useMemo(
@@ -66,6 +68,7 @@ export function RelationBrowserModal({
                         <RelationBrowserGraph
                             resource={resource}
                             relatedIdentifiers={renderableIdentifiers}
+                            citationTexts={citationTexts}
                         />
                     )}
                 </div>

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
-import { resolveIdentifierUrl } from '../../lib/resolveIdentifierUrl';
+import { normalizeDoiKey, resolveIdentifierUrl } from '../../lib/resolveIdentifierUrl';
 
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
@@ -17,6 +17,7 @@ const GRAPH_HEIGHT = 700;
 interface RelationBrowserGraphProps {
     resource: LandingPageResource;
     relatedIdentifiers: LandingPageRelatedIdentifier[];
+    citationTexts?: Map<string, string>;
 }
 
 function buildCentralLabel(resource: LandingPageResource): { shortLabel: string; fullLabel: string } {
@@ -73,16 +74,21 @@ function buildNodes(
         isCentral: true,
     };
 
-    const relatedNodes: GraphNode[] = relatedIdentifiers.map((rel) => ({
-        id: `related-${rel.id}`,
-        label: rel.identifier,
-        fullLabel: rel.identifier,
-        identifier: rel.identifier,
-        identifierType: rel.identifier_type,
-        relationType: rel.relation_type,
-        url: resolveIdentifierUrl(rel.identifier, rel.identifier_type),
-        isCentral: false,
-    }));
+    const relatedNodes: GraphNode[] = relatedIdentifiers.map((rel) => {
+        const displayId = rel.identifier_type === 'DOI'
+            ? normalizeDoiKey(rel.identifier)
+            : rel.identifier;
+        return {
+            id: `related-${rel.id}`,
+            label: displayId,
+            fullLabel: displayId,
+            identifier: displayId,
+            identifierType: rel.identifier_type,
+            relationType: rel.relation_type,
+            url: resolveIdentifierUrl(rel.identifier, rel.identifier_type),
+            isCentral: false,
+        };
+    });
 
     return [centralNode, ...relatedNodes];
 }
@@ -100,7 +106,7 @@ function buildLinks(relatedIdentifiers: LandingPageRelatedIdentifier[]): GraphLi
     }));
 }
 
-export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationBrowserGraphProps) {
+export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTexts }: RelationBrowserGraphProps) {
     const svgRef = useRef<SVGSVGElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [tooltip, setTooltip] = useState<TooltipState>({
@@ -111,13 +117,12 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
         type: 'node',
     });
 
-    const citationLabels = useCitationLabels(relatedIdentifiers);
+    const citationLabels = useCitationLabels(relatedIdentifiers, citationTexts);
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
     const nodes = useMemo(
         () => buildNodes(resource, relatedIdentifiers),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [resource, relatedIdentifiers],
     );
 

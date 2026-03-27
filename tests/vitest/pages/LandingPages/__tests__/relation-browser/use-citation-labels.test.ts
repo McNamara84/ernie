@@ -146,4 +146,56 @@ describe('useCitationLabels', () => {
             );
         });
     });
+
+    it('uses pre-provided citationTexts instead of fetching', async () => {
+        global.fetch = vi.fn();
+
+        const identifiers = [
+            { identifier: '10.5880/provided', identifier_type: 'DOI' },
+        ];
+        const citationTexts = new Map([
+            ['10.5880/provided', 'Doe, J. (2024). Provided Citation. GFZ.'],
+        ]);
+
+        const { result } = renderHook(() => useCitationLabels(identifiers, citationTexts));
+
+        expect(result.current.get('10.5880/provided')).toEqual({
+            shortLabel: 'Doe, 2024',
+            fullCitation: 'Doe, J. (2024). Provided Citation. GFZ.',
+            loading: false,
+        });
+
+        // Should not fetch since citation was pre-provided
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('fetches only DOIs not covered by citationTexts', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ citation: 'Smith, A. (2023). Fetched. GFZ.' }),
+        });
+
+        const identifiers = [
+            { identifier: '10.5880/provided', identifier_type: 'DOI' },
+            { identifier: '10.5880/missing', identifier_type: 'DOI' },
+        ];
+        const citationTexts = new Map([
+            ['10.5880/provided', 'Doe, J. (2024). Provided. GFZ.'],
+        ]);
+
+        const { result } = renderHook(() => useCitationLabels(identifiers, citationTexts));
+
+        // Provided one is immediately available
+        expect(result.current.get('10.5880/provided')?.loading).toBe(false);
+        // Missing one still fetches
+        expect(result.current.get('10.5880/missing')?.loading).toBe(true);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(global.fetch).toHaveBeenCalledWith(
+                '/api/datacite/citation/10.5880%2Fmissing',
+                expect.any(Object),
+            );
+        });
+    });
 });

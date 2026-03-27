@@ -206,6 +206,25 @@ export function useRelationGraph(
 
         nodeGroup.call(drag);
 
+        // Keyboard accessibility for interactive nodes
+        nodeGroup
+            .filter((d: GraphNode) => !d.isCentral && !!d.url)
+            .attr('tabindex', '0')
+            .attr('role', 'link')
+            .attr('aria-label', (d: GraphNode) => `${d.fullLabel} (${d.identifierType})`)
+            .on('keydown', (event: KeyboardEvent, d: GraphNode) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onNodeClick(d);
+                }
+            })
+            .on('focus', function () {
+                d3.select(this).select('circle').attr('stroke', '#2563eb').attr('stroke-width', 3);
+            })
+            .on('focusout', function () {
+                d3.select(this).select('circle').attr('stroke', '#fff').attr('stroke-width', 1.5);
+            });
+
         // Zoom behavior
         const zoom = d3.zoom<SVGSVGElement, unknown>()
             .scaleExtent([0.3, 3])
