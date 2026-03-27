@@ -193,8 +193,14 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
     const containerRect = containerRef.current?.getBoundingClientRect() ?? null;
 
     return (
-        <div ref={containerRef} className="absolute inset-0" data-testid="relation-browser-graph">
-            <svg ref={svgRef} className="h-full w-full" role="img" aria-label="Relation Browser Graph" />
+        <div ref={containerRef} className="absolute inset-0 overflow-hidden" data-testid="relation-browser-graph">
+            <svg
+                ref={svgRef}
+                width={dimensions.width}
+                height={dimensions.height}
+                role="img"
+                aria-label="Relation Browser Graph"
+            />
             <RelationBrowserTooltip tooltip={tooltip} containerRect={containerRect} />
         </div>
     );

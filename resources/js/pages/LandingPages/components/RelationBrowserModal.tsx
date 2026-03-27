@@ -48,7 +48,8 @@ export function RelationBrowserModal({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="flex h-[85vh] flex-col gap-0 p-0 sm:max-w-6xl"
+                className="flex h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl"
+                style={{ display: 'flex' }}
                 data-testid="relation-browser-modal"
             >
                 <DialogHeader className="shrink-0 border-b border-gray-200 px-6 py-4">
@@ -60,7 +61,7 @@ export function RelationBrowserModal({
                 </DialogHeader>
 
                 {/* Graph area */}
-                <div className="relative min-h-0 flex-1">
+                <div className="relative min-h-0 flex-1 overflow-hidden">
                     {open && (
                         <RelationBrowserGraph
                             resource={resource}

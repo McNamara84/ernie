@@ -52,9 +52,8 @@ export function useRelationGraph(
         simulationRef.current?.stop();
 
         const svgSelection = d3.select(svg)
-            .attr('viewBox', `0 0 ${width} ${height}`)
-            .attr('width', '100%')
-            .attr('height', '100%');
+            .attr('width', width)
+            .attr('height', height);
 
         // Container group for zoom/pan
         const container = svgSelection.append('g').attr('data-testid', 'graph-container');
