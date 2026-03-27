@@ -5,7 +5,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Badge } from '@/components/ui/badge';
@@ -88,20 +88,71 @@ function calculateBounds(resources: PortalResource[]): L.LatLngBounds | null {
 }
 
 /**
- * Component to fit map bounds when resources change.
+ * Component to fit map bounds to show all markers.
+ * - On initial mount: waits for container to be sized, then fits once
+ * - When geo filter is active: does NOT auto-fit (user controls viewport)
+ * - When geo filter is turned off: re-fits to show all markers
  */
-function FitBoundsControl({ resources }: { resources: PortalResource[] }) {
+function FitBoundsControl({
+    resources,
+    geoFilterEnabled,
+    skipNextMoveEnd,
+}: {
+    resources: PortalResource[];
+    geoFilterEnabled: boolean;
+    skipNextMoveEnd: React.RefObject<boolean>;
+}) {
     const map = useMap();
+    const hasInitialFit = useRef(false);
+    const prevGeoFilterEnabled = useRef(geoFilterEnabled);
 
-    useEffect(() => {
+    const fitToAllMarkers = useCallback(() => {
+        skipNextMoveEnd.current = true;
         const bounds = calculateBounds(resources);
         if (bounds && bounds.isValid()) {
             map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
         } else {
-            // Default world view
             map.setView([30, 0], 2);
         }
-    }, [map, resources]);
+    }, [map, resources, skipNextMoveEnd]);
+
+    // Initial fit: run once after the map container has a real size
+    useEffect(() => {
+        if (hasInitialFit.current) return;
+
+        const container = map.getContainer();
+        if (container.clientWidth > 0 && container.clientHeight > 0) {
+            fitToAllMarkers();
+            hasInitialFit.current = true;
+            return;
+        }
+
+        // Container not sized yet — wait for resize
+        const observer = new ResizeObserver(() => {
+            if (hasInitialFit.current) {
+                observer.disconnect();
+                return;
+            }
+            if (container.clientWidth > 0 && container.clientHeight > 0) {
+                map.invalidateSize();
+                fitToAllMarkers();
+                hasInitialFit.current = true;
+                observer.disconnect();
+            }
+        });
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [map, fitToAllMarkers]);
+
+    // Re-fit when geo filter is turned OFF (restore "show all" view)
+    useEffect(() => {
+        const wasEnabled = prevGeoFilterEnabled.current;
+        prevGeoFilterEnabled.current = geoFilterEnabled;
+
+        if (wasEnabled && !geoFilterEnabled && hasInitialFit.current) {
+            fitToAllMarkers();
+        }
+    }, [geoFilterEnabled, fitToAllMarkers]);
 
     return null;
 }
@@ -238,25 +289,21 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
 
     const geoCount = resourcesWithGeo.reduce((acc, r) => acc + r.geoLocations.length, 0);
 
-    // Invalidate map size when collapsible state changes or on resize
+    // ResizeObserver handles ALL container size changes:
+    // window resize, panel drag, collapsible open/close, initial layout
     useEffect(() => {
-        if (!isCollapsed && mapRef.current) {
-            setTimeout(() => {
-                mapRef.current?.invalidateSize();
-            }, 300);
-        }
-    }, [isCollapsed]);
+        const mapInstance = mapRef.current;
+        if (!mapInstance) return;
 
-    // Re-invalidate map on window resize (for responsive layout changes)
-    useEffect(() => {
-        const handleResize = () => {
-            if (mapRef.current) {
-                mapRef.current.invalidateSize();
-            }
-        };
+        const container = mapInstance.getContainer();
+        if (!container) return;
 
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        const observer = new ResizeObserver(() => {
+            mapInstance.invalidateSize();
+        });
+
+        observer.observe(container);
+        return () => observer.disconnect();
     }, []);
 
     const mapContent = resourcesWithGeo.length > 0 ? (
@@ -270,7 +317,7 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <FitBoundsControl resources={resourcesWithGeo} />
+            <FitBoundsControl resources={resourcesWithGeo} geoFilterEnabled={geoFilterEnabled} skipNextMoveEnd={skipNextMoveEnd} />
 
             {geoFilterEnabled && onViewportChange && (
                 <ViewportTracker onViewportChange={onViewportChange} skipNextMoveEnd={skipNextMoveEnd} />
