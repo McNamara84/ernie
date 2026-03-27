@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
+import { render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelationBrowserGraph } from '@/pages/LandingPages/components/relation-browser/RelationBrowserGraph';
@@ -71,6 +71,7 @@ const mockRelatedIdentifiers: LandingPageRelatedIdentifier[] = [
 describe('RelationBrowserGraph', () => {
     beforeEach(() => {
         vi.resetAllMocks();
+
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
             json: () => Promise.resolve({ citation: 'Doe, J. (2024). Test. GFZ.' }),
@@ -155,7 +156,7 @@ describe('RelationBrowserGraph', () => {
         expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
     });
 
-    it('creates central node label from resource creators', async () => {
+    it('creates central node label from resource creators', () => {
         render(
             <RelationBrowserGraph
                 resource={mockResource}
@@ -163,16 +164,13 @@ describe('RelationBrowserGraph', () => {
             />,
         );
 
-        // The SVG should contain the central node label text
-        await waitFor(() => {
-            const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
-            const texts = svg.querySelectorAll('text');
-            const labels = Array.from(texts).map((t) => t.textContent);
-            expect(labels).toContain('Doe, 2024');
-        });
+        const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
+        const texts = svg.querySelectorAll('text');
+        const labels = Array.from(texts).map((t) => t.textContent);
+        expect(labels).toContain('Doe, 2024');
     });
 
-    it('creates correct number of nodes', async () => {
+    it('creates correct number of nodes', () => {
         render(
             <RelationBrowserGraph
                 resource={mockResource}
@@ -180,15 +178,13 @@ describe('RelationBrowserGraph', () => {
             />,
         );
 
-        await waitFor(() => {
-            const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
-            const circles = svg.querySelectorAll('circle');
-            // 1 central + 3 related = 4
-            expect(circles.length).toBe(4);
-        });
+        const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
+        const circles = svg.querySelectorAll('circle');
+        // 1 central + 3 related = 4
+        expect(circles.length).toBe(4);
     });
 
-    it('creates correct number of links', async () => {
+    it('creates correct number of links', () => {
         render(
             <RelationBrowserGraph
                 resource={mockResource}
@@ -196,14 +192,12 @@ describe('RelationBrowserGraph', () => {
             />,
         );
 
-        await waitFor(() => {
-            const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
-            const lines = svg.querySelectorAll('line');
-            expect(lines.length).toBe(3);
-        });
+        const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
+        const lines = svg.querySelectorAll('line');
+        expect(lines.length).toBe(3);
     });
 
-    it('uses GFZ blue for central node', async () => {
+    it('uses GFZ blue for central node', () => {
         render(
             <RelationBrowserGraph
                 resource={mockResource}
@@ -211,15 +205,13 @@ describe('RelationBrowserGraph', () => {
             />,
         );
 
-        await waitFor(() => {
-            const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
-            const circles = svg.querySelectorAll('circle');
-            // Central node is first
-            expect(circles[0]?.getAttribute('fill')).toBe('#0C2A63');
-        });
+        const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
+        const circles = svg.querySelectorAll('circle');
+        // Central node is first
+        expect(circles[0]?.getAttribute('fill')).toBe('#0C2A63');
     });
 
-    it('uses correct colors for related nodes', async () => {
+    it('uses correct colors for related nodes', () => {
         render(
             <RelationBrowserGraph
                 resource={mockResource}
@@ -227,16 +219,14 @@ describe('RelationBrowserGraph', () => {
             />,
         );
 
-        await waitFor(() => {
-            const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
-            const circles = svg.querySelectorAll('circle');
-            // DOI node (index 1)
-            expect(circles[1]?.getAttribute('fill')).toBe('#10B981');
-            // URL node (index 2)
-            expect(circles[2]?.getAttribute('fill')).toBe('#0EA5E9');
-            // ISBN node (index 3)
-            expect(circles[3]?.getAttribute('fill')).toBe('#F97316');
-        });
+        const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
+        const circles = svg.querySelectorAll('circle');
+        // DOI node (index 1)
+        expect(circles[1]?.getAttribute('fill')).toBe('#10B981');
+        // URL node (index 2)
+        expect(circles[2]?.getAttribute('fill')).toBe('#0EA5E9');
+        // ISBN node (index 3)
+        expect(circles[3]?.getAttribute('fill')).toBe('#F97316');
     });
 
     it('handles resource without creators gracefully', () => {

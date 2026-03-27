@@ -10,6 +10,8 @@ import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
 import { useRelationGraph } from './use-relation-graph';
 
+const GRAPH_WIDTH = 1000;
+const GRAPH_HEIGHT = 700;
 const LABEL_MAX_WIDTH = 14;
 
 function truncateLabel(label: string): string {
@@ -109,7 +111,6 @@ function buildLinks(relatedIdentifiers: LandingPageRelatedIdentifier[]): GraphLi
 export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationBrowserGraphProps) {
     const svgRef = useRef<SVGSVGElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
     const [tooltip, setTooltip] = useState<TooltipState>({
         visible: false,
         x: 0,
@@ -161,43 +162,30 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
 
     const graphOptions = useMemo(
         () => ({
-            width: dimensions.width,
-            height: dimensions.height,
+            width: GRAPH_WIDTH,
+            height: GRAPH_HEIGHT,
             onTooltipChange: setTooltip,
             onNodeClick: handleNodeClick,
         }),
-        [dimensions.width, dimensions.height, handleNodeClick],
+        [handleNodeClick],
     );
 
     useRelationGraph(svgRef, nodes, links, graphOptions);
 
-    // ResizeObserver for responsive sizing
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        const observer = new ResizeObserver((entries) => {
-            const entry = entries[0];
-            if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-                setDimensions({
-                    width: entry.contentRect.width,
-                    height: entry.contentRect.height,
-                });
-            }
-        });
-
-        observer.observe(container);
-        return () => observer.disconnect();
-    }, []);
-
     const containerRect = containerRef.current?.getBoundingClientRect() ?? null;
 
     return (
-        <div ref={containerRef} className="absolute inset-0 overflow-hidden" data-testid="relation-browser-graph">
+        <div
+            ref={containerRef}
+            className="absolute inset-0 overflow-hidden"
+            data-testid="relation-browser-graph"
+        >
             <svg
                 ref={svgRef}
-                width={dimensions.width}
-                height={dimensions.height}
+                viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
+                preserveAspectRatio="xMidYMid meet"
+                className="h-full w-full"
+                style={{ display: 'block' }}
                 role="img"
                 aria-label="Relation Browser Graph"
             />
