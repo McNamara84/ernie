@@ -1,3 +1,4 @@
+import { select } from 'd3';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
@@ -8,6 +9,13 @@ import type { CitationLabel, GraphLink, GraphNode, TooltipState } from './graph-
 import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
 import { useRelationGraph } from './use-relation-graph';
+
+const LABEL_MAX_WIDTH = 14;
+
+function truncateLabel(label: string): string {
+    if (label.length <= LABEL_MAX_WIDTH) return label;
+    return label.slice(0, LABEL_MAX_WIDTH - 1) + '…';
+}
 
 interface RelationBrowserGraphProps {
     resource: LandingPageResource;
@@ -112,10 +120,33 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
 
     const citationLabels = useCitationLabels(relatedIdentifiers);
 
+    // Stable node/link references: only rebuild when identifiers change, not on every citation update.
+    // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
     const nodes = useMemo(
-        () => buildNodes(resource, relatedIdentifiers, citationLabels),
-        [resource, relatedIdentifiers, citationLabels],
+        () => buildNodes(resource, relatedIdentifiers, new Map()),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [resource, relatedIdentifiers],
     );
+
+    // Patch citation labels into existing node objects without creating new array
+    useEffect(() => {
+        if (citationLabels.size === 0) return;
+        for (const node of nodes) {
+            if (node.isCentral) continue;
+            const key = getCitationKey(node.identifierType, node.identifier);
+            const citation = citationLabels.get(key);
+            if (citation) {
+                node.label = citation.shortLabel;
+                node.fullLabel = citation.fullCitation;
+            }
+        }
+        // Update text labels in the SVG without restarting simulation
+        if (svgRef.current) {
+            select(svgRef.current)
+                .selectAll<SVGTextElement, GraphNode>('[data-testid="graph-nodes"] g text')
+                .text((d) => truncateLabel(d.label));
+        }
+    }, [citationLabels, nodes, svgRef]);
 
     const links = useMemo(
         () => buildLinks(relatedIdentifiers),
@@ -147,7 +178,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
 
         const observer = new ResizeObserver((entries) => {
             const entry = entries[0];
-            if (entry) {
+            if (entry && entry.contentRect.width > 0 && entry.contentRect.height > 0) {
                 setDimensions({
                     width: entry.contentRect.width,
                     height: entry.contentRect.height,
@@ -162,7 +193,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers }: RelationB
     const containerRect = containerRef.current?.getBoundingClientRect() ?? null;
 
     return (
-        <div ref={containerRef} className="relative h-full w-full" data-testid="relation-browser-graph">
+        <div ref={containerRef} className="absolute inset-0" data-testid="relation-browser-graph">
             <svg ref={svgRef} className="h-full w-full" role="img" aria-label="Relation Browser Graph" />
             <RelationBrowserTooltip tooltip={tooltip} containerRect={containerRect} />
         </div>
