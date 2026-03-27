@@ -12,9 +12,13 @@ if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
     npm install
 fi
 
-# Note: The Laravel Vite plugin automatically creates/manages the public/hot file.
-# It writes the Vite dev server URL (from VITE_DEV_SERVER_URL env var) on startup
-# and removes it on shutdown. No manual hot file creation needed here.
+# The Laravel Vite plugin creates/manages the public/hot file on startup,
+# but Docker Desktop on Windows sometimes fails to sync bind-mounted file
+# creation back to the host. As a safety net, create the hot file before
+# starting Vite. The plugin will overwrite it with the same content on boot.
+echo "Ensuring public/hot file exists..."
+mkdir -p public
+echo "${VITE_DEV_SERVER_URL:-http://localhost:5173}" > public/hot
 
 # Start Vite dev server
 echo "Starting Vite development server..."

@@ -250,19 +250,21 @@ export default function Changelog() {
 
     const handleNavigate = useCallback(
         (index: number) => {
+            const version = releases[index]?.version;
+            if (version) {
+                window.history.pushState(null, '', `#v${version}`);
+            }
+
+            userInteractedRef.current = true;
+            setActive(index);
+
             const element = releaseRefs.current[index];
             if (element) {
-                const version = releases[index]?.version;
-                if (version) {
-                    window.history.pushState(null, '', `#v${version}`);
-                }
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                userInteractedRef.current = true;
-                setActive(index);
-
-                // Manually trigger update after programmatic scroll
-                setTimeout(() => updateActiveRelease(), 400);
             }
+
+            // Manually trigger update after programmatic scroll
+            setTimeout(() => updateActiveRelease(), 400);
         },
         [releases, updateActiveRelease],
     );

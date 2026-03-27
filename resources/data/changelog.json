@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-25",
+        "date": "2026-03-26",
         "features": [
+            {
+                "title": "Relation Browser",
+                "description": "Interactive graph visualization for the Related Work section on GFZ landing pages. View relationships between datasets as a force-directed network graph with color-coded identifier types and relation type categories. Nodes display 'Author, Year' labels with full citation details on hover. Supports drag-and-drop, zoom, pan, and click-through to related resources. Includes a comprehensive color legend for both node and edge types."
+            },
             {
                 "title": "Download URL Import from Legacy Database",
                 "description": "During DataCite import, download URLs are now automatically imported from the legacy metaworks database. For each newly imported resource, the system looks up file download URLs by DOI and determines whether all files are publicly visible. If all files are public, the landing page is published immediately; otherwise it is created as a draft. Landing pages support multiple download files, displayed as individual download buttons. The SetupLandingPageModal shows imported files as a read-only list."

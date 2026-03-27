@@ -240,17 +240,16 @@ test.describe('Changelog Page', () => {
         test.skip(!viewport || viewport.width < 768, 'Desktop-only test');
 
         const timelineNav = page.locator('nav[aria-label="Version timeline navigation"]');
+        await expect(timelineNav).toBeVisible();
         const navButtons = timelineNav.getByRole('button');
         const count = await navButtons.count();
 
         if (count >= 2) {
             // Click on the second dot
             await navButtons.nth(1).click();
-            await page.waitForTimeout(500);
 
-            // URL should have a hash
-            const url = page.url();
-            expect(url).toContain('#v');
+            // URL should have a hash (auto-retries for up to 5s)
+            await expect(page).toHaveURL(/#v/);
         }
     });
 
