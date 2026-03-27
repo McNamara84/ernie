@@ -1,6 +1,6 @@
-import type * as d3 from 'd3';
+import type { SimulationLinkDatum, SimulationNodeDatum } from 'd3-force';
 
-export interface GraphNode extends d3.SimulationNodeDatum {
+export interface GraphNode extends SimulationNodeDatum {
     id: string;
     label: string;
     fullLabel: string;
@@ -11,7 +11,7 @@ export interface GraphNode extends d3.SimulationNodeDatum {
     isCentral: boolean;
 }
 
-export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
+export interface GraphLink extends SimulationLinkDatum<GraphNode> {
     source: string | GraphNode;
     target: string | GraphNode;
     relationType: string;

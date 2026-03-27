@@ -1,5 +1,5 @@
 import { ExternalLink, Network } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -7,7 +7,7 @@ import type { LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 
-import { RelationBrowserModal } from './RelationBrowserModal';
+const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then(m => ({ default: m.RelationBrowserModal })));
 
 interface RelatedIdentifier {
     id: number;
@@ -262,13 +262,17 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                 })}
             </div>
 
-            <RelationBrowserModal
-                open={browserOpen}
-                onOpenChange={setBrowserOpen}
-                resource={resource}
-                relatedIdentifiers={filteredRelations}
-                citationTexts={citationTexts}
-            />
+            {browserOpen && (
+                <Suspense fallback={null}>
+                    <RelationBrowserModal
+                        open={browserOpen}
+                        onOpenChange={setBrowserOpen}
+                        resource={resource}
+                        relatedIdentifiers={filteredRelations}
+                        citationTexts={citationTexts}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 }

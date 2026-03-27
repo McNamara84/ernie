@@ -1,4 +1,4 @@
-import { select } from 'd3';
+import { select } from 'd3-selection';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';

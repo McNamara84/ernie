@@ -1,4 +1,7 @@
-import * as d3 from 'd3';
+import { drag } from 'd3-drag';
+import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation } from 'd3-force';
+import { select } from 'd3-selection';
+import { zoom } from 'd3-zoom';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
 import { getEdgeColor, getNodeColor } from './graph-colors';
@@ -21,7 +24,7 @@ export function useRelationGraph(
     links: GraphLink[],
     options: UseRelationGraphOptions,
 ) {
-    const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
+    const simulationRef = useRef<Simulation<GraphNode, GraphLink> | null>(null);
     const rafRef = useRef<number | null>(null);
 
     const { width, height, onTooltipChange, onNodeClick } = options;
@@ -41,10 +44,10 @@ export function useRelationGraph(
         if (!svg || nodes.length === 0) return;
 
         // Clear previous
-        d3.select(svg).selectAll('*').remove();
+        select(svg).selectAll('*').remove();
         simulationRef.current?.stop();
 
-        const svgSelection = d3.select(svg);
+        const svgSelection = select(svg);
 
         // Container group for zoom/pan
         const container = svgSelection.append('g').attr('data-testid', 'graph-container');
@@ -86,7 +89,7 @@ export function useRelationGraph(
             .attr('marker-end', (d) => `url(#arrow-${d.relationType})`)
             .style('cursor', 'pointer')
             .on('mouseenter', function (event: MouseEvent, d) {
-                d3.select(this).attr('stroke-width', 4).attr('stroke-opacity', 1);
+                select(this).attr('stroke-width', 4).attr('stroke-opacity', 1);
                 const svgRect = svg.getBoundingClientRect();
                 onTooltipChange({
                     visible: true,
@@ -102,7 +105,7 @@ export function useRelationGraph(
                 });
             })
             .on('mouseleave', function () {
-                d3.select(this).attr('stroke-width', 2).attr('stroke-opacity', 0.7);
+                select(this).attr('stroke-width', 2).attr('stroke-opacity', 0.7);
                 hideTooltip();
             });
 
@@ -119,7 +122,7 @@ export function useRelationGraph(
                 }
             })
             .on('mouseenter', function (event: MouseEvent, d) {
-                d3.select(this).select('circle').attr('stroke-width', 3);
+                select(this).select('circle').attr('stroke-width', 3);
                 const svgRect = svg.getBoundingClientRect();
                 onTooltipChange({
                     visible: true,
@@ -136,7 +139,7 @@ export function useRelationGraph(
                 });
             })
             .on('mouseleave', function () {
-                d3.select(this).select('circle').attr('stroke-width', 1.5);
+                select(this).select('circle').attr('stroke-width', 1.5);
                 hideTooltip();
             });
 
@@ -160,11 +163,11 @@ export function useRelationGraph(
         // Force simulation
         const linkDistance = Math.max(100, Math.min(250, 600 / Math.sqrt(nodes.length)));
 
-        const simulation = d3.forceSimulation<GraphNode>(nodes)
-            .force('link', d3.forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(linkDistance))
-            .force('charge', d3.forceManyBody().strength(-300))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collide', d3.forceCollide<GraphNode>().radius((d) => (d.isCentral ? CENTRAL_RADIUS + 20 : NODE_RADIUS + 20)))
+        const simulation = forceSimulation<GraphNode>(nodes)
+            .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(linkDistance))
+            .force('charge', forceManyBody().strength(-300))
+            .force('center', forceCenter(width / 2, height / 2))
+            .force('collide', forceCollide<GraphNode>().radius((d) => (d.isCentral ? CENTRAL_RADIUS + 20 : NODE_RADIUS + 20)))
             .alphaDecay(0.03)
             .velocityDecay(0.4);
 
@@ -186,7 +189,7 @@ export function useRelationGraph(
         });
 
         // Drag behavior
-        const drag = d3.drag<SVGGElement, GraphNode>()
+        const dragBehavior = drag<SVGGElement, GraphNode>()
             .on('start', (event, d) => {
                 if (!event.active) simulation.alphaTarget(0.3).restart();
                 d.fx = d.x;
@@ -204,7 +207,7 @@ export function useRelationGraph(
                 }
             });
 
-        nodeGroup.call(drag);
+        nodeGroup.call(dragBehavior);
 
         // Keyboard accessibility for interactive nodes
         nodeGroup
@@ -219,21 +222,21 @@ export function useRelationGraph(
                 }
             })
             .on('focus', function () {
-                d3.select(this).select('circle').attr('stroke', '#2563eb').attr('stroke-width', 3);
+                select(this).select('circle').attr('stroke', '#2563eb').attr('stroke-width', 3);
             })
             .on('focusout', function () {
-                d3.select(this).select('circle').attr('stroke', '#fff').attr('stroke-width', 1.5);
+                select(this).select('circle').attr('stroke', '#fff').attr('stroke-width', 1.5);
             });
 
         // Zoom behavior
-        const zoom = d3.zoom<SVGSVGElement, unknown>()
+        const zoomBehavior = zoom<SVGSVGElement, unknown>()
             .scaleExtent([0.3, 3])
             .on('zoom', (event) => {
                 container.attr('transform', event.transform);
                 hideTooltip();
             });
 
-        svgSelection.call(zoom);
+        svgSelection.call(zoomBehavior);
 
         // Reduce motion
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
