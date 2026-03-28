@@ -75,7 +75,7 @@ class XmlKeywordExtractor
      * - valueURI attribute containing the concept URI
      * - Content is hierarchical path (e.g., "Material > sedimentary rock > coal")
      *
-     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string, classificationCode?: string}>
      */
     public function extractMslKeywords(XmlReader $reader): array
     {
@@ -89,6 +89,7 @@ class XmlKeywordExtractor
             $scheme = $element->getAttribute('subjectScheme');
             $schemeUri = $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
+            $classificationCode = $element->getAttribute('classificationCode');
             $language = $element->getAttribute('xml:lang') ?? 'en';
             $content = $this->extractElementTextContent($element);
 
@@ -107,7 +108,7 @@ class XmlKeywordExtractor
                 continue;
             }
 
-            $mslKeywords[] = [
+            $keyword = [
                 'id' => trim($valueUri),
                 'text' => $this->extractLastPathSegment(trim($content)),
                 'path' => trim($content),
@@ -115,6 +116,12 @@ class XmlKeywordExtractor
                 'scheme' => $scheme,
                 'schemeURI' => $schemeUri ?? 'https://epos-msl.uu.nl/voc',
             ];
+
+            if ($classificationCode) {
+                $keyword['classificationCode'] = $classificationCode;
+            }
+
+            $mslKeywords[] = $keyword;
         }
 
         return $mslKeywords;
@@ -129,7 +136,7 @@ class XmlKeywordExtractor
      * - valueURI attribute containing the concept URI
      * - Content is hierarchical path (e.g., "SuperGroup > Group > Concept")
      *
-     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string, classificationCode?: string}>
      */
     public function extractGemetKeywords(XmlReader $reader): array
     {
@@ -143,6 +150,7 @@ class XmlKeywordExtractor
             $scheme = $element->getAttribute('subjectScheme');
             $schemeUri = $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
+            $classificationCode = $element->getAttribute('classificationCode');
             $language = $element->getAttribute('xml:lang') ?? 'en';
             $content = $this->extractElementTextContent($element);
 
@@ -161,7 +169,7 @@ class XmlKeywordExtractor
                 continue;
             }
 
-            $gemetKeywords[] = [
+            $keyword = [
                 'id' => trim($valueUri),
                 'text' => $this->extractLastPathSegment(trim($content)),
                 'path' => trim($content),
@@ -169,6 +177,12 @@ class XmlKeywordExtractor
                 'scheme' => $scheme,
                 'schemeURI' => $schemeUri ?? 'http://www.eionet.europa.eu/gemet/concept/',
             ];
+
+            if ($classificationCode) {
+                $keyword['classificationCode'] = $classificationCode;
+            }
+
+            $gemetKeywords[] = $keyword;
         }
 
         return $gemetKeywords;

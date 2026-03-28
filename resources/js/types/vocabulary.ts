@@ -26,6 +26,7 @@ export interface SelectedKeyword {
     language: string;
     scheme: string;
     schemeURI: string;
+    classificationCode?: string;
     isLegacy?: boolean; // True if keyword doesn't exist in current vocabulary (from old database)
 }
 

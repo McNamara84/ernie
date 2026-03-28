@@ -38,9 +38,9 @@ interface EditorProps {
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
     dates?: { dateType: string; startDate: string; endDate: string }[];
-    gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string }[];
+    gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
     freeKeywords?: string[];
-    gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string }[];
+    gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
     coverages?: SpatialTemporalCoverageEntry[];
     relatedWorks?: RelatedIdentifier[];
     fundingReferences?: FundingReferenceEntry[];

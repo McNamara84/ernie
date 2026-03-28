@@ -593,6 +593,39 @@ describe('transformGcmdKeywords', function (): void {
         expect($result)->toHaveCount(3)
             ->and(array_keys($result))->toBe([0, 1, 2]);
     });
+
+    it('includes classificationCode in transformed keywords', function (): void {
+        Subject::factory()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Nanobiotechnology',
+            'subject_scheme' => 'ANZSRC Fields of Research',
+            'scheme_uri' => 'https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc',
+            'value_uri' => null,
+            'classification_code' => '310607',
+        ]);
+        $this->resource->load('subjects');
+
+        $result = $this->transformer->transformGcmdKeywords($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['classificationCode'])->toBe('310607')
+            ->and($result[0]['id'])->toBe('310607')
+            ->and($result[0]['text'])->toBe('Nanobiotechnology');
+    });
+
+    it('returns empty classificationCode when not set', function (): void {
+        Subject::factory()->gcmd()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Earthquakes',
+            'classification_code' => null,
+        ]);
+        $this->resource->load('subjects');
+
+        $result = $this->transformer->transformGcmdKeywords($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['classificationCode'])->toBe('');
+    });
 });
 
 describe('transformGemetKeywords', function (): void {

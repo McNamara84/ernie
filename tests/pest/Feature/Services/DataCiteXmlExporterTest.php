@@ -461,6 +461,39 @@ describe('DataCiteXmlExporter - Subjects', function () {
         expect($xml)->toContain('classificationCode="550"')
             ->and($xml)->toContain('>Geophysics</subject>');
     });
+
+    test('exports xml:lang="en" on all subjects', function () {
+        $resource = Resource::factory()->create();
+
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'Climate Science',
+            'subject_scheme' => 'NASA/GCMD Science Keywords',
+            'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+            'value_uri' => null,
+            'classification_code' => null,
+        ]);
+
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'seismology',
+            'subject_scheme' => null,
+            'scheme_uri' => null,
+            'value_uri' => null,
+            'classification_code' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+        $subjectElements = $dom->getElementsByTagName('subject');
+
+        expect($subjectElements->length)->toBe(2);
+        foreach ($subjectElements as $element) {
+            expect($element->getAttribute('xml:lang'))->toBe('en');
+        }
+    });
 });
 
 describe('DataCiteXmlExporter - Rights', function () {

@@ -738,7 +738,7 @@ class ResourceStorageService
                     'subject_scheme' => $keyword['scheme'],
                     'scheme_uri' => $keyword['schemeURI'] ?? null,
                     'value_uri' => $keyword['id'],
-                    'classification_code' => null,
+                    'classification_code' => $keyword['classificationCode'] ?? null,
                 ];
             }
         }

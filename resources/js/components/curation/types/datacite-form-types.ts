@@ -185,6 +185,7 @@ export interface DataCiteFormProps {
         scheme: string;
         schemeURI?: string;
         language?: string;
+        classificationCode?: string;
         isLegacy?: string;
     }[];
     initialFreeKeywords?: string[];
@@ -195,6 +196,7 @@ export interface DataCiteFormProps {
         scheme: string;
         schemeURI?: string;
         language?: string;
+        classificationCode?: string;
     }[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];

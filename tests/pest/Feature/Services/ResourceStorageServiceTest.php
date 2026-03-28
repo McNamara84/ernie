@@ -290,6 +290,54 @@ describe('ResourceStorageService', function () {
             ->and($subject->subject_scheme)->toBe('Science Keywords')
             ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid');
     });
+
+    it('stores classificationCode for controlled keywords', function () {
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'gcmdKeywords' => [
+                [
+                    'id' => '310607',
+                    'text' => 'Nanobiotechnology',
+                    'scheme' => 'ANZSRC Fields of Research',
+                    'schemeURI' => 'https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc',
+                    'classificationCode' => '310607',
+                ],
+            ],
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+        expect($resource->subjects()->count())->toBe(1);
+        $subject = $resource->subjects->first();
+        expect($subject->value)->toBe('Nanobiotechnology')
+            ->and($subject->subject_scheme)->toBe('ANZSRC Fields of Research')
+            ->and($subject->classification_code)->toBe('310607')
+            ->and($subject->value_uri)->toBe('310607');
+    });
 });
 
 describe('ResourceStorageService - Issue #371: Date Created Handling', function () {
