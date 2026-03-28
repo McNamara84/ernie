@@ -509,6 +509,12 @@ class PortalSearchService
      * WHERE clause to avoid cross-join compatibility issues with json_each()
      * as a table-valued function inside IN subqueries.
      *
+     * NOTE: For polygons that cross the anti-meridian (vertices spanning e.g.
+     * 170° to -170°), MIN/MAX longitude produces a near-worldwide span and
+     * may cause false-positive matches. A future improvement could detect
+     * wrapped polygons (MAX(lng) - MIN(lng) > 180) and apply anti-meridian-aware
+     * overlap logic similar to the stored bounding box handling.
+     *
      * @param  array{north: float, south: float, east: float, west: float}  $bounds
      * @return array{literal-string, list<float>}
      */

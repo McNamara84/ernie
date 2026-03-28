@@ -220,16 +220,23 @@ function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChan
         callbackRef.current = onViewportChange;
     }, [onViewportChange]);
 
+    // Reset any stale skip flag that was set while ViewportTracker was
+    // not mounted (e.g. FitBoundsControl set it when geoFilterEnabled was false).
+    useEffect(() => {
+        skipNextMoveEnd.current = false;
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         const handler = () => {
-            if (skipNextMoveEnd.current) {
-                skipNextMoveEnd.current = false;
+            // Check container visibility FIRST — hidden map instances (e.g.
+            // CSS display:none) must not consume the shared skip flag.
+            const container = map.getContainer();
+            if (container.clientWidth === 0 || container.clientHeight === 0) {
                 return;
             }
 
-            // Ignore events from hidden map instances (e.g. CSS display:none)
-            const container = map.getContainer();
-            if (container.clientWidth === 0 || container.clientHeight === 0) {
+            if (skipNextMoveEnd.current) {
+                skipNextMoveEnd.current = false;
                 return;
             }
 

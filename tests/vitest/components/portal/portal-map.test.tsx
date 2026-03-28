@@ -19,10 +19,12 @@ const mockMapInstance = vi.hoisted(() => ({
         getEast: () => 14,
         getWest: () => 12,
     })),
-    getContainer: vi.fn(() => ({
-        clientWidth: 800,
-        clientHeight: 600,
-    })),
+    getContainer: vi.fn(() => {
+        const el = document.createElement('div');
+        Object.defineProperty(el, 'clientWidth', { value: 800 });
+        Object.defineProperty(el, 'clientHeight', { value: 600 });
+        return el;
+    }),
 }));
 
 // Mock react-leaflet components since Leaflet requires DOM and canvas
