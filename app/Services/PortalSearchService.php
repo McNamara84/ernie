@@ -530,12 +530,12 @@ class PortalSearchService
                 : '(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)';
 
             $sql = "resources.id IN ("
-                . "SELECT gl.resource_id FROM geo_locations gl, "
+                . "SELECT DISTINCT gl.resource_id FROM geo_locations gl, "
                 . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
                 . "lat DOUBLE PATH '\$.latitude', "
                 . "lng DOUBLE PATH '\$.longitude')) AS pt "
                 . "WHERE gl.polygon_points IS NOT NULL "
-                . "GROUP BY gl.resource_id "
+                . "GROUP BY gl.id, gl.resource_id "
                 . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND " . $lngHaving
                 . ")";
         } elseif ($driver === 'pgsql') {
@@ -544,10 +544,10 @@ class PortalSearchService
                 : "(MAX((elem->>'longitude')::float) >= ? AND MIN((elem->>'longitude')::float) <= ?)";
 
             $sql = "resources.id IN ("
-                . "SELECT gl.resource_id FROM geo_locations gl, "
+                . "SELECT DISTINCT gl.resource_id FROM geo_locations gl, "
                 . "jsonb_array_elements(gl.polygon_points::jsonb) AS elem "
                 . "WHERE gl.polygon_points IS NOT NULL "
-                . "GROUP BY gl.resource_id "
+                . "GROUP BY gl.id, gl.resource_id "
                 . "HAVING MAX((elem->>'latitude')::float) >= ? AND MIN((elem->>'latitude')::float) <= ? AND " . $lngHaving
                 . ")";
         } elseif ($driver === 'sqlite') {

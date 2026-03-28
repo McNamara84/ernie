@@ -649,8 +649,9 @@ describe('PortalMap', () => {
     });
 
     describe('FitBoundsControl Branches', () => {
-        // Use vi.stubGlobal to override the read-only ResizeObserver set
-        // by vitest.setup.ts (Object.defineProperty makes it non-writable).
+        // Replace the global ResizeObserver stub (from vitest.setup.ts) with
+        // one whose callback fires immediately on observe(), so fake timers
+        // can drive the debounced initial-fit logic.
         function installImmediateResizeObserver() {
             vi.stubGlobal(
                 'ResizeObserver',
