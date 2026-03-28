@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { Check, RefreshCw, X } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AcceptResponse, type AssistancePageProps, type CheckStatusResponse, type SuggestedRelationItem } from '@/types/assistance';
+import { type AcceptResponse, type AssistancePageProps, type CheckStatusResponse, type PaginatedData, type SuggestedRelationItem } from '@/types/assistance';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -75,12 +75,19 @@ function SuggestionCard({
     );
 }
 
-export default function AssistancePage({ suggestions: initialSuggestions }: AssistancePageProps) {
-    const [suggestions, setSuggestions] = useState<SuggestedRelationItem[]>(initialSuggestions);
+export default function AssistancePage({ suggestions: paginatedSuggestions }: AssistancePageProps) {
+    const [suggestions, setSuggestions] = useState<SuggestedRelationItem[]>(paginatedSuggestions.data);
+    const [pagination, setPagination] = useState<Omit<PaginatedData<SuggestedRelationItem>, 'data'>>(paginatedSuggestions);
     const [isChecking, setIsChecking] = useState(false);
     const [checkProgress, setCheckProgress] = useState<string>('');
     const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Sync state when Inertia updates props (e.g. after router.reload)
+    useEffect(() => {
+        setSuggestions(paginatedSuggestions.data);
+        setPagination(paginatedSuggestions);
+    }, [paginatedSuggestions]);
 
     const stopPolling = useCallback(() => {
         if (pollingRef.current !== null) {
@@ -89,9 +96,15 @@ export default function AssistancePage({ suggestions: initialSuggestions }: Assi
         }
     }, []);
 
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => stopPolling();
+    }, [stopPolling]);
+
     const handleCheck = useCallback(async () => {
         setIsChecking(true);
         setCheckProgress('Starting discovery...');
+        stopPolling(); // Clear any existing interval
 
         try {
             const { data } = await axios.post<{ jobId: string }>('/assistance/check');
@@ -228,8 +241,8 @@ export default function AssistancePage({ suggestions: initialSuggestions }: Assi
                     <CardHeader>
                         <CardTitle>Suggested Relations</CardTitle>
                         <CardDescription>
-                            {suggestions.length > 0
-                                ? `${suggestions.length} pending suggestion(s) from ScholExplorer and DataCite Event Data.`
+                            {pagination.total > 0
+                                ? `${pagination.total} pending suggestion(s) from ScholExplorer and DataCite Event Data.`
                                 : 'No pending suggestions.'}
                         </CardDescription>
                     </CardHeader>
@@ -263,6 +276,26 @@ export default function AssistancePage({ suggestions: initialSuggestions }: Assi
                                 <p className="text-sm text-muted-foreground">
                                     No new suggested relations. Click &quot;Check&quot; to search for new ones.
                                 </p>
+                            </div>
+                        )}
+
+                        {pagination.last_page > 1 && (
+                            <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {pagination.from ?? 0}–{pagination.to ?? 0} of {pagination.total}
+                                </p>
+                                <div className="flex gap-1">
+                                    {pagination.links.map((link) => (
+                                        <Button
+                                            key={link.label}
+                                            variant={link.active ? 'default' : 'outline'}
+                                            size="sm"
+                                            disabled={!link.url}
+                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </CardContent>

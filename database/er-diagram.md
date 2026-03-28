@@ -611,6 +611,7 @@ erDiagram
         bigint id PK
         bigint resource_id FK
         varchar identifier "2183"
+        char identifier_hash "64, generated SHA2"
         bigint identifier_type_id FK
         bigint relation_type_id FK
         varchar source
@@ -627,6 +628,7 @@ erDiagram
         bigint id PK
         bigint resource_id FK
         varchar identifier "2183"
+        char identifier_hash "64, generated SHA2"
         bigint relation_type_id FK
         bigint dismissed_by FK "nullable"
         varchar reason "nullable"

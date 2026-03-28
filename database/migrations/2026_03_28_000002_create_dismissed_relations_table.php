@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -16,14 +17,16 @@ return new class extends Migration
         Schema::create('dismissed_relations', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('resource_id')->constrained('resources')->cascadeOnDelete();
-            $table->string('identifier', 500);
+            $table->string('identifier', 2183);
             $table->foreignId('relation_type_id')->constrained('relation_types')->restrictOnDelete();
             $table->foreignId('dismissed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('reason')->nullable();
             $table->timestamps();
-
-            $table->unique(['resource_id', 'identifier', 'relation_type_id'], 'dismissed_relations_unique');
         });
+
+        // Hash-based unique constraint to avoid MySQL key length limits with 2183-char identifier
+        DB::statement('ALTER TABLE dismissed_relations ADD COLUMN identifier_hash CHAR(64) GENERATED ALWAYS AS (SHA2(identifier, 256)) STORED AFTER identifier');
+        DB::statement('ALTER TABLE dismissed_relations ADD UNIQUE INDEX dismissed_relations_unique (resource_id, identifier_hash, relation_type_id)');
     }
 
     /**

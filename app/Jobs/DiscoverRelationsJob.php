@@ -66,6 +66,7 @@ class DiscoverRelationsJob implements ShouldQueue
     public function handle(RelationDiscoveryService $service): void
     {
         $cacheKey = self::getCacheKey($this->jobId);
+        $startedAt = now()->toIso8601String();
 
         Cache::put($cacheKey, [
             'status' => 'running',
@@ -73,28 +74,31 @@ class DiscoverRelationsJob implements ShouldQueue
             'totalDois' => 0,
             'processedDois' => 0,
             'newRelationsFound' => 0,
-            'startedAt' => now()->toIso8601String(),
+            'startedAt' => $startedAt,
         ], now()->addHours(2));
 
         try {
-            $newCount = $service->discoverAll(function (int $processed, int $total) use ($cacheKey) {
+            $lastTotal = 0;
+
+            $newCount = $service->discoverAll(function (int $processed, int $total) use ($cacheKey, $startedAt, &$lastTotal) {
+                $lastTotal = $total;
                 Cache::put($cacheKey, [
                     'status' => 'running',
                     'progress' => "Checking DOI {$processed} of {$total}...",
                     'totalDois' => $total,
                     'processedDois' => $processed,
                     'newRelationsFound' => 0,
-                    'startedAt' => Cache::get($cacheKey)['startedAt'] ?? now()->toIso8601String(),
+                    'startedAt' => $startedAt,
                 ], now()->addHours(2));
             });
 
             Cache::put($cacheKey, [
                 'status' => 'completed',
                 'progress' => 'Discovery completed.',
-                'totalDois' => Cache::get($cacheKey)['totalDois'] ?? 0,
-                'processedDois' => Cache::get($cacheKey)['totalDois'] ?? 0,
+                'totalDois' => $lastTotal,
+                'processedDois' => $lastTotal,
                 'newRelationsFound' => $newCount,
-                'startedAt' => Cache::get($cacheKey)['startedAt'] ?? now()->toIso8601String(),
+                'startedAt' => $startedAt,
                 'completedAt' => now()->toIso8601String(),
             ], now()->addHours(2));
 
@@ -107,7 +111,7 @@ class DiscoverRelationsJob implements ShouldQueue
                 'status' => 'failed',
                 'progress' => 'Discovery failed.',
                 'error' => $e->getMessage(),
-                'startedAt' => Cache::get($cacheKey)['startedAt'] ?? now()->toIso8601String(),
+                'startedAt' => $startedAt,
                 'completedAt' => now()->toIso8601String(),
             ], now()->addHours(2));
 

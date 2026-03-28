@@ -83,7 +83,7 @@ class ScholExplorerService
         $timeout = config('scholexplorer.timeout', 30);
 
         $relations = [];
-        $page = 1;
+        $page = 0;
         $maxPages = 10; // Safety limit
 
         try {

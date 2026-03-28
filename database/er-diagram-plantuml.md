@@ -674,6 +674,7 @@ entity "suggested_relations" as suggested_relations {
     --
     * resource_id : BIGINT <<FK>>
     * identifier : VARCHAR(2183)
+    identifier_hash : CHAR(64) <<GENERATED>>
     * identifier_type_id : BIGINT <<FK>>
     * relation_type_id : BIGINT <<FK>>
     * source : VARCHAR(255)
@@ -691,6 +692,7 @@ entity "dismissed_relations" as dismissed_relations {
     --
     * resource_id : BIGINT <<FK>>
     * identifier : VARCHAR(2183)
+    identifier_hash : CHAR(64) <<GENERATED>>
     * relation_type_id : BIGINT <<FK>>
     dismissed_by : BIGINT <<FK>>
     reason : VARCHAR(255)

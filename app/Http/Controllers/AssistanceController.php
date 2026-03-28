@@ -23,28 +23,31 @@ class AssistanceController extends Controller
     /**
      * Display the Assistance page with pending suggested relations.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $suggestions = SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
+        $perPage = min((int) $request->input('per_page', 25), 100);
+
+        $paginator = SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
             ->orderBy('discovered_at', 'desc')
-            ->get()
-            ->map(fn (SuggestedRelation $s) => [
-                'id' => $s->id,
-                'resource_id' => $s->resource_id,
-                'resource_doi' => $s->resource->doi ?? '',
-                'resource_title' => $s->resource->mainTitle ?? 'Untitled',
-                'identifier' => $s->identifier,
-                'identifier_type' => $s->identifierType->slug ?? '',
-                'identifier_type_name' => $s->identifierType->name ?? '',
-                'relation_type' => $s->relationType->slug ?? '',
-                'relation_type_name' => $s->relationType->name ?? '',
-                'source' => $s->source,
-                'source_title' => $s->source_title,
-                'source_type' => $s->source_type,
-                'source_publisher' => $s->source_publisher,
-                'source_publication_date' => $s->source_publication_date,
-                'discovered_at' => $s->discovered_at->toIso8601String(),
-            ]);
+            ->paginate($perPage);
+
+        $suggestions = $paginator->through(fn (SuggestedRelation $s) => [
+            'id' => $s->id,
+            'resource_id' => $s->resource_id,
+            'resource_doi' => $s->resource->doi ?? '',
+            'resource_title' => $s->resource->mainTitle ?? 'Untitled',
+            'identifier' => $s->identifier,
+            'identifier_type' => $s->identifierType->slug ?? '',
+            'identifier_type_name' => $s->identifierType->name ?? '',
+            'relation_type' => $s->relationType->slug ?? '',
+            'relation_type_name' => $s->relationType->name ?? '',
+            'source' => $s->source,
+            'source_title' => $s->source_title,
+            'source_type' => $s->source_type,
+            'source_publisher' => $s->source_publisher,
+            'source_publication_date' => $s->source_publication_date,
+            'discovered_at' => $s->discovered_at->toIso8601String(),
+        ]);
 
         return Inertia::render('assistance', [
             'suggestions' => $suggestions,

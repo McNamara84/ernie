@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CacheKey;
 use App\Models\DismissedRelation;
 use App\Models\IdentifierType;
 use App\Models\RelatedIdentifier;
@@ -11,6 +12,7 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -70,6 +72,10 @@ class RelationDiscoveryService
             'total_dois' => $total,
             'new_suggestions' => $newCount,
         ]);
+
+        if ($newCount > 0) {
+            Cache::forget(CacheKey::SUGGESTED_RELATIONS_COUNT->key());
+        }
 
         return $newCount;
     }
@@ -221,6 +227,9 @@ class RelationDiscoveryService
         // Delete the suggestion
         $suggestion->delete();
 
+        // Invalidate sidebar badge cache
+        Cache::forget(CacheKey::SUGGESTED_RELATIONS_COUNT->key());
+
         // Sync to DataCite
         $syncResult = $this->dataCiteSyncService->syncIfRegistered($resource);
 
@@ -261,5 +270,7 @@ class RelationDiscoveryService
         ]);
 
         $suggestion->delete();
+
+        Cache::forget(CacheKey::SUGGESTED_RELATIONS_COUNT->key());
     }
 }

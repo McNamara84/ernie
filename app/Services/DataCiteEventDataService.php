@@ -141,7 +141,6 @@ class DataCiteEventDataService
         }
 
         // Determine which side is the "other" identifier
-        $queriedDoiUrl = 'https://doi.org/' . $queriedDoi;
         $queriedDoiLower = mb_strtolower($queriedDoi);
 
         $subjDoi = $this->extractDoiFromUrl((string) $subjId);

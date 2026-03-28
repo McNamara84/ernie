@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\CacheKey;
 use App\Models\SuggestedRelation;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -79,7 +81,11 @@ class HandleInertiaRequests extends Middleware
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
             'pendingSuggestedRelationsCount' => $request->user()?->can('access-assistance')
-                ? SuggestedRelation::count()
+                ? Cache::remember(
+                    CacheKey::SUGGESTED_RELATIONS_COUNT->key(),
+                    CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
+                    fn () => SuggestedRelation::count(),
+                )
                 : 0,
         ];
     }
