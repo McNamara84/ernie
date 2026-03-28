@@ -254,7 +254,7 @@ test.describe('Changelog Page', () => {
                 // so we replicate handleNavigate's pushState behavior.
                 const releases = document.querySelectorAll('[aria-label="Changelog Timeline"] > li');
                 const btn = releases[1]?.querySelector('button[id^="release-trigger-"]');
-                const versionText = btn?.textContent?.match(/Version\s+([\d.]+)/)?.[1];
+                const versionText = btn?.getAttribute('data-version');
                 if (versionText) {
                     window.history.pushState(null, '', `#v${versionText}`);
                 }

@@ -420,6 +420,7 @@ export default function Changelog() {
                                             }
                                         }}
                                         id={buttonId}
+                                        data-version={release.version}
                                         aria-expanded={isOpen}
                                         aria-controls={panelId}
                                         type="button"

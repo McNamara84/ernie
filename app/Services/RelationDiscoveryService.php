@@ -246,8 +246,9 @@ class RelationDiscoveryService
         $resource = $suggestion->resource;
 
         DB::transaction(function () use ($suggestion, $resource) {
-            // Determine next position for the resource's related identifiers
+            // Lock existing rows to prevent concurrent inserts from reading the same max
             $maxPosition = RelatedIdentifier::where('resource_id', $resource->id)
+                ->lockForUpdate()
                 ->max('position') ?? -1;
 
             // Create the new RelatedIdentifier (idempotent via firstOrCreate)
