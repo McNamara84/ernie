@@ -154,6 +154,10 @@
         ],
         "improvements": [
             {
+                "title": "DataCite classificationCode Support",
+                "description": "Subject keywords now fully support the DataCite 4.7 classificationCode attribute (property 6.d). Classification codes are preserved during XML/JSON import and export, enabling round-trip fidelity for vocabularies like ANZSRC Fields of Research that use numeric codes instead of URIs. The xml:lang attribute is now correctly exported on all subject elements using proper XML namespace handling."
+            },
+            {
                 "title": "Portal Header Redesign",
                 "description": "Redesigned the public Data Portal header to match the GFZ Data Services branding. The header now features a top bar with 'GFZ Data Services Portal' title and white GFZ logo on GFZ blue background (#1A3E74), followed by a horizontal navigation menu on light blue background (#CCDDEB) with links to Home, Find, Publish Data, Samples (IGSN), Support, About Us, Legal Notice, and Data Protection. The 'Find' menu item is visually highlighted when on the portal page. On mobile devices, the menu collapses into a hamburger menu. The previous 'Data Portal' heading and subtitle were removed for a cleaner layout."
             },

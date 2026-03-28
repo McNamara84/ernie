@@ -336,7 +336,7 @@ describe('ResourceStorageService', function () {
         expect($subject->value)->toBe('Nanobiotechnology')
             ->and($subject->subject_scheme)->toBe('ANZSRC Fields of Research')
             ->and($subject->classification_code)->toBe('310607')
-            ->and($subject->value_uri)->toBe('310607');
+            ->and($subject->value_uri)->toBeNull();
     });
 });
 

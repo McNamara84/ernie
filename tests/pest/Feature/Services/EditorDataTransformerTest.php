@@ -613,7 +613,7 @@ describe('transformGcmdKeywords', function (): void {
             ->and($result[0]['text'])->toBe('Nanobiotechnology');
     });
 
-    it('returns empty classificationCode when not set', function (): void {
+    it('returns no classificationCode key when not set', function (): void {
         Subject::factory()->gcmd()->create([
             'resource_id' => $this->resource->id,
             'value' => 'Earthquakes',
@@ -624,7 +624,7 @@ describe('transformGcmdKeywords', function (): void {
         $result = $this->transformer->transformGcmdKeywords($this->resource);
 
         expect($result)->toHaveCount(1)
-            ->and($result[0]['classificationCode'])->toBe('');
+            ->and($result[0])->not->toHaveKey('classificationCode');
     });
 });
 

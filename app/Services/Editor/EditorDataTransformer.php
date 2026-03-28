@@ -349,7 +349,7 @@ class EditorDataTransformer
     /**
      * Transform GCMD controlled keywords from subjects.
      *
-     * @return array<int, array{id: string, text: string, path: string, scheme: string, schemeURI: string, language: string, classificationCode: string}>
+     * @return array<int, array{id: string, text: string, path: string, scheme: string, schemeURI: string, language: string, classificationCode?: string}>
      */
     public function transformGcmdKeywords(Resource $resource): array
     {
@@ -364,7 +364,7 @@ class EditorDataTransformer
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',
-                    'classificationCode' => $subject->classification_code ?? '',
+                    ...($subject->classification_code !== null ? ['classificationCode' => $subject->classification_code] : []),
                 ];
             })->values()->toArray();
     }
@@ -372,7 +372,7 @@ class EditorDataTransformer
     /**
      * Transform GEMET controlled keywords from subjects.
      *
-     * @return array<int, array{id: string, text: string, path: string, scheme: string, schemeURI: string, language: string, classificationCode: string}>
+     * @return array<int, array{id: string, text: string, path: string, scheme: string, schemeURI: string, language: string, classificationCode?: string}>
      */
     public function transformGemetKeywords(Resource $resource): array
     {
@@ -386,7 +386,7 @@ class EditorDataTransformer
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',
-                    'classificationCode' => $subject->classification_code ?? '',
+                    ...($subject->classification_code !== null ? ['classificationCode' => $subject->classification_code] : []),
                 ];
             })->values()->toArray();
     }

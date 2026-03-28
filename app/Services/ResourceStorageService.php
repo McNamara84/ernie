@@ -733,12 +733,15 @@ class ResourceStorageService
         foreach ($controlledKeywords as $keyword) {
             // Validate required fields (scheme is now the discriminator instead of vocabularyType)
             if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
+                $classificationCode = ! empty($keyword['classificationCode']) ? trim($keyword['classificationCode']) : null;
+                $valueUri = ! empty($keyword['id']) && filter_var($keyword['id'], FILTER_VALIDATE_URL) ? $keyword['id'] : null;
+
                 $controlledKeywordsData[] = [
                     'value' => $keyword['text'],
                     'subject_scheme' => $keyword['scheme'],
                     'scheme_uri' => $keyword['schemeURI'] ?? null,
-                    'value_uri' => $keyword['id'],
-                    'classification_code' => $keyword['classificationCode'] ?? null,
+                    'value_uri' => $valueUri,
+                    'classification_code' => $classificationCode ?: null,
                 ];
             }
         }

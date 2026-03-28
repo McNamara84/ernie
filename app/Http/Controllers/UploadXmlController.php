@@ -1747,7 +1747,7 @@ class UploadXmlController extends Controller
     /**
      * Extract GCMD keywords from the XML.
      *
-     * @return array<int, array{uuid: string, id: string, text: string, path: string, scheme: string, classificationCode?: string}>
+     * @return array<int, array{uuid: string, id: string, text: string, path: string, scheme: string, schemeURI?: string, classificationCode?: string}>
      */
     private function extractGcmdKeywords(XmlReader $reader): array
     {
