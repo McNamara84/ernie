@@ -403,97 +403,94 @@ class PortalSearchService
             return;
         }
 
-        $query->whereHas('geoLocations', function (Builder $q) use ($bounds): void {
-            $q->where(function (Builder $inner) use ($bounds): void {
-                $searchCrossesAM = $bounds['west'] > $bounds['east'];
+        $searchCrossesAM = $bounds['west'] > $bounds['east'];
 
-                // Point within bounding box
-                $inner->where(function (Builder $point) use ($bounds, $searchCrossesAM): void {
-                    $point->whereNotNull('point_latitude')
-                        ->whereNotNull('point_longitude')
-                        ->where('point_latitude', '>=', $bounds['south'])
-                        ->where('point_latitude', '<=', $bounds['north']);
+        // Use a wrapping OR: a resource matches if ANY geo location passes
+        // the standard checks (point/bbox/in_polygon_point) OR the resource
+        // appears in the polygon-bbox-overlap subquery.
+        //
+        // The polygon bbox overlap uses a non-correlated IN subquery instead
+        // of a correlated EXISTS because MySQL 8.0 cannot resolve correlated
+        // JSON_TABLE column references when placed inside OR expressions.
+        $query->where(function (Builder $boundsOr) use ($bounds, $searchCrossesAM): void {
+            // Branch A: point, bounding-box, or in_polygon_point match
+            $boundsOr->whereHas('geoLocations', function (Builder $q) use ($bounds, $searchCrossesAM): void {
+                $q->where(function (Builder $inner) use ($bounds, $searchCrossesAM): void {
+                    // Point within bounding box
+                    $inner->where(function (Builder $point) use ($bounds, $searchCrossesAM): void {
+                        $point->whereNotNull('point_latitude')
+                            ->whereNotNull('point_longitude')
+                            ->where('point_latitude', '>=', $bounds['south'])
+                            ->where('point_latitude', '<=', $bounds['north']);
 
-                    if ($searchCrossesAM) {
-                        $point->where(function (Builder $lng) use ($bounds): void {
-                            $lng->where('point_longitude', '>=', $bounds['west'])
-                                ->orWhere('point_longitude', '<=', $bounds['east']);
-                        });
-                    } else {
-                        $point->where('point_longitude', '>=', $bounds['west'])
-                            ->where('point_longitude', '<=', $bounds['east']);
-                    }
-                })
-                // Bounding box overlaps (rectangle intersection)
-                ->orWhere(function (Builder $box) use ($bounds, $searchCrossesAM): void {
-                    $box->whereNotNull('west_bound_longitude')
-                        ->where('north_bound_latitude', '>=', $bounds['south'])
-                        ->where('south_bound_latitude', '<=', $bounds['north']);
-
-                    // Longitude overlap must account for both the search bounds
-                    // and the stored box potentially crossing the anti-meridian.
-                    // A stored box crosses the AM when west_bound > east_bound.
-                    $box->where(function (Builder $lng) use ($bounds, $searchCrossesAM): void {
                         if ($searchCrossesAM) {
-                            // Search bounds cross AM: stored box overlaps if its east >= search west OR its west <= search east
-                            // But we must also handle stored box crossing AM
-                            $lng->where(function (Builder $storedNormal) use ($bounds): void {
-                                // Stored box does NOT cross AM (west <= east)
-                                $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
-                                    ->where(function (Builder $overlap) use ($bounds): void {
-                                        $overlap->where('east_bound_longitude', '>=', $bounds['west'])
-                                            ->orWhere('west_bound_longitude', '<=', $bounds['east']);
-                                    });
-                            })->orWhere(function (Builder $storedCrossing): void {
-                                // Stored box ALSO crosses AM — always overlaps in longitude
-                                $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude');
+                            $point->where(function (Builder $lng) use ($bounds): void {
+                                $lng->where('point_longitude', '>=', $bounds['west'])
+                                    ->orWhere('point_longitude', '<=', $bounds['east']);
                             });
                         } else {
-                            // Search bounds do NOT cross AM
-                            $lng->where(function (Builder $storedNormal) use ($bounds): void {
-                                // Stored box does NOT cross AM: standard overlap check
-                                $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
-                                    ->where('east_bound_longitude', '>=', $bounds['west'])
-                                    ->where('west_bound_longitude', '<=', $bounds['east']);
-                            })->orWhere(function (Builder $storedCrossing) use ($bounds): void {
-                                // Stored box crosses AM: overlaps if its east >= search west OR its west <= search east
-                                // (stored interval wraps around, so it covers [stored_west, 180] ∪ [-180, stored_east])
-                                $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude')
-                                    ->where(function (Builder $overlap) use ($bounds): void {
-                                        $overlap->where('west_bound_longitude', '<=', $bounds['east'])
-                                            ->orWhere('east_bound_longitude', '>=', $bounds['west']);
-                                    });
+                            $point->where('point_longitude', '>=', $bounds['west'])
+                                ->where('point_longitude', '<=', $bounds['east']);
+                        }
+                    })
+                    // Bounding box overlaps (rectangle intersection)
+                    ->orWhere(function (Builder $box) use ($bounds, $searchCrossesAM): void {
+                        $box->whereNotNull('west_bound_longitude')
+                            ->where('north_bound_latitude', '>=', $bounds['south'])
+                            ->where('south_bound_latitude', '<=', $bounds['north']);
+
+                        $box->where(function (Builder $lng) use ($bounds, $searchCrossesAM): void {
+                            if ($searchCrossesAM) {
+                                $lng->where(function (Builder $storedNormal) use ($bounds): void {
+                                    $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
+                                        ->where(function (Builder $overlap) use ($bounds): void {
+                                            $overlap->where('east_bound_longitude', '>=', $bounds['west'])
+                                                ->orWhere('west_bound_longitude', '<=', $bounds['east']);
+                                        });
+                                })->orWhere(function (Builder $storedCrossing): void {
+                                    $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude');
+                                });
+                            } else {
+                                $lng->where(function (Builder $storedNormal) use ($bounds): void {
+                                    $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
+                                        ->where('east_bound_longitude', '>=', $bounds['west'])
+                                        ->where('west_bound_longitude', '<=', $bounds['east']);
+                                })->orWhere(function (Builder $storedCrossing) use ($bounds): void {
+                                    $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude')
+                                        ->where(function (Builder $overlap) use ($bounds): void {
+                                            $overlap->where('west_bound_longitude', '<=', $bounds['east'])
+                                                ->orWhere('east_bound_longitude', '>=', $bounds['west']);
+                                        });
+                                });
+                            }
+                        });
+                    })
+                    // Polygon/line via representative in_polygon_point within bounds
+                    ->orWhere(function (Builder $inPoint) use ($bounds, $searchCrossesAM): void {
+                        $inPoint->whereNotNull('polygon_points')
+                            ->whereNotNull('in_polygon_point_latitude')
+                            ->whereNotNull('in_polygon_point_longitude')
+                            ->where('in_polygon_point_latitude', '>=', $bounds['south'])
+                            ->where('in_polygon_point_latitude', '<=', $bounds['north']);
+
+                        if ($searchCrossesAM) {
+                            $inPoint->where(function (Builder $lng) use ($bounds): void {
+                                $lng->where('in_polygon_point_longitude', '>=', $bounds['west'])
+                                    ->orWhere('in_polygon_point_longitude', '<=', $bounds['east']);
                             });
+                        } else {
+                            $inPoint->where('in_polygon_point_longitude', '>=', $bounds['west'])
+                                ->where('in_polygon_point_longitude', '<=', $bounds['east']);
                         }
                     });
-                })
-                // Polygon in_polygon_point within bounding box
-                ->orWhere(function (Builder $poly) use ($bounds, $searchCrossesAM): void {
-                    $poly->whereNotNull('polygon_points')
-                        ->whereNotNull('in_polygon_point_latitude')
-                        ->whereNotNull('in_polygon_point_longitude')
-                        ->where('in_polygon_point_latitude', '>=', $bounds['south'])
-                        ->where('in_polygon_point_latitude', '<=', $bounds['north']);
-
-                    if ($searchCrossesAM) {
-                        $poly->where(function (Builder $lng) use ($bounds): void {
-                            $lng->where('in_polygon_point_longitude', '>=', $bounds['west'])
-                                ->orWhere('in_polygon_point_longitude', '<=', $bounds['east']);
-                        });
-                    } else {
-                        $poly->where('in_polygon_point_longitude', '>=', $bounds['west'])
-                            ->where('in_polygon_point_longitude', '<=', $bounds['east']);
-                    }
-                })
-                // Polygon without in_polygon_point: use bounding box of polygon vertices.
-                // Check if the polygon's bounding box overlaps the search bounds by
-                // extracting min/max lat/lng from the JSON polygon_points array.
-                ->orWhere(function (Builder $polyBbox) use ($bounds, $searchCrossesAM): void {
-                    $polyBbox->whereNotNull('polygon_points')
-                        ->whereNull('in_polygon_point_latitude');
-
-                    $this->applyPolygonBboxOverlap($polyBbox, $bounds, $searchCrossesAM);
                 });
+            })
+            // Branch B: polygon vertex bounding box overlaps search bounds.
+            // Uses a non-correlated IN subquery instead of correlated EXISTS
+            // because MySQL 8.0 cannot resolve correlated JSON_TABLE column
+            // references when placed inside OR expressions at any level.
+            ->orWhereIn('resources.id', function (\Illuminate\Database\Query\Builder $sub) use ($bounds, $searchCrossesAM): void {
+                $this->buildPolygonBboxSubquery($sub, $bounds, $searchCrossesAM);
             });
         });
     }
@@ -501,54 +498,50 @@ class PortalSearchService
     /**
      * Apply polygon bounding box overlap check using JSON extraction.
      *
-     * Since polygon_points is stored as a JSON array, we extract the
-     * min/max coordinates directly in SQL. Falls back to matching all
-     * polygon rows on SQLite (which lacks JSON_TABLE).
+     * Extracts min/max lat/lng from the polygon_points JSON array in a single
+     * JSON_TABLE JOIN to extract min/max lat/lng and checks whether the polygon's
+     * bounding box overlaps the search bounds. Falls back to matching all polygon
+     * rows on SQLite (which lacks JSON_TABLE).
      *
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * Uses a non-correlated IN subquery with JSON_TABLE in the FROM clause
+     * (as an implicit cross join) instead of a correlated EXISTS, because
+     * MySQL 8.0 cannot resolve correlated JSON_TABLE column references inside
+     * OR expressions.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $sub
      * @param  array{north: float, south: float, east: float, west: float}  $bounds
      */
-    private function applyPolygonBboxOverlap(Builder $query, array $bounds, bool $searchCrossesAM): void
+    private function buildPolygonBboxSubquery(\Illuminate\Database\Query\Builder $sub, array $bounds, bool $searchCrossesAM): void
     {
         $driver = DB::getDriverName();
 
         if ($driver === 'mysql' || $driver === 'mariadb') {
-            // MySQL 8+: Extract min/max from JSON array using JSON_TABLE
-            // The polygon's bounding box overlaps the search box when:
-            // maxLat >= search.south AND minLat <= search.north AND lng overlap
-            $query->whereRaw(
-                '(SELECT MAX(pt.lat) FROM JSON_TABLE(polygon_points, \'$[*]\' COLUMNS(lat DOUBLE PATH \'$.latitude\')) AS pt) >= ?',
-                [$bounds['south']]
-            )->whereRaw(
-                '(SELECT MIN(pt.lat) FROM JSON_TABLE(polygon_points, \'$[*]\' COLUMNS(lat DOUBLE PATH \'$.latitude\')) AS pt) <= ?',
-                [$bounds['north']]
-            );
+            $lngHaving = $searchCrossesAM
+                ? '(MAX(pt.lng) >= ? OR MIN(pt.lng) <= ?)'
+                : '(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)';
 
-            if ($searchCrossesAM) {
-                $query->where(function (Builder $lng) use ($bounds): void {
-                    $lng->whereRaw(
-                        '(SELECT MAX(pt.lng) FROM JSON_TABLE(polygon_points, \'$[*]\' COLUMNS(lng DOUBLE PATH \'$.longitude\')) AS pt) >= ?',
-                        [$bounds['west']]
-                    )->orWhereRaw(
-                        '(SELECT MIN(pt.lng) FROM JSON_TABLE(polygon_points, \'$[*]\' COLUMNS(lng DOUBLE PATH \'$.longitude\')) AS pt) <= ?',
-                        [$bounds['east']]
-                    );
-                });
-            } else {
-                $query->whereRaw(
-                    '(SELECT MAX(pt.lng) FROM JSON_TABLE(polygon_points, \'$[*]\' COLUMNS(lng DOUBLE PATH \'$.longitude\')) AS pt) >= ?',
-                    [$bounds['west']]
-                )->whereRaw(
-                    '(SELECT MIN(pt.lng) FROM JSON_TABLE(polygon_points, \'$[*]\' COLUMNS(lng DOUBLE PATH \'$.longitude\')) AS pt) <= ?',
-                    [$bounds['east']]
+            $lngParams = $searchCrossesAM
+                ? [$bounds['west'], $bounds['east']]
+                : [$bounds['west'], $bounds['east']];
+
+            $sub->select('gl.resource_id')
+                ->fromRaw(
+                    "geo_locations gl, JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
+                    . "lat DOUBLE PATH '\$.latitude', "
+                    . "lng DOUBLE PATH '\$.longitude')) AS pt"
+                )
+                ->whereNotNull('gl.polygon_points')
+                ->groupBy('gl.resource_id')
+                ->havingRaw(
+                    'MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND ' . $lngHaving,
+                    [$bounds['south'], $bounds['north'], ...$lngParams]
                 );
-            }
         } else {
-            // SQLite fallback: JSON_TABLE not available.
-            // Match any geo_location row that has polygon_points.
-            // This is a conservative over-match that will include polygons
-            // outside the search bounds, but avoids false negatives.
-            // Acceptable because spatial filter is a UI convenience, not a strict API.
+            // SQLite fallback: JSON_TABLE not available — match all rows with
+            // polygon_points (conservative over-match).
+            $sub->select('resource_id')
+                ->from('geo_locations')
+                ->whereNotNull('polygon_points');
         }
     }
 

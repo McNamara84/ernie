@@ -105,6 +105,7 @@ function FitBoundsControl({
     const map = useMap();
     const hasInitialFit = useRef(false);
     const prevGeoFilterEnabled = useRef(geoFilterEnabled);
+    const prevResourceKey = useRef('');
 
     const fitToAllMarkers = useCallback(() => {
         skipNextMoveEnd.current = true;
@@ -161,6 +162,23 @@ function FitBoundsControl({
             fitToAllMarkers();
         }
     }, [geoFilterEnabled, fitToAllMarkers]);
+
+    // Re-fit when resources change while geo filter is off (e.g. text search
+    // or type filter changed the dataset) so new markers are not off-screen.
+    useEffect(() => {
+        const resourceKey = resources.map(r => r.id).join(',');
+        const changed = prevResourceKey.current !== resourceKey;
+        prevResourceKey.current = resourceKey;
+
+        // Skip the initial render (handled by the ResizeObserver above)
+        if (!hasInitialFit.current) return;
+        // Only auto-fit when geo filter is not active (user controls viewport when filtering)
+        if (geoFilterEnabled) return;
+        // Guard: only re-fit when the set of resources actually changed
+        if (!changed) return;
+
+        fitToAllMarkers();
+    }, [resources, geoFilterEnabled, fitToAllMarkers]);
 
     return null;
 }
