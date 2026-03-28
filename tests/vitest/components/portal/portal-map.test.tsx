@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import userEvent from '@testing-library/user-event';
 import { act, render, screen } from '@tests/vitest/utils/render';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PortalGeoLocation, PortalResource } from '@/types/portal';
 
@@ -645,6 +645,109 @@ describe('PortalMap', () => {
 
             // Map should render but the collapsible section should not
             expect(screen.getAllByTestId('map-container').length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('FitBoundsControl Branches', () => {
+        // Use vi.stubGlobal to override the read-only ResizeObserver set
+        // by vitest.setup.ts (Object.defineProperty makes it non-writable).
+        function installImmediateResizeObserver() {
+            vi.stubGlobal(
+                'ResizeObserver',
+                class {
+                    private cb: ResizeObserverCallback;
+                    constructor(cb: ResizeObserverCallback) {
+                        this.cb = cb;
+                    }
+                    observe() {
+                        this.cb([], this as unknown as ResizeObserver);
+                    }
+                    unobserve() {}
+                    disconnect() {}
+                },
+            );
+        }
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            vi.useRealTimers();
+        });
+
+        it('skips initial auto-fit when geoFilterEnabled is true', () => {
+            vi.useFakeTimers();
+            installImmediateResizeObserver();
+            mockMapInstance.fitBounds.mockClear();
+            mockMapInstance.setView.mockClear();
+
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(<PortalMap resources={resources} geoFilterEnabled={true} />);
+
+            // Advance well past the 150 ms debounce — still no fit expected
+            act(() => {
+                vi.advanceTimersByTime(500);
+            });
+
+            expect(mockMapInstance.fitBounds).not.toHaveBeenCalled();
+            expect(mockMapInstance.setView).not.toHaveBeenCalled();
+        });
+
+        it('performs initial auto-fit when geoFilterEnabled is false', () => {
+            vi.useFakeTimers();
+            installImmediateResizeObserver();
+            mockMapInstance.fitBounds.mockClear();
+            mockMapInstance.setView.mockClear();
+
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+            render(<PortalMap resources={resources} geoFilterEnabled={false} />);
+
+            act(() => {
+                vi.advanceTimersByTime(200);
+            });
+
+            // At least one FitBoundsControl instance should have called fitBounds
+            expect(mockMapInstance.fitBounds).toHaveBeenCalled();
+        });
+
+        it('re-fits when geoFilterEnabled transitions from true to false', () => {
+            vi.useFakeTimers();
+            installImmediateResizeObserver();
+            mockMapInstance.fitBounds.mockClear();
+            mockMapInstance.setView.mockClear();
+
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                ]),
+            ];
+
+            // 1) Start with geoFilterEnabled=false so the initial fit runs
+            const { rerender } = render(
+                <PortalMap resources={resources} geoFilterEnabled={false} />,
+            );
+            act(() => {
+                vi.advanceTimersByTime(200);
+            });
+            expect(mockMapInstance.fitBounds).toHaveBeenCalled();
+            mockMapInstance.fitBounds.mockClear();
+
+            // 2) Enable geo filter — no additional fit expected
+            rerender(<PortalMap resources={resources} geoFilterEnabled={true} />);
+            act(() => {
+                vi.advanceTimersByTime(200);
+            });
+            expect(mockMapInstance.fitBounds).not.toHaveBeenCalled();
+
+            // 3) Disable geo filter again — re-fit should happen synchronously
+            rerender(<PortalMap resources={resources} geoFilterEnabled={false} />);
+            expect(mockMapInstance.fitBounds).toHaveBeenCalled();
         });
     });
 });

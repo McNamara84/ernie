@@ -198,20 +198,40 @@ function FitBoundsControl({
 
 /**
  * Observe the map container for size changes and call invalidateSize().
+ * Uses rAF to coalesce multiple resize events per frame and avoid unnecessary reflows.
+ * Falls back to a window resize listener when ResizeObserver is unavailable.
  * Must be rendered inside a MapContainer.
  */
 function MapResizeHandler() {
     const map = useMap();
 
     useEffect(() => {
-        if (typeof ResizeObserver === 'undefined') return;
-
         const container = map.getContainer();
-        const observer = new ResizeObserver(() => {
-            map.invalidateSize();
-        });
-        observer.observe(container);
-        return () => observer.disconnect();
+        let rafId: number | null = null;
+
+        const scheduleInvalidate = () => {
+            if (rafId !== null) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                map.invalidateSize();
+            });
+        };
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(scheduleInvalidate);
+            observer.observe(container);
+            return () => {
+                observer.disconnect();
+                if (rafId !== null) cancelAnimationFrame(rafId);
+            };
+        }
+
+        // Fallback for environments without ResizeObserver (older browsers, embedded webviews)
+        window.addEventListener('resize', scheduleInvalidate);
+        return () => {
+            window.removeEventListener('resize', scheduleInvalidate);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
     }, [map]);
 
     return null;
