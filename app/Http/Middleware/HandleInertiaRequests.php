@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
 use App\Models\SuggestedRelation;
+use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
@@ -15,6 +16,7 @@ use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    use ChecksCacheTagging;
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -81,13 +83,28 @@ class HandleInertiaRequests extends Middleware
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
             'pendingSuggestedRelationsCount' => $request->user()?->can('access-assistance')
-                ? Cache::remember(
-                    CacheKey::SUGGESTED_RELATIONS_COUNT->key(),
-                    CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
-                    fn () => SuggestedRelation::count(),
-                )
+                ? $this->getCacheInstance(CacheKey::SUGGESTED_RELATIONS_COUNT->tags())
+                    ->remember(
+                        CacheKey::SUGGESTED_RELATIONS_COUNT->key(),
+                        CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
+                        fn () => SuggestedRelation::count(),
+                    )
                 : 0,
         ];
+    }
+
+    /**
+     * Get cache instance with tags if supported, otherwise without tags.
+     *
+     * @param  array<int, string>  $tags
+     */
+    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
+    {
+        if ($this->supportsTagging()) {
+            return Cache::tags($tags);
+        }
+
+        return Cache::store();
     }
 
     /**

@@ -40,7 +40,8 @@ Schedule::call(function () {
     ->withoutOverlapping();
 
 // Discover new related works every Sunday at 02:00 UTC
-Schedule::job(new DiscoverRelationsJob(Str::uuid()->toString()))
-    ->weeklyOn(0, '02:00')
+Schedule::call(function () {
+    DiscoverRelationsJob::dispatch(Str::uuid()->toString());
+})->weeklyOn(0, '02:00')
     ->name('discover-relations')
     ->withoutOverlapping();

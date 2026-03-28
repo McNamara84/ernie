@@ -12,7 +12,9 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -24,6 +26,7 @@ use Illuminate\Support\Facades\Log;
  */
 class RelationDiscoveryService
 {
+    use ChecksCacheTagging;
     public function __construct(
         private readonly ScholExplorerService $scholExplorerService,
         private readonly DataCiteEventDataService $dataCiteEventDataService,
@@ -38,11 +41,10 @@ class RelationDiscoveryService
      */
     public function discoverAll(?callable $progressCallback = null): int
     {
-        $resources = Resource::whereNotNull('doi')
+        $total = Resource::whereNotNull('doi')
             ->where('doi', '!=', '')
-            ->get(['id', 'doi']);
+            ->count();
 
-        $total = $resources->count();
         $processed = 0;
         $newCount = 0;
 
@@ -50,23 +52,64 @@ class RelationDiscoveryService
         $identifierTypeLookup = IdentifierType::pluck('id', 'slug')->all();
         $relationTypeLookup = RelationType::pluck('id', 'slug')->all();
 
-        foreach ($resources as $resource) {
-            /** @var string $doi */
-            $doi = $resource->doi;
-
-            $relations = $this->discoverForDoi($doi);
-            $newCount += $this->storeNewSuggestions(
-                $resource->id,
-                $relations,
+        Resource::whereNotNull('doi')
+            ->where('doi', '!=', '')
+            ->select(['id', 'doi'])
+            ->chunkById(100, function ($resources) use (
                 $identifierTypeLookup,
                 $relationTypeLookup,
-            );
+                $total,
+                &$processed,
+                &$newCount,
+                $progressCallback,
+            ) {
+                $resourceIds = $resources->pluck('id')->all();
 
-            $processed++;
-            if ($progressCallback !== null) {
-                $progressCallback($processed, $total);
-            }
-        }
+                // Bulk-preload existing relations for this chunk
+                $existingKeys = RelatedIdentifier::whereIn('resource_id', $resourceIds)
+                    ->get(['resource_id', 'identifier', 'relation_type_id'])
+                    ->groupBy('resource_id')
+                    ->map(fn ($items) => $items->map(fn (RelatedIdentifier $ri) => mb_strtolower($ri->identifier) . '|' . $ri->relation_type_id)->all())
+                    ->all();
+
+                $dismissedKeys = DismissedRelation::whereIn('resource_id', $resourceIds)
+                    ->get(['resource_id', 'identifier', 'relation_type_id'])
+                    ->groupBy('resource_id')
+                    ->map(fn ($items) => $items->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier) . '|' . $dr->relation_type_id)->all())
+                    ->all();
+
+                $suggestedKeys = SuggestedRelation::whereIn('resource_id', $resourceIds)
+                    ->get(['resource_id', 'identifier', 'relation_type_id'])
+                    ->groupBy('resource_id')
+                    ->map(fn ($items) => $items->map(fn (SuggestedRelation $sr) => mb_strtolower($sr->identifier) . '|' . $sr->relation_type_id)->all())
+                    ->all();
+
+                foreach ($resources as $resource) {
+                    /** @var string $doi */
+                    $doi = $resource->doi;
+                    $resourceId = $resource->id;
+
+                    $knownSet = array_flip(array_merge(
+                        $existingKeys[$resourceId] ?? [],
+                        $dismissedKeys[$resourceId] ?? [],
+                        $suggestedKeys[$resourceId] ?? [],
+                    ));
+
+                    $relations = $this->discoverForDoi($doi);
+                    $newCount += $this->storeNewSuggestions(
+                        $resourceId,
+                        $relations,
+                        $identifierTypeLookup,
+                        $relationTypeLookup,
+                        $knownSet,
+                    );
+
+                    $processed++;
+                    if ($progressCallback !== null) {
+                        $progressCallback($processed, $total);
+                    }
+                }
+            });
 
         Log::info('Relation discovery completed', [
             'total_dois' => $total,
@@ -74,7 +117,7 @@ class RelationDiscoveryService
         ]);
 
         if ($newCount > 0) {
-            Cache::forget(CacheKey::SUGGESTED_RELATIONS_COUNT->key());
+            $this->forgetCacheKey(CacheKey::SUGGESTED_RELATIONS_COUNT);
         }
 
         return $newCount;
@@ -120,12 +163,13 @@ class RelationDiscoveryService
     }
 
     /**
-     * Store new suggestions, filtering out existing and dismissed relations.
+     * Store new suggestions, filtering out known relations using pre-loaded set.
      *
      * @param  int  $resourceId
      * @param  array<int, array<string, mixed>>  $relations
      * @param  array<string, int>  $identifierTypeLookup
      * @param  array<string, int>  $relationTypeLookup
+     * @param  array<string, true|int>  $knownSet  Pre-loaded set of known relation keys
      * @return int Number of newly stored suggestions
      */
     private function storeNewSuggestions(
@@ -133,31 +177,11 @@ class RelationDiscoveryService
         array $relations,
         array $identifierTypeLookup,
         array $relationTypeLookup,
+        array $knownSet,
     ): int {
         if (empty($relations)) {
             return 0;
         }
-
-        // Get existing related identifiers for this resource
-        $existingRelations = RelatedIdentifier::where('resource_id', $resourceId)
-            ->get(['identifier', 'relation_type_id'])
-            ->map(fn (RelatedIdentifier $ri) => mb_strtolower($ri->identifier) . '|' . $ri->relation_type_id)
-            ->toArray();
-
-        // Get dismissed relations for this resource
-        $dismissedRelations = DismissedRelation::where('resource_id', $resourceId)
-            ->get(['identifier', 'relation_type_id'])
-            ->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier) . '|' . $dr->relation_type_id)
-            ->toArray();
-
-        // Get already suggested relations for this resource
-        $suggestedRelations = SuggestedRelation::where('resource_id', $resourceId)
-            ->get(['identifier', 'relation_type_id'])
-            ->map(fn (SuggestedRelation $sr) => mb_strtolower($sr->identifier) . '|' . $sr->relation_type_id)
-            ->toArray();
-
-        $knownKeys = array_merge($existingRelations, $dismissedRelations, $suggestedRelations);
-        $knownSet = array_flip($knownKeys);
 
         $newCount = 0;
 
@@ -205,30 +229,38 @@ class RelationDiscoveryService
     /**
      * Accept a suggested relation: creates a RelatedIdentifier and syncs to DataCite.
      *
+     * Uses a DB transaction for atomicity and firstOrCreate for idempotency.
+     *
      * @return array{success: bool, datacite_synced: bool, message: string}
      */
     public function acceptRelation(SuggestedRelation $suggestion): array
     {
         $resource = $suggestion->resource;
 
-        // Determine next position for the resource's related identifiers
-        $maxPosition = RelatedIdentifier::where('resource_id', $resource->id)
-            ->max('position') ?? -1;
+        DB::transaction(function () use ($suggestion, $resource) {
+            // Determine next position for the resource's related identifiers
+            $maxPosition = RelatedIdentifier::where('resource_id', $resource->id)
+                ->max('position') ?? -1;
 
-        // Create the new RelatedIdentifier
-        RelatedIdentifier::create([
-            'resource_id' => $resource->id,
-            'identifier' => $suggestion->identifier,
-            'identifier_type_id' => $suggestion->identifier_type_id,
-            'relation_type_id' => $suggestion->relation_type_id,
-            'position' => $maxPosition + 1,
-        ]);
+            // Create the new RelatedIdentifier (idempotent via firstOrCreate)
+            RelatedIdentifier::firstOrCreate(
+                [
+                    'resource_id' => $resource->id,
+                    'identifier' => $suggestion->identifier,
+                    'relation_type_id' => $suggestion->relation_type_id,
+                ],
+                [
+                    'identifier_type_id' => $suggestion->identifier_type_id,
+                    'position' => $maxPosition + 1,
+                ],
+            );
 
-        // Delete the suggestion
-        $suggestion->delete();
+            // Delete the suggestion
+            $suggestion->delete();
+        });
 
         // Invalidate sidebar badge cache
-        Cache::forget(CacheKey::SUGGESTED_RELATIONS_COUNT->key());
+        $this->forgetCacheKey(CacheKey::SUGGESTED_RELATIONS_COUNT);
 
         // Sync to DataCite
         $syncResult = $this->dataCiteSyncService->syncIfRegistered($resource);
@@ -258,19 +290,39 @@ class RelationDiscoveryService
 
     /**
      * Decline a suggested relation: stores in dismissed_relations to prevent re-suggestion.
+     *
+     * Uses a DB transaction for atomicity and firstOrCreate for idempotency.
      */
     public function declineRelation(SuggestedRelation $suggestion, User $user, ?string $reason = null): void
     {
-        DismissedRelation::create([
-            'resource_id' => $suggestion->resource_id,
-            'identifier' => $suggestion->identifier,
-            'relation_type_id' => $suggestion->relation_type_id,
-            'dismissed_by' => $user->id,
-            'reason' => $reason,
-        ]);
+        DB::transaction(function () use ($suggestion, $user, $reason) {
+            DismissedRelation::firstOrCreate(
+                [
+                    'resource_id' => $suggestion->resource_id,
+                    'identifier' => $suggestion->identifier,
+                    'relation_type_id' => $suggestion->relation_type_id,
+                ],
+                [
+                    'dismissed_by' => $user->id,
+                    'reason' => $reason,
+                ],
+            );
 
-        $suggestion->delete();
+            $suggestion->delete();
+        });
 
-        Cache::forget(CacheKey::SUGGESTED_RELATIONS_COUNT->key());
+        $this->forgetCacheKey(CacheKey::SUGGESTED_RELATIONS_COUNT);
+    }
+
+    /**
+     * Forget a cache key using tags when supported, falling back to direct forget.
+     */
+    private function forgetCacheKey(CacheKey $cacheKey): void
+    {
+        if ($this->supportsTagging()) {
+            Cache::tags($cacheKey->tags())->flush();
+        } else {
+            Cache::forget($cacheKey->key());
+        }
     }
 }
