@@ -29,7 +29,8 @@ class AssistanceController extends Controller
 
         $paginator = SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
             ->orderBy('discovered_at', 'desc')
-            ->paginate($perPage);
+            ->paginate($perPage)
+            ->withQueryString();
 
         $suggestions = $paginator->through(fn (SuggestedRelation $s) => [
             'id' => $s->id,
