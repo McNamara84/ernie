@@ -104,6 +104,15 @@ class DataCiteEventDataService
             }
 
             $data = $response->json();
+
+            if (! is_array($data)) {
+                Log::warning('DataCite Event Data API returned unexpected response format', [
+                    'doi' => $doi,
+                ]);
+
+                return [];
+            }
+
             $events = $data['data'] ?? [];
 
             foreach ($events as $event) {
@@ -112,7 +121,7 @@ class DataCiteEventDataService
                     $relations[] = $parsed;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('DataCite Event Data API request failed', [
                 'doi' => $doi,
                 'error' => $e->getMessage(),

@@ -106,7 +106,16 @@ class ScholExplorerService
                 }
 
                 $data = $response->json();
-                $results = $data['result'] ?? [];
+
+                if (! is_array($data) || ! isset($data['result'])) {
+                    Log::warning('ScholExplorer API returned unexpected response format', [
+                        'doi' => $doi,
+                        'page' => $page,
+                    ]);
+                    break;
+                }
+
+                $results = $data['result'];
                 $totalPages = $data['totalPages'] ?? 1;
 
                 foreach ($results as $link) {
@@ -118,7 +127,7 @@ class ScholExplorerService
 
                 $page++;
             } while ($page < $totalPages && $page < $maxPages);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('ScholExplorer API request failed', [
                 'doi' => $doi,
                 'error' => $e->getMessage(),
@@ -162,7 +171,16 @@ class ScholExplorerService
         // Map the relationship type
         $relationshipType = $link['RelationshipType'] ?? [];
         $relationName = mb_strtolower((string) ($relationshipType['Name'] ?? ''));
-        $relationType = self::RELATION_TYPE_MAP[$relationName] ?? 'References';
+        $relationType = self::RELATION_TYPE_MAP[$relationName] ?? null;
+
+        if ($relationType === null) {
+            Log::info('ScholExplorer: skipping unknown relationship type', [
+                'relationship_name' => $relationName,
+                'identifier' => $identifier,
+            ]);
+
+            return null;
+        }
 
         // Map identifier scheme
         $identifierType = $this->mapIdentifierType($idScheme);
