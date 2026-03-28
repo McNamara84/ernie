@@ -489,72 +489,78 @@ class PortalSearchService
             // Uses a non-correlated IN subquery instead of correlated EXISTS
             // because MySQL 8.0 cannot resolve correlated JSON_TABLE column
             // references when placed inside OR expressions at any level.
-            ->orWhereIn('resources.id', function (\Illuminate\Database\Query\Builder $sub) use ($bounds, $searchCrossesAM): void {
-                $this->buildPolygonBboxSubquery($sub, $bounds, $searchCrossesAM);
-            });
+            ->orWhereRaw(...$this->buildPolygonBboxSubquery($bounds, $searchCrossesAM));
         });
     }
 
     /**
-     * Apply polygon bounding box overlap check using JSON extraction.
+     * Build a raw SQL IN-clause for polygon bounding box overlap.
      *
-     * Extracts min/max lat/lng from the polygon_points JSON array in a single
-     * JSON_TABLE JOIN to extract min/max lat/lng and checks whether the polygon's
-     * bounding box overlaps the search bounds. Falls back to json_each() on
-     * SQLite (which lacks JSON_TABLE).
+     * Returns a [sql, bindings] tuple for use with whereRaw(). Extracts
+     * min/max lat/lng from the polygon_points JSON array and checks whether
+     * the polygon's vertex bounding box overlaps the search bounds. Uses
+     * JSON_TABLE on MySQL/MariaDB and json_each() on SQLite.
      *
-     * Uses a non-correlated IN subquery with JSON_TABLE in the FROM clause
-     * (as an implicit cross join) instead of a correlated EXISTS, because
-     * MySQL 8.0 cannot resolve correlated JSON_TABLE column references inside
-     * OR expressions.
+     * Uses a non-correlated IN subquery with the JSON function in the FROM
+     * clause (as an implicit cross join) instead of a correlated EXISTS,
+     * because MySQL 8.0 cannot resolve correlated JSON_TABLE column
+     * references inside OR expressions.
      *
-     * @param  \Illuminate\Database\Query\Builder  $sub
      * @param  array{north: float, south: float, east: float, west: float}  $bounds
+     * @return array{literal-string, list<float>}
      */
-    private function buildPolygonBboxSubquery(\Illuminate\Database\Query\Builder $sub, array $bounds, bool $searchCrossesAM): void
+    private function buildPolygonBboxSubquery(array $bounds, bool $searchCrossesAM): array
     {
         $driver = DB::getDriverName();
+        $params = [$bounds['south'], $bounds['north'], $bounds['west'], $bounds['east']];
 
         if ($driver === 'mysql' || $driver === 'mariadb') {
-            $lngHaving = $searchCrossesAM
-                ? '(MAX(pt.lng) >= ? OR MIN(pt.lng) <= ?)'
-                : '(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)';
-
-            $lngParams = $searchCrossesAM
-                ? [$bounds['west'], $bounds['east']]
-                : [$bounds['west'], $bounds['east']];
-
-            $sub->select('gl.resource_id')
-                ->fromRaw(
-                    "geo_locations gl, JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
+            if ($searchCrossesAM) {
+                $sql = "resources.id IN ("
+                    . "SELECT gl.resource_id FROM geo_locations gl, "
+                    . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
                     . "lat DOUBLE PATH '\$.latitude', "
-                    . "lng DOUBLE PATH '\$.longitude')) AS pt"
-                )
-                ->whereNotNull('gl.polygon_points')
-                ->groupBy('gl.resource_id')
-                ->havingRaw(
-                    'MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND ' . $lngHaving,
-                    [$bounds['south'], $bounds['north'], ...$lngParams]
-                );
+                    . "lng DOUBLE PATH '\$.longitude')) AS pt "
+                    . "WHERE gl.polygon_points IS NOT NULL "
+                    . "GROUP BY gl.resource_id "
+                    . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND "
+                    . "(MAX(pt.lng) >= ? OR MIN(pt.lng) <= ?)"
+                    . ")";
+            } else {
+                $sql = "resources.id IN ("
+                    . "SELECT gl.resource_id FROM geo_locations gl, "
+                    . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
+                    . "lat DOUBLE PATH '\$.latitude', "
+                    . "lng DOUBLE PATH '\$.longitude')) AS pt "
+                    . "WHERE gl.polygon_points IS NOT NULL "
+                    . "GROUP BY gl.resource_id "
+                    . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND "
+                    . "(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)"
+                    . ")";
+            }
+        } elseif ($searchCrossesAM) {
+            $sql = "resources.id IN ("
+                . "SELECT gl.resource_id FROM geo_locations gl, json_each(gl.polygon_points) j "
+                . "WHERE gl.polygon_points IS NOT NULL "
+                . "GROUP BY gl.resource_id "
+                . "HAVING MAX(json_extract(j.value, '$.latitude')) >= ? "
+                . "AND MIN(json_extract(j.value, '$.latitude')) <= ? "
+                . "AND (MAX(json_extract(j.value, '$.longitude')) >= ? "
+                . "OR MIN(json_extract(j.value, '$.longitude')) <= ?)"
+                . ")";
         } else {
-            // SQLite fallback: use json_each() instead of JSON_TABLE.
-            $lngHaving = $searchCrossesAM
-                ? "(MAX(json_extract(j.value, '$.longitude')) >= ? OR MIN(json_extract(j.value, '$.longitude')) <= ?)"
-                : "(MAX(json_extract(j.value, '$.longitude')) >= ? AND MIN(json_extract(j.value, '$.longitude')) <= ?)";
-
-            $lngParams = $searchCrossesAM
-                ? [$bounds['west'], $bounds['east']]
-                : [$bounds['west'], $bounds['east']];
-
-            $sub->select('gl.resource_id')
-                ->fromRaw('geo_locations gl, json_each(gl.polygon_points) AS j')
-                ->whereNotNull('gl.polygon_points')
-                ->groupBy('gl.resource_id')
-                ->havingRaw(
-                    "MAX(json_extract(j.value, '$.latitude')) >= ? AND MIN(json_extract(j.value, '$.latitude')) <= ? AND " . $lngHaving,
-                    [$bounds['south'], $bounds['north'], ...$lngParams]
-                );
+            $sql = "resources.id IN ("
+                . "SELECT gl.resource_id FROM geo_locations gl, json_each(gl.polygon_points) j "
+                . "WHERE gl.polygon_points IS NOT NULL "
+                . "GROUP BY gl.resource_id "
+                . "HAVING MAX(json_extract(j.value, '$.latitude')) >= ? "
+                . "AND MIN(json_extract(j.value, '$.latitude')) <= ? "
+                . "AND (MAX(json_extract(j.value, '$.longitude')) >= ? "
+                . "AND MIN(json_extract(j.value, '$.longitude')) <= ?)"
+                . ")";
         }
+
+        return [$sql, $params];
     }
 
     /**
