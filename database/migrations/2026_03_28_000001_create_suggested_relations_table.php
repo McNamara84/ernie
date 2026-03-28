@@ -29,9 +29,16 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Hash-based unique constraint to avoid MySQL key length limits with 2183-char identifier
-        DB::statement('ALTER TABLE suggested_relations ADD COLUMN identifier_hash CHAR(64) GENERATED ALWAYS AS (SHA2(identifier, 256)) STORED AFTER identifier');
-        DB::statement('ALTER TABLE suggested_relations ADD UNIQUE INDEX suggested_relations_unique (resource_id, identifier_hash, relation_type_id)');
+        // MySQL needs a hash-based unique constraint because 2183-char identifier exceeds key length limit
+        // SQLite has no key length limit and can index the identifier directly
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE suggested_relations ADD COLUMN identifier_hash CHAR(64) GENERATED ALWAYS AS (SHA2(identifier, 256)) STORED AFTER identifier');
+            DB::statement('ALTER TABLE suggested_relations ADD UNIQUE INDEX suggested_relations_unique (resource_id, identifier_hash, relation_type_id)');
+        } else {
+            Schema::table('suggested_relations', function (Blueprint $table): void {
+                $table->unique(['resource_id', 'identifier', 'relation_type_id'], 'suggested_relations_unique');
+            });
+        }
     }
 
     /**
