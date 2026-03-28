@@ -187,7 +187,7 @@ class DataCiteEventDataService
      */
     private function extractDoiFromUrl(string $url): ?string
     {
-        if (preg_match('#^https?://doi\.org/(.+)$#i', $url, $matches) === 1) {
+        if (preg_match('#^https?://(?:dx\.)?doi\.org/(.+)$#i', $url, $matches) === 1) {
             return $matches[1];
         }
 

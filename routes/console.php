@@ -42,7 +42,7 @@ Schedule::call(function () {
 
 // Discover new related works every Sunday at 02:00 UTC
 Schedule::call(function () {
-    $lock = Cache::lock('relation_discovery_running', 3600);
+    $lock = Cache::lock('relation_discovery_running', 7200);
 
     if ($lock->get()) {
         DiscoverRelationsJob::dispatch(Str::uuid()->toString(), $lock->owner());

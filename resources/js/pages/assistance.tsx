@@ -295,9 +295,9 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
                                     Showing {pagination.from ?? 0}–{pagination.to ?? 0} of {pagination.total}
                                 </p>
                                 <div className="flex gap-1">
-                                    {pagination.links.map((link) => (
+                                    {pagination.links.map((link, index) => (
                                         <Button
-                                            key={link.label}
+                                            key={link.url ?? `${link.label}-${index}`}
                                             variant={link.active ? 'default' : 'outline'}
                                             size="sm"
                                             disabled={!link.url}

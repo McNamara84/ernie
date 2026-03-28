@@ -61,7 +61,7 @@ class AssistanceController extends Controller
      */
     public function check(): JsonResponse
     {
-        $lock = Cache::lock('relation_discovery_running', 3600);
+        $lock = Cache::lock('relation_discovery_running', 7200);
 
         if (! $lock->get()) {
             return response()->json([
@@ -99,6 +99,8 @@ class AssistanceController extends Controller
                 'progress' => 'Job not found.',
             ], 404);
         }
+
+        unset($status['lockOwner']);
 
         return response()->json($status);
     }

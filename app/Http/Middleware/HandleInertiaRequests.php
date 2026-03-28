@@ -11,7 +11,6 @@ use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -91,20 +90,6 @@ class HandleInertiaRequests extends Middleware
                     )
                 : 0,
         ];
-    }
-
-    /**
-     * Get cache instance with tags if supported, otherwise without tags.
-     *
-     * @param  array<int, string>  $tags
-     */
-    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
-    {
-        if ($this->supportsTagging()) {
-            return Cache::tags($tags);
-        }
-
-        return Cache::store();
     }
 
     /**

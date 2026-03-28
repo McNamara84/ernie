@@ -20,20 +20,6 @@ class VocabularyCacheService
     use ChecksCacheTagging;
 
     /**
-     * Get cache instance with tags if supported, otherwise without tags.
-     *
-     * @param  array<int, string>  $tags
-     */
-    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
-    {
-        if ($this->supportsTagging()) {
-            return Cache::tags($tags);
-        }
-
-        return Cache::store();
-    }
-
-    /**
      * Cache GCMD science keywords.
      *
      * @template TValue

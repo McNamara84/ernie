@@ -81,19 +81,6 @@ class DataCiteApiService
     }
 
     /**
-     * @param  array<string>  $tags
-     * @return \Illuminate\Contracts\Cache\Repository
-     */
-    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
-    {
-        if ($this->supportsTagging()) {
-            return Cache::tags($tags);
-        }
-
-        return Cache::store();
-    }
-
-    /**
      * Fetches metadata from doi.org Content Negotiation API.
      *
      * Returns the metadata array on success, CACHE_NULL_SENTINEL for confirmed 404s,
