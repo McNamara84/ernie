@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Cache;
  */
 #[Description('Clear application caches by category')]
 #[Signature('cache:clear-app
-                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, doi, system, all)}')]
+                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, doi, system, assistance, all)}')]
 class ClearApplicationCache extends Command
 {
     use ChecksCacheTagging;
@@ -31,7 +31,7 @@ class ClearApplicationCache extends Command
     {
         $category = $this->argument('category') ?? 'all';
 
-        $validCategories = ['resources', 'vocabularies', 'ror', 'orcid', 'doi', 'system', 'all'];
+        $validCategories = ['resources', 'vocabularies', 'ror', 'orcid', 'doi', 'system', 'assistance', 'all'];
 
         if (! in_array($category, $validCategories, true)) {
             $this->error('Invalid category. Valid categories: '.implode(', ', $validCategories));
@@ -61,7 +61,7 @@ class ClearApplicationCache extends Command
     {
         if ($this->supportsTagging()) {
             // Note: 'affiliations' is a secondary tag for 'ror', not a separate category
-            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'doi', 'system'];
+            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'doi', 'system', 'assistance'];
 
             foreach ($tags as $tag) {
                 Cache::tags([$tag])->flush();

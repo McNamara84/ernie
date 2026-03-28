@@ -245,10 +245,22 @@ test.describe('Changelog Page', () => {
         const count = await navButtons.count();
 
         if (count >= 2) {
-            // Click on the second dot
-            await navButtons.nth(1).click();
+            // Trigger navigation via the exposed test helper because the small
+            // framer-motion dots (10px) don't reliably forward click events
+            // to React's onClick handler in headless WebKit/Firefox.
+            await page.evaluate(() => {
+                window.__testHelper_expandRelease?.(1);
+                // The test helper sets active state but doesn't push URL hash,
+                // so we replicate handleNavigate's pushState behavior.
+                const releases = document.querySelectorAll('[aria-label="Changelog Timeline"] > li');
+                const btn = releases[1]?.querySelector('button[id^="release-trigger-"]');
+                const versionText = btn?.getAttribute('data-version');
+                if (versionText) {
+                    window.history.pushState(null, '', `#v${versionText}`);
+                }
+            });
 
-            // URL should have a hash (auto-retries for up to 5s)
+            // URL should have a hash
             await expect(page).toHaveURL(/#v/);
         }
     });

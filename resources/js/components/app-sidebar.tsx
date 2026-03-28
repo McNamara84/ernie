@@ -12,6 +12,7 @@ import {
     MapPin,
     ScrollText,
     Settings,
+    Sparkles,
     Users,
 } from 'lucide-react';
 
@@ -20,12 +21,12 @@ import { NavSection } from '@/components/nav-section';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { dashboard, settings } from '@/routes';
-import { type NavItem,type User as AuthUser } from '@/types';
+import { type NavItem, type SharedData, type User as AuthUser } from '@/types';
 
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
+    const { auth, pendingSuggestedRelationsCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
 
     // Dashboard - always visible
     const dashboardItems: NavItem[] = [
@@ -72,6 +73,18 @@ export function AppSidebar() {
 
     // ADMINISTRATION section - dynamically built based on granular permissions (Issue #379)
     const administrationItems: NavItem[] = [];
+
+    // TOOLS section - dynamically built based on permissions
+    const toolsItems: NavItem[] = [];
+
+    if (auth.user?.can_access_assistance) {
+        toolsItems.push({
+            title: 'Assistance',
+            href: '/assistance',
+            icon: Sparkles,
+            badge: pendingSuggestedRelationsCount ?? 0,
+        });
+    }
 
     if (auth.user?.can_access_old_datasets) {
         administrationItems.push({
@@ -147,6 +160,7 @@ export function AppSidebar() {
                 <NavSection items={dashboardItems} />
                 <NavSection label="Data Curation" items={dataCurationItems} showSeparator />
                 <NavSection label="IGSN Curation" items={igsnCurationItems} showSeparator />
+                {toolsItems.length > 0 && <NavSection label="Tools" items={toolsItems} showSeparator />}
                 {administrationItems.length > 0 && <NavSection label="Administration" items={administrationItems} showSeparator />}
             </SidebarContent>
 

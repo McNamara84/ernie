@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\CacheKey;
+use App\Models\SuggestedRelation;
+use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
@@ -12,6 +15,7 @@ use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    use ChecksCacheTagging;
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -68,6 +72,8 @@ class HandleInertiaRequests extends Middleware
                     'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
                     // Landing page management permission (Issue #375)
                     'can_manage_landing_pages' => $request->user()->can('manage-landing-pages'),
+                    // Assistance page permission
+                    'can_access_assistance' => $request->user()->can('access-assistance'),
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
@@ -75,6 +81,14 @@ class HandleInertiaRequests extends Middleware
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
+            'pendingSuggestedRelationsCount' => $request->user()?->can('access-assistance')
+                ? $this->getCacheInstance(CacheKey::SUGGESTED_RELATIONS_COUNT->tags())
+                    ->remember(
+                        CacheKey::SUGGESTED_RELATIONS_COUNT->key(),
+                        CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
+                        fn () => SuggestedRelation::count(),
+                    )
+                : 0,
         ];
     }
 

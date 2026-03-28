@@ -604,6 +604,39 @@ erDiagram
     }
 
     %% =========================================================================
+    %% ASSISTANCE TABLES (Relation Discovery)
+    %% =========================================================================
+
+    suggested_relations {
+        bigint id PK
+        bigint resource_id FK
+        varchar identifier "2183"
+        char identifier_hash "64, generated SHA2, MySQL/MariaDB only"
+        bigint identifier_type_id FK
+        bigint relation_type_id FK
+        varchar source
+        varchar source_title "nullable"
+        varchar source_type "nullable"
+        varchar source_publisher "nullable"
+        varchar source_publication_date "nullable"
+        timestamp discovered_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    dismissed_relations {
+        bigint id PK
+        bigint resource_id FK
+        varchar identifier "2183"
+        char identifier_hash "64, generated SHA2, MySQL/MariaDB only"
+        bigint relation_type_id FK
+        bigint dismissed_by FK "nullable"
+        varchar reason "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
 
@@ -680,4 +713,12 @@ erDiagram
     igsn_classifications }o--|| resources : "for sample"
     igsn_geological_ages }o--|| resources : "for sample"
     igsn_geological_units }o--|| resources : "for sample"
+
+    %% Suggested/Dismissed relations (Assistance feature)
+    suggested_relations }o--|| resources : "for resource"
+    suggested_relations }o--|| identifier_types : "identifier type"
+    suggested_relations }o--|| relation_types : "relation type"
+    dismissed_relations }o--|| resources : "for resource"
+    dismissed_relations }o--|| relation_types : "relation type"
+    dismissed_relations }o--o| users : "dismissed by"
 ```

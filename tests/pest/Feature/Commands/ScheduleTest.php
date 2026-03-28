@@ -61,3 +61,15 @@ it('vocabulary cache touch callback invokes touchAllVocabularyCaches', function 
     // Execute the callback to cover the console.php closure body
     $event->run($this->app);
 });
+
+it('schedules relation discovery weekly on Sundays at 02:00', function () {
+    $schedule = app(Schedule::class);
+
+    $event = collect($schedule->events())
+        ->first(fn ($event) => $event instanceof CallbackEvent
+            && $event->description === 'discover-relations');
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('0 2 * * 0')
+        ->and($event->withoutOverlapping)->toBeTrue();
+});

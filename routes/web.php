@@ -155,6 +155,21 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 }
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Assistance routes (Admin, Group Leader)
+    Route::middleware(['can:access-assistance'])->prefix('assistance')->group(function () {
+        Route::get('/', [\App\Http\Controllers\AssistanceController::class, 'index'])
+            ->name('assistance');
+        Route::post('/check', [\App\Http\Controllers\AssistanceController::class, 'check'])
+            ->name('assistance.check');
+        Route::get('/check/{jobId}/status', [\App\Http\Controllers\AssistanceController::class, 'status'])
+            ->where('jobId', '[a-f0-9-]{36}')
+            ->name('assistance.check.status');
+        Route::post('/relations/{suggestion}/accept', [\App\Http\Controllers\AssistanceController::class, 'accept'])
+            ->name('assistance.relations.accept');
+        Route::post('/relations/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'decline'])
+            ->name('assistance.relations.decline');
+    });
+
     // Old Datasets routes (Admin only - Issue #379)
     Route::middleware(['can:access-old-datasets'])->group(function () {
         Route::get('old-datasets', [OldDatasetController::class, 'index'])

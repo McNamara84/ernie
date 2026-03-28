@@ -46,6 +46,9 @@ enum CacheKey: string
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
+    // Assistance suggestion count
+    case SUGGESTED_RELATIONS_COUNT = 'assistance:suggested_relations_count';
+
     /**
      * Get the full cache key with optional suffix.
      *
@@ -107,6 +110,9 @@ enum CacheKey: string
 
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
+
+            // Suggested relations count - 2 minutes (changes after discovery jobs)
+            self::SUGGESTED_RELATIONS_COUNT => 120,
         };
     }
 
@@ -144,6 +150,8 @@ enum CacheKey: string
             self::DOI_CITATION => ['doi', 'citations'],
 
             self::CACHE_STATS => ['system'],
+
+            self::SUGGESTED_RELATIONS_COUNT => ['assistance'],
         };
     }
 

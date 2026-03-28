@@ -26,6 +26,7 @@ export interface NavItem {
     isActive?: boolean;
     disabled?: boolean;
     separator?: boolean;
+    badge?: number;
 }
 
 export interface SharedData {
@@ -38,6 +39,7 @@ export interface SharedData {
     igsnCount?: number;
     dataInstitutionCount?: number;
     igsnInstitutionCount?: number;
+    pendingSuggestedRelationsCount?: number;
     [key: string]: unknown;
 }
 
@@ -61,6 +63,8 @@ export interface User {
     can_access_editor_settings?: boolean;
     // Landing page management permission (Issue #375)
     can_manage_landing_pages?: boolean;
+    // Assistance page permission
+    can_access_assistance?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;

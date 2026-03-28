@@ -19,6 +19,7 @@ use App\Models\User;
  * | Statistics      | ✅    | ✅           | ❌      | ❌       |
  * | Users           | ✅    | ✅           | ❌      | ❌       |
  * | Editor Settings | ✅    | ✅           | ❌      | ❌       |
+ * | Assistance      | ✅    | ✅           | ❌      | ❌       |
  */
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -83,6 +84,12 @@ describe('Admin Access', function () {
             ->get('/resources')
             ->assertOk();
     });
+
+    it('can access assistance page', function () {
+        $this->actingAs($this->admin)
+            ->get('/assistance')
+            ->assertOk();
+    });
 });
 
 describe('Group Leader Access', function () {
@@ -143,6 +150,12 @@ describe('Group Leader Access', function () {
     it('can access resources', function () {
         $this->actingAs($this->groupLeader)
             ->get('/resources')
+            ->assertOk();
+    });
+
+    it('can access assistance page', function () {
+        $this->actingAs($this->groupLeader)
+            ->get('/assistance')
             ->assertOk();
     });
 });
@@ -217,6 +230,12 @@ describe('Curator Access', function () {
             ->get('/resources')
             ->assertOk();
     });
+
+    it('cannot access assistance page', function () {
+        $this->actingAs($this->curator)
+            ->get('/assistance')
+            ->assertForbidden();
+    });
 });
 
 describe('Beginner Access', function () {
@@ -289,6 +308,12 @@ describe('Beginner Access', function () {
             ->get('/resources')
             ->assertOk();
     });
+
+    it('cannot access assistance page', function () {
+        $this->actingAs($this->beginner)
+            ->get('/assistance')
+            ->assertForbidden();
+    });
 });
 
 describe('Gate Definitions', function () {
@@ -351,6 +376,18 @@ describe('Gate Definitions', function () {
         expect($curator->can('access-editor-settings'))->toBeFalse();
         expect($beginner->can('access-editor-settings'))->toBeFalse();
     });
+
+    it('access-assistance gate allows admin and group leader', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+        $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+        $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+
+        expect($admin->can('access-assistance'))->toBeTrue();
+        expect($groupLeader->can('access-assistance'))->toBeTrue();
+        expect($curator->can('access-assistance'))->toBeFalse();
+        expect($beginner->can('access-assistance'))->toBeFalse();
+    });
 });
 
 describe('Unauthenticated Access', function () {
@@ -376,6 +413,11 @@ describe('Unauthenticated Access', function () {
 
     it('redirects to login for editor settings page', function () {
         $this->get('/settings')
+            ->assertRedirect('/login');
+    });
+
+    it('redirects to login for assistance page', function () {
+        $this->get('/assistance')
             ->assertRedirect('/login');
     });
 

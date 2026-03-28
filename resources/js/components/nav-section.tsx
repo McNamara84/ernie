@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 
 interface NavSectionProps {
@@ -43,6 +43,9 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                         <span>{item.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
+                            )}
+                            {item.badge !== undefined && item.badge > 0 && (
+                                <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
                             )}
                         </SidebarMenuItem>
                     );

@@ -1,11 +1,14 @@
 <?php
 
+use App\Jobs\DiscoverRelationsJob;
 use App\Models\User;
 use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -35,4 +38,19 @@ Schedule::call(function () {
     app(VocabularyCacheService::class)->touchAllVocabularyCaches();
 })->twiceDaily(1, 13)
     ->name('touch-vocabulary-caches')
+    ->withoutOverlapping();
+
+// Discover new related works every Sunday at 02:00 UTC
+Schedule::call(function () {
+    $lock = Cache::lock('relation_discovery_running', 7200);
+
+    if ($lock->get()) {
+        try {
+            DiscoverRelationsJob::dispatch(Str::uuid()->toString(), $lock->owner());
+        } catch (\Throwable) {
+            $lock->release();
+        }
+    }
+})->weeklyOn(0, '02:00')
+    ->name('discover-relations')
     ->withoutOverlapping();

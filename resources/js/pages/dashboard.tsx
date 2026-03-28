@@ -108,6 +108,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         igsnInstitutionCount,
         draftCount,
         recentDrafts,
+        pendingSuggestedRelationsCount,
         phpVersion = '8.4.12',
         laravelVersion = '12.28.1',
     } = usePage<DashboardPageProps>().props;
@@ -299,6 +300,12 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                 <strong className="font-semibold text-foreground">{igsnCountDisplay}</strong> IGSNs from{' '}
                                 <strong className="font-semibold text-foreground">{igsnInstitutions}</strong> institutions
                             </p>
+                            {auth.user?.can_access_assistance && (pendingSuggestedRelationsCount ?? 0) > 0 && (
+                                <p>
+                                    <strong className="font-semibold text-foreground">{pendingSuggestedRelationsCount}</strong> suggested
+                                    relations
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
                     <Card onMouseEnter={() => handleCardHover('environment')}>
