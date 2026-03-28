@@ -499,7 +499,8 @@ class PortalSearchService
      * Returns a [sql, bindings] tuple for use with whereRaw(). Extracts
      * min/max lat/lng from the polygon_points JSON array and checks whether
      * the polygon's vertex bounding box overlaps the search bounds. Uses
-     * JSON_TABLE on MySQL/MariaDB and scalar json_each() subqueries on SQLite.
+     * JSON_TABLE on MySQL/MariaDB, jsonb_array_elements on PostgreSQL,
+     * and scalar json_each() subqueries on SQLite.
      *
      * MySQL uses a non-correlated IN subquery with JSON_TABLE in the FROM
      * clause instead of a correlated EXISTS, because MySQL 8.0 cannot resolve
@@ -524,51 +525,49 @@ class PortalSearchService
         $params = [$bounds['south'], $bounds['north'], $bounds['west'], $bounds['east']];
 
         if ($driver === 'mysql' || $driver === 'mariadb') {
-            if ($searchCrossesAM) {
-                $sql = "resources.id IN ("
-                    . "SELECT gl.resource_id FROM geo_locations gl, "
-                    . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
-                    . "lat DOUBLE PATH '\$.latitude', "
-                    . "lng DOUBLE PATH '\$.longitude')) AS pt "
-                    . "WHERE gl.polygon_points IS NOT NULL "
-                    . "GROUP BY gl.resource_id "
-                    . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND "
-                    . "(MAX(pt.lng) >= ? OR MIN(pt.lng) <= ?)"
-                    . ")";
-            } else {
-                $sql = "resources.id IN ("
-                    . "SELECT gl.resource_id FROM geo_locations gl, "
-                    . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
-                    . "lat DOUBLE PATH '\$.latitude', "
-                    . "lng DOUBLE PATH '\$.longitude')) AS pt "
-                    . "WHERE gl.polygon_points IS NOT NULL "
-                    . "GROUP BY gl.resource_id "
-                    . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND "
-                    . "(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)"
-                    . ")";
-            }
-        } elseif ($searchCrossesAM) {
+            $lngHaving = $searchCrossesAM
+                ? '(MAX(pt.lng) >= ? OR MIN(pt.lng) <= ?)'
+                : '(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)';
+
+            $sql = "resources.id IN ("
+                . "SELECT gl.resource_id FROM geo_locations gl, "
+                . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
+                . "lat DOUBLE PATH '\$.latitude', "
+                . "lng DOUBLE PATH '\$.longitude')) AS pt "
+                . "WHERE gl.polygon_points IS NOT NULL "
+                . "GROUP BY gl.resource_id "
+                . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND " . $lngHaving
+                . ")";
+        } elseif ($driver === 'pgsql') {
+            $lngHaving = $searchCrossesAM
+                ? "(MAX((elem->>'longitude')::float) >= ? OR MIN((elem->>'longitude')::float) <= ?)"
+                : "(MAX((elem->>'longitude')::float) >= ? AND MIN((elem->>'longitude')::float) <= ?)";
+
+            $sql = "resources.id IN ("
+                . "SELECT gl.resource_id FROM geo_locations gl, "
+                . "jsonb_array_elements(gl.polygon_points::jsonb) AS elem "
+                . "WHERE gl.polygon_points IS NOT NULL "
+                . "GROUP BY gl.resource_id "
+                . "HAVING MAX((elem->>'latitude')::float) >= ? AND MIN((elem->>'latitude')::float) <= ? AND " . $lngHaving
+                . ")";
+        } elseif ($driver === 'sqlite') {
             // CAST(? AS REAL) required because PDO binds floats as strings,
             // and SQLite integer vs text comparison always returns false.
+            $lngHaving = $searchCrossesAM
+                ? "((SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                . "OR (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL))"
+                : "(SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                . "AND (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL)";
+
             $sql = "resources.id IN ("
                 . "SELECT resource_id FROM geo_locations "
                 . "WHERE polygon_points IS NOT NULL "
                 . "AND (SELECT MAX(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
                 . "AND (SELECT MIN(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL) "
-                . "AND ((SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
-                . "OR (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL))"
+                . "AND " . $lngHaving
                 . ")";
         } else {
-            // CAST(? AS REAL) required because PDO binds floats as strings,
-            // and SQLite integer vs text comparison always returns false.
-            $sql = "resources.id IN ("
-                . "SELECT resource_id FROM geo_locations "
-                . "WHERE polygon_points IS NOT NULL "
-                . "AND (SELECT MAX(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
-                . "AND (SELECT MIN(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL) "
-                . "AND (SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
-                . "AND (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL)"
-                . ")";
+            throw new \RuntimeException('Unsupported database driver for polygon search: ' . $driver);
         }
 
         return [$sql, $params];

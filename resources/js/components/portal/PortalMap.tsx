@@ -89,7 +89,9 @@ function calculateBounds(resources: PortalResource[]): L.LatLngBounds | null {
 
 /**
  * Component to fit map bounds to show all markers.
- * - On initial mount: waits for container layout to settle, then fits once
+ * - On initial mount (when geoFilterEnabled is false): waits for container
+ *   layout to settle, then fits once. Skipped when geoFilterEnabled is true
+ *   so user-specified viewports (including flyToBounds) are not overridden.
  * - When geo filter is active: does NOT auto-fit (user controls viewport)
  * - When geo filter is turned off: re-fits to show all markers
  */
@@ -119,10 +121,12 @@ function FitBoundsControl({
         }
     }, [map, resources, skipNextMoveEnd]);
 
-    // Initial fit: always use ResizeObserver with debounce to wait for
-    // the ResizablePanel layout to settle before fitting bounds.
+    // Initial fit: use ResizeObserver with debounce to wait for the
+    // ResizablePanel layout to settle before fitting bounds. Skipped when
+    // geoFilterEnabled is true (user controls the viewport via geo filter).
     useEffect(() => {
         if (hasInitialFit.current) return;
+        if (geoFilterEnabled) return;
 
         const container = map.getContainer();
 
@@ -131,27 +135,36 @@ function FitBoundsControl({
             if (container.clientWidth > 0 && container.clientHeight > 0) {
                 hasInitialFit.current = true;
                 fitToAllMarkers();
+                // Disconnect immediately — observer is only needed until initial fit
+                observer?.disconnect();
             }
         };
 
         // Debounce resize events — the ResizablePanel may fire multiple
         // resize events as it settles into its final dimensions.
         let timer: ReturnType<typeof setTimeout> | null = null;
-        const observer = new ResizeObserver(() => {
-            if (hasInitialFit.current) {
-                observer.disconnect();
-                return;
-            }
-            if (timer) clearTimeout(timer);
-            timer = setTimeout(performFit, 150);
-        });
-        observer.observe(container);
+        let observer: ResizeObserver | null = null;
+
+        if (typeof ResizeObserver !== 'undefined') {
+            observer = new ResizeObserver(() => {
+                if (hasInitialFit.current) {
+                    observer?.disconnect();
+                    return;
+                }
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(performFit, 150);
+            });
+            observer.observe(container);
+        } else {
+            // Fallback for environments without ResizeObserver (SSR, older browsers)
+            performFit();
+        }
 
         return () => {
-            observer.disconnect();
+            observer?.disconnect();
             if (timer) clearTimeout(timer);
         };
-    }, [map, fitToAllMarkers]);
+    }, [map, geoFilterEnabled, fitToAllMarkers]);
 
     // Re-fit when geo filter is turned OFF (restore "show all" view)
     useEffect(() => {
@@ -191,6 +204,8 @@ function MapResizeHandler() {
     const map = useMap();
 
     useEffect(() => {
+        if (typeof ResizeObserver === 'undefined') return;
+
         const container = map.getContainer();
         const observer = new ResizeObserver(() => {
             map.invalidateSize();
