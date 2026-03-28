@@ -117,7 +117,7 @@ class ScholExplorerService
                 }
 
                 $page++;
-            } while ($page <= $totalPages && $page <= $maxPages);
+            } while ($page < $totalPages && $page < $maxPages);
         } catch (\Exception $e) {
             Log::error('ScholExplorer API request failed', [
                 'doi' => $doi,

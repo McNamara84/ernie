@@ -26,7 +26,7 @@ return new class extends Migration
 
         // MySQL needs a hash-based unique constraint because 2183-char identifier exceeds key length limit
         // SQLite has no key length limit and can index the identifier directly
-        if (DB::getDriverName() === 'mysql') {
+        if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
             DB::statement('ALTER TABLE dismissed_relations ADD COLUMN identifier_hash CHAR(64) GENERATED ALWAYS AS (SHA2(identifier, 256)) STORED AFTER identifier');
             DB::statement('ALTER TABLE dismissed_relations ADD UNIQUE INDEX dismissed_relations_unique (resource_id, identifier_hash, relation_type_id)');
         } else {

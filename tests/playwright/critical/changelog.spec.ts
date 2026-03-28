@@ -245,8 +245,9 @@ test.describe('Changelog Page', () => {
         const count = await navButtons.count();
 
         if (count >= 2) {
-            // Click on the second dot
-            await navButtons.nth(1).click();
+            // Use force:true because the small animated motion.button dots (10px)
+            // inside TooltipTrigger can be unreliable in WebKit without it
+            await navButtons.nth(1).click({ force: true });
 
             // URL should have a hash (auto-retries for up to 5s)
             await expect(page).toHaveURL(/#v/);

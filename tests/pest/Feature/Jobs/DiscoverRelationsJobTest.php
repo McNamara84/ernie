@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use App\Jobs\DiscoverRelationsJob;
-use App\Models\Resource;
-use App\Models\SuggestedRelation;
 use App\Services\RelationDiscoveryService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -101,7 +99,7 @@ describe('handle', function () {
         $job->handle($service);
     });
 
-    it('sets cache status to failed on exception and re-throws', function () {
+    it('re-throws exception without overwriting cache status', function () {
         $uuid = Str::uuid()->toString();
         $cacheKey = DiscoverRelationsJob::getCacheKey($uuid);
 
@@ -114,10 +112,11 @@ describe('handle', function () {
 
         expect(fn () => $job->handle($service))->toThrow(RuntimeException::class, 'API connection failed');
 
+        // Cache should still be in 'running' state — the failed() callback
+        // (triggered by the queue worker) is responsible for setting 'failed'
         $cached = Cache::get($cacheKey);
-        expect($cached['status'])->toBe('failed')
-            ->and($cached['error'])->toBe('API connection failed')
-            ->and($cached['completedAt'])->toBeString();
+        expect($cached['status'])->toBe('running')
+            ->and($cached['startedAt'])->toBeString();
     });
 
     it('tracks totalDois correctly in completed status', function () {
@@ -172,5 +171,32 @@ describe('failed', function () {
         $cached = Cache::get($cacheKey);
         expect($cached['status'])->toBe('failed')
             ->and($cached['error'])->toBe('Unknown error');
+    });
+
+    it('preserves running state data when merging failure info', function () {
+        $uuid = Str::uuid()->toString();
+        $cacheKey = DiscoverRelationsJob::getCacheKey($uuid);
+
+        // Simulate a running state left by handle()
+        Cache::put($cacheKey, [
+            'status' => 'running',
+            'progress' => 'Checking DOI 3 of 10...',
+            'totalDois' => 10,
+            'processedDois' => 3,
+            'newRelationsFound' => 0,
+            'startedAt' => '2026-03-28T00:00:00+00:00',
+        ], now()->addHours(2));
+
+        $job = new DiscoverRelationsJob($uuid);
+        $job->failed(new RuntimeException('Queue timeout'));
+
+        $cached = Cache::get($cacheKey);
+        expect($cached)->toBeArray()
+            ->and($cached['status'])->toBe('failed')
+            ->and($cached['error'])->toBe('Queue timeout')
+            ->and($cached['startedAt'])->toBe('2026-03-28T00:00:00+00:00')
+            ->and($cached['totalDois'])->toBe(10)
+            ->and($cached['processedDois'])->toBe(3)
+            ->and($cached['completedAt'])->toBeString();
     });
 });

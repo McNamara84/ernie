@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Services\VocabularyCacheService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Str;
@@ -41,7 +42,11 @@ Schedule::call(function () {
 
 // Discover new related works every Sunday at 02:00 UTC
 Schedule::call(function () {
-    DiscoverRelationsJob::dispatch(Str::uuid()->toString());
+    $lock = Cache::lock('relation_discovery_running', 3600);
+
+    if ($lock->get()) {
+        DiscoverRelationsJob::dispatch(Str::uuid()->toString(), $lock->owner());
+    }
 })->weeklyOn(0, '02:00')
     ->name('discover-relations')
     ->withoutOverlapping();

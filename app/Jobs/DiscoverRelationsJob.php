@@ -109,14 +109,6 @@ class DiscoverRelationsJob implements ShouldQueue
                 'newRelationsFound' => $newCount,
             ]);
         } catch (\Exception $e) {
-            Cache::put($cacheKey, [
-                'status' => 'failed',
-                'progress' => 'Discovery failed.',
-                'error' => $e->getMessage(),
-                'startedAt' => $startedAt,
-                'completedAt' => now()->toIso8601String(),
-            ], now()->addHours(2));
-
             Log::error('DiscoverRelationsJob failed', [
                 'jobId' => $this->jobId,
                 'error' => $e->getMessage(),
@@ -134,8 +126,10 @@ class DiscoverRelationsJob implements ShouldQueue
     public function failed(?\Throwable $exception): void
     {
         $cacheKey = self::getCacheKey($this->jobId);
+        $existing = Cache::get($cacheKey, []);
 
         Cache::put($cacheKey, [
+            ...$existing,
             'status' => 'failed',
             'progress' => 'Discovery failed.',
             'error' => $exception?->getMessage() ?? 'Unknown error',
