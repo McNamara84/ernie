@@ -717,4 +717,115 @@ describe('bounds filtering', function () {
 
         expect($results->total())->toBe(1);
     });
+
+    it('matches polygon with only polygon_points via bbox overlap', function () {
+        // Polygon without in_polygon_point — vertices span into the search area
+        $polygon = createPublishedResourceForSearch('Polygon Only', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $polygon->id,
+            'polygon_points' => [
+                ['latitude' => 51.0, 'longitude' => 12.0],
+                ['latitude' => 53.0, 'longitude' => 12.0],
+                ['latitude' => 53.0, 'longitude' => 14.0],
+                ['latitude' => 51.0, 'longitude' => 14.0],
+                ['latitude' => 51.0, 'longitude' => 12.0],
+            ],
+            'in_polygon_point_latitude' => null,
+            'in_polygon_point_longitude' => null,
+        ]);
+
+        // Polygon outside search bounds
+        $outside = createPublishedResourceForSearch('Polygon Outside', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $outside->id,
+            'polygon_points' => [
+                ['latitude' => -30.0, 'longitude' => -50.0],
+                ['latitude' => -28.0, 'longitude' => -50.0],
+                ['latitude' => -28.0, 'longitude' => -48.0],
+                ['latitude' => -30.0, 'longitude' => -48.0],
+                ['latitude' => -30.0, 'longitude' => -50.0],
+            ],
+            'in_polygon_point_latitude' => null,
+            'in_polygon_point_longitude' => null,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($polygon->id);
+    });
+
+    it('matches polygon via bbox overlap even when in_polygon_point is outside bounds', function () {
+        // Polygon whose representative point is outside search bounds but
+        // whose vertex bounding box still overlaps the search area.
+        $polygon = createPublishedResourceForSearch('Polygon InPoint Outside', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $polygon->id,
+            'polygon_points' => [
+                ['latitude' => 49.0, 'longitude' => 12.0],
+                ['latitude' => 51.0, 'longitude' => 12.0],
+                ['latitude' => 51.0, 'longitude' => 14.0],
+                ['latitude' => 49.0, 'longitude' => 14.0],
+                ['latitude' => 49.0, 'longitude' => 12.0],
+            ],
+            // Representative point is south of the search bounds (50-54N)
+            'in_polygon_point_latitude' => 49.5,
+            'in_polygon_point_longitude' => 13.0,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        // Should match because the polygon's bbox (49-51N) overlaps search (50-54N)
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($polygon->id);
+    });
+
+    it('matches polygon via in_polygon_point when it is within bounds', function () {
+        $polygon = createPublishedResourceForSearch('Polygon InPoint Inside', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $polygon->id,
+            'polygon_points' => [
+                ['latitude' => 51.0, 'longitude' => 12.0],
+                ['latitude' => 53.0, 'longitude' => 12.0],
+                ['latitude' => 53.0, 'longitude' => 14.0],
+                ['latitude' => 51.0, 'longitude' => 14.0],
+                ['latitude' => 51.0, 'longitude' => 12.0],
+            ],
+            'in_polygon_point_latitude' => 52.0,
+            'in_polygon_point_longitude' => 13.0,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($polygon->id);
+    });
+
+    it('excludes polygon when both in_polygon_point and bbox are outside bounds', function () {
+        $polygon = createPublishedResourceForSearch('Polygon Fully Outside', $this->titleType);
+        \App\Models\GeoLocation::factory()->create([
+            'resource_id' => $polygon->id,
+            'polygon_points' => [
+                ['latitude' => -30.0, 'longitude' => -50.0],
+                ['latitude' => -28.0, 'longitude' => -50.0],
+                ['latitude' => -28.0, 'longitude' => -48.0],
+                ['latitude' => -30.0, 'longitude' => -48.0],
+                ['latitude' => -30.0, 'longitude' => -50.0],
+            ],
+            'in_polygon_point_latitude' => -29.0,
+            'in_polygon_point_longitude' => -49.0,
+        ]);
+
+        $results = $this->service->search([
+            'bounds' => ['north' => 54.0, 'south' => 50.0, 'east' => 15.0, 'west' => 11.0],
+        ]);
+
+        expect($results->total())->toBe(0);
+    });
 });

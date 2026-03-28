@@ -5,7 +5,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Badge } from '@/components/ui/badge';
@@ -88,20 +88,151 @@ function calculateBounds(resources: PortalResource[]): L.LatLngBounds | null {
 }
 
 /**
- * Component to fit map bounds when resources change.
+ * Component to fit map bounds to show all markers.
+ * - On initial mount (when geoFilterEnabled is false): waits for container
+ *   layout to settle, then fits once. Skipped when geoFilterEnabled is true
+ *   so user-specified viewports (including flyToBounds) are not overridden.
+ * - When geo filter is active: does NOT auto-fit (user controls viewport)
+ * - When geo filter is turned off: re-fits to show all markers
  */
-function FitBoundsControl({ resources }: { resources: PortalResource[] }) {
+function FitBoundsControl({
+    resources,
+    geoFilterEnabled,
+    skipNextMoveEnd,
+}: {
+    resources: PortalResource[];
+    geoFilterEnabled: boolean;
+    skipNextMoveEnd: React.RefObject<boolean>;
+}) {
     const map = useMap();
+    const hasInitialFit = useRef(false);
+    const prevGeoFilterEnabled = useRef(geoFilterEnabled);
+    const prevResourceKey = useRef('');
 
-    useEffect(() => {
+    const fitToAllMarkers = useCallback(() => {
+        skipNextMoveEnd.current = true;
+        // Ensure Leaflet knows the current container size before calculating zoom
+        map.invalidateSize();
         const bounds = calculateBounds(resources);
         if (bounds && bounds.isValid()) {
             map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
         } else {
-            // Default world view
             map.setView([30, 0], 2);
         }
-    }, [map, resources]);
+    }, [map, resources, skipNextMoveEnd]);
+
+    // Initial fit: use ResizeObserver with debounce to wait for the
+    // ResizablePanel layout to settle before fitting bounds. Skipped when
+    // geoFilterEnabled is true (user controls the viewport via geo filter).
+    useEffect(() => {
+        if (hasInitialFit.current) return;
+        if (geoFilterEnabled) return;
+
+        const container = map.getContainer();
+
+        const performFit = () => {
+            if (hasInitialFit.current) return;
+            if (container.clientWidth > 0 && container.clientHeight > 0) {
+                hasInitialFit.current = true;
+                fitToAllMarkers();
+                // Disconnect immediately — observer is only needed until initial fit
+                observer?.disconnect();
+            }
+        };
+
+        // Debounce resize events — the ResizablePanel may fire multiple
+        // resize events as it settles into its final dimensions.
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        let observer: ResizeObserver | null = null;
+
+        if (typeof ResizeObserver !== 'undefined') {
+            observer = new ResizeObserver(() => {
+                if (hasInitialFit.current) {
+                    observer?.disconnect();
+                    return;
+                }
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(performFit, 150);
+            });
+            observer.observe(container);
+        } else {
+            // Fallback for environments without ResizeObserver (SSR, older browsers)
+            performFit();
+        }
+
+        return () => {
+            observer?.disconnect();
+            if (timer) clearTimeout(timer);
+        };
+    }, [map, geoFilterEnabled, fitToAllMarkers]);
+
+    // Re-fit when geo filter is turned OFF (restore "show all" view)
+    useEffect(() => {
+        const wasEnabled = prevGeoFilterEnabled.current;
+        prevGeoFilterEnabled.current = geoFilterEnabled;
+
+        if (wasEnabled && !geoFilterEnabled && hasInitialFit.current) {
+            fitToAllMarkers();
+        }
+    }, [geoFilterEnabled, fitToAllMarkers]);
+
+    // Re-fit when resources change while geo filter is off (e.g. text search
+    // or type filter changed the dataset) so new markers are not off-screen.
+    useEffect(() => {
+        const resourceKey = resources.map(r => r.id).join(',');
+        const changed = prevResourceKey.current !== resourceKey;
+        prevResourceKey.current = resourceKey;
+
+        // Skip the initial render (handled by the ResizeObserver above)
+        if (!hasInitialFit.current) return;
+        // Only auto-fit when geo filter is not active (user controls viewport when filtering)
+        if (geoFilterEnabled) return;
+        // Guard: only re-fit when the set of resources actually changed
+        if (!changed) return;
+
+        fitToAllMarkers();
+    }, [resources, geoFilterEnabled, fitToAllMarkers]);
+
+    return null;
+}
+
+/**
+ * Observe the map container for size changes and call invalidateSize().
+ * Uses rAF to coalesce multiple resize events per frame and avoid unnecessary reflows.
+ * Falls back to a window resize listener when ResizeObserver is unavailable.
+ * Must be rendered inside a MapContainer.
+ */
+function MapResizeHandler() {
+    const map = useMap();
+
+    useEffect(() => {
+        const container = map.getContainer();
+        let rafId: number | null = null;
+
+        const scheduleInvalidate = () => {
+            if (rafId !== null) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                map.invalidateSize();
+            });
+        };
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(scheduleInvalidate);
+            observer.observe(container);
+            return () => {
+                observer.disconnect();
+                if (rafId !== null) cancelAnimationFrame(rafId);
+            };
+        }
+
+        // Fallback for environments without ResizeObserver (older browsers, embedded webviews)
+        window.addEventListener('resize', scheduleInvalidate);
+        return () => {
+            window.removeEventListener('resize', scheduleInvalidate);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
+    }, [map]);
 
     return null;
 }
@@ -109,18 +240,44 @@ function FitBoundsControl({ resources }: { resources: PortalResource[] }) {
 /**
  * Track map viewport changes and report bounds.
  * Skips the next moveend event when skipNextMoveEnd flag is set (after programmatic fly-to).
+ * Only reports when the map container is actually visible (has non-zero dimensions)
+ * to prevent hidden duplicate map instances from sending incorrect bounds.
+ *
+ * Uses a ref to always call the latest onViewportChange without re-subscribing
+ * the Leaflet event handler on every callback change.
  */
 function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChange: (bounds: GeoBounds) => void; skipNextMoveEnd: React.RefObject<boolean> }) {
     const map = useMap();
+    const callbackRef = useRef(onViewportChange);
+
+    // Keep the ref in sync with the latest callback
+    useEffect(() => {
+        callbackRef.current = onViewportChange;
+    }, [onViewportChange]);
+
+    // Reset any stale skip flag that was set while ViewportTracker was
+    // not mounted (e.g. FitBoundsControl set it when geoFilterEnabled was false).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: reset stale flag once
+    useEffect(() => {
+        skipNextMoveEnd.current = false;
+    }, []);
 
     useEffect(() => {
         const handler = () => {
+            // Check container visibility FIRST — hidden map instances (e.g.
+            // CSS display:none) must not consume the shared skip flag.
+            const container = map.getContainer();
+            if (container.clientWidth === 0 || container.clientHeight === 0) {
+                return;
+            }
+
             if (skipNextMoveEnd.current) {
                 skipNextMoveEnd.current = false;
                 return;
             }
+
             const b = map.getBounds();
-            onViewportChange({
+            callbackRef.current({
                 north: b.getNorth(),
                 south: b.getSouth(),
                 east: b.getEast(),
@@ -132,7 +289,7 @@ function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChan
         return () => {
             map.off('moveend', handler);
         };
-    }, [map, onViewportChange, skipNextMoveEnd]);
+    }, [map, skipNextMoveEnd]);
 
     return null;
 }
@@ -227,7 +384,6 @@ function ResourcePopupContent({ resource }: { resource: PortalResource }) {
  */
 export function PortalMap({ resources, className, hideHeader = false, geoFilterEnabled = false, onViewportChange, flyToBounds }: PortalMapProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const mapRef = useRef<L.Map | null>(null);
     const skipNextMoveEnd = useRef(false);
 
     // Filter resources that have geo locations
@@ -238,39 +394,18 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
 
     const geoCount = resourcesWithGeo.reduce((acc, r) => acc + r.geoLocations.length, 0);
 
-    // Invalidate map size when collapsible state changes or on resize
-    useEffect(() => {
-        if (!isCollapsed && mapRef.current) {
-            setTimeout(() => {
-                mapRef.current?.invalidateSize();
-            }, 300);
-        }
-    }, [isCollapsed]);
-
-    // Re-invalidate map on window resize (for responsive layout changes)
-    useEffect(() => {
-        const handleResize = () => {
-            if (mapRef.current) {
-                mapRef.current.invalidateSize();
-            }
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
     const mapContent = resourcesWithGeo.length > 0 ? (
         <MapContainer
             center={[30, 0]}
             zoom={2}
             className="h-full w-full"
-            ref={mapRef}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <FitBoundsControl resources={resourcesWithGeo} />
+            <MapResizeHandler />
+            <FitBoundsControl resources={resourcesWithGeo} geoFilterEnabled={geoFilterEnabled} skipNextMoveEnd={skipNextMoveEnd} />
 
             {geoFilterEnabled && onViewportChange && (
                 <ViewportTracker onViewportChange={onViewportChange} skipNextMoveEnd={skipNextMoveEnd} />

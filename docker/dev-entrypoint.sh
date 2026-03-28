@@ -93,10 +93,29 @@ fi
 
 # Run migrations
 echo "Running database migrations..."
-php artisan migrate --force 2>/dev/null || {
+MIGRATION_OK=false
+if php artisan migrate --force 2>/dev/null; then
+    MIGRATION_OK=true
+else
     echo "⚠ Migration failed - database might not be ready yet"
     echo "  Run 'docker exec ernie-app-dev php artisan migrate' manually"
-}
+fi
+
+# Seed lookup tables and test data if the database is empty
+if [ "$MIGRATION_OK" = true ]; then
+    RESOURCE_COUNT=$(php artisan tinker --execute="echo \App\Models\Resource::count();" 2>/dev/null || echo "error")
+    if [ "$RESOURCE_COUNT" = "0" ]; then
+        echo "Database is empty – seeding lookup tables and test data..."
+        php artisan db:seed --force 2>/dev/null || {
+            echo "⚠ DatabaseSeeder failed"
+        }
+        php artisan db:seed --class=ResourceTestDataSeeder --force 2>/dev/null || {
+            echo "⚠ ResourceTestDataSeeder failed"
+        }
+    elif [ "$RESOURCE_COUNT" = "error" ]; then
+        echo "⚠ Could not check resource count – skipping seeding"
+    fi
+fi
 
 # Create storage link
 php artisan storage:link --force 2>/dev/null || true

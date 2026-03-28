@@ -19,6 +19,8 @@ class ResizeObserver {
 
 Object.defineProperty(globalThis, 'ResizeObserver', {
     value: ResizeObserver,
+    writable: true,
+    configurable: true,
 });
 
 // Mock IntersectionObserver for infinite scrolling and lazy loading tests
