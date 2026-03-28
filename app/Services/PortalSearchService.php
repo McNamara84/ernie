@@ -499,12 +499,15 @@ class PortalSearchService
      * Returns a [sql, bindings] tuple for use with whereRaw(). Extracts
      * min/max lat/lng from the polygon_points JSON array and checks whether
      * the polygon's vertex bounding box overlaps the search bounds. Uses
-     * JSON_TABLE on MySQL/MariaDB and json_each() on SQLite.
+     * JSON_TABLE on MySQL/MariaDB and scalar json_each() subqueries on SQLite.
      *
-     * Uses a non-correlated IN subquery with the JSON function in the FROM
-     * clause (as an implicit cross join) instead of a correlated EXISTS,
-     * because MySQL 8.0 cannot resolve correlated JSON_TABLE column
-     * references inside OR expressions.
+     * MySQL uses a non-correlated IN subquery with JSON_TABLE in the FROM
+     * clause instead of a correlated EXISTS, because MySQL 8.0 cannot resolve
+     * correlated JSON_TABLE column references inside OR expressions.
+     *
+     * SQLite uses scalar subqueries (SELECT MAX/MIN FROM json_each()) in the
+     * WHERE clause to avoid cross-join compatibility issues with json_each()
+     * as a table-valued function inside IN subqueries.
      *
      * @param  array{north: float, south: float, east: float, west: float}  $bounds
      * @return array{literal-string, list<float>}
@@ -539,24 +542,26 @@ class PortalSearchService
                     . ")";
             }
         } elseif ($searchCrossesAM) {
+            // CAST(? AS REAL) required because PDO binds floats as strings,
+            // and SQLite integer vs text comparison always returns false.
             $sql = "resources.id IN ("
-                . "SELECT gl.resource_id FROM geo_locations gl, json_each(gl.polygon_points) j "
-                . "WHERE gl.polygon_points IS NOT NULL "
-                . "GROUP BY gl.resource_id "
-                . "HAVING MAX(json_extract(j.value, '$.latitude')) >= ? "
-                . "AND MIN(json_extract(j.value, '$.latitude')) <= ? "
-                . "AND (MAX(json_extract(j.value, '$.longitude')) >= ? "
-                . "OR MIN(json_extract(j.value, '$.longitude')) <= ?)"
+                . "SELECT resource_id FROM geo_locations "
+                . "WHERE polygon_points IS NOT NULL "
+                . "AND (SELECT MAX(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                . "AND (SELECT MIN(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL) "
+                . "AND ((SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                . "OR (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL))"
                 . ")";
         } else {
+            // CAST(? AS REAL) required because PDO binds floats as strings,
+            // and SQLite integer vs text comparison always returns false.
             $sql = "resources.id IN ("
-                . "SELECT gl.resource_id FROM geo_locations gl, json_each(gl.polygon_points) j "
-                . "WHERE gl.polygon_points IS NOT NULL "
-                . "GROUP BY gl.resource_id "
-                . "HAVING MAX(json_extract(j.value, '$.latitude')) >= ? "
-                . "AND MIN(json_extract(j.value, '$.latitude')) <= ? "
-                . "AND (MAX(json_extract(j.value, '$.longitude')) >= ? "
-                . "AND MIN(json_extract(j.value, '$.longitude')) <= ?)"
+                . "SELECT resource_id FROM geo_locations "
+                . "WHERE polygon_points IS NOT NULL "
+                . "AND (SELECT MAX(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                . "AND (SELECT MIN(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL) "
+                . "AND (SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                . "AND (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL)"
                 . ")";
         }
 
