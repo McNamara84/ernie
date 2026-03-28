@@ -205,22 +205,30 @@ class RelationDiscoveryService
                 continue;
             }
 
-            SuggestedRelation::create([
-                'resource_id' => $resourceId,
-                'identifier' => $relation['identifier'],
-                'identifier_type_id' => $identifierTypeId,
-                'relation_type_id' => $relationTypeId,
-                'source' => $relation['source'],
-                'source_title' => $relation['source_title'] ?? null,
-                'source_type' => $relation['source_type'] ?? null,
-                'source_publisher' => $relation['source_publisher'] ?? null,
-                'source_publication_date' => $relation['source_publication_date'] ?? null,
-                'discovered_at' => now(),
-            ]);
+            $suggestion = SuggestedRelation::firstOrCreate(
+                [
+                    'resource_id' => $resourceId,
+                    'identifier' => $relation['identifier'],
+                    'relation_type_id' => $relationTypeId,
+                ],
+                [
+                    'identifier_type_id' => $identifierTypeId,
+                    'source' => $relation['source'],
+                    'source_title' => $relation['source_title'] ?? null,
+                    'source_type' => $relation['source_type'] ?? null,
+                    'source_publisher' => $relation['source_publisher'] ?? null,
+                    'source_publication_date' => $relation['source_publication_date'] ?? null,
+                    'discovered_at' => now(),
+                ],
+            );
 
             // Add to known set to prevent duplicates within this batch
             $knownSet[$key] = true;
-            $newCount++;
+
+            // Only count if actually created (not pre-existing)
+            if ($suggestion->wasRecentlyCreated) {
+                $newCount++;
+            }
         }
 
         return $newCount;

@@ -25,7 +25,7 @@ class AssistanceController extends Controller
      */
     public function index(Request $request): Response
     {
-        $perPage = min((int) $request->input('per_page', 25), 100);
+        $perPage = max(1, min((int) $request->input('per_page', 25), 100));
 
         $paginator = SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
             ->orderBy('discovered_at', 'desc')
@@ -56,18 +56,29 @@ class AssistanceController extends Controller
 
     /**
      * Trigger a relation discovery check for all registered DOIs.
+     *
+     * Uses a cache lock to prevent concurrent discovery runs.
      */
     public function check(): JsonResponse
     {
+        $lock = Cache::lock('relation_discovery_running', 3600);
+
+        if (! $lock->get()) {
+            return response()->json([
+                'error' => 'A discovery job is already running. Please wait for it to finish.',
+            ], 409);
+        }
+
         $jobId = Str::uuid()->toString();
 
         Cache::put(DiscoverRelationsJob::getCacheKey($jobId), [
             'status' => 'queued',
             'progress' => 'Waiting to start...',
             'startedAt' => now()->toIso8601String(),
+            'lockOwner' => $lock->owner(),
         ], now()->addHours(2));
 
-        DiscoverRelationsJob::dispatch($jobId);
+        DiscoverRelationsJob::dispatch($jobId, $lock->owner());
 
         return response()->json(['jobId' => $jobId]);
     }
@@ -107,6 +118,10 @@ class AssistanceController extends Controller
      */
     public function decline(Request $request, SuggestedRelation $suggestion): JsonResponse
     {
+        $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
         /** @var \App\Models\User $user */
         $user = $request->user();
 

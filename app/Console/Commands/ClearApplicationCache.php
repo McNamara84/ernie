@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Cache;
  */
 #[Description('Clear application caches by category')]
 #[Signature('cache:clear-app
-                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, doi, system, all)}')]
+                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, doi, system, assistance, all)}')]
 class ClearApplicationCache extends Command
 {
     use ChecksCacheTagging;

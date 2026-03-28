@@ -125,7 +125,7 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
                         } else {
                             toast.info('Discovery completed: No new relations found.');
                         }
-                        router.reload({ only: ['suggestions'] });
+                        router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
                     } else if (status.status === 'failed') {
                         stopPolling();
                         setIsChecking(false);
@@ -137,9 +137,13 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
                     toast.error('Failed to check discovery status.');
                 }
             }, 3000);
-        } catch {
+        } catch (error) {
             setIsChecking(false);
-            toast.error('Failed to start relation discovery.');
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                toast.warning(error.response.data?.error ?? 'A discovery job is already running.');
+            } else {
+                toast.error('Failed to start relation discovery.');
+            }
         }
     }, [stopPolling]);
 
@@ -156,6 +160,9 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
             } else {
                 toast.warning(data.message);
             }
+
+            // Reload suggestions and sidebar badge count from server
+            router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
         } catch {
             toast.error('Failed to accept relation.');
         } finally {
@@ -175,6 +182,9 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
 
             setSuggestions((prev) => prev.filter((s) => s.id !== id));
             toast.info('Relation declined.');
+
+            // Reload suggestions and sidebar badge count from server
+            router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
         } catch {
             toast.error('Failed to decline relation.');
         } finally {

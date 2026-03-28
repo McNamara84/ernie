@@ -39,11 +39,13 @@ class DiscoverRelationsJob implements ShouldQueue
      * Create a new job instance.
      *
      * @param  string  $jobId  Unique identifier for progress tracking (UUID format)
+     * @param  string|null  $lockOwner  Cache lock owner token for releasing the lock on completion
      *
      * @throws \InvalidArgumentException If jobId is not a valid UUID
      */
     public function __construct(
         private readonly string $jobId,
+        private readonly ?string $lockOwner = null,
     ) {
         if (! Str::isUuid($jobId)) {
             throw new \InvalidArgumentException(
@@ -121,6 +123,8 @@ class DiscoverRelationsJob implements ShouldQueue
             ]);
 
             throw $e;
+        } finally {
+            $this->releaseLock();
         }
     }
 
@@ -138,9 +142,21 @@ class DiscoverRelationsJob implements ShouldQueue
             'completedAt' => now()->toIso8601String(),
         ], now()->addHours(2));
 
+        $this->releaseLock();
+
         Log::error('DiscoverRelationsJob failed callback', [
             'jobId' => $this->jobId,
             'error' => $exception?->getMessage(),
         ]);
+    }
+
+    /**
+     * Release the cache lock if this job owns it.
+     */
+    private function releaseLock(): void
+    {
+        if ($this->lockOwner !== null) {
+            Cache::restoreLock('relation_discovery_running', $this->lockOwner)->release();
+        }
     }
 }
