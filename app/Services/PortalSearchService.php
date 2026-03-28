@@ -500,8 +500,8 @@ class PortalSearchService
      *
      * Extracts min/max lat/lng from the polygon_points JSON array in a single
      * JSON_TABLE JOIN to extract min/max lat/lng and checks whether the polygon's
-     * bounding box overlaps the search bounds. Falls back to matching all polygon
-     * rows on SQLite (which lacks JSON_TABLE).
+     * bounding box overlaps the search bounds. Falls back to json_each() on
+     * SQLite (which lacks JSON_TABLE).
      *
      * Uses a non-correlated IN subquery with JSON_TABLE in the FROM clause
      * (as an implicit cross join) instead of a correlated EXISTS, because
@@ -537,11 +537,23 @@ class PortalSearchService
                     [$bounds['south'], $bounds['north'], ...$lngParams]
                 );
         } else {
-            // SQLite fallback: JSON_TABLE not available — match all rows with
-            // polygon_points (conservative over-match).
-            $sub->select('resource_id')
-                ->from('geo_locations')
-                ->whereNotNull('polygon_points');
+            // SQLite fallback: use json_each() instead of JSON_TABLE.
+            $lngHaving = $searchCrossesAM
+                ? "(MAX(json_extract(j.value, '$.longitude')) >= ? OR MIN(json_extract(j.value, '$.longitude')) <= ?)"
+                : "(MAX(json_extract(j.value, '$.longitude')) >= ? AND MIN(json_extract(j.value, '$.longitude')) <= ?)";
+
+            $lngParams = $searchCrossesAM
+                ? [$bounds['west'], $bounds['east']]
+                : [$bounds['west'], $bounds['east']];
+
+            $sub->select('gl.resource_id')
+                ->fromRaw('geo_locations gl, json_each(gl.polygon_points) AS j')
+                ->whereNotNull('gl.polygon_points')
+                ->groupBy('gl.resource_id')
+                ->havingRaw(
+                    "MAX(json_extract(j.value, '$.latitude')) >= ? AND MIN(json_extract(j.value, '$.latitude')) <= ? AND " . $lngHaving,
+                    [$bounds['south'], $bounds['north'], ...$lngParams]
+                );
         }
     }
 
