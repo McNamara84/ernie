@@ -237,9 +237,10 @@ function ViewportTracker({ onViewportChange, skipNextMoveEnd }: { onViewportChan
 
     // Reset any stale skip flag that was set while ViewportTracker was
     // not mounted (e.g. FitBoundsControl set it when geoFilterEnabled was false).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: reset stale flag once
     useEffect(() => {
         skipNextMoveEnd.current = false;
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         const handler = () => {

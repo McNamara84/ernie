@@ -551,8 +551,10 @@ class PortalSearchService
                 . "HAVING MAX((elem->>'latitude')::float) >= ? AND MIN((elem->>'latitude')::float) <= ? AND " . $lngHaving
                 . ")";
         } elseif ($driver === 'sqlite') {
-            // CAST(? AS REAL) required because PDO binds floats as strings,
-            // and SQLite integer vs text comparison always returns false.
+            // CAST(? AS REAL) required because PDO binds float parameters as TEXT,
+            // which can cause unexpected comparison semantics under SQLite's type
+            // affinity rules (e.g. json_extract returns INTEGER but the bound
+            // value is TEXT, leading to a textual instead of numeric comparison).
             $lngHaving = $searchCrossesAM
                 ? "((SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
                 . "OR (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL))"
