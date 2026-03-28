@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Jobs\DiscoverRelationsJob;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
@@ -55,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
         Queue::route(ImportFromDataCiteJob::class, queue: 'imports');
         Queue::route(UpdatePidJob::class, queue: 'vocabularies');
         Queue::route(UpdateThesaurusJob::class, queue: 'vocabularies');
+        Queue::route(DiscoverRelationsJob::class, queue: 'default');
     }
 
     /**
@@ -153,6 +155,12 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === UserRole::ADMIN
                 || $user->role === UserRole::GROUP_LEADER
                 || $user->role === UserRole::CURATOR;
+        });
+
+        // Access to Assistance page (Admin, Group Leader)
+        Gate::define('access-assistance', function (User $user): bool {
+            return $user->role === UserRole::ADMIN
+                || $user->role === UserRole::GROUP_LEADER;
         });
     }
 }

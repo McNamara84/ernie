@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-26",
+        "date": "2026-03-28",
         "features": [
+            {
+                "title": "Assistance: Suggested Relations Discovery",
+                "description": "New Assistance page under the Tools menu section for discovering related works. The system queries ScholExplorer and DataCite Event Data APIs to find citations, references, and other scholarly links for registered DOIs. Curators can accept (persists relation and syncs to DataCite) or decline (permanently dismisses) each suggestion. Includes a manual 'Check' button and automatic weekly discovery every Sunday at 02:00 UTC. A badge counter in the sidebar and a line in the Dashboard Statistics card show the number of pending suggestions. Available to Admin and Group Leader roles."
+            },
             {
                 "title": "Relation Browser",
                 "description": "Interactive graph visualization for the Related Work section on GFZ landing pages. View relationships between datasets as a force-directed network graph with color-coded identifier types and relation type categories. Nodes display 'Author, Year' labels with full citation details on hover. Supports drag-and-drop, zoom, pan, and click-through to related resources. Includes a comprehensive color legend for both node and edge types."

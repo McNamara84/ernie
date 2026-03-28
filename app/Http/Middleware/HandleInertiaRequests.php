@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\SuggestedRelation;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
@@ -68,6 +69,8 @@ class HandleInertiaRequests extends Middleware
                     'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
                     // Landing page management permission (Issue #375)
                     'can_manage_landing_pages' => $request->user()->can('manage-landing-pages'),
+                    // Assistance page permission
+                    'can_access_assistance' => $request->user()->can('access-assistance'),
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
@@ -75,6 +78,9 @@ class HandleInertiaRequests extends Middleware
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
+            'pendingSuggestedRelationsCount' => $request->user()?->can('access-assistance')
+                ? SuggestedRelation::count()
+                : 0,
         ];
     }
 

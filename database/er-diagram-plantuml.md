@@ -666,6 +666,39 @@ entity "igsn_geological_units" as igsn_geological_units {
 }
 
 ' ==========================================================================
+' ASSISTANCE TABLES (Relation Discovery)
+' ==========================================================================
+
+entity "suggested_relations" as suggested_relations {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * identifier : VARCHAR(2183)
+    * identifier_type_id : BIGINT <<FK>>
+    * relation_type_id : BIGINT <<FK>>
+    * source : VARCHAR(255)
+    source_title : VARCHAR(255)
+    source_type : VARCHAR(255)
+    source_publisher : VARCHAR(255)
+    source_publication_date : VARCHAR(255)
+    * discovered_at : TIMESTAMP
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "dismissed_relations" as dismissed_relations {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * identifier : VARCHAR(2183)
+    * relation_type_id : BIGINT <<FK>>
+    dismissed_by : BIGINT <<FK>>
+    reason : VARCHAR(255)
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+' ==========================================================================
 ' RELATIONSHIPS
 ' ==========================================================================
 
@@ -737,6 +770,14 @@ igsn_metadata }o--o| resources : "parent"
 igsn_classifications }o--|| resources
 igsn_geological_ages }o--|| resources
 igsn_geological_units }o--|| resources
+
+' Suggested/Dismissed relations (Assistance feature)
+suggested_relations }o--|| resources
+suggested_relations }o--|| identifier_types
+suggested_relations }o--|| relation_types
+dismissed_relations }o--|| resources
+dismissed_relations }o--|| relation_types
+dismissed_relations }o--o| users
 
 @enduml
 ```
