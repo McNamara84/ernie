@@ -328,7 +328,7 @@ class RelationDiscoveryService
     private function forgetCacheKey(CacheKey $cacheKey): void
     {
         if ($this->supportsTagging()) {
-            Cache::tags($cacheKey->tags())->flush();
+            Cache::tags($cacheKey->tags())->forget($cacheKey->key());
         } else {
             Cache::forget($cacheKey->key());
         }
