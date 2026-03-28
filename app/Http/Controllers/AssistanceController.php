@@ -71,14 +71,21 @@ class AssistanceController extends Controller
 
         $jobId = Str::uuid()->toString();
 
-        Cache::put(DiscoverRelationsJob::getCacheKey($jobId), [
-            'status' => 'queued',
-            'progress' => 'Waiting to start...',
-            'startedAt' => now()->toIso8601String(),
-            'lockOwner' => $lock->owner(),
-        ], now()->addHours(2));
+        try {
+            Cache::put(DiscoverRelationsJob::getCacheKey($jobId), [
+                'status' => 'queued',
+                'progress' => 'Waiting to start...',
+                'startedAt' => now()->toIso8601String(),
+                'lockOwner' => $lock->owner(),
+            ], now()->addHours(2));
 
-        DiscoverRelationsJob::dispatch($jobId, $lock->owner());
+            DiscoverRelationsJob::dispatch($jobId, $lock->owner());
+        } catch (\Throwable $e) {
+            $lock->release();
+            Cache::forget(DiscoverRelationsJob::getCacheKey($jobId));
+
+            throw $e;
+        }
 
         return response()->json(['jobId' => $jobId]);
     }

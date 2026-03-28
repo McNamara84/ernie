@@ -45,7 +45,11 @@ Schedule::call(function () {
     $lock = Cache::lock('relation_discovery_running', 7200);
 
     if ($lock->get()) {
-        DiscoverRelationsJob::dispatch(Str::uuid()->toString(), $lock->owner());
+        try {
+            DiscoverRelationsJob::dispatch(Str::uuid()->toString(), $lock->owner());
+        } catch (\Throwable) {
+            $lock->release();
+        }
     }
 })->weeklyOn(0, '02:00')
     ->name('discover-relations')

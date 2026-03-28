@@ -81,7 +81,7 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
     const [isChecking, setIsChecking] = useState(false);
     const [checkProgress, setCheckProgress] = useState<string>('');
     const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
-    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Sync state when Inertia updates props (e.g. after router.reload)
     useEffect(() => {
@@ -91,7 +91,7 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
 
     const stopPolling = useCallback(() => {
         if (pollingRef.current !== null) {
-            clearInterval(pollingRef.current);
+            clearTimeout(pollingRef.current);
             pollingRef.current = null;
         }
     }, []);
@@ -110,14 +110,14 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
             const { data } = await axios.post<{ jobId: string }>('/assistance/check');
             const jobId = data.jobId;
 
-            pollingRef.current = setInterval(async () => {
+            const pollStatus = async () => {
                 try {
                     const { data: status } = await axios.get<CheckStatusResponse>(`/assistance/check/${jobId}/status`);
 
                     setCheckProgress(status.progress ?? '');
 
                     if (status.status === 'completed') {
-                        stopPolling();
+                        pollingRef.current = null;
                         setIsChecking(false);
                         const found = status.newRelationsFound ?? 0;
                         if (found > 0) {
@@ -127,16 +127,20 @@ export default function AssistancePage({ suggestions: paginatedSuggestions }: As
                         }
                         router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
                     } else if (status.status === 'failed') {
-                        stopPolling();
+                        pollingRef.current = null;
                         setIsChecking(false);
                         toast.error(`Discovery failed: ${status.error ?? 'Unknown error'}`);
+                    } else {
+                        pollingRef.current = setTimeout(pollStatus, 3000);
                     }
                 } catch {
-                    stopPolling();
+                    pollingRef.current = null;
                     setIsChecking(false);
                     toast.error('Failed to check discovery status.');
                 }
-            }, 3000);
+            };
+
+            pollingRef.current = setTimeout(pollStatus, 3000);
         } catch (error) {
             setIsChecking(false);
             if (axios.isAxiosError(error) && error.response?.status === 409) {
