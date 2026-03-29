@@ -46,6 +46,11 @@ class OrcidDiscoveryService
      */
     private readonly int $rateLimitDelayMs;
 
+    /**
+     * Chunk size for processing persons in batches.
+     */
+    private const CHUNK_SIZE = 100;
+
     public function __construct(
         private readonly OrcidService $orcidService,
         private readonly DataCiteSyncService $dataCiteSyncService,
@@ -55,6 +60,9 @@ class OrcidDiscoveryService
 
     /**
      * Discover missing ORCIDs for all resources with registered DOIs.
+     *
+     * Processes persons in chunks to keep memory bounded, similar to
+     * RelationDiscoveryService::discoverAll().
      *
      * @param  callable(int $processed, int $total): void|null  $progressCallback
      * @return int Number of newly discovered suggestions
@@ -70,49 +78,76 @@ class OrcidDiscoveryService
             return 0;
         }
 
-        $uniquePersonIds = array_unique(array_column($personContexts, 'person_id'));
-        $total = count($uniquePersonIds);
-        $processed = 0;
-        $newCount = 0;
-
-        // Pre-load dismissed ORCIDs
-        $dismissedSet = DismissedOrcid::whereIn('person_id', $uniquePersonIds)
-            ->get(['person_id', 'orcid'])
-            ->groupBy('person_id')
-            ->map(fn ($items) => $items->pluck('orcid')->all())
-            ->all();
-
-        // Pre-load existing suggestions
-        $suggestedSet = SuggestedOrcid::whereIn('person_id', $uniquePersonIds)
-            ->get(['person_id', 'suggested_orcid'])
-            ->groupBy('person_id')
-            ->map(fn ($items) => $items->pluck('suggested_orcid')->all())
-            ->all();
-
-        // Pre-load persons with affiliations
-        $persons = Person::whereIn('id', $uniquePersonIds)
-            ->get()
-            ->keyBy('id');
-
         // Group contexts by person_id for efficient processing
         $contextsByPerson = [];
         foreach ($personContexts as $ctx) {
             $contextsByPerson[$ctx['person_id']][] = $ctx;
         }
 
-        // Pre-load person affiliations via creators/contributors
-        $personAffiliations = $this->loadPersonAffiliations($uniquePersonIds);
+        $allPersonIds = array_keys($contextsByPerson);
+        $total = count($allPersonIds);
+        $processed = 0;
+        $newCount = 0;
 
-        // Pre-load ORCIDs already assigned to other persons (to prevent duplicates)
-        $existingOrcids = Person::whereNotNull('name_identifier')
-            ->where('name_identifier_scheme', 'ORCID')
-            ->pluck('name_identifier')
-            ->map(fn (string $url) => $this->extractOrcidFromUrl($url))
-            ->filter()
-            ->flip()
+        // Process in chunks to keep memory bounded
+        foreach (array_chunk($allPersonIds, self::CHUNK_SIZE) as $chunkPersonIds) {
+            $newCount += $this->processPersonChunk(
+                $chunkPersonIds,
+                $contextsByPerson,
+                $processed,
+                $total,
+                $progressCallback,
+            );
+        }
+
+        Log::info('ORCID discovery completed', [
+            'total_persons' => $total,
+            'new_suggestions' => $newCount,
+        ]);
+
+        if ($newCount > 0) {
+            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+        }
+
+        return $newCount;
+    }
+
+    /**
+     * Process a chunk of person IDs for ORCID discovery.
+     *
+     * @param  array<int, int>  $chunkPersonIds
+     * @param  array<int, array<int, array{person_id: int, resource_id: int, source_context: string}>>  $contextsByPerson
+     * @param  callable(int $processed, int $total): void|null  $progressCallback
+     */
+    private function processPersonChunk(
+        array $chunkPersonIds,
+        array $contextsByPerson,
+        int &$processed,
+        int $total,
+        ?callable $progressCallback,
+    ): int {
+        $newCount = 0;
+
+        // Load data for this chunk only
+        $dismissedSet = DismissedOrcid::whereIn('person_id', $chunkPersonIds)
+            ->get(['person_id', 'orcid'])
+            ->groupBy('person_id')
+            ->map(fn ($items) => $items->pluck('orcid')->all())
             ->all();
 
-        foreach ($contextsByPerson as $personId => $contexts) {
+        $suggestedSet = SuggestedOrcid::whereIn('person_id', $chunkPersonIds)
+            ->get(['person_id', 'suggested_orcid'])
+            ->groupBy('person_id')
+            ->map(fn ($items) => $items->pluck('suggested_orcid')->all())
+            ->all();
+
+        $persons = Person::whereIn('id', $chunkPersonIds)
+            ->get()
+            ->keyBy('id');
+
+        $personAffiliations = $this->loadPersonAffiliations($chunkPersonIds);
+
+        foreach ($chunkPersonIds as $personId) {
             $person = $persons->get($personId);
             if ($person === null) {
                 $processed++;
@@ -122,16 +157,21 @@ class OrcidDiscoveryService
 
             $dismissed = array_flip($dismissedSet[$personId] ?? []);
             $suggested = array_flip($suggestedSet[$personId] ?? []);
+            $contexts = $contextsByPerson[$personId] ?? [];
+            $affiliations = $personAffiliations[$personId] ?? [];
 
             $candidates = $this->searchOrcidCandidates($person);
-
-            $affiliations = $personAffiliations[$personId] ?? [];
 
             foreach (array_slice($candidates, 0, self::MAX_CANDIDATES_PER_PERSON) as $candidate) {
                 $orcid = $candidate['orcid'];
 
-                // Skip if dismissed, already suggested, or assigned to another person
-                if (isset($dismissed[$orcid]) || isset($suggested[$orcid]) || isset($existingOrcids[$orcid])) {
+                // Skip if dismissed or already suggested
+                if (isset($dismissed[$orcid]) || isset($suggested[$orcid])) {
+                    continue;
+                }
+
+                // Check if ORCID is already assigned to any person (query instead of preload)
+                if ($this->isOrcidAssigned($orcid)) {
                     continue;
                 }
 
@@ -173,16 +213,25 @@ class OrcidDiscoveryService
             }
         }
 
-        Log::info('ORCID discovery completed', [
-            'total_persons' => $total,
-            'new_suggestions' => $newCount,
-        ]);
-
-        if ($newCount > 0) {
-            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
-        }
-
         return $newCount;
+    }
+
+    /**
+     * Check if a bare ORCID is already assigned to any person.
+     *
+     * Uses a targeted query instead of preloading all ORCIDs into memory.
+     */
+    private function isOrcidAssigned(string $orcid): bool
+    {
+        return Person::whereNotNull('name_identifier')
+            ->where('name_identifier', '!=', '')
+            ->where('name_identifier_scheme', 'ORCID')
+            ->where(function ($q) use ($orcid): void {
+                $q->where('name_identifier', "https://orcid.org/{$orcid}")
+                    ->orWhere('name_identifier', "http://orcid.org/{$orcid}")
+                    ->orWhere('name_identifier', $orcid);
+            })
+            ->exists();
     }
 
     /**
@@ -216,13 +265,17 @@ class OrcidDiscoveryService
             ];
         }
 
-        // Guard: ORCID already assigned to a different person (normalize stored values)
+        // Guard: ORCID already assigned to a different person (targeted query)
         $existingPerson = Person::whereNotNull('name_identifier')
             ->where('name_identifier', '!=', '')
             ->where('name_identifier_scheme', 'ORCID')
             ->where('id', '!=', $suggestion->person_id)
-            ->get()
-            ->first(fn (Person $p) => $this->extractOrcidFromUrl($p->name_identifier ?? '') === $orcid);
+            ->where(function ($q) use ($orcid): void {
+                $q->where('name_identifier', "https://orcid.org/{$orcid}")
+                    ->orWhere('name_identifier', "http://orcid.org/{$orcid}")
+                    ->orWhere('name_identifier', $orcid);
+            })
+            ->first();
 
         if ($existingPerson !== null) {
             // Delete suggestions for this ORCID across all persons
@@ -525,18 +578,6 @@ class OrcidDiscoveryService
         }
 
         $this->lastApiCallTime = microtime(true) * 1000;
-    }
-
-    /**
-     * Extract bare ORCID from a full ORCID URL.
-     */
-    private function extractOrcidFromUrl(string $url): ?string
-    {
-        if (preg_match('/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/', $url, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
     }
 
     /**

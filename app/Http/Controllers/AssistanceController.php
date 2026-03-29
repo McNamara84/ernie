@@ -60,7 +60,6 @@ class AssistanceController extends Controller
 
         // ORCID suggestions: ordered by enrichable count per resource, then similarity
         $orcidPaginator = SuggestedOrcid::with(['resource.titles.titleType', 'person'])
-            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
             ->selectRaw('suggested_orcids.*, (
                 SELECT COUNT(DISTINCT so2.person_id)
                 FROM suggested_orcids AS so2
