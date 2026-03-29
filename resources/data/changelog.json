@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-28",
+        "date": "2026-03-29",
         "features": [
             {
                 "title": "Assistance: Suggested Relations Discovery",
@@ -167,6 +167,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Contact Information Section on Landing Pages",
+                "description": "Fixed the Contact Information box on GFZ landing pages not always being displayed. Previously, only creators marked as contact persons were included. Now, contributors with the ContributorType 'ContactPerson' and a valid email address are also shown, with automatic deduplication against creators. Contact person names are displayed in 'Last, First' format. The 'Send Request' button is now always visible (previously only shown with 2+ contacts). The contact form correctly routes messages to both creator and contributor contact persons."
+            },
             {
                 "title": "Related Work links missing for non-DOI identifiers on landing pages",
                 "description": "Landing pages now correctly display links for all common identifier types (DOI, URL, Handle, arXiv, IGSN, ISBN, ISSN, URN, RAiD) instead of only DOIs. Previously, relation type headings like 'Is Documented By' would appear with no link underneath when the identifier was not a DOI."
