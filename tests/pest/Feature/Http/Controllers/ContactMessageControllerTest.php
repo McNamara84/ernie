@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
+use App\Models\ContributorType;
 use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Title;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -645,6 +647,145 @@ describe('ContactMessageController', function (): void {
 
             // Only 1 email should have Cc
             expect($emailsWithCc)->toBe(1);
+        });
+
+    });
+
+    describe('contributor contact person routing', function (): void {
+
+        it('sends message to a specific contributor contact person', function (): void {
+            Mail::fake();
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $contactType = ContributorType::create(['name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+
+            $person = Person::factory()->create(['given_name' => 'Bob', 'family_name' => 'Contributor']);
+            $contributor = ResourceContributor::factory()->create([
+                'resource_id' => $resource->id,
+                'contributorable_type' => Person::class,
+                'contributorable_id' => $person->id,
+                'email' => 'bob@example.com',
+            ]);
+            $contributor->contributorTypes()->attach($contactType);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.contrib.001',
+                'slug' => 'contributor-test',
+            ]);
+
+            $response = $this->postJson('/10.5880/gfz.contrib.001/contributor-test/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'Message for a contributor contact person.',
+                'send_to_all' => false,
+                'resource_contributor_id' => $contributor->id,
+            ]);
+
+            $response->assertOk()
+                ->assertJson(['recipients_count' => 1]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, function ($mail) {
+                return $mail->hasTo('bob@example.com');
+            });
+        });
+
+        it('sends to all includes contributor contact persons', function (): void {
+            Mail::fake();
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            // Creator contact person
+            $creatorPerson = Person::factory()->create(['given_name' => 'Alice', 'family_name' => 'Creator']);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $creatorPerson->id,
+                'email' => 'alice@example.com',
+                'is_contact' => true,
+            ]);
+
+            // Contributor contact person (different person)
+            $contactType = ContributorType::create(['name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+            $contributorPerson = Person::factory()->create(['given_name' => 'Bob', 'family_name' => 'Contributor']);
+            $contributor = ResourceContributor::factory()->create([
+                'resource_id' => $resource->id,
+                'contributorable_type' => Person::class,
+                'contributorable_id' => $contributorPerson->id,
+                'email' => 'bob@example.com',
+            ]);
+            $contributor->contributorTypes()->attach($contactType);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.allcontrib.001',
+                'slug' => 'all-contrib-test',
+            ]);
+
+            $response = $this->postJson('/10.5880/gfz.allcontrib.001/all-contrib-test/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'Message for all contact persons including contributors.',
+                'send_to_all' => true,
+            ]);
+
+            $response->assertOk()
+                ->assertJson(['recipients_count' => 2]);
+
+            Mail::assertQueued(ContactPersonMessage::class, 2);
+            Mail::assertQueued(ContactPersonMessage::class, fn ($mail) => $mail->hasTo('alice@example.com'));
+            Mail::assertQueued(ContactPersonMessage::class, fn ($mail) => $mail->hasTo('bob@example.com'));
+        });
+
+        it('deduplicates contributor against creator when sending to all', function (): void {
+            Mail::fake();
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            // Same person as creator (is_contact) AND contributor (ContactPerson type)
+            $person = Person::factory()->create(['given_name' => 'Alice', 'family_name' => 'Duplicate']);
+
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'alice@example.com',
+                'is_contact' => true,
+            ]);
+
+            $contactType = ContributorType::create(['name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+            $contributor = ResourceContributor::factory()->create([
+                'resource_id' => $resource->id,
+                'contributorable_type' => Person::class,
+                'contributorable_id' => $person->id,
+                'email' => 'alice@example.com',
+            ]);
+            $contributor->contributorTypes()->attach($contactType);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.dedup.001',
+                'slug' => 'dedup-test',
+            ]);
+
+            $response = $this->postJson('/10.5880/gfz.dedup.001/dedup-test/contact', [
+                'sender_name' => 'Test User',
+                'sender_email' => 'test@example.com',
+                'message' => 'Message testing dedup between creator and contributor.',
+                'send_to_all' => true,
+            ]);
+
+            $response->assertOk()
+                ->assertJson(['recipients_count' => 1]);
+
+            // Only 1 email: creator preferred, contributor deduplicated
+            Mail::assertQueued(ContactPersonMessage::class, 1);
+            Mail::assertQueued(ContactPersonMessage::class, fn ($mail) => $mail->hasTo('alice@example.com'));
         });
 
     });

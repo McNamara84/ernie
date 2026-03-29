@@ -102,15 +102,22 @@ class ContactMessageController extends Controller
         }
 
         // Validate the request
+        $sendToAll = (bool) $request->input('send_to_all', false);
+
         $validated = $request->validate([
             'sender_name' => 'required|string|max:255',
             'sender_email' => 'required|email|max:255',
             'message' => 'required|string|min:10|max:5000',
             'send_to_all' => 'boolean',
             'copy_to_sender' => 'boolean',
-            // When sending to all: IDs must be null. When not: exactly one ID required.
-            'resource_creator_id' => 'nullable|integer|exists:resource_creators,id|prohibited_if:send_to_all,true',
-            'resource_contributor_id' => 'nullable|integer|exists:resource_contributors,id|prohibited_if:send_to_all,true',
+            // When sending to all: IDs must be absent.
+            // When not sending to all: exactly one of the two IDs is required.
+            'resource_creator_id' => $sendToAll
+                ? ['prohibited']
+                : ['required_without:resource_contributor_id', 'integer', 'exists:resource_creators,id', 'prohibits:resource_contributor_id'],
+            'resource_contributor_id' => $sendToAll
+                ? ['prohibited']
+                : ['required_without:resource_creator_id', 'integer', 'exists:resource_contributors,id', 'prohibits:resource_creator_id'],
         ]);
 
         // Load resource with creators and contributors

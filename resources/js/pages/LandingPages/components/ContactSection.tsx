@@ -64,7 +64,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
 
                 <div className="space-y-4">
                     {contactPersons.map((person) => (
-                        <div key={person.id} className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                        <div key={`${person.source}-${person.id}`} className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
                             {/* Name row with contact and external links */}
                             <div className="flex flex-wrap items-center gap-2">
                                 {/* Contact link — display as "Last, First" for persons */}

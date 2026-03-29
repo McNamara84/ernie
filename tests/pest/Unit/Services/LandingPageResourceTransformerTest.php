@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Models\ContributorType;
 use App\Models\Description;
-use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
