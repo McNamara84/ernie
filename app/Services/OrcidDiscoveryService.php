@@ -258,9 +258,7 @@ class OrcidDiscoveryService
         // Build all possible URL variants for these ORCIDs
         $urlVariants = [];
         foreach ($orcids as $orcid) {
-            $urlVariants[] = "https://orcid.org/{$orcid}";
-            $urlVariants[] = "http://orcid.org/{$orcid}";
-            $urlVariants[] = $orcid;
+            $urlVariants = [...$urlVariants, ...$this->orcidUrlVariants($orcid)];
         }
 
         // Single query to find all matching persons
@@ -318,11 +316,7 @@ class OrcidDiscoveryService
             ->where('name_identifier', '!=', '')
             ->where('name_identifier_scheme', 'ORCID')
             ->where('id', '!=', $suggestion->person_id)
-            ->where(function ($q) use ($orcid): void {
-                $q->where('name_identifier', "https://orcid.org/{$orcid}")
-                    ->orWhere('name_identifier', "http://orcid.org/{$orcid}")
-                    ->orWhere('name_identifier', $orcid);
-            })
+            ->whereIn('name_identifier', $this->orcidUrlVariants($orcid))
             ->first();
 
         if ($existingPerson !== null) {
@@ -659,6 +653,24 @@ class OrcidDiscoveryService
         }
 
         $this->lastApiCallTime = microtime(true) * 1000;
+    }
+
+    /**
+     * Generate all known URL variants for a bare ORCID.
+     *
+     * Covers https/http with and without www., plus the bare ID.
+     *
+     * @return array<int, string>
+     */
+    private function orcidUrlVariants(string $orcid): array
+    {
+        return [
+            "https://orcid.org/{$orcid}",
+            "http://orcid.org/{$orcid}",
+            "https://www.orcid.org/{$orcid}",
+            "http://www.orcid.org/{$orcid}",
+            $orcid,
+        ];
     }
 
     /**
