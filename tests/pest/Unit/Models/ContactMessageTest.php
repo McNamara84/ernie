@@ -14,6 +14,7 @@ describe('fillable', function () {
         expect($model->getFillable())->toBe([
             'resource_id',
             'resource_creator_id',
+            'resource_contributor_id',
             'send_to_all',
             'sender_name',
             'sender_email',

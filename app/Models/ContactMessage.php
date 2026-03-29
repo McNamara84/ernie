@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $resource_id
  * @property int|null $resource_creator_id
+ * @property int|null $resource_contributor_id
  * @property bool $send_to_all
  * @property string $sender_name
  * @property string $sender_email
@@ -29,8 +30,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read ResourceCreator|null $resourceCreator
+ * @property-read ResourceContributor|null $resourceContributor
  */
-#[Fillable(['resource_id', 'resource_creator_id', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'sent_at'])]
+#[Fillable(['resource_id', 'resource_creator_id', 'resource_contributor_id', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'sent_at'])]
 class ContactMessage extends Model
 {
     /** @use HasFactory<\Database\Factories\ContactMessageFactory> */
@@ -63,6 +65,17 @@ class ContactMessage extends Model
     {
         /** @var BelongsTo<ResourceCreator, static> $relation */
         $relation = $this->belongsTo(ResourceCreator::class);
+
+        return $relation;
+    }
+
+    /**
+     * @return BelongsTo<ResourceContributor, static>
+     */
+    public function resourceContributor(): BelongsTo
+    {
+        /** @var BelongsTo<ResourceContributor, static> $relation */
+        $relation = $this->belongsTo(ResourceContributor::class);
 
         return $relation;
     }

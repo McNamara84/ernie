@@ -284,7 +284,8 @@ export interface LandingPageResourceType {
 }
 
 /**
- * Contact person entry for landing pages (derived from creators with is_contact_person=true)
+ * Contact person entry for landing pages.
+ * Derived from creators with is_contact=true and contributors with ContributorType "ContactPerson".
  */
 export interface LandingPageContactPerson {
     id: number;
@@ -294,8 +295,10 @@ export interface LandingPageContactPerson {
     given_name: string | null;
     /** Family (last) name */
     family_name: string | null;
-    /** Person type (e.g., 'ContactPerson') */
+    /** Person type (e.g., 'Person' or 'Institution') */
     type: string;
+    /** Source: 'creator' or 'contributor' — indicates which model the contact person comes from */
+    source: 'creator' | 'contributor';
     /** Affiliations */
     affiliations: Array<{
         name: string;

@@ -204,48 +204,116 @@ final class LandingPageResourceTransformer
             ])
             ->all();
 
-        $resourceData['contact_persons'] = $resource->creators
+        // 1. Collect creator contact persons (is_contact flag + has email)
+        $creatorContactPersons = $resource->creators
             ->filter(static fn (ResourceCreator $creator): bool => $creator->is_contact && $creator->email !== null && $creator->email !== '')
             ->sortBy('position')
-            ->values()
-            ->map(static function (ResourceCreator $creator): array {
-                /** @var Person|Institution|null $creatorable */
-                $creatorable = $creator->creatorable;
+            ->values();
 
-                $isPerson = $creatorable instanceof Person;
-                $givenName = $isPerson ? $creatorable->given_name : null;
-                $familyName = $isPerson ? $creatorable->family_name : null;
+        // 2. Track creator entity IDs for deduplication (type+id pairs)
+        $creatorEntityKeys = $creatorContactPersons
+            ->map(static fn (ResourceCreator $creator): string => $creator->creatorable_type.'|'.$creator->creatorable_id)
+            ->all();
 
-                $name = '';
-                if ($isPerson) {
-                    $name = $givenName ? $givenName.' '.$familyName : ($familyName ?? '');
-                } elseif ($creatorable instanceof Institution) {
-                    $name = $creatorable->name ?? '';
+        // 3. Collect contributor contact persons (ContributorType "ContactPerson" + has email, deduplicated)
+        $contributorContactPersons = $resource->contributors
+            ->filter(static function (ResourceContributor $contributor) use ($creatorEntityKeys): bool {
+                // Must have a non-empty email
+                if ($contributor->email === null || $contributor->email === '') {
+                    return false;
                 }
 
-                $nameIdentifierScheme = $creatorable?->name_identifier_scheme;
+                // Must have ContributorType with slug "ContactPerson"
+                $hasContactPersonType = $contributor->contributorTypes
+                    ->contains(static fn (ContributorType $type): bool => $type->slug === 'ContactPerson');
 
-                return [
-                    'id' => $creator->id,
-                    'name' => $name,
-                    'given_name' => $givenName,
-                    'family_name' => $familyName,
-                    'type' => class_basename($creator->creatorable_type),
-                    'affiliations' => $creator->affiliations
-                        ->map(static fn (Affiliation $aff): array => [
-                            'name' => $aff->name,
-                            'identifier' => $aff->identifier,
-                            'scheme' => $aff->identifier_scheme,
-                        ])
-                        ->all(),
-                    'orcid' => $nameIdentifierScheme === 'ORCID'
-                        ? $creatorable?->name_identifier
-                        : null,
-                    'website' => $creator->website,
-                    'has_email' => true,
-                ];
+                if (! $hasContactPersonType) {
+                    return false;
+                }
+
+                // Skip if same entity already exists as a creator contact person
+                $entityKey = $contributor->contributorable_type.'|'.$contributor->contributorable_id;
+
+                return ! in_array($entityKey, $creatorEntityKeys, true);
             })
-            ->all();
+            ->sortBy('position')
+            ->values();
+
+        // Helper to build display name from a Person or Institution entity
+        $buildEntityName = static function (Person|Institution|null $entity): string {
+            if ($entity instanceof Person) {
+                return trim(implode(' ', array_filter([$entity->given_name, $entity->family_name]))) ?: 'Contact Person';
+            }
+
+            if ($entity instanceof Institution) {
+                return $entity->name ?? 'Contact Person';
+            }
+
+            return 'Contact Person';
+        };
+
+        // Helper to map a contact person entry (shared between creators and contributors)
+        $mapContactEntry = static function (
+            int $id,
+            Person|Institution|null $entity,
+            string $morphType,
+            string $source,
+            array $affiliations,
+            ?string $website,
+        ) use ($buildEntityName): array {
+            $isPerson = $entity instanceof Person;
+            $givenName = $isPerson ? $entity->given_name : null;
+            $familyName = $isPerson ? $entity->family_name : null;
+            $nameIdentifierScheme = $entity?->name_identifier_scheme;
+
+            return [
+                'id' => $id,
+                'name' => $buildEntityName($entity),
+                'given_name' => $givenName,
+                'family_name' => $familyName,
+                'type' => class_basename($morphType),
+                'source' => $source,
+                'affiliations' => $affiliations,
+                'orcid' => $nameIdentifierScheme === 'ORCID'
+                    ? $entity?->name_identifier
+                    : null,
+                'website' => $website,
+                'has_email' => true,
+            ];
+        };
+
+        // 4. Map creator contact persons
+        $mappedCreators = $creatorContactPersons
+            ->map(static fn (ResourceCreator $creator): array => $mapContactEntry(
+                $creator->id,
+                $creator->creatorable,
+                $creator->creatorable_type,
+                'creator',
+                $creator->affiliations->map(static fn (Affiliation $aff): array => [
+                    'name' => $aff->name,
+                    'identifier' => $aff->identifier,
+                    'scheme' => $aff->identifier_scheme,
+                ])->all(),
+                $creator->website,
+            ));
+
+        // 5. Map contributor contact persons
+        $mappedContributors = $contributorContactPersons
+            ->map(static fn (ResourceContributor $contributor): array => $mapContactEntry(
+                $contributor->id,
+                $contributor->contributorable,
+                $contributor->contributorable_type,
+                'contributor',
+                $contributor->affiliations->map(static fn (Affiliation $aff): array => [
+                    'name' => $aff->name,
+                    'identifier' => $aff->identifier,
+                    'scheme' => $aff->identifier_scheme,
+                ])->all(),
+                $contributor->website,
+            ));
+
+        // 6. Merge: creators first, then contributors
+        $resourceData['contact_persons'] = $mappedCreators->concat($mappedContributors)->values()->all();
 
         return $resourceData;
     }

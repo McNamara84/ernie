@@ -41,16 +41,29 @@ const createContactPerson = (overrides: Partial<{
     given_name: string | null;
     family_name: string | null;
     type: string;
+    source: 'creator' | 'contributor';
     affiliations: Array<{ name: string; identifier: string | null; scheme: string | null }>;
     orcid: string | null;
     website: string | null;
     has_email: boolean;
-}> = {}) => ({
+}> = {}): {
+    id: number;
+    name: string;
+    given_name: string | null;
+    family_name: string | null;
+    type: string;
+    source: 'creator' | 'contributor';
+    affiliations: Array<{ name: string; identifier: string | null; scheme: string | null }>;
+    orcid: string | null;
+    website: string | null;
+    has_email: boolean;
+} => ({
     id: 1,
     name: 'John Doe',
     given_name: 'John',
     family_name: 'Doe',
     type: 'Person',
+    source: 'creator',
     affiliations: [],
     orcid: null,
     website: null,
@@ -84,7 +97,7 @@ describe('ContactSection', () => {
         it('displays contact person name as button when has_email is true', () => {
             render(<ContactSection {...defaultProps} />);
             
-            const contactButton = screen.getByRole('button', { name: /John Doe/i });
+            const contactButton = screen.getByRole('button', { name: /Doe, John/i });
             expect(contactButton).toBeInTheDocument();
         });
 
@@ -96,7 +109,7 @@ describe('ContactSection', () => {
                 />
             );
             
-            expect(screen.queryByRole('button', { name: /John Doe/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Doe, John/i })).not.toBeInTheDocument();
         });
 
         it('displays multiple contact persons', () => {
@@ -104,14 +117,14 @@ describe('ContactSection', () => {
                 <ContactSection
                     {...defaultProps}
                     contactPersons={[
-                        createContactPerson({ id: 1, name: 'John Doe' }),
-                        createContactPerson({ id: 2, name: 'Jane Smith' }),
+                        createContactPerson({ id: 1, name: 'John Doe', given_name: 'John', family_name: 'Doe' }),
+                        createContactPerson({ id: 2, name: 'Jane Smith', given_name: 'Jane', family_name: 'Smith' }),
                     ]}
                 />
             );
             
-            expect(screen.getByRole('button', { name: /John Doe/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /Jane Smith/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Doe, John/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Smith, Jane/i })).toBeInTheDocument();
         });
     });
 
@@ -230,7 +243,7 @@ describe('ContactSection', () => {
         it('opens modal when clicking on contact person', () => {
             render(<ContactSection {...defaultProps} />);
             
-            const contactButton = screen.getByRole('button', { name: /John Doe/i });
+            const contactButton = screen.getByRole('button', { name: /Doe, John/i });
             fireEvent.click(contactButton);
             
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
@@ -241,7 +254,7 @@ describe('ContactSection', () => {
             render(<ContactSection {...defaultProps} />);
             
             // Open modal
-            fireEvent.click(screen.getByRole('button', { name: /John Doe/i }));
+            fireEvent.click(screen.getByRole('button', { name: /Doe, John/i }));
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             
             // Close modal
@@ -252,45 +265,54 @@ describe('ContactSection', () => {
         it('passes correct dataset title to modal', () => {
             render(<ContactSection {...defaultProps} datasetTitle="My Research Data" />);
             
-            fireEvent.click(screen.getByRole('button', { name: /John Doe/i }));
+            fireEvent.click(screen.getByRole('button', { name: /Doe, John/i }));
             
             expect(screen.getByTestId('dataset-title')).toHaveTextContent('My Research Data');
         });
     });
 
-    describe('contact all button', () => {
-        it('renders "Contact all" button when multiple contact persons exist', () => {
+    describe('send request button', () => {
+        it('renders "Send Request" button when multiple contact persons exist', () => {
             render(
                 <ContactSection
                     {...defaultProps}
                     contactPersons={[
-                        createContactPerson({ id: 1, name: 'John Doe' }),
-                        createContactPerson({ id: 2, name: 'Jane Smith' }),
+                        createContactPerson({ id: 1, name: 'John Doe', given_name: 'John', family_name: 'Doe' }),
+                        createContactPerson({ id: 2, name: 'Jane Smith', given_name: 'Jane', family_name: 'Smith' }),
                     ]}
                 />
             );
             
-            expect(screen.getByRole('button', { name: /Contact all \(2\)/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Send Request/i })).toBeInTheDocument();
         });
 
-        it('does not render "Contact all" button when only one contact person', () => {
+        it('renders "Send Request" button when only one contact person', () => {
             render(<ContactSection {...defaultProps} />);
             
-            expect(screen.queryByRole('button', { name: /Contact all/i })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Send Request/i })).toBeInTheDocument();
         });
 
-        it('opens modal with no selected person when clicking "Contact all"', () => {
+        it('opens modal with selected person when clicking "Send Request" with one contact', () => {
+            render(<ContactSection {...defaultProps} />);
+            
+            fireEvent.click(screen.getByRole('button', { name: /Send Request/i }));
+            
+            expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
+            expect(screen.getByTestId('selected-person')).toHaveTextContent('John Doe');
+        });
+
+        it('opens modal with no selected person when clicking "Send Request" with multiple contacts', () => {
             render(
                 <ContactSection
                     {...defaultProps}
                     contactPersons={[
-                        createContactPerson({ id: 1, name: 'John Doe' }),
-                        createContactPerson({ id: 2, name: 'Jane Smith' }),
+                        createContactPerson({ id: 1, name: 'John Doe', given_name: 'John', family_name: 'Doe' }),
+                        createContactPerson({ id: 2, name: 'Jane Smith', given_name: 'Jane', family_name: 'Smith' }),
                     ]}
                 />
             );
             
-            fireEvent.click(screen.getByRole('button', { name: /Contact all/i }));
+            fireEvent.click(screen.getByRole('button', { name: /Send Request/i }));
             
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('All');

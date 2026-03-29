@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\ContributorType;
 use App\Models\Description;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
@@ -247,4 +248,195 @@ test('handles empty licenses collection', function () {
         ->and($data['licenses'])
         ->toBeArray()
         ->toBeEmpty();
+});
+
+test('includes contributor contact persons with source contributor', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $contactType = new ContributorType;
+    $contactType->forceFill(['id' => 1, 'name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+
+    $person = new Person;
+    $person->forceFill([
+        'id' => 10,
+        'given_name' => 'Alice',
+        'family_name' => 'Contributor',
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+    ]);
+
+    $contributor = new ResourceContributor;
+    $contributor->forceFill([
+        'id' => 5,
+        'position' => 1,
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $person->id,
+        'email' => 'alice@example.com',
+        'website' => null,
+    ]);
+    $contributor->setRelation('contributorable', $person);
+    $contributor->setRelation('contributorTypes', new EloquentCollection([$contactType]));
+    $contributor->setRelation('affiliations', new EloquentCollection);
+
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection([$contributor]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['contact_persons'])
+        ->toHaveCount(1)
+        ->and($data['contact_persons'][0])
+        ->toMatchArray([
+            'id' => 5,
+            'name' => 'Alice Contributor',
+            'given_name' => 'Alice',
+            'family_name' => 'Contributor',
+            'type' => 'Person',
+            'source' => 'contributor',
+            'has_email' => true,
+        ]);
+});
+
+test('includes both creator and contributor contact persons', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $creatorPerson = new Person;
+    $creatorPerson->forceFill([
+        'id' => 1,
+        'given_name' => 'Jane',
+        'family_name' => 'Creator',
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+    ]);
+
+    $creator = new ResourceCreator;
+    $creator->forceFill([
+        'id' => 1,
+        'position' => 1,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $creatorPerson->id,
+        'is_contact' => true,
+        'email' => 'jane@example.com',
+        'website' => null,
+    ]);
+    $creator->setRelation('creatorable', $creatorPerson);
+    $creator->setRelation('affiliations', new EloquentCollection);
+
+    $contactType = new ContributorType;
+    $contactType->forceFill(['id' => 1, 'name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+
+    $contributorPerson = new Person;
+    $contributorPerson->forceFill([
+        'id' => 2,
+        'given_name' => 'Bob',
+        'family_name' => 'Contributor',
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+    ]);
+
+    $contributor = new ResourceContributor;
+    $contributor->forceFill([
+        'id' => 10,
+        'position' => 1,
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $contributorPerson->id,
+        'email' => 'bob@example.com',
+        'website' => null,
+    ]);
+    $contributor->setRelation('contributorable', $contributorPerson);
+    $contributor->setRelation('contributorTypes', new EloquentCollection([$contactType]));
+    $contributor->setRelation('affiliations', new EloquentCollection);
+
+    $resource->setRelation('creators', new EloquentCollection([$creator]));
+    $resource->setRelation('contributors', new EloquentCollection([$contributor]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['contact_persons'])
+        ->toHaveCount(2)
+        ->and($data['contact_persons'][0]['source'])->toBe('creator')
+        ->and($data['contact_persons'][0]['name'])->toBe('Jane Creator')
+        ->and($data['contact_persons'][1]['source'])->toBe('contributor')
+        ->and($data['contact_persons'][1]['name'])->toBe('Bob Contributor');
+});
+
+test('deduplicates contributor contact persons against creator contact persons', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    // Same person is both creator (with is_contact) and contributor (with ContactPerson type)
+    $person = new Person;
+    $person->forceFill([
+        'id' => 1,
+        'given_name' => 'Alice',
+        'family_name' => 'Duplicate',
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+    ]);
+
+    $creator = new ResourceCreator;
+    $creator->forceFill([
+        'id' => 1,
+        'position' => 1,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $person->id,
+        'is_contact' => true,
+        'email' => 'alice@example.com',
+        'website' => null,
+    ]);
+    $creator->setRelation('creatorable', $person);
+    $creator->setRelation('affiliations', new EloquentCollection);
+
+    $contactType = new ContributorType;
+    $contactType->forceFill(['id' => 1, 'name' => 'ContactPerson', 'slug' => 'ContactPerson']);
+
+    $contributor = new ResourceContributor;
+    $contributor->forceFill([
+        'id' => 10,
+        'position' => 1,
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $person->id, // Same person!
+        'email' => 'alice@example.com',
+        'website' => null,
+    ]);
+    $contributor->setRelation('contributorable', $person);
+    $contributor->setRelation('contributorTypes', new EloquentCollection([$contactType]));
+    $contributor->setRelation('affiliations', new EloquentCollection);
+
+    $resource->setRelation('creators', new EloquentCollection([$creator]));
+    $resource->setRelation('contributors', new EloquentCollection([$contributor]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    // Should only have 1 contact person (creator preferred, contributor deduplicated)
+    expect($data['contact_persons'])
+        ->toHaveCount(1)
+        ->and($data['contact_persons'][0]['source'])->toBe('creator')
+        ->and($data['contact_persons'][0]['name'])->toBe('Alice Duplicate');
 });
