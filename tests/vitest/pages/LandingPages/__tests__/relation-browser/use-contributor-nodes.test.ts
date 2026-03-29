@@ -85,7 +85,7 @@ describe('use-contributor-nodes utilities', () => {
                 contributorTypes: ['Editor'],
                 datasetNodeIds: new Set(['central']),
             };
-            expect(buildContributorId(info)).toBe('contributor-0000-0001-2345-6789');
+            expect(buildContributorId(info, { value: 0 })).toBe('contributor-0000-0001-2345-6789');
         });
 
         it('uses normalized name when no ORCID', () => {
@@ -97,7 +97,7 @@ describe('use-contributor-nodes utilities', () => {
                 contributorTypes: ['DataCollector'],
                 datasetNodeIds: new Set(['central']),
             };
-            expect(buildContributorId(info)).toBe('contributor-smith|john');
+            expect(buildContributorId(info, { value: 0 })).toBe('contributor-smith|john');
         });
 
         it('uses institution name for institutions', () => {
@@ -109,7 +109,7 @@ describe('use-contributor-nodes utilities', () => {
                 contributorTypes: ['HostingInstitution'],
                 datasetNodeIds: new Set(['central']),
             };
-            expect(buildContributorId(info)).toBe('contributor-gfz potsdam');
+            expect(buildContributorId(info, { value: 0 })).toBe('contributor-gfz potsdam');
         });
     });
 
@@ -146,7 +146,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: null,
                 contributorTypes: ['Editor'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = map.get('smith|john')!;
@@ -165,7 +165,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: '0000-0001-2345-6789',
                 contributorTypes: ['Editor'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeContributor(map, orcidIndex, {
                 givenName: 'J.',
@@ -173,7 +173,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: '0000-0001-2345-6789',
                 contributorTypes: ['DataCollector'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = [...map.values()][0];
@@ -190,7 +190,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: null,
                 contributorTypes: ['Editor'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeContributor(map, orcidIndex, {
                 givenName: 'John',
@@ -198,7 +198,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: null,
                 contributorTypes: ['DataCurator'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = [...map.values()][0];
@@ -215,7 +215,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: null,
                 contributorTypes: ['Editor'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeContributor(map, orcidIndex, {
                 givenName: 'John',
@@ -223,7 +223,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: null,
                 contributorTypes: ['Editor'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = [...map.values()][0];
@@ -240,7 +240,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: null,
                 contributorTypes: ['Editor'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeContributor(map, orcidIndex, {
                 givenName: 'John',
@@ -248,7 +248,7 @@ describe('use-contributor-nodes utilities', () => {
                 institutionName: null,
                 orcid: '0000-0001-2345-6789',
                 contributorTypes: ['DataCollector'],
-            }, 'central');
+            }, 'central', { value: 0 });
 
             const entry = [...map.values()][0];
             expect(entry.orcid).toBe('0000-0001-2345-6789');

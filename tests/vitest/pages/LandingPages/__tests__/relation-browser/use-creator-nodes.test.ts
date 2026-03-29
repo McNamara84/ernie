@@ -89,7 +89,7 @@ describe('use-creator-nodes utilities', () => {
                 orcid: '0000-0002-1234-5678',
                 datasetNodeIds: new Set(['central']),
             };
-            expect(buildCreatorId(info)).toBe('creator-0000-0002-1234-5678');
+            expect(buildCreatorId(info, { value: 0 })).toBe('creator-0000-0002-1234-5678');
         });
 
         it('uses normalized name when no ORCID', () => {
@@ -100,7 +100,7 @@ describe('use-creator-nodes utilities', () => {
                 orcid: null,
                 datasetNodeIds: new Set(['central']),
             };
-            expect(buildCreatorId(info)).toBe('creator-doe|john');
+            expect(buildCreatorId(info, { value: 0 })).toBe('creator-doe|john');
         });
 
         it('uses institution name when no person name or ORCID', () => {
@@ -111,7 +111,7 @@ describe('use-creator-nodes utilities', () => {
                 orcid: null,
                 datasetNodeIds: new Set(['central']),
             };
-            expect(buildCreatorId(info)).toBe('creator-gfz centre');
+            expect(buildCreatorId(info, { value: 0 })).toBe('creator-gfz centre');
         });
     });
 
@@ -125,7 +125,7 @@ describe('use-creator-nodes utilities', () => {
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: null,
-            }, 'central');
+            }, 'central', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = map.get('doe|john')!;
@@ -142,14 +142,14 @@ describe('use-creator-nodes utilities', () => {
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: '0000-0002-1234-5678',
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeCreator(map, orcidIndex, {
                 givenName: 'J.',
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: '0000-0002-1234-5678',
-            }, 'related-1');
+            }, 'related-1', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = [...map.values()][0];
@@ -167,14 +167,14 @@ describe('use-creator-nodes utilities', () => {
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: null,
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeCreator(map, orcidIndex, {
                 givenName: 'John',
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: null,
-            }, 'related-1');
+            }, 'related-1', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = [...map.values()][0];
@@ -190,14 +190,14 @@ describe('use-creator-nodes utilities', () => {
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: null,
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeCreator(map, orcidIndex, {
                 givenName: 'John',
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: '0000-0002-1234-5678',
-            }, 'related-1');
+            }, 'related-1', { value: 0 });
 
             expect(map.size).toBe(1);
             const entry = [...map.values()][0];
@@ -213,14 +213,14 @@ describe('use-creator-nodes utilities', () => {
                 familyName: 'Doe',
                 institutionName: null,
                 orcid: null,
-            }, 'central');
+            }, 'central', { value: 0 });
 
             mergeCreator(map, orcidIndex, {
                 givenName: 'Jane',
                 familyName: 'Smith',
                 institutionName: null,
                 orcid: null,
-            }, 'central');
+            }, 'central', { value: 0 });
 
             expect(map.size).toBe(2);
         });

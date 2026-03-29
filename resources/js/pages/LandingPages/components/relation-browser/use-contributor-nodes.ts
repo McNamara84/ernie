@@ -18,7 +18,9 @@ interface UseContributorNodesResult {
     contributorLinks: GraphLink[];
 }
 
-let unknownContributorCounter = 0;
+interface Counter {
+    value: number;
+}
 
 /**
  * Normalize a name for deduplication: lowercase, trimmed.
@@ -48,7 +50,7 @@ function buildContributorLabel(info: ContributorInfo): string {
 /**
  * Build a stable node ID for a contributor.
  */
-function buildContributorId(info: ContributorInfo): string {
+function buildContributorId(info: ContributorInfo, counter: Counter): string {
     if (info.orcid) {
         return `contributor-${info.orcid}`;
     }
@@ -59,7 +61,7 @@ function buildContributorId(info: ContributorInfo): string {
     if (info.institutionName) {
         return `contributor-${info.institutionName.trim().toLowerCase()}`;
     }
-    return `contributor-unknown-${unknownContributorCounter++}`;
+    return `contributor-unknown-${counter.value++}`;
 }
 
 /**
@@ -94,6 +96,7 @@ function mergeContributor(
         contributorTypes: string[];
     },
     datasetNodeId: string,
+    counter: Counter,
 ): void {
     // Try to find existing entry by ORCID
     if (contributor.orcid) {
@@ -143,7 +146,7 @@ function mergeContributor(
         ? nameKey
         : contributor.institutionName
             ? `inst-${contributor.institutionName.trim().toLowerCase()}`
-            : `unknown-${unknownContributorCounter++}`;
+            : `unknown-${counter.value++}`;
     map.set(key, info);
     if (contributor.orcid) {
         orcidIndex.set(contributor.orcid, key);
@@ -188,6 +191,7 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
     return useMemo(() => {
         const contributorMap = new Map<string, ContributorInfo>();
         const orcidIndex = new Map<string, string>();
+        const counter: Counter = { value: 0 };
 
         const contributors = resource.contributors ?? [];
         for (const contributor of contributors) {
@@ -196,14 +200,16 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
                 orcidIndex,
                 fromLandingPageContributor(contributor),
                 'central',
+                counter,
             );
         }
 
         const contributorNodes: GraphNode[] = [];
         const contributorLinks: GraphLink[] = [];
+        const idCounter: Counter = { value: 0 };
 
         for (const info of contributorMap.values()) {
-            const nodeId = buildContributorId(info);
+            const nodeId = buildContributorId(info, idCounter);
             const label = buildContributorLabel(info);
             const orcidUrl = buildOrcidUrl(info.orcid);
             const primaryType = info.contributorTypes[0] ?? 'Other';

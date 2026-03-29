@@ -27,7 +27,9 @@ interface UseCreatorNodesResult {
     loading: boolean;
 }
 
-let unknownCreatorCounter = 0;
+interface Counter {
+    value: number;
+}
 
 /**
  * Normalize a name for deduplication: lowercase, trimmed.
@@ -57,7 +59,7 @@ function buildCreatorLabel(info: CreatorInfo): string {
 /**
  * Build a stable node ID for a creator.
  */
-function buildCreatorId(info: CreatorInfo): string {
+function buildCreatorId(info: CreatorInfo, counter: Counter): string {
     if (info.orcid) {
         return `creator-${info.orcid}`;
     }
@@ -68,7 +70,7 @@ function buildCreatorId(info: CreatorInfo): string {
     if (info.institutionName) {
         return `creator-${info.institutionName.trim().toLowerCase()}`;
     }
-    return `creator-unknown-${unknownCreatorCounter++}`;
+    return `creator-unknown-${counter.value++}`;
 }
 
 /**
@@ -88,6 +90,7 @@ function mergeCreator(
     orcidIndex: Map<string, string>,
     creator: { givenName: string | null; familyName: string | null; institutionName: string | null; orcid: string | null },
     datasetNodeId: string,
+    counter: Counter,
 ): void {
     // Try to find existing entry by ORCID
     if (creator.orcid) {
@@ -126,7 +129,7 @@ function mergeCreator(
         ? nameKey
         : creator.institutionName
             ? `inst-${creator.institutionName.trim().toLowerCase()}`
-            : `unknown-${unknownCreatorCounter++}`;
+            : `unknown-${counter.value++}`;
     map.set(key, info);
     if (creator.orcid) {
         orcidIndex.set(creator.orcid, key);
@@ -205,6 +208,17 @@ export function useCreatorNodes(
             }))
             .filter((item) => item.doi !== '');
 
+        // Group nodeIds by normalized DOI to avoid duplicate requests
+        const doiToNodeIds = new Map<string, string[]>();
+        for (const item of doisToFetch) {
+            const existing = doiToNodeIds.get(item.doi);
+            if (existing) {
+                existing.push(item.nodeId);
+            } else {
+                doiToNodeIds.set(item.doi, [item.nodeId]);
+            }
+        }
+
         // Reset state for the new set of identifiers
         const validNodeIds = new Set(doisToFetch.map((item) => item.nodeId));
         setApiAuthors((prev) => {
@@ -217,16 +231,18 @@ export function useCreatorNodes(
             return next;
         });
 
-        if (doisToFetch.length === 0) {
+        const uniqueDois = [...doiToNodeIds.keys()];
+        if (uniqueDois.length === 0) {
             setLoading(false);
             return () => controller.abort();
         }
 
         setLoading(true);
-        let pending = doisToFetch.length;
+        let pending = uniqueDois.length;
 
-        for (const item of doisToFetch) {
-            fetch(`/api/datacite/authors/${encodeURIComponent(item.doi)}`, {
+        for (const doi of uniqueDois) {
+            const nodeIds = doiToNodeIds.get(doi)!;
+            fetch(`/api/datacite/authors/${encodeURIComponent(doi)}`, {
                 signal: controller.signal,
             })
                 .then((response) => {
@@ -238,7 +254,9 @@ export function useCreatorNodes(
                     const authors = Array.isArray(data.authors) ? data.authors : [];
                     setApiAuthors((prev) => {
                         const next = new Map(prev);
-                        next.set(item.nodeId, authors);
+                        for (const nodeId of nodeIds) {
+                            next.set(nodeId, authors);
+                        }
                         return next;
                     });
                 })
@@ -261,26 +279,28 @@ export function useCreatorNodes(
     // Build deduplicated creator nodes and links
     const creatorMap = new Map<string, CreatorInfo>();
     const orcidIndex = new Map<string, string>();
+    const counter: Counter = { value: 0 };
 
     // 1. Central resource creators (immediate)
     const centralCreators = resource.creators ?? [];
     for (const creator of centralCreators) {
-        mergeCreator(creatorMap, orcidIndex, fromLandingPageCreator(creator), 'central');
+        mergeCreator(creatorMap, orcidIndex, fromLandingPageCreator(creator), 'central', counter);
     }
 
     // 2. Related DOI creators (async)
     for (const [nodeId, authors] of apiAuthors) {
         for (const author of authors) {
-            mergeCreator(creatorMap, orcidIndex, fromApiAuthor(author), nodeId);
+            mergeCreator(creatorMap, orcidIndex, fromApiAuthor(author), nodeId, counter);
         }
     }
 
     // Build graph nodes
     const creatorNodes: GraphNode[] = [];
     const creatorLinks: GraphLink[] = [];
+    const idCounter: Counter = { value: 0 };
 
     for (const info of creatorMap.values()) {
-        const nodeId = buildCreatorId(info);
+        const nodeId = buildCreatorId(info, idCounter);
         const label = buildCreatorLabel(info);
         const orcidUrl = buildOrcidUrl(info.orcid);
 

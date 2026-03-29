@@ -13,6 +13,8 @@ import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 
 import { RelationBrowserGraph } from './relation-browser/RelationBrowserGraph';
 import { RelationBrowserLegend } from './relation-browser/RelationBrowserLegend';
+import { useContributorNodes } from './relation-browser/use-contributor-nodes';
+import { useCreatorNodes } from './relation-browser/use-creator-nodes';
 
 interface RelationBrowserModalProps {
     open: boolean;
@@ -47,29 +49,32 @@ export function RelationBrowserModal({
         [renderableIdentifiers],
     );
 
-    // Include Creator in identifier types and relation types if resource has creators
-    const hasCreators = (resource.creators?.length ?? 0) > 0 || renderableIdentifiers.some((r) => r.identifier_type === 'DOI');
-    const allIdentifierTypes = useMemo(
-        () => hasCreators ? [...activeIdentifierTypes, 'Creator'] : activeIdentifierTypes,
-        [activeIdentifierTypes, hasCreators],
-    );
+    // Drive hasCreators/hasContributors from actual computed nodes
+    const { creatorNodes } = useCreatorNodes(resource, renderableIdentifiers);
+    const { contributorNodes } = useContributorNodes(resource);
 
-    // Include Contributor in identifier types if resource has contributors
-    const hasContributors = (resource.contributors?.length ?? 0) > 0;
-    const allIdentifierTypesWithContributors = useMemo(
-        () => hasContributors ? [...allIdentifierTypes, 'Contributor'] : allIdentifierTypes,
-        [allIdentifierTypes, hasContributors],
-    );
+    const hasCreators = creatorNodes.length > 0;
+    const hasContributors = contributorNodes.length > 0;
+
+    // Build deduplicated identifier types including Creator/Contributor
+    const allIdentifierTypes = useMemo(() => {
+        const types = new Set(activeIdentifierTypes);
+        if (hasCreators) types.add('Creator');
+        if (hasContributors) types.add('Contributor');
+        return [...types];
+    }, [activeIdentifierTypes, hasCreators, hasContributors]);
 
     // Collect active relation types including person role types
     const personRelationTypes = useMemo(() => {
-        const types = [...activeRelationTypes];
-        if (hasCreators) types.push('Created');
+        const types = new Set(activeRelationTypes);
+        if (hasCreators) types.add('Created');
         if (hasContributors) {
             const contributorTypes = (resource.contributors ?? []).flatMap((c) => c.contributor_types);
-            types.push(...new Set(contributorTypes));
+            for (const ct of contributorTypes) {
+                types.add(ct);
+            }
         }
-        return types;
+        return [...types];
     }, [activeRelationTypes, hasCreators, hasContributors, resource.contributors]);
 
     return (
@@ -101,7 +106,7 @@ export function RelationBrowserModal({
                 {/* Legend */}
                 <div className="shrink-0">
                     <RelationBrowserLegend
-                        activeIdentifierTypes={allIdentifierTypesWithContributors}
+                        activeIdentifierTypes={allIdentifierTypes}
                         activeRelationTypes={personRelationTypes}
                     />
                 </div>
