@@ -20,9 +20,9 @@ use Illuminate\Support\Facades\Log;
 class OrcidService
 {
     /**
-     * Timestamp of the last ORCID API call (milliseconds).
+     * Cache key for the shared ORCID API rate limiter timestamp.
      */
-    private float $lastApiCallTime = 0;
+    private const RATE_LIMIT_CACHE_KEY = 'orcid_api_last_call_ms';
 
     /**
      * Minimum delay between ORCID API calls in milliseconds.
@@ -674,21 +674,24 @@ class OrcidService
     /**
      * Enforce ORCID API rate limit before each outgoing HTTP call.
      *
-     * Ensures a minimum delay between consecutive API requests to stay
-     * within the 30 req/min public API limit. Applied transparently to
-     * all HTTP calls (search, record fetch, validation) so callers
-     * do not need to manage throttling themselves.
+     * Uses a shared Cache timestamp so concurrent queue workers and
+     * web requests on the same server respect the 30 req/min public
+     * API limit. An atomic lock prevents two processes from reading
+     * the same timestamp and both proceeding simultaneously.
      */
     private function respectRateLimit(): void
     {
-        $now = microtime(true) * 1000;
-        $elapsed = $now - $this->lastApiCallTime;
+        Cache::lock(self::RATE_LIMIT_CACHE_KEY.':lock', 10)->block(10, function () {
+            $lastCallMs = (float) Cache::get(self::RATE_LIMIT_CACHE_KEY, 0);
+            $now = microtime(true) * 1000;
+            $elapsed = $now - $lastCallMs;
 
-        if ($this->lastApiCallTime > 0 && $elapsed < $this->rateLimitDelayMs) {
-            $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
-            usleep($sleepMs * 1000);
-        }
+            if ($lastCallMs > 0 && $elapsed < $this->rateLimitDelayMs) {
+                $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
+                usleep($sleepMs * 1000);
+            }
 
-        $this->lastApiCallTime = microtime(true) * 1000;
+            Cache::put(self::RATE_LIMIT_CACHE_KEY, microtime(true) * 1000, 60);
+        });
     }
 }

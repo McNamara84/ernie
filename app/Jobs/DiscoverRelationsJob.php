@@ -49,7 +49,7 @@ class DiscoverRelationsJob implements ShouldQueue
     ) {
         if (! Str::isUuid($jobId)) {
             throw new \InvalidArgumentException(
-                "Job ID must be a valid UUID, got: {$jobId}"
+                'Job ID must be a valid UUID'
             );
         }
     }
