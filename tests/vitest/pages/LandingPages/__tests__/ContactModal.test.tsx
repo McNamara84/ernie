@@ -17,6 +17,7 @@ describe('ContactModal', () => {
         given_name: 'John',
         family_name: 'Smith',
         type: 'person',
+        source: 'creator' as const,
         has_email: true,
     };
 
@@ -26,6 +27,7 @@ describe('ContactModal', () => {
         given_name: 'Jane',
         family_name: 'Doe',
         type: 'person',
+        source: 'creator' as const,
         has_email: true,
     };
 
@@ -389,6 +391,7 @@ describe('ContactModal', () => {
                         message: 'This is a valid test message',
                         send_to_all: false,
                         resource_creator_id: 1,
+                        resource_contributor_id: null,
                     }),
                 );
             });
@@ -411,6 +414,7 @@ describe('ContactModal', () => {
                 const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
                 expect(callBody.send_to_all).toBe(true);
                 expect(callBody.resource_creator_id).toBeNull();
+                expect(callBody.resource_contributor_id).toBeNull();
             });
         });
 

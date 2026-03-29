@@ -6,8 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
+use App\Models\ContributorType;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -107,12 +109,15 @@ class ContactMessageController extends Controller
             'send_to_all' => 'boolean',
             'copy_to_sender' => 'boolean',
             'resource_creator_id' => 'nullable|integer|exists:resource_creators,id',
+            'resource_contributor_id' => 'nullable|integer|exists:resource_contributors,id',
         ]);
 
-        // Load resource with creators
+        // Load resource with creators and contributors
         $resource = Resource::with([
             'creators.creatorable',
             'creators.affiliations',
+            'contributors.contributorable',
+            'contributors.contributorTypes',
             'titles',
         ])->findOrFail($resourceId);
 
@@ -120,7 +125,8 @@ class ContactMessageController extends Controller
         $recipients = $this->getRecipients(
             $resource,
             $validated['send_to_all'] ?? false,
-            $validated['resource_creator_id'] ?? null
+            $validated['resource_creator_id'] ?? null,
+            $validated['resource_contributor_id'] ?? null,
         );
 
         if (empty($recipients)) {
@@ -202,37 +208,85 @@ class ContactMessageController extends Controller
     /**
      * Get recipients for the contact message.
      *
+     * Collects creators with is_contact + email, and contributors with
+     * ContributorType "ContactPerson" + email (deduplicated against creators).
+     *
      * @return array<int, array{email: string, name: string}>
      */
-    private function getRecipients(Resource $resource, bool $sendToAll, ?int $resourceCreatorId): array
+    private function getRecipients(Resource $resource, bool $sendToAll, ?int $resourceCreatorId, ?int $resourceContributorId): array
     {
         $recipients = [];
 
-        // Get all contact persons (creators with email)
-        $contactPersons = $resource->creators->filter(
-            fn (ResourceCreator $creator) => $creator->email !== null && $creator->email !== ''
+        // Get creator contact persons (is_contact flag + has email)
+        $creatorContacts = $resource->creators->filter(
+            static fn (ResourceCreator $creator): bool => $creator->is_contact && $creator->email !== null && $creator->email !== ''
+        );
+
+        // Track creator entity keys for deduplication
+        $creatorEntityKeys = $creatorContacts
+            ->map(static fn (ResourceCreator $creator): string => $creator->creatorable_type.'|'.$creator->creatorable_id)
+            ->all();
+
+        // Get contributor contact persons (ContactPerson type + has email, deduplicated)
+        $contributorContacts = $resource->contributors->filter(
+            static function (ResourceContributor $contributor) use ($creatorEntityKeys): bool {
+                if ($contributor->email === null || $contributor->email === '') {
+                    return false;
+                }
+
+                $hasContactPersonType = $contributor->contributorTypes
+                    ->contains(static fn (ContributorType $type): bool => $type->slug === 'ContactPerson');
+
+                if (! $hasContactPersonType) {
+                    return false;
+                }
+
+                $entityKey = $contributor->contributorable_type.'|'.$contributor->contributorable_id;
+
+                return ! in_array($entityKey, $creatorEntityKeys, true);
+            }
         );
 
         if ($sendToAll) {
-            // Send to all contact persons
-            foreach ($contactPersons as $creator) {
+            // Send to all creator contact persons
+            foreach ($creatorContacts as $creator) {
                 /** @var \App\Models\Person|\App\Models\Institution $creatorable */
                 $creatorable = $creator->creatorable;
-                // Email is guaranteed non-null by the filter above
                 $recipients[] = [
                     'email' => (string) $creator->email,
-                    'name' => $this->getCreatorName($creatorable),
+                    'name' => $this->getEntityName($creatorable),
+                ];
+            }
+
+            // Send to all contributor contact persons
+            foreach ($contributorContacts as $contributor) {
+                /** @var \App\Models\Person|\App\Models\Institution $contributorable */
+                $contributorable = $contributor->contributorable;
+                $recipients[] = [
+                    'email' => (string) $contributor->email,
+                    'name' => $this->getEntityName($contributorable),
                 ];
             }
         } elseif ($resourceCreatorId !== null) {
             // Send to specific creator
-            $creator = $contactPersons->firstWhere('id', $resourceCreatorId);
+            $creator = $creatorContacts->firstWhere('id', $resourceCreatorId);
             if ($creator !== null && $creator->email !== null) {
                 /** @var \App\Models\Person|\App\Models\Institution $creatorable */
                 $creatorable = $creator->creatorable;
                 $recipients[] = [
                     'email' => $creator->email,
-                    'name' => $this->getCreatorName($creatorable),
+                    'name' => $this->getEntityName($creatorable),
+                ];
+            }
+        } elseif ($resourceContributorId !== null) {
+            // Send to specific contributor
+            $contributor = $contributorContacts->firstWhere('id', $resourceContributorId);
+            if ($contributor !== null && $contributor->email !== null) {
+                /** @var \App\Models\Person|\App\Models\Institution $contributorable */
+                $contributorable = $contributor->contributorable;
+                $recipients[] = [
+                    'email' => $contributor->email,
+                    'name' => $this->getEntityName($contributorable),
                 ];
             }
         }
@@ -241,22 +295,21 @@ class ContactMessageController extends Controller
     }
 
     /**
-     * Get the display name for a creator.
+     * Get the display name for a person or institution.
      *
-     * @param  \App\Models\Person|\App\Models\Institution  $creatorable
+     * @param  \App\Models\Person|\App\Models\Institution  $entity
      */
-    private function getCreatorName($creatorable): string
+    private function getEntityName($entity): string
     {
-        // Check if it's a Person (has given_name/family_name) or Institution (has name)
-        if (isset($creatorable->family_name)) {
-            $name = $creatorable->family_name;
-            if (isset($creatorable->given_name)) {
-                $name = $creatorable->given_name.' '.$creatorable->family_name;
+        if (isset($entity->family_name)) {
+            $name = $entity->family_name;
+            if (isset($entity->given_name)) {
+                $name = $entity->given_name.' '.$entity->family_name;
             }
 
             return $name;
         }
 
-        return $creatorable->name ?? 'Contact Person';
+        return $entity->name ?? 'Contact Person';
     }
 }

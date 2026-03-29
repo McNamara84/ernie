@@ -16,6 +16,7 @@ interface ContactPerson {
     given_name: string | null;
     family_name: string | null;
     type: string;
+    source: 'creator' | 'contributor';
     has_email: boolean;
 }
 
@@ -106,7 +107,8 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                     message: message.trim(),
                     send_to_all: sendToAll,
                     copy_to_sender: copyToSender,
-                    resource_creator_id: sendToAll ? null : selectedPerson?.id,
+                    resource_creator_id: sendToAll ? null : selectedPerson?.source === 'creator' ? selectedPerson.id : null,
+                    resource_contributor_id: sendToAll ? null : selectedPerson?.source === 'contributor' ? selectedPerson.id : null,
                     // Honeypot field - bots will fill this
                     website_url: honeypot,
                 }),

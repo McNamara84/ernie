@@ -204,10 +204,43 @@ final class LandingPageResourceTransformer
             ])
             ->all();
 
-        $resourceData['contact_persons'] = $resource->creators
+        // 1. Collect creator contact persons (is_contact flag + has email)
+        $creatorContactPersons = $resource->creators
             ->filter(static fn (ResourceCreator $creator): bool => $creator->is_contact && $creator->email !== null && $creator->email !== '')
             ->sortBy('position')
-            ->values()
+            ->values();
+
+        // 2. Track creator entity IDs for deduplication (type+id pairs)
+        $creatorEntityKeys = $creatorContactPersons
+            ->map(static fn (ResourceCreator $creator): string => $creator->creatorable_type.'|'.$creator->creatorable_id)
+            ->all();
+
+        // 3. Collect contributor contact persons (ContributorType "ContactPerson" + has email, deduplicated)
+        $contributorContactPersons = $resource->contributors
+            ->filter(static function (ResourceContributor $contributor) use ($creatorEntityKeys): bool {
+                // Must have a non-empty email
+                if ($contributor->email === null || $contributor->email === '') {
+                    return false;
+                }
+
+                // Must have ContributorType with slug "ContactPerson"
+                $hasContactPersonType = $contributor->contributorTypes
+                    ->contains(static fn (ContributorType $type): bool => $type->slug === 'ContactPerson');
+
+                if (! $hasContactPersonType) {
+                    return false;
+                }
+
+                // Skip if same entity already exists as a creator contact person
+                $entityKey = $contributor->contributorable_type.'|'.$contributor->contributorable_id;
+
+                return ! in_array($entityKey, $creatorEntityKeys, true);
+            })
+            ->sortBy('position')
+            ->values();
+
+        // 4. Map creator contact persons
+        $mappedCreators = $creatorContactPersons
             ->map(static function (ResourceCreator $creator): array {
                 /** @var Person|Institution|null $creatorable */
                 $creatorable = $creator->creatorable;
@@ -231,6 +264,7 @@ final class LandingPageResourceTransformer
                     'given_name' => $givenName,
                     'family_name' => $familyName,
                     'type' => class_basename($creator->creatorable_type),
+                    'source' => 'creator',
                     'affiliations' => $creator->affiliations
                         ->map(static fn (Affiliation $aff): array => [
                             'name' => $aff->name,
@@ -244,8 +278,51 @@ final class LandingPageResourceTransformer
                     'website' => $creator->website,
                     'has_email' => true,
                 ];
-            })
-            ->all();
+            });
+
+        // 5. Map contributor contact persons
+        $mappedContributors = $contributorContactPersons
+            ->map(static function (ResourceContributor $contributor): array {
+                /** @var Person|Institution|null $contributorable */
+                $contributorable = $contributor->contributorable;
+
+                $isPerson = $contributorable instanceof Person;
+                $givenName = $isPerson ? $contributorable->given_name : null;
+                $familyName = $isPerson ? $contributorable->family_name : null;
+
+                $name = '';
+                if ($isPerson) {
+                    $name = $givenName ? $givenName.' '.$familyName : ($familyName ?? '');
+                } elseif ($contributorable instanceof Institution) {
+                    $name = $contributorable->name ?? '';
+                }
+
+                $nameIdentifierScheme = $contributorable?->name_identifier_scheme;
+
+                return [
+                    'id' => $contributor->id,
+                    'name' => $name,
+                    'given_name' => $givenName,
+                    'family_name' => $familyName,
+                    'type' => class_basename($contributor->contributorable_type),
+                    'source' => 'contributor',
+                    'affiliations' => $contributor->affiliations
+                        ->map(static fn (Affiliation $aff): array => [
+                            'name' => $aff->name,
+                            'identifier' => $aff->identifier,
+                            'scheme' => $aff->identifier_scheme,
+                        ])
+                        ->all(),
+                    'orcid' => $nameIdentifierScheme === 'ORCID'
+                        ? $contributorable?->name_identifier
+                        : null,
+                    'website' => $contributor->website,
+                    'has_email' => true,
+                ];
+            });
+
+        // 6. Merge: creators first, then contributors
+        $resourceData['contact_persons'] = $mappedCreators->concat($mappedContributors)->values()->all();
 
         return $resourceData;
     }

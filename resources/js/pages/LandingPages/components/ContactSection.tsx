@@ -17,6 +17,7 @@ interface ContactPerson {
     given_name: string | null;
     family_name: string | null;
     type: string;
+    source: 'creator' | 'contributor';
     affiliations: Affiliation[];
     orcid: string | null;
     website: string | null;
@@ -66,7 +67,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                         <div key={person.id} className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
                             {/* Name row with contact and external links */}
                             <div className="flex flex-wrap items-center gap-2">
-                                {/* Contact link */}
+                                {/* Contact link — display as "Last, First" for persons */}
                                 {person.has_email && (
                                     <Button
                                         variant="link"
@@ -75,7 +76,9 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                         title={`Contact ${person.name}`}
                                     >
                                         <User className="h-4 w-4" />
-                                        {person.name}
+                                        {person.family_name && person.given_name
+                                            ? `${person.family_name}, ${person.given_name}`
+                                            : person.name}
                                     </Button>
                                 )}
 
@@ -137,21 +140,23 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                     ))}
                 </div>
 
-                {/* Contact all button if multiple contact persons */}
-                {contactPersons.length > 1 && (
-                    <div className="mt-4 border-t border-gray-200 pt-4">
-                        <Button
-                            onClick={() => {
+                {/* Send Request button — always shown */}
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                    <Button
+                        onClick={() => {
+                            if (contactPersons.length === 1) {
+                                setSelectedPerson(contactPersons[0]);
+                            } else {
                                 setSelectedPerson(null);
-                                setIsModalOpen(true);
-                            }}
-                            className="w-full bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
-                        >
-                            <Mail className="h-4 w-4" />
-                            Contact all ({contactPersons.length})
-                        </Button>
-                    </div>
-                )}
+                            }
+                            setIsModalOpen(true);
+                        }}
+                        className="w-full bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
+                    >
+                        <Mail className="h-4 w-4" />
+                        Send Request
+                    </Button>
+                </div>
             </div>
 
             {/* Contact Modal */}

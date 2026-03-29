@@ -19,6 +19,7 @@ interface ContactPerson {
     given_name: string | null;
     family_name: string | null;
     type: string;
+    source: 'creator' | 'contributor';
     orcid: string | null;
     website: string | null;
     has_email: boolean;

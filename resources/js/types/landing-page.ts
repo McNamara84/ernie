@@ -294,8 +294,10 @@ export interface LandingPageContactPerson {
     given_name: string | null;
     /** Family (last) name */
     family_name: string | null;
-    /** Person type (e.g., 'ContactPerson') */
+    /** Person type (e.g., 'Person' or 'Institution') */
     type: string;
+    /** Source: 'creator' or 'contributor' — indicates which model the contact person comes from */
+    source: 'creator' | 'contributor';
     /** Affiliations */
     affiliations: Array<{
         name: string;
