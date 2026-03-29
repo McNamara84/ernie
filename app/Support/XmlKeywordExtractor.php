@@ -87,7 +87,7 @@ class XmlKeywordExtractor
 
         foreach ($subjectElements as $element) {
             $scheme = $element->getAttribute('subjectScheme');
-            $schemeUri = $element->getAttribute('schemeURI');
+            $schemeUri = (string) $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
             $classificationCode = trim((string) $element->getAttribute('classificationCode'));
             $langAttr = trim((string) $element->getAttribute('xml:lang'));
@@ -115,7 +115,7 @@ class XmlKeywordExtractor
                 'path' => trim($content),
                 'language' => $language,
                 'scheme' => $scheme,
-                'schemeURI' => $schemeUri ?? 'https://epos-msl.uu.nl/voc',
+                'schemeURI' => $schemeUri !== '' ? $schemeUri : 'https://epos-msl.uu.nl/voc',
             ];
 
             if ($classificationCode !== '') {
@@ -149,7 +149,7 @@ class XmlKeywordExtractor
 
         foreach ($subjectElements as $element) {
             $scheme = $element->getAttribute('subjectScheme');
-            $schemeUri = $element->getAttribute('schemeURI');
+            $schemeUri = (string) $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
             $classificationCode = trim((string) $element->getAttribute('classificationCode'));
             $langAttr = trim((string) $element->getAttribute('xml:lang'));
@@ -177,7 +177,7 @@ class XmlKeywordExtractor
                 'path' => trim($content),
                 'language' => $language,
                 'scheme' => $scheme,
-                'schemeURI' => $schemeUri ?? 'http://www.eionet.europa.eu/gemet/concept/',
+                'schemeURI' => $schemeUri !== '' ? $schemeUri : 'http://www.eionet.europa.eu/gemet/concept/',
             ];
 
             if ($classificationCode !== '') {

@@ -1643,6 +1643,7 @@ export default function DataCiteForm({
                 language: string;
                 scheme: string;
                 schemeURI: string;
+                classificationCode?: string;
                 vocabularyType: string;
             }[];
             spatialTemporalCoverages: {
@@ -1716,7 +1717,7 @@ export default function DataCiteForm({
                 language: kw.language,
                 scheme: kw.scheme,
                 schemeURI: kw.schemeURI,
-                ...(kw.classificationCode != null && kw.classificationCode.trim() !== '' ? { classificationCode: kw.classificationCode } : {}),
+                ...(kw.classificationCode != null && kw.classificationCode.trim() !== '' ? { classificationCode: kw.classificationCode.trim() } : {}),
                 vocabularyType: getVocabularyTypeFromScheme(kw.scheme),
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
