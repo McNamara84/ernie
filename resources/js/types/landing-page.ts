@@ -284,7 +284,8 @@ export interface LandingPageResourceType {
 }
 
 /**
- * Contact person entry for landing pages (derived from creators with is_contact_person=true)
+ * Contact person entry for landing pages.
+ * Derived from creators with is_contact=true and contributors with ContributorType "ContactPerson".
  */
 export interface LandingPageContactPerson {
     id: number;
