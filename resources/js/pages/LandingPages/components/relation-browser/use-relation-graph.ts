@@ -4,7 +4,7 @@ import { select } from 'd3-selection';
 import { zoom } from 'd3-zoom';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
-import { CENTRAL_RADIUS, CREATOR_RADIUS, getEdgeColor, getNodeColor, getNodeRadius, NODE_RADIUS } from './graph-colors';
+import { CENTRAL_RADIUS, CREATOR_RADIUS, getEdgeCategory, getEdgeColor, getNodeColor, getNodeRadius, NODE_RADIUS } from './graph-colors';
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
 
@@ -53,8 +53,14 @@ export function useRelationGraph(
         const defs = svgSelection.append('defs');
         const markerTypes = [...new Set(links.map((l) => l.relationType))];
         for (const rt of markerTypes) {
-            // Created edges point at resource nodes (radius 22-30), others at varied sizes
-            const refX = rt === 'Created' ? NODE_RADIUS + 6 : 28;
+            // Created edges point at resource nodes (radius 22-30)
+            // Contributor edges point at central node (radius 30)
+            const category = getEdgeCategory(rt);
+            const refX = category === 'Contributor'
+                ? CENTRAL_RADIUS + 6
+                : rt === 'Created'
+                    ? NODE_RADIUS + 6
+                    : 28;
             defs.append('marker')
                 .attr('id', `arrow-${rt}`)
                 .attr('viewBox', '0 -5 10 10')
@@ -135,6 +141,7 @@ export function useRelationGraph(
                         url: d.url,
                         nodeType: d.nodeType,
                         orcid: d.orcid,
+                        contributorTypes: d.contributorTypes,
                     },
                     type: 'node',
                 });

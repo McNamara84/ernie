@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
     CENTRAL_RADIUS,
+    CONTRIBUTOR_COLOR,
+    CONTRIBUTOR_RADIUS,
     CREATOR_COLOR,
     CREATOR_RADIUS,
     EDGE_FALLBACK_COLOR,
@@ -166,6 +168,30 @@ describe('graph-colors', () => {
         });
     });
 
+    describe('Contributor support', () => {
+        it('returns Contributor color for Contributor identifier type', () => {
+            expect(getNodeColor('Contributor', false)).toBe(CONTRIBUTOR_COLOR);
+        });
+
+        it('returns correct edge color for contributor relation types', () => {
+            expect(getEdgeColor('Editor')).toBe(CONTRIBUTOR_COLOR);
+            expect(getEdgeColor('DataCollector')).toBe(CONTRIBUTOR_COLOR);
+            expect(getEdgeColor('HostingInstitution')).toBe(CONTRIBUTOR_COLOR);
+        });
+
+        it('returns Contributor category for contributor relation types', () => {
+            expect(getEdgeCategory('Editor')).toBe('Contributor');
+            expect(getEdgeCategory('DataCollector')).toBe('Contributor');
+            expect(getEdgeCategory('ContactPerson')).toBe('Contributor');
+            expect(getEdgeCategory('Supervisor')).toBe('Contributor');
+        });
+
+        it('includes Contributor in edge category color map', () => {
+            const map = getEdgeCategoryColorMap();
+            expect(map.Contributor).toBe(CONTRIBUTOR_COLOR);
+        });
+    });
+
     describe('getNodeRadius', () => {
         it('returns CENTRAL_RADIUS for central nodes', () => {
             expect(getNodeRadius('resource', true)).toBe(CENTRAL_RADIUS);
@@ -176,13 +202,18 @@ describe('graph-colors', () => {
             expect(getNodeRadius('creator', false)).toBe(CREATOR_RADIUS);
         });
 
+        it('returns CONTRIBUTOR_RADIUS for contributor nodes', () => {
+            expect(getNodeRadius('contributor', false)).toBe(CONTRIBUTOR_RADIUS);
+        });
+
         it('returns NODE_RADIUS for resource nodes', () => {
             expect(getNodeRadius('resource', false)).toBe(NODE_RADIUS);
         });
 
-        it('has correct radius hierarchy: central > resource > creator', () => {
+        it('has correct radius hierarchy: central > resource > creator > contributor', () => {
             expect(CENTRAL_RADIUS).toBeGreaterThan(NODE_RADIUS);
             expect(NODE_RADIUS).toBeGreaterThan(CREATOR_RADIUS);
+            expect(CREATOR_RADIUS).toBeGreaterThan(CONTRIBUTOR_RADIUS);
         });
     });
 });

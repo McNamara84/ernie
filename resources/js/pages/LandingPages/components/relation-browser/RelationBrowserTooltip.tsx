@@ -59,7 +59,32 @@ export function RelationBrowserTooltip({ tooltip, containerRect }: RelationBrows
                     )}
                 </div>
             )}
-            {tooltip.type === 'node' && tooltip.content.nodeType !== 'creator' && (
+            {tooltip.type === 'node' && tooltip.content.nodeType === 'contributor' && (
+                <div className="space-y-1">
+                    <p className="font-medium text-gray-900 leading-snug">
+                        {tooltip.content.label}
+                    </p>
+                    {tooltip.content.contributorTypes && tooltip.content.contributorTypes.length > 0 && (
+                        <p className="text-xs text-gray-500">
+                            {tooltip.content.contributorTypes.join(', ')}
+                        </p>
+                    )}
+                    {tooltip.content.orcid ? (
+                        <>
+                            <p className="text-xs text-gray-500">
+                                ORCID: {tooltip.content.orcid}
+                            </p>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-blue-600">
+                                <ExternalLink className="h-3 w-3" />
+                                Click to open ORCID profile
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-xs text-gray-400">No ORCID available</p>
+                    )}
+                </div>
+            )}
+            {tooltip.type === 'node' && tooltip.content.nodeType !== 'creator' && tooltip.content.nodeType !== 'contributor' && (
                 <div className="space-y-1">
                     <p className="font-medium text-gray-900 leading-snug">
                         {tooltip.content.label}

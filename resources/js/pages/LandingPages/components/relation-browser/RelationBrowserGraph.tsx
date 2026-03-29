@@ -10,6 +10,7 @@ import { truncateLabel } from './graph-utils';
 import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
 import { useCreatorNodes } from './use-creator-nodes';
+import { useContributorNodes } from './use-contributor-nodes';
 import { useRelationGraph } from './use-relation-graph';
 
 const GRAPH_WIDTH = 1000;
@@ -124,6 +125,7 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
 
     const citationLabels = useCitationLabels(relatedIdentifiers, citationTexts);
     const { creatorNodes, creatorLinks } = useCreatorNodes(resource, relatedIdentifiers);
+    const { contributorNodes, contributorLinks } = useContributorNodes(resource);
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
@@ -132,10 +134,10 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
         [resource, relatedIdentifiers],
     );
 
-    // Merge resource nodes with creator nodes
+    // Merge resource nodes with creator and contributor nodes
     const nodes = useMemo(
-        () => [...resourceNodes, ...creatorNodes],
-        [resourceNodes, creatorNodes],
+        () => [...resourceNodes, ...creatorNodes, ...contributorNodes],
+        [resourceNodes, creatorNodes, contributorNodes],
     );
 
     // Patch citation labels into existing node objects without creating new array
@@ -163,10 +165,10 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
         [relatedIdentifiers],
     );
 
-    // Merge resource links with creator links
+    // Merge resource links with creator and contributor links
     const links = useMemo(
-        () => [...resourceLinks, ...creatorLinks],
-        [resourceLinks, creatorLinks],
+        () => [...resourceLinks, ...creatorLinks, ...contributorLinks],
+        [resourceLinks, creatorLinks, contributorLinks],
     );
 
     const handleNodeClick = useCallback((node: GraphNode) => {
