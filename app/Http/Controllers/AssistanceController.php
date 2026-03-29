@@ -71,11 +71,16 @@ class AssistanceController extends Controller
             ->paginate($perPage, ['suggested_orcids.*'], 'orcid_page')
             ->withQueryString();
 
-        $orcidSuggestions = $orcidPaginator->through(function (SuggestedOrcid $s) {
-            $person = $s->person;
+        $orcidSuggestions = $orcidPaginator->through(function (SuggestedOrcid $s) use ($orcidPaginator) {
+            // Bulk-load affiliations for all person IDs on the current page (cached per request)
+            static $affiliationCache = null;
+            if ($affiliationCache === null) {
+                $personIds = $orcidPaginator->getCollection()->pluck('person_id')->unique()->all();
+                $affiliationCache = $this->loadPersonAffiliationNamesBulk($personIds);
+            }
 
-            // Load affiliations for this person from their creator/contributor links
-            $personAffiliations = $this->loadPersonAffiliationNames($person->id);
+            $person = $s->person;
+            $personAffiliations = $affiliationCache[$s->person_id] ?? [];
 
             return [
                 'id' => $s->id,
@@ -340,36 +345,46 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Load affiliation names for a person from their creator/contributor links.
+     * Load affiliation names for multiple persons in bulk from their creator/contributor links.
      *
-     * @return array<int, string>
+     * @param  array<int, int>  $personIds
+     * @return array<int, array<int, string>> Map of person_id → unique affiliation names
      */
-    private function loadPersonAffiliationNames(int $personId): array
+    private function loadPersonAffiliationNamesBulk(array $personIds): array
     {
-        $names = [];
+        if (empty($personIds)) {
+            return [];
+        }
+
+        $result = [];
 
         $creators = ResourceCreator::where('creatorable_type', Person::class)
-            ->where('creatorable_id', $personId)
+            ->whereIn('creatorable_id', $personIds)
             ->with('affiliations')
             ->get();
 
         foreach ($creators as $creator) {
             foreach ($creator->affiliations as $affil) {
-                $names[] = $affil->name;
+                $result[$creator->creatorable_id][] = $affil->name;
             }
         }
 
         $contributors = ResourceContributor::where('contributorable_type', Person::class)
-            ->where('contributorable_id', $personId)
+            ->whereIn('contributorable_id', $personIds)
             ->with('affiliations')
             ->get();
 
         foreach ($contributors as $contributor) {
             foreach ($contributor->affiliations as $affil) {
-                $names[] = $affil->name;
+                $result[$contributor->contributorable_id][] = $affil->name;
             }
         }
 
-        return array_values(array_unique($names));
+        // Deduplicate per person
+        foreach ($result as $personId => $names) {
+            $result[$personId] = array_values(array_unique($names));
+        }
+
+        return $result;
     }
 }

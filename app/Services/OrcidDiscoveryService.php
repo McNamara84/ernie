@@ -37,19 +37,21 @@ class OrcidDiscoveryService
     private const ORCID_SEARCH_LIMIT = 10;
 
     /**
-     * Minimum delay between ORCID API calls in milliseconds (30 req/min = 2000ms).
-     */
-    private const RATE_LIMIT_DELAY_MS = 2100;
-
-    /**
      * Timestamp of the last ORCID API call (microseconds).
      */
     private float $lastApiCallTime = 0;
 
+    /**
+     * Minimum delay between ORCID API calls in milliseconds.
+     */
+    private readonly int $rateLimitDelayMs;
+
     public function __construct(
         private readonly OrcidService $orcidService,
         private readonly DataCiteSyncService $dataCiteSyncService,
-    ) {}
+    ) {
+        $this->rateLimitDelayMs = (int) config('services.orcid.rate_limit_delay_ms', 2100);
+    }
 
     /**
      * Discover missing ORCIDs for all resources with registered DOIs.
@@ -186,12 +188,62 @@ class OrcidDiscoveryService
     /**
      * Accept an ORCID suggestion: updates the Person record and syncs all affected resources.
      *
+     * Guards against stale suggestions: if the person already has an ORCID assigned
+     * (e.g., manually added after the suggestion was generated), the suggestion is
+     * deleted and an error is returned instead of overwriting.
+     *
      * @return array{success: bool, synced_dois: array<int, string>, message: string}
      */
     public function acceptOrcid(SuggestedOrcid $suggestion): array
     {
-        $person = $suggestion->person;
+        $person = $suggestion->person->fresh();
         $orcid = $suggestion->suggested_orcid;
+
+        // Guard: person already has an ORCID (stale suggestion)
+        if ($person !== null
+            && $person->name_identifier !== null
+            && $person->name_identifier !== ''
+            && $person->name_identifier_scheme === 'ORCID'
+        ) {
+            // Delete all stale suggestions for this person
+            SuggestedOrcid::where('person_id', $suggestion->person_id)->delete();
+            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+
+            return [
+                'success' => false,
+                'synced_dois' => [],
+                'message' => 'This person already has an ORCID assigned. The suggestion has been removed.',
+            ];
+        }
+
+        // Guard: ORCID already assigned to a different person
+        $existingPerson = Person::where('name_identifier', "https://orcid.org/{$orcid}")
+            ->where('name_identifier_scheme', 'ORCID')
+            ->where('id', '!=', $suggestion->person_id)
+            ->first();
+
+        if ($existingPerson !== null) {
+            // Delete suggestions for this ORCID across all persons
+            SuggestedOrcid::where('suggested_orcid', $orcid)->delete();
+            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+
+            return [
+                'success' => false,
+                'synced_dois' => [],
+                'message' => "This ORCID is already assigned to another person ({$existingPerson->full_name}). The suggestion has been removed.",
+            ];
+        }
+
+        if ($person === null) {
+            $suggestion->delete();
+            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+
+            return [
+                'success' => false,
+                'synced_dois' => [],
+                'message' => 'Person not found. The suggestion has been removed.',
+            ];
+        }
 
         DB::transaction(function () use ($person, $orcid, $suggestion): void {
             // Update the Person record with the accepted ORCID
@@ -465,8 +517,8 @@ class OrcidDiscoveryService
         $now = microtime(true) * 1000;
         $elapsed = $now - $this->lastApiCallTime;
 
-        if ($this->lastApiCallTime > 0 && $elapsed < self::RATE_LIMIT_DELAY_MS) {
-            $sleepMs = (int) ceil(self::RATE_LIMIT_DELAY_MS - $elapsed);
+        if ($this->lastApiCallTime > 0 && $elapsed < $this->rateLimitDelayMs) {
+            $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
             usleep($sleepMs * 1000);
         }
 

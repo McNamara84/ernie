@@ -386,7 +386,11 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
             const { data } = await axios.post<OrcidAcceptResponse>(`/assistance/orcids/${id}/accept`);
             setOrcidSuggestions((prev) => prev.filter((s) => s.id !== id));
 
-            toast.success(data.message);
+            if (data.success) {
+                toast.success(data.message);
+            } else {
+                toast.warning(data.message);
+            }
             router.reload({ only: ['orcidSuggestions', 'pendingSuggestedOrcidsCount'] });
         } catch {
             toast.error('Failed to accept ORCID.');

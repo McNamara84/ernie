@@ -26,9 +26,9 @@ class DiscoverOrcidsJob implements ShouldQueue
 
     /**
      * The maximum number of seconds the job can run.
-     * Many persons × rate-limited API calls can take significant time.
+     * Configurable via ORCID_DISCOVERY_TIMEOUT env variable (default: 3600).
      */
-    public int $timeout = 3600; // 1 hour
+    public int $timeout;
 
     /**
      * The number of times the job may be attempted.
@@ -52,6 +52,8 @@ class DiscoverOrcidsJob implements ShouldQueue
                 "Job ID must be a valid UUID, got: {$jobId}"
             );
         }
+
+        $this->timeout = (int) config('services.orcid.discovery_timeout', 3600);
     }
 
     /**
