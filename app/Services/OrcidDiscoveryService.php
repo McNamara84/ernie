@@ -353,7 +353,7 @@ class OrcidDiscoveryService
             $person->update([
                 'name_identifier' => "https://orcid.org/{$orcid}",
                 'name_identifier_scheme' => 'ORCID',
-                'name_identifier_scheme_uri' => 'https://orcid.org/',
+                'scheme_uri' => 'https://orcid.org/',
             ]);
 
             // Delete ALL suggestions for this person (accepted globally)
@@ -413,9 +413,14 @@ class OrcidDiscoveryService
      */
     private function collectPersonIdsWithoutOrcid(): array
     {
+        // A person "has a valid ORCID" when: name_identifier IS NOT NULL
+        // AND name_identifier != '' AND name_identifier_scheme = 'ORCID'.
+        // Everyone else (NULL, empty string, or non-ORCID scheme) should be discoverable.
         $personWithoutOrcid = fn ($q) => $q->where(function ($q2): void {
             $q2->whereNull('name_identifier')
-                ->orWhere('name_identifier_scheme', '!=', 'ORCID');
+                ->orWhere('name_identifier', '')
+                ->orWhere('name_identifier_scheme', '!=', 'ORCID')
+                ->orWhereNull('name_identifier_scheme');
         });
 
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');

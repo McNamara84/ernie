@@ -19,7 +19,7 @@ describe('Person model', function () {
             'family_name',
             'name_identifier',
             'name_identifier_scheme',
-            'name_identifier_scheme_uri',
+            'scheme_uri',
         ]);
     });
 
@@ -107,7 +107,7 @@ describe('Institution model', function () {
             'name',
             'name_identifier',
             'name_identifier_scheme',
-            'name_identifier_scheme_uri',
+            'scheme_uri',
         ]);
     });
 

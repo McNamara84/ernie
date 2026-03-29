@@ -114,7 +114,7 @@ describe('CRUD operations', function () {
         expect($fillable)->toContain('name');
         expect($fillable)->toContain('name_identifier');
         expect($fillable)->toContain('name_identifier_scheme');
-        expect($fillable)->toContain('name_identifier_scheme_uri');
+        expect($fillable)->toContain('scheme_uri');
     });
 });
 
