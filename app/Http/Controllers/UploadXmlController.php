@@ -1758,9 +1758,9 @@ class UploadXmlController extends Controller
         $keywords = [];
 
         foreach ($subjectElements as $element) {
-            $scheme = $element->getAttribute('subjectScheme');
-            $valueUri = $element->getAttribute('valueURI');
-            $classificationCode = $element->getAttribute('classificationCode');
+            $scheme = trim((string) $element->getAttribute('subjectScheme'));
+            $valueUri = trim((string) $element->getAttribute('valueURI'));
+            $classificationCode = trim((string) $element->getAttribute('classificationCode'));
             $content = $this->stringValue($element);
 
             if (! $scheme || ! $content) {
@@ -1774,22 +1774,22 @@ class UploadXmlController extends Controller
 
             if (! $isGcmdKeyword) {
                 // Handle unknown schemes that have a classificationCode or valueURI
-                if ($valueUri || $classificationCode) {
-                    $schemeUri = $element->getAttribute('schemeURI');
+                if ($valueUri !== '' || $classificationCode !== '') {
+                    $schemeUri = trim((string) $element->getAttribute('schemeURI'));
 
                     $keyword = [
                         'uuid' => '',
-                        'id' => $valueUri ?? $classificationCode ?? '',
+                        'id' => $valueUri !== '' ? $valueUri : $classificationCode,
                         'text' => trim($content),
                         'path' => trim($content),
                         'scheme' => $scheme,
                     ];
 
-                    if ($schemeUri) {
+                    if ($schemeUri !== '') {
                         $keyword['schemeURI'] = $schemeUri;
                     }
 
-                    if ($classificationCode) {
+                    if ($classificationCode !== '') {
                         $keyword['classificationCode'] = $classificationCode;
                     }
 
@@ -1843,7 +1843,7 @@ class UploadXmlController extends Controller
                 'scheme' => $normalizedScheme,
             ];
 
-            if ($classificationCode) {
+            if ($classificationCode !== '') {
                 $keyword['classificationCode'] = $classificationCode;
             }
 

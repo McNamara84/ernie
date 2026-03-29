@@ -89,8 +89,9 @@ class XmlKeywordExtractor
             $scheme = $element->getAttribute('subjectScheme');
             $schemeUri = $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
-            $classificationCode = $element->getAttribute('classificationCode');
-            $language = $element->getAttribute('xml:lang') ?? 'en';
+            $classificationCode = trim((string) $element->getAttribute('classificationCode'));
+            $langAttr = trim((string) $element->getAttribute('xml:lang'));
+            $language = $langAttr !== '' ? $langAttr : 'en';
             $content = $this->extractElementTextContent($element);
 
             // Only process MSL vocabulary keywords
@@ -117,7 +118,7 @@ class XmlKeywordExtractor
                 'schemeURI' => $schemeUri ?? 'https://epos-msl.uu.nl/voc',
             ];
 
-            if ($classificationCode) {
+            if ($classificationCode !== '') {
                 $keyword['classificationCode'] = $classificationCode;
             }
 
@@ -150,8 +151,9 @@ class XmlKeywordExtractor
             $scheme = $element->getAttribute('subjectScheme');
             $schemeUri = $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
-            $classificationCode = $element->getAttribute('classificationCode');
-            $language = $element->getAttribute('xml:lang') ?? 'en';
+            $classificationCode = trim((string) $element->getAttribute('classificationCode'));
+            $langAttr = trim((string) $element->getAttribute('xml:lang'));
+            $language = $langAttr !== '' ? $langAttr : 'en';
             $content = $this->extractElementTextContent($element);
 
             // Only process GEMET vocabulary keywords
@@ -178,7 +180,7 @@ class XmlKeywordExtractor
                 'schemeURI' => $schemeUri ?? 'http://www.eionet.europa.eu/gemet/concept/',
             ];
 
-            if ($classificationCode) {
+            if ($classificationCode !== '') {
                 $keyword['classificationCode'] = $classificationCode;
             }
 
