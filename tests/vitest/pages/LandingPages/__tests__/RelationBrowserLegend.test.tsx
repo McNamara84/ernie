@@ -112,4 +112,55 @@ describe('RelationBrowserLegend', () => {
 
         expect(screen.getByText('Other')).toBeInTheDocument();
     });
+
+    it('renders Creator/Author legend entry when Creator is in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Creator']}
+                activeRelationTypes={['References', 'Created']}
+            />,
+        );
+
+        expect(screen.getByText('Creator / Author')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Creator')).toBeInTheDocument();
+        expect(screen.getByText('Creators')).toBeInTheDocument();
+    });
+
+    it('separates Creator from Identifier Types section', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Creator']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        // DOI should be in Identifier Types, Creator should be in its own Creators section
+        expect(screen.getByText('DOI')).toBeInTheDocument();
+        expect(screen.getByText('Creator / Author')).toBeInTheDocument();
+        expect(screen.getByText('Identifier Types')).toBeInTheDocument();
+        expect(screen.getByText('Creators')).toBeInTheDocument();
+    });
+
+    it('does not render Creator section when Creator is not in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'URL']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.queryByText('Creator / Author')).not.toBeInTheDocument();
+        expect(screen.queryByText('Creators')).not.toBeInTheDocument();
+    });
+
+    it('renders Creator edge category in Relation Types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['Creator']}
+                activeRelationTypes={['Created']}
+            />,
+        );
+
+        expect(screen.getByTestId('legend-edge-Creator')).toBeInTheDocument();
+    });
 });

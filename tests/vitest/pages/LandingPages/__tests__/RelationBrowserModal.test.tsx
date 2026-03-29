@@ -107,7 +107,7 @@ describe('RelationBrowserModal', () => {
             />,
         );
 
-        expect(screen.getByText(/Interactive graph of relationships/)).toBeInTheDocument();
+        expect(screen.getByText(/Interactive graph of relationships between this resource, related works, and their creators/)).toBeInTheDocument();
     });
 
     it('does not render graph content when closed', () => {
@@ -149,6 +149,20 @@ describe('RelationBrowserModal', () => {
         expect(screen.getByTestId('relation-browser-legend')).toBeInTheDocument();
         expect(screen.getByText('DOI')).toBeInTheDocument();
         expect(screen.getByText('URL')).toBeInTheDocument();
+    });
+
+    it('includes Creator legend entry when resource has creators', () => {
+        render(
+            <RelationBrowserModal
+                open={true}
+                onOpenChange={vi.fn()}
+                resource={mockResource}
+                relatedIdentifiers={mockRelatedIdentifiers}
+            />,
+        );
+
+        expect(screen.getByText('Creator / Author')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Creator')).toBeInTheDocument();
     });
 
     it('filters out unsupported identifier types', () => {

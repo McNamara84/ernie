@@ -1,4 +1,9 @@
 const GFZ_BLUE = '#0C2A63';
+const CREATOR_COLOR = '#D946EF';
+
+const CENTRAL_RADIUS = 30;
+const NODE_RADIUS = 22;
+const CREATOR_RADIUS = 16;
 
 const NODE_COLOR_MAP: Record<string, string> = {
     DOI: '#10B981',
@@ -10,6 +15,7 @@ const NODE_COLOR_MAP: Record<string, string> = {
     ISSN: '#14B8A6',
     URN: '#EC4899',
     RAiD: '#06B6D4',
+    Creator: CREATOR_COLOR,
 };
 
 const NODE_FALLBACK_COLOR = '#64748B';
@@ -36,6 +42,7 @@ const RELATION_TYPE_CATEGORIES: Record<string, string[]> = {
     Software: ['Requires', 'IsRequiredBy'],
     Metadata: ['HasMetadata', 'IsMetadataFor'],
     Review: ['Reviews', 'IsReviewedBy'],
+    Creator: ['Created'],
 };
 
 const EDGE_CATEGORY_COLOR_MAP: Record<string, string> = {
@@ -48,6 +55,7 @@ const EDGE_CATEGORY_COLOR_MAP: Record<string, string> = {
     Software: '#C026D3',
     Metadata: '#475569',
     Review: '#059669',
+    Creator: CREATOR_COLOR,
 };
 
 const EDGE_FALLBACK_COLOR = '#6B7280';
@@ -94,4 +102,10 @@ export function getEdgeCategoryColorMap(): Record<string, string> {
     return { ...EDGE_CATEGORY_COLOR_MAP };
 }
 
-export { GFZ_BLUE, NODE_FALLBACK_COLOR, EDGE_FALLBACK_COLOR };
+export function getNodeRadius(nodeType: string, isCentral: boolean): number {
+    if (isCentral) return CENTRAL_RADIUS;
+    if (nodeType === 'creator') return CREATOR_RADIUS;
+    return NODE_RADIUS;
+}
+
+export { GFZ_BLUE, CREATOR_COLOR, NODE_FALLBACK_COLOR, EDGE_FALLBACK_COLOR, CENTRAL_RADIUS, NODE_RADIUS, CREATOR_RADIUS };

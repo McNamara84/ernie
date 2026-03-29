@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    CENTRAL_RADIUS,
+    CREATOR_COLOR,
+    CREATOR_RADIUS,
     EDGE_FALLBACK_COLOR,
     GFZ_BLUE,
     getEdgeCategory,
@@ -8,7 +11,9 @@ import {
     getEdgeColor,
     getNodeColor,
     getNodeColorMap,
+    getNodeRadius,
     NODE_FALLBACK_COLOR,
+    NODE_RADIUS,
 } from '@/pages/LandingPages/components/relation-browser/graph-colors';
 
 describe('graph-colors', () => {
@@ -139,6 +144,45 @@ describe('graph-colors', () => {
             expect(map1).toEqual(map2);
             map1.Citation = '#000000';
             expect(getEdgeCategoryColorMap().Citation).toBe('#6366F1');
+        });
+    });
+
+    describe('Creator support', () => {
+        it('returns Creator color for Creator identifier type', () => {
+            expect(getNodeColor('Creator', false)).toBe(CREATOR_COLOR);
+        });
+
+        it('returns correct edge color for Created relation type', () => {
+            expect(getEdgeColor('Created')).toBe(CREATOR_COLOR);
+        });
+
+        it('returns Creator category for Created relation type', () => {
+            expect(getEdgeCategory('Created')).toBe('Creator');
+        });
+
+        it('includes Creator in edge category color map', () => {
+            const map = getEdgeCategoryColorMap();
+            expect(map.Creator).toBe(CREATOR_COLOR);
+        });
+    });
+
+    describe('getNodeRadius', () => {
+        it('returns CENTRAL_RADIUS for central nodes', () => {
+            expect(getNodeRadius('resource', true)).toBe(CENTRAL_RADIUS);
+            expect(getNodeRadius('creator', true)).toBe(CENTRAL_RADIUS);
+        });
+
+        it('returns CREATOR_RADIUS for creator nodes', () => {
+            expect(getNodeRadius('creator', false)).toBe(CREATOR_RADIUS);
+        });
+
+        it('returns NODE_RADIUS for resource nodes', () => {
+            expect(getNodeRadius('resource', false)).toBe(NODE_RADIUS);
+        });
+
+        it('has correct radius hierarchy: central > resource > creator', () => {
+            expect(CENTRAL_RADIUS).toBeGreaterThan(NODE_RADIUS);
+            expect(NODE_RADIUS).toBeGreaterThan(CREATOR_RADIUS);
         });
     });
 });

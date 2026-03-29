@@ -9,6 +9,7 @@ import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
 import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
+import { useCreatorNodes } from './use-creator-nodes';
 import { useRelationGraph } from './use-relation-graph';
 
 const GRAPH_WIDTH = 1000;
@@ -72,6 +73,8 @@ function buildNodes(
         relationType: '',
         url: null,
         isCentral: true,
+        nodeType: 'resource',
+        orcid: null,
     };
 
     const relatedNodes: GraphNode[] = relatedIdentifiers.map((rel) => {
@@ -87,6 +90,8 @@ function buildNodes(
             relationType: rel.relation_type,
             url: resolveIdentifierUrl(rel.identifier, rel.identifier_type),
             isCentral: false,
+            nodeType: 'resource' as const,
+            orcid: null,
         };
     });
 
@@ -118,18 +123,25 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
     });
 
     const citationLabels = useCitationLabels(relatedIdentifiers, citationTexts);
+    const { creatorNodes, creatorLinks } = useCreatorNodes(resource, relatedIdentifiers);
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
-    const nodes = useMemo(
+    const resourceNodes = useMemo(
         () => buildNodes(resource, relatedIdentifiers),
         [resource, relatedIdentifiers],
+    );
+
+    // Merge resource nodes with creator nodes
+    const nodes = useMemo(
+        () => [...resourceNodes, ...creatorNodes],
+        [resourceNodes, creatorNodes],
     );
 
     // Patch citation labels into existing node objects without creating new array
     useEffect(() => {
         if (citationLabels.size === 0) return;
-        for (const node of nodes) {
+        for (const node of resourceNodes) {
             if (node.isCentral) continue;
             const key = getCitationKey(node.identifierType, node.identifier);
             const citation = citationLabels.get(key);
@@ -144,11 +156,17 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
                 .selectAll<SVGTextElement, GraphNode>('[data-testid="graph-nodes"] g text')
                 .text((d) => truncateLabel(d.label));
         }
-    }, [citationLabels, nodes, svgRef]);
+    }, [citationLabels, resourceNodes, svgRef]);
 
-    const links = useMemo(
+    const resourceLinks = useMemo(
         () => buildLinks(relatedIdentifiers),
         [relatedIdentifiers],
+    );
+
+    // Merge resource links with creator links
+    const links = useMemo(
+        () => [...resourceLinks, ...creatorLinks],
+        [resourceLinks, creatorLinks],
     );
 
     const handleNodeClick = useCallback((node: GraphNode) => {

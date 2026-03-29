@@ -47,6 +47,17 @@ export function RelationBrowserModal({
         [renderableIdentifiers],
     );
 
+    // Include Creator in identifier types and relation types if resource has creators
+    const hasCreators = (resource.creators?.length ?? 0) > 0 || renderableIdentifiers.some((r) => r.identifier_type === 'DOI');
+    const allIdentifierTypes = useMemo(
+        () => hasCreators ? [...activeIdentifierTypes, 'Creator'] : activeIdentifierTypes,
+        [activeIdentifierTypes, hasCreators],
+    );
+    const allRelationTypes = useMemo(
+        () => hasCreators ? [...activeRelationTypes, 'Created'] : activeRelationTypes,
+        [activeRelationTypes, hasCreators],
+    );
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
@@ -57,8 +68,8 @@ export function RelationBrowserModal({
                 <DialogHeader className="shrink-0 border-b border-gray-200 px-6 py-4">
                     <DialogTitle>Relation Browser</DialogTitle>
                     <DialogDescription>
-                        Interactive graph of relationships between this resource and related works.
-                        Hover over nodes and edges for details. Click on a node to open the related resource.
+                        Interactive graph of relationships between this resource, related works, and their creators.
+                        Hover over nodes and edges for details. Click on a node to open the related resource or ORCID profile.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -76,8 +87,8 @@ export function RelationBrowserModal({
                 {/* Legend */}
                 <div className="shrink-0">
                     <RelationBrowserLegend
-                        activeIdentifierTypes={activeIdentifierTypes}
-                        activeRelationTypes={activeRelationTypes}
+                        activeIdentifierTypes={allIdentifierTypes}
+                        activeRelationTypes={allRelationTypes}
                     />
                 </div>
             </DialogContent>
