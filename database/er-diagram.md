@@ -419,6 +419,7 @@ erDiagram
         bigint id PK
         bigint resource_id FK
         bigint resource_creator_id FK
+        bigint resource_contributor_id FK
         boolean send_to_all
         varchar sender_name
         varchar sender_email
@@ -689,6 +690,7 @@ erDiagram
     %% Contact messages
     contact_messages }o--|| resources : "for resource"
     contact_messages }o--o| resource_creators : "to creator"
+    contact_messages }o--o| resource_contributors : "to contributor"
 
     %% License exclusions
     right_resource_type_exclusions }o--|| rights : "excludes"

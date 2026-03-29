@@ -149,6 +149,7 @@ class ContactMessageController extends Controller
         $contactMessage = ContactMessage::create([
             'resource_id' => $resourceId,
             'resource_creator_id' => $validated['resource_creator_id'] ?? null,
+            'resource_contributor_id' => $validated['resource_contributor_id'] ?? null,
             'send_to_all' => $validated['send_to_all'] ?? false,
             'sender_name' => $validated['sender_name'],
             'sender_email' => $validated['sender_email'],

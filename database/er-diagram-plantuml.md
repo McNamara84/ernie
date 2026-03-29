@@ -485,6 +485,7 @@ entity "contact_messages" as contact_messages {
     --
     * resource_id : BIGINT <<FK>>
     resource_creator_id : BIGINT <<FK>>
+    resource_contributor_id : BIGINT <<FK>>
     * send_to_all : BOOLEAN = false
     * sender_name : VARCHAR
     * sender_email : VARCHAR
@@ -754,6 +755,7 @@ affiliations }o--o| resource_contributors
 ' Contact messages
 contact_messages }o--|| resources
 contact_messages }o--o| resource_creators
+contact_messages }o--o| resource_contributors
 
 ' License exclusions
 right_resource_type_exclusions }o--|| rights

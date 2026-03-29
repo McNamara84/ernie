@@ -20,6 +20,7 @@ class ContactMessageFactory extends Factory
         return [
             'resource_id' => Resource::factory(),
             'resource_creator_id' => null,
+            'resource_contributor_id' => null,
             'send_to_all' => fake()->boolean(70),
             'sender_name' => fake()->name(),
             'sender_email' => fake()->safeEmail(),

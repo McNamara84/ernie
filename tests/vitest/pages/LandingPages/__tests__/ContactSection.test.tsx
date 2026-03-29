@@ -35,7 +35,18 @@ const createAffiliation = (overrides: Partial<{ name: string; identifier: string
     ...overrides,
 });
 
-const createContactPerson = (overrides: Record<string, unknown> = {}): {
+const createContactPerson = (overrides: Partial<{
+    id: number;
+    name: string;
+    given_name: string | null;
+    family_name: string | null;
+    type: string;
+    source: 'creator' | 'contributor';
+    affiliations: Array<{ name: string; identifier: string | null; scheme: string | null }>;
+    orcid: string | null;
+    website: string | null;
+    has_email: boolean;
+}> = {}): {
     id: number;
     name: string;
     given_name: string | null;
