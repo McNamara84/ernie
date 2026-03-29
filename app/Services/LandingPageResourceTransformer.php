@@ -242,14 +242,14 @@ final class LandingPageResourceTransformer
         // Helper to build display name from a Person or Institution entity
         $buildEntityName = static function (Person|Institution|null $entity): string {
             if ($entity instanceof Person) {
-                return trim(implode(' ', array_filter([$entity->given_name, $entity->family_name]))) ?: '';
+                return trim(implode(' ', array_filter([$entity->given_name, $entity->family_name]))) ?: 'Contact Person';
             }
 
             if ($entity instanceof Institution) {
-                return $entity->name ?? '';
+                return $entity->name ?? 'Contact Person';
             }
 
-            return '';
+            return 'Contact Person';
         };
 
         // Helper to map a contact person entry (shared between creators and contributors)

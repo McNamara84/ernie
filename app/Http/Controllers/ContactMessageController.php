@@ -7,7 +7,9 @@ namespace App\Http\Controllers;
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
 use App\Models\ContributorType;
+use App\Models\Institution;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -304,10 +306,8 @@ class ContactMessageController extends Controller
 
     /**
      * Get the display name for a person or institution.
-     *
-     * @param  \App\Models\Person|\App\Models\Institution  $entity
      */
-    private function getEntityName($entity): string
+    private function getEntityName(Person|Institution $entity): string
     {
         if ($entity instanceof \App\Models\Person) {
             return trim(implode(' ', array_filter([$entity->given_name, $entity->family_name]))) ?: 'Contact Person';
