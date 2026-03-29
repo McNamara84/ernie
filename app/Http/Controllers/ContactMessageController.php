@@ -102,7 +102,7 @@ class ContactMessageController extends Controller
         }
 
         // Validate the request
-        $sendToAll = (bool) $request->input('send_to_all', false);
+        $sendToAll = $request->boolean('send_to_all', false);
 
         $validated = $request->validate([
             'sender_name' => 'required|string|max:255',
@@ -110,13 +110,13 @@ class ContactMessageController extends Controller
             'message' => 'required|string|min:10|max:5000',
             'send_to_all' => 'boolean',
             'copy_to_sender' => 'boolean',
-            // When sending to all: IDs must be absent.
+            // When sending to all: IDs are stripped (excluded). Frontend may send null.
             // When not sending to all: exactly one of the two IDs is required.
             'resource_creator_id' => $sendToAll
-                ? ['prohibited']
+                ? ['exclude']
                 : ['required_without:resource_contributor_id', 'integer', 'exists:resource_creators,id', 'prohibits:resource_contributor_id'],
             'resource_contributor_id' => $sendToAll
-                ? ['prohibited']
+                ? ['exclude']
                 : ['required_without:resource_creator_id', 'integer', 'exists:resource_contributors,id', 'prohibits:resource_creator_id'],
         ]);
 
@@ -309,13 +309,8 @@ class ContactMessageController extends Controller
      */
     private function getEntityName($entity): string
     {
-        if (isset($entity->family_name)) {
-            $name = $entity->family_name;
-            if (isset($entity->given_name)) {
-                $name = $entity->given_name.' '.$entity->family_name;
-            }
-
-            return $name;
+        if ($entity instanceof \App\Models\Person) {
+            return trim(implode(' ', array_filter([$entity->given_name, $entity->family_name]))) ?: 'Contact Person';
         }
 
         return $entity->name ?? 'Contact Person';
