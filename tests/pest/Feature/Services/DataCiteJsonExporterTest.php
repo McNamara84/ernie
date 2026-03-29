@@ -387,6 +387,49 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
         expect($subjects[0])->toHaveKey('subject', 'seismology')
             ->and($subjects[0])->not->toHaveKey('subjectScheme');
     });
+
+    test('exports classificationCode when set', function () {
+        $resource = Resource::factory()->create();
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'Geophysics',
+            'subject_scheme' => 'DDC',
+            'scheme_uri' => 'https://dewey.info/',
+            'value_uri' => null,
+            'classification_code' => '550',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $subjects = $result['data']['attributes']['subjects'];
+
+        expect($subjects[0])->toHaveKey('classificationCode', '550')
+            ->and($subjects[0])->toHaveKey('subjectScheme', 'DDC');
+    });
+
+    test('exports lang field as en on all subjects', function () {
+        $resource = Resource::factory()->create();
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'Climate Science',
+            'subject_scheme' => 'NASA/GCMD Science Keywords',
+            'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+        ]);
+
+        Subject::create([
+            'resource_id' => $resource->id,
+            'value' => 'seismology',
+            'subject_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $subjects = $result['data']['attributes']['subjects'];
+
+        expect($subjects)->toHaveCount(2);
+        foreach ($subjects as $subject) {
+            expect($subject)->toHaveKey('lang', 'en');
+        }
+    });
 });
 
 use App\Models\Publisher;

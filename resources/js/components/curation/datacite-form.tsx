@@ -291,6 +291,7 @@ export default function DataCiteForm({
                     language: 'language' in kw && typeof kw.language === 'string' ? kw.language : 'en',
                     scheme: kw.scheme,
                     schemeURI: 'schemeURI' in kw && typeof kw.schemeURI === 'string' ? kw.schemeURI : '',
+                    classificationCode: 'classificationCode' in kw && typeof kw.classificationCode === 'string' && kw.classificationCode.trim() !== '' ? kw.classificationCode.trim() : undefined,
                     isLegacy: 'isLegacy' in kw && (kw.isLegacy === true || kw.isLegacy === 'true' || kw.isLegacy === '1'),
                 }));
         }
@@ -1642,6 +1643,7 @@ export default function DataCiteForm({
                 language: string;
                 scheme: string;
                 schemeURI: string;
+                classificationCode?: string;
                 vocabularyType: string;
             }[];
             spatialTemporalCoverages: {
@@ -1715,6 +1717,7 @@ export default function DataCiteForm({
                 language: kw.language,
                 scheme: kw.scheme,
                 schemeURI: kw.schemeURI,
+                ...(kw.classificationCode != null && kw.classificationCode.trim() !== '' ? { classificationCode: kw.classificationCode.trim() } : {}),
                 vocabularyType: getVocabularyTypeFromScheme(kw.scheme),
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({

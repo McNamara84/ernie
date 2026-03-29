@@ -1747,7 +1747,7 @@ class UploadXmlController extends Controller
     /**
      * Extract GCMD keywords from the XML.
      *
-     * @return array<int, array{uuid: string, id: string, text: string, path: string, scheme: string}>
+     * @return array<int, array{uuid: string, id: string, text: string, path: string, scheme: string, schemeURI?: string, classificationCode?: string}>
      */
     private function extractGcmdKeywords(XmlReader $reader): array
     {
@@ -1758,11 +1758,12 @@ class UploadXmlController extends Controller
         $keywords = [];
 
         foreach ($subjectElements as $element) {
-            $scheme = $element->getAttribute('subjectScheme');
-            $valueUri = $element->getAttribute('valueURI');
+            $scheme = trim((string) $element->getAttribute('subjectScheme'));
+            $valueUri = trim((string) $element->getAttribute('valueURI'));
+            $classificationCode = trim((string) $element->getAttribute('classificationCode'));
             $content = $this->stringValue($element);
 
-            if (! $scheme || ! $valueUri || ! $content) {
+            if (! $scheme || ! $content) {
                 continue;
             }
 
@@ -1772,6 +1773,33 @@ class UploadXmlController extends Controller
                             stripos($scheme, 'Instruments') !== false;
 
             if (! $isGcmdKeyword) {
+                // Handle unknown schemes that have a classificationCode or valueURI
+                if ($valueUri !== '' || $classificationCode !== '') {
+                    $schemeUri = trim((string) $element->getAttribute('schemeURI'));
+
+                    $keyword = [
+                        'uuid' => '',
+                        'id' => $valueUri !== '' ? $valueUri : $classificationCode,
+                        'text' => trim($content),
+                        'path' => trim($content),
+                        'scheme' => $scheme,
+                    ];
+
+                    if ($schemeUri !== '') {
+                        $keyword['schemeURI'] = $schemeUri;
+                    }
+
+                    if ($classificationCode !== '') {
+                        $keyword['classificationCode'] = $classificationCode;
+                    }
+
+                    $keywords[] = $keyword;
+                }
+
+                continue;
+            }
+
+            if (! $valueUri) {
                 continue;
             }
 
@@ -1807,13 +1835,19 @@ class UploadXmlController extends Controller
                 $normalizedScheme = 'Instruments';
             }
 
-            $keywords[] = [
+            $keyword = [
                 'uuid' => $uuid,
                 'id' => $id,
                 'text' => $text,
                 'path' => $pathString,
                 'scheme' => $normalizedScheme,
             ];
+
+            if ($classificationCode !== '') {
+                $keyword['classificationCode'] = $classificationCode;
+            }
+
+            $keywords[] = $keyword;
         }
 
         return $keywords;

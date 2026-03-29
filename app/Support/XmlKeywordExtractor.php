@@ -75,7 +75,7 @@ class XmlKeywordExtractor
      * - valueURI attribute containing the concept URI
      * - Content is hierarchical path (e.g., "Material > sedimentary rock > coal")
      *
-     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string, classificationCode?: string}>
      */
     public function extractMslKeywords(XmlReader $reader): array
     {
@@ -87,9 +87,11 @@ class XmlKeywordExtractor
 
         foreach ($subjectElements as $element) {
             $scheme = $element->getAttribute('subjectScheme');
-            $schemeUri = $element->getAttribute('schemeURI');
+            $schemeUri = (string) $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
-            $language = $element->getAttribute('xml:lang') ?? 'en';
+            $classificationCode = trim((string) $element->getAttribute('classificationCode'));
+            $langAttr = trim((string) $element->getAttribute('xml:lang'));
+            $language = $langAttr !== '' ? $langAttr : 'en';
             $content = $this->extractElementTextContent($element);
 
             // Only process MSL vocabulary keywords
@@ -107,14 +109,20 @@ class XmlKeywordExtractor
                 continue;
             }
 
-            $mslKeywords[] = [
+            $keyword = [
                 'id' => trim($valueUri),
                 'text' => $this->extractLastPathSegment(trim($content)),
                 'path' => trim($content),
                 'language' => $language,
                 'scheme' => $scheme,
-                'schemeURI' => $schemeUri ?? 'https://epos-msl.uu.nl/voc',
+                'schemeURI' => $schemeUri !== '' ? $schemeUri : 'https://epos-msl.uu.nl/voc',
             ];
+
+            if ($classificationCode !== '') {
+                $keyword['classificationCode'] = $classificationCode;
+            }
+
+            $mslKeywords[] = $keyword;
         }
 
         return $mslKeywords;
@@ -129,7 +137,7 @@ class XmlKeywordExtractor
      * - valueURI attribute containing the concept URI
      * - Content is hierarchical path (e.g., "SuperGroup > Group > Concept")
      *
-     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string, classificationCode?: string}>
      */
     public function extractGemetKeywords(XmlReader $reader): array
     {
@@ -141,9 +149,11 @@ class XmlKeywordExtractor
 
         foreach ($subjectElements as $element) {
             $scheme = $element->getAttribute('subjectScheme');
-            $schemeUri = $element->getAttribute('schemeURI');
+            $schemeUri = (string) $element->getAttribute('schemeURI');
             $valueUri = $element->getAttribute('valueURI');
-            $language = $element->getAttribute('xml:lang') ?? 'en';
+            $classificationCode = trim((string) $element->getAttribute('classificationCode'));
+            $langAttr = trim((string) $element->getAttribute('xml:lang'));
+            $language = $langAttr !== '' ? $langAttr : 'en';
             $content = $this->extractElementTextContent($element);
 
             // Only process GEMET vocabulary keywords
@@ -161,14 +171,20 @@ class XmlKeywordExtractor
                 continue;
             }
 
-            $gemetKeywords[] = [
+            $keyword = [
                 'id' => trim($valueUri),
                 'text' => $this->extractLastPathSegment(trim($content)),
                 'path' => trim($content),
                 'language' => $language,
                 'scheme' => $scheme,
-                'schemeURI' => $schemeUri ?? 'http://www.eionet.europa.eu/gemet/concept/',
+                'schemeURI' => $schemeUri !== '' ? $schemeUri : 'http://www.eionet.europa.eu/gemet/concept/',
             ];
+
+            if ($classificationCode !== '') {
+                $keyword['classificationCode'] = $classificationCode;
+            }
+
+            $gemetKeywords[] = $keyword;
         }
 
         return $gemetKeywords;
