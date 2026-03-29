@@ -108,8 +108,9 @@ class ContactMessageController extends Controller
             'message' => 'required|string|min:10|max:5000',
             'send_to_all' => 'boolean',
             'copy_to_sender' => 'boolean',
-            'resource_creator_id' => 'nullable|integer|exists:resource_creators,id',
-            'resource_contributor_id' => 'nullable|integer|exists:resource_contributors,id',
+            // When sending to all: IDs must be null. When not: exactly one ID required.
+            'resource_creator_id' => 'nullable|integer|exists:resource_creators,id|prohibited_if:send_to_all,true',
+            'resource_contributor_id' => 'nullable|integer|exists:resource_contributors,id|prohibited_if:send_to_all,true',
         ]);
 
         // Load resource with creators and contributors

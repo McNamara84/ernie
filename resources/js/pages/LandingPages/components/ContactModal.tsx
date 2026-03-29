@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle, Send } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -56,6 +56,13 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
     const [copyToSender, setCopyToSender] = useState(false);
     const [honeypot, setHoneypot] = useState(''); // Should remain empty
 
+    // Keep sendToAll in sync when the modal opens or selectedPerson changes
+    useEffect(() => {
+        if (isOpen) {
+            setSendToAll(selectedPerson === null);
+        }
+    }, [isOpen, selectedPerson]);
+
     const resetForm = () => {
         setSenderName('');
         setSenderEmail('');
@@ -105,10 +112,11 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                     sender_name: senderName.trim(),
                     sender_email: senderEmail.trim(),
                     message: message.trim(),
-                    send_to_all: sendToAll,
+                    // Guard: if no person selected, always send to all
+                    send_to_all: sendToAll || selectedPerson === null,
                     copy_to_sender: copyToSender,
-                    resource_creator_id: sendToAll ? null : selectedPerson?.source === 'creator' ? selectedPerson.id : null,
-                    resource_contributor_id: sendToAll ? null : selectedPerson?.source === 'contributor' ? selectedPerson.id : null,
+                    resource_creator_id: !sendToAll && selectedPerson?.source === 'creator' ? selectedPerson.id : null,
+                    resource_contributor_id: !sendToAll && selectedPerson?.source === 'contributor' ? selectedPerson.id : null,
                     // Honeypot field - bots will fill this
                     website_url: honeypot,
                 }),
