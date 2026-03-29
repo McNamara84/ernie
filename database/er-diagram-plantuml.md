@@ -701,6 +701,33 @@ entity "dismissed_relations" as dismissed_relations {
     updated_at : TIMESTAMP
 }
 
+entity "suggested_orcids" as suggested_orcids {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * person_id : BIGINT <<FK>>
+    * suggested_orcid : VARCHAR(19)
+    * similarity_score : DECIMAL(5,4)
+    candidate_first_name : VARCHAR(255)
+    candidate_last_name : VARCHAR(255)
+    candidate_affiliations : JSON
+    * source_context : VARCHAR(255)
+    * discovered_at : TIMESTAMP
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "dismissed_orcids" as dismissed_orcids {
+    * **id** : BIGINT <<PK>>
+    --
+    * person_id : BIGINT <<FK>>
+    * orcid : VARCHAR(19)
+    * dismissed_by : BIGINT <<FK>>
+    reason : VARCHAR(255)
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' RELATIONSHIPS
 ' ==========================================================================
@@ -782,6 +809,12 @@ suggested_relations }o--|| relation_types
 dismissed_relations }o--|| resources
 dismissed_relations }o--|| relation_types
 dismissed_relations }o--o| users
+
+' Suggested/Dismissed ORCIDs (Assistance feature)
+suggested_orcids }o--|| resources
+suggested_orcids }o--|| persons
+dismissed_orcids }o--|| persons
+dismissed_orcids }o--o| users
 
 @enduml
 ```

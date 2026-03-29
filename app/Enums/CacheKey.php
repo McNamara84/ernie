@@ -46,8 +46,9 @@ enum CacheKey: string
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
-    // Assistance suggestion count
+    // Assistance suggestion counts
     case SUGGESTED_RELATIONS_COUNT = 'assistance:suggested_relations_count';
+    case SUGGESTED_ORCIDS_COUNT = 'assistance:suggested_orcids_count';
 
     /**
      * Get the full cache key with optional suffix.
@@ -111,8 +112,9 @@ enum CacheKey: string
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
 
-            // Suggested relations count - 2 minutes (changes after discovery jobs)
-            self::SUGGESTED_RELATIONS_COUNT => 120,
+            // Suggested relations/orcids count - 2 minutes (changes after discovery jobs)
+            self::SUGGESTED_RELATIONS_COUNT,
+            self::SUGGESTED_ORCIDS_COUNT => 120,
         };
     }
 
@@ -151,7 +153,8 @@ enum CacheKey: string
 
             self::CACHE_STATS => ['system'],
 
-            self::SUGGESTED_RELATIONS_COUNT => ['assistance'],
+            self::SUGGESTED_RELATIONS_COUNT,
+            self::SUGGESTED_ORCIDS_COUNT => ['assistance'],
         };
     }
 

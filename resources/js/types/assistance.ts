@@ -29,6 +29,24 @@ export interface PaginatedData<T> {
 
 export interface AssistancePageProps {
     suggestions: PaginatedData<SuggestedRelationItem>;
+    orcidSuggestions: PaginatedData<SuggestedOrcidItem>;
+}
+
+export interface SuggestedOrcidItem {
+    id: number;
+    resource_id: number;
+    resource_doi: string;
+    resource_title: string;
+    person_id: number;
+    person_name: string;
+    person_affiliations: string[];
+    source_context: 'creator' | 'contributor';
+    suggested_orcid: string;
+    similarity_score: number;
+    candidate_first_name: string;
+    candidate_last_name: string;
+    candidate_affiliations: string[];
+    discovered_at: string;
 }
 
 export interface CheckStatusResponse {
@@ -45,5 +63,22 @@ export interface CheckStatusResponse {
 export interface AcceptResponse {
     success: boolean;
     datacite_synced: boolean;
+    message: string;
+}
+
+export interface OrcidCheckStatusResponse {
+    status: 'queued' | 'running' | 'completed' | 'failed' | 'unknown';
+    progress?: string;
+    totalPersons?: number;
+    processedPersons?: number;
+    newOrcidsFound?: number;
+    error?: string;
+    startedAt?: string;
+    completedAt?: string;
+}
+
+export interface OrcidAcceptResponse {
+    success: boolean;
+    synced_dois: string[];
     message: string;
 }
