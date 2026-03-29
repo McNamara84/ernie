@@ -79,9 +79,18 @@ class DataCiteController extends Controller
     private function extractAuthors(array $metadata): array
     {
         $rawAuthors = $metadata['author'] ?? [];
+
+        if (! is_array($rawAuthors)) {
+            return [];
+        }
+
         $authors = [];
 
         foreach ($rawAuthors as $author) {
+            if (! is_array($author)) {
+                continue;
+            }
+
             $orcid = $this->extractOrcid($author);
 
             if (isset($author['family'])) {

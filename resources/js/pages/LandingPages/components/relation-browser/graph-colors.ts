@@ -1,6 +1,8 @@
+import type { GraphNodeType } from './graph-types';
+
 const GFZ_BLUE = '#0C2A63';
 const CREATOR_COLOR = '#D946EF';
-const CONTRIBUTOR_COLOR = '#F97316';
+const CONTRIBUTOR_COLOR = '#FB923C';
 
 const CENTRAL_RADIUS = 30;
 const NODE_RADIUS = 22;
@@ -114,7 +116,7 @@ export function getEdgeCategoryColorMap(): Record<string, string> {
     return { ...EDGE_CATEGORY_COLOR_MAP };
 }
 
-export function getNodeRadius(nodeType: string, isCentral: boolean): number {
+export function getNodeRadius(nodeType: GraphNodeType, isCentral: boolean): number {
     if (isCentral) return CENTRAL_RADIUS;
     if (nodeType === 'creator') return CREATOR_RADIUS;
     if (nodeType === 'contributor') return CONTRIBUTOR_RADIUS;

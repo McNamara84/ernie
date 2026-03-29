@@ -53,14 +53,13 @@ export function useRelationGraph(
         const defs = svgSelection.append('defs');
         const markerTypes = [...new Set(links.map((l) => l.relationType))];
         for (const rt of markerTypes) {
-            // Created edges point at resource nodes (radius 22-30)
-            // Contributor edges point at central node (radius 30)
+            // Created edges point at the central resource node (radius 30)
+            // Contributor edges also point at central node (radius 30)
+            // Other edges point at resource nodes (radius 22)
             const category = getEdgeCategory(rt);
-            const refX = category === 'Contributor'
+            const refX = category === 'Contributor' || category === 'Creator'
                 ? CENTRAL_RADIUS + 6
-                : rt === 'Created'
-                    ? NODE_RADIUS + 6
-                    : 28;
+                : 28;
             defs.append('marker')
                 .attr('id', `arrow-${rt}`)
                 .attr('viewBox', '0 -5 10 10')

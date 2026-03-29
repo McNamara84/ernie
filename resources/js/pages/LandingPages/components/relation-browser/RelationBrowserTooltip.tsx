@@ -18,7 +18,7 @@ export function RelationBrowserTooltip({ tooltip, containerRect }: RelationBrows
 
     const padding = 12;
     const tooltipWidth = 280;
-    const tooltipHeight = 100;
+    const tooltipHeight = tooltip.type === 'node' && (tooltip.content.nodeType === 'creator' || tooltip.content.nodeType === 'contributor') ? 140 : 100;
 
     let left = tooltip.x;
     let top = tooltip.y + 16;

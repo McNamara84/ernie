@@ -18,6 +18,8 @@ interface UseContributorNodesResult {
     contributorLinks: GraphLink[];
 }
 
+let unknownContributorCounter = 0;
+
 /**
  * Normalize a name for deduplication: lowercase, trimmed.
  */
@@ -57,7 +59,7 @@ function buildContributorId(info: ContributorInfo): string {
     if (info.institutionName) {
         return `contributor-${info.institutionName.trim().toLowerCase()}`;
     }
-    return `contributor-unknown-${Math.random().toString(36).slice(2, 8)}`;
+    return `contributor-unknown-${unknownContributorCounter++}`;
 }
 
 /**
@@ -137,7 +139,11 @@ function mergeContributor(
         datasetNodeIds: new Set([datasetNodeId]),
     };
 
-    const key = nameKey !== '|' ? nameKey : `inst-${(contributor.institutionName ?? 'unknown').trim().toLowerCase()}`;
+    const key = nameKey !== '|'
+        ? nameKey
+        : contributor.institutionName
+            ? `inst-${contributor.institutionName.trim().toLowerCase()}`
+            : `unknown-${unknownContributorCounter++}`;
     map.set(key, info);
     if (contributor.orcid) {
         orcidIndex.set(contributor.orcid, key);

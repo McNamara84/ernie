@@ -27,6 +27,8 @@ interface UseCreatorNodesResult {
     loading: boolean;
 }
 
+let unknownCreatorCounter = 0;
+
 /**
  * Normalize a name for deduplication: lowercase, trimmed.
  */
@@ -66,7 +68,7 @@ function buildCreatorId(info: CreatorInfo): string {
     if (info.institutionName) {
         return `creator-${info.institutionName.trim().toLowerCase()}`;
     }
-    return `creator-unknown-${Math.random().toString(36).slice(2, 8)}`;
+    return `creator-unknown-${unknownCreatorCounter++}`;
 }
 
 /**
@@ -120,7 +122,11 @@ function mergeCreator(
         datasetNodeIds: new Set([datasetNodeId]),
     };
 
-    const key = nameKey !== '|' ? nameKey : `inst-${(creator.institutionName ?? 'unknown').trim().toLowerCase()}`;
+    const key = nameKey !== '|'
+        ? nameKey
+        : creator.institutionName
+            ? `inst-${creator.institutionName.trim().toLowerCase()}`
+            : `unknown-${unknownCreatorCounter++}`;
     map.set(key, info);
     if (creator.orcid) {
         orcidIndex.set(creator.orcid, key);
@@ -182,12 +188,14 @@ export function useCreatorNodes(
     const [apiAuthors, setApiAuthors] = useState<Map<string, ApiAuthor[]>>(new Map());
     const [loading, setLoading] = useState(false);
     const controllerRef = useRef<AbortController | null>(null);
+    const requestIdRef = useRef(0);
 
     // Fetch authors for related DOIs
     useEffect(() => {
         controllerRef.current?.abort();
         const controller = new AbortController();
         controllerRef.current = controller;
+        const currentRequestId = ++requestIdRef.current;
 
         const doisToFetch = relatedIdentifiers
             .filter((rel) => rel.identifier_type === 'DOI')
@@ -196,6 +204,18 @@ export function useCreatorNodes(
                 doi: normalizeDoiKey(rel.identifier),
             }))
             .filter((item) => item.doi !== '');
+
+        // Reset state for the new set of identifiers
+        const validNodeIds = new Set(doisToFetch.map((item) => item.nodeId));
+        setApiAuthors((prev) => {
+            const next = new Map<string, ApiAuthor[]>();
+            for (const [key, value] of prev) {
+                if (validNodeIds.has(key)) {
+                    next.set(key, value);
+                }
+            }
+            return next;
+        });
 
         if (doisToFetch.length === 0) {
             setLoading(false);
@@ -214,6 +234,7 @@ export function useCreatorNodes(
                     return response.json();
                 })
                 .then((data: { doi: string; authors?: ApiAuthor[] }) => {
+                    if (currentRequestId !== requestIdRef.current) return;
                     const authors = Array.isArray(data.authors) ? data.authors : [];
                     setApiAuthors((prev) => {
                         const next = new Map(prev);
@@ -226,6 +247,7 @@ export function useCreatorNodes(
                     // Silently skip DOIs where authors can't be fetched
                 })
                 .finally(() => {
+                    if (currentRequestId !== requestIdRef.current) return;
                     pending--;
                     if (pending <= 0) {
                         setLoading(false);
