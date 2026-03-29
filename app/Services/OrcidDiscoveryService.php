@@ -61,36 +61,31 @@ class OrcidDiscoveryService
     /**
      * Discover missing ORCIDs for all resources with registered DOIs.
      *
-     * Processes persons in chunks to keep memory bounded, similar to
-     * RelationDiscoveryService::discoverAll().
+     * Queries unique person IDs without ORCID, then processes them in chunks
+     * to keep memory bounded. Contexts (person→resource mappings) are loaded
+     * per chunk rather than upfront.
      *
      * @param  callable(int $processed, int $total): void|null  $progressCallback
      * @return int Number of newly discovered suggestions
      */
     public function discoverAll(?callable $progressCallback = null): int
     {
-        // Gather all unique person IDs without ORCID across registered-DOI resources
-        $personContexts = $this->collectPersonsWithoutOrcid();
+        $allPersonIds = $this->collectPersonIdsWithoutOrcid();
 
-        if (empty($personContexts)) {
+        if (empty($allPersonIds)) {
             Log::info('ORCID discovery: No persons without ORCID found.');
 
             return 0;
         }
 
-        // Group contexts by person_id for efficient processing
-        $contextsByPerson = [];
-        foreach ($personContexts as $ctx) {
-            $contextsByPerson[$ctx['person_id']][] = $ctx;
-        }
-
-        $allPersonIds = array_keys($contextsByPerson);
         $total = count($allPersonIds);
         $processed = 0;
         $newCount = 0;
 
-        // Process in chunks to keep memory bounded
         foreach (array_chunk($allPersonIds, self::CHUNK_SIZE) as $chunkPersonIds) {
+            // Load contexts (person→resource mappings) for this chunk only
+            $contextsByPerson = $this->loadContextsForPersons($chunkPersonIds);
+
             $newCount += $this->processPersonChunk(
                 $chunkPersonIds,
                 $contextsByPerson,
@@ -114,6 +109,10 @@ class OrcidDiscoveryService
 
     /**
      * Process a chunk of person IDs for ORCID discovery.
+     *
+     * Uses a two-pass approach:
+     *  Pass 1 – Call the ORCID API for each person (rate-limited) and collect raw candidates.
+     *  Pass 2 – Batch-check assigned ORCIDs, rank by similarity, store top N.
      *
      * @param  array<int, int>  $chunkPersonIds
      * @param  array<int, array<int, array{person_id: int, resource_id: int, source_context: string}>>  $contextsByPerson
@@ -147,11 +146,37 @@ class OrcidDiscoveryService
 
         $personAffiliations = $this->loadPersonAffiliations($chunkPersonIds);
 
+        // Pass 1: Collect all raw candidates per person via ORCID API
+        /** @var array<int, array<int, array{orcid: string, firstName: string, lastName: string, creditName: string|null, institutions: array<int, string>}>> */
+        $candidatesByPerson = [];
+        $allCandidateOrcids = [];
+
         foreach ($chunkPersonIds as $personId) {
             $person = $persons->get($personId);
             if ($person === null) {
                 $processed++;
+                if ($progressCallback !== null) {
+                    $progressCallback($processed, $total);
+                }
 
+                continue;
+            }
+
+            $candidates = $this->searchOrcidCandidates($person);
+            $candidatesByPerson[$personId] = $candidates;
+
+            foreach ($candidates as $c) {
+                $allCandidateOrcids[] = $c['orcid'];
+            }
+        }
+
+        // Batch-check which candidate ORCIDs are already assigned to any person
+        $assignedOrcids = $this->batchCheckAssignedOrcids(array_unique($allCandidateOrcids));
+
+        // Pass 2: Rank by similarity, filter, and store top N per person
+        foreach ($chunkPersonIds as $personId) {
+            if (! isset($candidatesByPerson[$personId])) {
+                // Already processed (null person) in pass 1
                 continue;
             }
 
@@ -160,18 +185,12 @@ class OrcidDiscoveryService
             $contexts = $contextsByPerson[$personId] ?? [];
             $affiliations = $personAffiliations[$personId] ?? [];
 
-            $candidates = $this->searchOrcidCandidates($person);
-
-            foreach (array_slice($candidates, 0, self::MAX_CANDIDATES_PER_PERSON) as $candidate) {
+            // Compute similarity for ALL candidates, then rank and take top N
+            $scored = [];
+            foreach ($candidatesByPerson[$personId] as $candidate) {
                 $orcid = $candidate['orcid'];
 
-                // Skip if dismissed or already suggested
-                if (isset($dismissed[$orcid]) || isset($suggested[$orcid])) {
-                    continue;
-                }
-
-                // Check if ORCID is already assigned to any person (query instead of preload)
-                if ($this->isOrcidAssigned($orcid)) {
+                if (isset($dismissed[$orcid]) || isset($suggested[$orcid]) || isset($assignedOrcids[$orcid])) {
                     continue;
                 }
 
@@ -180,7 +199,16 @@ class OrcidDiscoveryService
                     $candidate['institutions'],
                 );
 
-                // Store suggestion for each resource context where this person appears
+                $scored[] = ['candidate' => $candidate, 'similarity' => $similarity];
+            }
+
+            // Sort descending by similarity so the best matches are stored
+            usort($scored, fn ($a, $b) => $b['similarity'] <=> $a['similarity']);
+
+            foreach (array_slice($scored, 0, self::MAX_CANDIDATES_PER_PERSON) as $entry) {
+                $candidate = $entry['candidate'];
+                $orcid = $candidate['orcid'];
+
                 foreach ($contexts as $ctx) {
                     $suggestion = SuggestedOrcid::firstOrCreate(
                         [
@@ -189,7 +217,7 @@ class OrcidDiscoveryService
                             'suggested_orcid' => $orcid,
                         ],
                         [
-                            'similarity_score' => $similarity,
+                            'similarity_score' => $entry['similarity'],
                             'candidate_first_name' => $candidate['firstName'],
                             'candidate_last_name' => $candidate['lastName'],
                             'candidate_affiliations' => $candidate['institutions'],
@@ -203,7 +231,6 @@ class OrcidDiscoveryService
                     }
                 }
 
-                // Track as suggested to avoid duplicates within this run
                 $suggested[$orcid] = true;
             }
 
@@ -217,21 +244,42 @@ class OrcidDiscoveryService
     }
 
     /**
-     * Check if a bare ORCID is already assigned to any person.
+     * Batch-check which bare ORCIDs are already assigned to any person.
      *
-     * Uses a targeted query instead of preloading all ORCIDs into memory.
+     * @param  array<int, string>  $orcids  Bare ORCIDs (e.g. "0000-0001-2345-6789")
+     * @return array<string, true> Flipped set of assigned ORCIDs for O(1) lookup
      */
-    private function isOrcidAssigned(string $orcid): bool
+    private function batchCheckAssignedOrcids(array $orcids): array
     {
-        return Person::whereNotNull('name_identifier')
+        if (empty($orcids)) {
+            return [];
+        }
+
+        // Build all possible URL variants for these ORCIDs
+        $urlVariants = [];
+        foreach ($orcids as $orcid) {
+            $urlVariants[] = "https://orcid.org/{$orcid}";
+            $urlVariants[] = "http://orcid.org/{$orcid}";
+            $urlVariants[] = $orcid;
+        }
+
+        // Single query to find all matching persons
+        $assignedIdentifiers = Person::whereNotNull('name_identifier')
             ->where('name_identifier', '!=', '')
             ->where('name_identifier_scheme', 'ORCID')
-            ->where(function ($q) use ($orcid): void {
-                $q->where('name_identifier', "https://orcid.org/{$orcid}")
-                    ->orWhere('name_identifier', "http://orcid.org/{$orcid}")
-                    ->orWhere('name_identifier', $orcid);
-            })
-            ->exists();
+            ->whereIn('name_identifier', $urlVariants)
+            ->pluck('name_identifier')
+            ->all();
+
+        // Extract bare ORCIDs and return as a flipped set
+        $assigned = [];
+        foreach ($assignedIdentifiers as $identifier) {
+            if (preg_match('/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/', $identifier, $matches)) {
+                $assigned[$matches[1]] = true;
+            }
+        }
+
+        return $assigned;
     }
 
     /**
@@ -356,60 +404,88 @@ class OrcidDiscoveryService
     }
 
     /**
-     * Collect all persons without ORCID across resources with registered DOIs.
+     * Collect unique person IDs without ORCID across resources with registered DOIs.
      *
-     * @return array<int, array{person_id: int, resource_id: int, source_context: string}>
+     * Returns only IDs (not full contexts) to keep memory minimal.
+     * Contexts are loaded per chunk via loadContextsForPersons().
+     *
+     * @return array<int, int>
      */
-    private function collectPersonsWithoutOrcid(): array
+    private function collectPersonIdsWithoutOrcid(): array
     {
-        $contexts = [];
+        $personWithoutOrcid = fn ($q) => $q->where(function ($q2): void {
+            $q2->whereNull('name_identifier')
+                ->orWhere('name_identifier_scheme', '!=', 'ORCID');
+        });
 
-        // Creators without ORCID
-        $creators = ResourceCreator::whereHas('resource', fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', ''))
+        $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
+
+        $creatorIds = ResourceCreator::whereHas('resource', $hasDoi)
             ->where('creatorable_type', Person::class)
-            ->whereHas('creatorable', fn ($q) => $q->where(function ($q2): void {
-                $q2->whereNull('name_identifier')
-                    ->orWhere('name_identifier_scheme', '!=', 'ORCID');
-            }))
+            ->whereHas('creatorable', $personWithoutOrcid)
+            ->pluck('creatorable_id');
+
+        $contributorIds = ResourceContributor::whereHas('resource', $hasDoi)
+            ->where('contributorable_type', Person::class)
+            ->whereHas('contributorable', $personWithoutOrcid)
+            ->pluck('contributorable_id');
+
+        return $creatorIds->merge($contributorIds)->unique()->values()->all();
+    }
+
+    /**
+     * Load person→resource contexts for a given set of person IDs.
+     *
+     * @param  array<int, int>  $personIds
+     * @return array<int, array<int, array{person_id: int, resource_id: int, source_context: string}>>
+     */
+    private function loadContextsForPersons(array $personIds): array
+    {
+        $contextsByPerson = [];
+
+        $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
+
+        $creators = ResourceCreator::whereHas('resource', $hasDoi)
+            ->where('creatorable_type', Person::class)
+            ->whereIn('creatorable_id', $personIds)
             ->select(['resource_id', 'creatorable_id'])
             ->get();
 
         foreach ($creators as $creator) {
-            $contexts[] = [
+            $contextsByPerson[$creator->creatorable_id][] = [
                 'person_id' => $creator->creatorable_id,
                 'resource_id' => $creator->resource_id,
                 'source_context' => 'creator',
             ];
         }
 
-        // Contributors without ORCID
-        $contributors = ResourceContributor::whereHas('resource', fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', ''))
+        $contributors = ResourceContributor::whereHas('resource', $hasDoi)
             ->where('contributorable_type', Person::class)
-            ->whereHas('contributorable', fn ($q) => $q->where(function ($q2): void {
-                $q2->whereNull('name_identifier')
-                    ->orWhere('name_identifier_scheme', '!=', 'ORCID');
-            }))
+            ->whereIn('contributorable_id', $personIds)
             ->select(['resource_id', 'contributorable_id'])
             ->get();
 
         foreach ($contributors as $contributor) {
-            $contexts[] = [
+            $contextsByPerson[$contributor->contributorable_id][] = [
                 'person_id' => $contributor->contributorable_id,
                 'resource_id' => $contributor->resource_id,
                 'source_context' => 'contributor',
             ];
         }
 
-        return $contexts;
+        return $contextsByPerson;
     }
 
     /**
      * Load affiliations for persons via their creator/contributor links.
      *
+     * Shared by both the discovery job and the AssistanceController to avoid
+     * duplicated affiliation-loading logic.
+     *
      * @param  array<int, int>  $personIds
      * @return array<int, array<int, string>> Map of person_id → affiliation names
      */
-    private function loadPersonAffiliations(array $personIds): array
+    public function loadPersonAffiliations(array $personIds): array
     {
         $result = [];
 

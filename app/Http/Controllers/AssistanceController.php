@@ -6,9 +6,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\DiscoverOrcidsJob;
 use App\Jobs\DiscoverRelationsJob;
-use App\Models\Person;
-use App\Models\ResourceContributor;
-use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
 use App\Models\SuggestedRelation;
 use App\Models\User;
@@ -59,13 +56,13 @@ class AssistanceController extends Controller
         ]);
 
         // ORCID suggestions: ordered by enrichable count per resource, then similarity
+        $enrichableCounts = SuggestedOrcid::selectRaw('resource_id, COUNT(DISTINCT person_id) as enrichable_count')
+            ->groupBy('resource_id');
+
         $orcidPaginator = SuggestedOrcid::with(['resource.titles.titleType', 'person'])
-            ->selectRaw('suggested_orcids.*, (
-                SELECT COUNT(DISTINCT so2.person_id)
-                FROM suggested_orcids AS so2
-                WHERE so2.resource_id = suggested_orcids.resource_id
-            ) as enrichable_count')
-            ->orderByDesc('enrichable_count')
+            ->joinSub($enrichableCounts, 'enrichable_counts', 'suggested_orcids.resource_id', '=', 'enrichable_counts.resource_id')
+            ->select('suggested_orcids.*', 'enrichable_counts.enrichable_count')
+            ->orderByDesc('enrichable_counts.enrichable_count')
             ->orderByDesc('suggested_orcids.similarity_score')
             ->paginate(perPage: $perPage, pageName: 'orcid_page')
             ->withQueryString();
@@ -74,8 +71,8 @@ class AssistanceController extends Controller
             // Bulk-load affiliations for all person IDs on the current page (cached per request)
             static $affiliationCache = null;
             if ($affiliationCache === null) {
-                $personIds = $orcidPaginator->getCollection()->pluck('person_id')->unique()->all();
-                $affiliationCache = $this->loadPersonAffiliationNamesBulk($personIds);
+                $personIds = $orcidPaginator->getCollection()->pluck('person_id')->unique()->values()->all();
+                $affiliationCache = $this->orcidDiscoveryService->loadPersonAffiliations($personIds);
             }
 
             $person = $s->person;
@@ -341,49 +338,5 @@ class AssistanceController extends Controller
         );
 
         return response()->json(['success' => true]);
-    }
-
-    /**
-     * Load affiliation names for multiple persons in bulk from their creator/contributor links.
-     *
-     * @param  array<int, int>  $personIds
-     * @return array<int, array<int, string>> Map of person_id → unique affiliation names
-     */
-    private function loadPersonAffiliationNamesBulk(array $personIds): array
-    {
-        if (empty($personIds)) {
-            return [];
-        }
-
-        $result = [];
-
-        $creators = ResourceCreator::where('creatorable_type', Person::class)
-            ->whereIn('creatorable_id', $personIds)
-            ->with('affiliations')
-            ->get();
-
-        foreach ($creators as $creator) {
-            foreach ($creator->affiliations as $affil) {
-                $result[$creator->creatorable_id][] = $affil->name;
-            }
-        }
-
-        $contributors = ResourceContributor::where('contributorable_type', Person::class)
-            ->whereIn('contributorable_id', $personIds)
-            ->with('affiliations')
-            ->get();
-
-        foreach ($contributors as $contributor) {
-            foreach ($contributor->affiliations as $affil) {
-                $result[$contributor->contributorable_id][] = $affil->name;
-            }
-        }
-
-        // Deduplicate per person
-        foreach ($result as $personId => $names) {
-            $result[$personId] = array_values(array_unique($names));
-        }
-
-        return $result;
     }
 }
