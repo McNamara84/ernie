@@ -1,4 +1,6 @@
 import {
+    CONTRIBUTOR_COLOR,
+    CREATOR_COLOR,
     EDGE_FALLBACK_COLOR,
     getEdgeCategory,
     getEdgeCategoryColorMap,
@@ -17,10 +19,17 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
     // Deduplicate relation types by category
     const activeCategories = [...new Set(activeRelationTypes.map((rt) => getEdgeCategory(rt)))];
 
-    const hasNodeTypes = activeIdentifierTypes.length > 0;
+    // Separate Creator and Contributor from identifier types
+    const hasCreators = activeIdentifierTypes.includes('Creator');
+    const hasContributors = activeIdentifierTypes.includes('Contributor');
+    const identifierTypesWithoutPersons = activeIdentifierTypes.filter(
+        (t) => t !== 'Creator' && t !== 'Contributor',
+    );
+
+    const hasNodeTypes = identifierTypesWithoutPersons.length > 0;
     const hasEdgeTypes = activeCategories.length > 0;
 
-    if (!hasNodeTypes && !hasEdgeTypes) {
+    if (!hasNodeTypes && !hasEdgeTypes && !hasCreators && !hasContributors) {
         return null;
     }
 
@@ -45,7 +54,7 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
             {hasNodeTypes && (
                 <div className="flex flex-wrap items-center gap-4">
                     <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Identifier Types</span>
-                    {activeIdentifierTypes.map((type) => (
+                    {identifierTypesWithoutPersons.map((type) => (
                         <div key={type} className="flex items-center gap-1.5">
                             <span
                                 className="inline-block h-3 w-3 rounded-full"
@@ -55,6 +64,36 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
                             <span className="text-xs text-gray-600">{type}</span>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Creator nodes */}
+            {hasCreators && (
+                <div className="flex items-center gap-4">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Creators</span>
+                    <div className="flex items-center gap-1.5">
+                        <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: CREATOR_COLOR }}
+                            data-testid="legend-node-Creator"
+                        />
+                        <span className="text-xs text-gray-600">Creator / Author</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Contributor nodes */}
+            {hasContributors && (
+                <div className="flex items-center gap-4">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Contributors</span>
+                    <div className="flex items-center gap-1.5">
+                        <span
+                            className="inline-block h-2 w-2 rounded-full"
+                            style={{ backgroundColor: CONTRIBUTOR_COLOR }}
+                            data-testid="legend-node-Contributor"
+                        />
+                        <span className="text-xs text-gray-600">Contributor</span>
+                    </div>
                 </div>
             )}
 

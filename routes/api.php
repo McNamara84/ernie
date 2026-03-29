@@ -89,6 +89,7 @@ Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/thesauri-availabi
 Route::middleware('ernie.api-key')->get('/v1/elmo/vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability']);
 
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
+Route::get('/datacite/authors/{doi}', [DataCiteController::class, 'getAuthors'])->where('doi', '.*');
 
 // Thesaurus settings API routes (check, update, update-status) are in web.php
 // because they require session-based authentication via can:manage-thesauri gate

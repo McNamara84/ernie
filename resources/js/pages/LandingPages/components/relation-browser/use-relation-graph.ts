@@ -4,7 +4,7 @@ import { select } from 'd3-selection';
 import { zoom } from 'd3-zoom';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
-import { getEdgeColor, getNodeColor } from './graph-colors';
+import { CENTRAL_RADIUS, getEdgeCategory, getEdgeColor, getNodeColor, getNodeRadius } from './graph-colors';
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
 
@@ -14,9 +14,6 @@ interface UseRelationGraphOptions {
     onTooltipChange: (tooltip: TooltipState) => void;
     onNodeClick: (node: GraphNode) => void;
 }
-
-const CENTRAL_RADIUS = 30;
-const NODE_RADIUS = 22;
 
 export function useRelationGraph(
     svgRef: RefObject<SVGSVGElement | null>,
@@ -56,10 +53,17 @@ export function useRelationGraph(
         const defs = svgSelection.append('defs');
         const markerTypes = [...new Set(links.map((l) => l.relationType))];
         for (const rt of markerTypes) {
+            // Created edges point at the central resource node (radius 30)
+            // Contributor edges also point at central node (radius 30)
+            // Other edges point at resource nodes (radius 22)
+            const category = getEdgeCategory(rt);
+            const refX = category === 'Contributor' || category === 'Creator'
+                ? CENTRAL_RADIUS + 6
+                : 28;
             defs.append('marker')
                 .attr('id', `arrow-${rt}`)
                 .attr('viewBox', '0 -5 10 10')
-                .attr('refX', 28)
+                .attr('refX', refX)
                 .attr('refY', 0)
                 .attr('markerWidth', 6)
                 .attr('markerHeight', 6)
@@ -134,6 +138,9 @@ export function useRelationGraph(
                         identifierType: d.identifierType,
                         relationType: d.isCentral ? undefined : d.relationType,
                         url: d.url,
+                        nodeType: d.nodeType,
+                        orcid: d.orcid,
+                        contributorTypes: d.contributorTypes,
                     },
                     type: 'node',
                 });
@@ -145,7 +152,7 @@ export function useRelationGraph(
 
         // Circles
         nodeGroup.append('circle')
-            .attr('r', (d) => (d.isCentral ? CENTRAL_RADIUS : NODE_RADIUS))
+            .attr('r', (d) => getNodeRadius(d.nodeType, d.isCentral))
             .attr('fill', (d) => getNodeColor(d.identifierType, d.isCentral))
             .attr('stroke', '#fff')
             .attr('stroke-width', 1.5)
@@ -155,7 +162,7 @@ export function useRelationGraph(
         nodeGroup.append('text')
             .text((d) => truncateLabel(d.label))
             .attr('text-anchor', 'middle')
-            .attr('dy', (d) => (d.isCentral ? CENTRAL_RADIUS + 16 : NODE_RADIUS + 16))
+            .attr('dy', (d) => getNodeRadius(d.nodeType, d.isCentral) + 16)
             .attr('font-size', '11px')
             .attr('fill', '#374151')
             .attr('pointer-events', 'none');
@@ -167,7 +174,7 @@ export function useRelationGraph(
             .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(linkDistance))
             .force('charge', forceManyBody().strength(-300))
             .force('center', forceCenter(width / 2, height / 2))
-            .force('collide', forceCollide<GraphNode>().radius((d) => (d.isCentral ? CENTRAL_RADIUS + 20 : NODE_RADIUS + 20)))
+            .force('collide', forceCollide<GraphNode>().radius((d) => getNodeRadius(d.nodeType, d.isCentral) + 20))
             .alphaDecay(0.03)
             .velocityDecay(0.4);
 

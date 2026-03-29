@@ -13,6 +13,8 @@ import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 
 import { RelationBrowserGraph } from './relation-browser/RelationBrowserGraph';
 import { RelationBrowserLegend } from './relation-browser/RelationBrowserLegend';
+import { useContributorNodes } from './relation-browser/use-contributor-nodes';
+import { useCreatorNodes } from './relation-browser/use-creator-nodes';
 
 interface RelationBrowserModalProps {
     open: boolean;
@@ -47,6 +49,34 @@ export function RelationBrowserModal({
         [renderableIdentifiers],
     );
 
+    // Drive hasCreators/hasContributors from actual computed nodes
+    const { creatorNodes } = useCreatorNodes(resource, renderableIdentifiers);
+    const { contributorNodes } = useContributorNodes(resource);
+
+    const hasCreators = creatorNodes.length > 0;
+    const hasContributors = contributorNodes.length > 0;
+
+    // Build deduplicated identifier types including Creator/Contributor
+    const allIdentifierTypes = useMemo(() => {
+        const types = new Set(activeIdentifierTypes);
+        if (hasCreators) types.add('Creator');
+        if (hasContributors) types.add('Contributor');
+        return [...types];
+    }, [activeIdentifierTypes, hasCreators, hasContributors]);
+
+    // Collect active relation types including person role types
+    const personRelationTypes = useMemo(() => {
+        const types = new Set(activeRelationTypes);
+        if (hasCreators) types.add('Created');
+        if (hasContributors) {
+            const contributorTypes = (resource.contributors ?? []).flatMap((c) => c.contributor_types);
+            for (const ct of contributorTypes) {
+                types.add(ct);
+            }
+        }
+        return [...types];
+    }, [activeRelationTypes, hasCreators, hasContributors, resource.contributors]);
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
@@ -57,8 +87,8 @@ export function RelationBrowserModal({
                 <DialogHeader className="shrink-0 border-b border-gray-200 px-6 py-4">
                     <DialogTitle>Relation Browser</DialogTitle>
                     <DialogDescription>
-                        Interactive graph of relationships between this resource and related works.
-                        Hover over nodes and edges for details. Click on a node to open the related resource.
+                        Interactive graph of relationships between this resource, related works, their creators, and contributors.
+                        Hover over nodes and edges for details. Click on a node to open the related resource or ORCID profile.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -76,8 +106,8 @@ export function RelationBrowserModal({
                 {/* Legend */}
                 <div className="shrink-0">
                     <RelationBrowserLegend
-                        activeIdentifierTypes={activeIdentifierTypes}
-                        activeRelationTypes={activeRelationTypes}
+                        activeIdentifierTypes={allIdentifierTypes}
+                        activeRelationTypes={personRelationTypes}
                     />
                 </div>
             </DialogContent>

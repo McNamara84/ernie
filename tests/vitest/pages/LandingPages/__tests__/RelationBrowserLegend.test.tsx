@@ -112,4 +112,120 @@ describe('RelationBrowserLegend', () => {
 
         expect(screen.getByText('Other')).toBeInTheDocument();
     });
+
+    it('renders Creator/Author legend entry when Creator is in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Creator']}
+                activeRelationTypes={['References', 'Created']}
+            />,
+        );
+
+        expect(screen.getByText('Creator / Author')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Creator')).toBeInTheDocument();
+        expect(screen.getByText('Creators')).toBeInTheDocument();
+    });
+
+    it('separates Creator from Identifier Types section', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Creator']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        // DOI should be in Identifier Types, Creator should be in its own Creators section
+        expect(screen.getByText('DOI')).toBeInTheDocument();
+        expect(screen.getByText('Creator / Author')).toBeInTheDocument();
+        expect(screen.getByText('Identifier Types')).toBeInTheDocument();
+        expect(screen.getByText('Creators')).toBeInTheDocument();
+    });
+
+    it('does not render Creator section when Creator is not in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'URL']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.queryByText('Creator / Author')).not.toBeInTheDocument();
+        expect(screen.queryByText('Creators')).not.toBeInTheDocument();
+    });
+
+    it('renders Creator edge category in Relation Types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['Creator']}
+                activeRelationTypes={['Created']}
+            />,
+        );
+
+        expect(screen.getByTestId('legend-edge-Creator')).toBeInTheDocument();
+    });
+
+    it('renders Contributor legend entry when Contributor is in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Contributor']}
+                activeRelationTypes={['References', 'Editor']}
+            />,
+        );
+
+        expect(screen.getByTestId('legend-node-Contributor')).toBeInTheDocument();
+        expect(screen.getByText('Contributors')).toBeInTheDocument();
+        // "Contributor" text appears in both node label and edge category
+        expect(screen.getAllByText('Contributor', { exact: true })).toHaveLength(2);
+    });
+
+    it('separates Contributor from Identifier Types section', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Contributor']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.getByText('DOI')).toBeInTheDocument();
+        expect(screen.getByText('Identifier Types')).toBeInTheDocument();
+        expect(screen.getByText('Contributors')).toBeInTheDocument();
+    });
+
+    it('does not render Contributor section when Contributor is not in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'URL']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.queryByText('Contributors')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('legend-node-Contributor')).not.toBeInTheDocument();
+    });
+
+    it('renders both Creator and Contributor sections together', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Creator', 'Contributor']}
+                activeRelationTypes={['Created', 'Editor']}
+            />,
+        );
+
+        expect(screen.getByText('Creators')).toBeInTheDocument();
+        expect(screen.getByText('Creator / Author')).toBeInTheDocument();
+        expect(screen.getByText('Contributors')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Creator')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Contributor')).toBeInTheDocument();
+    });
+
+    it('renders Contributor edge category in Relation Types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['Contributor']}
+                activeRelationTypes={['Editor']}
+            />,
+        );
+
+        expect(screen.getByTestId('legend-edge-Contributor')).toBeInTheDocument();
+    });
 });

@@ -180,8 +180,8 @@ describe('RelationBrowserGraph', () => {
 
         const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
         const circles = svg.querySelectorAll('circle');
-        // 1 central + 3 related = 4
-        expect(circles.length).toBe(4);
+        // 1 central + 3 related + 1 creator = 5
+        expect(circles.length).toBe(5);
     });
 
     it('creates correct number of links', () => {
@@ -194,7 +194,8 @@ describe('RelationBrowserGraph', () => {
 
         const svg = screen.getByRole('img', { name: 'Relation Browser Graph' });
         const lines = svg.querySelectorAll('line');
-        expect(lines.length).toBe(3);
+        // 3 related + 1 creator = 4
+        expect(lines.length).toBe(4);
     });
 
     it('uses GFZ blue for central node', () => {
