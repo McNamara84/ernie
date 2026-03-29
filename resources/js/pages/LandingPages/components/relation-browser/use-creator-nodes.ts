@@ -213,10 +213,11 @@ export function useCreatorNodes(
                     if (!response.ok) throw new Error('Not found');
                     return response.json();
                 })
-                .then((data: { doi: string; authors: ApiAuthor[] }) => {
+                .then((data: { doi: string; authors?: ApiAuthor[] }) => {
+                    const authors = Array.isArray(data.authors) ? data.authors : [];
                     setApiAuthors((prev) => {
                         const next = new Map(prev);
-                        next.set(item.nodeId, data.authors);
+                        next.set(item.nodeId, authors);
                         return next;
                     });
                 })
