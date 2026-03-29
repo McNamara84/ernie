@@ -41,6 +41,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'john.doe@example.com',
+                'is_contact' => true,
             ]);
 
             // Create landing page with proper DOI prefix format
@@ -194,6 +195,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'creator@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -231,6 +233,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person1->id,
                 'email' => 'first@example.com',
+                'is_contact' => true,
             ]);
 
             $person2 = Person::factory()->create(['given_name' => 'Second', 'family_name' => 'Creator']);
@@ -239,6 +242,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person2->id,
                 'email' => 'second@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -272,6 +276,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Institution::class,
                 'creatorable_id' => $institution->id,
                 'email' => 'info@gfz-potsdam.de',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -305,6 +310,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'creator@example.com',
+                'is_contact' => true,
             ]);
 
             // Create draft landing page (no DOI prefix)
@@ -368,6 +374,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'creator@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -417,6 +424,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'john.doe@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -461,6 +469,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'jane.doe@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -498,6 +507,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'test.person@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -535,6 +545,7 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person->id,
                 'email' => 'john.doe@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
@@ -589,18 +600,21 @@ describe('ContactMessageController', function (): void {
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person1->id,
                 'email' => 'alice@example.com',
+                'is_contact' => true,
             ]);
             ResourceCreator::factory()->create([
                 'resource_id' => $resource->id,
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person2->id,
                 'email' => 'bob@example.com',
+                'is_contact' => true,
             ]);
             ResourceCreator::factory()->create([
                 'resource_id' => $resource->id,
                 'creatorable_type' => Person::class,
                 'creatorable_id' => $person3->id,
                 'email' => 'carol@example.com',
+                'is_contact' => true,
             ]);
 
             LandingPage::factory()->create([
