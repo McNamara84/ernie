@@ -33,18 +33,10 @@ class OrcidDiscoveryService
 
     /**
      * Maximum search results to request from ORCID API.
+     * Kept small since we only retain the top 3 by similarity,
+     * and each result triggers a follow-up record fetch.
      */
-    private const ORCID_SEARCH_LIMIT = 10;
-
-    /**
-     * Timestamp of the last ORCID API call (milliseconds).
-     */
-    private float $lastApiCallTime = 0;
-
-    /**
-     * Minimum delay between ORCID API calls in milliseconds.
-     */
-    private readonly int $rateLimitDelayMs;
+    private const ORCID_SEARCH_LIMIT = 5;
 
     /**
      * Chunk size for processing persons in batches.
@@ -54,9 +46,7 @@ class OrcidDiscoveryService
     public function __construct(
         private readonly OrcidService $orcidService,
         private readonly DataCiteSyncService $dataCiteSyncService,
-    ) {
-        $this->rateLimitDelayMs = (int) config('services.orcid.rate_limit_delay_ms', 2100);
-    }
+    ) {}
 
     /**
      * Discover missing ORCIDs for all resources with registered DOIs.
@@ -168,6 +158,11 @@ class OrcidDiscoveryService
             foreach ($candidates as $c) {
                 $allCandidateOrcids[] = $c['orcid'];
             }
+
+            $processed++;
+            if ($progressCallback !== null) {
+                $progressCallback($processed, $total);
+            }
         }
 
         // Batch-check which candidate ORCIDs are already assigned to any person
@@ -232,11 +227,6 @@ class OrcidDiscoveryService
                 }
 
                 $suggested[$orcid] = true;
-            }
-
-            $processed++;
-            if ($progressCallback !== null) {
-                $progressCallback($processed, $total);
             }
         }
 
@@ -538,8 +528,6 @@ class OrcidDiscoveryService
 
         $query = trim("{$givenName} {$familyName}");
 
-        $this->respectRateLimit();
-
         $result = $this->orcidService->searchOrcid($query, self::ORCID_SEARCH_LIMIT);
 
         if (! $result['success'] || $result['data'] === null) {
@@ -637,22 +625,6 @@ class OrcidDiscoveryService
         }
 
         return $syncedDois;
-    }
-
-    /**
-     * Respect ORCID API rate limit (30 requests/minute).
-     */
-    private function respectRateLimit(): void
-    {
-        $now = microtime(true) * 1000;
-        $elapsed = $now - $this->lastApiCallTime;
-
-        if ($this->lastApiCallTime > 0 && $elapsed < $this->rateLimitDelayMs) {
-            $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
-            usleep($sleepMs * 1000);
-        }
-
-        $this->lastApiCallTime = microtime(true) * 1000;
     }
 
     /**

@@ -305,14 +305,14 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
         stopOrcidPolling();
 
         try {
-            const { data } = await axios.post<{ relationJobId?: string; orcidJobId?: string }>('/assistance/check-all');
+            const { data } = await axios.post<{ relationJobId?: string; orcidJobId?: string; relationError?: string; orcidError?: string }>('/assistance/check-all');
 
             if (data.relationJobId) {
                 startRelationPolling(data.relationJobId);
             } else {
                 setIsCheckingRelations(false);
                 setRelationCheckProgress('');
-                toast.warning('Relation discovery is already running.');
+                toast.warning(data.relationError ?? 'Relation discovery is already running.');
             }
 
             if (data.orcidJobId) {
@@ -320,7 +320,7 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
             } else {
                 setIsCheckingOrcids(false);
                 setOrcidCheckProgress('');
-                toast.warning('ORCID discovery is already running.');
+                toast.warning(data.orcidError ?? 'ORCID discovery is already running.');
             }
         } catch (error) {
             setIsCheckingRelations(false);

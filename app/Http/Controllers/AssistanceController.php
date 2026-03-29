@@ -217,7 +217,8 @@ class AssistanceController extends Controller
                 $relationLock->release();
                 Cache::forget(DiscoverRelationsJob::getCacheKey($relationJobId));
 
-                throw $e;
+                report($e);
+                $result['relationError'] = 'Relation discovery could not be started.';
             }
         }
 
@@ -240,7 +241,8 @@ class AssistanceController extends Controller
                 $orcidLock->release();
                 Cache::forget(DiscoverOrcidsJob::getCacheKey($orcidJobId));
 
-                throw $e;
+                report($e);
+                $result['orcidError'] = 'ORCID discovery could not be started.';
             }
         }
 
