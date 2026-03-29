@@ -68,7 +68,7 @@ class AssistanceController extends Controller
             ) as enrichable_count')
             ->orderByDesc('enrichable_count')
             ->orderByDesc('suggested_orcids.similarity_score')
-            ->paginate($perPage, ['suggested_orcids.*'], 'orcid_page')
+            ->paginate(perPage: $perPage, pageName: 'orcid_page')
             ->withQueryString();
 
         $orcidSuggestions = $orcidPaginator->through(function (SuggestedOrcid $s) use ($orcidPaginator) {

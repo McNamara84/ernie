@@ -37,7 +37,7 @@ class OrcidDiscoveryService
     private const ORCID_SEARCH_LIMIT = 10;
 
     /**
-     * Timestamp of the last ORCID API call (microseconds).
+     * Timestamp of the last ORCID API call (milliseconds).
      */
     private float $lastApiCallTime = 0;
 
@@ -216,11 +216,13 @@ class OrcidDiscoveryService
             ];
         }
 
-        // Guard: ORCID already assigned to a different person
-        $existingPerson = Person::where('name_identifier', "https://orcid.org/{$orcid}")
+        // Guard: ORCID already assigned to a different person (normalize stored values)
+        $existingPerson = Person::whereNotNull('name_identifier')
+            ->where('name_identifier', '!=', '')
             ->where('name_identifier_scheme', 'ORCID')
             ->where('id', '!=', $suggestion->person_id)
-            ->first();
+            ->get()
+            ->first(fn (Person $p) => $this->extractOrcidFromUrl($p->name_identifier ?? '') === $orcid);
 
         if ($existingPerson !== null) {
             // Delete suggestions for this ORCID across all persons

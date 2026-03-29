@@ -144,7 +144,6 @@ describe('handle', function () {
 
     it('releases lock after successful completion', function () {
         $uuid = Str::uuid()->toString();
-        $lockOwner = Str::random(20);
 
         Cache::lock('orcid_discovery_running', 7200)->forceRelease();
         $lock = Cache::lock('orcid_discovery_running', 7200);
