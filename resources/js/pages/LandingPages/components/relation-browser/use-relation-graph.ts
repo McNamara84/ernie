@@ -4,7 +4,7 @@ import { select } from 'd3-selection';
 import { zoom } from 'd3-zoom';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
-import { CENTRAL_RADIUS, CREATOR_RADIUS, getEdgeCategory, getEdgeColor, getNodeColor, getNodeRadius, NODE_RADIUS } from './graph-colors';
+import { CENTRAL_RADIUS, getEdgeCategory, getEdgeColor, getNodeColor, getNodeRadius } from './graph-colors';
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
 
