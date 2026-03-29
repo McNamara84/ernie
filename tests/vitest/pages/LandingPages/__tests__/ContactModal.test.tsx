@@ -397,6 +397,45 @@ describe('ContactModal', () => {
             });
         });
 
+        it('sends resource_contributor_id for contributor-selected contact person', async () => {
+            const user = userEvent.setup();
+            mockFetch.mockResolvedValueOnce({ ok: true });
+
+            const contributorPerson = {
+                id: 5,
+                name: 'Dr. Contributor',
+                given_name: 'Contributor',
+                family_name: 'Person',
+                type: 'person',
+                source: 'contributor' as const,
+                has_email: true,
+            };
+
+            render(
+                <ContactModal
+                    {...defaultProps}
+                    selectedPerson={contributorPerson}
+                    contactPersons={[defaultContactPerson, contributorPerson]}
+                />,
+            );
+
+            await user.type(screen.getByLabelText(/your name/i), 'Test User');
+            await user.type(screen.getByLabelText(/your email/i), 'test@example.com');
+            await user.type(screen.getByRole('textbox', { name: /message/i }), 'This is a valid test message');
+            await user.click(screen.getByRole('button', { name: /send message/i }));
+
+            await waitFor(() => {
+                const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+                expect(callBody).toEqual(
+                    expect.objectContaining({
+                        send_to_all: false,
+                        resource_creator_id: null,
+                        resource_contributor_id: 5,
+                    }),
+                );
+            });
+        });
+
         it('sends correct data for all recipients', async () => {
             const user = userEvent.setup();
             mockFetch.mockResolvedValueOnce({ ok: true });
