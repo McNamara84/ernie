@@ -436,11 +436,13 @@ class OrcidDiscoveryService
         $creatorIds = ResourceCreator::whereHas('resource', $hasDoi)
             ->where('creatorable_type', Person::class)
             ->whereHas('creatorable', $personWithoutOrcid)
+            ->distinct()
             ->pluck('creatorable_id');
 
         $contributorIds = ResourceContributor::whereHas('resource', $hasDoi)
             ->where('contributorable_type', Person::class)
             ->whereHas('contributorable', $personWithoutOrcid)
+            ->distinct()
             ->pluck('contributorable_id');
 
         return $creatorIds->merge($contributorIds)->unique()->values()->all();
