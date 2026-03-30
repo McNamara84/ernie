@@ -1,9 +1,9 @@
-﻿import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom/vitest';
 
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PortalFilters, PortalTypeFilter } from '@/types/portal';
+import type { PortalFilters } from '@/types/portal';
 
 const routerMock = vi.hoisted(() => ({
     get: vi.fn(),
@@ -18,7 +18,7 @@ import { usePortalFilters } from '@/hooks/use-portal-filters';
 describe('usePortalFilters', () => {
     const defaultFilters: PortalFilters = {
         query: null,
-        type: 'all',
+        type: [],
         keywords: [],
         bounds: null,
         temporal: null,
@@ -46,7 +46,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when query is set', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'all', keywords: [],
+                    filters: { query: 'test', type: [], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -57,7 +57,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when type is not "all"', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi', keywords: [],
+                    filters: { query: null, type: ['doi'], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -68,7 +68,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters for empty/whitespace query', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: '   ', type: 'all', keywords: [],
+                    filters: { query: '   ', type: [], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -142,33 +142,30 @@ describe('usePortalFilters', () => {
     });
 
     describe('setType', () => {
-        it('navigates with type param', () => {
+        it('navigates with type[] params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
             );
 
             act(() => {
-                result.current.setType('doi' as PortalTypeFilter);
+                result.current.setType(['doi']);
             });
 
-            expect(routerMock.get).toHaveBeenCalledWith(
-                '/portal?type=doi',
-                {},
-                expect.objectContaining({ preserveState: true }),
-            );
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('type%5B%5D=doi');
         });
 
-        it('navigates without type param when set to "all"', () => {
+        it('navigates without type param when set to empty array', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'doi', keywords: [],
+                    filters: { query: null, type: ['doi'], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
 
             act(() => {
-                result.current.setType('all' as PortalTypeFilter);
+                result.current.setType([]);
             });
 
             expect(routerMock.get).toHaveBeenCalledWith(
@@ -178,22 +175,40 @@ describe('usePortalFilters', () => {
             );
         });
 
-        it('preserves existing query when changing type', () => {
+        it('navigates with multiple type[] params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'existing', type: 'all', keywords: [],
+                    filters: { query: null, type: [], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
             );
 
             act(() => {
-                result.current.setType('igsn' as PortalTypeFilter);
+                result.current.setType(['dataset', 'software']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('type%5B%5D=dataset');
+            expect(calledUrl).toContain('type%5B%5D=software');
+        });
+
+        it('preserves existing query when changing type', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: 'existing', type: [], keywords: [],
+                        bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setType(['physical-object']);
             });
 
             const calledUrl = routerMock.get.mock.calls[0][0] as string;
             expect(calledUrl).toContain('q=existing');
-            expect(calledUrl).toContain('type=igsn');
+            expect(calledUrl).toContain('type%5B%5D=physical-object');
         });
     });
 
@@ -201,7 +216,7 @@ describe('usePortalFilters', () => {
         it('navigates to /portal without any params', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi', keywords: [],
+                    filters: { query: 'test', type: ['doi'], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 2,
                 }),
@@ -237,7 +252,7 @@ describe('usePortalFilters', () => {
         it('navigates without keywords param when empty array is passed', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                    filters: { query: null, type: [], keywords: ['Seismology'],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -257,7 +272,7 @@ describe('usePortalFilters', () => {
         it('preserves existing query and type when setting keywords', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi', keywords: [],
+                    filters: { query: 'test', type: ['doi'], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -269,7 +284,7 @@ describe('usePortalFilters', () => {
 
             const calledUrl = routerMock.get.mock.calls[0][0] as string;
             expect(calledUrl).toContain('q=test');
-            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('type%5B%5D=doi');
             expect(calledUrl).toContain('keywords%5B%5D=Seismology');
         });
 
@@ -291,7 +306,7 @@ describe('usePortalFilters', () => {
         it('adds a keyword to the existing list', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                    filters: { query: null, type: [], keywords: ['Seismology'],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -309,7 +324,7 @@ describe('usePortalFilters', () => {
         it('does not add duplicate keywords', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                    filters: { query: null, type: [], keywords: ['Seismology'],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -340,7 +355,7 @@ describe('usePortalFilters', () => {
         it('removes a specific keyword from the list', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology', 'Geology'],
+                    filters: { query: null, type: [], keywords: ['Seismology', 'Geology'],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -358,7 +373,7 @@ describe('usePortalFilters', () => {
         it('navigates without keywords param when removing the last keyword', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                    filters: { query: null, type: [], keywords: ['Seismology'],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -380,7 +395,7 @@ describe('usePortalFilters', () => {
         it('reports active filters when keywords are non-empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: ['Seismology'],
+                    filters: { query: null, type: [], keywords: ['Seismology'],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -392,7 +407,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when keywords are empty', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: [],
+                    filters: { query: null, type: [], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -424,7 +439,7 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         query: null,
-                        type: 'all',
+                        type: [],
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
                         temporal: null,
@@ -447,7 +462,7 @@ describe('usePortalFilters', () => {
         it('preserves existing query and type when setting bounds', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: 'test', type: 'doi', keywords: [],
+                    filters: { query: 'test', type: ['doi'], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -459,7 +474,7 @@ describe('usePortalFilters', () => {
 
             const calledUrl = routerMock.get.mock.calls[0][0] as string;
             expect(calledUrl).toContain('q=test');
-            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('type%5B%5D=doi');
             expect(calledUrl).toContain('north=53.000000');
         });
 
@@ -483,7 +498,7 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         query: null,
-                        type: 'all',
+                        type: [],
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
                         temporal: null,
@@ -508,7 +523,7 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         query: null,
-                        type: 'all',
+                        type: [],
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
                         temporal: null,
@@ -523,7 +538,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when bounds are null', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: [],
+                    filters: { query: null, type: [], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),
@@ -554,7 +569,7 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         query: null,
-                        type: 'all',
+                        type: [],
                         keywords: [],
                         bounds: null,
                         temporal: { dateType: 'Created', yearFrom: 2010, yearTo: 2020 },
@@ -578,7 +593,7 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         query: 'test',
-                        type: 'doi',
+                        type: ['doi'],
                         keywords: [],
                         bounds: { north: 53, south: 51, east: 14, west: 12 },
                         temporal: null,
@@ -593,7 +608,7 @@ describe('usePortalFilters', () => {
 
             const calledUrl = routerMock.get.mock.calls[0][0] as string;
             expect(calledUrl).toContain('q=test');
-            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('type%5B%5D=doi');
             expect(calledUrl).toContain('north=53.000000');
             expect(calledUrl).toContain('date_type=Collected');
             expect(calledUrl).toContain('year_from=2000');
@@ -620,7 +635,7 @@ describe('usePortalFilters', () => {
                 usePortalFilters({
                     filters: {
                         query: null,
-                        type: 'all',
+                        type: [],
                         keywords: [],
                         bounds: null,
                         temporal: { dateType: 'Created', yearFrom: 2010, yearTo: 2020 },
@@ -635,7 +650,7 @@ describe('usePortalFilters', () => {
         it('does not report active filters when temporal is null', () => {
             const { result } = renderHook(() =>
                 usePortalFilters({
-                    filters: { query: null, type: 'all', keywords: [],
+                    filters: { query: null, type: [], keywords: [],
                         bounds: null, temporal: null, },
                     currentPage: 1,
                 }),

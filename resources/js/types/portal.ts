@@ -72,7 +72,7 @@ export interface PortalPagination {
  */
 export interface PortalFilters {
     query: string | null;
-    type: 'all' | 'doi' | 'igsn';
+    type: string[];
     keywords: string[];
     bounds: GeoBounds | null;
     temporal: TemporalFilterValue | null;
@@ -124,9 +124,20 @@ export interface PortalPageProps {
     filters: PortalFilters;
     keywordSuggestions: KeywordSuggestion[];
     temporalRange: TemporalRange;
+    resourceTypeFacets: ResourceTypeFacet[];
 }
 
 /**
- * Type filter option.
+ * Resource type facet for filtering.
  */
-export type PortalTypeFilter = 'all' | 'doi' | 'igsn';
+export interface ResourceTypeFacet {
+    slug: string;
+    name: string;
+    count: number;
+}
+
+/**
+ * Type filter: array of selected resource type slugs.
+ * An empty array means no filter (all types shown).
+ */
+export type PortalTypeFilter = string[];

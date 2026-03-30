@@ -17,7 +17,7 @@ const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange }: PortalPageProps) {
+export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange, resourceTypeFacets }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
     // Initialize map collapsed state from localStorage
@@ -185,8 +185,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 params.set('q', filters.query.trim());
             }
 
-            if (filters.type && filters.type !== 'all') {
-                params.set('type', filters.type);
+            if (filters.type && filters.type.length > 0) {
+                filters.type.forEach((slug) => {
+                    params.append('type[]', slug);
+                });
             }
 
             if (filters.keywords && filters.keywords.length > 0) {
@@ -243,6 +245,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         temporalFilterEnabled={temporalFilterEnabled}
                         onTemporalFilterToggle={handleTemporalFilterToggle}
                         onTemporalChange={handleTemporalChange}
+                        resourceTypeFacets={resourceTypeFacets}
                     />
 
                     {/* Results + Map Container - Stacked layout for smaller screens */}

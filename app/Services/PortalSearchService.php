@@ -11,6 +11,7 @@ use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceType;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -34,7 +35,7 @@ class PortalSearchService
      *
      * @param  array{
      *     query?: string|null,
-     *     type?: string|null,
+     *     type?: string[]|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -66,7 +67,7 @@ class PortalSearchService
      *
      * @param  array{
      *     query?: string|null,
-     *     type?: string|null,
+     *     type?: string[]|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -86,7 +87,7 @@ class PortalSearchService
      *
      * @param  array{
      *     query?: string|null,
-     *     type?: string|null,
+     *     type?: string[]|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -136,25 +137,55 @@ class PortalSearchService
     }
 
     /**
-     * Apply resource type filter (all, doi, igsn).
+     * Apply resource type filter by slugs.
+     *
+     * An empty array means no filter (show all types).
      *
      * @param  Builder<Resource>  $query
+     * @param  string[]|null  $typeSlugs
      */
-    private function applyTypeFilter(Builder $query, ?string $type): void
+    private function applyTypeFilter(Builder $query, ?array $typeSlugs): void
     {
-        if ($type === null || $type === 'all') {
+        if ($typeSlugs === null || $typeSlugs === []) {
             return;
         }
 
-        if ($type === 'igsn') {
-            // IGSN resources have resource_type = PhysicalObject
-            $query->igsns();
-        } elseif ($type === 'doi') {
-            // Regular DOI resources (not IGSNs)
-            $query->whereDoesntHave('resourceType', function (Builder $q): void {
-                $q->where('slug', 'physical-object');
-            });
-        }
+        $query->whereHas('resourceType', function (Builder $q) use ($typeSlugs): void {
+            $q->whereIn('slug', $typeSlugs);
+        });
+    }
+
+    /**
+     * Get resource type facets with counts for published resources.
+     *
+     * Returns only resource types that have at least one published resource,
+     * sorted by count descending. The "Physical Object" type is labelled
+     * "IGSN Samples" for display consistency.
+     *
+     * @return array<int, array{slug: string, name: string, count: int}>
+     */
+    public function getResourceTypeFacets(): array
+    {
+        $cacheKey = CacheKey::PORTAL_RESOURCE_TYPE_FACETS;
+
+        /** @var array<int, array{slug: string, name: string, count: int}> */
+        return Cache::remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+            $results = ResourceType::query()
+                ->select('resource_types.slug', 'resource_types.name')
+                ->selectRaw('COUNT(resources.id) as resources_count')
+                ->join('resources', 'resources.resource_type_id', '=', 'resource_types.id')
+                ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                ->where('landing_pages.is_published', true)
+                ->groupBy('resource_types.id', 'resource_types.slug', 'resource_types.name')
+                ->orderByDesc('resources_count')
+                ->get();
+
+            return $results->map(fn ($row): array => [
+                'slug' => $row->slug,
+                'name' => $row->slug === 'physical-object' ? 'IGSN Samples' : $row->name,
+                'count' => (int) $row->resources_count,
+            ])->all();
+        });
     }
 
     /**

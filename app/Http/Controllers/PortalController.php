@@ -33,7 +33,10 @@ class PortalController extends Controller
 
         $filters = [
             'query' => $request->query('q'),
-            'type' => $request->query('type', 'all'),
+            'type' => array_filter(
+                (array) $request->query('type', []),
+                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+            ),
             'keywords' => array_slice(array_filter(
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
@@ -70,13 +73,14 @@ class PortalController extends Controller
             ],
             'filters' => [
                 'query' => $filters['query'],
-                'type' => $filters['type'],
+                'type' => array_values($filters['type']),
                 'keywords' => array_values($filters['keywords']),
                 'bounds' => $filters['bounds'],
                 'temporal' => $filters['temporal'],
             ],
             'keywordSuggestions' => $this->keywordService->getSuggestions(),
             'temporalRange' => $temporalRange,
+            'resourceTypeFacets' => $this->searchService->getResourceTypeFacets(),
         ]);
     }
 

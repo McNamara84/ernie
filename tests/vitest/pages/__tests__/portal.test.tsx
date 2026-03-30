@@ -193,13 +193,18 @@ const defaultProps: PortalPageProps = {
     },
     filters: {
         query: '',
-        type: 'all',
+        type: [],
         keywords: [],
         bounds: null,
         temporal: null,
     },
     keywordSuggestions: [],
     temporalRange: { Created: { min: 2000, max: 2024 } },
+    resourceTypeFacets: [
+        { slug: 'dataset', name: 'Dataset', count: 30 },
+        { slug: 'software', name: 'Software', count: 15 },
+        { slug: 'physical-object', name: 'IGSN Samples', count: 5 },
+    ],
 };
 
 describe('Portal', () => {
@@ -244,7 +249,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithQuery = {
             ...defaultProps,
-            filters: { query: 'climate', type: 'all' as const, keywords: [], bounds: null, temporal: null },
+            filters: { query: 'climate', type: [] as string[], keywords: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithQuery} />);
 
@@ -258,14 +263,14 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithType = {
             ...defaultProps,
-            filters: { query: '', type: 'Dataset' as PortalPageProps['filters']['type'], keywords: [], bounds: null, temporal: null },
+            filters: { query: '', type: ['dataset'], keywords: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithType} />);
 
         const nextButtons = screen.getAllByTestId('next-page');
         await user.click(nextButtons[0]);
 
-        expect(routerMock.get).toHaveBeenCalledWith('/portal?type=Dataset', { page: 2 }, expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith(expect.stringContaining('type%5B%5D=dataset'), { page: 2 }, expect.any(Object));
     });
 
     it('persists map collapsed state to localStorage', async () => {
@@ -374,7 +379,7 @@ describe('Portal', () => {
                 ...defaultProps,
                 filters: {
                     query: '',
-                    type: 'all' as const,
+                    type: [] as string[],
                     keywords: [],
                     bounds: { north: 53, south: 51, east: 14, west: 12 },
                     temporal: null,
@@ -571,7 +576,7 @@ describe('Portal', () => {
                 ...defaultProps,
                 filters: {
                     query: '',
-                    type: 'all' as const,
+                    type: [] as string[],
                     keywords: ['Seismology', 'Geology'],
                     bounds: null,
                     temporal: null,
@@ -673,7 +678,7 @@ describe('Portal', () => {
                 ...defaultProps,
                 filters: {
                     query: '',
-                    type: 'all' as const,
+                    type: [] as string[],
                     keywords: [],
                     bounds: null,
                     temporal: { dateType: 'Created' as const, yearFrom: 2010, yearTo: 2020 },

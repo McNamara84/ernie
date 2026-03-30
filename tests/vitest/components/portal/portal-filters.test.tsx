@@ -5,16 +5,22 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PortalFilters } from '@/components/portal/PortalFilters';
-import type { PortalFilters as PortalFiltersType, PortalTypeFilter } from '@/types/portal';
+import type { PortalFilters as PortalFiltersType } from '@/types/portal';
 
 describe('PortalFilters', () => {
     const defaultFilters: PortalFiltersType = {
         query: '',
-        type: 'all',
+        type: [],
         keywords: [],
         bounds: null,
         temporal: null,
     };
+
+    const defaultFacets = [
+        { slug: 'dataset', name: 'Dataset', count: 42 },
+        { slug: 'software', name: 'Software', count: 10 },
+        { slug: 'physical-object', name: 'IGSN Samples', count: 5 },
+    ];
 
     const defaultProps = {
         filters: defaultFilters,
@@ -34,6 +40,7 @@ describe('PortalFilters', () => {
         temporalFilterEnabled: false,
         onTemporalFilterToggle: vi.fn(),
         onTemporalChange: vi.fn(),
+        resourceTypeFacets: defaultFacets,
     };
 
     beforeEach(() => {
@@ -41,20 +48,19 @@ describe('PortalFilters', () => {
     });
 
     describe('Expanded State', () => {
-        it('renders search input and type filter', () => {
+        it('renders search input and resource type filter button', () => {
             render(<PortalFilters {...defaultProps} />);
 
             expect(screen.getByPlaceholderText(/search datasets/i)).toBeInTheDocument();
             expect(screen.getByText(/42 results/i)).toBeInTheDocument();
-            expect(screen.getByRole('radiogroup')).toBeInTheDocument();
+            expect(screen.getByText(/all resource types/i)).toBeInTheDocument();
         });
 
-        it('displays all type filter options', () => {
-            render(<PortalFilters {...defaultProps} />);
+        it('shows selected count when types are selected', () => {
+            const filters: PortalFiltersType = { ...defaultFilters, type: ['dataset', 'software'] };
+            render(<PortalFilters {...defaultProps} filters={filters} />);
 
-            expect(screen.getByLabelText(/all resources/i)).toBeInTheDocument();
-            expect(screen.getByLabelText(/doi resources/i)).toBeInTheDocument();
-            expect(screen.getByLabelText(/igsn samples/i)).toBeInTheDocument();
+            expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
         });
 
         it('shows search input with current query value', () => {
@@ -65,12 +71,11 @@ describe('PortalFilters', () => {
             expect(input).toHaveValue('climate data');
         });
 
-        it('selects correct type filter radio based on filters prop', () => {
-            const filters: PortalFiltersType = { ...defaultFilters, type: 'igsn' };
+        it('selects correct type filter based on filters prop', () => {
+            const filters: PortalFiltersType = { ...defaultFilters, type: ['physical-object'] };
             render(<PortalFilters {...defaultProps} filters={filters} />);
 
-            const igsnRadio = screen.getByLabelText(/igsn samples/i);
-            expect(igsnRadio).toBeChecked();
+            expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
         });
     });
 
@@ -118,38 +123,23 @@ describe('PortalFilters', () => {
     });
 
     describe('Type Filter Interaction', () => {
-        it('calls onTypeChange when type filter is changed to DOI', async () => {
-            const user = userEvent.setup();
-            const onTypeChange = vi.fn();
-            render(<PortalFilters {...defaultProps} onTypeChange={onTypeChange} />);
+        it('renders resource type filter label', () => {
+            render(<PortalFilters {...defaultProps} />);
 
-            const doiRadio = screen.getByLabelText(/doi resources/i);
-            await user.click(doiRadio);
-
-            expect(onTypeChange).toHaveBeenCalledWith('doi' as PortalTypeFilter);
+            expect(screen.getByText('Resource Type')).toBeInTheDocument();
         });
 
-        it('calls onTypeChange when type filter is changed to IGSN', async () => {
-            const user = userEvent.setup();
-            const onTypeChange = vi.fn();
-            render(<PortalFilters {...defaultProps} onTypeChange={onTypeChange} />);
+        it('shows "All Resource Types" when no types selected', () => {
+            render(<PortalFilters {...defaultProps} />);
 
-            const igsnRadio = screen.getByLabelText(/igsn samples/i);
-            await user.click(igsnRadio);
-
-            expect(onTypeChange).toHaveBeenCalledWith('igsn' as PortalTypeFilter);
+            expect(screen.getByText(/all resource types/i)).toBeInTheDocument();
         });
 
-        it('calls onTypeChange when type filter is changed back to All', async () => {
-            const user = userEvent.setup();
-            const onTypeChange = vi.fn();
-            const filters: PortalFiltersType = { ...defaultFilters, type: 'doi' };
-            render(<PortalFilters {...defaultProps} filters={filters} onTypeChange={onTypeChange} />);
+        it('shows selected count badge when types are active', () => {
+            const filters: PortalFiltersType = { ...defaultFilters, type: ['dataset'] };
+            render(<PortalFilters {...defaultProps} filters={filters} />);
 
-            const allRadio = screen.getByLabelText(/all resources/i);
-            await user.click(allRadio);
-
-            expect(onTypeChange).toHaveBeenCalledWith('all' as PortalTypeFilter);
+            expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
         });
     });
 

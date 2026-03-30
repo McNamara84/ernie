@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-29",
+        "date": "2026-03-30",
         "features": [
             {
                 "title": "Assistance: Suggested ORCIDs Discovery",
@@ -157,6 +157,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Granular Resource Type Filter in Data Portal",
+                "description": "Replaced the three-option radio button filter (All / DOI / IGSN) with a searchable multi-select popover that dynamically lists all resource types present in the database. Each type shows a facet count indicating how many published resources match. Multiple types can be selected simultaneously, and an empty selection shows all resources. Physical Object resources continue to be labelled 'IGSN Samples'. The filter uses a modern popover with search, checkboxes, and a clear-selection action."
+            },
             {
                 "title": "DataCite classificationCode Support",
                 "description": "Subject keywords now fully support the DataCite 4.7 classificationCode attribute (property 6.d). Classification codes are preserved during XML/JSON import and export, enabling round-trip fidelity for vocabularies like ANZSRC Fields of Research that use numeric codes instead of URIs. The xml:lang attribute is now correctly exported on all subject elements using proper XML namespace handling."

@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 
-import type { GeoBounds, PortalFilters, PortalTypeFilter, TemporalFilterValue } from '@/types/portal';
+import type { GeoBounds, PortalFilters, TemporalFilterValue } from '@/types/portal';
 
 interface UsePortalFiltersOptions {
     filters: PortalFilters;
@@ -11,7 +11,7 @@ interface UsePortalFiltersOptions {
 interface UsePortalFiltersReturn {
     filters: PortalFilters;
     setSearch: (query: string) => void;
-    setType: (type: PortalTypeFilter) => void;
+    setType: (type: string[]) => void;
     setKeywords: (keywords: string[]) => void;
     addKeyword: (keyword: string) => void;
     removeKeyword: (keyword: string) => void;
@@ -43,8 +43,10 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
                 params.set('q', query.trim());
             }
 
-            if (type && type !== 'all') {
-                params.set('type', type);
+            if (type && type.length > 0) {
+                type.forEach((slug) => {
+                    params.append('type[]', slug);
+                });
             }
 
             if (keywords && keywords.length > 0) {
@@ -86,7 +88,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     );
 
     const setType = useCallback(
-        (type: PortalTypeFilter) => {
+        (type: string[]) => {
             updateFilters({ type }, true);
         },
         [updateFilters],
@@ -142,7 +144,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     const hasActiveFilters = useMemo(() => {
         return (
             (filters.query !== null && filters.query.trim() !== '') ||
-            filters.type !== 'all' ||
+            (filters.type !== undefined && filters.type.length > 0) ||
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
             filters.bounds !== null ||
             filters.temporal !== null
