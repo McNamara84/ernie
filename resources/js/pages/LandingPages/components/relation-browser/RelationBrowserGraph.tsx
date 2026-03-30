@@ -20,6 +20,7 @@ interface RelationBrowserGraphProps {
     resource: LandingPageResource;
     relatedIdentifiers: LandingPageRelatedIdentifier[];
     citationTexts?: Map<string, string>;
+    onPersonNodesChange?: (hasCreators: boolean, hasContributors: boolean) => void;
 }
 
 function buildCentralLabel(resource: LandingPageResource): { shortLabel: string; fullLabel: string } {
@@ -112,7 +113,7 @@ function buildLinks(relatedIdentifiers: LandingPageRelatedIdentifier[]): GraphLi
     }));
 }
 
-export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTexts }: RelationBrowserGraphProps) {
+export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTexts, onPersonNodesChange }: RelationBrowserGraphProps) {
     const svgRef = useRef<SVGSVGElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [tooltip, setTooltip] = useState<TooltipState>({
@@ -126,6 +127,11 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
     const citationLabels = useCitationLabels(relatedIdentifiers, citationTexts);
     const { creatorNodes, creatorLinks } = useCreatorNodes(resource, relatedIdentifiers);
     const { contributorNodes, contributorLinks } = useContributorNodes(resource);
+
+    // Report person node presence to parent (for legend)
+    useEffect(() => {
+        onPersonNodesChange?.(creatorNodes.length > 0, contributorNodes.length > 0);
+    }, [creatorNodes.length, contributorNodes.length, onPersonNodesChange]);
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.

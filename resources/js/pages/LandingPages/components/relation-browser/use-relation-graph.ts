@@ -44,6 +44,24 @@ export function useRelationGraph(
         select(svg).selectAll('*').remove();
         simulationRef.current?.stop();
 
+        // Initialize positions: preserve existing d3 positions, place new nodes near center
+        const cx = width / 2;
+        const cy = height / 2;
+        const hasExistingLayout = nodes.some((n) => n.x !== undefined && n.y !== undefined);
+        for (const node of nodes) {
+            if (node.x === undefined || node.y === undefined) {
+                node.x = cx + (Math.random() - 0.5) * 200;
+                node.y = cy + (Math.random() - 0.5) * 200;
+            }
+            // Clear velocity and pinning so simulation can freely position new nodes
+            node.vx = 0;
+            node.vy = 0;
+            if (!node.isCentral) {
+                node.fx = undefined;
+                node.fy = undefined;
+            }
+        }
+
         const svgSelection = select(svg);
 
         // Container group for zoom/pan
@@ -170,7 +188,11 @@ export function useRelationGraph(
         // Force simulation
         const linkDistance = Math.max(100, Math.min(250, 600 / Math.sqrt(nodes.length)));
 
+        // Use lower alpha when nodes already have positions to minimize disruption
+        const initialAlpha = hasExistingLayout ? 0.3 : 1;
+
         const simulation = forceSimulation<GraphNode>(nodes)
+            .alpha(initialAlpha)
             .force('link', forceLink<GraphNode, GraphLink>(links).id((d) => d.id).distance(linkDistance))
             .force('charge', forceManyBody().strength(-300))
             .force('center', forceCenter(width / 2, height / 2))
@@ -262,6 +284,7 @@ export function useRelationGraph(
             simulation.stop();
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
             }
         };
     }, [svgRef, nodes, links, width, height, onTooltipChange, onNodeClick, hideTooltip]);

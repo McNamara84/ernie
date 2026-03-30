@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { LandingPageCreator, LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
@@ -193,7 +193,7 @@ export function useCreatorNodes(
     const controllerRef = useRef<AbortController | null>(null);
     const requestIdRef = useRef(0);
 
-    // Fetch authors for related DOIs
+    // Fetch authors for all related DOIs in a single batch
     useEffect(() => {
         controllerRef.current?.abort();
         const controller = new AbortController();
@@ -219,29 +219,17 @@ export function useCreatorNodes(
             }
         }
 
-        // Reset state for the new set of identifiers
-        const validNodeIds = new Set(doisToFetch.map((item) => item.nodeId));
-        setApiAuthors((prev) => {
-            const next = new Map<string, ApiAuthor[]>();
-            for (const [key, value] of prev) {
-                if (validNodeIds.has(key)) {
-                    next.set(key, value);
-                }
-            }
-            return next;
-        });
-
         const uniqueDois = [...doiToNodeIds.keys()];
         if (uniqueDois.length === 0) {
+            setApiAuthors((prev) => (prev.size === 0 ? prev : new Map()));
             setLoading(false);
             return () => controller.abort();
         }
 
         setLoading(true);
-        let pending = uniqueDois.length;
 
-        for (const doi of uniqueDois) {
-            const nodeIds = doiToNodeIds.get(doi)!;
+        // Batch all fetches with Promise.allSettled → single state update
+        const fetchPromises = uniqueDois.map((doi) =>
             fetch(`/api/datacite/authors/${encodeURIComponent(doi)}`, {
                 signal: controller.signal,
             })
@@ -249,83 +237,88 @@ export function useCreatorNodes(
                     if (!response.ok) throw new Error('Not found');
                     return response.json();
                 })
-                .then((data: { doi: string; authors?: ApiAuthor[] }) => {
-                    if (currentRequestId !== requestIdRef.current) return;
-                    const authors = Array.isArray(data.authors) ? data.authors : [];
-                    setApiAuthors((prev) => {
-                        const next = new Map(prev);
-                        for (const nodeId of nodeIds) {
-                            next.set(nodeId, authors);
-                        }
-                        return next;
-                    });
-                })
-                .catch((err: unknown) => {
-                    if (err instanceof Error && err.name === 'AbortError') return;
-                    // Silently skip DOIs where authors can't be fetched
-                })
-                .finally(() => {
-                    if (currentRequestId !== requestIdRef.current) return;
-                    pending--;
-                    if (pending <= 0) {
-                        setLoading(false);
+                .then((data: { doi: string; authors?: ApiAuthor[] }) => ({
+                    doi,
+                    authors: Array.isArray(data.authors) ? data.authors : [],
+                })),
+        );
+
+        Promise.allSettled(fetchPromises)
+            .then((results) => {
+                if (currentRequestId !== requestIdRef.current) return;
+                const next = new Map<string, ApiAuthor[]>();
+                for (const result of results) {
+                    if (result.status !== 'fulfilled') continue;
+                    const { doi, authors } = result.value;
+                    const nodeIds = doiToNodeIds.get(doi)!;
+                    for (const nodeId of nodeIds) {
+                        next.set(nodeId, authors);
                     }
-                });
-        }
+                }
+                setApiAuthors(next);
+                setLoading(false);
+            })
+            .catch(() => {
+                // AbortError or unexpected — ignore
+            });
 
         return () => controller.abort();
     }, [relatedIdentifiers]);
 
-    // Build deduplicated creator nodes and links
-    const creatorMap = new Map<string, CreatorInfo>();
-    const orcidIndex = new Map<string, string>();
-    const counter: Counter = { value: 0 };
+    // Build deduplicated creator nodes and links (memoized to prevent simulation restarts)
+    const { creatorNodes, creatorLinks } = useMemo(() => {
+        const creatorMap = new Map<string, CreatorInfo>();
+        const orcidIndex = new Map<string, string>();
+        const counter: Counter = { value: 0 };
 
-    // 1. Central resource creators (immediate)
-    const centralCreators = resource.creators ?? [];
-    for (const creator of centralCreators) {
-        mergeCreator(creatorMap, orcidIndex, fromLandingPageCreator(creator), 'central', counter);
-    }
-
-    // 2. Related DOI creators (async)
-    for (const [nodeId, authors] of apiAuthors) {
-        for (const author of authors) {
-            mergeCreator(creatorMap, orcidIndex, fromApiAuthor(author), nodeId, counter);
+        // 1. Central resource creators (immediate)
+        const centralCreators = resource.creators ?? [];
+        for (const creator of centralCreators) {
+            mergeCreator(creatorMap, orcidIndex, fromLandingPageCreator(creator), 'central', counter);
         }
-    }
 
-    // Build graph nodes
-    const creatorNodes: GraphNode[] = [];
-    const creatorLinks: GraphLink[] = [];
-    const idCounter: Counter = { value: 0 };
+        // 2. Related DOI creators (async)
+        for (const [nodeId, authors] of apiAuthors) {
+            for (const author of authors) {
+                mergeCreator(creatorMap, orcidIndex, fromApiAuthor(author), nodeId, counter);
+            }
+        }
 
-    for (const info of creatorMap.values()) {
-        const nodeId = buildCreatorId(info, idCounter);
-        const label = buildCreatorLabel(info);
-        const orcidUrl = buildOrcidUrl(info.orcid);
+        // Build graph nodes
+        const nodes: GraphNode[] = [];
+        const links: GraphLink[] = [];
+        const idCounter: Counter = { value: 0 };
 
-        creatorNodes.push({
-            id: nodeId,
-            label,
-            fullLabel: label,
-            identifier: info.orcid ?? label,
-            identifierType: 'Creator',
-            relationType: 'Created',
-            url: orcidUrl,
-            isCentral: false,
-            nodeType: 'creator',
-            orcid: info.orcid,
-        });
+        for (const info of creatorMap.values()) {
+            const nodeId = buildCreatorId(info, idCounter);
+            const label = buildCreatorLabel(info);
+            const orcidUrl = buildOrcidUrl(info.orcid);
 
-        for (const datasetNodeId of info.datasetNodeIds) {
-            creatorLinks.push({
-                source: nodeId,
-                target: datasetNodeId,
+            nodes.push({
+                id: nodeId,
+                label,
+                fullLabel: label,
+                identifier: info.orcid ?? label,
+                identifierType: 'Creator',
                 relationType: 'Created',
-                relationLabel: 'created',
+                url: orcidUrl,
+                isCentral: false,
+                nodeType: 'creator',
+                orcid: info.orcid,
             });
+
+            for (const datasetNodeId of info.datasetNodeIds) {
+                links.push({
+                    source: nodeId,
+                    target: datasetNodeId,
+                    relationType: 'Created',
+                    relationLabel: 'created',
+                });
+            }
         }
-    }
+
+        return { creatorNodes: nodes, creatorLinks: links };
+    }, [resource.creators, apiAuthors]);
 
     return { creatorNodes, creatorLinks, loading };
 }

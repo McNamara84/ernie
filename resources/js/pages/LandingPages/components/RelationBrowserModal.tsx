@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import {
     Dialog,
@@ -13,8 +13,6 @@ import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 
 import { RelationBrowserGraph } from './relation-browser/RelationBrowserGraph';
 import { RelationBrowserLegend } from './relation-browser/RelationBrowserLegend';
-import { useContributorNodes } from './relation-browser/use-contributor-nodes';
-import { useCreatorNodes } from './relation-browser/use-creator-nodes';
 
 interface RelationBrowserModalProps {
     open: boolean;
@@ -49,12 +47,9 @@ export function RelationBrowserModal({
         [renderableIdentifiers],
     );
 
-    // Drive hasCreators/hasContributors from actual computed nodes
-    const { creatorNodes } = useCreatorNodes(resource, renderableIdentifiers);
-    const { contributorNodes } = useContributorNodes(resource);
-
-    const hasCreators = creatorNodes.length > 0;
-    const hasContributors = contributorNodes.length > 0;
+    // Receive hasCreators/hasContributors from RelationBrowserGraph to avoid duplicate hook calls
+    const [hasCreators, setHasCreators] = useState(false);
+    const [hasContributors, setHasContributors] = useState(false);
 
     // Build deduplicated identifier types including Creator/Contributor
     const allIdentifierTypes = useMemo(() => {
@@ -99,6 +94,10 @@ export function RelationBrowserModal({
                             resource={resource}
                             relatedIdentifiers={renderableIdentifiers}
                             citationTexts={citationTexts}
+                            onPersonNodesChange={(creators, contributors) => {
+                                setHasCreators(creators);
+                                setHasContributors(contributors);
+                            }}
                         />
                     )}
                 </div>
