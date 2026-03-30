@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
+use App\Models\SuggestedOrcid;
 use App\Models\SuggestedRelation;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UriHelper;
@@ -87,6 +88,14 @@ class HandleInertiaRequests extends Middleware
                         CacheKey::SUGGESTED_RELATIONS_COUNT->key(),
                         CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
                         fn () => SuggestedRelation::count(),
+                    )
+                : 0,
+            'pendingSuggestedOrcidsCount' => $request->user()?->can('access-assistance')
+                ? $this->getCacheInstance(CacheKey::SUGGESTED_ORCIDS_COUNT->tags())
+                    ->remember(
+                        CacheKey::SUGGESTED_ORCIDS_COUNT->key(),
+                        CacheKey::SUGGESTED_ORCIDS_COUNT->ttl(),
+                        fn () => SuggestedOrcid::count(),
                     )
                 : 0,
         ];

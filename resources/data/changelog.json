@@ -4,6 +4,10 @@
         "date": "2026-03-29",
         "features": [
             {
+                "title": "Assistance: Suggested ORCIDs Discovery",
+                "description": "New 'Suggested ORCIDs' card on the Assistance page for discovering missing ORCIDs. The system searches the ORCID Public API for creators and contributors without an ORCID, ranks candidates by affiliation similarity, and presents the top 3 matches per person. Curators can accept (updates the person globally and syncs all affected resources to DataCite) or decline (permanently dismisses that person+ORCID combination). Includes a new 'Check all' button that triggers both relation and ORCID discovery jobs simultaneously. The sidebar badge shows the combined count of pending suggestions."
+            },
+            {
                 "title": "Assistance: Suggested Relations Discovery",
                 "description": "New Assistance page under the Tools menu section for discovering related works. The system queries ScholExplorer and DataCite Event Data APIs to find citations, references, and other scholarly links for registered DOIs. Curators can accept (persists relation and syncs to DataCite) or decline (permanently dismisses) each suggestion. Includes a manual 'Check' button and automatic weekly discovery every Sunday at 02:00 UTC. A badge counter in the sidebar and a line in the Dashboard Statistics card show the number of pending suggestions. Available to Admin and Group Leader roles."
             },

@@ -168,6 +168,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('assistance.relations.accept');
         Route::post('/relations/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'decline'])
             ->name('assistance.relations.decline');
+
+        // ORCID discovery routes
+        Route::post('/check-all', [\App\Http\Controllers\AssistanceController::class, 'checkAll'])
+            ->name('assistance.check-all');
+        Route::post('/check-orcids', [\App\Http\Controllers\AssistanceController::class, 'checkOrcids'])
+            ->name('assistance.check-orcids');
+        Route::get('/check-orcids/{jobId}/status', [\App\Http\Controllers\AssistanceController::class, 'orcidStatus'])
+            ->where('jobId', '[a-f0-9-]{36}')
+            ->name('assistance.check-orcids.status');
+        Route::post('/orcids/{suggestion}/accept', [\App\Http\Controllers\AssistanceController::class, 'acceptOrcid'])
+            ->name('assistance.orcids.accept');
+        Route::post('/orcids/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'declineOrcid'])
+            ->name('assistance.orcids.decline');
     });
 
     // Old Datasets routes (Admin only - Issue #379)

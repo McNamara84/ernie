@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Services\RelationDiscoveryService;
+use App\Services\OrcidDiscoveryService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,20 +15,20 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Background job for discovering new related works via external APIs.
+ * Background job for discovering missing ORCID identifiers via the ORCID Public API.
  *
- * Queries ScholExplorer and DataCite Event Data APIs for all registered DOIs
- * and stores new suggestions for curator review.
+ * Searches for ORCID matches for persons (creators/contributors) who lack an ORCID,
+ * scoring candidates by affiliation similarity and respecting API rate limits.
  */
-class DiscoverRelationsJob implements ShouldQueue
+class DiscoverOrcidsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
      * The maximum number of seconds the job can run.
-     * Many DOIs × API calls can take significant time.
+     * Configurable via ORCID_DISCOVERY_TIMEOUT env variable (default: 3600).
      */
-    public int $timeout = 3600; // 1 hour
+    public int $timeout;
 
     /**
      * The number of times the job may be attempted.
@@ -52,6 +52,8 @@ class DiscoverRelationsJob implements ShouldQueue
                 'Job ID must be a valid UUID'
             );
         }
+
+        $this->timeout = (int) config('services.orcid.discovery_timeout', 3600);
     }
 
     /**
@@ -59,23 +61,23 @@ class DiscoverRelationsJob implements ShouldQueue
      */
     public static function getCacheKey(string $jobId): string
     {
-        return "relation_discovery:{$jobId}";
+        return "orcid_discovery:{$jobId}";
     }
 
     /**
      * Execute the job.
      */
-    public function handle(RelationDiscoveryService $service): void
+    public function handle(OrcidDiscoveryService $service): void
     {
         $cacheKey = self::getCacheKey($this->jobId);
         $startedAt = now()->toIso8601String();
 
         Cache::put($cacheKey, [
             'status' => 'running',
-            'progress' => 'Starting relation discovery...',
-            'totalDois' => 0,
-            'processedDois' => 0,
-            'newRelationsFound' => 0,
+            'progress' => 'Starting ORCID discovery...',
+            'totalPersons' => 0,
+            'processedPersons' => 0,
+            'newOrcidsFound' => 0,
             'startedAt' => $startedAt,
         ], now()->addHours(2));
 
@@ -86,30 +88,30 @@ class DiscoverRelationsJob implements ShouldQueue
                 $lastTotal = $total;
                 Cache::put($cacheKey, [
                     'status' => 'running',
-                    'progress' => "Checking DOI {$processed} of {$total}...",
-                    'totalDois' => $total,
-                    'processedDois' => $processed,
-                    'newRelationsFound' => 0,
+                    'progress' => "Checking person {$processed} of {$total}...",
+                    'totalPersons' => $total,
+                    'processedPersons' => $processed,
+                    'newOrcidsFound' => 0,
                     'startedAt' => $startedAt,
                 ], now()->addHours(2));
             });
 
             Cache::put($cacheKey, [
                 'status' => 'completed',
-                'progress' => 'Discovery completed.',
-                'totalDois' => $lastTotal,
-                'processedDois' => $lastTotal,
-                'newRelationsFound' => $newCount,
+                'progress' => 'ORCID discovery completed.',
+                'totalPersons' => $lastTotal,
+                'processedPersons' => $lastTotal,
+                'newOrcidsFound' => $newCount,
                 'startedAt' => $startedAt,
                 'completedAt' => now()->toIso8601String(),
             ], now()->addHours(2));
 
-            Log::info('DiscoverRelationsJob completed', [
+            Log::info('DiscoverOrcidsJob completed', [
                 'jobId' => $this->jobId,
-                'newRelationsFound' => $newCount,
+                'newOrcidsFound' => $newCount,
             ]);
         } catch (\Exception $e) {
-            Log::error('DiscoverRelationsJob failed', [
+            Log::error('DiscoverOrcidsJob failed', [
                 'jobId' => $this->jobId,
                 'error' => $e->getMessage(),
             ]);
@@ -129,16 +131,16 @@ class DiscoverRelationsJob implements ShouldQueue
         $existing = Cache::get($cacheKey, []);
 
         Cache::put($cacheKey, [
-            ...$existing,
+            ...(is_array($existing) ? $existing : []),
             'status' => 'failed',
-            'progress' => 'Discovery failed.',
+            'progress' => 'ORCID discovery failed.',
             'error' => $exception?->getMessage() ?? 'Unknown error',
             'completedAt' => now()->toIso8601String(),
         ], now()->addHours(2));
 
         $this->releaseLock();
 
-        Log::error('DiscoverRelationsJob failed callback', [
+        Log::error('DiscoverOrcidsJob failed callback', [
             'jobId' => $this->jobId,
             'error' => $exception?->getMessage(),
         ]);
@@ -150,7 +152,7 @@ class DiscoverRelationsJob implements ShouldQueue
     private function releaseLock(): void
     {
         if ($this->lockOwner !== null) {
-            Cache::restoreLock('relation_discovery_running', $this->lockOwner)->release();
+            Cache::restoreLock('orcid_discovery_running', $this->lockOwner)->release();
         }
     }
 }

@@ -19,7 +19,7 @@ describe('Person model', function (): void {
             'family_name',
             'name_identifier',
             'name_identifier_scheme',
-            'name_identifier_scheme_uri',
+            'scheme_uri',
         ]);
     });
 

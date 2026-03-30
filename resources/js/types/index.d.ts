@@ -40,6 +40,7 @@ export interface SharedData {
     dataInstitutionCount?: number;
     igsnInstitutionCount?: number;
     pendingSuggestedRelationsCount?: number;
+    pendingSuggestedOrcidsCount?: number;
     [key: string]: unknown;
 }
 

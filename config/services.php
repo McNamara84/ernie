@@ -25,6 +25,8 @@ return [
     'orcid' => [
         'api_url' => env('ORCID_API_URL', 'https://pub.orcid.org/v3.0'),
         'search_url' => env('ORCID_SEARCH_URL', 'https://pub.orcid.org/v3.0/search'),
+        'rate_limit_delay_ms' => (int) env('ORCID_RATE_LIMIT_DELAY_MS', 2100),
+        'discovery_timeout' => (int) env('ORCID_DISCOVERY_TIMEOUT', 3600),
     ],
 
     'postmark' => [

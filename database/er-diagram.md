@@ -637,6 +637,31 @@ erDiagram
         timestamp updated_at
     }
 
+    suggested_orcids {
+        bigint id PK
+        bigint resource_id FK
+        bigint person_id FK
+        varchar suggested_orcid "19"
+        decimal similarity_score "5,4"
+        varchar candidate_first_name "nullable"
+        varchar candidate_last_name "nullable"
+        json candidate_affiliations "nullable"
+        varchar source_context
+        timestamp discovered_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    dismissed_orcids {
+        bigint id PK
+        bigint person_id FK
+        varchar orcid "19"
+        bigint dismissed_by FK
+        varchar reason "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
@@ -723,4 +748,10 @@ erDiagram
     dismissed_relations }o--|| resources : "for resource"
     dismissed_relations }o--|| relation_types : "relation type"
     dismissed_relations }o--o| users : "dismissed by"
+
+    %% Suggested/Dismissed ORCIDs (Assistance feature)
+    suggested_orcids }o--|| resources : "for resource"
+    suggested_orcids }o--|| persons : "for person"
+    dismissed_orcids }o--|| persons : "for person"
+    dismissed_orcids }o--o| users : "dismissed by"
 ```
