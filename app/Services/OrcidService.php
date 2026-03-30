@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -681,17 +682,33 @@ class OrcidService
      */
     private function respectRateLimit(): void
     {
-        Cache::lock(self::RATE_LIMIT_CACHE_KEY.':lock', 10)->block(10, function () {
-            $lastCallMs = (float) Cache::get(self::RATE_LIMIT_CACHE_KEY, 0);
-            $now = microtime(true) * 1000;
-            $elapsed = $now - $lastCallMs;
+        $maxAttempts = 3;
 
-            if ($lastCallMs > 0 && $elapsed < $this->rateLimitDelayMs) {
-                $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
-                usleep($sleepMs * 1000);
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                Cache::lock(self::RATE_LIMIT_CACHE_KEY.':lock', 10)->block(10, function () {
+                    $lastCallMs = (float) Cache::get(self::RATE_LIMIT_CACHE_KEY, 0);
+                    $now = microtime(true) * 1000;
+                    $elapsed = $now - $lastCallMs;
+
+                    if ($lastCallMs > 0 && $elapsed < $this->rateLimitDelayMs) {
+                        $sleepMs = (int) ceil($this->rateLimitDelayMs - $elapsed);
+                        usleep($sleepMs * 1000);
+                    }
+
+                    Cache::put(self::RATE_LIMIT_CACHE_KEY, microtime(true) * 1000, 60);
+                });
+
+                return;
+            } catch (LockTimeoutException) {
+                if ($attempt === $maxAttempts) {
+                    Log::warning('ORCID rate limiter lock could not be acquired after retries, proceeding without throttle.');
+
+                    return;
+                }
+
+                usleep($attempt * 500_000); // 0.5s, 1s backoff
             }
-
-            Cache::put(self::RATE_LIMIT_CACHE_KEY, microtime(true) * 1000, 60);
-        });
+        }
     }
 }

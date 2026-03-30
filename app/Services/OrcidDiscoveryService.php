@@ -13,6 +13,7 @@ use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
 use App\Models\User;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -281,71 +282,94 @@ class OrcidDiscoveryService
      */
     public function acceptOrcid(SuggestedOrcid $suggestion): array
     {
-        $person = $suggestion->person->fresh();
         $orcid = $suggestion->suggested_orcid;
+        $personId = $suggestion->person_id;
 
-        // Guard: person already has an ORCID (stale suggestion)
-        if ($person !== null
-            && $person->name_identifier !== null
-            && $person->name_identifier !== ''
-            && $person->name_identifier_scheme === 'ORCID'
-        ) {
-            // Delete all stale suggestions for this person
-            SuggestedOrcid::where('person_id', $suggestion->person_id)->delete();
+        try {
+            /** @var array{success: bool, synced_dois: array<int, string>, message: string}|null $result */
+            $result = DB::transaction(function () use ($suggestion, $orcid, $personId): ?array {
+                // Lock the target person row to prevent concurrent ORCID acceptance
+                $person = Person::lockForUpdate()->find($personId);
+
+                if ($person === null) {
+                    $suggestion->delete();
+                    $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+
+                    return [
+                        'success' => false,
+                        'synced_dois' => [],
+                        'message' => 'Person not found. The suggestion has been removed.',
+                    ];
+                }
+
+                // Guard: person already has an ORCID (stale suggestion)
+                if ($person->name_identifier !== null
+                    && $person->name_identifier !== ''
+                    && $person->name_identifier_scheme === 'ORCID'
+                ) {
+                    SuggestedOrcid::where('person_id', $personId)->delete();
+                    $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+
+                    return [
+                        'success' => false,
+                        'synced_dois' => [],
+                        'message' => 'This person already has an ORCID assigned. The suggestion has been removed.',
+                    ];
+                }
+
+                // Guard: ORCID already assigned to a different person
+                $existingPerson = Person::whereNotNull('name_identifier')
+                    ->where('name_identifier', '!=', '')
+                    ->where('name_identifier_scheme', 'ORCID')
+                    ->where('id', '!=', $personId)
+                    ->whereIn('name_identifier', $this->orcidUrlVariants($orcid))
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingPerson !== null) {
+                    SuggestedOrcid::where('suggested_orcid', $orcid)->delete();
+                    $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+
+                    return [
+                        'success' => false,
+                        'synced_dois' => [],
+                        'message' => "This ORCID is already assigned to another person ({$existingPerson->full_name}). The suggestion has been removed.",
+                    ];
+                }
+
+                // Update the Person record with the accepted ORCID
+                $person->update([
+                    'name_identifier' => "https://orcid.org/{$orcid}",
+                    'name_identifier_scheme' => 'ORCID',
+                    'scheme_uri' => 'https://orcid.org/',
+                ]);
+
+                // Delete ALL suggestions for this person (accepted globally)
+                SuggestedOrcid::where('person_id', $personId)->delete();
+
+                // Return null to signal success – DataCite sync happens outside the transaction
+                return null;
+            });
+        } catch (QueryException $e) {
+            // Unique constraint violation from a concurrent acceptance
+            SuggestedOrcid::where('person_id', $personId)->delete();
             $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
 
             return [
                 'success' => false,
                 'synced_dois' => [],
-                'message' => 'This person already has an ORCID assigned. The suggestion has been removed.',
+                'message' => 'This ORCID was just assigned by another curator. The suggestion has been removed.',
             ];
         }
 
-        // Guard: ORCID already assigned to a different person (targeted query)
-        $existingPerson = Person::whereNotNull('name_identifier')
-            ->where('name_identifier', '!=', '')
-            ->where('name_identifier_scheme', 'ORCID')
-            ->where('id', '!=', $suggestion->person_id)
-            ->whereIn('name_identifier', $this->orcidUrlVariants($orcid))
-            ->first();
-
-        if ($existingPerson !== null) {
-            // Delete suggestions for this ORCID across all persons
-            SuggestedOrcid::where('suggested_orcid', $orcid)->delete();
-            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
-
-            return [
-                'success' => false,
-                'synced_dois' => [],
-                'message' => "This ORCID is already assigned to another person ({$existingPerson->full_name}). The suggestion has been removed.",
-            ];
+        // Early-return for guard failures (result is an array)
+        if ($result !== null) {
+            return $result;
         }
 
-        if ($person === null) {
-            $suggestion->delete();
-            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
-
-            return [
-                'success' => false,
-                'synced_dois' => [],
-                'message' => 'Person not found. The suggestion has been removed.',
-            ];
-        }
-
-        DB::transaction(function () use ($person, $orcid, $suggestion): void {
-            // Update the Person record with the accepted ORCID
-            $person->update([
-                'name_identifier' => "https://orcid.org/{$orcid}",
-                'name_identifier_scheme' => 'ORCID',
-                'scheme_uri' => 'https://orcid.org/',
-            ]);
-
-            // Delete ALL suggestions for this person (accepted globally)
-            SuggestedOrcid::where('person_id', $suggestion->person_id)->delete();
-        });
-
-        // Sync all affected resources with DataCite
-        $syncedDois = $this->syncAffectedResources($person);
+        // Sync all affected resources with DataCite (outside transaction)
+        $person = Person::find($personId);
+        $syncedDois = $person !== null ? $this->syncAffectedResources($person) : [];
 
         $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
 
