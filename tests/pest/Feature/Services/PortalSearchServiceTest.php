@@ -298,43 +298,72 @@ describe('keyword filtering', function () {
 // =========================================================================
 
 describe('type filtering', function () {
-    it('returns all types when filter is "all"', function () {
+    it('returns all types when filter is empty array', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
         $physicalObjectType = ResourceType::factory()->create([
             'name' => 'PhysicalObject', 'slug' => 'physical-object',
         ]);
 
-        createPublishedResourceForSearch('DOI Paper', $this->titleType);
+        createPublishedResourceForSearch('DOI Paper', $this->titleType, $datasetType);
         createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
 
-        $results = $this->service->search(['type' => 'all']);
+        $results = $this->service->search(['type' => []]);
 
         expect($results->total())->toBe(2);
     });
 
-    it('filters for IGSNs (PhysicalObject type)', function () {
+    it('filters by PhysicalObject slug', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
         $physicalObjectType = ResourceType::factory()->create([
             'name' => 'PhysicalObject', 'slug' => 'physical-object',
         ]);
 
-        createPublishedResourceForSearch('DOI Paper', $this->titleType);
+        createPublishedResourceForSearch('DOI Paper', $this->titleType, $datasetType);
         createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
 
-        $results = $this->service->search(['type' => 'igsn']);
+        $results = $this->service->search(['type' => ['physical-object']]);
 
         expect($results->total())->toBe(1);
     });
 
-    it('filters for DOI (non-PhysicalObject type)', function () {
+    it('filters by Dataset slug', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
         $physicalObjectType = ResourceType::factory()->create([
             'name' => 'PhysicalObject', 'slug' => 'physical-object',
         ]);
 
-        createPublishedResourceForSearch('DOI Paper', $this->titleType);
+        createPublishedResourceForSearch('DOI Paper', $this->titleType, $datasetType);
         createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
 
-        $results = $this->service->search(['type' => 'doi']);
+        $results = $this->service->search(['type' => ['dataset']]);
 
         expect($results->total())->toBe(1);
+    });
+
+    it('filters by multiple slugs', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        $softwareType = ResourceType::factory()->create([
+            'name' => 'Software', 'slug' => 'software',
+        ]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        createPublishedResourceForSearch('Paper', $this->titleType, $datasetType);
+        createPublishedResourceForSearch('App', $this->titleType, $softwareType);
+        createPublishedResourceForSearch('Sample', $this->titleType, $physicalObjectType);
+
+        $results = $this->service->search(['type' => ['dataset', 'software']]);
+
+        expect($results->total())->toBe(2);
     });
 });
 

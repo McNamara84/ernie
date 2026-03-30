@@ -185,8 +185,8 @@ describe('Portal Keyword Filter', function () {
             [['value' => 'Seismology']],
         );
 
-        // Filter for keyword "Seismology" + type "doi" → only dataset
-        $this->get(route('portal', ['keywords' => ['Seismology'], 'type' => 'doi']))
+        // Filter for keyword "Seismology" + type "dataset" → only dataset
+        $this->get(route('portal', ['keywords' => ['Seismology'], 'type' => 'dataset']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('pagination.total', 1)

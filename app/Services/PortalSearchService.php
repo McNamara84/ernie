@@ -35,7 +35,7 @@ class PortalSearchService
      *
      * @param  array{
      *     query?: string|null,
-     *     type?: string[]|null,
+     *     type?: string|string[]|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -67,7 +67,7 @@ class PortalSearchService
      *
      * @param  array{
      *     query?: string|null,
-     *     type?: string[]|null,
+     *     type?: string|string[]|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -87,7 +87,7 @@ class PortalSearchService
      *
      * @param  array{
      *     query?: string|null,
-     *     type?: string[]|null,
+     *     type?: string|string[]|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -116,8 +116,12 @@ class PortalSearchService
             )
             ->orderByDesc('created_at');
 
-        // Apply type filter
-        $this->applyTypeFilter($query, $filters['type'] ?? null);
+        // Apply type filter (normalize legacy string format for backward compatibility)
+        $type = $filters['type'] ?? null;
+        if (is_string($type)) {
+            $type = $type === 'all' || $type === '' ? null : [$type];
+        }
+        $this->applyTypeFilter($query, $type);
 
         // Apply search query
         $this->applySearchQuery($query, $filters['query'] ?? null);

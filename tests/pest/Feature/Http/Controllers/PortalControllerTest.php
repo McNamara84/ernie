@@ -121,7 +121,7 @@ describe('index', function () {
                 fn ($page) => $page
                     ->component('portal')
                     ->where('filters.query', 'test')
-                    ->where('filters.type', 'doi')
+                    ->where('filters.type', ['doi'])
             );
     });
 
