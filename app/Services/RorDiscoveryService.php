@@ -62,28 +62,29 @@ class RorDiscoveryService
     /**
      * Discover missing ROR-IDs for all entities across resources with registered DOIs.
      *
+     * Processes entities in chunks to keep memory usage constant regardless of dataset size.
+     * Dismissed/suggested sets are loaded per chunk, not for the entire dataset.
+     *
      * @param  callable(int $processed, int $total): void|null  $progressCallback
      * @return int Number of newly discovered suggestions
      */
     public function discoverAll(?callable $progressCallback = null): int
     {
-        $entities = $this->collectEntitiesWithoutRor();
+        $total = $this->countEntitiesWithoutRor();
 
-        if (empty($entities)) {
+        if ($total === 0) {
             Log::info('ROR discovery: No entities without ROR-ID found.');
 
             return 0;
         }
 
-        $total = count($entities);
         $processed = 0;
         $newCount = 0;
 
-        // Pre-load dismissed ROR-IDs for all entities
-        $dismissedSet = $this->loadDismissedSet($entities);
-        $suggestedSet = $this->loadSuggestedSet($entities);
+        foreach ($this->yieldEntityChunks() as $chunk) {
+            $dismissedSet = $this->loadDismissedSet($chunk);
+            $suggestedSet = $this->loadSuggestedSet($chunk);
 
-        foreach (array_chunk($entities, self::CHUNK_SIZE) as $chunk) {
             foreach ($chunk as $entity) {
                 $processed++;
 
@@ -269,16 +270,13 @@ class RorDiscoveryService
     }
 
     /**
-     * Collect all entities without ROR-ID across resources with registered DOIs.
+     * Build the base affiliation query for entities without a ROR identifier.
      *
-     * @return array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>
+     * @return \Illuminate\Database\Eloquent\Builder<Affiliation>
      */
-    private function collectEntitiesWithoutRor(): array
+    private function buildAffiliationWithoutRorQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        $entities = [];
-
-        // 1. Affiliations without ROR – chunkById with eager loading to avoid N+1
-        $affiliationQuery = Affiliation::where(function ($q): void {
+        return Affiliation::where(function ($q): void {
             $q->whereNull('identifier_scheme')
                 ->orWhere('identifier_scheme', '!=', 'ROR')
                 ->orWhereNull('identifier')
@@ -291,31 +289,16 @@ class RorDiscoveryService
                 [ResourceCreator::class, ResourceContributor::class],
                 fn ($q) => $q->whereHas('resource', fn ($r) => $r->whereNotNull('doi')->where('doi', '!=', '')),
             );
+    }
 
-        $affiliationQuery->chunkById(500, function ($chunk) use (&$entities): void {
-            $chunk->load('affiliatable');
-
-            foreach ($chunk as $affiliation) {
-                /** @var Affiliation $affiliation */
-                $affiliatable = $affiliation->affiliatable;
-
-                if ($affiliatable === null) { // @phpstan-ignore identical.alwaysFalse (orphaned polymorphic rows)
-                    continue;
-                }
-
-                $entities[] = [
-                    'entity_type' => 'affiliation',
-                    'entity_id' => $affiliation->id,
-                    'entity_name' => $affiliation->name,
-                    'resource_id' => $affiliatable->resource_id,
-                    'existing_identifier' => $affiliation->identifier,
-                    'existing_identifier_type' => $affiliation->identifier_scheme,
-                ];
-            }
-        });
-
-        // 2. Institutions without ROR – precompute resource_id map to avoid N+1
-        $institutionQuery = Institution::where(function ($q): void {
+    /**
+     * Build the base institution query for entities without a ROR identifier.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Institution>
+     */
+    private function buildInstitutionWithoutRorQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Institution::where(function ($q): void {
             $q->whereNull('name_identifier_scheme')
                 ->orWhere('name_identifier_scheme', '!=', 'ROR')
                 ->orWhereNull('name_identifier')
@@ -350,42 +333,16 @@ class RorDiscoveryService
                         });
                 });
             });
+    }
 
+    /**
+     * Build the base funder query for entities without a ROR identifier.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<FundingReference>
+     */
+    private function buildFunderWithoutRorQuery(): \Illuminate\Database\Eloquent\Builder
+    {
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
-
-        $institutionQuery->chunkById(500, function ($chunk) use (&$entities, $hasDoi): void {
-            $chunkIds = $chunk->pluck('id')->all();
-
-            // Batch-resolve resource_ids per chunk (2 queries per chunk instead of 2N)
-            $creatorResourceMap = ResourceCreator::where('creatorable_type', Institution::class)
-                ->whereIn('creatorable_id', $chunkIds)
-                ->whereHas('resource', $hasDoi)
-                ->pluck('resource_id', 'creatorable_id');
-
-            $contributorResourceMap = ResourceContributor::where('contributorable_type', Institution::class)
-                ->whereIn('contributorable_id', $chunkIds)
-                ->whereHas('resource', $hasDoi)
-                ->pluck('resource_id', 'contributorable_id');
-
-            foreach ($chunk as $institution) {
-                /** @var Institution $institution */
-                $resourceId = $creatorResourceMap->get($institution->id)
-                    ?? $contributorResourceMap->get($institution->id);
-
-                if ($resourceId !== null) {
-                    $entities[] = [
-                        'entity_type' => 'institution',
-                        'entity_id' => $institution->id,
-                        'entity_name' => $institution->name,
-                        'resource_id' => $resourceId,
-                        'existing_identifier' => $institution->name_identifier,
-                        'existing_identifier_type' => $institution->name_identifier_scheme,
-                    ];
-                }
-            }
-        });
-
-        // 3. Funders without ROR or with non-ROR identifier
         $rorTypeId = FunderIdentifierType::where('slug', 'ROR')->value('id');
 
         $funderQuery = FundingReference::whereHas('resource', $hasDoi)
@@ -405,23 +362,127 @@ class RorDiscoveryService
             });
         }
 
-        $funderQuery->chunkById(500, function ($chunk) use (&$entities): void {
-            $chunk->load('funderIdentifierType');
+        return $funderQuery;
+    }
 
-            foreach ($chunk as $funder) {
-                /** @var FundingReference $funder */
-                $entities[] = [
-                    'entity_type' => 'funder',
-                    'entity_id' => $funder->id,
-                    'entity_name' => $funder->funder_name,
-                    'resource_id' => $funder->resource_id,
-                    'existing_identifier' => $funder->funder_identifier,
-                    'existing_identifier_type' => $funder->funderIdentifierType?->name,
-                ];
+    /**
+     * Count total entities without ROR-ID (lightweight SQL-only, no data loaded).
+     */
+    private function countEntitiesWithoutRor(): int
+    {
+        return $this->buildAffiliationWithoutRorQuery()->count()
+            + $this->buildInstitutionWithoutRorQuery()->count()
+            + $this->buildFunderWithoutRorQuery()->count();
+    }
+
+    /**
+     * Yield entity chunks for streaming discovery processing.
+     *
+     * Each yielded array is a chunk of entities ready for processing. Memory stays
+     * bounded because only one chunk is in memory at a time.
+     *
+     * @return \Generator<int, array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>>
+     */
+    private function yieldEntityChunks(): \Generator
+    {
+        $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
+
+        // 1. Affiliations
+        $pendingChunk = [];
+
+        $this->buildAffiliationWithoutRorQuery()
+            ->chunkById(500, function ($dbChunk) use (&$pendingChunk): void {
+                $dbChunk->load('affiliatable');
+
+                foreach ($dbChunk as $affiliation) {
+                    /** @var Affiliation $affiliation */
+                    $affiliatable = $affiliation->affiliatable;
+
+                    if ($affiliatable === null) { // @phpstan-ignore identical.alwaysFalse (orphaned polymorphic rows)
+                        continue;
+                    }
+
+                    $pendingChunk[] = [
+                        'entity_type' => 'affiliation',
+                        'entity_id' => $affiliation->id,
+                        'entity_name' => $affiliation->name,
+                        'resource_id' => $affiliatable->resource_id,
+                        'existing_identifier' => $affiliation->identifier,
+                        'existing_identifier_type' => $affiliation->identifier_scheme,
+                    ];
+                }
+            });
+
+        if (! empty($pendingChunk)) {
+            foreach (array_chunk($pendingChunk, self::CHUNK_SIZE) as $chunk) {
+                yield $chunk;
             }
-        });
+            $pendingChunk = [];
+        }
 
-        return $entities;
+        // 2. Institutions
+        $this->buildInstitutionWithoutRorQuery()
+            ->chunkById(500, function ($dbChunk) use (&$pendingChunk, $hasDoi): void {
+                $chunkIds = $dbChunk->pluck('id')->all();
+
+                $creatorResourceMap = ResourceCreator::where('creatorable_type', Institution::class)
+                    ->whereIn('creatorable_id', $chunkIds)
+                    ->whereHas('resource', $hasDoi)
+                    ->pluck('resource_id', 'creatorable_id');
+
+                $contributorResourceMap = ResourceContributor::where('contributorable_type', Institution::class)
+                    ->whereIn('contributorable_id', $chunkIds)
+                    ->whereHas('resource', $hasDoi)
+                    ->pluck('resource_id', 'contributorable_id');
+
+                foreach ($dbChunk as $institution) {
+                    /** @var Institution $institution */
+                    $resourceId = $creatorResourceMap->get($institution->id)
+                        ?? $contributorResourceMap->get($institution->id);
+
+                    if ($resourceId !== null) {
+                        $pendingChunk[] = [
+                            'entity_type' => 'institution',
+                            'entity_id' => $institution->id,
+                            'entity_name' => $institution->name,
+                            'resource_id' => $resourceId,
+                            'existing_identifier' => $institution->name_identifier,
+                            'existing_identifier_type' => $institution->name_identifier_scheme,
+                        ];
+                    }
+                }
+            });
+
+        if (! empty($pendingChunk)) {
+            foreach (array_chunk($pendingChunk, self::CHUNK_SIZE) as $chunk) {
+                yield $chunk;
+            }
+            $pendingChunk = [];
+        }
+
+        // 3. Funders
+        $this->buildFunderWithoutRorQuery()
+            ->chunkById(500, function ($dbChunk) use (&$pendingChunk): void {
+                $dbChunk->load('funderIdentifierType');
+
+                foreach ($dbChunk as $funder) {
+                    /** @var FundingReference $funder */
+                    $pendingChunk[] = [
+                        'entity_type' => 'funder',
+                        'entity_id' => $funder->id,
+                        'entity_name' => $funder->funder_name,
+                        'resource_id' => $funder->resource_id,
+                        'existing_identifier' => $funder->funder_identifier,
+                        'existing_identifier_type' => $funder->funderIdentifierType?->name,
+                    ];
+                }
+            });
+
+        if (! empty($pendingChunk)) {
+            foreach (array_chunk($pendingChunk, self::CHUNK_SIZE) as $chunk) {
+                yield $chunk;
+            }
+        }
     }
 
     /**
@@ -694,9 +755,15 @@ class RorDiscoveryService
             return false;
         }
 
-        $replacedIdentifier = $entity->funder_identifier;
-
         $rorTypeId = FunderIdentifierType::where('slug', 'ROR')->value('id');
+
+        if ($rorTypeId === null) {
+            Log::error('ROR FunderIdentifierType not found – cannot accept funder ROR suggestion');
+
+            return false;
+        }
+
+        $replacedIdentifier = $entity->funder_identifier;
 
         return $entity->update([
             'funder_identifier' => $suggestion->suggested_ror_id,

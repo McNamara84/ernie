@@ -160,14 +160,34 @@ function OrcidSuggestionCard({
     );
 }
 
-function entityTypeLabel(type: string): string {
-    return type === 'affiliation' ? 'Affiliation' : type === 'institution' ? 'Institution' : 'Funder';
+function entityTypeLabel(type: SuggestedRorItem['entity_type']): string {
+    switch (type) {
+        case 'affiliation':
+            return 'Affiliation';
+        case 'institution':
+            return 'Institution';
+        case 'funder':
+            return 'Funder';
+        default: {
+            const _exhaustive: never = type;
+            return _exhaustive;
+        }
+    }
 }
 
-function entityTypeBadgeColor(type: string): string {
-    if (type === 'affiliation') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-    if (type === 'institution') return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-    return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+function entityTypeBadgeColor(type: SuggestedRorItem['entity_type']): string {
+    switch (type) {
+        case 'affiliation':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        case 'institution':
+            return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+        case 'funder':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+        default: {
+            const _exhaustive: never = type;
+            return _exhaustive;
+        }
+    }
 }
 
 function RorSuggestionCard({
