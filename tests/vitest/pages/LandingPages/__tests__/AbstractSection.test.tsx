@@ -915,5 +915,27 @@ describe('AbstractSection', () => {
             expect(xmlLink).toHaveAttribute('href', '/resources/456/export-datacite-xml');
             expect(jsonLink).toHaveAttribute('href', '/resources/456/export-datacite-json');
         });
+
+        it('renders JSON-LD download link with default href', () => {
+            render(<AbstractSection {...defaultProps} />);
+
+            const jsonLdLink = screen.getByRole('link', { name: /JSON-LD/i });
+            expect(jsonLdLink).toHaveAttribute('href', '/resources/123/export-jsonld');
+            expect(jsonLdLink).toHaveAttribute('title', 'Download as JSON-LD (Linked Data)');
+        });
+
+        it('renders JSON-LD download link with public jsonLdExportUrl override', () => {
+            render(<AbstractSection {...defaultProps} jsonLdExportUrl="https://example.org/10.5880/test/data/jsonld" />);
+
+            const jsonLdLink = screen.getByRole('link', { name: /JSON-LD/i });
+            expect(jsonLdLink).toHaveAttribute('href', 'https://example.org/10.5880/test/data/jsonld');
+        });
+
+        it('uses correct resourceId in JSON-LD download link when no override provided', () => {
+            render(<AbstractSection {...defaultProps} resourceId={456} />);
+
+            const jsonLdLink = screen.getByRole('link', { name: /JSON-LD/i });
+            expect(jsonLdLink).toHaveAttribute('href', '/resources/456/export-jsonld');
+        });
     });
 });

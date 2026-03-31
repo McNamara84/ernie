@@ -18,7 +18,10 @@ use App\Models\Resource;
 class SchemaOrgJsonLdExporter
 {
     /**
-     * Known GCMD-related subject schemes that should be emitted as DefinedTerm.
+     * Controlled vocabulary subject schemes that should be emitted as Schema.org DefinedTerm.
+     *
+     * Subjects from these schemes include a definedTermSet, termCode, and url.
+     * Free-text subjects (not in this list) are emitted as plain strings.
      */
     private const CONTROLLED_VOCABULARY_SCHEMES = [
         'Science Keywords',
