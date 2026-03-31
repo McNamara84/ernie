@@ -39,8 +39,11 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
             const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
 
-            // Carry forward the exclude_type from filters (not overrideable)
-            const excludeType = filters.exclude_type;
+            // Only preserve exclude_type when the caller did not explicitly
+            // clear type. setType([]) means "show all types" — it must drop
+            // the legacy DOI constraint so the URL no longer emits ?type=doi.
+            const excludeType =
+                newFilters.type !== undefined && newFilters.type.length === 0 ? null : filters.exclude_type;
 
             if (query && query.trim() !== '') {
                 params.set('q', query.trim());

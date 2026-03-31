@@ -12,13 +12,19 @@ import type { ResourceTypeFacet } from '@/types/portal';
 interface PortalResourceTypeFilterProps {
     facets: ResourceTypeFacet[];
     selectedSlugs: string[];
+    excludeType?: string | null;
     onSelectionChange: (slugs: string[]) => void;
 }
 
-export function PortalResourceTypeFilter({ facets, selectedSlugs, onSelectionChange }: PortalResourceTypeFilterProps) {
+export function PortalResourceTypeFilter({ facets, selectedSlugs, excludeType, onSelectionChange }: PortalResourceTypeFilterProps) {
     const [open, setOpen] = useState(false);
 
     const selectedSet = useMemo(() => new Set(selectedSlugs), [selectedSlugs]);
+
+    const excludedTypeName = useMemo(() => {
+        if (!excludeType || selectedSlugs.length > 0) return null;
+        return facets.find((f) => f.slug === excludeType)?.name ?? excludeType;
+    }, [excludeType, facets, selectedSlugs]);
 
     const toggleSlug = useCallback(
         (slug: string) => {
@@ -39,7 +45,11 @@ export function PortalResourceTypeFilter({ facets, selectedSlugs, onSelectionCha
             <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 w-full justify-between font-normal">
                     <span className="truncate">
-                        {selectedCount === 0 ? 'All Resource Types' : `${selectedCount} selected`}
+                        {selectedCount === 0 && excludedTypeName
+                            ? `All except ${excludedTypeName}`
+                            : selectedCount === 0
+                              ? 'All Resource Types'
+                              : `${selectedCount} selected`}
                     </span>
                     <div className="flex items-center gap-1">
                         {selectedCount > 0 && (
@@ -71,11 +81,16 @@ export function PortalResourceTypeFilter({ facets, selectedSlugs, onSelectionCha
                             })}
                         </CommandGroup>
                     </CommandList>
-                    {selectedCount > 0 && (
+                    {(selectedCount > 0 || excludedTypeName) && (
                         <div className="border-t p-1">
+                            {excludedTypeName && (
+                                <p className="px-2 py-1 text-xs text-muted-foreground">
+                                    Excluding: {excludedTypeName}
+                                </p>
+                            )}
                             <Button variant="ghost" size="sm" className="w-full justify-center text-xs" onClick={clearSelection}>
                                 <X className="mr-1 h-3 w-3" />
-                                Clear selection
+                                Clear filter
                             </Button>
                         </div>
                     )}

@@ -185,6 +185,7 @@ export function PortalFilters({
                         <PortalResourceTypeFilter
                             facets={resourceTypeFacets}
                             selectedSlugs={filters.type}
+                            excludeType={filters.exclude_type}
                             onSelectionChange={onTypeChange}
                         />
                     </div>

@@ -508,6 +508,24 @@ describe('usePortalFilters', () => {
             expect(calledUrl).not.toContain('type=doi');
             expect(calledUrl).toContain('type%5B%5D=dataset');
         });
+
+        it('drops exclude_type when setType is called with empty array', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: [], exclude_type: 'physical-object',
+                        keywords: [], bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setType([]);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('type=doi');
+            expect(calledUrl).not.toContain('type');
+        });
     });
 
     describe('setBounds', () => {

@@ -114,7 +114,7 @@ test.describe('Portal Page', () => {
 
             // Open popover and press clear
             await trigger.click();
-            const clearButton = page.getByRole('button', { name: /clear selection/i });
+            const clearButton = page.getByRole('button', { name: /clear filter/i });
             await expect(clearButton).toBeVisible();
             await clearButton.click();
 
