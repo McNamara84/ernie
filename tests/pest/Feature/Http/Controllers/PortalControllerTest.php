@@ -115,8 +115,8 @@ describe('index', function () {
     });
 
     it('passes filters back to frontend', function () {
-        // Legacy ?type=doi derives visible slugs from cached facets.
-        // A published resource is needed so 'dataset' appears in facets.
+        // Legacy ?type=doi uses exclude_type for backend filtering.
+        // filters.type is empty so the frontend preserves ?type=doi in URLs.
         ($this->createPublishedPortalResource)('Test Dataset');
 
         // Flush cache so facets reflect the freshly created resource
@@ -130,7 +130,7 @@ describe('index', function () {
                 fn ($page) => $page
                     ->component('portal')
                     ->where('filters.query', 'test')
-                    ->where('filters.type', ['dataset'])
+                    ->where('filters.type', [])
                     ->where('filters.exclude_type', 'physical-object')
             );
     });

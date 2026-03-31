@@ -31,23 +31,17 @@ class PortalController extends Controller
         // Compute temporal range once (cached) – used for both validation and frontend
         $temporalRange = $this->searchService->getTemporalRange();
 
-        // Fetch facets early (cached) – reused for legacy slug derivation and Inertia response
+        // Fetch facets early (cached) – used in the Inertia response
         $resourceTypeFacets = $this->searchService->getResourceTypeFacets();
 
         $rawType = $request->query('type', []);
         $isLegacyDoi = is_string($rawType) && trim($rawType) === 'doi';
         $excludeType = $isLegacyDoi ? 'physical-object' : null;
 
-        if ($isLegacyDoi) {
-            // Derive visible slugs from cached facets – no extra DB query needed.
-            // The actual backend filtering uses exclude_type, not these slugs.
-            $typeSlugs = array_values(array_filter(
-                array_column($resourceTypeFacets, 'slug'),
-                static fn (string $slug): bool => $slug !== 'physical-object',
-            ));
-        } else {
-            $typeSlugs = $this->normalizeTypeSlugs($rawType);
-        }
+        // For legacy ?type=doi, the backend filters via exclude_type.
+        // We send type: [] to the frontend so the URL-building logic
+        // emits ?type=doi (preserving the exclusion on pagination/navigation).
+        $typeSlugs = $isLegacyDoi ? [] : $this->normalizeTypeSlugs($rawType);
 
         $filters = [
             'query' => $request->query('q'),
