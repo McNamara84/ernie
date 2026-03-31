@@ -189,6 +189,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 filters.type.forEach((slug) => {
                     params.append('type[]', slug);
                 });
+            } else if (filters.exclude_type) {
+                // Legacy DOI filter: preserve ?type=doi so the backend
+                // can reconstruct the exclude constraint on pagination.
+                params.set('type', 'doi');
             }
 
             if (filters.keywords && filters.keywords.length > 0) {

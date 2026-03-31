@@ -455,6 +455,61 @@ describe('usePortalFilters', () => {
         });
     });
 
+    describe('legacy doi URL persistence', () => {
+        it('preserves type=doi when exclude_type is set and type is empty', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: [], exclude_type: 'physical-object',
+                        keywords: [], bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setKeywords(['Seismology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('type=doi');
+            expect(calledUrl).toContain('keywords%5B%5D=Seismology');
+        });
+
+        it('does not emit type=doi when exclude_type is absent', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: [], keywords: [],
+                        bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setKeywords(['Seismology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('type=doi');
+        });
+
+        it('does not emit type=doi when type slugs are explicitly set', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: ['dataset'], exclude_type: 'physical-object',
+                        keywords: [], bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setKeywords(['Seismology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('type=doi');
+            expect(calledUrl).toContain('type%5B%5D=dataset');
+        });
+    });
+
     describe('setBounds', () => {
         it('navigates with bounds URL params', () => {
             const { result } = renderHook(() =>

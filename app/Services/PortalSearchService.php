@@ -165,11 +165,11 @@ class PortalSearchService
         }
 
         if ($excludeType !== null) {
-            // Exclusion filter: legacy 'doi' means "NOT physical-object"
-            // instead of enumerating slugs (which may resolve to an empty
-            // array when no non-PO types exist in the database).
-            $query->whereHas('resourceType', function (Builder $q) use ($excludeType): void {
-                $q->where('slug', '!=', $excludeType);
+            // Exclusion filter: legacy 'doi' means "NOT physical-object".
+            // Uses whereDoesntHave so resources with NULL resource_type_id
+            // are included (whereHas would exclude them entirely).
+            $query->whereDoesntHave('resourceType', function (Builder $q) use ($excludeType): void {
+                $q->where('slug', $excludeType);
             });
         } else {
             $this->applyTypeFilter($query, $type);

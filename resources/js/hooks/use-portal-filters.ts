@@ -39,6 +39,9 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
             const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
 
+            // Carry forward the exclude_type from filters (not overrideable)
+            const excludeType = filters.exclude_type;
+
             if (query && query.trim() !== '') {
                 params.set('q', query.trim());
             }
@@ -47,6 +50,11 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
                 type.forEach((slug) => {
                     params.append('type[]', slug);
                 });
+            } else if (excludeType) {
+                // Legacy DOI filter: no explicit slugs but an active
+                // exclusion — preserve the legacy ?type=doi param so
+                // the backend can reconstruct the exclude constraint.
+                params.set('type', 'doi');
             }
 
             if (keywords && keywords.length > 0) {

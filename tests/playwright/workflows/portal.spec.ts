@@ -118,9 +118,11 @@ test.describe('Portal Page', () => {
             await expect(clearButton).toBeVisible();
             await clearButton.click();
 
-            // URL should no longer contain type parameter
+            // URL should no longer contain type[] parameter
             await expect(async () => {
-                expect(page.url()).not.toContain('type');
+                const url = new URL(page.url());
+                expect(url.searchParams.has('type[]')).toBe(false);
+                expect(url.searchParams.has('type')).toBe(false);
             }).toPass({ timeout: 5000 });
         });
     });
