@@ -353,23 +353,21 @@ class RorDiscoveryService
 
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
 
-        $qualifiedInstitutions = $institutionQuery->get(['id', 'name', 'name_identifier', 'name_identifier_scheme']);
+        $institutionQuery->chunkById(500, function ($chunk) use (&$entities, $hasDoi): void {
+            $chunkIds = $chunk->pluck('id')->all();
 
-        if ($qualifiedInstitutions->isNotEmpty()) {
-            $institutionIds = $qualifiedInstitutions->pluck('id')->all();
-
-            // Batch-resolve resource_ids (2 queries total instead of 2N)
+            // Batch-resolve resource_ids per chunk (2 queries per chunk instead of 2N)
             $creatorResourceMap = ResourceCreator::where('creatorable_type', Institution::class)
-                ->whereIn('creatorable_id', $institutionIds)
+                ->whereIn('creatorable_id', $chunkIds)
                 ->whereHas('resource', $hasDoi)
                 ->pluck('resource_id', 'creatorable_id');
 
             $contributorResourceMap = ResourceContributor::where('contributorable_type', Institution::class)
-                ->whereIn('contributorable_id', $institutionIds)
+                ->whereIn('contributorable_id', $chunkIds)
                 ->whereHas('resource', $hasDoi)
                 ->pluck('resource_id', 'contributorable_id');
 
-            foreach ($qualifiedInstitutions as $institution) {
+            foreach ($chunk as $institution) {
                 /** @var Institution $institution */
                 $resourceId = $creatorResourceMap->get($institution->id)
                     ?? $contributorResourceMap->get($institution->id);
@@ -385,7 +383,7 @@ class RorDiscoveryService
                     ];
                 }
             }
-        }
+        });
 
         // 3. Funders without ROR or with non-ROR identifier
         $rorTypeId = FunderIdentifierType::where('slug', 'ROR')->value('id');
@@ -656,13 +654,11 @@ class RorDiscoveryService
 
         $replacedIdentifier = $entity->identifier;
 
-        $entity->update([
+        return $entity->update([
             'identifier' => $suggestion->suggested_ror_id,
             'identifier_scheme' => 'ROR',
             'scheme_uri' => 'https://ror.org/',
         ]);
-
-        return true;
     }
 
     /**
@@ -679,13 +675,11 @@ class RorDiscoveryService
 
         $replacedIdentifier = $entity->name_identifier;
 
-        $entity->update([
+        return $entity->update([
             'name_identifier' => $suggestion->suggested_ror_id,
             'name_identifier_scheme' => 'ROR',
             'scheme_uri' => 'https://ror.org/',
         ]);
-
-        return true;
     }
 
     /**
@@ -704,13 +698,11 @@ class RorDiscoveryService
 
         $rorTypeId = FunderIdentifierType::where('slug', 'ROR')->value('id');
 
-        $entity->update([
+        return $entity->update([
             'funder_identifier' => $suggestion->suggested_ror_id,
             'funder_identifier_type_id' => $rorTypeId,
             'scheme_uri' => 'https://ror.org/',
         ]);
-
-        return true;
     }
 
     /**
