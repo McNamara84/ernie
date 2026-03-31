@@ -10,10 +10,10 @@ use App\Models\Resource;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\SchemaOrgJsonLdExporter;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -26,6 +26,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class LandingPagePublicController extends Controller
 {
+    use ChecksCacheTagging;
     /**
      * Regex pattern for valid slug characters.
      * Must match the route constraint in web.php.
@@ -281,7 +282,7 @@ class LandingPagePublicController extends Controller
 
         // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
         $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
-        $schemaOrgJsonLd = Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())
+        $schemaOrgJsonLd = $this->getCacheInstance(CacheKey::SCHEMA_ORG_JSONLD->tags())
             ->remember($cacheKey, CacheKey::SCHEMA_ORG_JSONLD->ttl(), function () use ($resource): array {
                 $exporter = new SchemaOrgJsonLdExporter;
 
