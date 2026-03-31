@@ -13,6 +13,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 
 covers(PortalController::class);
 
@@ -114,8 +115,14 @@ describe('index', function () {
     });
 
     it('passes filters back to frontend', function () {
-        // Legacy ?type=doi maps to all non-physical-object slugs.
-        // In this test only 'dataset' type exists, so it resolves to ['dataset'].
+        // Legacy ?type=doi derives visible slugs from cached facets.
+        // A published resource is needed so 'dataset' appears in facets.
+        ($this->createPublishedPortalResource)('Test Dataset');
+
+        // Flush cache so facets reflect the freshly created resource
+        // (array driver has no tagging; prior tests may have cached [])
+        Cache::flush();
+
         $response = $this->get('/portal?q=test&type=doi');
 
         $response->assertOk()
@@ -124,6 +131,7 @@ describe('index', function () {
                     ->component('portal')
                     ->where('filters.query', 'test')
                     ->where('filters.type', ['dataset'])
+                    ->where('filters.exclude_type', 'physical-object')
             );
     });
 

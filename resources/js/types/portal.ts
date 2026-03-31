@@ -73,6 +73,7 @@ export interface PortalPagination {
 export interface PortalFilters {
     query: string | null;
     type: string[];
+    exclude_type?: string | null;
     keywords: string[];
     bounds: GeoBounds | null;
     temporal: TemporalFilterValue | null;

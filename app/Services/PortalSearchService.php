@@ -42,8 +42,9 @@ class PortalSearchService
      * as type values.  We keep supporting these for backward-compatible
      * URLs and bookmarks.
      *
-     * 'doi'  → all non-PhysicalObject slugs (frontend display only;
-     *          actual filtering uses an exclusion constraint in buildQuery)
+     * 'doi'  → DB fallback for direct callers.  The primary path in
+     *          PortalController derives visible slugs from cached facets
+     *          and uses an exclude_type constraint (no DB query).
      * 'igsn' → ['physical-object']
      * 'all'  → null (show everything)
      *

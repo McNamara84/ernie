@@ -417,6 +417,44 @@ describe('usePortalFilters', () => {
         });
     });
 
+    describe('hasActiveFilters with exclude_type', () => {
+        it('reports active filters when exclude_type is set', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: [], exclude_type: 'physical-object',
+                        keywords: [], bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+
+        it('does not report active filters when exclude_type is null', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: [], exclude_type: null,
+                        keywords: [], bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(false);
+        });
+
+        it('does not report active filters when exclude_type is undefined', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { query: null, type: [], keywords: [],
+                        bounds: null, temporal: null, },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(false);
+        });
+    });
+
     describe('setBounds', () => {
         it('navigates with bounds URL params', () => {
             const { result } = renderHook(() =>

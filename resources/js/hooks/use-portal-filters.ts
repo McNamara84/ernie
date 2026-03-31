@@ -145,6 +145,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         return (
             (filters.query !== null && filters.query.trim() !== '') ||
             (filters.type !== undefined && filters.type.length > 0) ||
+            filters.exclude_type != null ||
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
             filters.bounds !== null ||
             filters.temporal !== null

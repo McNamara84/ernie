@@ -31,15 +31,23 @@ class PortalController extends Controller
         // Compute temporal range once (cached) – used for both validation and frontend
         $temporalRange = $this->searchService->getTemporalRange();
 
-        $rawType = $request->query('type', []);
-        $typeSlugs = $this->normalizeTypeSlugs($rawType);
+        // Fetch facets early (cached) – reused for legacy slug derivation and Inertia response
+        $resourceTypeFacets = $this->searchService->getResourceTypeFacets();
 
-        // Legacy 'doi' needs an exclusion constraint (NOT physical-object)
-        // instead of slug enumeration, which may resolve to an empty array
-        // when no non-physical-object types exist in the database.
-        $excludeType = is_string($rawType) && trim($rawType) === 'doi'
-            ? 'physical-object'
-            : null;
+        $rawType = $request->query('type', []);
+        $isLegacyDoi = is_string($rawType) && trim($rawType) === 'doi';
+        $excludeType = $isLegacyDoi ? 'physical-object' : null;
+
+        if ($isLegacyDoi) {
+            // Derive visible slugs from cached facets – no extra DB query needed.
+            // The actual backend filtering uses exclude_type, not these slugs.
+            $typeSlugs = array_values(array_filter(
+                array_column($resourceTypeFacets, 'slug'),
+                static fn (string $slug): bool => $slug !== 'physical-object',
+            ));
+        } else {
+            $typeSlugs = $this->normalizeTypeSlugs($rawType);
+        }
 
         $filters = [
             'query' => $request->query('q'),
@@ -82,13 +90,14 @@ class PortalController extends Controller
             'filters' => [
                 'query' => $filters['query'],
                 'type' => array_values($filters['type']),
+                'exclude_type' => $excludeType,
                 'keywords' => array_values($filters['keywords']),
                 'bounds' => $filters['bounds'],
                 'temporal' => $filters['temporal'],
             ],
             'keywordSuggestions' => $this->keywordService->getSuggestions(),
             'temporalRange' => $temporalRange,
-            'resourceTypeFacets' => $this->searchService->getResourceTypeFacets(),
+            'resourceTypeFacets' => $resourceTypeFacets,
         ]);
     }
 
