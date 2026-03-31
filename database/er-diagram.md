@@ -662,6 +662,34 @@ erDiagram
         timestamp updated_at
     }
 
+    suggested_rors {
+        bigint id PK
+        bigint resource_id FK
+        varchar entity_type
+        int entity_id
+        varchar entity_name
+        varchar suggested_ror_id
+        varchar suggested_name
+        decimal similarity_score "5,4"
+        json ror_aliases
+        varchar existing_identifier "nullable"
+        varchar existing_identifier_type "nullable"
+        timestamp discovered_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    dismissed_rors {
+        bigint id PK
+        varchar entity_type
+        int entity_id
+        varchar ror_id
+        bigint dismissed_by FK "nullable"
+        varchar reason "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
@@ -754,4 +782,8 @@ erDiagram
     suggested_orcids }o--|| persons : "for person"
     dismissed_orcids }o--|| persons : "for person"
     dismissed_orcids }o--o| users : "dismissed by"
+
+    %% Suggested/Dismissed RORs (Assistance feature)
+    suggested_rors }o--|| resources : "for resource"
+    dismissed_rors }o--o| users : "dismissed by"
 ```

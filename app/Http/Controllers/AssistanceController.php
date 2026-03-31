@@ -6,11 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Jobs\DiscoverOrcidsJob;
 use App\Jobs\DiscoverRelationsJob;
+use App\Jobs\DiscoverRorsJob;
 use App\Models\SuggestedOrcid;
 use App\Models\SuggestedRelation;
+use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\OrcidDiscoveryService;
 use App\Services\RelationDiscoveryService;
+use App\Services\RorDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +26,7 @@ class AssistanceController extends Controller
     public function __construct(
         private readonly RelationDiscoveryService $discoveryService,
         private readonly OrcidDiscoveryService $orcidDiscoveryService,
+        private readonly RorDiscoveryService $rorDiscoveryService,
     ) {}
 
     /**
@@ -99,6 +103,7 @@ class AssistanceController extends Controller
         return Inertia::render('assistance', [
             'suggestions' => $suggestions,
             'orcidSuggestions' => $orcidSuggestions,
+            'rorSuggestions' => $this->loadRorSuggestions($perPage),
         ]);
     }
 
@@ -192,7 +197,7 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Trigger both relation and ORCID discovery jobs simultaneously.
+     * Trigger relation, ORCID, and ROR discovery jobs simultaneously.
      */
     public function checkAll(): JsonResponse
     {
@@ -246,9 +251,33 @@ class AssistanceController extends Controller
             }
         }
 
+        // Start ROR discovery
+        $rorLock = Cache::lock('ror_discovery_running', 7200);
+        if ($rorLock->get()) {
+            $rorJobId = Str::uuid()->toString();
+
+            try {
+                Cache::put(DiscoverRorsJob::getCacheKey($rorJobId), [
+                    'status' => 'queued',
+                    'progress' => 'Waiting to start...',
+                    'startedAt' => now()->toIso8601String(),
+                    'lockOwner' => $rorLock->owner(),
+                ], now()->addHours(2));
+
+                DiscoverRorsJob::dispatch($rorJobId, $rorLock->owner());
+                $result['rorJobId'] = $rorJobId;
+            } catch (\Throwable $e) {
+                $rorLock->release();
+                Cache::forget(DiscoverRorsJob::getCacheKey($rorJobId));
+
+                report($e);
+                $result['rorError'] = 'ROR discovery could not be started.';
+            }
+        }
+
         if (empty($result)) {
             return response()->json([
-                'error' => 'Both discovery jobs are already running. Please wait for them to finish.',
+                'error' => 'All discovery jobs are already running. Please wait for them to finish.',
             ], 409);
         }
 
@@ -340,5 +369,127 @@ class AssistanceController extends Controller
         );
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Trigger ROR discovery only.
+     */
+    public function checkRors(): JsonResponse
+    {
+        $lock = Cache::lock('ror_discovery_running', 7200);
+
+        if (! $lock->get()) {
+            return response()->json([
+                'error' => 'A ROR discovery job is already running. Please wait for it to finish.',
+            ], 409);
+        }
+
+        $jobId = Str::uuid()->toString();
+
+        try {
+            Cache::put(DiscoverRorsJob::getCacheKey($jobId), [
+                'status' => 'queued',
+                'progress' => 'Waiting to start...',
+                'startedAt' => now()->toIso8601String(),
+                'lockOwner' => $lock->owner(),
+            ], now()->addHours(2));
+
+            DiscoverRorsJob::dispatch($jobId, $lock->owner());
+        } catch (\Throwable $e) {
+            $lock->release();
+            Cache::forget(DiscoverRorsJob::getCacheKey($jobId));
+
+            throw $e;
+        }
+
+        return response()->json(['jobId' => $jobId]);
+    }
+
+    /**
+     * Get the status of a running ROR discovery job.
+     */
+    public function rorStatus(string $jobId): JsonResponse
+    {
+        $cacheKey = DiscoverRorsJob::getCacheKey($jobId);
+
+        /** @var array<string, mixed>|null $status */
+        $status = Cache::get($cacheKey);
+
+        if ($status === null) {
+            return response()->json([
+                'status' => 'unknown',
+                'progress' => 'Job not found.',
+            ], 404);
+        }
+
+        unset($status['lockOwner']);
+
+        return response()->json($status);
+    }
+
+    /**
+     * Accept a suggested ROR-ID.
+     */
+    public function acceptRor(SuggestedRor $suggestion): JsonResponse
+    {
+        $result = $this->rorDiscoveryService->acceptRor($suggestion);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Decline a suggested ROR-ID.
+     */
+    public function declineRor(Request $request, SuggestedRor $suggestion): JsonResponse
+    {
+        $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $this->rorDiscoveryService->declineRor(
+            $suggestion,
+            $user,
+            $request->input('reason'),
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Load paginated ROR suggestions ordered by similarity score.
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator<int, array{id: int, resource_id: int, resource_doi: string, resource_title: string, entity_type: string, entity_id: int, entity_name: string, suggested_ror_id: string, suggested_name: string, similarity_score: float, ror_aliases: array<int, string>, existing_identifier: string|null, existing_identifier_type: string|null, discovered_at: string}>
+     */
+    private function loadRorSuggestions(int $perPage): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $enrichableCounts = SuggestedRor::selectRaw('resource_id, COUNT(*) as enrichable_count')
+            ->groupBy('resource_id');
+
+        return SuggestedRor::with(['resource.titles.titleType'])
+            ->joinSub($enrichableCounts, 'enrichable_counts', 'suggested_rors.resource_id', '=', 'enrichable_counts.resource_id')
+            ->select('suggested_rors.*', 'enrichable_counts.enrichable_count')
+            ->orderByDesc('enrichable_counts.enrichable_count')
+            ->orderByDesc('suggested_rors.similarity_score')
+            ->paginate(perPage: $perPage, pageName: 'ror_page')
+            ->withQueryString()
+            ->through(fn (SuggestedRor $s) => [
+                'id' => $s->id,
+                'resource_id' => $s->resource_id,
+                'resource_doi' => $s->resource->doi ?? '',
+                'resource_title' => $s->resource->mainTitle ?? 'Untitled',
+                'entity_type' => $s->entity_type,
+                'entity_id' => $s->entity_id,
+                'entity_name' => $s->entity_name,
+                'suggested_ror_id' => $s->suggested_ror_id,
+                'suggested_name' => $s->suggested_name,
+                'similarity_score' => $s->similarity_score,
+                'ror_aliases' => $s->ror_aliases ?? [],
+                'existing_identifier' => $s->existing_identifier,
+                'existing_identifier_type' => $s->existing_identifier_type,
+                'discovered_at' => $s->discovered_at->toIso8601String(),
+            ]);
     }
 }

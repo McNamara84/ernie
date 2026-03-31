@@ -188,6 +188,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('assistance.orcids.accept');
         Route::post('/orcids/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'declineOrcid'])
             ->name('assistance.orcids.decline');
+
+        // ROR discovery routes
+        Route::post('/check-rors', [\App\Http\Controllers\AssistanceController::class, 'checkRors'])
+            ->name('assistance.check-rors');
+        Route::get('/check-rors/{jobId}/status', [\App\Http\Controllers\AssistanceController::class, 'rorStatus'])
+            ->where('jobId', '[a-f0-9-]{36}')
+            ->name('assistance.check-rors.status');
+        Route::post('/rors/{suggestion}/accept', [\App\Http\Controllers\AssistanceController::class, 'acceptRor'])
+            ->name('assistance.rors.accept');
+        Route::post('/rors/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'declineRor'])
+            ->name('assistance.rors.decline');
     });
 
     // Old Datasets routes (Admin only - Issue #379)

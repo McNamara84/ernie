@@ -1,5 +1,15 @@
 [
     {
+        "version": "1.0.0dev",
+        "date": "2026-03-31",
+        "features": [
+            {
+                "title": "Assistance: Suggested ROR-IDs Discovery",
+                "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
+            }
+        ]
+    },
+    {
         "version": "1.0.0rc3",
         "date": "2026-03-31",
         "features": [
@@ -165,6 +175,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Individual Check Button for ORCID Suggestions",
+                "description": "The 'Suggested ORCIDs' card on the Assistance page now includes its own 'Check' button in the card header, matching the pattern of the 'Suggested Relations' card. Previously, ORCID discovery could only be triggered via the global 'Check all' button."
+            },
             {
                 "title": "Granular Resource Type Filter in Data Portal",
                 "description": "Replaced the three-option radio button filter (All / DOI / IGSN) with a searchable multi-select popover that dynamically lists all resource types present in the database. Each type shows a facet count indicating how many published resources match. Multiple types can be selected simultaneously, and an empty selection shows all resources. Physical Object resources continue to be labelled 'IGSN Samples'. The filter uses a modern popover with search, checkboxes, and a clear-selection action."
