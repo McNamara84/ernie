@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\PortalController;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
@@ -119,9 +120,9 @@ describe('index', function () {
         // filters.type is empty so the frontend preserves ?type=doi in URLs.
         ($this->createPublishedPortalResource)('Test Dataset');
 
-        // Flush cache so facets reflect the freshly created resource
-        // (array driver has no tagging; prior tests may have cached [])
-        Cache::flush();
+        // Clear only the portal facets cache so facets reflect the freshly
+        // created resource without interfering with other cached values.
+        Cache::forget(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key());
 
         $response = $this->get('/portal?q=test&type=doi');
 
