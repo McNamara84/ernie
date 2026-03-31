@@ -46,6 +46,11 @@ class RorDiscoveryService
     private const CHUNK_SIZE = 50;
 
     /**
+     * Batch size for database lazy iteration and bulk resolution.
+     */
+    private const DB_BATCH_SIZE = 500;
+
+    /**
      * Minimum delay between ROR API requests in milliseconds (~1 req/sec).
      */
     private const RATE_LIMIT_MS = 1000;
@@ -393,15 +398,14 @@ class RorDiscoveryService
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
         $pendingChunk = [];
 
-        // 1. Affiliations – lazyById streams one row at a time
         // 1. Affiliations – collect into DB batches, resolve resource_id in bulk to avoid N+1
         $affiliationBatch = [];
 
-        foreach ($this->buildAffiliationWithoutRorQuery()->lazyById(500) as $affiliation) {
+        foreach ($this->buildAffiliationWithoutRorQuery()->lazyById(self::DB_BATCH_SIZE) as $affiliation) {
             /** @var Affiliation $affiliation */
             $affiliationBatch[] = $affiliation;
 
-            if (count($affiliationBatch) >= 500) {
+            if (count($affiliationBatch) >= self::DB_BATCH_SIZE) {
                 yield from $this->resolveAffiliationBatch($affiliationBatch, $pendingChunk);
                 $affiliationBatch = [];
             }
@@ -420,11 +424,11 @@ class RorDiscoveryService
         //    Collect institution rows into a DB batch, resolve resource maps, then emit processing chunks.
         $institutionBatch = [];
 
-        foreach ($this->buildInstitutionWithoutRorQuery()->lazyById(500) as $institution) {
+        foreach ($this->buildInstitutionWithoutRorQuery()->lazyById(self::DB_BATCH_SIZE) as $institution) {
             /** @var Institution $institution */
             $institutionBatch[] = $institution;
 
-            if (count($institutionBatch) >= 500) {
+            if (count($institutionBatch) >= self::DB_BATCH_SIZE) {
                 yield from $this->resolveInstitutionBatch($institutionBatch, $hasDoi, $pendingChunk);
                 $institutionBatch = [];
             }
@@ -440,7 +444,7 @@ class RorDiscoveryService
         }
 
         // 3. Funders – lazyById with eager-load per row via relation access
-        foreach ($this->buildFunderWithoutRorQuery()->with('funderIdentifierType')->lazyById(500) as $funder) {
+        foreach ($this->buildFunderWithoutRorQuery()->with('funderIdentifierType')->lazyById(self::DB_BATCH_SIZE) as $funder) {
             /** @var FundingReference $funder */
             $pendingChunk[] = [
                 'entity_type' => 'funder',
