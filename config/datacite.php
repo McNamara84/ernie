@@ -77,4 +77,21 @@ return [
         'name' => 'GFZ Helmholtz Centre for Geosciences',
         'ror_id' => 'https://ror.org/04z8jg394',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | DataCite Linked Data
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for JSON-LD export using the DataCite Linked Data schema.
+    | The context_url points to the JSON-LD context file that defines the
+    | vocabulary mapping for DataCite metadata expressed as Linked Data.
+    |
+    */
+    'linked_data' => [
+        'context_url' => env(
+            'DATACITE_LINKED_DATA_CONTEXT_URL',
+            'https://schema.stage.datacite.org/linked-data/context/fullcontext.jsonld'
+        ),
+    ],
 ];

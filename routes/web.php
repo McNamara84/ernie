@@ -89,6 +89,13 @@ Route::get('/portal', [PortalController::class, 'index'])->name('portal');
 // doiPrefix parameter, consuming all path segments that match the pattern, leaving
 // only the final segment as the slug. The slug pattern '[a-z0-9-]+' ensures it
 // cannot contain slashes, so the slug is always unambiguous.
+
+// JSON-LD download for published landing pages (must be defined BEFORE the catch-all show route)
+Route::get('{doiPrefix}/{slug}/jsonld', [LandingPagePublicController::class, 'exportJsonLd'])
+    ->name('landing-page.export-jsonld')
+    ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
+    ->where('slug', '[a-z0-9-]+');
+
 Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
@@ -286,6 +293,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources/{resource}/export-datacite-xml', [ResourceController::class, 'exportDataCiteXml'])
         ->name('resources.export-datacite-xml');
 
+    Route::get('resources/{resource}/export-jsonld', [ResourceController::class, 'exportJsonLd'])
+        ->name('resources.export-jsonld');
+
     Route::post('resources/{resource}/register-doi', [ResourceController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
@@ -370,6 +380,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.batch-register');
     Route::get('igsns/{resource}/export/json', [\App\Http\Controllers\IgsnController::class, 'exportJson'])
         ->name('igsns.export.json');
+    Route::get('igsns/{resource}/export/jsonld', [\App\Http\Controllers\IgsnController::class, 'exportJsonLd'])
+        ->name('igsns.export.jsonld');
     Route::post('igsns/{resource}/register', [\App\Http\Controllers\IgsnController::class, 'registerAtDataCite'])
         ->name('igsns.register');
     Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])

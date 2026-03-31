@@ -1,4 +1,4 @@
-import { ExternalLink, FileCode, FileJson } from 'lucide-react';
+import { Braces, ExternalLink, FileCode, FileJson } from 'lucide-react';
 
 import {
     SCHEME_GCMD_INSTRUMENTS,
@@ -351,6 +351,16 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                     >
                         <FileJson className="h-5 w-5" />
                         JSON
+                    </a>
+
+                    {/* JSON-LD Download Button */}
+                    <a
+                        href={`/resources/${resourceId}/export-jsonld`}
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        title="Download as JSON-LD (Linked Data)"
+                    >
+                        <Braces className="h-5 w-5" />
+                        JSON-LD
                     </a>
                 </div>
             </div>
