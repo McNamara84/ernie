@@ -30,7 +30,7 @@ class AssistanceController extends Controller
     ) {}
 
     /**
-     * Display the Assistance page with pending suggested relations and ORCIDs.
+     * Display the Assistance page with pending suggested relations, ORCIDs, and ROR identifiers.
      */
     public function index(Request $request): Response
     {
