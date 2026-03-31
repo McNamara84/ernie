@@ -50,6 +50,8 @@ describe('Services', function () {
         ->ignoring([
             'App\Services\DataCiteJsonExporter',
             'App\Services\DataCiteXmlExporter',
+            'App\Services\DataCiteLinkedDataExporter',
+            'App\Services\SchemaOrgJsonLdExporter',
             'App\Services\DataCiteToResourceTransformer',
             'App\Services\Editor\EditorDataTransformer',
             'App\Services\LandingPageResourceTransformer',

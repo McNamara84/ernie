@@ -902,7 +902,7 @@ describe('AbstractSection', () => {
         it('renders JSON download link with correct href', () => {
             render(<AbstractSection {...defaultProps} />);
             
-            const jsonLink = screen.getByRole('link', { name: /JSON/i });
+            const jsonLink = screen.getByRole('link', { name: /^JSON$/i });
             expect(jsonLink).toHaveAttribute('href', '/resources/123/export-datacite-json');
         });
 
@@ -910,7 +910,7 @@ describe('AbstractSection', () => {
             render(<AbstractSection {...defaultProps} resourceId={456} />);
             
             const xmlLink = screen.getByRole('link', { name: /XML/i });
-            const jsonLink = screen.getByRole('link', { name: /JSON/i });
+            const jsonLink = screen.getByRole('link', { name: /^JSON$/i });
             
             expect(xmlLink).toHaveAttribute('href', '/resources/456/export-datacite-xml');
             expect(jsonLink).toHaveAttribute('href', '/resources/456/export-datacite-json');
