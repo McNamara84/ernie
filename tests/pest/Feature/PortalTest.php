@@ -102,31 +102,31 @@ describe('Portal Type Filter', function () {
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('filters.type', 'all')
+                ->where('filters.type', [])
                 ->where('pagination.total', 2)
             );
     });
 
-    it('can filter DOI resources only', function () {
+    it('can filter by dataset type only', function () {
         createPublishedResource($this->datasetType, 'Dataset 1');
         createPublishedResource($this->physicalObjectType, 'IGSN Sample 1');
 
-        $this->get(route('portal', ['type' => 'doi']))
+        $this->get(route('portal', ['type' => 'dataset']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('filters.type', 'doi')
+                ->where('filters.type', ['dataset'])
                 ->where('pagination.total', 1)
             );
     });
 
-    it('can filter IGSN resources only', function () {
+    it('can filter by physical-object type only', function () {
         createPublishedResource($this->datasetType, 'Dataset 1');
         createPublishedResource($this->physicalObjectType, 'IGSN Sample 1');
 
-        $this->get(route('portal', ['type' => 'igsn']))
+        $this->get(route('portal', ['type' => 'physical-object']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('filters.type', 'igsn')
+                ->where('filters.type', ['physical-object'])
                 ->where('pagination.total', 1)
             );
     });

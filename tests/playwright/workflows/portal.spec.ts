@@ -20,7 +20,7 @@ test.describe('Portal Page', () => {
 
         test('displays filters sidebar', async ({ page }) => {
             await expect(page.getByText('Filters')).toBeVisible();
-            await expect(page.getByText('Resource Type')).toBeVisible();
+            await expect(page.getByText('Resource Type', { exact: true })).toBeVisible();
         });
 
         test('displays map component', async ({ page }) => {
@@ -72,48 +72,57 @@ test.describe('Portal Page', () => {
     });
 
     test.describe('Type Filter', () => {
-        test('displays all filter options', async ({ page }) => {
-            await expect(page.getByLabel(/all resources/i)).toBeVisible();
-            await expect(page.getByLabel(/doi resources/i)).toBeVisible();
-            await expect(page.getByLabel(/igsn samples/i)).toBeVisible();
+        test('displays resource type filter popover trigger', async ({ page }) => {
+            await expect(page.getByRole('button', { name: 'All Resource Types' })).toBeVisible();
         });
 
-        test('default selection is All Resources', async ({ page }) => {
-            const allRadio = page.getByLabel(/all resources/i);
-            await expect(allRadio).toBeChecked();
+        test('default selection shows All Resource Types', async ({ page }) => {
+            const trigger = page.getByRole('button', { name: 'All Resource Types' });
+            await expect(trigger).toBeVisible();
+            await expect(trigger).toContainText('All Resource Types');
         });
 
-        test('selecting DOI filter updates URL', async ({ page }) => {
-            const doiRadio = page.getByLabel(/doi resources/i);
-            await doiRadio.click();
-
-            await page.waitForURL(/type=doi/);
-            expect(page.url()).toContain('type=doi');
+        test('popover opens and shows search input', async ({ page }) => {
+            await page.getByRole('button', { name: 'All Resource Types' }).click();
+            await expect(page.getByPlaceholder('Search types...')).toBeVisible();
         });
 
-        test('selecting IGSN filter updates URL', async ({ page }) => {
-            const igsnRadio = page.getByLabel(/igsn samples/i);
-            await igsnRadio.click();
+        test('selecting a type updates URL with type parameter', async ({ page }) => {
+            // Open the popover
+            await page.getByRole('button', { name: 'All Resource Types' }).click();
 
-            await page.waitForURL(/type=igsn/);
-            expect(page.url()).toContain('type=igsn');
+            // Ensure at least one facet option is rendered
+            const options = page.getByRole('option');
+            await expect(options.first()).toBeVisible({ timeout: 5000 });
+
+            // Click the first available type option
+            await options.first().click();
+
+            // URL should contain type[] parameter
+            await page.waitForURL(/type/, { timeout: 10000 });
+            expect(page.url()).toContain('type');
         });
 
-        test('selecting All Resources removes type from URL', async ({ page }) => {
-            // First select DOI
-            const doiRadio = page.getByLabel(/doi resources/i);
-            await doiRadio.click();
-            await page.waitForURL(/type=doi/);
+        test('clearing selection removes type from URL', async ({ page }) => {
+            // Navigate with a type filter pre-selected
+            await page.goto('/portal?type[]=dataset');
+            await page.waitForLoadState('networkidle');
 
-            // Then select All
-            const allRadio = page.getByLabel(/all resources/i);
-            await allRadio.click();
+            // The trigger must show "N selected" (not "All Resource Types")
+            const trigger = page.getByRole('button').filter({ hasText: /selected/ });
+            await expect(trigger).toBeVisible({ timeout: 5000 });
 
-            // Type param should be removed or set to 'all'
+            // Open popover and press clear
+            await trigger.click();
+            const clearButton = page.getByRole('button', { name: /clear filter/i });
+            await expect(clearButton).toBeVisible();
+            await clearButton.click();
+
+            // URL should no longer contain type[] parameter
             await expect(async () => {
-                const url = page.url();
-                // Either no type param or type=all
-                expect(!url.includes('type=') || url.includes('type=all')).toBe(true);
+                const url = new URL(page.url());
+                expect(url.searchParams.has('type[]')).toBe(false);
+                expect(url.searchParams.has('type')).toBe(false);
             }).toPass({ timeout: 5000 });
         });
     });
@@ -164,13 +173,14 @@ test.describe('Portal Page', () => {
     test.describe('URL State Persistence', () => {
         test('filters are restored from URL on page load', async ({ page }) => {
             // Navigate directly with query params
-            await page.goto('/portal?q=climate&type=doi&page=1');
+            await page.goto('/portal?q=climate&type[]=dataset&page=1');
 
             const searchInput = page.getByPlaceholder(/search datasets/i);
             await expect(searchInput).toHaveValue('climate');
 
-            const doiRadio = page.getByLabel(/doi resources/i);
-            await expect(doiRadio).toBeChecked();
+            // The type filter trigger should show selection count instead of "All Resource Types"
+            const trigger = page.getByRole('button').filter({ hasText: /selected/ });
+            await expect(trigger).toBeVisible();
         });
 
         test('URL state survives page refresh', async ({ page }) => {
@@ -233,9 +243,9 @@ test.describe('Portal Page', () => {
             await expect(searchLabel).toBeVisible();
         });
 
-        test('radio buttons are properly grouped', async ({ page }) => {
-            const radioGroup = page.getByRole('radiogroup');
-            await expect(radioGroup).toBeVisible();
+        test('resource type filter is accessible via button', async ({ page }) => {
+            const filterButton = page.getByRole('button', { name: 'All Resource Types' });
+            await expect(filterButton).toBeVisible();
         });
 
         test('interactive elements are keyboard accessible', async ({ page }) => {

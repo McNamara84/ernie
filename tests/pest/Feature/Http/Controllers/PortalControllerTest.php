@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\PortalController;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
@@ -13,6 +14,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 
 covers(PortalController::class);
 
@@ -114,6 +116,20 @@ describe('index', function () {
     });
 
     it('passes filters back to frontend', function () {
+        // Legacy ?type=doi uses exclude_type for backend filtering.
+        // filters.type is empty so the frontend preserves ?type=doi in URLs.
+        ($this->createPublishedPortalResource)('Test Dataset');
+
+        // Clear only the portal facets cache so facets reflect the freshly
+        // created resource without interfering with other cached values.
+        // Use tag-aware forget to work on both array (no tags) and Redis (tags).
+        $cacheKey = CacheKey::PORTAL_RESOURCE_TYPE_FACETS;
+        if (method_exists(Cache::getStore(), 'tags')) {
+            Cache::tags($cacheKey->tags())->forget($cacheKey->key());
+        } else {
+            Cache::forget($cacheKey->key());
+        }
+
         $response = $this->get('/portal?q=test&type=doi');
 
         $response->assertOk()
@@ -121,7 +137,8 @@ describe('index', function () {
                 fn ($page) => $page
                     ->component('portal')
                     ->where('filters.query', 'test')
-                    ->where('filters.type', 'doi')
+                    ->where('filters.type', [])
+                    ->where('filters.exclude_type', 'physical-object')
             );
     });
 

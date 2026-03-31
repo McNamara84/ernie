@@ -315,7 +315,7 @@ export function createMockPortalPagination(overrides?: Partial<PortalPagination>
 export function createMockPortalFilters(overrides?: Partial<PortalFilters>): PortalFilters {
     return {
         query: null,
-        type: 'all',
+        type: [],
         keywords: [],
         bounds: null,
         temporal: null,
@@ -343,6 +343,7 @@ export function createMockPortalPageProps(overrides?: {
         filters: createMockPortalFilters(overrides?.filters),
         keywordSuggestions: [],
         temporalRange: {},
+        resourceTypeFacets: [],
     };
 }
 

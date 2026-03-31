@@ -3,19 +3,19 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
 import { PortalKeywordFilter } from '@/components/portal/PortalKeywordFilter';
+import { PortalResourceTypeFilter } from '@/components/portal/PortalResourceTypeFilter';
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, KeywordSuggestion, PortalFilters, PortalTypeFilter, TemporalFilterValue, TemporalRange } from '@/types/portal';
+import type { GeoBounds, KeywordSuggestion, PortalFilters, ResourceTypeFacet, TemporalFilterValue, TemporalRange } from '@/types/portal';
 
 interface PortalFiltersProps {
     filters: PortalFilters;
     onSearchChange: (query: string) => void;
-    onTypeChange: (type: PortalTypeFilter) => void;
+    onTypeChange: (type: string[]) => void;
     onKeywordsChange: (keywords: string[]) => void;
     onClearFilters: () => void;
     hasActiveFilters: boolean;
@@ -30,6 +30,7 @@ interface PortalFiltersProps {
     temporalFilterEnabled: boolean;
     onTemporalFilterToggle: (enabled: boolean) => void;
     onTemporalChange: (temporal: TemporalFilterValue | null) => void;
+    resourceTypeFacets: ResourceTypeFacet[];
 }
 
 export function PortalFilters({
@@ -50,6 +51,7 @@ export function PortalFilters({
     temporalFilterEnabled,
     onTemporalFilterToggle,
     onTemporalChange,
+    resourceTypeFacets,
 }: PortalFiltersProps) {
     const [searchInput, setSearchInput] = useState(filters.query ?? '');
 
@@ -180,30 +182,12 @@ export function PortalFilters({
                     {/* Type Filter */}
                     <div className="space-y-3">
                         <Label className="text-sm font-medium">Resource Type</Label>
-                        <RadioGroup
-                            value={filters.type}
-                            onValueChange={(value) => onTypeChange(value as PortalTypeFilter)}
-                            className="space-y-2"
-                        >
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="all" id="type-all" />
-                                <Label htmlFor="type-all" className="cursor-pointer font-normal">
-                                    All Resources
-                                </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="doi" id="type-doi" />
-                                <Label htmlFor="type-doi" className="cursor-pointer font-normal">
-                                    DOI Resources (Datasets, Software, etc.)
-                                </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="igsn" id="type-igsn" />
-                                <Label htmlFor="type-igsn" className="cursor-pointer font-normal">
-                                    IGSN Samples (Physical Objects)
-                                </Label>
-                            </div>
-                        </RadioGroup>
+                        <PortalResourceTypeFilter
+                            facets={resourceTypeFacets}
+                            selectedSlugs={filters.type}
+                            excludeType={filters.exclude_type}
+                            onSelectionChange={onTypeChange}
+                        />
                     </div>
 
                     {/* Clear Filters */}

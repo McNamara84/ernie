@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 
-import type { GeoBounds, PortalFilters, PortalTypeFilter, TemporalFilterValue } from '@/types/portal';
+import type { GeoBounds, PortalFilters, TemporalFilterValue } from '@/types/portal';
 
 interface UsePortalFiltersOptions {
     filters: PortalFilters;
@@ -11,7 +11,7 @@ interface UsePortalFiltersOptions {
 interface UsePortalFiltersReturn {
     filters: PortalFilters;
     setSearch: (query: string) => void;
-    setType: (type: PortalTypeFilter) => void;
+    setType: (type: string[]) => void;
     setKeywords: (keywords: string[]) => void;
     addKeyword: (keyword: string) => void;
     removeKeyword: (keyword: string) => void;
@@ -39,12 +39,25 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
             const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
 
+            // Only preserve exclude_type when the caller did not explicitly
+            // clear type. setType([]) means "show all types" — it must drop
+            // the legacy DOI constraint so the URL no longer emits ?type=doi.
+            const excludeType =
+                newFilters.type !== undefined && newFilters.type.length === 0 ? null : filters.exclude_type;
+
             if (query && query.trim() !== '') {
                 params.set('q', query.trim());
             }
 
-            if (type && type !== 'all') {
-                params.set('type', type);
+            if (type && type.length > 0) {
+                type.forEach((slug) => {
+                    params.append('type[]', slug);
+                });
+            } else if (excludeType) {
+                // Legacy DOI filter: no explicit slugs but an active
+                // exclusion — preserve the legacy ?type=doi param so
+                // the backend can reconstruct the exclude constraint.
+                params.set('type', 'doi');
             }
 
             if (keywords && keywords.length > 0) {
@@ -86,7 +99,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     );
 
     const setType = useCallback(
-        (type: PortalTypeFilter) => {
+        (type: string[]) => {
             updateFilters({ type }, true);
         },
         [updateFilters],
@@ -142,7 +155,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     const hasActiveFilters = useMemo(() => {
         return (
             (filters.query !== null && filters.query.trim() !== '') ||
-            filters.type !== 'all' ||
+            (filters.type !== undefined && filters.type.length > 0) ||
+            filters.exclude_type != null ||
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
             filters.bounds !== null ||
             filters.temporal !== null

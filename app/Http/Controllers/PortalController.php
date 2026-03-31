@@ -31,9 +31,22 @@ class PortalController extends Controller
         // Compute temporal range once (cached) – used for both validation and frontend
         $temporalRange = $this->searchService->getTemporalRange();
 
+        // Fetch facets early (cached) – used in the Inertia response
+        $resourceTypeFacets = $this->searchService->getResourceTypeFacets();
+
+        $rawType = $request->query('type', []);
+        $isLegacyDoi = is_string($rawType) && trim($rawType) === 'doi';
+        $excludeType = $isLegacyDoi ? 'physical-object' : null;
+
+        // For legacy ?type=doi, the backend filters via exclude_type.
+        // We send type: [] to the frontend so the URL-building logic
+        // emits ?type=doi (preserving the exclusion on pagination/navigation).
+        $typeSlugs = $isLegacyDoi ? [] : $this->normalizeTypeSlugs($rawType);
+
         $filters = [
             'query' => $request->query('q'),
-            'type' => $request->query('type', 'all'),
+            'type' => $typeSlugs,
+            'exclude_type' => $excludeType,
             'keywords' => array_slice(array_filter(
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
@@ -70,13 +83,15 @@ class PortalController extends Controller
             ],
             'filters' => [
                 'query' => $filters['query'],
-                'type' => $filters['type'],
+                'type' => array_values($filters['type']),
+                'exclude_type' => $excludeType,
                 'keywords' => array_values($filters['keywords']),
                 'bounds' => $filters['bounds'],
                 'temporal' => $filters['temporal'],
             ],
             'keywordSuggestions' => $this->keywordService->getSuggestions(),
             'temporalRange' => $temporalRange,
+            'resourceTypeFacets' => $resourceTypeFacets,
         ]);
     }
 
@@ -198,5 +213,37 @@ class PortalController extends Controller
             'yearFrom' => $yearFrom,
             'yearTo' => $yearTo,
         ];
+    }
+
+    /**
+     * Normalize type query parameter, mapping legacy values to real slugs.
+     *
+     * Legacy URLs used ?type=doi (all non-PhysicalObject) and ?type=igsn
+     * (PhysicalObject only). The new multi-select uses actual resource_type
+     * slugs like ?type[]=dataset&type[]=software.  This method handles both
+     * formats transparently.
+     *
+     * @param  mixed  $raw  Raw value from $request->query('type').
+     * @return string[]
+     */
+    private function normalizeTypeSlugs(mixed $raw): array
+    {
+        // New array format: ?type[]=dataset&type[]=software
+        if (is_array($raw)) {
+            /** @var string[] $filtered */
+            $filtered = array_filter(
+                $raw,
+                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+            );
+
+            return array_values(array_unique(array_map('trim', $filtered)));
+        }
+
+        // Legacy single-string format: ?type=doi or ?type=igsn
+        if (is_string($raw) && trim($raw) !== '') {
+            return PortalSearchService::mapLegacyTypeValue(trim($raw)) ?? [];
+        }
+
+        return [];
     }
 }

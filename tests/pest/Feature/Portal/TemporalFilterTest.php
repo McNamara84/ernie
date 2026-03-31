@@ -268,7 +268,7 @@ describe('Temporal Filter - Combined With Other Filters', function () {
         );
 
         $results = $this->searchService->search([
-            'type' => 'doi',
+            'type' => ['dataset'],
             'temporal' => ['dateType' => 'Created', 'yearFrom' => 2020, 'yearTo' => 2025],
         ]);
 
