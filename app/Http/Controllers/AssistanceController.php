@@ -459,7 +459,7 @@ class AssistanceController extends Controller
     }
 
     /**
-     * Load paginated ROR suggestions ordered by similarity score.
+     * Load paginated ROR suggestions ordered by enrichable count (descending), then similarity score.
      *
      * @return \Illuminate\Pagination\LengthAwarePaginator<int, array{id: int, resource_id: int, resource_doi: string, resource_title: string, entity_type: string, entity_id: int, entity_name: string, suggested_ror_id: string, suggested_name: string, similarity_score: float, ror_aliases: array<int, string>, existing_identifier: string|null, existing_identifier_type: string|null, discovered_at: string}>
      */

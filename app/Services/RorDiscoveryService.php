@@ -353,6 +353,7 @@ class RorDiscoveryService
             $funderQuery->where(function ($q) use ($rorTypeId): void {
                 $q->whereNull('funder_identifier')
                     ->orWhere('funder_identifier', '')
+                    ->orWhereNull('funder_identifier_type_id')
                     ->orWhere('funder_identifier_type_id', '!=', $rorTypeId);
             });
         } else {
@@ -389,27 +390,21 @@ class RorDiscoveryService
         $pendingChunk = [];
 
         // 1. Affiliations – lazyById streams one row at a time
+        // 1. Affiliations – collect into DB batches, resolve resource_id in bulk to avoid N+1
+        $affiliationBatch = [];
+
         foreach ($this->buildAffiliationWithoutRorQuery()->lazyById(500) as $affiliation) {
             /** @var Affiliation $affiliation */
-            $affiliatable = $affiliation->affiliatable;
+            $affiliationBatch[] = $affiliation;
 
-            if ($affiliatable === null) { // @phpstan-ignore identical.alwaysFalse (orphaned polymorphic rows)
-                continue;
+            if (count($affiliationBatch) >= 500) {
+                yield from $this->resolveAffiliationBatch($affiliationBatch, $pendingChunk);
+                $affiliationBatch = [];
             }
+        }
 
-            $pendingChunk[] = [
-                'entity_type' => 'affiliation',
-                'entity_id' => $affiliation->id,
-                'entity_name' => $affiliation->name,
-                'resource_id' => $affiliatable->resource_id,
-                'existing_identifier' => $affiliation->identifier,
-                'existing_identifier_type' => $affiliation->identifier_scheme,
-            ];
-
-            if (count($pendingChunk) >= self::CHUNK_SIZE) {
-                yield $pendingChunk;
-                $pendingChunk = [];
-            }
+        if (! empty($affiliationBatch)) {
+            yield from $this->resolveAffiliationBatch($affiliationBatch, $pendingChunk);
         }
 
         if (! empty($pendingChunk)) {
@@ -460,6 +455,58 @@ class RorDiscoveryService
 
         if (! empty($pendingChunk)) {
             yield $pendingChunk;
+        }
+    }
+
+    /**
+     * Resolve a batch of affiliations into entity arrays, yielding full chunks immediately.
+     *
+     * Resolves resource_id in bulk via the polymorphic type/id to avoid N+1 queries.
+     *
+     * @param  array<int, Affiliation>  $batch
+     * @param  array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  &$pendingChunk
+     * @param-out array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  $pendingChunk
+     * @return \Generator<int, array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>>
+     */
+    private function resolveAffiliationBatch(array $batch, array &$pendingChunk): \Generator
+    {
+        // Group affiliatable IDs by morph type for bulk resolution
+        $byType = [];
+        foreach ($batch as $affiliation) {
+            $byType[$affiliation->affiliatable_type][] = $affiliation->affiliatable_id;
+        }
+
+        // Resolve resource_id maps: affiliatable_id → resource_id
+        $resourceMaps = [];
+        if (isset($byType[ResourceCreator::class])) {
+            $resourceMaps[ResourceCreator::class] = ResourceCreator::whereIn('id', $byType[ResourceCreator::class])
+                ->pluck('resource_id', 'id');
+        }
+        if (isset($byType[ResourceContributor::class])) {
+            $resourceMaps[ResourceContributor::class] = ResourceContributor::whereIn('id', $byType[ResourceContributor::class])
+                ->pluck('resource_id', 'id');
+        }
+
+        foreach ($batch as $affiliation) {
+            $resourceId = ($resourceMaps[$affiliation->affiliatable_type] ?? collect())->get($affiliation->affiliatable_id);
+
+            if ($resourceId === null) {
+                continue;
+            }
+
+            $pendingChunk[] = [
+                'entity_type' => 'affiliation',
+                'entity_id' => $affiliation->id,
+                'entity_name' => $affiliation->name,
+                'resource_id' => (int) $resourceId,
+                'existing_identifier' => $affiliation->identifier,
+                'existing_identifier_type' => $affiliation->identifier_scheme,
+            ];
+
+            if (count($pendingChunk) >= self::CHUNK_SIZE) {
+                yield $pendingChunk;
+                $pendingChunk = [];
+            }
         }
     }
 
