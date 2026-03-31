@@ -378,109 +378,132 @@ class RorDiscoveryService
     /**
      * Yield entity chunks for streaming discovery processing.
      *
-     * Each yielded array is a chunk of entities ready for processing. Memory stays
-     * bounded because only one chunk is in memory at a time.
+     * Uses lazyById() for true streaming – entities are emitted in CHUNK_SIZE
+     * batches as they are read, so memory stays bounded to one chunk at a time.
      *
      * @return \Generator<int, array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>>
      */
     private function yieldEntityChunks(): \Generator
     {
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
-
-        // 1. Affiliations
         $pendingChunk = [];
 
-        $this->buildAffiliationWithoutRorQuery()
-            ->chunkById(500, function ($dbChunk) use (&$pendingChunk): void {
-                $dbChunk->load('affiliatable');
+        // 1. Affiliations – lazyById streams one row at a time
+        foreach ($this->buildAffiliationWithoutRorQuery()->lazyById(500) as $affiliation) {
+            /** @var Affiliation $affiliation */
+            $affiliatable = $affiliation->affiliatable;
 
-                foreach ($dbChunk as $affiliation) {
-                    /** @var Affiliation $affiliation */
-                    $affiliatable = $affiliation->affiliatable;
+            if ($affiliatable === null) { // @phpstan-ignore identical.alwaysFalse (orphaned polymorphic rows)
+                continue;
+            }
 
-                    if ($affiliatable === null) { // @phpstan-ignore identical.alwaysFalse (orphaned polymorphic rows)
-                        continue;
-                    }
+            $pendingChunk[] = [
+                'entity_type' => 'affiliation',
+                'entity_id' => $affiliation->id,
+                'entity_name' => $affiliation->name,
+                'resource_id' => $affiliatable->resource_id,
+                'existing_identifier' => $affiliation->identifier,
+                'existing_identifier_type' => $affiliation->identifier_scheme,
+            ];
 
-                    $pendingChunk[] = [
-                        'entity_type' => 'affiliation',
-                        'entity_id' => $affiliation->id,
-                        'entity_name' => $affiliation->name,
-                        'resource_id' => $affiliatable->resource_id,
-                        'existing_identifier' => $affiliation->identifier,
-                        'existing_identifier_type' => $affiliation->identifier_scheme,
-                    ];
-                }
-            });
+            if (count($pendingChunk) >= self::CHUNK_SIZE) {
+                yield $pendingChunk;
+                $pendingChunk = [];
+            }
+        }
 
         if (! empty($pendingChunk)) {
-            foreach (array_chunk($pendingChunk, self::CHUNK_SIZE) as $chunk) {
-                yield $chunk;
-            }
+            yield $pendingChunk;
             $pendingChunk = [];
         }
 
-        // 2. Institutions
-        $this->buildInstitutionWithoutRorQuery()
-            ->chunkById(500, function ($dbChunk) use (&$pendingChunk, $hasDoi): void {
-                $chunkIds = $dbChunk->pluck('id')->all();
+        // 2. Institutions – lazyById with per-batch resource-ID resolution
+        //    Collect institution rows into a DB batch, resolve resource maps, then emit processing chunks.
+        $institutionBatch = [];
 
-                $creatorResourceMap = ResourceCreator::where('creatorable_type', Institution::class)
-                    ->whereIn('creatorable_id', $chunkIds)
-                    ->whereHas('resource', $hasDoi)
-                    ->pluck('resource_id', 'creatorable_id');
+        foreach ($this->buildInstitutionWithoutRorQuery()->lazyById(500) as $institution) {
+            /** @var Institution $institution */
+            $institutionBatch[] = $institution;
 
-                $contributorResourceMap = ResourceContributor::where('contributorable_type', Institution::class)
-                    ->whereIn('contributorable_id', $chunkIds)
-                    ->whereHas('resource', $hasDoi)
-                    ->pluck('resource_id', 'contributorable_id');
+            if (count($institutionBatch) >= 500) {
+                yield from $this->resolveInstitutionBatch($institutionBatch, $hasDoi, $pendingChunk);
+                $institutionBatch = [];
+            }
+        }
 
-                foreach ($dbChunk as $institution) {
-                    /** @var Institution $institution */
-                    $resourceId = $creatorResourceMap->get($institution->id)
-                        ?? $contributorResourceMap->get($institution->id);
-
-                    if ($resourceId !== null) {
-                        $pendingChunk[] = [
-                            'entity_type' => 'institution',
-                            'entity_id' => $institution->id,
-                            'entity_name' => $institution->name,
-                            'resource_id' => $resourceId,
-                            'existing_identifier' => $institution->name_identifier,
-                            'existing_identifier_type' => $institution->name_identifier_scheme,
-                        ];
-                    }
-                }
-            });
+        if (! empty($institutionBatch)) {
+            yield from $this->resolveInstitutionBatch($institutionBatch, $hasDoi, $pendingChunk);
+        }
 
         if (! empty($pendingChunk)) {
-            foreach (array_chunk($pendingChunk, self::CHUNK_SIZE) as $chunk) {
-                yield $chunk;
-            }
+            yield $pendingChunk;
             $pendingChunk = [];
         }
 
-        // 3. Funders
-        $this->buildFunderWithoutRorQuery()
-            ->chunkById(500, function ($dbChunk) use (&$pendingChunk): void {
-                $dbChunk->load('funderIdentifierType');
+        // 3. Funders – lazyById with eager-load per row via relation access
+        foreach ($this->buildFunderWithoutRorQuery()->with('funderIdentifierType')->lazyById(500) as $funder) {
+            /** @var FundingReference $funder */
+            $pendingChunk[] = [
+                'entity_type' => 'funder',
+                'entity_id' => $funder->id,
+                'entity_name' => $funder->funder_name,
+                'resource_id' => $funder->resource_id,
+                'existing_identifier' => $funder->funder_identifier,
+                'existing_identifier_type' => $funder->funderIdentifierType?->name,
+            ];
 
-                foreach ($dbChunk as $funder) {
-                    /** @var FundingReference $funder */
-                    $pendingChunk[] = [
-                        'entity_type' => 'funder',
-                        'entity_id' => $funder->id,
-                        'entity_name' => $funder->funder_name,
-                        'resource_id' => $funder->resource_id,
-                        'existing_identifier' => $funder->funder_identifier,
-                        'existing_identifier_type' => $funder->funderIdentifierType?->name,
-                    ];
-                }
-            });
+            if (count($pendingChunk) >= self::CHUNK_SIZE) {
+                yield $pendingChunk;
+                $pendingChunk = [];
+            }
+        }
 
         if (! empty($pendingChunk)) {
-            foreach (array_chunk($pendingChunk, self::CHUNK_SIZE) as $chunk) {
-                yield $chunk;
+            yield $pendingChunk;
+        }
+    }
+
+    /**
+     * Resolve a batch of institutions into entity arrays, yielding full chunks immediately.
+     *
+     * @param  array<int, Institution>  $batch
+     * @param  \Closure  $hasDoi
+     * @param  array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  &$pendingChunk
+     * @param-out array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  $pendingChunk
+     * @return \Generator<int, array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>>
+     */
+    private function resolveInstitutionBatch(array $batch, \Closure $hasDoi, array &$pendingChunk): \Generator
+    {
+        $batchIds = array_map(fn (Institution $i) => $i->id, $batch);
+
+        $creatorResourceMap = ResourceCreator::where('creatorable_type', Institution::class)
+            ->whereIn('creatorable_id', $batchIds)
+            ->whereHas('resource', $hasDoi)
+            ->pluck('resource_id', 'creatorable_id');
+
+        $contributorResourceMap = ResourceContributor::where('contributorable_type', Institution::class)
+            ->whereIn('contributorable_id', $batchIds)
+            ->whereHas('resource', $hasDoi)
+            ->pluck('resource_id', 'contributorable_id');
+
+        foreach ($batch as $institution) {
+            $resourceId = $creatorResourceMap->get($institution->id)
+                ?? $contributorResourceMap->get($institution->id);
+
+            if ($resourceId !== null) {
+                $pendingChunk[] = [
+                    'entity_type' => 'institution',
+                    'entity_id' => $institution->id,
+                    'entity_name' => $institution->name,
+                    'resource_id' => (int) $resourceId,
+                    'existing_identifier' => $institution->name_identifier,
+                    'existing_identifier_type' => $institution->name_identifier_scheme,
+                ];
+
+                if (count($pendingChunk) >= self::CHUNK_SIZE) {
+                    yield $pendingChunk;
+                    $pendingChunk = [];
+                }
             }
         }
     }
