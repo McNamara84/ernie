@@ -16,7 +16,9 @@ use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -113,51 +115,119 @@ class RorDiscoveryService
     /**
      * Accept a ROR suggestion: updates the entity and syncs affected resources.
      *
+     * Uses a database transaction with row-level locking to prevent race conditions
+     * when multiple curators accept suggestions concurrently.
+     *
      * @return array{success: bool, synced_dois: array<int, string>, message: string, replaced_identifier: string|null}
      */
     public function acceptRor(SuggestedRor $suggestion): array
     {
-        $entity = $suggestion->entity();
+        $entityType = $suggestion->entity_type;
+        $entityId = $suggestion->entity_id;
 
-        if ($entity === null) {
-            $suggestion->delete();
-            $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
-
+        if (! in_array($entityType, ['affiliation', 'institution', 'funder'], true)) {
             return [
                 'success' => false,
                 'synced_dois' => [],
-                'message' => 'Entity not found. The suggestion has been removed.',
+                'message' => "Unknown entity type: {$entityType}",
                 'replaced_identifier' => null,
             ];
         }
 
         $replacedIdentifier = null;
 
-        $accepted = match ($suggestion->entity_type) {
-            'affiliation' => $this->acceptAffiliation($entity, $suggestion, $replacedIdentifier),
-            'institution' => $this->acceptInstitution($entity, $suggestion, $replacedIdentifier),
-            'funder' => $this->acceptFunder($entity, $suggestion, $replacedIdentifier),
-            default => false,
-        };
+        try {
+            /** @var array{success: bool, synced_dois: array<int, string>, message: string, replaced_identifier: string|null}|null $result */
+            $result = DB::transaction(function () use ($suggestion, $entityType, $entityId, &$replacedIdentifier): ?array {
+                // Lock the target entity row to prevent concurrent acceptance
+                $entity = match ($entityType) {
+                    'affiliation' => Affiliation::lockForUpdate()->find($entityId),
+                    'institution' => Institution::lockForUpdate()->find($entityId),
+                    default => FundingReference::lockForUpdate()->find($entityId),
+                };
 
-        if ($accepted === false) {
+                if ($entity === null) {
+                    $suggestion->delete();
+                    $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+
+                    return [
+                        'success' => false,
+                        'synced_dois' => [],
+                        'message' => 'Entity not found. The suggestion has been removed.',
+                        'replaced_identifier' => null,
+                    ];
+                }
+
+                // Guard: entity already has a ROR-ID assigned (stale suggestion)
+                $alreadyHasRor = match (true) {
+                    $entity instanceof Affiliation => $entity->identifier_scheme === 'ROR'
+                        && $entity->identifier !== null && $entity->identifier !== '',
+                    $entity instanceof Institution => $entity->name_identifier_scheme === 'ROR'
+                        && $entity->name_identifier !== null && $entity->name_identifier !== '',
+                    default => $this->funderHasRor($entity),
+                };
+
+                if ($alreadyHasRor) {
+                    SuggestedRor::where('entity_type', $entityType)
+                        ->where('entity_id', $entityId)
+                        ->delete();
+                    $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+
+                    return [
+                        'success' => false,
+                        'synced_dois' => [],
+                        'message' => 'This entity already has a ROR-ID assigned. The suggestion has been removed.',
+                        'replaced_identifier' => null,
+                    ];
+                }
+
+                // Update the entity with the accepted ROR-ID
+                $accepted = match (true) {
+                    $entity instanceof Affiliation => $this->acceptAffiliation($entity, $suggestion, $replacedIdentifier),
+                    $entity instanceof Institution => $this->acceptInstitution($entity, $suggestion, $replacedIdentifier),
+                    default => $this->acceptFunder($entity, $suggestion, $replacedIdentifier),
+                };
+
+                if ($accepted === false) {
+                    return [
+                        'success' => false,
+                        'synced_dois' => [],
+                        'message' => 'Failed to update entity.',
+                        'replaced_identifier' => null,
+                    ];
+                }
+
+                // Delete ALL suggestions for this entity (it now has a ROR-ID)
+                SuggestedRor::where('entity_type', $entityType)
+                    ->where('entity_id', $entityId)
+                    ->delete();
+
+                // Return null to signal success — DataCite sync happens outside the transaction
+                return null;
+            });
+        } catch (QueryException) {
+            // Unique constraint violation from a concurrent acceptance
+            SuggestedRor::where('entity_type', $entityType)
+                ->where('entity_id', $entityId)
+                ->delete();
+            $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+
             return [
                 'success' => false,
                 'synced_dois' => [],
-                'message' => "Unknown entity type: {$suggestion->entity_type}",
+                'message' => 'This ROR-ID was just assigned by another curator. The suggestion has been removed.',
                 'replaced_identifier' => null,
             ];
         }
 
-        // Delete ALL suggestions for this entity (it now has a ROR-ID)
-        SuggestedRor::where('entity_type', $suggestion->entity_type)
-            ->where('entity_id', $suggestion->entity_id)
-            ->delete();
+        // Early-return for guard failures (result is an array)
+        if ($result !== null) {
+            return $result;
+        }
 
-        $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
-
-        // Sync affected resources with DataCite
+        // Sync affected resources with DataCite (outside transaction)
         $syncedDois = $this->syncResourcesForEntity($suggestion);
+        $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
 
         $syncCount = count($syncedDois);
         $message = $syncCount > 0
@@ -207,11 +277,12 @@ class RorDiscoveryService
     {
         $entities = [];
 
-        // 1. Affiliations without ROR – filter at query level with whereHasMorph
+        // 1. Affiliations without ROR – chunkById with eager loading to avoid N+1
         $affiliationQuery = Affiliation::where(function ($q): void {
             $q->whereNull('identifier_scheme')
                 ->orWhere('identifier_scheme', '!=', 'ROR')
-                ->orWhereNull('identifier');
+                ->orWhereNull('identifier')
+                ->orWhere('identifier', '');
         })
             ->where('name', '!=', '')
             ->whereNotNull('name')
@@ -221,25 +292,34 @@ class RorDiscoveryService
                 fn ($q) => $q->whereHas('resource', fn ($r) => $r->whereNotNull('doi')->where('doi', '!=', '')),
             );
 
-        foreach ($affiliationQuery->cursor() as $affiliation) {
-            /** @var Affiliation $affiliation */
-            $affiliatable = $affiliation->affiliatable;
+        $affiliationQuery->chunkById(500, function ($chunk) use (&$entities): void {
+            $chunk->load('affiliatable');
 
-            $entities[] = [
-                'entity_type' => 'affiliation',
-                'entity_id' => $affiliation->id,
-                'entity_name' => $affiliation->name,
-                'resource_id' => $affiliatable->resource_id,
-                'existing_identifier' => $affiliation->identifier,
-                'existing_identifier_type' => $affiliation->identifier_scheme,
-            ];
-        }
+            foreach ($chunk as $affiliation) {
+                /** @var Affiliation $affiliation */
+                $affiliatable = $affiliation->affiliatable;
 
-        // 2. Institutions without ROR – filter creators/contributors with DOI at query level
+                if ($affiliatable === null) { // @phpstan-ignore identical.alwaysFalse (orphaned polymorphic rows)
+                    continue;
+                }
+
+                $entities[] = [
+                    'entity_type' => 'affiliation',
+                    'entity_id' => $affiliation->id,
+                    'entity_name' => $affiliation->name,
+                    'resource_id' => $affiliatable->resource_id,
+                    'existing_identifier' => $affiliation->identifier,
+                    'existing_identifier_type' => $affiliation->identifier_scheme,
+                ];
+            }
+        });
+
+        // 2. Institutions without ROR – precompute resource_id map to avoid N+1
         $institutionQuery = Institution::where(function ($q): void {
             $q->whereNull('name_identifier_scheme')
                 ->orWhere('name_identifier_scheme', '!=', 'ROR')
-                ->orWhereNull('name_identifier');
+                ->orWhereNull('name_identifier')
+                ->orWhere('name_identifier', '');
         })
             ->where('name', '!=', '')
             ->whereNotNull('name')
@@ -273,18 +353,37 @@ class RorDiscoveryService
 
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
 
-        foreach ($institutionQuery->cursor() as $institution) {
-            /** @var Institution $institution */
-            $resourceId = $this->getResourceIdForInstitution($institution, $hasDoi);
-            if ($resourceId !== null) {
-                $entities[] = [
-                    'entity_type' => 'institution',
-                    'entity_id' => $institution->id,
-                    'entity_name' => $institution->name,
-                    'resource_id' => $resourceId,
-                    'existing_identifier' => $institution->name_identifier,
-                    'existing_identifier_type' => $institution->name_identifier_scheme,
-                ];
+        $qualifiedInstitutions = $institutionQuery->get(['id', 'name', 'name_identifier', 'name_identifier_scheme']);
+
+        if ($qualifiedInstitutions->isNotEmpty()) {
+            $institutionIds = $qualifiedInstitutions->pluck('id')->all();
+
+            // Batch-resolve resource_ids (2 queries total instead of 2N)
+            $creatorResourceMap = ResourceCreator::where('creatorable_type', Institution::class)
+                ->whereIn('creatorable_id', $institutionIds)
+                ->whereHas('resource', $hasDoi)
+                ->pluck('resource_id', 'creatorable_id');
+
+            $contributorResourceMap = ResourceContributor::where('contributorable_type', Institution::class)
+                ->whereIn('contributorable_id', $institutionIds)
+                ->whereHas('resource', $hasDoi)
+                ->pluck('resource_id', 'contributorable_id');
+
+            foreach ($qualifiedInstitutions as $institution) {
+                /** @var Institution $institution */
+                $resourceId = $creatorResourceMap->get($institution->id)
+                    ?? $contributorResourceMap->get($institution->id);
+
+                if ($resourceId !== null) {
+                    $entities[] = [
+                        'entity_type' => 'institution',
+                        'entity_id' => $institution->id,
+                        'entity_name' => $institution->name,
+                        'resource_id' => $resourceId,
+                        'existing_identifier' => $institution->name_identifier,
+                        'existing_identifier_type' => $institution->name_identifier_scheme,
+                    ];
+                }
             }
         }
 
@@ -298,47 +397,33 @@ class RorDiscoveryService
         if ($rorTypeId !== null) {
             $funderQuery->where(function ($q) use ($rorTypeId): void {
                 $q->whereNull('funder_identifier')
+                    ->orWhere('funder_identifier', '')
                     ->orWhere('funder_identifier_type_id', '!=', $rorTypeId);
             });
         } else {
-            $funderQuery->whereNull('funder_identifier');
+            $funderQuery->where(function ($q): void {
+                $q->whereNull('funder_identifier')
+                    ->orWhere('funder_identifier', '');
+            });
         }
 
-        foreach ($funderQuery->with('funderIdentifierType')->cursor() as $funder) {
-            /** @var FundingReference $funder */
-            $entities[] = [
-                'entity_type' => 'funder',
-                'entity_id' => $funder->id,
-                'entity_name' => $funder->funder_name,
-                'resource_id' => $funder->resource_id,
-                'existing_identifier' => $funder->funder_identifier,
-                'existing_identifier_type' => $funder->funderIdentifierType?->name,
-            ];
-        }
+        $funderQuery->chunkById(500, function ($chunk) use (&$entities): void {
+            $chunk->load('funderIdentifierType');
+
+            foreach ($chunk as $funder) {
+                /** @var FundingReference $funder */
+                $entities[] = [
+                    'entity_type' => 'funder',
+                    'entity_id' => $funder->id,
+                    'entity_name' => $funder->funder_name,
+                    'resource_id' => $funder->resource_id,
+                    'existing_identifier' => $funder->funder_identifier,
+                    'existing_identifier_type' => $funder->funderIdentifierType?->name,
+                ];
+            }
+        });
 
         return $entities;
-    }
-
-    /**
-     * Get the first resource ID for an institution used as creator/contributor on a DOI resource.
-     *
-     * @param  \Closure(\Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>): mixed  $hasDoi
-     */
-    private function getResourceIdForInstitution(Institution $institution, \Closure $hasDoi): ?int
-    {
-        $creatorResource = ResourceCreator::where('creatorable_type', Institution::class)
-            ->where('creatorable_id', $institution->id)
-            ->whereHas('resource', $hasDoi)
-            ->value('resource_id');
-
-        if ($creatorResource !== null) {
-            return $creatorResource;
-        }
-
-        return ResourceContributor::where('contributorable_type', Institution::class)
-            ->where('contributorable_id', $institution->id)
-            ->whereHas('resource', $hasDoi)
-            ->value('resource_id');
     }
 
     /**
@@ -672,6 +757,8 @@ class RorDiscoveryService
     /**
      * Get resource IDs linked to an affiliation via creator/contributor.
      *
+     * Queries the polymorphic target directly to handle orphaned rows safely.
+     *
      * @return array<int, int>
      */
     private function getResourceIdsForAffiliationEntity(int $affiliationId): array
@@ -681,9 +768,13 @@ class RorDiscoveryService
             return [];
         }
 
-        $affiliatable = $affiliation->affiliatable;
+        $resourceId = match ($affiliation->affiliatable_type) {
+            ResourceCreator::class => ResourceCreator::where('id', $affiliation->affiliatable_id)->value('resource_id'),
+            ResourceContributor::class => ResourceContributor::where('id', $affiliation->affiliatable_id)->value('resource_id'),
+            default => null,
+        };
 
-        return [$affiliatable->resource_id];
+        return $resourceId !== null ? [$resourceId] : [];
     }
 
     /**
@@ -702,6 +793,20 @@ class RorDiscoveryService
             ->pluck('resource_id');
 
         return $creatorIds->merge($contributorIds)->unique()->values()->all();
+    }
+
+    /**
+     * Check if a funding reference already has a ROR identifier assigned.
+     */
+    private function funderHasRor(FundingReference $funder): bool
+    {
+        if ($funder->funder_identifier === null || $funder->funder_identifier === '') {
+            return false;
+        }
+
+        $rorTypeId = FunderIdentifierType::where('slug', 'ROR')->value('id');
+
+        return $rorTypeId !== null && $funder->funder_identifier_type_id === $rorTypeId;
     }
 
     /**
