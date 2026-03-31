@@ -34,9 +34,17 @@ class PortalController extends Controller
         $rawType = $request->query('type', []);
         $typeSlugs = $this->normalizeTypeSlugs($rawType);
 
+        // Legacy 'doi' needs an exclusion constraint (NOT physical-object)
+        // instead of slug enumeration, which may resolve to an empty array
+        // when no non-physical-object types exist in the database.
+        $excludeType = is_string($rawType) && trim($rawType) === 'doi'
+            ? 'physical-object'
+            : null;
+
         $filters = [
             'query' => $request->query('q'),
             'type' => $typeSlugs,
+            'exclude_type' => $excludeType,
             'keywords' => array_slice(array_filter(
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
@@ -219,15 +227,18 @@ class PortalController extends Controller
     {
         // New array format: ?type[]=dataset&type[]=software
         if (is_array($raw)) {
-            return array_values(array_filter(
+            /** @var string[] $filtered */
+            $filtered = array_filter(
                 $raw,
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ));
+            );
+
+            return array_values(array_unique(array_map('trim', $filtered)));
         }
 
         // Legacy single-string format: ?type=doi or ?type=igsn
         if (is_string($raw) && trim($raw) !== '') {
-            return PortalSearchService::mapLegacyTypeValue($raw) ?? [];
+            return PortalSearchService::mapLegacyTypeValue(trim($raw)) ?? [];
         }
 
         return [];

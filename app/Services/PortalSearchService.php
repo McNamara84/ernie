@@ -42,7 +42,8 @@ class PortalSearchService
      * as type values.  We keep supporting these for backward-compatible
      * URLs and bookmarks.
      *
-     * 'doi'  → all non-PhysicalObject slugs (queried from DB)
+     * 'doi'  → all non-PhysicalObject slugs (frontend display only;
+     *          actual filtering uses an exclusion constraint in buildQuery)
      * 'igsn' → ['physical-object']
      * 'all'  → null (show everything)
      *
@@ -67,6 +68,7 @@ class PortalSearchService
      * @param  array{
      *     query?: string|null,
      *     type?: string|string[]|null,
+     *     exclude_type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -99,6 +101,7 @@ class PortalSearchService
      * @param  array{
      *     query?: string|null,
      *     type?: string|string[]|null,
+     *     exclude_type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -119,6 +122,7 @@ class PortalSearchService
      * @param  array{
      *     query?: string|null,
      *     type?: string|string[]|null,
+     *     exclude_type?: string|null,
      *     keywords?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -147,12 +151,28 @@ class PortalSearchService
             )
             ->orderByDesc('created_at');
 
-        // Apply type filter (normalize legacy string format for backward compatibility)
+        // Apply type filter
         $type = $filters['type'] ?? null;
-        if (is_string($type)) {
+        $excludeType = $filters['exclude_type'] ?? null;
+
+        // Legacy 'doi' string from direct callers → convert to exclusion
+        if (is_string($type) && $type === 'doi') {
+            $excludeType ??= 'physical-object';
+            $type = null;
+        } elseif (is_string($type)) {
             $type = self::mapLegacyTypeValue($type);
         }
-        $this->applyTypeFilter($query, $type);
+
+        if ($excludeType !== null) {
+            // Exclusion filter: legacy 'doi' means "NOT physical-object"
+            // instead of enumerating slugs (which may resolve to an empty
+            // array when no non-PO types exist in the database).
+            $query->whereHas('resourceType', function (Builder $q) use ($excludeType): void {
+                $q->where('slug', '!=', $excludeType);
+            });
+        } else {
+            $this->applyTypeFilter($query, $type);
+        }
 
         // Apply search query
         $this->applySearchQuery($query, $filters['query'] ?? null);
@@ -174,7 +194,9 @@ class PortalSearchService
     /**
      * Apply resource type filter by slugs.
      *
-     * An empty array means no filter (show all types).
+     * An empty array or null means "no filter" (show all types).
+     * For legacy 'doi' semantics, buildQuery() uses an exclusion
+     * constraint instead, bypassing this method.
      *
      * @param  Builder<Resource>  $query
      * @param  string[]|null  $typeSlugs
