@@ -112,8 +112,10 @@ class SchemaOrgJsonLdExporter
             $jsonLd['version'] = $attributes['version'];
         }
 
-        // subjectOf: cross-links to other metadata formats
-        $jsonLd['subjectOf'] = $this->buildSubjectOf($resource->id);
+        // subjectOf: cross-links to other metadata formats via DataCite Content Negotiation
+        if (isset($attributes['doi'])) {
+            $jsonLd['subjectOf'] = $this->buildSubjectOf($attributes['doi']);
+        }
 
         return $jsonLd;
     }
@@ -512,22 +514,29 @@ class SchemaOrgJsonLdExporter
     /**
      * Build subjectOf cross-links to alternative metadata formats.
      *
+     * Uses DataCite Content Negotiation URLs which are publicly accessible,
+     * since this JSON-LD is embedded on public landing pages for SEO.
+     *
+     * @see https://support.datacite.org/docs/datacite-content-resolver
+     *
      * @return array<int, array<string, string>>
      */
-    private function buildSubjectOf(int $resourceId): array
+    private function buildSubjectOf(string $doi): array
     {
+        $encodedDoi = rawurlencode($doi);
+
         return [
             [
                 '@type' => 'DataDownload',
                 'name' => 'DataCite XML metadata',
-                'encodingFormat' => 'application/xml',
-                'contentUrl' => url("/resources/{$resourceId}/export-datacite-xml"),
+                'encodingFormat' => 'application/vnd.datacite.datacite+xml',
+                'contentUrl' => "https://data.datacite.org/application/vnd.datacite.datacite%2Bxml/{$encodedDoi}",
             ],
             [
                 '@type' => 'DataDownload',
                 'name' => 'DataCite JSON metadata',
-                'encodingFormat' => 'application/json',
-                'contentUrl' => url("/resources/{$resourceId}/export-datacite-json"),
+                'encodingFormat' => 'application/vnd.datacite.datacite+json',
+                'contentUrl' => "https://data.datacite.org/application/vnd.datacite.datacite%2Bjson/{$encodedDoi}",
             ],
         ];
     }

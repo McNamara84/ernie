@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\TitleType;
-use App\Models\User;
 use App\Services\DataCiteLinkedDataExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 

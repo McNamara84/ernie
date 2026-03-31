@@ -95,6 +95,7 @@ export default function DefaultGfzTemplate() {
                                 fundingReferences={resource.funding_references || []}
                                 subjects={resource.subjects || []}
                                 resourceId={resource.id}
+                                jsonLdExportUrl={landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined}
                             />
                             <LocationSection geoLocations={resource.geo_locations || []} />
                         </div>

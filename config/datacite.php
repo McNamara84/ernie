@@ -88,6 +88,9 @@ return [
     | vocabulary mapping for DataCite metadata expressed as Linked Data.
     |
     */
+    // DataCite Linked Data JSON-LD context configuration.
+    // The staging URL is used as default because DataCite has not yet published
+    // a stable production context URL. Update when a production URL becomes available.
     'linked_data' => [
         'context_url' => env(
             'DATACITE_LINKED_DATA_CONTEXT_URL',

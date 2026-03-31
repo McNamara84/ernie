@@ -23,6 +23,8 @@ interface AbstractSectionProps {
     fundingReferences: LandingPageFundingReference[];
     subjects: LandingPageSubject[];
     resourceId: number;
+    /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
+    jsonLdExportUrl?: string;
 }
 
 /** Single source of truth: ordered thesaurus definitions with badge styling */
@@ -77,7 +79,7 @@ function formatPersonName(familyName: string | null, givenName: string | null): 
  * Renders the Abstract, Methods (if available), Creators, Contributors,
  * Funders, Subjects/Keywords, and Download Metadata sections.
  */
-export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId }: AbstractSectionProps) {
+export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId, jsonLdExportUrl }: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
     const abstract = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'abstract');
     const methods = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'methods');
@@ -355,7 +357,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
 
                     {/* JSON-LD Download Button */}
                     <a
-                        href={`/resources/${resourceId}/export-jsonld`}
+                        href={jsonLdExportUrl ?? `/resources/${resourceId}/export-jsonld`}
                         className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         title="Download as JSON-LD (Linked Data)"
                     >

@@ -12,7 +12,7 @@
 
 A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
 
-**🎉 Third Release Candidate (v1.0.0rc3)** – This is the second release candidate of ERNIE, featuring complete core metadata curation functionality, DOI registration workflows, and comprehensive testing. See the [interactive changelog](/changelog) for full release notes.
+**🎉 Third Release Candidate (v1.0.0rc3)** – This is the third release candidate of ERNIE, featuring complete core metadata curation functionality, DOI registration workflows, and comprehensive testing. See the [interactive changelog](/changelog) for full release notes.
 
 ## Features
 

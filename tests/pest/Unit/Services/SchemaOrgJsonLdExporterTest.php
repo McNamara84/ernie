@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Person;
 use App\Models\Resource;
@@ -70,6 +69,7 @@ describe('export basics', function () {
 
         expect($result)->not->toHaveKey('@id');
         expect($result)->not->toHaveKey('url');
+        expect($result)->not->toHaveKey('subjectOf');
     });
 
     it('includes name from main title', function () {
@@ -96,8 +96,10 @@ describe('export basics', function () {
         expect($result)->toHaveKey('subjectOf');
         expect($result['subjectOf'])->toHaveCount(2);
         expect($result['subjectOf'][0]['@type'])->toBe('DataDownload');
-        expect($result['subjectOf'][0]['encodingFormat'])->toBe('application/xml');
-        expect($result['subjectOf'][1]['encodingFormat'])->toBe('application/json');
+        expect($result['subjectOf'][0]['encodingFormat'])->toBe('application/vnd.datacite.datacite+xml');
+        expect($result['subjectOf'][0]['contentUrl'])->toContain('data.datacite.org');
+        expect($result['subjectOf'][1]['encodingFormat'])->toBe('application/vnd.datacite.datacite+json');
+        expect($result['subjectOf'][1]['contentUrl'])->toContain('data.datacite.org');
     });
 });
 
