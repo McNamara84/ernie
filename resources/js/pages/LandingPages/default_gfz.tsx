@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
@@ -24,12 +24,13 @@ interface DefaultGfzTemplatePageProps {
     resource: LandingPageResource;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    schemaOrgJsonLd?: Record<string, unknown>;
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
 
 export default function DefaultGfzTemplate() {
-    const { resource, landingPage, isPreview } = usePage<DefaultGfzTemplatePageProps>().props;
+    const { resource, landingPage, isPreview, schemaOrgJsonLd } = usePage<DefaultGfzTemplatePageProps>().props;
 
     // Extract data for ResourceHero
     const resourceType = resource.resource_type?.name || 'Other';
@@ -39,7 +40,13 @@ export default function DefaultGfzTemplate() {
     const citation = buildCitation(resource);
 
     return (
-        <div className="min-h-screen bg-gfz-primary pt-6">
+        <>
+            {schemaOrgJsonLd && (
+                <Head>
+                    <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
+                </Head>
+            )}
+            <div className="min-h-screen bg-gfz-primary pt-6">
             {isPreview && <div className="bg-yellow-400 px-4 py-2 text-center text-sm font-medium text-gray-900">Preview Mode</div>}
 
             {/* Zentrierter Container für Header, Content und Footer */}
@@ -88,6 +95,7 @@ export default function DefaultGfzTemplate() {
                                 fundingReferences={resource.funding_references || []}
                                 subjects={resource.subjects || []}
                                 resourceId={resource.id}
+                                jsonLdExportUrl={landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined}
                             />
                             <LocationSection geoLocations={resource.geo_locations || []} />
                         </div>
@@ -107,5 +115,6 @@ export default function DefaultGfzTemplate() {
                 </footer>
             </div>
         </div>
+        </>
     );
 }

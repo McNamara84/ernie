@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Braces, Eye, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -590,6 +590,7 @@ function ResourcesPage({
 
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
     const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
+    const [exportingJsonLdResources, setExportingJsonLdResources] = useState<Set<number>>(new Set());
     const [selectedResourceForLandingPage, setSelectedResourceForLandingPage] = useState<Resource | null>(null);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedResourceForDoi, setSelectedResourceForDoi] = useState<Resource | null>(null);
@@ -662,6 +663,60 @@ function ResourcesPage({
         } finally {
             // Remove resource from exporting set
             setExportingResources((prev) => {
+                const next = new Set(prev);
+                next.delete(resource.id!);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleExportJsonLd = useCallback(async (resource: Resource) => {
+        if (!resource.id) {
+            toast.error('Cannot export resource without ID');
+            return;
+        }
+
+        setExportingJsonLdResources((prev) => new Set(prev).add(resource.id!));
+
+        try {
+            const response = await axios.get(`/resources/${resource.id}/export-jsonld`, {
+                responseType: 'blob',
+            });
+
+            const blob = new Blob([response.data], { type: 'application/ld+json' });
+
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            let filename = `resource-${resource.id}-datacite-ld.jsonld`;
+
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('JSON-LD exported successfully');
+        } catch (error) {
+            console.error('Failed to export JSON-LD:', error);
+
+            const errorMessage =
+                isAxiosError(error) && error.response?.data
+                    ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export JSON-LD')
+                    : 'Failed to export JSON-LD';
+
+            toast.error(errorMessage);
+        } finally {
+            setExportingJsonLdResources((prev) => {
                 const next = new Set(prev);
                 next.delete(resource.id!);
                 return next;
@@ -1248,6 +1303,17 @@ function ResourcesPage({
                                                                         title={`Export as DataCite XML`}
                                                                     >
                                                                         <FileXmlIcon aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleExportJsonLd(resource)}
+                                                                        disabled={exportingJsonLdResources.has(resource.id ?? 0)}
+                                                                        aria-label={`Export resource ${resourceLabel} as JSON-LD`}
+                                                                        title={`Export as JSON-LD (Linked Data)`}
+                                                                    >
+                                                                        <Braces aria-hidden="true" className="size-4" />
                                                                     </Button>
                                                                     <Button
                                                                         type="button"

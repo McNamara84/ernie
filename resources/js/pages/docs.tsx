@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import {
     BookOpen,
+    Braces,
     Calendar,
     Coins,
     Database,
@@ -1121,6 +1122,49 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     </>
                 ),
             },
+            {
+                id: 'jsonld-export',
+                title: 'JSON-LD Export',
+                icon: Braces,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>JSON-LD (Linked Data) Export</h3>
+                        <p>
+                            Export metadata as <strong>DataCite Linked Data JSON-LD</strong> from the
+                            <code>/resources</code> page or from GFZ landing pages.
+                        </p>
+
+                        <h4>From the Resources List</h4>
+                        <p>
+                            Click the JSON-LD export button (braces icon) on any resource row to download the
+                            metadata in DataCite Linked Data format (<code>.jsonld</code>).
+                        </p>
+
+                        <h4>From Landing Pages</h4>
+                        <p>
+                            Published landing pages include a JSON-LD download button in the &ldquo;Download
+                            Metadata&rdquo; section. Additionally, Schema.org Dataset metadata is automatically
+                            embedded in the page for search engine discoverability.
+                        </p>
+
+                        <h4>What is JSON-LD?</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>A W3C standard for linked data on the web</li>
+                            <li>Uses the official DataCite Linked Data vocabulary</li>
+                            <li>Machine-readable semantic metadata for interoperability</li>
+                            <li>Embedded Schema.org follows ESIP Science-on-Schema.org v1.3</li>
+                        </ul>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Tip:</strong> JSON-LD exports do not require validation — they are generated
+                                directly from the stored metadata.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
         ],
         [userRole, editorSettings],
     );
@@ -1363,6 +1407,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Validation:</strong> All exports are validated against DataCite Schema 4.6 before download.
                             </p>
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'igsn-jsonld-export',
+                title: 'JSON-LD Export',
+                icon: Braces,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>JSON-LD (Linked Data) Export for IGSNs</h3>
+                        <p>
+                            Export IGSN metadata as <strong>DataCite Linked Data JSON-LD</strong> by clicking the
+                            JSON-LD button (braces icon) on any IGSN row.
+                        </p>
+
+                        <h4>Format Details</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Uses the official DataCite Linked Data vocabulary</li>
+                            <li>Downloaded as <code>.jsonld</code> file</li>
+                            <li>Includes all IGSN-specific metadata fields</li>
+                            <li>No validation required — generated directly from stored data</li>
+                        </ul>
                     </>
                 ),
             },

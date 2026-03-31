@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { CloudUpload, FileJson, Globe, RefreshCw } from 'lucide-react';
+import { Braces, CloudUpload, FileJson, Globe, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -142,6 +142,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [exportingIgsns, setExportingIgsns] = useState<Set<number>>(new Set());
+    const [exportingJsonLdIgsns, setExportingJsonLdIgsns] = useState<Set<number>>(new Set());
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
@@ -237,6 +238,55 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         } finally {
             // Remove IGSN from exporting set
             setExportingIgsns((prev) => {
+                const next = new Set(prev);
+                next.delete(igsn.id);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleExportJsonLd = useCallback(async (igsn: Igsn) => {
+        setExportingJsonLdIgsns((prev) => new Set(prev).add(igsn.id));
+
+        try {
+            const response = await axios.get(`/igsns/${igsn.id}/export/jsonld`, {
+                responseType: 'blob',
+            });
+
+            const blob = new Blob([response.data], { type: 'application/ld+json' });
+
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            let filename = `igsn-${igsn.igsn ?? `resource-${igsn.id}`}.jsonld`;
+
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('JSON-LD exported successfully');
+        } catch (error) {
+            console.error('Failed to export JSON-LD:', error);
+
+            const errorMessage =
+                isAxiosError(error) && error.response?.data
+                    ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export JSON-LD')
+                    : 'Failed to export JSON-LD';
+
+            toast.error(errorMessage);
+        } finally {
+            setExportingJsonLdIgsns((prev) => {
                 const next = new Set(prev);
                 next.delete(igsn.id);
                 return next;
@@ -574,6 +624,21 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                     </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>Export as DataCite JSON</TooltipContent>
+                                                            </Tooltip>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() => handleExportJsonLd(igsn)}
+                                                                        disabled={exportingJsonLdIgsns.has(igsn.id)}
+                                                                        aria-label="Export as JSON-LD"
+                                                                    >
+                                                                        <Braces className="size-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Export as JSON-LD (Linked Data)</TooltipContent>
                                                             </Tooltip>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>

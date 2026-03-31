@@ -17,6 +17,7 @@ use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteXmlExporter;
@@ -1051,6 +1052,23 @@ class ResourceController extends Controller
                 'message' => $message,
             ], 500);
         }
+    }
+
+    /**
+     * Export a resource as DataCite Linked Data JSON-LD
+     */
+    public function exportJsonLd(Resource $resource): SymfonyResponse
+    {
+        $exporter = new DataCiteLinkedDataExporter;
+        $jsonLd = $exporter->export($resource);
+
+        $timestamp = now()->format('YmdHis');
+        $filename = "resource-{$resource->id}-{$timestamp}-datacite-ld.jsonld";
+
+        return response()->json($jsonLd, 200, [
+            'Content-Type' => 'application/ld+json',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     /**

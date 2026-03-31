@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
@@ -14,6 +14,7 @@ interface DefaultGfzIgsnTemplatePageProps {
     resource: LandingPageResource;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
+    schemaOrgJsonLd?: Record<string, unknown>;
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
@@ -28,7 +29,7 @@ interface DefaultGfzIgsnTemplatePageProps {
  * will be added in future iterations.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, landingPage, isPreview } = usePage<DefaultGfzIgsnTemplatePageProps>().props;
+    const { resource, landingPage, isPreview, schemaOrgJsonLd } = usePage<DefaultGfzIgsnTemplatePageProps>().props;
 
     const status = isPreview ? 'preview' : landingPage?.status || 'published';
     const mainTitle = resource.titles?.find((t) => !t.title_type || t.title_type === 'MainTitle')?.title || 'Untitled';
@@ -36,7 +37,13 @@ export default function DefaultGfzIgsnTemplate() {
     const citation = buildCitation(resource);
 
     return (
-        <div className="min-h-screen bg-gfz-primary pt-6">
+        <>
+            {schemaOrgJsonLd && (
+                <Head>
+                    <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
+                </Head>
+            )}
+            <div className="min-h-screen bg-gfz-primary pt-6">
             {isPreview && <div className="bg-yellow-400 px-4 py-2 text-center text-sm font-medium text-gray-900">Preview Mode</div>}
 
             <div className="mx-auto max-w-7xl rounded bg-white">
@@ -79,5 +86,6 @@ export default function DefaultGfzIgsnTemplate() {
                 </footer>
             </div>
         </div>
+        </>
     );
 }

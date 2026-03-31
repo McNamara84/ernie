@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
+use App\Services\SchemaOrgJsonLdExporter;
+use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,6 +26,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class LandingPagePublicController extends Controller
 {
+    use ChecksCacheTagging;
     /**
      * Regex pattern for valid slug characters.
      * Must match the route constraint in web.php.
@@ -166,6 +172,43 @@ class LandingPagePublicController extends Controller
     }
 
     /**
+     * Export a landing page resource as DataCite Linked Data JSON-LD.
+     * URL pattern: /{doiPrefix}/{slug}/jsonld
+     */
+    public function exportJsonLd(
+        Request $request,
+        string $doiPrefix,
+        string $slug
+    ): JsonResponse {
+        $this->validateSlugFormat($slug, ['doi_prefix_length' => strlen($doiPrefix)]);
+        $this->validateDoiPrefixFormat($doiPrefix);
+
+        $landingPage = LandingPage::where('doi_prefix', $doiPrefix)
+            ->where('slug', $slug)
+            ->first();
+
+        abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+
+        // Only published landing pages can be exported publicly
+        if (! $landingPage->isPublished()) {
+            abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+        }
+
+        $resource = Resource::findOrFail($landingPage->resource_id);
+
+        $exporter = new DataCiteLinkedDataExporter;
+        $jsonLd = $exporter->export($resource);
+
+        $safeSlug = preg_replace('/[^a-z0-9-]/', '', $slug) ?: 'resource';
+        $filename = "{$safeSlug}-datacite-ld.jsonld";
+
+        return response()->json($jsonLd, 200, [
+            'Content-Type' => 'application/ld+json',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
      * Common rendering logic for landing pages.
      *
      * For external landing pages (template='external'), this issues a 301
@@ -237,10 +280,20 @@ class LandingPagePublicController extends Controller
 
         $resourceData = $transformer->transform($resource);
 
+        // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
+        $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
+        $schemaOrgJsonLd = $this->getCacheInstance(CacheKey::SCHEMA_ORG_JSONLD->tags())
+            ->remember($cacheKey, CacheKey::SCHEMA_ORG_JSONLD->ttl(), function () use ($resource): array {
+                $exporter = new SchemaOrgJsonLdExporter;
+
+                return $exporter->export($resource);
+            });
+
         $data = [
             'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),
             'isPreview' => (bool) $previewToken,
+            'schemaOrgJsonLd' => $schemaOrgJsonLd,
         ];
 
         // Use the template specified in landing page configuration

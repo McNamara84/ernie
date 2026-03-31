@@ -16,6 +16,7 @@ use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Http\Client\RequestException;
@@ -283,6 +284,34 @@ class IgsnController extends Controller
             echo json_encode($dataCiteData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         }, $filename, [
             'Content-Type' => 'application/json; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * Export an IGSN resource as DataCite Linked Data JSON-LD.
+     */
+    public function exportJsonLd(Resource $resource): StreamedResponse|JsonResponse
+    {
+        if ($resource->igsnMetadata === null) {
+            abort(404, 'IGSN not found.');
+        }
+
+        $exporter = new DataCiteLinkedDataExporter;
+        $jsonLd = $exporter->export($resource);
+
+        $igsn = $resource->doi ?? "resource-{$resource->id}";
+        $safeIgsn = preg_replace('/[^a-zA-Z0-9._-]/', '-', $igsn);
+        if ($safeIgsn === null) {
+            report(new \RuntimeException("preg_replace failed for IGSN: {$igsn}"));
+            $safeIgsn = "resource-{$resource->id}";
+        }
+        $filename = "igsn-{$safeIgsn}.jsonld";
+
+        return response()->streamDownload(function () use ($jsonLd): void {
+            echo json_encode($jsonLd, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        }, $filename, [
+            'Content-Type' => 'application/ld+json; charset=utf-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }

@@ -1,8 +1,16 @@
 [
     {
-        "version": "1.0.0dev",
-        "date": "2026-03-30",
+        "version": "1.0.0rc3",
+        "date": "2026-03-31",
         "features": [
+            {
+                "title": "JSON-LD Export for Resources and IGSNs",
+                "description": "New 'Export as JSON-LD' button on the Resources and IGSNs list pages. Downloads metadata in DataCite Linked Data format (.jsonld) using the official DataCite fullcontext.jsonld vocabulary. The export uses the attrs/value nesting pattern for full semantic interoperability with the DataCite Linked Data ecosystem."
+            },
+            {
+                "title": "JSON-LD Export and Schema.org Embedding for Landing Pages",
+                "description": "GFZ Default landing pages now include a JSON-LD download button in the 'Download Metadata' section (DataCite Linked Data format) and automatically embed Schema.org Dataset JSON-LD in the HTML head for SEO and machine discoverability. The embedded metadata follows ESIP Science-on-Schema.org v1.3 guidelines, including @list-ordered creators, PropertyValue identifiers for DOI/ORCID, DefinedTerm keywords for controlled vocabularies (GCMD), MonetaryGrant funding references, and GeoCoordinates/GeoShape spatial coverage."
+            },
             {
                 "title": "Assistance: Suggested ORCIDs Discovery",
                 "description": "New 'Suggested ORCIDs' card on the Assistance page for discovering missing ORCIDs. The system searches the ORCID Public API for creators and contributors without an ORCID, ranks candidates by affiliation similarity, and presents the top 3 matches per person. Curators can accept (updates the person globally and syncs all affected resources to DataCite) or decline (permanently dismisses that person+ORCID combination). Includes a new 'Check all' button that triggers both relation and ORCID discovery jobs simultaneously. The sidebar badge shows the combined count of pending suggestions."
