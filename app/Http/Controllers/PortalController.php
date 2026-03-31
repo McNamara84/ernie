@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\ResourceType;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
@@ -31,12 +32,12 @@ class PortalController extends Controller
         // Compute temporal range once (cached) – used for both validation and frontend
         $temporalRange = $this->searchService->getTemporalRange();
 
+        $rawType = $request->query('type', []);
+        $typeSlugs = $this->normalizeTypeSlugs($rawType);
+
         $filters = [
             'query' => $request->query('q'),
-            'type' => array_filter(
-                (array) $request->query('type', []),
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ),
+            'type' => $typeSlugs,
             'keywords' => array_slice(array_filter(
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
@@ -202,5 +203,42 @@ class PortalController extends Controller
             'yearFrom' => $yearFrom,
             'yearTo' => $yearTo,
         ];
+    }
+
+    /**
+     * Normalize type query parameter, mapping legacy values to real slugs.
+     *
+     * Legacy URLs used ?type=doi (all non-PhysicalObject) and ?type=igsn
+     * (PhysicalObject only). The new multi-select uses actual resource_type
+     * slugs like ?type[]=dataset&type[]=software.  This method handles both
+     * formats transparently.
+     *
+     * @param  mixed  $raw  Raw value from $request->query('type').
+     * @return string[]
+     */
+    private function normalizeTypeSlugs(mixed $raw): array
+    {
+        // New array format: ?type[]=dataset&type[]=software
+        if (is_array($raw)) {
+            return array_values(array_filter(
+                $raw,
+                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+            ));
+        }
+
+        // Legacy single-string format: ?type=doi or ?type=igsn
+        if (is_string($raw) && trim($raw) !== '') {
+            return match ($raw) {
+                'all' => [],
+                'igsn' => ['physical-object'],
+                'doi' => ResourceType::query()
+                    ->where('slug', '!=', 'physical-object')
+                    ->pluck('slug')
+                    ->all(),
+                default => [$raw],
+            };
+        }
+
+        return [];
     }
 }

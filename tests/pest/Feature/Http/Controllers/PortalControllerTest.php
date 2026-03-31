@@ -114,6 +114,8 @@ describe('index', function () {
     });
 
     it('passes filters back to frontend', function () {
+        // Legacy ?type=doi maps to all non-physical-object slugs.
+        // In this test only 'dataset' type exists, so it resolves to ['dataset'].
         $response = $this->get('/portal?q=test&type=doi');
 
         $response->assertOk()
@@ -121,7 +123,7 @@ describe('index', function () {
                 fn ($page) => $page
                     ->component('portal')
                     ->where('filters.query', 'test')
-                    ->where('filters.type', ['doi'])
+                    ->where('filters.type', ['dataset'])
             );
     });
 

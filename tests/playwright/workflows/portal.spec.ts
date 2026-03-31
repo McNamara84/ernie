@@ -91,34 +91,37 @@ test.describe('Portal Page', () => {
             // Open the popover
             await page.getByRole('button', { name: 'All Resource Types' }).click();
 
+            // Ensure at least one facet option is rendered
+            const options = page.getByRole('option');
+            await expect(options.first()).toBeVisible({ timeout: 5000 });
+
             // Click the first available type option
-            const firstOption = page.getByRole('option').first();
-            if (await firstOption.isVisible()) {
-                await firstOption.click();
-                // URL should contain type[] parameter
-                await page.waitForURL(/type/);
-                expect(page.url()).toContain('type');
-            }
+            await options.first().click();
+
+            // URL should contain type[] parameter
+            await page.waitForURL(/type/, { timeout: 10000 });
+            expect(page.url()).toContain('type');
         });
 
         test('clearing selection removes type from URL', async ({ page }) => {
-            // Navigate with a type filter
+            // Navigate with a type filter pre-selected
             await page.goto('/portal?type[]=dataset');
             await page.waitForLoadState('networkidle');
 
-            // Open popover and clear selection
+            // The trigger must show "N selected" (not "All Resource Types")
             const trigger = page.getByRole('button').filter({ hasText: /selected/ });
-            if (await trigger.isVisible()) {
-                await trigger.click();
-                const clearButton = page.getByRole('button', { name: /clear selection/i });
-                if (await clearButton.isVisible()) {
-                    await clearButton.click();
-                    // URL should no longer contain type parameter
-                    await expect(async () => {
-                        expect(page.url()).not.toContain('type');
-                    }).toPass({ timeout: 5000 });
-                }
-            }
+            await expect(trigger).toBeVisible({ timeout: 5000 });
+
+            // Open popover and press clear
+            await trigger.click();
+            const clearButton = page.getByRole('button', { name: /clear selection/i });
+            await expect(clearButton).toBeVisible();
+            await clearButton.click();
+
+            // URL should no longer contain type parameter
+            await expect(async () => {
+                expect(page.url()).not.toContain('type');
+            }).toPass({ timeout: 5000 });
         });
     });
 

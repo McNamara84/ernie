@@ -15,6 +15,7 @@ use App\Models\ResourceType;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -26,9 +27,34 @@ use Illuminate\Support\Facades\DB;
  */
 class PortalSearchService
 {
+    use ChecksCacheTagging;
+
     private const DEFAULT_PER_PAGE = 20;
 
     private const MAX_PER_PAGE = 50;
+
+    /**
+     * Map legacy type filter values to resource type slugs.
+     *
+     * Before the multi-select update, the portal used 'doi' and 'igsn'
+     * as type values.  We keep supporting these for backward-compatible
+     * URLs and bookmarks.
+     *
+     * @param  string  $legacyValue
+     * @return string[]|null  Null means "show all" (legacy 'all').
+     */
+    private function mapLegacyTypeValue(string $legacyValue): ?array
+    {
+        return match ($legacyValue) {
+            '', 'all' => null,
+            'igsn' => ['physical-object'],
+            'doi' => ResourceType::query()
+                ->where('slug', '!=', 'physical-object')
+                ->pluck('slug')
+                ->all(),
+            default => [$legacyValue],
+        };
+    }
 
     /**
      * Search resources with optional filters.
@@ -119,7 +145,7 @@ class PortalSearchService
         // Apply type filter (normalize legacy string format for backward compatibility)
         $type = $filters['type'] ?? null;
         if (is_string($type)) {
-            $type = $type === 'all' || $type === '' ? null : [$type];
+            $type = $this->mapLegacyTypeValue($type);
         }
         $this->applyTypeFilter($query, $type);
 
@@ -173,7 +199,8 @@ class PortalSearchService
         $cacheKey = CacheKey::PORTAL_RESOURCE_TYPE_FACETS;
 
         /** @var array<int, array{slug: string, name: string, count: int}> */
-        return Cache::remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+        return $this->getCacheInstance($cacheKey->tags())
+            ->remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
             $results = ResourceType::query()
                 ->select('resource_types.slug', 'resource_types.name')
                 ->selectRaw('COUNT(resources.id) as resources_count')
