@@ -733,7 +733,7 @@ entity "suggested_rors" as suggested_rors {
     --
     * resource_id : BIGINT <<FK>>
     * entity_type : VARCHAR
-    * entity_id : INT
+    * entity_id : BIGINT
     * entity_name : VARCHAR
     * suggested_ror_id : VARCHAR
     * suggested_name : VARCHAR
@@ -750,7 +750,7 @@ entity "dismissed_rors" as dismissed_rors {
     * **id** : BIGINT <<PK>>
     --
     * entity_type : VARCHAR
-    * entity_id : INT
+    * entity_id : BIGINT
     * ror_id : VARCHAR
     dismissed_by : BIGINT <<FK>>
     reason : VARCHAR(255)

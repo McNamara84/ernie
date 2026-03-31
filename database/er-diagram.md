@@ -666,7 +666,7 @@ erDiagram
         bigint id PK
         bigint resource_id FK
         varchar entity_type
-        int entity_id
+        bigint entity_id
         varchar entity_name
         varchar suggested_ror_id
         varchar suggested_name
@@ -682,7 +682,7 @@ erDiagram
     dismissed_rors {
         bigint id PK
         varchar entity_type
-        int entity_id
+        bigint entity_id
         varchar ror_id
         bigint dismissed_by FK "nullable"
         varchar reason "nullable"

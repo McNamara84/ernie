@@ -133,12 +133,21 @@ class RorDiscoveryService
 
         $replacedIdentifier = null;
 
-        match ($suggestion->entity_type) {
+        $accepted = match ($suggestion->entity_type) {
             'affiliation' => $this->acceptAffiliation($entity, $suggestion, $replacedIdentifier),
             'institution' => $this->acceptInstitution($entity, $suggestion, $replacedIdentifier),
             'funder' => $this->acceptFunder($entity, $suggestion, $replacedIdentifier),
-            default => null,
+            default => false,
         };
+
+        if ($accepted === false) {
+            return [
+                'success' => false,
+                'synced_dois' => [],
+                'message' => "Unknown entity type: {$suggestion->entity_type}",
+                'replaced_identifier' => null,
+            ];
+        }
 
         // Delete ALL suggestions for this entity (it now has a ROR-ID)
         SuggestedRor::where('entity_type', $suggestion->entity_type)
@@ -196,44 +205,76 @@ class RorDiscoveryService
      */
     private function collectEntitiesWithoutRor(): array
     {
-        $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
         $entities = [];
 
-        // 1. Affiliations without ROR
-        $affiliations = Affiliation::where(function ($q): void {
+        // 1. Affiliations without ROR – filter at query level with whereHasMorph
+        $affiliationQuery = Affiliation::where(function ($q): void {
             $q->whereNull('identifier_scheme')
                 ->orWhere('identifier_scheme', '!=', 'ROR')
                 ->orWhereNull('identifier');
         })
             ->where('name', '!=', '')
             ->whereNotNull('name')
-            ->get();
+            ->whereHasMorph(
+                'affiliatable',
+                [ResourceCreator::class, ResourceContributor::class],
+                fn ($q) => $q->whereHas('resource', fn ($r) => $r->whereNotNull('doi')->where('doi', '!=', '')),
+            );
 
-        foreach ($affiliations as $affiliation) {
-            $resourceId = $this->getResourceIdForAffiliation($affiliation, $hasDoi);
-            if ($resourceId !== null) {
-                $entities[] = [
-                    'entity_type' => 'affiliation',
-                    'entity_id' => $affiliation->id,
-                    'entity_name' => $affiliation->name,
-                    'resource_id' => $resourceId,
-                    'existing_identifier' => null,
-                    'existing_identifier_type' => null,
-                ];
-            }
+        foreach ($affiliationQuery->cursor() as $affiliation) {
+            /** @var Affiliation $affiliation */
+            $affiliatable = $affiliation->affiliatable;
+
+            $entities[] = [
+                'entity_type' => 'affiliation',
+                'entity_id' => $affiliation->id,
+                'entity_name' => $affiliation->name,
+                'resource_id' => $affiliatable->resource_id,
+                'existing_identifier' => $affiliation->identifier,
+                'existing_identifier_type' => $affiliation->identifier_scheme,
+            ];
         }
 
-        // 2. Institutions without ROR (as creators/contributors)
-        $institutions = Institution::where(function ($q): void {
+        // 2. Institutions without ROR – filter creators/contributors with DOI at query level
+        $institutionQuery = Institution::where(function ($q): void {
             $q->whereNull('name_identifier_scheme')
                 ->orWhere('name_identifier_scheme', '!=', 'ROR')
                 ->orWhereNull('name_identifier');
         })
             ->where('name', '!=', '')
             ->whereNotNull('name')
-            ->get();
+            ->where(function ($q): void {
+                $q->whereExists(function ($sub): void {
+                    $sub->selectRaw('1')
+                        ->from('resource_creators')
+                        ->whereColumn('resource_creators.creatorable_id', 'institutions.id')
+                        ->where('resource_creators.creatorable_type', Institution::class)
+                        ->whereExists(function ($r): void {
+                            $r->selectRaw('1')
+                                ->from('resources')
+                                ->whereColumn('resources.id', 'resource_creators.resource_id')
+                                ->whereNotNull('resources.doi')
+                                ->where('resources.doi', '!=', '');
+                        });
+                })->orWhereExists(function ($sub): void {
+                    $sub->selectRaw('1')
+                        ->from('resource_contributors')
+                        ->whereColumn('resource_contributors.contributorable_id', 'institutions.id')
+                        ->where('resource_contributors.contributorable_type', Institution::class)
+                        ->whereExists(function ($r): void {
+                            $r->selectRaw('1')
+                                ->from('resources')
+                                ->whereColumn('resources.id', 'resource_contributors.resource_id')
+                                ->whereNotNull('resources.doi')
+                                ->where('resources.doi', '!=', '');
+                        });
+                });
+            });
 
-        foreach ($institutions as $institution) {
+        $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
+
+        foreach ($institutionQuery->cursor() as $institution) {
+            /** @var Institution $institution */
             $resourceId = $this->getResourceIdForInstitution($institution, $hasDoi);
             if ($resourceId !== null) {
                 $entities[] = [
@@ -263,9 +304,8 @@ class RorDiscoveryService
             $funderQuery->whereNull('funder_identifier');
         }
 
-        $funders = $funderQuery->with('funderIdentifierType')->get();
-
-        foreach ($funders as $funder) {
+        foreach ($funderQuery->with('funderIdentifierType')->cursor() as $funder) {
+            /** @var FundingReference $funder */
             $entities[] = [
                 'entity_type' => 'funder',
                 'entity_id' => $funder->id,
@@ -277,31 +317,6 @@ class RorDiscoveryService
         }
 
         return $entities;
-    }
-
-    /**
-     * Get the resource ID for an affiliation, if it belongs to a resource with a DOI.
-     *
-     * @param  callable  $hasDoi
-     */
-    private function getResourceIdForAffiliation(Affiliation $affiliation, callable $hasDoi): ?int
-    {
-        $affiliatable = $affiliation->affiliatable;
-
-        if ($affiliatable instanceof ResourceCreator) {
-            $resource = Resource::where('id', $affiliatable->resource_id)
-                ->where(fn ($q) => $hasDoi($q))
-                ->first();
-
-            return $resource?->id;
-        }
-
-        /** @var ResourceContributor $affiliatable */
-        $resource = Resource::where('id', $affiliatable->resource_id)
-            ->where(fn ($q) => $hasDoi($q))
-            ->first();
-
-        return $resource?->id;
     }
 
     /**
@@ -549,9 +564,9 @@ class RorDiscoveryService
         Affiliation|Institution|FundingReference $entity,
         SuggestedRor $suggestion,
         ?string &$replacedIdentifier,
-    ): void {
+    ): bool {
         if (! $entity instanceof Affiliation) {
-            return;
+            return false;
         }
 
         $replacedIdentifier = $entity->identifier;
@@ -561,6 +576,8 @@ class RorDiscoveryService
             'identifier_scheme' => 'ROR',
             'scheme_uri' => 'https://ror.org/',
         ]);
+
+        return true;
     }
 
     /**
@@ -570,9 +587,9 @@ class RorDiscoveryService
         Affiliation|Institution|FundingReference $entity,
         SuggestedRor $suggestion,
         ?string &$replacedIdentifier,
-    ): void {
+    ): bool {
         if (! $entity instanceof Institution) {
-            return;
+            return false;
         }
 
         $replacedIdentifier = $entity->name_identifier;
@@ -582,6 +599,8 @@ class RorDiscoveryService
             'name_identifier_scheme' => 'ROR',
             'scheme_uri' => 'https://ror.org/',
         ]);
+
+        return true;
     }
 
     /**
@@ -591,9 +610,9 @@ class RorDiscoveryService
         Affiliation|Institution|FundingReference $entity,
         SuggestedRor $suggestion,
         ?string &$replacedIdentifier,
-    ): void {
+    ): bool {
         if (! $entity instanceof FundingReference) {
-            return;
+            return false;
         }
 
         $replacedIdentifier = $entity->funder_identifier;
@@ -605,6 +624,8 @@ class RorDiscoveryService
             'funder_identifier_type_id' => $rorTypeId,
             'scheme_uri' => 'https://ror.org/',
         ]);
+
+        return true;
     }
 
     /**
@@ -691,10 +712,23 @@ class RorDiscoveryService
      */
     private function loadDismissedSet(array $entities): array
     {
-        $dismissed = DismissedRor::get(['entity_type', 'entity_id', 'ror_id']);
+        // Group entity IDs by type for constrained query
+        $byType = [];
+        foreach ($entities as $e) {
+            $byType[$e['entity_type']][] = $e['entity_id'];
+        }
+
+        $query = DismissedRor::query();
+        $query->where(function ($q) use ($byType): void {
+            foreach ($byType as $type => $ids) {
+                $q->orWhere(function ($sub) use ($type, $ids): void {
+                    $sub->where('entity_type', $type)->whereIn('entity_id', $ids);
+                });
+            }
+        });
 
         $result = [];
-        foreach ($dismissed as $d) {
+        foreach ($query->get(['entity_type', 'entity_id', 'ror_id']) as $d) {
             $key = "{$d->entity_type}:{$d->entity_id}";
             $result[$key][$d->ror_id] = true;
         }
@@ -710,10 +744,23 @@ class RorDiscoveryService
      */
     private function loadSuggestedSet(array $entities): array
     {
-        $suggested = SuggestedRor::get(['entity_type', 'entity_id', 'suggested_ror_id']);
+        // Group entity IDs by type for constrained query
+        $byType = [];
+        foreach ($entities as $e) {
+            $byType[$e['entity_type']][] = $e['entity_id'];
+        }
+
+        $query = SuggestedRor::query();
+        $query->where(function ($q) use ($byType): void {
+            foreach ($byType as $type => $ids) {
+                $q->orWhere(function ($sub) use ($type, $ids): void {
+                    $sub->where('entity_type', $type)->whereIn('entity_id', $ids);
+                });
+            }
+        });
 
         $result = [];
-        foreach ($suggested as $s) {
+        foreach ($query->get(['entity_type', 'entity_id', 'suggested_ror_id']) as $s) {
             $key = "{$s->entity_type}:{$s->entity_id}";
             $result[$key][$s->suggested_ror_id] = true;
         }
