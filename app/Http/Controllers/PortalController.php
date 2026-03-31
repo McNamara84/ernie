@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\ResourceType;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
@@ -228,15 +227,7 @@ class PortalController extends Controller
 
         // Legacy single-string format: ?type=doi or ?type=igsn
         if (is_string($raw) && trim($raw) !== '') {
-            return match ($raw) {
-                'all' => [],
-                'igsn' => ['physical-object'],
-                'doi' => ResourceType::query()
-                    ->where('slug', '!=', 'physical-object')
-                    ->pluck('slug')
-                    ->all(),
-                default => [$raw],
-            };
+            return PortalSearchService::mapLegacyTypeValue($raw) ?? [];
         }
 
         return [];

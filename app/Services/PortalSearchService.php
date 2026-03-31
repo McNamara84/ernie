@@ -8,14 +8,16 @@ use App\Enums\CacheKey;
 use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\Institution;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -40,10 +42,13 @@ class PortalSearchService
      * as type values.  We keep supporting these for backward-compatible
      * URLs and bookmarks.
      *
-     * @param  string  $legacyValue
-     * @return string[]|null  Null means "show all" (legacy 'all').
+     * 'doi'  → all non-PhysicalObject slugs (queried from DB)
+     * 'igsn' → ['physical-object']
+     * 'all'  → null (show everything)
+     *
+     * @return string[]|null Null means "show all" (legacy 'all').
      */
-    private function mapLegacyTypeValue(string $legacyValue): ?array
+    public static function mapLegacyTypeValue(string $legacyValue): ?array
     {
         return match ($legacyValue) {
             '', 'all' => null,
@@ -98,9 +103,9 @@ class PortalSearchService
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
-     * @return \Illuminate\Database\Eloquent\Collection<int, Resource>
+     * @return Collection<int, Resource>
      */
-    public function getMapData(array $filters = []): \Illuminate\Database\Eloquent\Collection
+    public function getMapData(array $filters = []): Collection
     {
         return $this->buildQuery($filters, applyBounds: false)
             ->whereHas('geoLocations')
@@ -136,7 +141,7 @@ class PortalSearchService
             // Order by actual publication date (when landing page was published)
             // Then by resource creation date as fallback
             ->orderByDesc(
-                \App\Models\LandingPage::select('published_at')
+                LandingPage::select('published_at')
                     ->whereColumn('landing_pages.resource_id', 'resources.id')
                     ->limit(1)
             )
@@ -145,7 +150,7 @@ class PortalSearchService
         // Apply type filter (normalize legacy string format for backward compatibility)
         $type = $filters['type'] ?? null;
         if (is_string($type)) {
-            $type = $this->mapLegacyTypeValue($type);
+            $type = self::mapLegacyTypeValue($type);
         }
         $this->applyTypeFilter($query, $type);
 
@@ -201,22 +206,22 @@ class PortalSearchService
         /** @var array<int, array{slug: string, name: string, count: int}> */
         return $this->getCacheInstance($cacheKey->tags())
             ->remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
-            $results = ResourceType::query()
-                ->select('resource_types.slug', 'resource_types.name')
-                ->selectRaw('COUNT(resources.id) as resources_count')
-                ->join('resources', 'resources.resource_type_id', '=', 'resource_types.id')
-                ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
-                ->where('landing_pages.is_published', true)
-                ->groupBy('resource_types.id', 'resource_types.slug', 'resource_types.name')
-                ->orderByDesc('resources_count')
-                ->get();
+                $results = ResourceType::query()
+                    ->select('resource_types.slug', 'resource_types.name')
+                    ->selectRaw('COUNT(resources.id) as resources_count')
+                    ->join('resources', 'resources.resource_type_id', '=', 'resource_types.id')
+                    ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                    ->where('landing_pages.is_published', true)
+                    ->groupBy('resource_types.id', 'resource_types.slug', 'resource_types.name')
+                    ->orderByDesc('resources_count')
+                    ->get();
 
-            return $results->map(fn ($row): array => [
-                'slug' => $row->slug,
-                'name' => $row->slug === 'physical-object' ? 'IGSN Samples' : $row->name,
-                'count' => (int) $row->resources_count,
-            ])->all();
-        });
+                return $results->map(fn ($row): array => [
+                    'slug' => $row->slug,
+                    'name' => $row->slug === 'physical-object' ? 'IGSN Samples' : $row->name,
+                    'count' => (int) $row->resources_count,
+                ])->all();
+            });
     }
 
     /**
@@ -230,7 +235,7 @@ class PortalSearchService
             return;
         }
 
-        $searchTerm = '%' . trim($searchQuery) . '%';
+        $searchTerm = '%'.trim($searchQuery).'%';
 
         $query->where(function (Builder $q) use ($searchTerm): void {
             // Search in DOI
@@ -333,14 +338,14 @@ class PortalSearchService
                         ->whereRaw("{$dvYear} <= ?", [$yearTo]);
                 })
                 // Case 2: Date range (start_date/end_date) – overlap check
-                ->orWhere(function (Builder $range) use ($yearFrom, $yearTo, $sdYear, $edYear): void {
-                    $range->whereNotNull('start_date')
-                        ->whereRaw("{$sdYear} <= ?", [$yearTo])
-                        ->where(function (Builder $endCheck) use ($yearFrom, $edYear): void {
-                            $endCheck->whereRaw("{$edYear} >= ?", [$yearFrom])
-                                ->orWhereNull('end_date');
-                        });
-                });
+                    ->orWhere(function (Builder $range) use ($yearFrom, $yearTo, $sdYear, $edYear): void {
+                        $range->whereNotNull('start_date')
+                            ->whereRaw("{$sdYear} <= ?", [$yearTo])
+                            ->where(function (Builder $endCheck) use ($yearFrom, $edYear): void {
+                                $endCheck->whereRaw("{$edYear} >= ?", [$yearFrom])
+                                    ->orWhereNull('end_date');
+                            });
+                    });
             });
         });
     }
@@ -445,7 +450,7 @@ class PortalSearchService
             'sqlite' => "CAST(SUBSTR({$column}, 1, 4) AS INTEGER)",
             'pgsql' => "CAST(LEFT({$column}, 4) AS INTEGER)",
             'mysql', 'mariadb' => "CAST(LEFT({$column}, 4) AS UNSIGNED)",
-            default => throw new \RuntimeException('Unsupported database driver: ' . DB::getDriverName()),
+            default => throw new \RuntimeException('Unsupported database driver: '.DB::getDriverName()),
         };
     }
 
@@ -496,62 +501,62 @@ class PortalSearchService
                         }
                     })
                     // Bounding box overlaps (rectangle intersection)
-                    ->orWhere(function (Builder $box) use ($bounds, $searchCrossesAM): void {
-                        $box->whereNotNull('west_bound_longitude')
-                            ->where('north_bound_latitude', '>=', $bounds['south'])
-                            ->where('south_bound_latitude', '<=', $bounds['north']);
+                        ->orWhere(function (Builder $box) use ($bounds, $searchCrossesAM): void {
+                            $box->whereNotNull('west_bound_longitude')
+                                ->where('north_bound_latitude', '>=', $bounds['south'])
+                                ->where('south_bound_latitude', '<=', $bounds['north']);
 
-                        $box->where(function (Builder $lng) use ($bounds, $searchCrossesAM): void {
+                            $box->where(function (Builder $lng) use ($bounds, $searchCrossesAM): void {
+                                if ($searchCrossesAM) {
+                                    $lng->where(function (Builder $storedNormal) use ($bounds): void {
+                                        $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
+                                            ->where(function (Builder $overlap) use ($bounds): void {
+                                                $overlap->where('east_bound_longitude', '>=', $bounds['west'])
+                                                    ->orWhere('west_bound_longitude', '<=', $bounds['east']);
+                                            });
+                                    })->orWhere(function (Builder $storedCrossing): void {
+                                        $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude');
+                                    });
+                                } else {
+                                    $lng->where(function (Builder $storedNormal) use ($bounds): void {
+                                        $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
+                                            ->where('east_bound_longitude', '>=', $bounds['west'])
+                                            ->where('west_bound_longitude', '<=', $bounds['east']);
+                                    })->orWhere(function (Builder $storedCrossing) use ($bounds): void {
+                                        $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude')
+                                            ->where(function (Builder $overlap) use ($bounds): void {
+                                                $overlap->where('west_bound_longitude', '<=', $bounds['east'])
+                                                    ->orWhere('east_bound_longitude', '>=', $bounds['west']);
+                                            });
+                                    });
+                                }
+                            });
+                        })
+                    // Polygon/line via representative in_polygon_point within bounds
+                        ->orWhere(function (Builder $inPoint) use ($bounds, $searchCrossesAM): void {
+                            $inPoint->whereNotNull('polygon_points')
+                                ->whereNotNull('in_polygon_point_latitude')
+                                ->whereNotNull('in_polygon_point_longitude')
+                                ->where('in_polygon_point_latitude', '>=', $bounds['south'])
+                                ->where('in_polygon_point_latitude', '<=', $bounds['north']);
+
                             if ($searchCrossesAM) {
-                                $lng->where(function (Builder $storedNormal) use ($bounds): void {
-                                    $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
-                                        ->where(function (Builder $overlap) use ($bounds): void {
-                                            $overlap->where('east_bound_longitude', '>=', $bounds['west'])
-                                                ->orWhere('west_bound_longitude', '<=', $bounds['east']);
-                                        });
-                                })->orWhere(function (Builder $storedCrossing): void {
-                                    $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude');
+                                $inPoint->where(function (Builder $lng) use ($bounds): void {
+                                    $lng->where('in_polygon_point_longitude', '>=', $bounds['west'])
+                                        ->orWhere('in_polygon_point_longitude', '<=', $bounds['east']);
                                 });
                             } else {
-                                $lng->where(function (Builder $storedNormal) use ($bounds): void {
-                                    $storedNormal->whereColumn('west_bound_longitude', '<=', 'east_bound_longitude')
-                                        ->where('east_bound_longitude', '>=', $bounds['west'])
-                                        ->where('west_bound_longitude', '<=', $bounds['east']);
-                                })->orWhere(function (Builder $storedCrossing) use ($bounds): void {
-                                    $storedCrossing->whereColumn('west_bound_longitude', '>', 'east_bound_longitude')
-                                        ->where(function (Builder $overlap) use ($bounds): void {
-                                            $overlap->where('west_bound_longitude', '<=', $bounds['east'])
-                                                ->orWhere('east_bound_longitude', '>=', $bounds['west']);
-                                        });
-                                });
+                                $inPoint->where('in_polygon_point_longitude', '>=', $bounds['west'])
+                                    ->where('in_polygon_point_longitude', '<=', $bounds['east']);
                             }
                         });
-                    })
-                    // Polygon/line via representative in_polygon_point within bounds
-                    ->orWhere(function (Builder $inPoint) use ($bounds, $searchCrossesAM): void {
-                        $inPoint->whereNotNull('polygon_points')
-                            ->whereNotNull('in_polygon_point_latitude')
-                            ->whereNotNull('in_polygon_point_longitude')
-                            ->where('in_polygon_point_latitude', '>=', $bounds['south'])
-                            ->where('in_polygon_point_latitude', '<=', $bounds['north']);
-
-                        if ($searchCrossesAM) {
-                            $inPoint->where(function (Builder $lng) use ($bounds): void {
-                                $lng->where('in_polygon_point_longitude', '>=', $bounds['west'])
-                                    ->orWhere('in_polygon_point_longitude', '<=', $bounds['east']);
-                            });
-                        } else {
-                            $inPoint->where('in_polygon_point_longitude', '>=', $bounds['west'])
-                                ->where('in_polygon_point_longitude', '<=', $bounds['east']);
-                        }
-                    });
                 });
             })
             // Branch B: polygon vertex bounding box overlaps search bounds.
             // Uses a non-correlated IN subquery instead of correlated EXISTS
             // because MySQL 8.0 cannot resolve correlated JSON_TABLE column
             // references when placed inside OR expressions at any level.
-            ->orWhereRaw(...$this->buildPolygonBboxSubquery($bounds, $searchCrossesAM));
+                ->orWhereRaw(...$this->buildPolygonBboxSubquery($bounds, $searchCrossesAM));
         });
     }
 
@@ -591,27 +596,27 @@ class PortalSearchService
                 ? '(MAX(pt.lng) >= ? OR MIN(pt.lng) <= ?)'
                 : '(MAX(pt.lng) >= ? AND MIN(pt.lng) <= ?)';
 
-            $sql = "resources.id IN ("
-                . "SELECT DISTINCT gl.resource_id FROM geo_locations gl, "
-                . "JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
-                . "lat DOUBLE PATH '\$.latitude', "
-                . "lng DOUBLE PATH '\$.longitude')) AS pt "
-                . "WHERE gl.polygon_points IS NOT NULL "
-                . "GROUP BY gl.id, gl.resource_id "
-                . "HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND " . $lngHaving
-                . ")";
+            $sql = 'resources.id IN ('
+                .'SELECT DISTINCT gl.resource_id FROM geo_locations gl, '
+                ."JSON_TABLE(gl.polygon_points, '\$[*]' COLUMNS("
+                ."lat DOUBLE PATH '\$.latitude', "
+                ."lng DOUBLE PATH '\$.longitude')) AS pt "
+                .'WHERE gl.polygon_points IS NOT NULL '
+                .'GROUP BY gl.id, gl.resource_id '
+                .'HAVING MAX(pt.lat) >= ? AND MIN(pt.lat) <= ? AND '.$lngHaving
+                .')';
         } elseif ($driver === 'pgsql') {
             $lngHaving = $searchCrossesAM
                 ? "(MAX((elem->>'longitude')::float) >= ? OR MIN((elem->>'longitude')::float) <= ?)"
                 : "(MAX((elem->>'longitude')::float) >= ? AND MIN((elem->>'longitude')::float) <= ?)";
 
-            $sql = "resources.id IN ("
-                . "SELECT DISTINCT gl.resource_id FROM geo_locations gl, "
-                . "jsonb_array_elements(gl.polygon_points::jsonb) AS elem "
-                . "WHERE gl.polygon_points IS NOT NULL "
-                . "GROUP BY gl.id, gl.resource_id "
-                . "HAVING MAX((elem->>'latitude')::float) >= ? AND MIN((elem->>'latitude')::float) <= ? AND " . $lngHaving
-                . ")";
+            $sql = 'resources.id IN ('
+                .'SELECT DISTINCT gl.resource_id FROM geo_locations gl, '
+                .'jsonb_array_elements(gl.polygon_points::jsonb) AS elem '
+                .'WHERE gl.polygon_points IS NOT NULL '
+                .'GROUP BY gl.id, gl.resource_id '
+                ."HAVING MAX((elem->>'latitude')::float) >= ? AND MIN((elem->>'latitude')::float) <= ? AND ".$lngHaving
+                .')';
         } elseif ($driver === 'sqlite') {
             // CAST(? AS REAL) required because PDO binds float parameters as TEXT,
             // which can cause unexpected comparison semantics under SQLite's type
@@ -619,19 +624,19 @@ class PortalSearchService
             // value is TEXT, leading to a textual instead of numeric comparison).
             $lngHaving = $searchCrossesAM
                 ? "((SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
-                . "OR (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL))"
+                ."OR (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL))"
                 : "(SELECT MAX(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
-                . "AND (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL)";
+                ."AND (SELECT MIN(json_extract(value, '$.longitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL)";
 
-            $sql = "resources.id IN ("
-                . "SELECT resource_id FROM geo_locations "
-                . "WHERE polygon_points IS NOT NULL "
-                . "AND (SELECT MAX(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
-                . "AND (SELECT MIN(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL) "
-                . "AND " . $lngHaving
-                . ")";
+            $sql = 'resources.id IN ('
+                .'SELECT resource_id FROM geo_locations '
+                .'WHERE polygon_points IS NOT NULL '
+                ."AND (SELECT MAX(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) >= CAST(? AS REAL) "
+                ."AND (SELECT MIN(json_extract(value, '$.latitude')) FROM json_each(polygon_points)) <= CAST(? AS REAL) "
+                .'AND '.$lngHaving
+                .')';
         } else {
-            throw new \RuntimeException('Unsupported database driver for polygon search: ' . $driver);
+            throw new \RuntimeException('Unsupported database driver for polygon search: '.$driver);
         }
 
         return [$sql, $params];
