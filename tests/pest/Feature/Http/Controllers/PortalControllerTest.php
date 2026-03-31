@@ -122,7 +122,13 @@ describe('index', function () {
 
         // Clear only the portal facets cache so facets reflect the freshly
         // created resource without interfering with other cached values.
-        Cache::forget(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key());
+        // Use tag-aware forget to work on both array (no tags) and Redis (tags).
+        $cacheKey = CacheKey::PORTAL_RESOURCE_TYPE_FACETS;
+        if (method_exists(Cache::getStore(), 'tags')) {
+            Cache::tags($cacheKey->tags())->forget($cacheKey->key());
+        } else {
+            Cache::forget($cacheKey->key());
+        }
 
         $response = $this->get('/portal?q=test&type=doi');
 

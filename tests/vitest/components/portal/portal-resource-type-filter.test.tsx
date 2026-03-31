@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,10 +14,10 @@ describe('PortalResourceTypeFilter', () => {
         { slug: 'physical-object', name: 'Physical Object', count: 5 },
     ];
 
-    let onSelectionChange: ReturnType<typeof vi.fn>;
+    let onSelectionChange: (slugs: string[]) => void;
 
     beforeEach(() => {
-        onSelectionChange = vi.fn();
+        onSelectionChange = vi.fn<(slugs: string[]) => void>();
     });
 
     describe('trigger text', () => {
