@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteLinkedDataExporter;
@@ -12,6 +13,7 @@ use App\Services\SchemaOrgJsonLdExporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -277,9 +279,14 @@ class LandingPagePublicController extends Controller
 
         $resourceData = $transformer->transform($resource);
 
-        // Generate Schema.org JSON-LD for inline SEO embedding
-        $schemaOrgExporter = new SchemaOrgJsonLdExporter;
-        $schemaOrgJsonLd = $schemaOrgExporter->export($resource);
+        // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
+        $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
+        $schemaOrgJsonLd = Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())
+            ->remember($cacheKey, CacheKey::SCHEMA_ORG_JSONLD->ttl(), function () use ($resource): array {
+                $exporter = new SchemaOrgJsonLdExporter;
+
+                return $exporter->export($resource);
+            });
 
         $data = [
             'resource' => $resourceData,
