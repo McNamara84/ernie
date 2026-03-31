@@ -206,8 +206,12 @@ class RorDiscoveryService
                 // Return null to signal success — DataCite sync happens outside the transaction
                 return null;
             });
-        } catch (QueryException) {
-            // Unique constraint violation from a concurrent acceptance
+        } catch (QueryException $e) {
+            // Only handle unique constraint violations (concurrent acceptance race)
+            if (($e->errorInfo[1] ?? null) !== 1062) {
+                throw $e;
+            }
+
             SuggestedRor::where('entity_type', $entityType)
                 ->where('entity_id', $entityId)
                 ->delete();
