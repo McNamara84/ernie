@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { Check, RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -17,8 +17,11 @@ import {
     type OrcidAcceptResponse,
     type OrcidCheckStatusResponse,
     type PaginatedData,
+    type RorAcceptResponse,
+    type RorCheckStatusResponse,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
+    type SuggestedRorItem,
 } from '@/types/assistance';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -157,7 +160,109 @@ function OrcidSuggestionCard({
     );
 }
 
-export default function AssistancePage({ suggestions: paginatedSuggestions, orcidSuggestions: paginatedOrcidSuggestions }: AssistancePageProps) {
+function entityTypeLabel(type: SuggestedRorItem['entity_type']): string {
+    switch (type) {
+        case 'affiliation':
+            return 'Affiliation';
+        case 'institution':
+            return 'Institution';
+        case 'funder':
+            return 'Funder';
+        default: {
+            const _exhaustive: never = type;
+            return _exhaustive;
+        }
+    }
+}
+
+function entityTypeBadgeColor(type: SuggestedRorItem['entity_type']): string {
+    switch (type) {
+        case 'affiliation':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        case 'institution':
+            return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+        case 'funder':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+        default: {
+            const _exhaustive: never = type;
+            return _exhaustive;
+        }
+    }
+}
+
+function RorSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedRorItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const percent = Math.round(suggestion.similarity_score * 100);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={`text-xs ${entityTypeBadgeColor(suggestion.entity_type)}`}>
+                            <Building2 className="mr-1 h-3 w-3" />
+                            {entityTypeLabel(suggestion.entity_type)}
+                        </Badge>
+                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>
+                            {percent}% match
+                        </Badge>
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{suggestion.entity_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                            &rarr; {suggestion.suggested_name}
+                        </p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                            ROR: {suggestion.suggested_ror_id}
+                        </p>
+                        {suggestion.ror_aliases.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                Also known as: {suggestion.ror_aliases.slice(0, 3).join(', ')}
+                            </p>
+                        )}
+                    </div>
+
+                    {suggestion.existing_identifier && (
+                        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                            <span>
+                                Accepting will replace the existing {suggestion.existing_identifier_type ?? 'identifier'}:{' '}
+                                <span className="font-mono">{suggestion.existing_identifier}</span>
+                            </span>
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function AssistancePage({ suggestions: paginatedSuggestions, orcidSuggestions: paginatedOrcidSuggestions, rorSuggestions: paginatedRorSuggestions }: AssistancePageProps) {
     // Relation suggestions state
     const [suggestions, setSuggestions] = useState<SuggestedRelationItem[]>(paginatedSuggestions.data);
     const [pagination, setPagination] = useState<Omit<PaginatedData<SuggestedRelationItem>, 'data'>>(paginatedSuggestions);
@@ -174,6 +279,14 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
     const [orcidProcessingIds, setOrcidProcessingIds] = useState<Set<number>>(new Set());
     const orcidPollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // ROR suggestions state
+    const [rorSuggestions, setRorSuggestions] = useState<SuggestedRorItem[]>(paginatedRorSuggestions.data);
+    const [rorPagination, setRorPagination] = useState<Omit<PaginatedData<SuggestedRorItem>, 'data'>>(paginatedRorSuggestions);
+    const [isCheckingRors, setIsCheckingRors] = useState(false);
+    const [rorCheckProgress, setRorCheckProgress] = useState<string>('');
+    const [rorProcessingIds, setRorProcessingIds] = useState<Set<number>>(new Set());
+    const rorPollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Sync state when Inertia updates props
     useEffect(() => {
         setSuggestions(paginatedSuggestions.data);
@@ -184,6 +297,11 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
         setOrcidSuggestions(paginatedOrcidSuggestions.data);
         setOrcidPagination(paginatedOrcidSuggestions);
     }, [paginatedOrcidSuggestions]);
+
+    useEffect(() => {
+        setRorSuggestions(paginatedRorSuggestions.data);
+        setRorPagination(paginatedRorSuggestions);
+    }, [paginatedRorSuggestions]);
 
     const stopRelationPolling = useCallback(() => {
         if (relationPollingRef.current !== null) {
@@ -199,15 +317,23 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
         }
     }, []);
 
+    const stopRorPolling = useCallback(() => {
+        if (rorPollingRef.current !== null) {
+            clearTimeout(rorPollingRef.current);
+            rorPollingRef.current = null;
+        }
+    }, []);
+
     // Cleanup polling on unmount
     useEffect(() => {
         return () => {
             stopRelationPolling();
             stopOrcidPolling();
+            stopRorPolling();
         };
-    }, [stopRelationPolling, stopOrcidPolling]);
+    }, [stopRelationPolling, stopOrcidPolling, stopRorPolling]);
 
-    const isChecking = isCheckingRelations || isCheckingOrcids;
+    const isChecking = isCheckingRelations || isCheckingOrcids || isCheckingRors;
 
     // --- Relation discovery ---
     const startRelationPolling = useCallback((jobId: string) => {
@@ -295,17 +421,90 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
         orcidPollingRef.current = setTimeout(pollStatus, 3000);
     }, []);
 
+    const handleCheckOrcids = useCallback(async () => {
+        setIsCheckingOrcids(true);
+        setOrcidCheckProgress('Starting ORCID discovery...');
+        stopOrcidPolling();
+
+        try {
+            const { data } = await axios.post<{ jobId: string }>('/assistance/check-orcids');
+            startOrcidPolling(data.jobId);
+        } catch (error) {
+            setIsCheckingOrcids(false);
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                toast.warning(error.response.data?.error ?? 'An ORCID discovery job is already running.');
+            } else {
+                toast.error('Failed to start ORCID discovery.');
+            }
+        }
+    }, [stopOrcidPolling, startOrcidPolling]);
+
+    // --- ROR discovery ---
+    const startRorPolling = useCallback((jobId: string) => {
+        const pollStatus = async () => {
+            try {
+                const { data: status } = await axios.get<RorCheckStatusResponse>(`/assistance/check-rors/${jobId}/status`);
+                setRorCheckProgress(status.progress ?? '');
+
+                if (status.status === 'completed') {
+                    rorPollingRef.current = null;
+                    setIsCheckingRors(false);
+                    const found = status.newRorsFound ?? 0;
+                    if (found > 0) {
+                        toast.success(`ROR discovery completed: ${found} new suggestion(s) found.`);
+                    } else {
+                        toast.info('ROR discovery completed: No new suggestions found.');
+                    }
+                    router.reload({ only: ['rorSuggestions', 'pendingSuggestedRorsCount'] });
+                } else if (status.status === 'failed') {
+                    rorPollingRef.current = null;
+                    setIsCheckingRors(false);
+                    toast.error(`ROR discovery failed: ${status.error ?? 'Unknown error'}`);
+                } else {
+                    rorPollingRef.current = setTimeout(pollStatus, 3000);
+                }
+            } catch {
+                rorPollingRef.current = null;
+                setIsCheckingRors(false);
+                toast.error('Failed to check ROR discovery status.');
+            }
+        };
+
+        rorPollingRef.current = setTimeout(pollStatus, 3000);
+    }, []);
+
+    const handleCheckRors = useCallback(async () => {
+        setIsCheckingRors(true);
+        setRorCheckProgress('Starting ROR discovery...');
+        stopRorPolling();
+
+        try {
+            const { data } = await axios.post<{ jobId: string }>('/assistance/check-rors');
+            startRorPolling(data.jobId);
+        } catch (error) {
+            setIsCheckingRors(false);
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                toast.warning(error.response.data?.error ?? 'A ROR discovery job is already running.');
+            } else {
+                toast.error('Failed to start ROR discovery.');
+            }
+        }
+    }, [stopRorPolling, startRorPolling]);
+
     // --- Check All ---
     const handleCheckAll = useCallback(async () => {
         setIsCheckingRelations(true);
         setIsCheckingOrcids(true);
+        setIsCheckingRors(true);
         setRelationCheckProgress('Starting relation discovery...');
         setOrcidCheckProgress('Starting ORCID discovery...');
+        setRorCheckProgress('Starting ROR discovery...');
         stopRelationPolling();
         stopOrcidPolling();
+        stopRorPolling();
 
         try {
-            const { data } = await axios.post<{ relationJobId?: string; orcidJobId?: string; relationError?: string; orcidError?: string }>('/assistance/check-all');
+            const { data } = await axios.post<{ relationJobId?: string; orcidJobId?: string; rorJobId?: string; relationError?: string; orcidError?: string; rorError?: string }>('/assistance/check-all');
 
             if (data.relationJobId) {
                 startRelationPolling(data.relationJobId);
@@ -322,16 +521,25 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
                 setOrcidCheckProgress('');
                 toast.warning(data.orcidError ?? 'ORCID discovery is already running.');
             }
+
+            if (data.rorJobId) {
+                startRorPolling(data.rorJobId);
+            } else {
+                setIsCheckingRors(false);
+                setRorCheckProgress('');
+                toast.warning(data.rorError ?? 'ROR discovery is already running.');
+            }
         } catch (error) {
             setIsCheckingRelations(false);
             setIsCheckingOrcids(false);
+            setIsCheckingRors(false);
             if (axios.isAxiosError(error) && error.response?.status === 409) {
                 toast.warning(error.response.data?.error ?? 'Discovery jobs are already running.');
             } else {
                 toast.error('Failed to start discovery.');
             }
         }
-    }, [stopRelationPolling, stopOrcidPolling, startRelationPolling, startOrcidPolling]);
+    }, [stopRelationPolling, stopOrcidPolling, stopRorPolling, startRelationPolling, startOrcidPolling, startRorPolling]);
 
     // --- Relation accept/decline ---
     const handleAcceptRelation = useCallback(async (id: number) => {
@@ -422,6 +630,50 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
         }
     }, []);
 
+    // --- ROR accept/decline ---
+    const handleAcceptRor = useCallback(async (id: number) => {
+        setRorProcessingIds((prev) => new Set(prev).add(id));
+
+        try {
+            const { data } = await axios.post<RorAcceptResponse>(`/assistance/rors/${id}/accept`);
+            setRorSuggestions((prev) => prev.filter((s) => s.id !== id));
+
+            if (data.success) {
+                toast.success(data.message);
+            } else {
+                toast.warning(data.message);
+            }
+            router.reload({ only: ['rorSuggestions', 'pendingSuggestedRorsCount'] });
+        } catch {
+            toast.error('Failed to accept ROR suggestion.');
+        } finally {
+            setRorProcessingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleDeclineRor = useCallback(async (id: number) => {
+        setRorProcessingIds((prev) => new Set(prev).add(id));
+
+        try {
+            await axios.post(`/assistance/rors/${id}/decline`);
+            setRorSuggestions((prev) => prev.filter((s) => s.id !== id));
+            toast.info('ROR suggestion declined.');
+            router.reload({ only: ['rorSuggestions', 'pendingSuggestedRorsCount'] });
+        } catch {
+            toast.error('Failed to decline ROR suggestion.');
+        } finally {
+            setRorProcessingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
+    }, []);
+
     // Group relation suggestions by resource
     const groupedSuggestions = suggestions.reduce<Record<number, { doi: string; title: string; items: SuggestedRelationItem[] }>>(
         (groups, suggestion) => {
@@ -440,6 +692,22 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
 
     // Group ORCID suggestions by resource
     const groupedOrcidSuggestions = orcidSuggestions.reduce<Record<number, { doi: string; title: string; items: SuggestedOrcidItem[] }>>(
+        (groups, suggestion) => {
+            if (!groups[suggestion.resource_id]) {
+                groups[suggestion.resource_id] = {
+                    doi: suggestion.resource_doi,
+                    title: suggestion.resource_title,
+                    items: [],
+                };
+            }
+            groups[suggestion.resource_id].items.push(suggestion);
+            return groups;
+        },
+        {},
+    );
+
+    // Group ROR suggestions by resource
+    const groupedRorSuggestions = rorSuggestions.reduce<Record<number, { doi: string; title: string; items: SuggestedRorItem[] }>>(
         (groups, suggestion) => {
             if (!groups[suggestion.resource_id]) {
                 groups[suggestion.resource_id] = {
@@ -491,16 +759,37 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
                         <span>{orcidCheckProgress}</span>
                     </div>
                 )}
+                {isCheckingRors && rorCheckProgress && (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                        <Spinner size="sm" />
+                        <span>{rorCheckProgress}</span>
+                    </div>
+                )}
 
                 {/* Suggested ORCIDs Card */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Suggested ORCIDs</CardTitle>
-                        <CardDescription>
-                            {orcidPagination.total > 0
-                                ? `${orcidPagination.total} pending ORCID suggestion(s) for creators and contributors.`
-                                : 'No pending ORCID suggestions.'}
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div className="space-y-1.5">
+                            <CardTitle>Suggested ORCIDs</CardTitle>
+                            <CardDescription>
+                                {orcidPagination.total > 0
+                                    ? `${orcidPagination.total} pending ORCID suggestion(s) for creators and contributors.`
+                                    : 'No pending ORCID suggestions.'}
+                            </CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleCheckOrcids} disabled={isCheckingOrcids}>
+                            {isCheckingOrcids ? (
+                                <>
+                                    <Spinner size="sm" className="mr-2" />
+                                    Checking...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Check
+                                </>
+                            )}
+                        </Button>
                     </CardHeader>
                     <CardContent>
                         {Object.keys(groupedOrcidSuggestions).length > 0 ? (
@@ -533,7 +822,7 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
                                 <div className="text-4xl">&#10003;</div>
                                 <p className="mt-2 text-lg font-medium">All ORCIDs are up to date!</p>
                                 <p className="text-sm text-muted-foreground">
-                                    No missing ORCIDs found. Click &quot;Check all&quot; to search for new ones.
+                                    No missing ORCIDs found. Click &quot;Check&quot; to search for new ones.
                                 </p>
                             </div>
                         )}
@@ -547,6 +836,89 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
                                     {orcidPagination.links.map((link, index) => (
                                         <Button
                                             key={link.url ?? `orcid-${link.label}-${index}`}
+                                            variant={link.active ? 'default' : 'outline'}
+                                            size="sm"
+                                            disabled={!link.url}
+                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Suggested ROR-IDs Card */}
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div className="space-y-1.5">
+                            <CardTitle>Suggested ROR-IDs</CardTitle>
+                            <CardDescription>
+                                {rorPagination.total > 0
+                                    ? `${rorPagination.total} pending ROR suggestion(s) for affiliations, institutions, and funders.`
+                                    : 'No pending ROR suggestions.'}
+                            </CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleCheckRors} disabled={isCheckingRors}>
+                            {isCheckingRors ? (
+                                <>
+                                    <Spinner size="sm" className="mr-2" />
+                                    Checking...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Check
+                                </>
+                            )}
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {Object.keys(groupedRorSuggestions).length > 0 ? (
+                            <div className="space-y-6">
+                                {Object.entries(groupedRorSuggestions).map(([resourceId, group]) => (
+                                    <div key={resourceId} className="space-y-3">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
+                                            <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                            <Badge variant="secondary" className="ml-auto text-xs">
+                                                {group.items.length} suggestion(s)
+                                            </Badge>
+                                        </div>
+                                        <div className="space-y-2 pl-4">
+                                            {group.items.map((suggestion) => (
+                                                <RorSuggestionCard
+                                                    key={suggestion.id}
+                                                    suggestion={suggestion}
+                                                    onAccept={handleAcceptRor}
+                                                    onDecline={handleDeclineRor}
+                                                    isProcessing={rorProcessingIds.has(suggestion.id)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <div className="text-4xl">&#10003;</div>
+                                <p className="mt-2 text-lg font-medium">All ROR-IDs are up to date!</p>
+                                <p className="text-sm text-muted-foreground">
+                                    No missing ROR-IDs found. Click &quot;Check&quot; to search for new ones.
+                                </p>
+                            </div>
+                        )}
+
+                        {rorPagination.last_page > 1 && (
+                            <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {rorPagination.from ?? 0}–{rorPagination.to ?? 0} of {rorPagination.total}
+                                </p>
+                                <div className="flex gap-1">
+                                    {rorPagination.links.map((link, index) => (
+                                        <Button
+                                            key={link.url ?? `ror-${link.label}-${index}`}
                                             variant={link.active ? 'default' : 'outline'}
                                             size="sm"
                                             disabled={!link.url}

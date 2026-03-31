@@ -351,7 +351,11 @@ class OrcidDiscoveryService
                 return null;
             });
         } catch (QueryException $e) {
-            // Unique constraint violation from a concurrent acceptance
+            // Only handle unique constraint violations (concurrent acceptance race)
+            if (($e->errorInfo[1] ?? null) !== 1062) {
+                throw $e;
+            }
+
             SuggestedOrcid::where('person_id', $personId)->delete();
             $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
 

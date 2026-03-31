@@ -26,7 +26,7 @@ import { type NavItem, type SharedData, type User as AuthUser } from '@/types';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth, pendingSuggestedRelationsCount, pendingSuggestedOrcidsCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
+    const { auth, pendingSuggestedRelationsCount, pendingSuggestedOrcidsCount, pendingSuggestedRorsCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
 
     // Dashboard - always visible
     const dashboardItems: NavItem[] = [
@@ -82,7 +82,7 @@ export function AppSidebar() {
             title: 'Assistance',
             href: '/assistance',
             icon: Sparkles,
-            badge: (pendingSuggestedRelationsCount ?? 0) + (pendingSuggestedOrcidsCount ?? 0),
+            badge: (pendingSuggestedRelationsCount ?? 0) + (pendingSuggestedOrcidsCount ?? 0) + (pendingSuggestedRorsCount ?? 0),
         });
     }
 
