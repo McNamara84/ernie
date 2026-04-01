@@ -6,6 +6,7 @@ namespace App\Services\Editor;
 
 use App\Models\Affiliation;
 use App\Models\ContributorType;
+use App\Models\Datacenter;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Person;
@@ -71,6 +72,7 @@ class EditorDataTransformer
             'fundingReferences' => $this->transformFundingReferences($resource),
             'mslLaboratories' => $this->transformMslLaboratories($resource),
             'instruments' => $this->transformInstruments($resource),
+            'initialDatacenters' => $resource->datacenters->pluck('id')->all(),
         ];
     }
 
@@ -87,6 +89,7 @@ class EditorDataTransformer
             'googleMapsApiKey' => config('services.google_maps.api_key'),
             'activeRelationTypes' => RelationType::active()->orderByName()->pluck('slug')->values()->all(),
             'activeIdentifierTypes' => IdentifierType::active()->orderByName()->pluck('slug')->values()->all(),
+            'availableDatacenters' => Datacenter::orderBy('name')->get(['id', 'name'])->toArray(),
         ];
     }
 

@@ -198,6 +198,7 @@ class EditorController extends Controller
                 'relatedIdentifiers.relationType',
                 'fundingReferences.funderIdentifierType',
                 'instruments',
+                'datacenters',
             ])
             ->findOrFail($resourceId);
 

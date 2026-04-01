@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\Institution;
@@ -71,6 +72,7 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+     *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      *     page?: int,
@@ -104,6 +106,7 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+     *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
@@ -125,6 +128,7 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+     *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
      * }  $filters
@@ -181,6 +185,9 @@ class PortalSearchService
         // Apply keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
 
+        // Apply datacenter filter
+        $this->applyDatacenterFilter($query, $filters['datacenter'] ?? null);
+
         // Apply temporal date filter
         $this->applyTemporalFilter($query, $filters['temporal'] ?? null);
 
@@ -214,6 +221,26 @@ class PortalSearchService
     }
 
     /**
+     * Apply datacenter filter by name.
+     *
+     * An empty array or null means "no filter" (show all datacenters).
+     * Uses OR logic: a resource matching ANY of the selected datacenters is included.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  string[]|null  $datacenterNames
+     */
+    private function applyDatacenterFilter(Builder $query, ?array $datacenterNames): void
+    {
+        if ($datacenterNames === null || $datacenterNames === []) {
+            return;
+        }
+
+        $query->whereHas('datacenters', function (Builder $q) use ($datacenterNames): void {
+            $q->whereIn('name', $datacenterNames);
+        });
+    }
+
+    /**
      * Get resource type facets with counts for published resources.
      *
      * Returns only resource types that have at least one published resource,
@@ -242,6 +269,39 @@ class PortalSearchService
                 return $results->map(fn ($row): array => [
                     'slug' => $row->slug,
                     'name' => $row->slug === 'physical-object' ? 'IGSN Samples' : $row->name,
+                    'count' => (int) $row->resources_count,
+                ])->all();
+            });
+    }
+
+    /**
+     * Get datacenter facets with counts for published resources.
+     *
+     * Returns only datacenters that have at least one published resource,
+     * sorted by count descending.
+     *
+     * @return array<int, array{name: string, count: int}>
+     */
+    public function getDatacenterFacets(): array
+    {
+        $cacheKey = CacheKey::PORTAL_DATACENTER_FACETS;
+
+        /** @var array<int, array{name: string, count: int}> */
+        return $this->getCacheInstance($cacheKey->tags())
+            ->remember($cacheKey->key(), $cacheKey->ttl(), function (): array {
+                $results = Datacenter::query()
+                    ->select('datacenters.name')
+                    ->selectRaw('COUNT(DISTINCT resources.id) as resources_count')
+                    ->join('resource_datacenter', 'resource_datacenter.datacenter_id', '=', 'datacenters.id')
+                    ->join('resources', 'resources.id', '=', 'resource_datacenter.resource_id')
+                    ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+                    ->where('landing_pages.is_published', true)
+                    ->groupBy('datacenters.id', 'datacenters.name')
+                    ->orderByDesc('resources_count')
+                    ->get();
+
+                return $results->map(fn ($row): array => [
+                    'name' => $row->name,
                     'count' => (int) $row->resources_count,
                 ])->all();
             });

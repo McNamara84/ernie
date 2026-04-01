@@ -47,6 +47,7 @@ import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-cov
 import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import UsedInstrumentsField from './fields/used-instruments-field';
+import { DatacenterField } from './fields/datacenter-field';
 import {
     type DataCiteFormData,
     type DataCiteFormProps,
@@ -107,6 +108,8 @@ export default function DataCiteForm({
     initialInstruments = [],
     initialRelatedWorks = [],
     initialFundingReferences = [],
+    initialDatacenters = [],
+    availableDatacenters = [],
     isUserAdmin,
     activeRelationTypes,
     activeIdentifierTypes,
@@ -345,6 +348,13 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [selectedDatacenters, setSelectedDatacenters] = useState<number[]>(() => {
+        if (initialDatacenters && initialDatacenters.length > 0) {
+            return initialDatacenters;
+        }
+        return [];
+    });
+    const [datacenterTouched, setDatacenterTouched] = useState(false);
     const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([
         'resource-info',
         'authors',
@@ -994,8 +1004,8 @@ export default function DataCiteForm({
         const abstractFilled = descriptions.some((desc) => desc.type === 'Abstract' && desc.value.trim() !== '');
         // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
 
-        return mainTitleFilled && yearFilled && resourceTypeSelected && languageSelected && primaryLicenseFilled && authorsValid && abstractFilled;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
+        return mainTitleFilled && yearFilled && resourceTypeSelected && languageSelected && primaryLicenseFilled && authorsValid && abstractFilled && selectedDatacenters.length > 0;
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles]);
 
     // Draft save only requires a Main Title (Issue #548)
     const isDraftSaveable = useMemo(() => {
@@ -1066,8 +1076,13 @@ export default function DataCiteForm({
 
         // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
 
+        // Check datacenters
+        if (selectedDatacenters.length === 0) {
+            missing.push('At least one Datacenter is required');
+        }
+
         return missing;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1083,6 +1098,7 @@ export default function DataCiteForm({
         const hasYear = Boolean(form.year?.trim());
         const hasResourceType = Boolean(form.resourceType);
         const hasLanguage = Boolean(form.language);
+        const hasDatacenter = selectedDatacenters.length > 0;
 
         // Check if DOI has validation errors (if present)
         const doiMessages = getFieldState('doi').messages;
@@ -1096,14 +1112,14 @@ export default function DataCiteForm({
         const versionMessages = getFieldState('version').messages;
         const hasVersionError = versionMessages.some((msg) => msg.severity === 'error');
 
-        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasLanguage;
+        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasLanguage && hasDatacenter;
         const hasErrors = hasDoiError || hasYearError || hasVersionError;
 
         if (!allRequiredPresent || hasErrors) {
             return 'invalid';
         }
         return 'valid';
-    }, [titles, form.year, form.resourceType, form.language, getFieldState]);
+    }, [titles, form.year, form.resourceType, form.language, selectedDatacenters, getFieldState]);
 
     const licensesStatus = useMemo(() => {
         const primaryLicense = licenseEntries[0]?.license?.trim();
@@ -1677,6 +1693,7 @@ export default function DataCiteForm({
                 pidType: string;
                 name: string;
             }[];
+            datacenters: number[];
             importedCreatedDate: string | null;
             resourceId?: number;
         } = {
@@ -1753,6 +1770,7 @@ export default function DataCiteForm({
                 pidType: inst.pidType,
                 name: inst.name,
             })),
+            datacenters: selectedDatacenters,
             importedCreatedDate,
         };
 
@@ -1780,6 +1798,7 @@ export default function DataCiteForm({
         mslLaboratories,
         relatedWorks,
         resolvedResourceId,
+        selectedDatacenters,
         spatialTemporalCoverages,
         titles,
     ]);
@@ -2070,7 +2089,7 @@ export default function DataCiteForm({
                                 validationMessages={getFieldState('year').messages}
                                 touched={getFieldState('year').touched}
                                 placeholder="2024"
-                                className="md:col-span-2"
+                                className="md:col-span-1"
                                 required
                             />
                             <SelectField
@@ -2085,9 +2104,22 @@ export default function DataCiteForm({
                                     value: String(type.id),
                                     label: type.name,
                                 }))}
-                                className="md:col-span-4"
+                                className="md:col-span-3"
                                 required
                                 data-testid="resource-type-select"
+                            />
+                            <DatacenterField
+                                id="datacenter"
+                                label="Datacenter"
+                                options={availableDatacenters}
+                                selected={selectedDatacenters}
+                                onChange={(ids) => {
+                                    setSelectedDatacenters(ids);
+                                    setDatacenterTouched(true);
+                                }}
+                                className="md:col-span-3"
+                                required
+                                hasError={datacenterTouched && selectedDatacenters.length === 0}
                             />
                             <InputField
                                 id="version"

@@ -179,6 +179,13 @@ class EditorSettingsController extends Controller
             'contributorBothRoles' => $contributorBothRoles,
             'relationTypes' => $relationTypes,
             'identifierTypes' => $identifierTypes,
+            'datacenters' => \App\Models\Datacenter::orderBy('name')
+                ->get()
+                ->map(fn (\App\Models\Datacenter $dc) => [
+                    'id' => $dc->id,
+                    'name' => $dc->name,
+                    'resources_count' => $dc->resources()->count(),
+                ]),
         ]);
     }
 

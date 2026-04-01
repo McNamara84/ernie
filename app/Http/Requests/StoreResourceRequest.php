@@ -168,6 +168,8 @@ class StoreResourceRequest extends FormRequest
             'instruments.*.pid' => ['required', 'string', 'max:512'],
             'instruments.*.pidType' => ['required', 'string', Rule::in(['Handle', 'DOI', 'URL'])],
             'instruments.*.name' => ['required', 'string', 'max:1024'],
+            'datacenters' => ['required', 'array', 'min:1'],
+            'datacenters.*' => ['required', 'integer', Rule::exists('datacenters', 'id')],
         ];
     }
 

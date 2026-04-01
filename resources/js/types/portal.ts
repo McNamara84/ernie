@@ -75,6 +75,7 @@ export interface PortalFilters {
     type: string[];
     exclude_type?: string | null;
     keywords: string[];
+    datacenter: string[];
     bounds: GeoBounds | null;
     temporal: TemporalFilterValue | null;
 }
@@ -126,6 +127,7 @@ export interface PortalPageProps {
     keywordSuggestions: KeywordSuggestion[];
     temporalRange: TemporalRange;
     resourceTypeFacets: ResourceTypeFacet[];
+    datacenterFacets: DatacenterFacet[];
 }
 
 /**
@@ -133,6 +135,14 @@ export interface PortalPageProps {
  */
 export interface ResourceTypeFacet {
     slug: string;
+    name: string;
+    count: number;
+}
+
+/**
+ * Datacenter facet for filtering.
+ */
+export interface DatacenterFacet {
     name: string;
     count: number;
 }

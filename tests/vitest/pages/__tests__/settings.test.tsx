@@ -98,6 +98,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         // Find headers by their text content (handles different accessible name interpretations)
@@ -146,6 +147,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -184,6 +186,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -214,6 +217,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
@@ -244,6 +248,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
@@ -272,6 +277,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         // Verify Limits card exists with heading
@@ -304,6 +310,7 @@ describe('License settings', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -336,6 +343,7 @@ describe('Language settings', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -368,6 +376,7 @@ describe('Date Type settings', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));

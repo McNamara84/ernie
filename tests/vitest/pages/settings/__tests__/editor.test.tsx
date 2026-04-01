@@ -115,6 +115,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
         const grid = screen.getByTestId('settings-grid');
@@ -234,6 +235,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -292,6 +294,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -352,6 +355,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -410,6 +414,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -461,6 +466,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -515,6 +521,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -567,6 +574,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -625,6 +633,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -678,6 +687,7 @@ describe('EditorSettings page', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -733,6 +743,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -804,6 +815,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -864,6 +876,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -923,6 +936,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -980,6 +994,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -1040,6 +1055,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -1100,6 +1116,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -1160,6 +1177,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 
@@ -1220,6 +1238,7 @@ describe('Select All / Deselect All header checkboxes', () => {
                 descriptionTypes={[]}
             relationTypes={[]}
             identifierTypes={[]}
+            datacenters={[]}
             />,
         );
 

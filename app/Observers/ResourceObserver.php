@@ -35,6 +35,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
+        $this->invalidateDatacenterFacets();
     }
 
     /**
@@ -62,6 +63,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->keywordService->invalidateCache();
+        $this->invalidateDatacenterFacets();
 
         // Sync DOI to landing page if DOI was changed during this save.
         // Use wasChanged() instead of isDirty() because observers run AFTER the model
@@ -175,6 +177,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
+        $this->invalidateDatacenterFacets();
     }
 
     /**
@@ -187,5 +190,15 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
+        $this->invalidateDatacenterFacets();
+    }
+
+    /**
+     * Invalidate the portal datacenter facets cache.
+     */
+    private function invalidateDatacenterFacets(): void
+    {
+        $cacheKey = \App\Enums\CacheKey::PORTAL_DATACENTER_FACETS;
+        Cache::tags($cacheKey->tags())->flush();
     }
 }

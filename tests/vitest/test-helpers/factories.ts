@@ -317,6 +317,7 @@ export function createMockPortalFilters(overrides?: Partial<PortalFilters>): Por
         query: null,
         type: [],
         keywords: [],
+        datacenter: [],
         bounds: null,
         temporal: null,
         ...overrides,

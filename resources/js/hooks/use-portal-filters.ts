@@ -12,6 +12,7 @@ interface UsePortalFiltersReturn {
     filters: PortalFilters;
     setSearch: (query: string) => void;
     setType: (type: string[]) => void;
+    setDatacenter: (datacenter: string[]) => void;
     setKeywords: (keywords: string[]) => void;
     addKeyword: (keyword: string) => void;
     removeKeyword: (keyword: string) => void;
@@ -35,6 +36,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
 
             const query = newFilters.query !== undefined ? newFilters.query : filters.query;
             const type = newFilters.type !== undefined ? newFilters.type : filters.type;
+            const datacenter = newFilters.datacenter !== undefined ? newFilters.datacenter : filters.datacenter;
             const keywords = newFilters.keywords !== undefined ? newFilters.keywords : filters.keywords;
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
             const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
@@ -58,6 +60,12 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
                 // exclusion — preserve the legacy ?type=doi param so
                 // the backend can reconstruct the exclude constraint.
                 params.set('type', 'doi');
+            }
+
+            if (datacenter && datacenter.length > 0) {
+                datacenter.forEach((name) => {
+                    params.append('datacenter[]', name);
+                });
             }
 
             if (keywords && keywords.length > 0) {
@@ -101,6 +109,13 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
     const setType = useCallback(
         (type: string[]) => {
             updateFilters({ type }, true);
+        },
+        [updateFilters],
+    );
+
+    const setDatacenter = useCallback(
+        (datacenter: string[]) => {
+            updateFilters({ datacenter }, true);
         },
         [updateFilters],
     );
@@ -157,6 +172,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             (filters.query !== null && filters.query.trim() !== '') ||
             (filters.type !== undefined && filters.type.length > 0) ||
             filters.exclude_type != null ||
+            (filters.datacenter !== undefined && filters.datacenter.length > 0) ||
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
             filters.bounds !== null ||
             filters.temporal !== null
@@ -167,6 +183,7 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         filters,
         setSearch,
         setType,
+        setDatacenter,
         setKeywords,
         addKeyword,
         removeKeyword,

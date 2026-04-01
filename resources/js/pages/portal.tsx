@@ -17,7 +17,7 @@ const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange, resourceTypeFacets }: PortalPageProps) {
+export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
     // Initialize map collapsed state from localStorage
@@ -58,7 +58,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
     }, []);
 
-    const { setSearch, setType, setKeywords, setBounds, clearBounds, setTemporal, clearFilters, hasActiveFilters } = usePortalFilters({
+    const { setSearch, setType, setDatacenter, setKeywords, setBounds, clearBounds, setTemporal, clearFilters, hasActiveFilters } = usePortalFilters({
         filters,
         currentPage: pagination.current_page,
     });
@@ -201,6 +201,12 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 });
             }
 
+            if (filters.datacenter && filters.datacenter.length > 0) {
+                filters.datacenter.forEach((name) => {
+                    params.append('datacenter[]', name);
+                });
+            }
+
             if (filters.bounds) {
                 params.set('north', filters.bounds.north.toFixed(6));
                 params.set('south', filters.bounds.south.toFixed(6));
@@ -235,6 +241,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         filters={filters}
                         onSearchChange={setSearch}
                         onTypeChange={setType}
+                        onDatacenterChange={setDatacenter}
                         onKeywordsChange={setKeywords}
                         onClearFilters={handleClearAllFilters}
                         hasActiveFilters={hasActiveFilters}
@@ -250,6 +257,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         onTemporalFilterToggle={handleTemporalFilterToggle}
                         onTemporalChange={handleTemporalChange}
                         resourceTypeFacets={resourceTypeFacets}
+                        datacenterFacets={datacenterFacets}
                     />
 
                     {/* Results + Map Container - Stacked layout for smaller screens */}

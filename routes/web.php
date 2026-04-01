@@ -361,6 +361,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/landing-page-domains/list', [\App\Http\Controllers\LandingPageDomainController::class, 'index'])
         ->name('landing-page-domains.list');
 
+    // Datacenters - read-only for all authenticated users (editor dropdown)
+    Route::get('api/datacenters', [\App\Http\Controllers\DatacenterController::class, 'index'])
+        ->name('datacenters.index');
+
     // Landing Page Temporary Preview (Session-based)
     Route::post('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'store'])
         ->name('landing-page.preview.store');

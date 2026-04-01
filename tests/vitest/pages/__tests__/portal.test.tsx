@@ -30,6 +30,7 @@ vi.mock('@/hooks/use-portal-filters', () => ({
     usePortalFilters: () => ({
         setSearch: setSearchMock,
         setType: setTypeMock,
+        setDatacenter: vi.fn(),
         setKeywords: vi.fn(),
         addKeyword: vi.fn(),
         removeKeyword: vi.fn(),
@@ -195,6 +196,7 @@ const defaultProps: PortalPageProps = {
         query: '',
         type: [],
         keywords: [],
+        datacenter: [],
         bounds: null,
         temporal: null,
     },
@@ -205,6 +207,7 @@ const defaultProps: PortalPageProps = {
         { slug: 'software', name: 'Software', count: 15 },
         { slug: 'physical-object', name: 'IGSN Samples', count: 5 },
     ],
+    datacenterFacets: [],
 };
 
 describe('Portal', () => {
@@ -249,7 +252,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithQuery = {
             ...defaultProps,
-            filters: { query: 'climate', type: [] as string[], keywords: [], bounds: null, temporal: null },
+            filters: { query: 'climate', type: [] as string[], keywords: [], datacenter: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithQuery} />);
 
@@ -263,7 +266,7 @@ describe('Portal', () => {
         const user = userEvent.setup();
         const propsWithType = {
             ...defaultProps,
-            filters: { query: '', type: ['dataset'], keywords: [], bounds: null, temporal: null },
+            filters: { query: '', type: ['dataset'], keywords: [], datacenter: [], bounds: null, temporal: null },
         };
         render(<Portal {...propsWithType} />);
 
@@ -381,6 +384,7 @@ describe('Portal', () => {
                     query: '',
                     type: [] as string[],
                     keywords: [],
+                    datacenter: [],
                     bounds: { north: 53, south: 51, east: 14, west: 12 },
                     temporal: null,
                 },
@@ -578,6 +582,7 @@ describe('Portal', () => {
                     query: '',
                     type: [] as string[],
                     keywords: ['Seismology', 'Geology'],
+                    datacenter: [],
                     bounds: null,
                     temporal: null,
                 },
@@ -633,7 +638,7 @@ describe('Portal', () => {
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
             await user.click(screen.getByTestId('temporal-toggle'));
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
-            // Parent toggle handler no longer calls setTemporal(null) –
+            // Parent toggle handler no longer calls setTemporal(null) â€“
             // the child component (PortalTemporalFilter) handles clearing
             // to avoid duplicate navigations.
             expect(setTemporalMock).not.toHaveBeenCalled();
@@ -680,6 +685,7 @@ describe('Portal', () => {
                     query: '',
                     type: [] as string[],
                     keywords: [],
+                    datacenter: [],
                     bounds: null,
                     temporal: { dateType: 'Created' as const, yearFrom: 2010, yearTo: 2020 },
                 },

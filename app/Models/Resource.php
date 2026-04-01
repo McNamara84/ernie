@@ -53,6 +53,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
  * @property-read \Illuminate\Database\Eloquent\Collection<int, AlternateIdentifier> $alternateIdentifiers
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceInstrument> $instruments
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Datacenter> $datacenters
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
@@ -196,6 +197,16 @@ class Resource extends Model
     {
         /** @var BelongsToMany<Right, static> $relation */
         $relation = $this->belongsToMany(Right::class, 'resource_rights', 'resource_id', 'rights_id')
+            ->withTimestamps();
+
+        return $relation;
+    }
+
+    /** @return BelongsToMany<Datacenter, static> */
+    public function datacenters(): BelongsToMany
+    {
+        /** @var BelongsToMany<Datacenter, static> $relation */
+        $relation = $this->belongsToMany(Datacenter::class, 'resource_datacenter')
             ->withTimestamps();
 
         return $relation;

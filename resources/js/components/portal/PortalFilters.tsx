@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { PortalDatacenterFilter } from '@/components/portal/PortalDatacenterFilter';
 import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
 import { PortalKeywordFilter } from '@/components/portal/PortalKeywordFilter';
 import { PortalResourceTypeFilter } from '@/components/portal/PortalResourceTypeFilter';
@@ -10,12 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, KeywordSuggestion, PortalFilters, ResourceTypeFacet, TemporalFilterValue, TemporalRange } from '@/types/portal';
+import type { DatacenterFacet, GeoBounds, KeywordSuggestion, PortalFilters, ResourceTypeFacet, TemporalFilterValue, TemporalRange } from '@/types/portal';
 
 interface PortalFiltersProps {
     filters: PortalFilters;
     onSearchChange: (query: string) => void;
     onTypeChange: (type: string[]) => void;
+    onDatacenterChange: (datacenter: string[]) => void;
     onKeywordsChange: (keywords: string[]) => void;
     onClearFilters: () => void;
     hasActiveFilters: boolean;
@@ -31,12 +33,14 @@ interface PortalFiltersProps {
     onTemporalFilterToggle: (enabled: boolean) => void;
     onTemporalChange: (temporal: TemporalFilterValue | null) => void;
     resourceTypeFacets: ResourceTypeFacet[];
+    datacenterFacets: DatacenterFacet[];
 }
 
 export function PortalFilters({
     filters,
     onSearchChange,
     onTypeChange,
+    onDatacenterChange,
     onKeywordsChange,
     onClearFilters,
     hasActiveFilters,
@@ -52,6 +56,7 @@ export function PortalFilters({
     onTemporalFilterToggle,
     onTemporalChange,
     resourceTypeFacets,
+    datacenterFacets,
 }: PortalFiltersProps) {
     const [searchInput, setSearchInput] = useState(filters.query ?? '');
 
@@ -187,6 +192,16 @@ export function PortalFilters({
                             selectedSlugs={filters.type}
                             excludeType={filters.exclude_type}
                             onSelectionChange={onTypeChange}
+                        />
+                    </div>
+
+                    {/* Datacenter Filter */}
+                    <div className="space-y-3">
+                        <Label className="text-sm font-medium">Datacenter</Label>
+                        <PortalDatacenterFilter
+                            facets={datacenterFacets}
+                            selectedNames={filters.datacenter ?? []}
+                            onSelectionChange={onDatacenterChange}
                         />
                     </div>
 
