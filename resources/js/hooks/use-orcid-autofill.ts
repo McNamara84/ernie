@@ -431,12 +431,16 @@ export function useOrcidAutofill<T extends BaseEntry>({
         return OrcidService.isValidFormat(entry.orcid) && OrcidService.validateChecksum(entry.orcid);
     }, [entry]);
 
-    // Manual retry function
+    // Manual retry function — also resets orcidVerified to allow re-verification of stored ORCIDs
     const retryVerification = useCallback(() => {
         if (!isPersonEntry(entry) || !entry.orcid?.trim()) return;
         clearError();
+        // Reset verified state so the auto-verify effect can run again
+        if (entry.orcidVerified) {
+            onEntryChange({ ...entry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
+        }
         setRetryTrigger((prev) => prev + 1);
-    }, [entry, clearError]);
+    }, [entry, clearError, onEntryChange]);
 
     /**
      * Apply selected pending data to the entry

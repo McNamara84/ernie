@@ -263,10 +263,21 @@ export default function ContributorItem({
                             <Label htmlFor={`${contributor.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
                                 <span>ORCID</span>
                                 {contributor.type === 'person' && contributor.orcidVerified && (
-                                    <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
-                                        <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
-                                        Verified
-                                    </Badge>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                type="button"
+                                                onClick={retryVerification}
+                                                className="inline-flex cursor-pointer items-center border-green-600 text-green-600 transition-opacity hover:opacity-70"
+                                            >
+                                                <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
+                                                    <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+                                                    Verified
+                                                </Badge>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>ORCID verified — click to re-verify</TooltipContent>
+                                    </Tooltip>
                                 )}
                                 {isVerifying && (
                                     <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
