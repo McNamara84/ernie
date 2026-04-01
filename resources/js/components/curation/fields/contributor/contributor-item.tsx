@@ -261,8 +261,8 @@ export default function ContributorItem({
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
                         {/* ORCID with Verify & Fill Button */}
                         <div className="relative flex flex-col gap-2 md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
-                            <Label htmlFor={`${contributor.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
-                                <span>ORCID</span>
+                            <div className="inline-flex flex-wrap items-baseline gap-x-2">
+                                <Label htmlFor={`${contributor.id}-orcid`}>ORCID</Label>
                                 {contributor.type === 'person' && contributor.orcidVerified && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -287,7 +287,10 @@ export default function ContributorItem({
                                         Verifying...
                                     </span>
                                 )}
-                            </Label>
+                            </div>
+                            <span id={`${contributor.id}-orcid-status`} className="sr-only">
+                                {contributor.type === 'person' && contributor.orcidVerified ? 'ORCID verified' : ''}
+                            </span>
                             <div className="flex gap-2">
                                 <Input
                                     id={`${contributor.id}-orcid`}
@@ -297,6 +300,7 @@ export default function ContributorItem({
                                     placeholder="0000-0000-0000-0000"
                                     inputMode="text"
                                     pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                    aria-describedby={`${contributor.id}-orcid-status`}
                                 />
                                 {contributor.type === 'person' && (
                                     <OrcidSearchDialog onSelect={handleSelectSuggestion} triggerClassName="h-10 w-10 shrink-0" />

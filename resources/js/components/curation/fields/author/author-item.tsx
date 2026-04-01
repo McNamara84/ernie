@@ -185,8 +185,8 @@ export default function AuthorItem({
                         <>
                             {/* ORCID with Verify & Fill Button */}
                             <div className="relative flex flex-col gap-2 md:col-span-3" data-testid={`author-${index}-orcid-field`}>
-                                <Label htmlFor={`${author.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
-                                    <span>ORCID</span>
+                                <div className="inline-flex flex-wrap items-baseline gap-x-2">
+                                    <Label htmlFor={`${author.id}-orcid`}>ORCID</Label>
                                     {author.type === 'person' && author.orcidVerified && (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -211,7 +211,10 @@ export default function AuthorItem({
                                             Verifying...
                                         </span>
                                     )}
-                                </Label>
+                                </div>
+                                <span id={`${author.id}-orcid-status`} className="sr-only">
+                                    {author.type === 'person' && author.orcidVerified ? 'ORCID verified' : ''}
+                                </span>
                                 <div className="flex gap-2">
                                     <Input
                                         id={`${author.id}-orcid`}
@@ -221,6 +224,7 @@ export default function AuthorItem({
                                         placeholder="0000-0000-0000-0000"
                                         inputMode="text"
                                         pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                        aria-describedby={`${author.id}-orcid-status`}
                                     />
                                     {author.type === 'person' && (
                                         <OrcidSearchDialog

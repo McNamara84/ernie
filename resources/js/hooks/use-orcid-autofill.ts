@@ -435,6 +435,9 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const retryVerification = useCallback(() => {
         if (!isPersonEntry(entry) || !entry.orcid?.trim()) return;
         clearError();
+        // Clear stale data from prior verification runs
+        setPendingOrcidData(null);
+        setOrcidSuggestions([]);
         // Reset verified state so the auto-verify effect can run again
         if (entry.orcidVerified) {
             onEntryChange({ ...entry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
