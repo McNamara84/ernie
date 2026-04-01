@@ -269,6 +269,7 @@ export default function ContributorItem({
                                             <button
                                                 type="button"
                                                 onClick={retryVerification}
+                                                aria-label="Re-verify ORCID"
                                                 className="inline-flex cursor-pointer items-center border-green-600 text-green-600 transition-opacity hover:opacity-70"
                                             >
                                                 <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">

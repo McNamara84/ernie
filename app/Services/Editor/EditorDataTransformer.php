@@ -176,8 +176,10 @@ class EditorDataTransformer
                 $data['firstName'] = $creatorable->given_name ?? '';
                 $data['lastName'] = $creatorable->family_name ?? '';
                 $data['orcid'] = $creatorable->name_identifier ?? '';
-                // Mark stored ORCIDs as already verified to skip re-validation on load
-                $data['orcidVerified'] = ! empty($creatorable->name_identifier);
+                // Mark stored ORCIDs as already verified to skip re-validation on load.
+                // Only trust identifiers that are actually ORCIDs (scheme=ORCID or null for legacy data).
+                $data['orcidVerified'] = filled(trim($creatorable->name_identifier ?? ''))
+                    && in_array($creatorable->name_identifier_scheme, ['ORCID', null], true);
             } elseif ($firstEntry->creatorable_type === Institution::class) {
                 /** @var Institution $creatorable */
                 $data['type'] = 'institution';
@@ -209,8 +211,10 @@ class EditorDataTransformer
                 $data['firstName'] = $person->given_name ?? '';
                 $data['lastName'] = $person->family_name ?? '';
                 $data['orcid'] = $person->name_identifier ?? '';
-                // Mark stored ORCIDs as already verified to skip re-validation on load
-                $data['orcidVerified'] = ! empty($person->name_identifier);
+                // Mark stored ORCIDs as already verified to skip re-validation on load.
+                // Only trust identifiers that are actually ORCIDs (scheme=ORCID or null for legacy data).
+                $data['orcidVerified'] = filled(trim($person->name_identifier ?? ''))
+                    && in_array($person->name_identifier_scheme, ['ORCID', null], true);
 
                 $hasContactPersonRole = $contributor->contributorTypes
                     ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');

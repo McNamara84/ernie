@@ -163,6 +163,7 @@ describe('ContributorItem Component', () => {
         render(<ContributorItem contributor={verifiedContributor} {...mockProps} />);
         
         expect(screen.getByText('Verified')).toBeInTheDocument();
+        expect(screen.getByLabelText('Re-verify ORCID')).toBeInTheDocument();
     });
 
     it('shows email and website fields when Contact Person role is assigned', () => {

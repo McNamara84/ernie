@@ -172,6 +172,7 @@ describe('AuthorItem Component', () => {
         render(<AuthorItem author={verifiedAuthor} {...mockProps} />);
         
         expect(screen.getByText('Verified')).toBeInTheDocument();
+        expect(screen.getByLabelText('Re-verify ORCID')).toBeInTheDocument();
     });
 
     it('renders drag handle with correct aria-label', () => {
