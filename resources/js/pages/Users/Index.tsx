@@ -229,6 +229,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                             const isProcessing = processingUserId === user.id;
                                             const availableRoles = getAvailableRolesForUser(user.id);
                                             const canChangeRole = user.id !== auth.user.id && availableRoles.length > 1;
+                                            const lastSeenStatus = formatLastSeen(user);
 
                                             return (
                                                 <TableRow key={user.id}>
@@ -291,22 +292,17 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                     </TableCell>
                                                     <TableCell className="text-sm text-muted-foreground">{formatDate(user.created_at)}</TableCell>
                                                     <TableCell>
-                                                        {(() => {
-                                                            const status = formatLastSeen(user);
-                                                            return (
-                                                                <div className="flex items-center gap-2 text-sm">
-                                                                    <span
-                                                                        data-testid={status.online ? 'online-indicator' : 'offline-indicator'}
-                                                                        className={`inline-block h-2.5 w-2.5 rounded-full ${
-                                                                            status.online ? 'bg-green-500' : 'bg-gray-400'
-                                                                        }`}
-                                                                        aria-hidden="true"
-                                                                    />
-                                                                    <span className="sr-only">{status.online ? 'Online' : 'Offline'}</span>
-                                                                    <span className="text-muted-foreground">{status.label}</span>
-                                                                </div>
-                                                            );
-                                                        })()}
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <span
+                                                                data-testid={lastSeenStatus.online ? 'online-indicator' : 'offline-indicator'}
+                                                                className={`inline-block h-2.5 w-2.5 rounded-full ${
+                                                                    lastSeenStatus.online ? 'bg-green-500' : 'bg-gray-400'
+                                                                }`}
+                                                                aria-hidden="true"
+                                                            />
+                                                            <span className="sr-only">{lastSeenStatus.online ? 'Online' : 'Offline'}</span>
+                                                            <span className="text-muted-foreground">{lastSeenStatus.label}</span>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">

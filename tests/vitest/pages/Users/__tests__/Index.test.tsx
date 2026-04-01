@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Index from '@/pages/Users/Index';
 
@@ -56,7 +56,7 @@ describe('Users/Index', () => {
             deactivated_at: null,
             deactivated_by: null,
             created_at: '2024-01-01T00:00:00Z',
-            last_seen_at: new Date().toISOString(),
+            last_seen_at: '2026-04-01T12:00:00Z',
             is_online: true,
         },
         {
@@ -106,6 +106,10 @@ describe('Users/Index', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('renders the user management page', () => {
@@ -338,7 +342,7 @@ describe('Users/Index', () => {
 
         it('shows green online indicator for online users', () => {
             const users = [
-                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+                { ...defaultUsers[0], last_seen_at: '2026-04-01T12:00:00Z', is_online: true },
             ];
 
             render(<Index {...defaultProps} users={users} />);
@@ -394,13 +398,11 @@ describe('Users/Index', () => {
             render(<Index {...defaultProps} users={users} />);
 
             expect(screen.getByText('about 1 hour ago')).toBeInTheDocument();
-
-            vi.useRealTimers();
         });
 
         it('renders correctly with multiple users having different online statuses', () => {
             const users = [
-                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+                { ...defaultUsers[0], last_seen_at: '2026-04-01T12:00:00Z', is_online: true },
                 { ...defaultUsers[1], last_seen_at: '2024-01-01T00:00:00Z', is_online: false },
                 { ...defaultUsers[2], last_seen_at: null, is_online: false },
             ];
@@ -414,7 +416,7 @@ describe('Users/Index', () => {
 
         it('provides accessible "Online" label for screen readers when user is online', () => {
             const users = [
-                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+                { ...defaultUsers[0], last_seen_at: '2026-04-01T12:00:00Z', is_online: true },
             ];
 
             render(<Index {...defaultProps} users={users} />);
@@ -436,7 +438,7 @@ describe('Users/Index', () => {
 
         it('hides the color dot from assistive technology via aria-hidden', () => {
             const users = [
-                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+                { ...defaultUsers[0], last_seen_at: '2026-04-01T12:00:00Z', is_online: true },
             ];
 
             render(<Index {...defaultProps} users={users} />);
