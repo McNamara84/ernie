@@ -638,7 +638,7 @@ describe('Portal', () => {
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('true');
             await user.click(screen.getByTestId('temporal-toggle'));
             expect(screen.getByTestId('temporal-filter-enabled')).toHaveTextContent('false');
-            // Parent toggle handler no longer calls setTemporal(null) â€“
+            // Parent toggle handler no longer calls setTemporal(null) -
             // the child component (PortalTemporalFilter) handles clearing
             // to avoid duplicate navigations.
             expect(setTemporalMock).not.toHaveBeenCalled();

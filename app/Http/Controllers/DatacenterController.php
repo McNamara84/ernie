@@ -37,7 +37,7 @@ class DatacenterController extends Controller
             'datacenter' => [
                 'id' => $datacenter->id,
                 'name' => $datacenter->name,
-                'resourceCount' => 0,
+                'resources_count' => 0,
             ],
             'message' => 'Datacenter created successfully.',
         ], 201);

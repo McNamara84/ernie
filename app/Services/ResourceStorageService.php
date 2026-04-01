@@ -1087,12 +1087,22 @@ class ResourceStorageService
      */
     private function syncDatacenters(Resource $resource, array $data): void
     {
-        $datacenterIds = $data['datacenters'] ?? [];
+        if (! array_key_exists('datacenters', $data)) {
+            return;
+        }
+
+        $datacenterIds = $data['datacenters'];
 
         if (! is_array($datacenterIds)) {
             return;
         }
 
-        $resource->datacenters()->sync(array_map(intval(...), $datacenterIds));
+        $changes = $resource->datacenters()->sync(array_map(intval(...), $datacenterIds));
+
+        // Pivot changes don't trigger Eloquent's updated event, so touch
+        // the resource to fire the observer and invalidate portal caches.
+        if (array_filter($changes)) {
+            $resource->touch();
+        }
     }
 }

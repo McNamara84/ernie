@@ -205,7 +205,7 @@ class ResourceObserver
         if ($this->supportsTagging()) {
             Cache::tags($cacheKey->tags())->flush();
         } else {
-            Cache::forget($cacheKey->value);
+            Cache::forget($cacheKey->key());
         }
     }
 }

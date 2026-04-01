@@ -203,7 +203,7 @@ export default function EditorSettings({
             const response = await axios.post<{ datacenter: DatacenterRow; message: string }>('/api/datacenters', {
                 name: newDatacenter.trim(),
             });
-            setDatacenters((prev) => [...prev, { ...response.data.datacenter, resources_count: 0 }].sort((a, b) => a.name.localeCompare(b.name)));
+            setDatacenters((prev) => [...prev, response.data.datacenter].sort((a, b) => a.name.localeCompare(b.name)));
             setNewDatacenter('');
             toast.success(response.data.message);
         } catch (error) {

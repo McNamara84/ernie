@@ -180,11 +180,12 @@ class EditorSettingsController extends Controller
             'relationTypes' => $relationTypes,
             'identifierTypes' => $identifierTypes,
             'datacenters' => \App\Models\Datacenter::orderBy('name')
+                ->withCount('resources')
                 ->get()
                 ->map(fn (\App\Models\Datacenter $dc) => [
                     'id' => $dc->id,
                     'name' => $dc->name,
-                    'resources_count' => $dc->resources()->count(),
+                    'resources_count' => $dc->resources_count,
                 ]),
         ]);
     }
