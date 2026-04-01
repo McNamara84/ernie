@@ -123,6 +123,9 @@ class OrcidService
             ];
         }
 
+        // Normalize to bare ID for cache keys and API URLs
+        $orcid = OrcidNormalizer::extractBareId($orcid);
+
         // Check checksum
         if (! $this->validateOrcidChecksum($orcid)) {
             return [
@@ -266,6 +269,9 @@ class OrcidService
                 'error' => 'Invalid ORCID format',
             ];
         }
+
+        // Normalize to bare ID for cache keys and API URLs
+        $orcid = OrcidNormalizer::extractBareId($orcid);
 
         // Check cache first
         $cacheKey = 'orcid_record_'.$orcid;
