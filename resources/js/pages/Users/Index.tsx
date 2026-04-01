@@ -300,7 +300,9 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                         className={`inline-block h-2.5 w-2.5 rounded-full ${
                                                                             status.online ? 'bg-green-500' : 'bg-gray-400'
                                                                         }`}
+                                                                        aria-hidden="true"
                                                                     />
+                                                                    <span className="sr-only">{status.online ? 'Online' : 'Offline'}</span>
                                                                     <span className="text-muted-foreground">{status.label}</span>
                                                                 </div>
                                                             );

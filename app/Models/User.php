@@ -198,10 +198,13 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user is currently online (active within the last 5 minutes).
+     * Check if the user is currently online (active within the configured window).
      */
     public function isOnline(): bool
     {
-        return $this->last_seen_at !== null && $this->last_seen_at->diffInMinutes(now()) < 5;
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+
+        return $this->last_seen_at !== null && $this->last_seen_at->diffInMinutes(now()) < $windowMinutes;
     }
 }

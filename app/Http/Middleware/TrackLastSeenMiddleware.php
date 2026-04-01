@@ -12,11 +12,6 @@ use Symfony\Component\HttpFoundation\Response;
 class TrackLastSeenMiddleware
 {
     /**
-     * The threshold in minutes before updating last_seen_at again.
-     */
-    private const int THROTTLE_MINUTES = 5;
-
-    /**
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
@@ -38,11 +33,16 @@ class TrackLastSeenMiddleware
      */
     private function updateLastSeen(User $user): void
     {
-        if ($user->last_seen_at !== null && $user->last_seen_at->diffInMinutes(now()) < self::THROTTLE_MINUTES) {
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+
+        if ($user->last_seen_at !== null && $user->last_seen_at->diffInMinutes(now()) < $windowMinutes) {
             return;
         }
 
-        $user->last_seen_at = now();
-        $user->saveQuietly();
+        User::withoutTimestamps(function () use ($user): void {
+            $user->last_seen_at = now();
+            $user->saveQuietly();
+        });
     }
 }

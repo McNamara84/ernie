@@ -252,4 +252,49 @@ describe('Users/Index - Last Seen Column', () => {
         expect(screen.getAllByTestId('offline-indicator')).toHaveLength(2);
         expect(screen.getByText('Never')).toBeInTheDocument();
     });
+
+    it('provides accessible "Online" label for screen readers when user is online', () => {
+        const onlineUser = {
+            ...baseUser,
+            id: 2,
+            name: 'Online User',
+            last_seen_at: new Date().toISOString(),
+            is_online: true,
+        };
+
+        render(<Index {...defaultProps} users={[onlineUser]} />);
+
+        expect(screen.getByText('Online')).toBeInTheDocument();
+        expect(screen.getByText('Online')).toHaveClass('sr-only');
+    });
+
+    it('provides accessible "Offline" label for screen readers when user is offline', () => {
+        const offlineUser = {
+            ...baseUser,
+            id: 2,
+            name: 'Offline User',
+            last_seen_at: '2026-03-01T00:00:00.000Z',
+            is_online: false,
+        };
+
+        render(<Index {...defaultProps} users={[offlineUser]} />);
+
+        expect(screen.getByText('Offline')).toBeInTheDocument();
+        expect(screen.getByText('Offline')).toHaveClass('sr-only');
+    });
+
+    it('hides the color dot from assistive technology via aria-hidden', () => {
+        const onlineUser = {
+            ...baseUser,
+            id: 2,
+            name: 'Online User',
+            last_seen_at: new Date().toISOString(),
+            is_online: true,
+        };
+
+        render(<Index {...defaultProps} users={[onlineUser]} />);
+
+        const indicator = screen.getByTestId('online-indicator');
+        expect(indicator).toHaveAttribute('aria-hidden', 'true');
+    });
 });
