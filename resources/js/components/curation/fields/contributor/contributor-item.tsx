@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
