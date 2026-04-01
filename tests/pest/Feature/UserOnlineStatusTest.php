@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Models\User;
 
 describe('User Model - isOnline', function (): void {
-    it('returns true when last_seen_at is within 5 minutes', function (): void {
-        $user = User::factory()->create(['last_seen_at' => now()->subMinutes(2)]);
+    it('returns true when last_seen_at is within the configured window', function (): void {
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+        $user = User::factory()->create(['last_seen_at' => now()->subMinutes($windowMinutes - 1)]);
 
         expect($user->isOnline())->toBeTrue();
     });
@@ -17,8 +19,10 @@ describe('User Model - isOnline', function (): void {
         expect($user->isOnline())->toBeTrue();
     });
 
-    it('returns false when last_seen_at is older than 5 minutes', function (): void {
-        $user = User::factory()->create(['last_seen_at' => now()->subMinutes(10)]);
+    it('returns false when last_seen_at is older than the configured window', function (): void {
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+        $user = User::factory()->create(['last_seen_at' => now()->subMinutes($windowMinutes + 1)]);
 
         expect($user->isOnline())->toBeFalse();
     });
@@ -29,8 +33,10 @@ describe('User Model - isOnline', function (): void {
         expect($user->isOnline())->toBeFalse();
     });
 
-    it('returns false when last_seen_at is exactly 5 minutes ago', function (): void {
-        $user = User::factory()->create(['last_seen_at' => now()->subMinutes(5)]);
+    it('returns false when last_seen_at is exactly at the configured window boundary', function (): void {
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+        $user = User::factory()->create(['last_seen_at' => now()->subMinutes($windowMinutes)]);
 
         expect($user->isOnline())->toBeFalse();
     });

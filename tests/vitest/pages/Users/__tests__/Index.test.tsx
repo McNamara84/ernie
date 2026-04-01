@@ -328,4 +328,116 @@ describe('Users/Index', () => {
 
         expect(screen.getByText('User Management')).toBeInTheDocument();
     });
+
+    describe('Last Seen Column', () => {
+        it('renders the Last Seen column header', () => {
+            render(<Index {...defaultProps} />);
+
+            expect(screen.getByText('Last Seen')).toBeInTheDocument();
+        });
+
+        it('shows green online indicator for online users', () => {
+            const users = [
+                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            const indicator = screen.getByTestId('online-indicator');
+            expect(indicator).toBeInTheDocument();
+            expect(indicator).toHaveClass('bg-green-500');
+        });
+
+        it('shows gray offline indicator for offline users', () => {
+            const users = [
+                { ...defaultUsers[1], last_seen_at: '2024-01-01T00:00:00Z', is_online: false },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            const indicator = screen.getByTestId('offline-indicator');
+            expect(indicator).toBeInTheDocument();
+            expect(indicator).toHaveClass('bg-gray-400');
+        });
+
+        it('shows "Never" for users with null last_seen_at', () => {
+            const users = [
+                { ...defaultUsers[0], last_seen_at: null, is_online: false },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            expect(screen.getByText('Never')).toBeInTheDocument();
+        });
+
+        it('shows offline indicator for users with null last_seen_at', () => {
+            const users = [
+                { ...defaultUsers[0], last_seen_at: null, is_online: false },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            const indicator = screen.getByTestId('offline-indicator');
+            expect(indicator).toBeInTheDocument();
+            expect(indicator).toHaveClass('bg-gray-400');
+        });
+
+        it('displays relative time for last seen users', () => {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            const users = [
+                { ...defaultUsers[0], last_seen_at: oneHourAgo, is_online: false },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            expect(screen.getByText(/hour/i)).toBeInTheDocument();
+        });
+
+        it('renders correctly with multiple users having different online statuses', () => {
+            const users = [
+                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+                { ...defaultUsers[1], last_seen_at: '2024-01-01T00:00:00Z', is_online: false },
+                { ...defaultUsers[2], last_seen_at: null, is_online: false },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            expect(screen.getAllByTestId('online-indicator')).toHaveLength(1);
+            expect(screen.getAllByTestId('offline-indicator')).toHaveLength(2);
+            expect(screen.getByText('Never')).toBeInTheDocument();
+        });
+
+        it('provides accessible "Online" label for screen readers when user is online', () => {
+            const users = [
+                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            expect(screen.getByText('Online')).toBeInTheDocument();
+            expect(screen.getByText('Online')).toHaveClass('sr-only');
+        });
+
+        it('provides accessible "Offline" label for screen readers when user is offline', () => {
+            const users = [
+                { ...defaultUsers[1], last_seen_at: '2024-01-01T00:00:00Z', is_online: false },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            expect(screen.getByText('Offline')).toBeInTheDocument();
+            expect(screen.getByText('Offline')).toHaveClass('sr-only');
+        });
+
+        it('hides the color dot from assistive technology via aria-hidden', () => {
+            const users = [
+                { ...defaultUsers[0], last_seen_at: new Date().toISOString(), is_online: true },
+            ];
+
+            render(<Index {...defaultProps} users={users} />);
+
+            const indicator = screen.getByTestId('online-indicator');
+            expect(indicator).toHaveAttribute('aria-hidden', 'true');
+        });
+    });
 });

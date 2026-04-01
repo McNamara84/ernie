@@ -19,7 +19,9 @@ describe('TrackLastSeenMiddleware', function (): void {
     });
 
     it('does not update last_seen_at if within throttle window', function (): void {
-        $recentTime = now()->subMinutes(2);
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+        $recentTime = now()->subMinutes($windowMinutes - 1);
         $user = User::factory()->create(['last_seen_at' => $recentTime]);
 
         $this->actingAs($user)
@@ -31,7 +33,9 @@ describe('TrackLastSeenMiddleware', function (): void {
     });
 
     it('updates last_seen_at if older than throttle window', function (): void {
-        $oldTime = now()->subMinutes(10);
+        /** @var int $windowMinutes */
+        $windowMinutes = config('users.online_window_minutes');
+        $oldTime = now()->subMinutes($windowMinutes + 1);
         $user = User::factory()->create(['last_seen_at' => $oldTime]);
 
         $this->actingAs($user)
@@ -45,8 +49,24 @@ describe('TrackLastSeenMiddleware', function (): void {
         $middleware = new TrackLastSeenMiddleware;
 
         $request = Request::create('/test', 'GET');
-        $response = $middleware->handle($request, fn () => new Response('OK'));
+        $response = $middleware->handle($request, fn (Request $req) => new Response('OK'));
 
         expect($response->getStatusCode())->toBe(200);
+    });
+
+    it('does not modify updated_at timestamp', function (): void {
+        $originalUpdatedAt = now()->subDays(5);
+        $user = User::factory()->create([
+            'last_seen_at' => null,
+            'updated_at' => $originalUpdatedAt,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard');
+
+        $user->refresh();
+        expect($user->last_seen_at)->not->toBeNull();
+        expect($user->updated_at->toDateTimeString())
+            ->toBe($originalUpdatedAt->toDateTimeString());
     });
 });
