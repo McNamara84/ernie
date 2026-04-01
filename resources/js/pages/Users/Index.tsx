@@ -184,7 +184,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         }
 
         return {
-            label: isMounted ? formatDistanceToNow(new Date(user.last_seen_at), { addSuffix: true }) : '',
+            label: isMounted ? formatDistanceToNow(new Date(user.last_seen_at), { addSuffix: true }) : '—',
             online: user.is_online,
         };
     };
