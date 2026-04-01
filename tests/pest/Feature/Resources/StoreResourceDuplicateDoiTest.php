@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
@@ -50,6 +51,8 @@ beforeEach(function () {
         'slug' => 'Abstract',
         'is_active' => true,
     ]);
+
+    Datacenter::create(['name' => 'Test Datacenter']);
 });
 
 describe('Store Resource - DOI Uniqueness Validation', function () {
@@ -77,6 +80,7 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
             'descriptions' => [
                 ['descriptionType' => 'abstract', 'description' => 'Test abstract'],
             ],
+            'datacenters' => [Datacenter::first()->id],
         ], $overrides);
     };
 

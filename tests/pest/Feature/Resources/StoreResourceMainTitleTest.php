@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
@@ -64,6 +65,8 @@ test('storing a resource with main-title persists with MainTitle TitleType ID an
         'is_active' => true,
     ]);
 
+    $datacenter = Datacenter::create(['name' => 'Test Datacenter']);
+
     $payload = [
         'resourceId' => null,
         'doi' => null,
@@ -90,6 +93,7 @@ test('storing a resource with main-title persists with MainTitle TitleType ID an
                 'description' => 'Test abstract',
             ],
         ],
+        'datacenters' => [$datacenter->id],
     ];
 
     $this->actingAs($user)

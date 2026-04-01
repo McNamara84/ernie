@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
@@ -48,6 +49,7 @@ function createBasePayload(int $resourceTypeId, array $overrides = []): array
             ],
         ],
         'spatialTemporalCoverages' => [],
+        'datacenters' => [Datacenter::first()->id],
     ], $overrides);
 }
 
@@ -96,6 +98,8 @@ function seedLookupTables(): int
         'is_active' => true,
         'is_elmo_active' => true,
     ]);
+
+    Datacenter::create(['name' => 'Test Datacenter']);
 
     return $resourceType->id;
 }
