@@ -287,6 +287,7 @@ export const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | nu
         isContact: author.isContact === true || author.isContact === 'true',
         affiliations,
         affiliationsInput,
+        orcidVerified: author.orcidVerified === true,
     } satisfies PersonAuthorEntry;
 };
 
@@ -333,6 +334,7 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
         affiliationsInput,
         roles,
         rolesInput,
+        orcidVerified: 'orcidVerified' in contributor && contributor.orcidVerified === true,
     } satisfies PersonContributorEntry;
 };
 

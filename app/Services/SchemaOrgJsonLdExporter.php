@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
+use App\Support\OrcidNormalizer;
 
 /**
  * Generates Schema.org-compatible JSON-LD for inline embedding on landing pages.
@@ -215,13 +216,13 @@ class SchemaOrgJsonLdExporter
         if (! empty($creator['nameIdentifiers'])) {
             foreach ($creator['nameIdentifiers'] as $ni) {
                 if (strtoupper($ni['nameIdentifierScheme'] ?? '') === 'ORCID') {
-                    $orcidUrl = $this->normalizeOrcidUrl($ni['nameIdentifier']);
+                    $orcidUrl = OrcidNormalizer::toUrl($ni['nameIdentifier']);
                     $person['@id'] = $orcidUrl;
                     $person['identifier'] = [
                         '@id' => $orcidUrl,
                         '@type' => 'PropertyValue',
                         'propertyID' => 'https://registry.identifiers.org/registry/orcid',
-                        'value' => 'orcid:' . $this->extractOrcidId($ni['nameIdentifier']),
+                        'value' => 'orcid:' . OrcidNormalizer::extractBareId($ni['nameIdentifier']),
                         'url' => $orcidUrl,
                     ];
                     break;
@@ -254,38 +255,6 @@ class SchemaOrgJsonLdExporter
         }
 
         return $org;
-    }
-
-    /**
-     * Normalize an ORCID value to a full https URL.
-     */
-    private function normalizeOrcidUrl(string $orcid): string
-    {
-        $id = $this->extractOrcidId($orcid);
-
-        return 'https://orcid.org/' . $id;
-    }
-
-    /**
-     * Extract the bare ORCID id from a URL or bare id.
-     */
-    private function extractOrcidId(string $orcid): string
-    {
-        $prefixes = [
-            'https://orcid.org/',
-            'http://orcid.org/',
-            'https://www.orcid.org/',
-            'http://www.orcid.org/',
-        ];
-
-        $normalized = trim($orcid);
-        foreach ($prefixes as $prefix) {
-            if (stripos($normalized, $prefix) === 0) {
-                return substr($normalized, strlen($prefix));
-            }
-        }
-
-        return $normalized;
     }
 
     /**

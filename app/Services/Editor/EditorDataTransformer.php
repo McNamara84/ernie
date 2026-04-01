@@ -14,6 +14,7 @@ use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Support\GemetVocabularyParser;
+use App\Support\OrcidNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -176,6 +177,13 @@ class EditorDataTransformer
                 $data['firstName'] = $creatorable->given_name ?? '';
                 $data['lastName'] = $creatorable->family_name ?? '';
                 $data['orcid'] = $creatorable->name_identifier ?? '';
+                // Mark stored ORCIDs as already verified to skip re-validation on load.
+                // Only trust identifiers with ORCID scheme (or null for legacy data)
+                // AND valid ORCID format+checksum (ISO 7064 MOD 11-2).
+                $data['orcidVerified'] = $this->isVerifiedOrcid(
+                    $creatorable->name_identifier,
+                    $creatorable->name_identifier_scheme,
+                );
             } elseif ($firstEntry->creatorable_type === Institution::class) {
                 /** @var Institution $creatorable */
                 $data['type'] = 'institution';
@@ -207,6 +215,13 @@ class EditorDataTransformer
                 $data['firstName'] = $person->given_name ?? '';
                 $data['lastName'] = $person->family_name ?? '';
                 $data['orcid'] = $person->name_identifier ?? '';
+                // Mark stored ORCIDs as already verified to skip re-validation on load.
+                // Only trust identifiers with ORCID scheme (or null for legacy data)
+                // AND valid ORCID format+checksum (ISO 7064 MOD 11-2).
+                $data['orcidVerified'] = $this->isVerifiedOrcid(
+                    $person->name_identifier,
+                    $person->name_identifier_scheme,
+                );
 
                 $hasContactPersonRole = $contributor->contributorTypes
                     ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');
@@ -547,5 +562,25 @@ class EditorDataTransformer
                 'name' => $instrument->instrument_name,
             ])
             ->toArray();
+    }
+
+    /**
+     * Check if a stored identifier qualifies as a verified ORCID.
+     *
+     * Returns true only when the identifier has a valid ORCID format (XXXX-XXXX-XXXX-XXXX)
+     * and passes the ISO 7064 MOD 11-2 checksum, and the scheme is 'ORCID' or null (legacy data).
+     * Accepts both bare IDs and full ORCID URLs.
+     */
+    private function isVerifiedOrcid(?string $identifier, ?string $scheme): bool
+    {
+        if ($identifier === null || trim($identifier) === '') {
+            return false;
+        }
+
+        if ($scheme !== null && strtoupper($scheme) !== 'ORCID') {
+            return false;
+        }
+
+        return OrcidNormalizer::isValid($identifier);
     }
 }

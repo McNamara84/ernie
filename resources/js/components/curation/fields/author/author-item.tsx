@@ -185,13 +185,25 @@ export default function AuthorItem({
                         <>
                             {/* ORCID with Verify & Fill Button */}
                             <div className="relative flex flex-col gap-2 md:col-span-3" data-testid={`author-${index}-orcid-field`}>
-                                <Label htmlFor={`${author.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
-                                    <span>ORCID</span>
+                                <div className="inline-flex flex-wrap items-baseline gap-x-2">
+                                    <Label htmlFor={`${author.id}-orcid`}>ORCID</Label>
                                     {author.type === 'person' && author.orcidVerified && (
-                                        <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
-                                            <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
-                                            Verified
-                                        </Badge>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    onClick={retryVerification}
+                                                    aria-label="Re-verify ORCID"
+                                                    className="inline-flex cursor-pointer items-center border-green-600 text-green-600 transition-opacity hover:opacity-70"
+                                                >
+                                                    <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
+                                                        <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+                                                        Verified
+                                                    </Badge>
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>ORCID verified — click to re-verify</TooltipContent>
+                                        </Tooltip>
                                     )}
                                     {isVerifying && (
                                         <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
@@ -199,7 +211,10 @@ export default function AuthorItem({
                                             Verifying...
                                         </span>
                                     )}
-                                </Label>
+                                </div>
+                                <span id={`${author.id}-orcid-status`} className="sr-only">
+                                    {author.type === 'person' && author.orcidVerified ? 'ORCID verified' : ''}
+                                </span>
                                 <div className="flex gap-2">
                                     <Input
                                         id={`${author.id}-orcid`}
@@ -209,6 +224,7 @@ export default function AuthorItem({
                                         placeholder="0000-0000-0000-0000"
                                         inputMode="text"
                                         pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                        aria-describedby={`${author.id}-orcid-status`}
                                     />
                                     {author.type === 'person' && (
                                         <OrcidSearchDialog

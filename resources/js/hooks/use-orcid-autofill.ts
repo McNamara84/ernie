@@ -11,7 +11,7 @@
  * - Store additional ORCID data (affiliations, name diffs) as pending for curator review
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type OrcidAffiliation, type OrcidSearchResult, OrcidService } from '@/services/orcid';
 import type { AffiliationTag } from '@/types/affiliations';
@@ -416,11 +416,22 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const hideSuggestions = useCallback(() => setShowSuggestions(false), []);
     const clearPendingOrcidData = useCallback(() => setPendingOrcidData(null), []);
 
-    // Clear stale pending data when ORCID value or entry type changes
+    // Clear stale pending data and verification state when ORCID value or entry type changes
     const orcidValue = isPersonEntry(entry) ? entry.orcid : null;
     const entryType = entry.type;
+    const prevOrcidRef = useRef(orcidValue);
+    const entryRef = useRef(entry);
+    const onEntryChangeRef = useRef(onEntryChange);
+    entryRef.current = entry;
+    onEntryChangeRef.current = onEntryChange;
     useEffect(() => {
         setPendingOrcidData(null);
+        // Reset verified state when the ORCID value actually changes so the new value can be re-verified
+        const currentEntry = entryRef.current;
+        if (prevOrcidRef.current !== orcidValue && isPersonEntry(currentEntry) && currentEntry.orcidVerified) {
+            onEntryChangeRef.current({ ...currentEntry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
+        }
+        prevOrcidRef.current = orcidValue;
     }, [orcidValue, entryType]);
 
     // Check if current ORCID has valid format and checksum (offline validation)
@@ -431,12 +442,19 @@ export function useOrcidAutofill<T extends BaseEntry>({
         return OrcidService.isValidFormat(entry.orcid) && OrcidService.validateChecksum(entry.orcid);
     }, [entry]);
 
-    // Manual retry function
+    // Manual retry function — also resets orcidVerified to allow re-verification of stored ORCIDs
     const retryVerification = useCallback(() => {
         if (!isPersonEntry(entry) || !entry.orcid?.trim()) return;
         clearError();
+        // Clear stale data from prior verification runs
+        setPendingOrcidData(null);
+        setOrcidSuggestions([]);
+        // Reset verified state so the auto-verify effect can run again
+        if (entry.orcidVerified) {
+            onEntryChange({ ...entry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
+        }
         setRetryTrigger((prev) => prev + 1);
-    }, [entry, clearError]);
+    }, [entry, clearError, onEntryChange]);
 
     /**
      * Apply selected pending data to the entry

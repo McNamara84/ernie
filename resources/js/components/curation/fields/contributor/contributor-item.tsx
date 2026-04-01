@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
 import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
@@ -260,13 +261,25 @@ export default function ContributorItem({
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
                         {/* ORCID with Verify & Fill Button */}
                         <div className="relative flex flex-col gap-2 md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
-                            <Label htmlFor={`${contributor.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
-                                <span>ORCID</span>
+                            <div className="inline-flex flex-wrap items-baseline gap-x-2">
+                                <Label htmlFor={`${contributor.id}-orcid`}>ORCID</Label>
                                 {contributor.type === 'person' && contributor.orcidVerified && (
-                                    <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
-                                        <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
-                                        Verified
-                                    </Badge>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                type="button"
+                                                onClick={retryVerification}
+                                                aria-label="Re-verify ORCID"
+                                                className="inline-flex cursor-pointer items-center border-green-600 text-green-600 transition-opacity hover:opacity-70"
+                                            >
+                                                <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
+                                                    <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
+                                                    Verified
+                                                </Badge>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>ORCID verified — click to re-verify</TooltipContent>
+                                    </Tooltip>
                                 )}
                                 {isVerifying && (
                                     <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
@@ -274,7 +287,10 @@ export default function ContributorItem({
                                         Verifying...
                                     </span>
                                 )}
-                            </Label>
+                            </div>
+                            <span id={`${contributor.id}-orcid-status`} className="sr-only">
+                                {contributor.type === 'person' && contributor.orcidVerified ? 'ORCID verified' : ''}
+                            </span>
                             <div className="flex gap-2">
                                 <Input
                                     id={`${contributor.id}-orcid`}
@@ -284,6 +300,7 @@ export default function ContributorItem({
                                     placeholder="0000-0000-0000-0000"
                                     inputMode="text"
                                     pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                    aria-describedby={`${contributor.id}-orcid-status`}
                                 />
                                 {contributor.type === 'person' && (
                                     <OrcidSearchDialog onSelect={handleSelectSuggestion} triggerClassName="h-10 w-10 shrink-0" />
