@@ -177,9 +177,12 @@ class EditorDataTransformer
                 $data['lastName'] = $creatorable->family_name ?? '';
                 $data['orcid'] = $creatorable->name_identifier ?? '';
                 // Mark stored ORCIDs as already verified to skip re-validation on load.
-                // Only trust identifiers that are actually ORCIDs (scheme=ORCID or null for legacy data).
-                $data['orcidVerified'] = filled(trim($creatorable->name_identifier ?? ''))
-                    && in_array($creatorable->name_identifier_scheme, ['ORCID', null], true);
+                // Only trust identifiers with ORCID scheme (or null for legacy data)
+                // AND valid ORCID format+checksum (ISO 7064 MOD 11-2).
+                $data['orcidVerified'] = $this->isVerifiedOrcid(
+                    $creatorable->name_identifier,
+                    $creatorable->name_identifier_scheme,
+                );
             } elseif ($firstEntry->creatorable_type === Institution::class) {
                 /** @var Institution $creatorable */
                 $data['type'] = 'institution';
@@ -212,9 +215,12 @@ class EditorDataTransformer
                 $data['lastName'] = $person->family_name ?? '';
                 $data['orcid'] = $person->name_identifier ?? '';
                 // Mark stored ORCIDs as already verified to skip re-validation on load.
-                // Only trust identifiers that are actually ORCIDs (scheme=ORCID or null for legacy data).
-                $data['orcidVerified'] = filled(trim($person->name_identifier ?? ''))
-                    && in_array($person->name_identifier_scheme, ['ORCID', null], true);
+                // Only trust identifiers with ORCID scheme (or null for legacy data)
+                // AND valid ORCID format+checksum (ISO 7064 MOD 11-2).
+                $data['orcidVerified'] = $this->isVerifiedOrcid(
+                    $person->name_identifier,
+                    $person->name_identifier_scheme,
+                );
 
                 $hasContactPersonRole = $contributor->contributorTypes
                     ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');
@@ -555,5 +561,41 @@ class EditorDataTransformer
                 'name' => $instrument->instrument_name,
             ])
             ->toArray();
+    }
+
+    /**
+     * Check if a stored identifier qualifies as a verified ORCID.
+     *
+     * Returns true only when the identifier has a valid ORCID format (XXXX-XXXX-XXXX-XXXX)
+     * and passes the ISO 7064 MOD 11-2 checksum, and the scheme is 'ORCID' or null (legacy data).
+     */
+    private function isVerifiedOrcid(?string $identifier, ?string $scheme): bool
+    {
+        if ($identifier === null || trim($identifier) === '') {
+            return false;
+        }
+
+        if (! in_array($scheme, ['ORCID', null], true)) {
+            return false;
+        }
+
+        $orcid = trim($identifier);
+
+        // Format check: XXXX-XXXX-XXXX-XXXY where Y is digit or X
+        if (! preg_match('/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/', $orcid)) {
+            return false;
+        }
+
+        // ISO 7064 MOD 11-2 checksum validation
+        $digits = str_replace('-', '', $orcid);
+        $total = 0;
+        for ($i = 0; $i < 15; $i++) {
+            $total = ($total + (int) $digits[$i]) * 2;
+        }
+        $remainder = $total % 11;
+        $expectedCheck = (12 - $remainder) % 11;
+        $expectedChar = $expectedCheck === 10 ? 'X' : (string) $expectedCheck;
+
+        return strtoupper($digits[15]) === $expectedChar;
     }
 }
