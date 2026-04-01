@@ -56,6 +56,8 @@ describe('Users/Index', () => {
             deactivated_at: null,
             deactivated_by: null,
             created_at: '2024-01-01T00:00:00Z',
+            last_seen_at: new Date().toISOString(),
+            is_online: true,
         },
         {
             id: 2,
@@ -67,6 +69,8 @@ describe('Users/Index', () => {
             deactivated_at: null,
             deactivated_by: null,
             created_at: '2024-06-15T00:00:00Z',
+            last_seen_at: '2024-06-15T00:00:00Z',
+            is_online: false,
         },
         {
             id: 3,
@@ -81,6 +85,8 @@ describe('Users/Index', () => {
                 name: 'Admin User',
             },
             created_at: '2024-05-01T00:00:00Z',
+            last_seen_at: null,
+            is_online: false,
         },
     ];
 
@@ -313,6 +319,7 @@ describe('Users/Index', () => {
         expect(screen.getByText('Role')).toBeInTheDocument();
         expect(screen.getByText('Status')).toBeInTheDocument();
         expect(screen.getByText('Registered')).toBeInTheDocument();
+        expect(screen.getByText('Last Seen')).toBeInTheDocument();
         expect(screen.getByText('Actions')).toBeInTheDocument();
     });
 
