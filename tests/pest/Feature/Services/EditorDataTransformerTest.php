@@ -220,6 +220,26 @@ describe('transformCreators', function (): void {
         expect($result['authors'][0]['orcidVerified'])->toBeTrue();
     });
 
+    it('sets orcidVerified to true for creator with www.orcid.org URL', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Julia',
+            'family_name' => 'WWW',
+            'name_identifier' => 'https://www.orcid.org/0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'][0]['orcidVerified'])->toBeTrue();
+    });
+
     it('sets orcidVerified to false for person creator without orcid', function (): void {
         $person = Person::factory()->create([
             'given_name' => 'Alice',

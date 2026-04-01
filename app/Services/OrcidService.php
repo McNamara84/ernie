@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\OrcidNormalizer;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -78,30 +79,21 @@ class OrcidService
     private const RETRY_DELAY = 2;
 
     /**
-     * ORCID ID validation pattern
-     * Format: XXXX-XXXX-XXXX-XXXX (with check digit)
-     */
-    private const ORCID_PATTERN = '/^(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])$/';
-
-    /**
      * Validate ORCID ID format
      *
-     * @param  string  $orcid  The ORCID ID to validate
+     * @param  string  $orcid  The ORCID ID to validate (bare or URL)
      * @return bool True if valid format
      */
     #[\NoDiscard('Format validation result must be checked')]
     public function validateOrcidFormat(string $orcid): bool
     {
-        return (bool) preg_match(self::ORCID_PATTERN, $orcid);
+        return OrcidNormalizer::isValidFormat($orcid);
     }
 
     /**
      * Validate ORCID checksum using ISO 7064 MOD 11-2 algorithm
      *
-     * The last character of an ORCID is a checksum calculated using this algorithm.
-     * This allows offline validation of ORCID format correctness.
-     *
-     * @param  string  $orcid  The ORCID ID (format: XXXX-XXXX-XXXX-XXXX)
+     * @param  string  $orcid  The ORCID ID (bare or URL)
      * @return bool True if checksum is valid
      *
      * @see https://support.orcid.org/hc/en-us/articles/360006897674-Structure-of-the-ORCID-Identifier
@@ -109,28 +101,7 @@ class OrcidService
     #[\NoDiscard('Checksum validation result must be checked')]
     public function validateOrcidChecksum(string $orcid): bool
     {
-        // Remove dashes
-        $digits = str_replace('-', '', $orcid);
-
-        if (strlen($digits) !== 16) {
-            return false;
-        }
-
-        // ISO 7064 MOD 11-2 algorithm
-        $total = 0;
-        for ($i = 0; $i < 15; $i++) {
-            if (! ctype_digit($digits[$i])) {
-                return false;
-            }
-            $digit = (int) $digits[$i];
-            $total = ($total + $digit) * 2;
-        }
-
-        $remainder = $total % 11;
-        $checkDigit = (12 - $remainder) % 11;
-        $expectedCheckChar = $checkDigit === 10 ? 'X' : (string) $checkDigit;
-
-        return strtoupper($digits[15]) === $expectedCheckChar;
+        return OrcidNormalizer::isValidChecksum($orcid);
     }
 
     /**

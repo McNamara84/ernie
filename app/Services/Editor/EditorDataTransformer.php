@@ -14,6 +14,7 @@ use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Support\GemetVocabularyParser;
+use App\Support\OrcidNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -568,6 +569,7 @@ class EditorDataTransformer
      *
      * Returns true only when the identifier has a valid ORCID format (XXXX-XXXX-XXXX-XXXX)
      * and passes the ISO 7064 MOD 11-2 checksum, and the scheme is 'ORCID' or null (legacy data).
+     * Accepts both bare IDs and full ORCID URLs.
      */
     private function isVerifiedOrcid(?string $identifier, ?string $scheme): bool
     {
@@ -579,25 +581,6 @@ class EditorDataTransformer
             return false;
         }
 
-        // Normalize: strip common ORCID URL prefixes to get the bare ID
-        $orcid = trim($identifier);
-        $orcid = preg_replace('#^https?://orcid\.org/#', '', $orcid) ?? $orcid;
-
-        // Format check: XXXX-XXXX-XXXX-XXXY where Y is digit or X
-        if (! preg_match('/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/', $orcid)) {
-            return false;
-        }
-
-        // ISO 7064 MOD 11-2 checksum validation
-        $digits = str_replace('-', '', $orcid);
-        $total = 0;
-        for ($i = 0; $i < 15; $i++) {
-            $total = ($total + (int) $digits[$i]) * 2;
-        }
-        $remainder = $total % 11;
-        $expectedCheck = (12 - $remainder) % 11;
-        $expectedChar = $expectedCheck === 10 ? 'X' : (string) $expectedCheck;
-
-        return strtoupper($digits[15]) === $expectedChar;
+        return OrcidNormalizer::isValid($identifier);
     }
 }
