@@ -11,7 +11,7 @@
  * - Store additional ORCID data (affiliations, name diffs) as pending for curator review
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type OrcidAffiliation, type OrcidSearchResult, OrcidService } from '@/services/orcid';
 import type { AffiliationTag } from '@/types/affiliations';
@@ -416,11 +416,17 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const hideSuggestions = useCallback(() => setShowSuggestions(false), []);
     const clearPendingOrcidData = useCallback(() => setPendingOrcidData(null), []);
 
-    // Clear stale pending data when ORCID value or entry type changes
+    // Clear stale pending data and verification state when ORCID value or entry type changes
     const orcidValue = isPersonEntry(entry) ? entry.orcid : null;
     const entryType = entry.type;
+    const prevOrcidRef = useRef(orcidValue);
     useEffect(() => {
         setPendingOrcidData(null);
+        // Reset verified state when the ORCID value actually changes so the new value can be re-verified
+        if (prevOrcidRef.current !== orcidValue && isPersonEntry(entry) && entry.orcidVerified) {
+            onEntryChange({ ...entry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
+        }
+        prevOrcidRef.current = orcidValue;
     }, [orcidValue, entryType]);
 
     // Check if current ORCID has valid format and checksum (offline validation)
