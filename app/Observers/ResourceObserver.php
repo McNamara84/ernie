@@ -7,6 +7,7 @@ namespace App\Observers;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
 use App\Services\ResourceCacheService;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class ResourceObserver
 {
+    use ChecksCacheTagging;
     /**
      * Create a new observer instance.
      */
@@ -199,6 +201,11 @@ class ResourceObserver
     private function invalidateDatacenterFacets(): void
     {
         $cacheKey = \App\Enums\CacheKey::PORTAL_DATACENTER_FACETS;
-        Cache::tags($cacheKey->tags())->flush();
+
+        if ($this->supportsTagging()) {
+            Cache::tags($cacheKey->tags())->flush();
+        } else {
+            Cache::forget($cacheKey->value);
+        }
     }
 }
