@@ -577,7 +577,7 @@ class EditorDataTransformer
             return false;
         }
 
-        if (! in_array($scheme, ['ORCID', null], true)) {
+        if ($scheme !== null && strtoupper($scheme) !== 'ORCID') {
             return false;
         }
 

@@ -416,6 +416,26 @@ describe('transformCreators', function (): void {
         expect($result['authors'][0]['orcidVerified'])->toBeFalse();
     });
 
+    it('sets orcidVerified to true for creator with mixed-case scheme', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Kate',
+            'family_name' => 'Case',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'Orcid',
+        ]);
+
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'][0]['orcidVerified'])->toBeTrue();
+    });
+
     it('transforms institution creator to author', function (): void {
         $institution = Institution::factory()->withRor()->create(['name' => 'GFZ Potsdam']);
 

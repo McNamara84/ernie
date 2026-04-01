@@ -27,7 +27,7 @@ final class OrcidNormalizer
     /**
      * Bare ORCID pattern: XXXX-XXXX-XXXX-XXXY where Y is 0-9 or X.
      */
-    private const PATTERN = '/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/';
+    private const PATTERN = '/^\d{4}-\d{4}-\d{4}-\d{3}[\dxX]$/i';
 
     /**
      * Strip any known ORCID URL prefix, returning the bare ID.

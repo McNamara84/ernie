@@ -59,6 +59,10 @@ describe('isValidFormat', function (): void {
         expect(OrcidNormalizer::isValidFormat('0000-0001-2345-678X'))->toBeTrue();
     });
 
+    it('accepts ORCID with lowercase x check digit', function (): void {
+        expect(OrcidNormalizer::isValidFormat('0000-0001-2345-678x'))->toBeTrue();
+    });
+
     it('accepts ORCID as URL', function (): void {
         expect(OrcidNormalizer::isValidFormat('https://orcid.org/0000-0002-1825-0097'))->toBeTrue();
     });
