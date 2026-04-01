@@ -579,7 +579,9 @@ class EditorDataTransformer
             return false;
         }
 
+        // Normalize: strip common ORCID URL prefixes to get the bare ID
         $orcid = trim($identifier);
+        $orcid = preg_replace('#^https?://orcid\.org/#', '', $orcid) ?? $orcid;
 
         // Format check: XXXX-XXXX-XXXX-XXXY where Y is digit or X
         if (! preg_match('/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/', $orcid)) {
