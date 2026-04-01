@@ -52,6 +52,8 @@ class UserController extends Controller
                         'name' => $user->deactivatedBy->name,
                     ] : null,
                     'created_at' => $user->created_at->toISOString(),
+                    'last_seen_at' => $user->last_seen_at?->toISOString(),
+                    'is_online' => $user->isOnline(),
                 ];
             });
 

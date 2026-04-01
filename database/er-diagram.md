@@ -170,6 +170,7 @@ erDiagram
         boolean is_active "default: true"
         timestamp deactivated_at
         bigint deactivated_by FK
+        timestamp last_seen_at "nullable"
         timestamp created_at
         timestamp updated_at
     }

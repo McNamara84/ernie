@@ -196,6 +196,7 @@ entity "users" as users {
     * is_active : BOOLEAN = true
     deactivated_at : TIMESTAMP
     deactivated_by : BIGINT <<FK>>
+    last_seen_at : TIMESTAMP //nullable//
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
