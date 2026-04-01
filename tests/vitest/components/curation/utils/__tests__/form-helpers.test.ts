@@ -468,6 +468,33 @@ describe('mapInitialAuthorToEntry', () => {
         const result = mapInitialAuthorToEntry(initial as Parameters<typeof mapInitialAuthorToEntry>[0]);
         expect(result?.type).toBe('person');
     });
+
+    it('preserves orcidVerified=true from initial data', () => {
+        const initial = {
+            type: 'person' as const,
+            orcid: '0000-0001-2345-6789',
+            firstName: 'John',
+            lastName: 'Doe',
+            orcidVerified: true,
+        };
+
+        const result = mapInitialAuthorToEntry(initial);
+        const personResult = result as PersonAuthorEntry;
+        expect(personResult.orcidVerified).toBe(true);
+    });
+
+    it('defaults orcidVerified to false when not provided', () => {
+        const initial = {
+            type: 'person' as const,
+            orcid: '0000-0001-2345-6789',
+            firstName: 'John',
+            lastName: 'Doe',
+        };
+
+        const result = mapInitialAuthorToEntry(initial);
+        const personResult = result as PersonAuthorEntry;
+        expect(personResult.orcidVerified).toBe(false);
+    });
 });
 
 describe('mapInitialContributorToEntry', () => {
@@ -544,6 +571,37 @@ describe('mapInitialContributorToEntry', () => {
 
         const result = mapInitialContributorToEntry(initial);
         expect(result?.type).toBe('institution');
+    });
+
+    it('preserves orcidVerified=true from initial data', () => {
+        const initial = {
+            type: 'person' as const,
+            orcid: '0000-0001-2345-6789',
+            firstName: 'Jane',
+            lastName: 'Smith',
+            roles: ['Editor'],
+            affiliations: [],
+            orcidVerified: true,
+        };
+
+        const result = mapInitialContributorToEntry(initial);
+        const personResult = result as PersonContributorEntry;
+        expect(personResult.orcidVerified).toBe(true);
+    });
+
+    it('defaults orcidVerified to false when not provided', () => {
+        const initial = {
+            type: 'person' as const,
+            orcid: '0000-0001-2345-6789',
+            firstName: 'Jane',
+            lastName: 'Smith',
+            roles: ['Editor'],
+            affiliations: [],
+        };
+
+        const result = mapInitialContributorToEntry(initial);
+        const personResult = result as PersonContributorEntry;
+        expect(personResult.orcidVerified).toBe(false);
     });
 });
 

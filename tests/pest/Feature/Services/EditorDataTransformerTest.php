@@ -196,7 +196,64 @@ describe('transformCreators', function (): void {
             ->and($result['authors'][0]['type'])->toBe('person')
             ->and($result['authors'][0]['firstName'])->toBe('John')
             ->and($result['authors'][0]['lastName'])->toBe('Doe')
-            ->and($result['authors'][0]['orcid'])->toBeString();
+            ->and($result['authors'][0]['orcid'])->toBeString()
+            ->and($result['authors'][0]['orcidVerified'])->toBeTrue();
+    });
+
+    it('sets orcidVerified to false for person creator without orcid', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Alice',
+            'family_name' => 'Wonder',
+            'name_identifier' => null,
+        ]);
+
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'][0]['orcidVerified'])->toBeFalse();
+    });
+
+    it('sets orcidVerified to true for person contributor with orcid', function (): void {
+        $person = Person::factory()->withOrcid()->create([
+            'given_name' => 'Bob',
+            'family_name' => 'Builder',
+        ]);
+
+        ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['contributors'][0]['orcidVerified'])->toBeTrue();
+    });
+
+    it('sets orcidVerified to false for person contributor without orcid', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Carol',
+            'family_name' => 'Danvers',
+            'name_identifier' => null,
+        ]);
+
+        ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['contributors'][0]['orcidVerified'])->toBeFalse();
     });
 
     it('transforms institution creator to author', function (): void {
