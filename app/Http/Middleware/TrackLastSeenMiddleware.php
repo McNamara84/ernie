@@ -36,7 +36,7 @@ class TrackLastSeenMiddleware
         /** @var int $windowMinutes */
         $windowMinutes = max(1, (int) config('users.online_window_minutes'));
 
-        if ($user->last_seen_at !== null && $user->last_seen_at->diffInMinutes(now()) < $windowMinutes) {
+        if ($user->last_seen_at !== null && $user->last_seen_at->isAfter(now()->subMinutes($windowMinutes))) {
             return;
         }
 

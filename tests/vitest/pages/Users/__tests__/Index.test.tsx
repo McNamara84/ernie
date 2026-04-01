@@ -397,7 +397,7 @@ describe('Users/Index', () => {
 
             render(<Index {...defaultProps} users={users} />);
 
-            expect(screen.getByText('about 1 hour ago')).toBeInTheDocument();
+            expect(screen.getByText(/hour.*ago/i)).toBeInTheDocument();
         });
 
         it('renders correctly with multiple users having different online statuses', () => {

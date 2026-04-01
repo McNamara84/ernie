@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { formatDistanceToNow } from 'date-fns';
 import { KeyRound, Mail, ShieldCheck, ShieldOff, UserCog, Users as UsersIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AddUserDialog } from '@/components/add-user-dialog';
@@ -47,6 +47,11 @@ interface UsersIndexProps {
 export default function Index({ users, available_roles, can_promote_to_group_leader, can_create_users }: UsersIndexProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [processingUserId, setProcessingUserId] = useState<number | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -179,7 +184,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         }
 
         return {
-            label: formatDistanceToNow(new Date(user.last_seen_at), { addSuffix: true }),
+            label: isMounted ? formatDistanceToNow(new Date(user.last_seen_at), { addSuffix: true }) : '',
             online: user.is_online,
         };
     };
@@ -301,7 +306,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                 aria-hidden="true"
                                                             />
                                                             <span className="sr-only">{lastSeenStatus.online ? 'Online' : 'Offline'}</span>
-                                                            <span className="text-muted-foreground" suppressHydrationWarning>{lastSeenStatus.label}</span>
+                                                            <span className="text-muted-foreground">{lastSeenStatus.label}</span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
