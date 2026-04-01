@@ -11,6 +11,12 @@
                 "title": "Assistance: Suggested ROR-IDs Discovery",
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
             }
+        ],
+        "improvements": [
+            {
+                "title": "Skip ORCID Re-Validation on Editor Load",
+                "description": "When opening a saved resource in the Data Editor, ORCIDs that were previously verified are no longer re-validated against the ORCID API. This eliminates unnecessary API calls and loading spinners, making the editor load significantly faster for resources with many authors or contributors. A clickable 'Verified' badge allows manual re-verification at any time."
+            }
         ]
     },
     {
