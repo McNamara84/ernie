@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-03-31",
+        "date": "2026-04-01",
         "features": [
+            {
+                "title": "Last Seen Status for Users",
+                "description": "Admins and group leaders can now see when each user was last active on the platform. The user management page displays a visual online/offline indicator (green/gray dot) along with a relative timestamp (e.g. '5 minutes ago') in a new 'Last Seen' column."
+            },
             {
                 "title": "Assistance: Suggested ROR-IDs Discovery",
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."

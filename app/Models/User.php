@@ -27,6 +27,7 @@ use Illuminate\Notifications\Notifiable;
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property \Illuminate\Support\Carbon|null $deactivated_at
  * @property int|null $deactivated_by
+ * @property \Illuminate\Support\Carbon|null $last_seen_at
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon $updated_at
  */
@@ -51,6 +52,7 @@ class User extends Authenticatable
             'role' => UserRole::class,
             'is_active' => 'boolean',
             'deactivated_at' => 'datetime',
+            'last_seen_at' => 'datetime',
         ];
     }
 
@@ -193,5 +195,13 @@ class User extends Authenticatable
     public function canRegisterProductionDoi(): bool
     {
         return $this->role->canRegisterProductionDoi();
+    }
+
+    /**
+     * Check if the user is currently online (active within the last 5 minutes).
+     */
+    public function isOnline(): bool
+    {
+        return $this->last_seen_at !== null && $this->last_seen_at->diffInMinutes(now()) < 5;
     }
 }

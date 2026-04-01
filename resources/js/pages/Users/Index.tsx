@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { formatDistanceToNow } from 'date-fns';
 import { KeyRound, Mail, ShieldCheck, ShieldOff, UserCog, Users as UsersIcon } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -27,6 +28,8 @@ interface UserData {
         name: string;
     } | null;
     created_at: string;
+    last_seen_at: string | null;
+    is_online: boolean;
 }
 
 interface RoleOption {
@@ -170,6 +173,17 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         });
     };
 
+    const formatLastSeen = (user: UserData) => {
+        if (user.last_seen_at === null) {
+            return { label: 'Never', online: false };
+        }
+
+        return {
+            label: formatDistanceToNow(new Date(user.last_seen_at), { addSuffix: true }),
+            online: user.is_online,
+        };
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="User Management" />
@@ -206,6 +220,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                             <TableHead>Role</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead>Registered</TableHead>
+                                            <TableHead>Last Seen</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -275,6 +290,22 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-sm text-muted-foreground">{formatDate(user.created_at)}</TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            const status = formatLastSeen(user);
+                                                            return (
+                                                                <div className="flex items-center gap-2 text-sm">
+                                                                    <span
+                                                                        data-testid={status.online ? 'online-indicator' : 'offline-indicator'}
+                                                                        className={`inline-block h-2.5 w-2.5 rounded-full ${
+                                                                            status.online ? 'bg-green-500' : 'bg-gray-400'
+                                                                        }`}
+                                                                    />
+                                                                    <span className="text-muted-foreground">{status.label}</span>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
                                                             {user.id !== auth.user.id && user.id !== 1 && (
