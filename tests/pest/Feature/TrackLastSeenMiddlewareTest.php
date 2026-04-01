@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 describe('TrackLastSeenMiddleware', function (): void {
+    beforeEach(function (): void {
+        config()->set('users.online_window_minutes', 5);
+    });
+
     it('updates last_seen_at for authenticated users', function (): void {
         $user = User::factory()->create(['last_seen_at' => null]);
 

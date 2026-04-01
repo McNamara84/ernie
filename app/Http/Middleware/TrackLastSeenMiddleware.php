@@ -34,7 +34,7 @@ class TrackLastSeenMiddleware
     private function updateLastSeen(User $user): void
     {
         /** @var int $windowMinutes */
-        $windowMinutes = config('users.online_window_minutes');
+        $windowMinutes = max(1, (int) config('users.online_window_minutes'));
 
         if ($user->last_seen_at !== null && $user->last_seen_at->diffInMinutes(now()) < $windowMinutes) {
             return;

@@ -5,6 +5,10 @@ declare(strict_types=1);
 use App\Models\User;
 
 describe('UserController - Last Seen Data', function (): void {
+    beforeEach(function (): void {
+        config()->set('users.online_window_minutes', 5);
+    });
+
     it('includes last_seen_at and is_online in user data for admin', function (): void {
         $admin = User::factory()->admin()->create(['last_seen_at' => now()]);
         $onlineUser = User::factory()->create(['last_seen_at' => now()->subMinutes(2)]);

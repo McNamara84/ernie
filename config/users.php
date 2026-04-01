@@ -15,6 +15,6 @@ return [
     |
     */
 
-    'online_window_minutes' => (int) env('USER_ONLINE_WINDOW_MINUTES', 5),
+    'online_window_minutes' => max(1, (int) env('USER_ONLINE_WINDOW_MINUTES', 5)),
 
 ];

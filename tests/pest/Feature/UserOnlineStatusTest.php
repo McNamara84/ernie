@@ -5,6 +5,10 @@ declare(strict_types=1);
 use App\Models\User;
 
 describe('User Model - isOnline', function (): void {
+    beforeEach(function (): void {
+        config()->set('users.online_window_minutes', 5);
+    });
+
     it('returns true when last_seen_at is within the configured window', function (): void {
         /** @var int $windowMinutes */
         $windowMinutes = config('users.online_window_minutes');

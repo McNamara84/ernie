@@ -203,7 +203,7 @@ class User extends Authenticatable
     public function isOnline(): bool
     {
         /** @var int $windowMinutes */
-        $windowMinutes = config('users.online_window_minutes');
+        $windowMinutes = max(1, (int) config('users.online_window_minutes'));
 
         return $this->last_seen_at !== null && $this->last_seen_at->diffInMinutes(now()) < $windowMinutes;
     }
