@@ -420,11 +420,16 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const orcidValue = isPersonEntry(entry) ? entry.orcid : null;
     const entryType = entry.type;
     const prevOrcidRef = useRef(orcidValue);
+    const entryRef = useRef(entry);
+    const onEntryChangeRef = useRef(onEntryChange);
+    entryRef.current = entry;
+    onEntryChangeRef.current = onEntryChange;
     useEffect(() => {
         setPendingOrcidData(null);
         // Reset verified state when the ORCID value actually changes so the new value can be re-verified
-        if (prevOrcidRef.current !== orcidValue && isPersonEntry(entry) && entry.orcidVerified) {
-            onEntryChange({ ...entry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
+        const currentEntry = entryRef.current;
+        if (prevOrcidRef.current !== orcidValue && isPersonEntry(currentEntry) && currentEntry.orcidVerified) {
+            onEntryChangeRef.current({ ...currentEntry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
         }
         prevOrcidRef.current = orcidValue;
     }, [orcidValue, entryType]);
