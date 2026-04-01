@@ -301,7 +301,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                 aria-hidden="true"
                                                             />
                                                             <span className="sr-only">{lastSeenStatus.online ? 'Online' : 'Offline'}</span>
-                                                            <span className="text-muted-foreground">{lastSeenStatus.label}</span>
+                                                            <span className="text-muted-foreground" suppressHydrationWarning>{lastSeenStatus.label}</span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
