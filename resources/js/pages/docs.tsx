@@ -277,6 +277,17 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
                             </li>
+                            <li>
+                                <strong>Datacenters:</strong> Manage the list of available datacenters for resource assignment
+                            </li>
+                        </ul>
+
+                        <h4>Datacenter Management</h4>
+                        <p>The Datacenters card allows you to:</p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Add new datacenters by entering a name and clicking &quot;Add&quot;</li>
+                            <li>View how many resources are assigned to each datacenter</li>
+                            <li>Delete datacenters that have no assigned resources (the delete button is disabled otherwise)</li>
                         </ul>
 
                         <h4>Bulk Selection</h4>
@@ -518,7 +529,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     </li>
                                     <li>
                                         <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields
-                                        (title, year, resource type, language, license, authors, abstract) must be filled.
+                                        (title, year, resource type, datacenter, language, license, authors, abstract) must be filled.
                                     </li>
                                 </ul>
                             </WorkflowSteps.Step>
@@ -572,6 +583,46 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Tip:</strong> Administrators can configure which resource types are available in Editor Settings.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'datacenters',
+                title: 'Datacenters',
+                icon: Database,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Assigning Datacenters</h3>
+                        <p>
+                            Every resource must be assigned to at least one datacenter. Datacenters indicate which GFZ data center or
+                            project database is responsible for storing or managing the dataset.
+                        </p>
+
+                        <h4>How to Select Datacenters</h4>
+                        <p>
+                            In the <strong>Resource Information</strong> section of the Data Editor, click the
+                            &quot;Select datacenters...&quot; button next to Resource Type. A searchable dropdown appears where you can:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Search for datacenters by typing in the search field</li>
+                            <li>Select multiple datacenters by clicking checkboxes</li>
+                            <li>Remove a selection by clicking the × on its badge or unchecking in the dropdown</li>
+                        </ul>
+
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Required:</strong> At least one datacenter must be selected before saving a validated resource.
+                                Drafts can be saved without a datacenter.
+                            </p>
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Note:</strong> Datacenters are for internal categorization only and are not included in DataCite metadata exports.
+                                Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.
                             </p>
                         </div>
                     </>
