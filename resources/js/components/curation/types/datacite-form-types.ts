@@ -123,6 +123,7 @@ export type InitialAuthor =
           email?: string | null;
           website?: string | null;
           isContact?: boolean | string | null;
+          orcidVerified?: boolean;
       })
     | (BaseInitialAuthor & {
           type: 'institution';
@@ -143,6 +144,7 @@ export type InitialContributor =
           lastName?: string | null;
           email?: string | null;
           website?: string | null;
+          orcidVerified?: boolean;
       })
     | (BaseInitialContributor & {
           type: 'institution';
