@@ -383,14 +383,19 @@ describe('Users/Index', () => {
         });
 
         it('displays relative time for last seen users', () => {
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2026-04-01T12:00:00Z'));
+
+            const oneHourAgo = new Date('2026-04-01T11:00:00Z').toISOString();
             const users = [
                 { ...defaultUsers[0], last_seen_at: oneHourAgo, is_online: false },
             ];
 
             render(<Index {...defaultProps} users={users} />);
 
-            expect(screen.getByText(/hour/i)).toBeInTheDocument();
+            expect(screen.getByText('about 1 hour ago')).toBeInTheDocument();
+
+            vi.useRealTimers();
         });
 
         it('renders correctly with multiple users having different online statuses', () => {
