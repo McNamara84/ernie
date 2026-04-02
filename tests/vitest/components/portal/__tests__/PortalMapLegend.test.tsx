@@ -1,10 +1,9 @@
+import { createMockPortalResource } from '@test-helpers/factories';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { PortalMapLegend } from '@/components/portal/PortalMapLegend';
-import { RESOURCE_TYPE_COLORS } from '@/lib/portal-map-config';
 import type { PortalResource } from '@/types/portal';
-import { createMockPortalResource } from '@test-helpers/factories';
 
 function makeResource(overrides?: Partial<PortalResource>): PortalResource {
     return createMockPortalResource(overrides);
@@ -17,7 +16,6 @@ describe('PortalMapLegend', () => {
     });
 
     it('renders nothing when no resources have geo locations', () => {
-        const resources = [makeResource({ geoLocations: [] })];
         // Legend receives resourcesWithGeo from parent — if parent passes empty,
         // legend should still not render
         const { container } = render(<PortalMapLegend resources={[]} />);
