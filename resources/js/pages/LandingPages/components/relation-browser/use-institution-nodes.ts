@@ -7,7 +7,7 @@ import type {
 } from '@/types/landing-page';
 
 import type { GraphLink, GraphNode } from './graph-types';
-import { truncateLabel } from './graph-utils';
+import { humanizeContributorType, truncateLabel } from './graph-utils';
 import type { ApiAuthorWithAffiliations } from './use-creator-nodes';
 
 /**
@@ -93,7 +93,7 @@ function mergeInstitution(
     }
 
     // Try finding existing entry by normalized name
-    const nameKey = `name-${name.trim().toLowerCase()}`;
+    const nameKey = getInstitutionKey(name.trim(), null);
     const existing = map.get(nameKey);
     if (existing) {
         existing.connectedNodeIds.set(connectedNodeId, edge);
@@ -108,7 +108,7 @@ function mergeInstitution(
 
     // Also check if there's already a ror-keyed entry with matching name
     if (rorId) {
-        const rorKey = `ror-${rorId}`;
+        const rorKey = getInstitutionKey(name.trim(), rorId);
         const existingByRor = map.get(rorKey);
         if (existingByRor) {
             existingByRor.connectedNodeIds.set(connectedNodeId, edge);
@@ -117,7 +117,7 @@ function mergeInstitution(
     }
 
     // New institution
-    const key = rorId ? `ror-${rorId}` : nameKey;
+    const key = getInstitutionKey(name.trim(), rorId);
     const info: InstitutionInfo = {
         name: name.trim(),
         rorId,
@@ -128,13 +128,6 @@ function mergeInstitution(
     if (rorId) {
         rorIndex.set(rorId, key);
     }
-}
-
-/**
- * Convert a PascalCase contributor type to a human-readable label.
- */
-function humanizeContributorType(type: string): string {
-    return type.replace(/([A-Z])/g, ' $1').trim();
 }
 
 /**
@@ -377,7 +370,6 @@ export {
     collectCreatorAffiliations,
     findContributorPersonNodeId,
     findPersonNodeId,
-    humanizeContributorType,
     mergeInstitution,
 };
 export type { InstitutionInfo };

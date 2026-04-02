@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { humanizeContributorType } from '@/pages/LandingPages/components/relation-browser/graph-utils';
 import type { ContributorInfo } from '@/pages/LandingPages/components/relation-browser/use-contributor-nodes';
 import {
     buildContributorId,
     buildContributorLabel,
     fromLandingPageContributor,
-    humanizeContributorType,
     mergeContributor,
     normalizeNameKey,
 } from '@/pages/LandingPages/components/relation-browser/use-contributor-nodes';

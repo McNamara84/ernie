@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { humanizeContributorType } from '@/pages/LandingPages/components/relation-browser/graph-utils';
 import {
     extractRorId,
     getInstitutionKey,
-    humanizeContributorType,
     resolveRorUrl,
 } from '@/pages/LandingPages/components/relation-browser/use-institution-nodes';
 

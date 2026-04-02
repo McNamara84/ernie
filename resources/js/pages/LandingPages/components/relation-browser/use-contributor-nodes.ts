@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { LandingPageContributor, LandingPageResource } from '@/types/landing-page';
 
 import type { GraphLink, GraphNode } from './graph-types';
+import { humanizeContributorType } from './graph-utils';
 
 interface ContributorInfo {
     givenName: string | null;
@@ -71,14 +72,6 @@ function buildContributorId(info: ContributorInfo, counter: Counter): string {
 function buildOrcidUrl(orcid: string | null): string | null {
     if (!orcid) return null;
     return `https://orcid.org/${orcid}`;
-}
-
-/**
- * Convert a PascalCase contributor type to a human-readable label.
- * e.g. "DataCollector" → "Data Collector", "HostingInstitution" → "Hosting Institution"
- */
-function humanizeContributorType(type: string): string {
-    return type.replace(/([A-Z])/g, ' $1').trim();
 }
 
 /**
@@ -258,11 +251,11 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
 
 // Export helpers for testing
 export {
-    normalizeNameKey,
-    buildContributorLabel,
     buildContributorId,
+    buildContributorLabel,
+    fromLandingPageContributor,
     humanizeContributorType,
     mergeContributor,
-    fromLandingPageContributor,
+    normalizeNameKey,
 };
 export type { ContributorInfo };

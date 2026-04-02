@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\DataCiteApiService;
+use App\Support\OrcidNormalizer;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -172,8 +173,9 @@ class DataCiteController extends Controller
             }
 
             if ($scheme === 'ORCID') {
-                if (preg_match('/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])/', $value, $matches)) {
-                    return $matches[1];
+                $bareId = OrcidNormalizer::extractBareId($value);
+                if (OrcidNormalizer::isValidFormat($bareId)) {
+                    return strtoupper($bareId);
                 }
 
                 continue;
@@ -318,11 +320,8 @@ class DataCiteController extends Controller
             return null;
         }
 
-        // Normalize: extract the ORCID ID from a full URL if needed
-        if (preg_match('/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])/', $orcidValue, $matches)) {
-            return $matches[1];
-        }
+        $bareId = OrcidNormalizer::extractBareId($orcidValue);
 
-        return null;
+        return OrcidNormalizer::isValidFormat($bareId) ? strtoupper($bareId) : null;
     }
 }
