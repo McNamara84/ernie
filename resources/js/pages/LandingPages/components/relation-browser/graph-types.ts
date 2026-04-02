@@ -1,6 +1,6 @@
 import type { SimulationLinkDatum, SimulationNodeDatum } from 'd3-force';
 
-export type GraphNodeType = 'resource' | 'creator' | 'contributor';
+export type GraphNodeType = 'resource' | 'creator' | 'contributor' | 'institution';
 
 export interface GraphNode extends SimulationNodeDatum {
     id: string;
@@ -14,6 +14,7 @@ export interface GraphNode extends SimulationNodeDatum {
     nodeType: GraphNodeType;
     orcid: string | null;
     contributorTypes?: string[];
+    rorId?: string | null;
 }
 
 export interface GraphLink extends SimulationLinkDatum<GraphNode> {
@@ -36,6 +37,7 @@ export interface TooltipState {
         nodeType?: GraphNodeType;
         orcid?: string | null;
         contributorTypes?: string[];
+        rorId?: string | null;
     };
     type: 'node' | 'edge';
 }

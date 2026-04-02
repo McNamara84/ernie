@@ -228,4 +228,70 @@ describe('RelationBrowserLegend', () => {
 
         expect(screen.getByTestId('legend-edge-Contributor')).toBeInTheDocument();
     });
+
+    it('renders Institution legend entry when Institution is in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Institution']}
+                activeRelationTypes={['References', 'AffiliatedWith']}
+            />,
+        );
+
+        expect(screen.getByTestId('legend-node-Institution')).toBeInTheDocument();
+        expect(screen.getByText('Institutions')).toBeInTheDocument();
+        // "Institution" appears as the node label in the Institutions legend section
+        expect(screen.getByText('Institution')).toBeInTheDocument();
+    });
+
+    it('separates Institution from Identifier Types section', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Institution']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.getByText('DOI')).toBeInTheDocument();
+        expect(screen.getByText('Identifier Types')).toBeInTheDocument();
+        expect(screen.getByText('Institutions')).toBeInTheDocument();
+    });
+
+    it('does not render Institution section when Institution is not in identifier types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'URL']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.queryByText('Institutions')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('legend-node-Institution')).not.toBeInTheDocument();
+    });
+
+    it('renders Affiliation edge category in Relation Types', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['Institution']}
+                activeRelationTypes={['AffiliatedWith']}
+            />,
+        );
+
+        expect(screen.getByTestId('legend-edge-Affiliation')).toBeInTheDocument();
+    });
+
+    it('renders Creator, Contributor, and Institution sections together', () => {
+        render(
+            <RelationBrowserLegend
+                activeIdentifierTypes={['DOI', 'Creator', 'Contributor', 'Institution']}
+                activeRelationTypes={['Created', 'Editor', 'AffiliatedWith']}
+            />,
+        );
+
+        expect(screen.getByText('Creators')).toBeInTheDocument();
+        expect(screen.getByText('Contributors')).toBeInTheDocument();
+        expect(screen.getByText('Institutions')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Creator')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Contributor')).toBeInTheDocument();
+        expect(screen.getByTestId('legend-node-Institution')).toBeInTheDocument();
+    });
 });

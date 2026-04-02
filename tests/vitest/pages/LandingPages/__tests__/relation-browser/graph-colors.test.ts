@@ -14,6 +14,8 @@ import {
     getNodeColor,
     getNodeColorMap,
     getNodeRadius,
+    INSTITUTION_COLOR,
+    INSTITUTION_RADIUS,
     NODE_FALLBACK_COLOR,
     NODE_RADIUS,
 } from '@/pages/LandingPages/components/relation-browser/graph-colors';
@@ -33,7 +35,7 @@ describe('graph-colors', () => {
             expect(getNodeColor('arXiv', false)).toBe('#F43F5E');
             expect(getNodeColor('IGSN', false)).toBe('#8B5CF6');
             expect(getNodeColor('ISBN', false)).toBe('#F97316');
-            expect(getNodeColor('ISSN', false)).toBe('#14B8A6');
+            expect(getNodeColor('ISSN', false)).toBe('#84CC16');
             expect(getNodeColor('URN', false)).toBe('#EC4899');
             expect(getNodeColor('RAiD', false)).toBe('#06B6D4');
         });
@@ -214,6 +216,38 @@ describe('graph-colors', () => {
             expect(CENTRAL_RADIUS).toBeGreaterThan(NODE_RADIUS);
             expect(NODE_RADIUS).toBeGreaterThan(CREATOR_RADIUS);
             expect(CREATOR_RADIUS).toBeGreaterThan(CONTRIBUTOR_RADIUS);
+        });
+
+        it('returns INSTITUTION_RADIUS for institution nodes', () => {
+            expect(getNodeRadius('institution', false)).toBe(INSTITUTION_RADIUS);
+        });
+
+        it('has institution radius between creator and resource radius', () => {
+            expect(INSTITUTION_RADIUS).toBeGreaterThan(CONTRIBUTOR_RADIUS);
+            expect(INSTITUTION_RADIUS).toBeLessThanOrEqual(NODE_RADIUS);
+        });
+    });
+
+    describe('Institution support', () => {
+        it('returns Institution color for Institution identifier type', () => {
+            expect(getNodeColor('Institution', false)).toBe(INSTITUTION_COLOR);
+        });
+
+        it('returns correct edge color for AffiliatedWith relation type', () => {
+            expect(getEdgeColor('AffiliatedWith')).toBe(INSTITUTION_COLOR);
+        });
+
+        it('returns Affiliation category for AffiliatedWith relation type', () => {
+            expect(getEdgeCategory('AffiliatedWith')).toBe('Affiliation');
+        });
+
+        it('includes Affiliation in edge category color map', () => {
+            const map = getEdgeCategoryColorMap();
+            expect(map.Affiliation).toBe(INSTITUTION_COLOR);
+        });
+
+        it('INSTITUTION_COLOR is teal (#14B8A6)', () => {
+            expect(INSTITUTION_COLOR).toBe('#14B8A6');
         });
     });
 });

@@ -4,7 +4,7 @@ import { select } from 'd3-selection';
 import { zoom } from 'd3-zoom';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
-import { CENTRAL_RADIUS, getEdgeCategory, getEdgeColor, getNodeColor, getNodeRadius } from './graph-colors';
+import { CENTRAL_RADIUS, getEdgeCategory, getEdgeColor, getNodeColor, getNodeRadius, INSTITUTION_RADIUS } from './graph-colors';
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
 
@@ -73,11 +73,14 @@ export function useRelationGraph(
         for (const rt of markerTypes) {
             // Created edges point at the central resource node (radius 30)
             // Contributor edges also point at central node (radius 30)
+            // Affiliation edges point at institution nodes (radius 15)
             // Other edges point at resource nodes (radius 22)
             const category = getEdgeCategory(rt);
             const refX = category === 'Contributor' || category === 'Creator'
                 ? CENTRAL_RADIUS + 6
-                : 28;
+                : category === 'Affiliation'
+                    ? INSTITUTION_RADIUS + 6
+                    : 28;
             defs.append('marker')
                 .attr('id', `arrow-${rt}`)
                 .attr('viewBox', '0 -5 10 10')
@@ -159,6 +162,7 @@ export function useRelationGraph(
                         nodeType: d.nodeType,
                         orcid: d.orcid,
                         contributorTypes: d.contributorTypes,
+                        rorId: d.rorId,
                     },
                     type: 'node',
                 });

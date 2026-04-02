@@ -26,15 +26,14 @@ class DataCiteApiService
 
     /** Sentinel value indicating a transient failure (not cached long-term). */
     private const CACHE_TRANSIENT_FAILURE = '__TRANSIENT__';
+
     /**
-     * Ruft Metadaten für eine DOI über Content Negotiation ab.
+     * Normalize a DOI string by stripping resolver URL prefixes and lowercasing.
      *
-     * Results are cached for 24 hours to reduce load on doi.org.
-     *
-     * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
-     * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
+     * @param  string  $doi  The raw DOI string (may include resolver URL)
+     * @return string|null The cleaned DOI or null if empty
      */
-    public function getMetadata(string $doi): ?array
+    public function normalizeDoi(string $doi): ?string
     {
         $cleanDoi = trim($doi);
 
@@ -50,7 +49,24 @@ class DataCiteApiService
         }
 
         // DOIs are case-insensitive per spec — lowercase for consistent cache keys
-        $cleanDoi = strtolower($cleanDoi);
+        return strtolower($cleanDoi);
+    }
+
+    /**
+     * Ruft Metadaten für eine DOI über Content Negotiation ab.
+     *
+     * Results are cached for 24 hours to reduce load on doi.org.
+     *
+     * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
+     * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
+     */
+    public function getMetadata(string $doi): ?array
+    {
+        $cleanDoi = $this->normalizeDoi($doi);
+
+        if ($cleanDoi === null) {
+            return null;
+        }
 
         $cacheKey = CacheKey::DOI_CITATION->key($cleanDoi);
         $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
@@ -166,5 +182,91 @@ class DataCiteApiService
 
         // Zitation aufbauen: [Autoren] ([Jahr]): [Titel]. [Verlag]. [DOI URL]
         return trim("{$authorsString} ({$year}): {$title}. {$publisher}. {$doiUrl}");
+    }
+
+    /**
+     * Fetch metadata from the DataCite REST API (includes affiliations, nameType, etc.).
+     *
+     * Only works for DataCite-registered DOIs. Returns the attributes object from:
+     * GET https://api.datacite.org/dois/{doi}
+     *
+     * Results are cached for 24 hours.
+     *
+     * @param  string  $doi  The DOI to fetch metadata for
+     * @return array<string, mixed>|null The DataCite attributes or null on failure
+     */
+    public function getDataCiteMetadata(string $doi): ?array
+    {
+        $cleanDoi = $this->normalizeDoi($doi);
+
+        if ($cleanDoi === null) {
+            return null;
+        }
+
+        $cacheKey = CacheKey::DOI_DATACITE_METADATA->key($cleanDoi);
+        $cache = $this->getCacheInstance(CacheKey::DOI_DATACITE_METADATA->tags());
+
+        $cached = $cache->get($cacheKey);
+
+        if ($cached === self::CACHE_NULL_SENTINEL || $cached === self::CACHE_TRANSIENT_FAILURE) {
+            return null;
+        }
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $result = $this->fetchDataCiteMetadataFromApi($cleanDoi, $doi);
+
+        if (is_array($result)) {
+            $cache->put($cacheKey, $result, CacheKey::DOI_DATACITE_METADATA->ttl());
+        } elseif ($result === self::CACHE_NULL_SENTINEL) {
+            $cache->put($cacheKey, self::CACHE_NULL_SENTINEL, CacheKey::DOI_DATACITE_METADATA->ttl());
+        } else {
+            $cache->put($cacheKey, self::CACHE_TRANSIENT_FAILURE, 300);
+        }
+
+        return is_array($result) ? $result : null;
+    }
+
+    /**
+     * Fetch metadata from the DataCite REST API.
+     *
+     * @return array<string, mixed>|string
+     */
+    private function fetchDataCiteMetadataFromApi(string $cleanDoi, string $originalDoi): array|string
+    {
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Accept' => 'application/vnd.api+json',
+                ])
+                ->get("https://api.datacite.org/dois/{$cleanDoi}");
+
+            if ($response->successful()) {
+                $attributes = $response->json('data.attributes');
+
+                return is_array($attributes) ? $attributes : self::CACHE_NULL_SENTINEL;
+            }
+
+            if ($response->status() === 404) {
+                Log::info("DataCite metadata not found: {$originalDoi}");
+
+                return self::CACHE_NULL_SENTINEL;
+            }
+
+            Log::warning("DataCite REST API error for {$originalDoi}", [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return self::CACHE_TRANSIENT_FAILURE;
+        } catch (\Exception $e) {
+            Log::error("Error fetching DataCite metadata for {$originalDoi}", [
+                'error' => $e->getMessage(),
+            ]);
+
+            return self::CACHE_TRANSIENT_FAILURE;
+        }
     }
 }

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { LandingPageContributor, LandingPageResource } from '@/types/landing-page';
 
 import type { GraphLink, GraphNode } from './graph-types';
+import { humanizeContributorType } from './graph-utils';
 
 interface ContributorInfo {
     givenName: string | null;
@@ -16,6 +17,7 @@ interface ContributorInfo {
 interface UseContributorNodesResult {
     contributorNodes: GraphNode[];
     contributorLinks: GraphLink[];
+    contributorNodeIdMap: Map<string, string>;
 }
 
 interface Counter {
@@ -70,14 +72,6 @@ function buildContributorId(info: ContributorInfo, counter: Counter): string {
 function buildOrcidUrl(orcid: string | null): string | null {
     if (!orcid) return null;
     return `https://orcid.org/${orcid}`;
-}
-
-/**
- * Convert a PascalCase contributor type to a human-readable label.
- * e.g. "DataCollector" → "Data Collector", "HostingInstitution" → "Hosting Institution"
- */
-function humanizeContributorType(type: string): string {
-    return type.replace(/([A-Z])/g, ' $1').trim();
 }
 
 /**
@@ -195,6 +189,8 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
 
         const contributors = resource.contributors ?? [];
         for (const contributor of contributors) {
+            // Skip institutional contributors — handled by useInstitutionNodes
+            if (contributor.contributorable.type === 'Institution') continue;
             mergeContributor(
                 contributorMap,
                 orcidIndex,
@@ -206,6 +202,7 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
 
         const contributorNodes: GraphNode[] = [];
         const contributorLinks: GraphLink[] = [];
+        const nodeIdMap = new Map<string, string>();
         const idCounter: Counter = { value: 0 };
 
         for (const info of contributorMap.values()) {
@@ -214,6 +211,15 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
             const orcidUrl = buildOrcidUrl(info.orcid);
             const primaryType = info.contributorTypes[0] ?? 'Other';
             const humanizedTypes = info.contributorTypes.map(humanizeContributorType);
+
+            // Build lookup map keyed by ORCID and name key
+            if (info.orcid) {
+                nodeIdMap.set(info.orcid, nodeId);
+            }
+            const nameKey = normalizeNameKey(info.familyName, info.givenName);
+            if (nameKey !== '|') {
+                nodeIdMap.set(nameKey, nodeId);
+            }
 
             contributorNodes.push({
                 id: nodeId,
@@ -239,17 +245,17 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
             }
         }
 
-        return { contributorNodes, contributorLinks };
+        return { contributorNodes, contributorLinks, contributorNodeIdMap: nodeIdMap };
     }, [resource.contributors]);
 }
 
 // Export helpers for testing
 export {
-    normalizeNameKey,
-    buildContributorLabel,
     buildContributorId,
+    buildContributorLabel,
+    fromLandingPageContributor,
     humanizeContributorType,
     mergeContributor,
-    fromLandingPageContributor,
+    normalizeNameKey,
 };
 export type { ContributorInfo };

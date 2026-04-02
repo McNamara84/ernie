@@ -23,6 +23,52 @@ afterEach(function (): void {
 });
 
 // =========================================================================
+// normalizeDoi
+// =========================================================================
+
+describe('normalizeDoi', function (): void {
+    it('returns lowercase DOI without prefix', function (): void {
+        expect($this->service->normalizeDoi('10.5880/TEST.2024.001'))
+            ->toBe('10.5880/test.2024.001');
+    });
+
+    it('strips https://doi.org/ prefix', function (): void {
+        expect($this->service->normalizeDoi('https://doi.org/10.5880/test'))
+            ->toBe('10.5880/test');
+    });
+
+    it('strips http://doi.org/ prefix', function (): void {
+        expect($this->service->normalizeDoi('http://doi.org/10.5880/test'))
+            ->toBe('10.5880/test');
+    });
+
+    it('strips https://dx.doi.org/ prefix', function (): void {
+        expect($this->service->normalizeDoi('https://dx.doi.org/10.5880/test'))
+            ->toBe('10.5880/test');
+    });
+
+    it('strips prefix case-insensitively', function (): void {
+        expect($this->service->normalizeDoi('HTTPS://DOI.ORG/10.5880/Test'))
+            ->toBe('10.5880/test');
+    });
+
+    it('trims whitespace', function (): void {
+        expect($this->service->normalizeDoi('  10.5880/test  '))
+            ->toBe('10.5880/test');
+    });
+
+    it('returns null for empty string', function (): void {
+        expect($this->service->normalizeDoi(''))->toBeNull();
+        expect($this->service->normalizeDoi('   '))->toBeNull();
+    });
+
+    it('returns null for resolver URL only', function (): void {
+        expect($this->service->normalizeDoi('https://doi.org/'))->toBeNull();
+        expect($this->service->normalizeDoi('https://doi.org'))->toBeNull();
+    });
+});
+
+// =========================================================================
 // getMetadata
 // =========================================================================
 
@@ -381,5 +427,134 @@ describe('caching', function (): void {
         expect($second)->toBeNull();
 
         Http::assertSentCount(1);
+    });
+});
+
+// =========================================================================
+// getDataCiteMetadata
+// =========================================================================
+
+describe('getDataCiteMetadata', function (): void {
+    it('returns attributes for a valid DataCite DOI', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response([
+                'data' => [
+                    'attributes' => [
+                        'creators' => [
+                            ['nameType' => 'Personal', 'givenName' => 'John', 'familyName' => 'Doe'],
+                        ],
+                        'titles' => [['title' => 'Test Dataset']],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $result = $this->service->getDataCiteMetadata('10.5880/test.2024.001');
+
+        expect($result)->toBeArray()
+            ->and($result['creators'])->toBeArray()
+            ->and($result['creators'][0]['familyName'])->toBe('Doe');
+    });
+
+    it('normalizes DOI before calling DataCite API', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response([
+                'data' => ['attributes' => ['creators' => []]],
+            ]),
+        ]);
+
+        $this->service->getDataCiteMetadata('https://doi.org/10.5880/TEST.2024');
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '10.5880/test.2024'));
+    });
+
+    it('returns null for empty DOI without calling API', function (): void {
+        Http::fake();
+
+        expect($this->service->getDataCiteMetadata(''))->toBeNull();
+
+        Http::assertNothingSent();
+    });
+
+    it('returns null for 404 response', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response('Not Found', 404),
+        ]);
+
+        $result = $this->service->getDataCiteMetadata('10.1234/crossref-doi');
+
+        expect($result)->toBeNull();
+    });
+
+    it('returns null for server error responses', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response('Server Error', 500),
+        ]);
+
+        $result = $this->service->getDataCiteMetadata('10.5880/test.2024.001');
+
+        expect($result)->toBeNull();
+    });
+
+    it('returns null on HTTP exception', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => fn () => throw new \Exception('Connection timeout'),
+        ]);
+
+        $result = $this->service->getDataCiteMetadata('10.5880/test.2024.001');
+
+        expect($result)->toBeNull();
+    });
+
+    it('sends correct Accept header for DataCite API', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response([
+                'data' => ['attributes' => ['creators' => []]],
+            ]),
+        ]);
+
+        $this->service->getDataCiteMetadata('10.5880/test.2024.001');
+
+        Http::assertSent(fn ($request) => $request->header('Accept')[0] === 'application/vnd.api+json');
+    });
+
+    it('caches DataCite metadata for subsequent calls', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response([
+                'data' => ['attributes' => ['creators' => []]],
+            ]),
+        ]);
+
+        $this->service->getDataCiteMetadata('10.5880/cached.2024.001');
+        $this->service->getDataCiteMetadata('10.5880/cached.2024.001');
+
+        Http::assertSentCount(1);
+    });
+
+    it('caches 404 responses using sentinel value', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response('Not Found', 404),
+        ]);
+
+        $this->service->getDataCiteMetadata('10.5880/not-found');
+        $this->service->getDataCiteMetadata('10.5880/not-found');
+
+        Http::assertSentCount(1);
+    });
+
+    it('uses 24-hour TTL for DataCite metadata cache', function (): void {
+        expect(CacheKey::DOI_DATACITE_METADATA->ttl())->toBe(86400);
+    });
+
+    it('returns null when response has no data.attributes', function (): void {
+        Http::fake([
+            'api.datacite.org/*' => Http::response([
+                'data' => ['id' => '10.5880/test', 'type' => 'dois'],
+            ]),
+        ]);
+
+        $result = $this->service->getDataCiteMetadata('10.5880/test');
+
+        expect($result)->toBeNull();
     });
 });
