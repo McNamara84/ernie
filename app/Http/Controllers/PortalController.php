@@ -53,8 +53,11 @@ class PortalController extends Controller
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
             ), 0, 20),
             'datacenter' => array_values(array_slice(array_filter(
-                (array) $request->query('datacenter', []),
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+                array_map(trim(...), array_filter(
+                    (array) $request->query('datacenter', []),
+                    static fn (mixed $v): bool => is_string($v),
+                )),
+                static fn (string $v): bool => $v !== '',
             ), 0, 20)),
             'bounds' => $this->parseBounds($request),
             'temporal' => $this->parseTemporal($request, $temporalRange),

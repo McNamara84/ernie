@@ -27,6 +27,10 @@ class DatacenterController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $request->merge([
+            'name' => is_string($request->name) ? trim($request->name) : $request->name,
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:datacenters,name'],
         ]);

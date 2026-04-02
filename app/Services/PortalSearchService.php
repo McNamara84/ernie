@@ -235,6 +235,15 @@ class PortalSearchService
             return;
         }
 
+        $datacenterNames = array_values(array_unique(array_filter(
+            array_map(trim(...), $datacenterNames),
+            static fn (string $v): bool => $v !== '',
+        )));
+
+        if ($datacenterNames === []) {
+            return;
+        }
+
         $query->whereHas('datacenters', function (Builder $q) use ($datacenterNames): void {
             $q->whereIn('name', $datacenterNames);
         });
