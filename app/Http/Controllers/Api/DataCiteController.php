@@ -175,8 +175,11 @@ class DataCiteController extends Controller
                 if (preg_match('/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])/', $value, $matches)) {
                     return $matches[1];
                 }
-            } elseif ($scheme === 'ROR') {
-                // Return the full URL or just the ID
+
+                continue;
+            }
+
+            if ($scheme === 'ROR') {
                 if (preg_match('/(https:\/\/ror\.org\/[a-z0-9]+)/', $value, $matches)) {
                     return $matches[1];
                 }
@@ -184,8 +187,11 @@ class DataCiteController extends Controller
                 if (preg_match('/^(0[a-z0-9]{6}\d{2})$/', $value, $matches)) {
                     return "https://ror.org/{$matches[1]}";
                 }
+
+                continue;
             }
 
+            // Unknown scheme – return raw value
             return $value;
         }
 

@@ -239,7 +239,7 @@ describe('RelationBrowserLegend', () => {
 
         expect(screen.getByTestId('legend-node-Institution')).toBeInTheDocument();
         expect(screen.getByText('Institutions')).toBeInTheDocument();
-        // "Institution" text appears in both node label and edge Affiliation category text
+        // "Institution" appears as the node label in the Institutions legend section
         expect(screen.getByText('Institution')).toBeInTheDocument();
     });
 

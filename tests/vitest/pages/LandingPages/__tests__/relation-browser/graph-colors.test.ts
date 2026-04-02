@@ -35,7 +35,7 @@ describe('graph-colors', () => {
             expect(getNodeColor('arXiv', false)).toBe('#F43F5E');
             expect(getNodeColor('IGSN', false)).toBe('#8B5CF6');
             expect(getNodeColor('ISBN', false)).toBe('#F97316');
-            expect(getNodeColor('ISSN', false)).toBe('#14B8A6');
+            expect(getNodeColor('ISSN', false)).toBe('#84CC16');
             expect(getNodeColor('URN', false)).toBe('#EC4899');
             expect(getNodeColor('RAiD', false)).toBe('#06B6D4');
         });

@@ -18,7 +18,7 @@ const NODE_COLOR_MAP: Record<string, string> = {
     arXiv: '#F43F5E',
     IGSN: '#8B5CF6',
     ISBN: '#F97316',
-    ISSN: '#14B8A6',
+    ISSN: '#84CC16',
     URN: '#EC4899',
     RAiD: '#06B6D4',
     Creator: CREATOR_COLOR,
