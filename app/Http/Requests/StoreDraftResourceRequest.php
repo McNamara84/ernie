@@ -178,7 +178,7 @@ class StoreDraftResourceRequest extends FormRequest
             'instruments.*.name' => ['required', 'string', 'max:1024'],
             // Datacenters are optional for drafts
             'datacenters' => ['nullable', 'array'],
-            'datacenters.*' => ['integer', Rule::exists('datacenters', 'id')],
+            'datacenters.*' => ['integer', 'distinct', Rule::exists('datacenters', 'id')],
         ];
     }
 
