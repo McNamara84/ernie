@@ -37,17 +37,29 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
         }
     };
 
-    const removeOption = (e: { stopPropagation: () => void }, optionId: number) => {
-        e.stopPropagation();
-        onChange(selected.filter((id) => id !== optionId));
-    };
-
     return (
         <div className={cn('flex flex-col gap-2', className)}>
             <Label htmlFor={id}>
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
+            {selectedOptions.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                    {selectedOptions.map((option) => (
+                        <Badge key={option.id} variant="secondary" className="gap-1 pr-1 text-xs">
+                            {option.name}
+                            <button
+                                type="button"
+                                aria-label={`Remove datacenter "${option.name}"`}
+                                className="text-muted-foreground hover:text-foreground rounded-sm"
+                                onClick={() => onChange(selected.filter((sid) => sid !== option.id))}
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
@@ -61,31 +73,10 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         className={cn('h-auto min-h-9 w-full justify-between font-normal', hasError && 'border-destructive')}
                         data-testid="datacenter-select"
                     >
-                        <span className="flex flex-wrap gap-1">
-                            {selectedOptions.length > 0 ? (
-                                selectedOptions.map((option) => (
-                                    <Badge key={option.id} variant="secondary" className="gap-1 pr-1 text-xs">
-                                        {option.name}
-                                        <span
-                                            role="button"
-                                            tabIndex={0}
-                                            aria-label={`Remove datacenter "${option.name}"`}
-                                            className="text-muted-foreground hover:text-foreground rounded-sm"
-                                            onClick={(e) => removeOption(e, option.id)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    removeOption(e, option.id);
-                                                }
-                                            }}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </span>
-                                    </Badge>
-                                ))
-                            ) : (
-                                <span className="text-muted-foreground">Select datacenters...</span>
-                            )}
+                        <span className="text-muted-foreground">
+                            {selectedOptions.length > 0
+                                ? `${selectedOptions.length} datacenter${selectedOptions.length > 1 ? 's' : ''} selected`
+                                : 'Select datacenters...'}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>

@@ -37,7 +37,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
-        $this->invalidateDatacenterFacets();
+        $this->invalidatePortalFacets();
     }
 
     /**
@@ -65,7 +65,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->keywordService->invalidateCache();
-        $this->invalidateDatacenterFacets();
+        $this->invalidatePortalFacets();
 
         // Sync DOI to landing page if DOI was changed during this save.
         // Use wasChanged() instead of isDirty() because observers run AFTER the model
@@ -179,7 +179,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
-        $this->invalidateDatacenterFacets();
+        $this->invalidatePortalFacets();
     }
 
     /**
@@ -192,20 +192,25 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
-        $this->invalidateDatacenterFacets();
+        $this->invalidatePortalFacets();
     }
 
     /**
-     * Invalidate the portal datacenter facets cache.
+     * Invalidate all portal facet caches (datacenter + resource type).
      */
-    private function invalidateDatacenterFacets(): void
+    private function invalidatePortalFacets(): void
     {
-        $cacheKey = \App\Enums\CacheKey::PORTAL_DATACENTER_FACETS;
+        $cacheKeys = [
+            \App\Enums\CacheKey::PORTAL_DATACENTER_FACETS,
+            \App\Enums\CacheKey::PORTAL_RESOURCE_TYPE_FACETS,
+        ];
 
-        if ($this->supportsTagging()) {
-            Cache::tags($cacheKey->tags())->flush();
-        } else {
-            Cache::forget($cacheKey->key());
+        foreach ($cacheKeys as $cacheKey) {
+            if ($this->supportsTagging()) {
+                Cache::tags($cacheKey->tags())->flush();
+            } else {
+                Cache::forget($cacheKey->key());
+            }
         }
     }
 }

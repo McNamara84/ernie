@@ -17,6 +17,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['resource_id', 'datacenter_id']);
+            $table->index('datacenter_id');
+            $table->index('resource_id');
         });
     }
 
