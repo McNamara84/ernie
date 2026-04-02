@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
 use App\Exceptions\ResourceAlreadyExistsException;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -22,6 +23,7 @@ use Inertia\Response;
 class LandingPageController extends Controller
 {
     use AuthorizesRequests;
+    use \App\Support\Traits\ChecksCacheTagging;
 
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
@@ -472,8 +474,26 @@ class LandingPageController extends Controller
         // Forget main cache
         Cache::forget("landing-page.{$resourceId}");
 
+        // Invalidate portal facets (datacenter + resource type) because
+        // publishing/unpublishing changes which resources are "published".
+        $this->invalidatePortalFacets();
+
         // Also try to forget preview caches (pattern matching would require Redis tags)
         // For now, we'll clear individual cache entries when we know the token
         // In production with Redis, you could use Cache::tags()
+    }
+
+    /**
+     * Invalidate portal facet caches (datacenter + resource type).
+     */
+    private function invalidatePortalFacets(): void
+    {
+        foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS] as $cacheKey) {
+            if ($this->supportsTagging()) {
+                Cache::tags($cacheKey->tags())->flush();
+            } else {
+                Cache::forget($cacheKey->key());
+            }
+        }
     }
 }

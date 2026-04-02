@@ -546,6 +546,27 @@ entity "resource_instruments" as resource_instruments {
 }
 
 ' ==========================================================================
+' DATACENTER TABLES
+' ==========================================================================
+
+entity "datacenters" as datacenters {
+    * **id** : BIGINT <<PK>>
+    --
+    * name : VARCHAR <<UK>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "resource_datacenter" as resource_datacenter {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * datacenter_id : BIGINT <<FK>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+' ==========================================================================
 ' LARAVEL FRAMEWORK TABLES
 ' ==========================================================================
 
@@ -779,6 +800,9 @@ resources ||--o{ formats
 resources ||--o| landing_pages
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments
+resources }o--o{ datacenters
+resource_datacenter }o--|| resources
+resource_datacenter }o--|| datacenters
 
 ' Lookup table relationships
 resources }o--o| resource_types

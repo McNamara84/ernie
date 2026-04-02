@@ -205,6 +205,10 @@ export interface DataCiteFormProps {
     initialFundingReferences?: FundingReferenceEntry[];
     initialMslLaboratories?: MSLLaboratory[];
     initialInstruments?: InstrumentSelection[];
+    /** Initial datacenter IDs assigned to this resource */
+    initialDatacenters?: number[];
+    /** Available datacenters for selection */
+    availableDatacenters?: { id: number; name: string }[];
     /** Optional: Whether the current user is an admin (used for DOI editing permissions) */
     isUserAdmin?: boolean;
     /** Active relation type slugs from the backend (only these are shown in the editor) */

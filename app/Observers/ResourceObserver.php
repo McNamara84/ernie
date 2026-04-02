@@ -7,6 +7,7 @@ namespace App\Observers;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
 use App\Services\ResourceCacheService;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class ResourceObserver
 {
+    use ChecksCacheTagging;
     /**
      * Create a new observer instance.
      */
@@ -35,6 +37,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
+        $this->invalidatePortalFacets();
     }
 
     /**
@@ -62,6 +65,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->keywordService->invalidateCache();
+        $this->invalidatePortalFacets();
 
         // Sync DOI to landing page if DOI was changed during this save.
         // Use wasChanged() instead of isDirty() because observers run AFTER the model
@@ -175,6 +179,7 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
+        $this->invalidatePortalFacets();
     }
 
     /**
@@ -187,5 +192,25 @@ class ResourceObserver
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
+        $this->invalidatePortalFacets();
+    }
+
+    /**
+     * Invalidate all portal facet caches (datacenter + resource type).
+     */
+    private function invalidatePortalFacets(): void
+    {
+        $cacheKeys = [
+            \App\Enums\CacheKey::PORTAL_DATACENTER_FACETS,
+            \App\Enums\CacheKey::PORTAL_RESOURCE_TYPE_FACETS,
+        ];
+
+        foreach ($cacheKeys as $cacheKey) {
+            if ($this->supportsTagging()) {
+                Cache::tags($cacheKey->tags())->flush();
+            } else {
+                Cache::forget($cacheKey->key());
+            }
+        }
     }
 }

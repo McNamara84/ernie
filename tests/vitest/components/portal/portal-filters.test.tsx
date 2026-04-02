@@ -12,6 +12,7 @@ describe('PortalFilters', () => {
         query: '',
         type: [],
         keywords: [],
+        datacenter: [],
         bounds: null,
         temporal: null,
     };
@@ -26,6 +27,7 @@ describe('PortalFilters', () => {
         filters: defaultFilters,
         onSearchChange: vi.fn(),
         onTypeChange: vi.fn(),
+        onDatacenterChange: vi.fn(),
         onKeywordsChange: vi.fn(),
         onClearFilters: vi.fn(),
         hasActiveFilters: false,
@@ -41,6 +43,7 @@ describe('PortalFilters', () => {
         onTemporalFilterToggle: vi.fn(),
         onTemporalChange: vi.fn(),
         resourceTypeFacets: defaultFacets,
+        datacenterFacets: [],
     };
 
     beforeEach(() => {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
@@ -67,6 +68,8 @@ test('updating a resource syncs licenses (removes old, adds new)', function () {
         'is_elmo_active' => true,
     ]);
 
+    $datacenter = Datacenter::create(['name' => 'Test Datacenter']);
+
     $createPayload = [
         'resourceId' => null,
         'doi' => null,
@@ -93,6 +96,7 @@ test('updating a resource syncs licenses (removes old, adds new)', function () {
                 'description' => 'Test abstract',
             ],
         ],
+        'datacenters' => [$datacenter->id],
     ];
 
     $this->actingAs($user)

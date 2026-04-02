@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\ContributorType;
+use App\Models\Datacenter;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -39,6 +40,7 @@ function validResourcePayload(int $resourceTypeId, string $licenseIdentifier): a
         'descriptions' => [
             ['descriptionType' => 'abstract', 'description' => 'Test abstract.'],
         ],
+        'datacenters' => [Datacenter::first()->id],
     ];
 }
 
@@ -52,6 +54,8 @@ beforeEach(function () {
         ['slug' => 'ContactPerson'],
         ['name' => 'Contact Person', 'category' => 'person'],
     );
+
+    Datacenter::create(['name' => 'Test Datacenter']);
 });
 
 // =========================================================================
@@ -64,7 +68,7 @@ describe('required fields', function () {
             ->postJson('/editor/resources', []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors']);
+            ->assertJsonValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors', 'datacenters']);
     });
 
     it('accepts valid minimal payload', function () {

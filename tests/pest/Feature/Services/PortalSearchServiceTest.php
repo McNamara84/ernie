@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Datacenter;
 use App\Models\Description;
 use App\Models\Institution;
 use App\Models\LandingPage;
@@ -13,6 +14,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\PortalSearchService;
+use Illuminate\Support\Facades\Cache;
 
 covers(PortalSearchService::class);
 
@@ -856,5 +858,162 @@ describe('bounds filtering', function () {
         ]);
 
         expect($results->total())->toBe(0);
+    });
+});
+
+// =========================================================================
+// Datacenter filtering
+// =========================================================================
+
+describe('datacenter filtering', function () {
+    it('filters resources by a single datacenter name', function () {
+        $dc = Datacenter::create(['name' => 'GFZ Data Services']);
+
+        $matching = createPublishedResourceForSearch('Matching Paper', $this->titleType);
+        $matching->datacenters()->attach($dc);
+
+        createPublishedResourceForSearch('No Datacenter Paper', $this->titleType);
+
+        $results = $this->service->search(['datacenter' => ['GFZ Data Services']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('applies OR logic for multiple datacenter names', function () {
+        $dc1 = Datacenter::create(['name' => 'GFZ Data Services']);
+        $dc2 = Datacenter::create(['name' => 'GEOFON']);
+        $dc3 = Datacenter::create(['name' => 'EPOS']);
+
+        $inDc1 = createPublishedResourceForSearch('Paper DC1', $this->titleType);
+        $inDc1->datacenters()->attach($dc1);
+
+        $inDc2 = createPublishedResourceForSearch('Paper DC2', $this->titleType);
+        $inDc2->datacenters()->attach($dc2);
+
+        $inDc3 = createPublishedResourceForSearch('Paper DC3', $this->titleType);
+        $inDc3->datacenters()->attach($dc3);
+
+        $results = $this->service->search(['datacenter' => ['GFZ Data Services', 'GEOFON']]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('returns all resources when datacenter filter is empty', function () {
+        $dc = Datacenter::create(['name' => 'GFZ Data Services']);
+
+        $withDc = createPublishedResourceForSearch('With DC', $this->titleType);
+        $withDc->datacenters()->attach($dc);
+
+        createPublishedResourceForSearch('Without DC', $this->titleType);
+
+        $results = $this->service->search(['datacenter' => []]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('returns all resources when datacenter filter is null', function () {
+        createPublishedResourceForSearch('Paper A', $this->titleType);
+        createPublishedResourceForSearch('Paper B', $this->titleType);
+
+        $results = $this->service->search(['datacenter' => null]);
+
+        expect($results->total())->toBe(2);
+    });
+
+    it('combines datacenter filter with text search', function () {
+        $dc = Datacenter::create(['name' => 'GFZ Data Services']);
+
+        $matchingBoth = createPublishedResourceForSearch('Seismic Data', $this->titleType);
+        $matchingBoth->datacenters()->attach($dc);
+
+        $queryOnly = createPublishedResourceForSearch('Seismic Other', $this->titleType);
+
+        $dcOnly = createPublishedResourceForSearch('Ocean Data', $this->titleType);
+        $dcOnly->datacenters()->attach($dc);
+
+        $results = $this->service->search([
+            'query' => 'Seismic',
+            'datacenter' => ['GFZ Data Services'],
+        ]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matchingBoth->id);
+    });
+});
+
+// =========================================================================
+// Datacenter facets
+// =========================================================================
+
+describe('datacenter facets', function () {
+    beforeEach(function () {
+        Cache::flush();
+    });
+
+    it('returns facets only for published resources', function () {
+        $dc = Datacenter::create(['name' => 'GFZ Data Services']);
+
+        // Published resource
+        $published = createPublishedResourceForSearch('Published', $this->titleType);
+        $published->datacenters()->attach($dc);
+
+        // Unpublished resource
+        $unpublished = Resource::factory()->create();
+        LandingPage::factory()->create([
+            'resource_id' => $unpublished->id,
+            'is_published' => false,
+        ]);
+        $unpublished->datacenters()->attach($dc);
+
+        $facets = $this->service->getDatacenterFacets();
+
+        expect($facets)->toHaveCount(1)
+            ->and($facets[0]['name'])->toBe('GFZ Data Services')
+            ->and($facets[0]['count'])->toBe(1);
+    });
+
+    it('returns empty array when no datacenters have published resources', function () {
+        Datacenter::create(['name' => 'Empty DC']);
+
+        $facets = $this->service->getDatacenterFacets();
+
+        expect($facets)->toBeEmpty();
+    });
+
+    it('sorts facets by count descending', function () {
+        $dc1 = Datacenter::create(['name' => 'Small DC']);
+        $dc2 = Datacenter::create(['name' => 'Large DC']);
+
+        $r1 = createPublishedResourceForSearch('Paper 1', $this->titleType);
+        $r1->datacenters()->attach($dc1);
+
+        $r2 = createPublishedResourceForSearch('Paper 2', $this->titleType);
+        $r2->datacenters()->attach($dc2);
+
+        $r3 = createPublishedResourceForSearch('Paper 3', $this->titleType);
+        $r3->datacenters()->attach($dc2);
+
+        $facets = $this->service->getDatacenterFacets();
+
+        expect($facets)->toHaveCount(2)
+            ->and($facets[0]['name'])->toBe('Large DC')
+            ->and($facets[0]['count'])->toBe(2)
+            ->and($facets[1]['name'])->toBe('Small DC')
+            ->and($facets[1]['count'])->toBe(1);
+    });
+
+    it('counts distinct resources when assigned to multiple datacenters', function () {
+        $dc1 = Datacenter::create(['name' => 'DC Alpha']);
+        $dc2 = Datacenter::create(['name' => 'DC Beta']);
+
+        $resource = createPublishedResourceForSearch('Multi-DC Paper', $this->titleType);
+        $resource->datacenters()->attach([$dc1->id, $dc2->id]);
+
+        $facets = $this->service->getDatacenterFacets();
+
+        expect($facets)->toHaveCount(2)
+            ->and($facets[0]['count'])->toBe(1)
+            ->and($facets[1]['count'])->toBe(1);
     });
 });

@@ -48,6 +48,8 @@ interface EditorProps {
     instruments?: InstrumentSelection[];
     activeRelationTypes?: string[];
     activeIdentifierTypes?: string[];
+    initialDatacenters?: number[];
+    availableDatacenters?: { id: number; name: string }[];
 }
 
 export default function Editor({
@@ -76,6 +78,8 @@ export default function Editor({
     instruments = [],
     activeRelationTypes,
     activeIdentifierTypes,
+    initialDatacenters = [],
+    availableDatacenters = [],
 }: EditorProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -251,6 +255,8 @@ export default function Editor({
                             isUserAdmin={isUserAdmin}
                             activeRelationTypes={activeRelationTypes}
                             activeIdentifierTypes={activeIdentifierTypes}
+                            initialDatacenters={initialDatacenters}
+                            availableDatacenters={availableDatacenters}
                         />
                     )}
             </div>

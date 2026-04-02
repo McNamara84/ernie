@@ -33,6 +33,7 @@ class PortalController extends Controller
 
         // Fetch facets early (cached) – used in the Inertia response
         $resourceTypeFacets = $this->searchService->getResourceTypeFacets();
+        $datacenterFacets = $this->searchService->getDatacenterFacets();
 
         $rawType = $request->query('type', []);
         $isLegacyDoi = is_string($rawType) && trim($rawType) === 'doi';
@@ -51,6 +52,13 @@ class PortalController extends Controller
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
             ), 0, 20),
+            'datacenter' => array_values(array_slice(array_filter(
+                array_map(trim(...), array_filter(
+                    (array) $request->query('datacenter', []),
+                    static fn (mixed $v): bool => is_string($v),
+                )),
+                static fn (string $v): bool => $v !== '',
+            ), 0, 20)),
             'bounds' => $this->parseBounds($request),
             'temporal' => $this->parseTemporal($request, $temporalRange),
             'page' => (int) $request->query('page', 1),
@@ -86,12 +94,14 @@ class PortalController extends Controller
                 'type' => array_values($filters['type']),
                 'exclude_type' => $excludeType,
                 'keywords' => array_values($filters['keywords']),
+                'datacenter' => $filters['datacenter'],
                 'bounds' => $filters['bounds'],
                 'temporal' => $filters['temporal'],
             ],
             'keywordSuggestions' => $this->keywordService->getSuggestions(),
             'temporalRange' => $temporalRange,
             'resourceTypeFacets' => $resourceTypeFacets,
+            'datacenterFacets' => $datacenterFacets,
         ]);
     }
 

@@ -7,6 +7,7 @@ use App\Models\FundingReference;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -27,6 +28,7 @@ function getValidPayload(array $overrides = []): array
             ['title' => 'Test Resource', 'titleType' => 'main-title'],
         ],
         'licenses' => ['cc-by-4'],
+        'datacenters' => [test()->datacenter->id],
         'authors' => [
             [
                 'type' => 'person',
@@ -69,6 +71,7 @@ beforeEach(function () {
         'name' => 'Abstract',
         'slug' => 'Abstract',
     ]);
+    $this->datacenter = Datacenter::create(['name' => 'Test Datacenter']);
 });
 
 describe('Creating funding references', function () {

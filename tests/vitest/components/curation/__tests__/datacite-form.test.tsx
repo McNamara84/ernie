@@ -299,6 +299,8 @@ describe('DataCiteForm', () => {
         { id: 6, name: 'Other', slug: 'Other' },
     ];
 
+    const availableDatacenters = [{ id: 1, name: 'Test Datacenter' }];
+
     it(
         'renders fields, title options and supports adding/removing titles',
         { timeout: 60000 },
@@ -2234,6 +2236,8 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2323,6 +2327,8 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'Existing Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
                 initialResourceId=" 7 "
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2410,6 +2416,8 @@ describe('DataCiteForm', () => {
                     },
                 ]}
             
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2498,6 +2506,8 @@ describe('DataCiteForm', () => {
                     { title: 'Only Subtitle', titleType: 'subtitle' },
                 ]}
                 initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2578,6 +2588,8 @@ describe('DataCiteForm', () => {
                     initialResourceType="1"
                     initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenters={[1]}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
@@ -2725,6 +2737,8 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2794,6 +2808,8 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2848,6 +2864,8 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,

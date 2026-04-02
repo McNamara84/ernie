@@ -493,6 +493,25 @@ erDiagram
     }
 
     %% =========================================================================
+    %% DATACENTER TABLES
+    %% =========================================================================
+
+    datacenters {
+        bigint id PK
+        varchar name UK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    resource_datacenter {
+        bigint id PK
+        bigint resource_id FK
+        bigint datacenter_id FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% =========================================================================
     %% LARAVEL FRAMEWORK TABLES
     %% =========================================================================
 
@@ -758,6 +777,11 @@ erDiagram
 
     %% PID4INST instrument relationships
     resources ||--o{ resource_instruments : "has"
+
+    %% Datacenter relationships
+    resources }o--o{ datacenters : "assigned to"
+    resource_datacenter }o--|| resources : "resource"
+    resource_datacenter }o--|| datacenters : "datacenter"
 
     %% Landing page domains
     landing_pages }o--o| landing_page_domains : "external domain"

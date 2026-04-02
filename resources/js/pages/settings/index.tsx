@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ChevronDown, ChevronRight, Globe, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, Globe, Trash2 } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -72,6 +72,12 @@ interface LandingPageDomainRow {
     domain: string;
 }
 
+interface DatacenterRow {
+    id: number;
+    name: string;
+    resources_count: number;
+}
+
 interface RelationTypeRow {
     id: number;
     name: string;
@@ -114,6 +120,7 @@ interface EditorSettingsProps {
     contributorBothRoles: ContributorRoleRow[];
     relationTypes: RelationTypeRow[];
     identifierTypes: IdentifierTypeRow[];
+    datacenters: DatacenterRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
@@ -135,12 +142,18 @@ export default function EditorSettings({
     contributorBothRoles,
     relationTypes,
     identifierTypes,
+    datacenters: initialDatacenters,
 }: EditorSettingsProps) {
     // Landing page domains - managed separately via API (not part of main form)
     const [domains, setDomains] = useState<LandingPageDomainRow[]>(landingPageDomains);
     const [newDomain, setNewDomain] = useState('');
     const [isAddingDomain, setIsAddingDomain] = useState(false);
     const [expandedIdentifierTypes, setExpandedIdentifierTypes] = useState<Set<number>>(new Set());
+
+    // Datacenter management - managed separately via API
+    const [datacenters, setDatacenters] = useState<DatacenterRow[]>(initialDatacenters);
+    const [newDatacenter, setNewDatacenter] = useState('');
+    const [isAddingDatacenter, setIsAddingDatacenter] = useState(false);
 
     const handleAddDomain = async () => {
         if (!newDomain.trim()) return;
@@ -178,6 +191,46 @@ export default function EditorSettings({
                 toast.error(error.response.data.message);
             } else {
                 toast.error('Failed to delete domain');
+            }
+        }
+    };
+
+    const handleAddDatacenter = async () => {
+        if (!newDatacenter.trim()) return;
+
+        setIsAddingDatacenter(true);
+        try {
+            const response = await axios.post<{ datacenter: DatacenterRow; message: string }>('/api/datacenters', {
+                name: newDatacenter.trim(),
+            });
+            setDatacenters((prev) => [...prev, response.data.datacenter].sort((a, b) => a.name.localeCompare(b.name)));
+            setNewDatacenter('');
+            toast.success(response.data.message);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.data?.errors?.name) {
+                toast.error(error.response.data.errors.name[0]);
+            } else if (isAxiosError(error) && error.response?.data?.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Failed to add datacenter');
+            }
+        } finally {
+            setIsAddingDatacenter(false);
+        }
+    };
+
+    const handleDeleteDatacenter = async (datacenterId: number) => {
+        if (!confirm('Are you sure you want to delete this datacenter? It cannot be deleted if it is assigned to any resource.')) return;
+
+        try {
+            const response = await axios.delete<{ message: string }>(`/api/datacenters/${datacenterId}`);
+            setDatacenters((prev) => prev.filter((d) => d.id !== datacenterId));
+            toast.success(response.data.message);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.data?.message) {
+                toast.error(error.response.data.message);
+            } else {
+                toast.error('Failed to delete datacenter');
             }
         }
     };
@@ -658,6 +711,80 @@ export default function EditorSettings({
                                     ) : (
                                         <p className="text-sm text-muted-foreground">
                                             No domains configured yet. Add a domain URL above to get started.
+                                        </p>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Datacenters */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Database className="size-5" />
+                                    Datacenters
+                                </CardTitle>
+                                <CardDescription>
+                                    Manage datacenters that can be assigned to resources. Each resource must be assigned to at least one datacenter.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {/* Add new datacenter */}
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="Datacenter name"
+                                            value={newDatacenter}
+                                            onChange={(e) => setNewDatacenter(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddDatacenter();
+                                                }
+                                            }}
+                                        />
+                                        <Button type="button" onClick={handleAddDatacenter} disabled={isAddingDatacenter || !newDatacenter.trim()}>
+                                            {isAddingDatacenter ? 'Adding...' : 'Add'}
+                                        </Button>
+                                    </div>
+
+                                    {/* Datacenter list */}
+                                    {datacenters.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Name</TableHead>
+                                                        <TableHead className="w-24 text-center">Resources</TableHead>
+                                                        <TableHead className="w-16 text-center">Actions</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {datacenters.map((dc) => (
+                                                        <TableRow key={dc.id}>
+                                                            <TableCell>{dc.name}</TableCell>
+                                                            <TableCell className="text-center">{dc.resources_count}</TableCell>
+                                                            <TableCell className="text-center">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDeleteDatacenter(dc.id)}
+                                                                    disabled={dc.resources_count > 0}
+                                                                    title={dc.resources_count > 0 ? 'Cannot delete: datacenter is assigned to resources' : 'Delete datacenter'}
+                                                                    aria-label="Delete datacenter"
+                                                                >
+                                                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground text-sm">
+                                            No datacenters configured yet. Add a datacenter name above to get started.
                                         </p>
                                     )}
                                 </div>

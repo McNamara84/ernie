@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\Settings\EditorSettingsController;
 use App\Http\Controllers\Settings\FontSizeController;
@@ -18,6 +19,10 @@ Route::middleware('auth')->group(function () {
         // Note: GET listing is at /api/landing-page-domains/list in web.php (available to all authenticated users).
         Route::post('api/landing-page-domains', [LandingPageDomainController::class, 'store'])->name('landing-page-domains.store');
         Route::delete('api/landing-page-domains/{landing_page_domain}', [LandingPageDomainController::class, 'destroy'])->name('landing-page-domains.destroy');
+
+        // Datacenters API (Issue: Datacenter categorization)
+        Route::post('api/datacenters', [DatacenterController::class, 'store'])->name('datacenters.store');
+        Route::delete('api/datacenters/{datacenter}', [DatacenterController::class, 'destroy'])->name('datacenters.destroy');
     });
 
     // Personal settings (all authenticated users)
