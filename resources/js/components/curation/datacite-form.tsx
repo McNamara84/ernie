@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { SectionHeader } from '@/components/curation/section-header';
+import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
+import { type MappedError, mapBackendErrors } from '@/components/curation/utils/error-field-mapper';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -382,7 +384,7 @@ export default function DataCiteForm({
     }, []);
 
     // Form validation hook
-    const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
+    const { validateField, markFieldTouched, getFieldState, getFieldMessages, setFieldErrors } = useFormValidation();
 
     // DOI validation hook for duplicate checking
     const {
@@ -909,6 +911,7 @@ export default function DataCiteForm({
     const [successMessage, setSuccessMessage] = useState('Successfully saved resource.');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
 
     // Compute author validation issues
     const authorValidationIssues = useMemo(() => {
@@ -1809,6 +1812,7 @@ export default function DataCiteForm({
         setIsSaving(true);
         setErrorMessage(null);
         setValidationErrors([]);
+        setMappedValidationErrors([]);
 
         // Check if required fields are filled - if not, show error list and scroll to first invalid section
         if (!areRequiredFieldsFilled) {
@@ -1927,13 +1931,35 @@ export default function DataCiteForm({
                         // Not a duplicate — fall through to normal validation error rendering
                     }
 
-                    const messages = parsed?.errors
-                        ? Object.values(parsed.errors)
-                              .flat()
-                              .map((message) => String(message))
-                        : [];
+                    if (parsed?.errors) {
+                        // Map backend errors to sections and fields (Issue #605)
+                        const mapped = mapBackendErrors(parsed.errors);
+                        setMappedValidationErrors(mapped);
 
-                    setValidationErrors(messages);
+                        // Inject errors into individual field states for inline display
+                        const fieldErrors = mapped
+                            .filter((e) => e.fieldSelector)
+                            .map((e) => ({ fieldId: e.fieldSelector!, message: e.message }));
+                        if (fieldErrors.length > 0) {
+                            setFieldErrors(fieldErrors);
+                        }
+
+                        // Auto-open accordion sections that have errors
+                        const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
+                        setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
+
+                        // Scroll to first errored section after accordion opens
+                        if (sectionsWithErrors.length > 0) {
+                            requestAnimationFrame(() => {
+                                setTimeout(() => {
+                                    scrollToFirstInvalidSection();
+                                }, 300);
+                            });
+                        }
+                    } else {
+                        setValidationErrors([]);
+                    }
+
                     setErrorMessage(parsed?.message || defaultError);
                     return;
                 }
@@ -1953,6 +1979,7 @@ export default function DataCiteForm({
         setIsSavingDraft(true);
         setErrorMessage(null);
         setValidationErrors([]);
+        setMappedValidationErrors([]);
 
         const payload = buildPayload();
 
@@ -1991,13 +2018,26 @@ export default function DataCiteForm({
                     const defaultError = 'Unable to save draft. Please review the highlighted issues.';
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
 
-                    const messages = parsed?.errors
-                        ? Object.values(parsed.errors)
-                              .flat()
-                              .map((message) => String(message))
-                        : [];
+                    if (parsed?.errors) {
+                        // Map backend errors to sections and fields (Issue #605)
+                        const mapped = mapBackendErrors(parsed.errors);
+                        setMappedValidationErrors(mapped);
 
-                    setValidationErrors(messages);
+                        // Inject errors into individual field states for inline display
+                        const fieldErrors = mapped
+                            .filter((e) => e.fieldSelector)
+                            .map((e) => ({ fieldId: e.fieldSelector!, message: e.message }));
+                        if (fieldErrors.length > 0) {
+                            setFieldErrors(fieldErrors);
+                        }
+
+                        // Auto-open accordion sections that have errors
+                        const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
+                        setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
+                    } else {
+                        setValidationErrors([]);
+                    }
+
                     setErrorMessage(parsed?.message || defaultError);
                     return;
                 }
@@ -2023,19 +2063,46 @@ export default function DataCiteForm({
         return <Circle className="h-4 w-4 text-gray-400" aria-label="Optional section" />;
     };
 
-    // Build global error messages array for ValidationAlert
+    // Build global error messages array for ValidationAlert (client-side preflight errors only)
     const globalErrorMessages = useMemo(() => {
         const messages: string[] = [];
-        if (errorMessage) {
+        if (errorMessage && mappedValidationErrors.length === 0) {
             messages.push(errorMessage);
         }
         messages.push(...validationErrors);
         return messages;
-    }, [errorMessage, validationErrors]);
+    }, [errorMessage, validationErrors, mappedValidationErrors]);
+
+    // Handle click on an error in the ClickableValidationAlert (Issue #605)
+    const handleErrorClick = useCallback(
+        (error: MappedError) => {
+            // 1. Open the accordion section
+            setOpenAccordionItems((prev) => (prev.includes(error.sectionId) ? prev : [...prev, error.sectionId]));
+
+            // 2. Scroll to field or section after DOM update (wait for accordion animation)
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    const target = error.fieldSelector ? document.querySelector(error.fieldSelector) : document.querySelector(`[data-accordion-value="${error.sectionId}"]`);
+
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if (target instanceof HTMLElement) {
+                            target.focus({ preventScroll: true });
+                        }
+                    }
+                }, 150);
+            });
+        },
+        [setOpenAccordionItems],
+    );
 
     return (
         <form onSubmit={handleSubmit} noValidate className="space-y-6">
-            <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
+            {mappedValidationErrors.length > 0 ? (
+                <ClickableValidationAlert ref={errorRef} errors={mappedValidationErrors} onErrorClick={handleErrorClick} focusable className="p-4" data-testid="global-validation-alert" />
+            ) : (
+                <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
+            )}
             <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>
