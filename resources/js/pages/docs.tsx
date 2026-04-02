@@ -597,8 +597,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Assigning Datacenters</h3>
                         <p>
-                            Every resource must be assigned to at least one datacenter. Datacenters indicate which GFZ data center or
-                            project database is responsible for storing or managing the dataset.
+                            When saving a validated (non-draft) resource, at least one datacenter must be selected. Datacenters indicate
+                            which GFZ data center or project database is responsible for storing or managing the dataset. Drafts can be
+                            saved without a datacenter assignment.
                         </p>
 
                         <h4>How to Select Datacenters</h4>
