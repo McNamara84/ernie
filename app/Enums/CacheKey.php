@@ -119,9 +119,8 @@ enum CacheKey: string
             self::PORTAL_RESOURCE_TYPE_FACETS,
             self::PORTAL_DATACENTER_FACETS => 600,
 
-            // DOI citations are relatively stable - 24 hours
-            self::DOI_CITATION,
-            self::DOI_DATACITE_METADATA => 86400,
+            // DOI citations and DataCite metadata are relatively stable - 24 hours
+            self::DOI_CITATION, self::DOI_DATACITE_METADATA => 86400,
 
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
