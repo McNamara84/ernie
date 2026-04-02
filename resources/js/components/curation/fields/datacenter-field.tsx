@@ -37,7 +37,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
         }
     };
 
-    const removeOption = (e: React.MouseEvent, optionId: number) => {
+    const removeOption = (e: { stopPropagation: () => void }, optionId: number) => {
         e.stopPropagation();
         onChange(selected.filter((id) => id !== optionId));
     };
@@ -75,7 +75,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' || e.key === ' ') {
                                                     e.preventDefault();
-                                                    removeOption(e as unknown as React.MouseEvent, option.id);
+                                                    removeOption(e, option.id);
                                                 }
                                             }}
                                         >
