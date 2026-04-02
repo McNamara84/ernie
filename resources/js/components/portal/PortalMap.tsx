@@ -1,30 +1,23 @@
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import L from 'leaflet';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { formatAuthorsShort, getShapePathOptions } from '@/lib/portal-map-config';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, PortalCreator, PortalResource } from '@/types/portal';
+import type { GeoBounds, PortalResource } from '@/types/portal';
 
-// Fix Leaflet default marker icons
-const iconPrototype: unknown = L.Icon.Default.prototype;
-delete (iconPrototype as { _getIconUrl?: () => string })._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconUrl: markerIcon,
-    iconRetinaUrl: markerIcon2x,
-    shadowUrl: markerShadow,
-});
+import { ClusterLayer } from './PortalMapCluster';
+import { PortalMapLegend } from './PortalMapLegend';
 
-// GFZ Corporate Blue for shapes
-const GFZ_BLUE = '#0C2A63';
+
 
 interface PortalMapProps {
     resources: PortalResource[];
@@ -39,15 +32,7 @@ interface PortalMapProps {
     flyToBounds?: GeoBounds | null;
 }
 
-/**
- * Format authors for popup display.
- */
-function formatAuthorsShort(creators: PortalCreator[]): string {
-    if (creators.length === 0) return 'Unknown';
-    if (creators.length === 1) return creators[0].name;
-    if (creators.length === 2) return `${creators[0].name} & ${creators[1].name}`;
-    return `${creators[0].name} et al.`;
-}
+
 
 /**
  * Calculate bounds that encompass all resources.
@@ -395,12 +380,13 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
     const geoCount = resourcesWithGeo.reduce((acc, r) => acc + r.geoLocations.length, 0);
 
     const mapContent = resourcesWithGeo.length > 0 ? (
-        <MapContainer
-            center={[30, 0]}
-            zoom={2}
-            className="h-full w-full"
-        >
-            <TileLayer
+        <div className="relative h-full w-full">
+            <MapContainer
+                center={[30, 0]}
+                zoom={2}
+                className="h-full w-full"
+            >
+                <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
@@ -415,23 +401,11 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                 <MapBoundsUpdater bounds={flyToBounds} skipNextMoveEnd={skipNextMoveEnd} />
             )}
 
+            <ClusterLayer resources={resourcesWithGeo} />
+
             {resourcesWithGeo.map((resource) =>
                 resource.geoLocations.map((geo) => {
                     const key = `${resource.id}-${geo.id}`;
-
-                    // Render point marker
-                    if (geo.type === 'point' && geo.point) {
-                        return (
-                            <Marker
-                                key={key}
-                                position={[geo.point.lat, geo.point.lng]}
-                            >
-                                <Popup>
-                                    <ResourcePopupContent resource={resource} />
-                                </Popup>
-                            </Marker>
-                        );
-                    }
 
                     // Render bounding box
                     if (geo.type === 'box' && geo.bounds) {
@@ -443,11 +417,7 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                             <Rectangle
                                 key={key}
                                 bounds={bounds}
-                                pathOptions={{
-                                    color: GFZ_BLUE,
-                                    weight: 2,
-                                    fillOpacity: 0.2,
-                                }}
+                                pathOptions={getShapePathOptions(resource.resourceTypeSlug, 'box')}
                             >
                                 <Popup>
                                     <ResourcePopupContent resource={resource} />
@@ -465,11 +435,7 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                             <Polygon
                                 key={key}
                                 positions={positions}
-                                pathOptions={{
-                                    color: GFZ_BLUE,
-                                    weight: 2,
-                                    fillOpacity: 0.2,
-                                }}
+                                pathOptions={getShapePathOptions(resource.resourceTypeSlug, 'polygon')}
                             >
                                 <Popup>
                                     <ResourcePopupContent resource={resource} />
@@ -487,11 +453,7 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                             <Polyline
                                 key={key}
                                 positions={positions}
-                                pathOptions={{
-                                    color: GFZ_BLUE,
-                                    weight: 3,
-                                    dashArray: '8, 4',
-                                }}
+                                pathOptions={getShapePathOptions(resource.resourceTypeSlug, 'line')}
                             >
                                 <Popup>
                                     <ResourcePopupContent resource={resource} />
@@ -503,7 +465,9 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
                     return null;
                 }),
             )}
-        </MapContainer>
+            </MapContainer>
+            <PortalMapLegend resources={resourcesWithGeo} />
+        </div>
     ) : (
         <div className="flex h-full items-center justify-center bg-muted/30">
             <p className="text-sm text-muted-foreground">

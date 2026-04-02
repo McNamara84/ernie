@@ -246,6 +246,14 @@
         outline: none;
     }
 
+    /* Portal map: custom marker icons (suppress default DivIcon styles) */
+    .portal-igsn-marker,
+    .portal-circle-marker,
+    .portal-pie-cluster {
+        background: none !important;
+        border: none !important;
+    }
+
     /* Easter Egg: Confetti animation */
     .confetti-container {
         position: relative;
