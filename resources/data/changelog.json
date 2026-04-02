@@ -1,8 +1,16 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-01",
+        "date": "2026-04-02",
         "features": [
+            {
+                "title": "Resource Type-Specific Map Markers on Portal",
+                "description": "The portal map now visually distinguishes resources by their DataCite resource type. IGSN samples (Physical Objects) are displayed as orange diamond markers, while all other 33 resource types use uniquely colored circle markers. Geographic shapes (bounding boxes, polygons, polylines) are also colored by type. A dynamic legend in the bottom-right corner shows only the resource types currently visible on the map and updates automatically when filters change."
+            },
+            {
+                "title": "Marker Clustering with Pie Chart Breakdown",
+                "description": "When many markers overlap on the portal map, they are now grouped into clusters that display a pie chart showing the proportion of each resource type within the cluster. The cluster size scales logarithmically with the number of contained markers, and clicking a cluster zooms in to reveal individual markers."
+            },
             {
                 "title": "Datacenter Assignment for Resources",
                 "description": "Resources can now be assigned to one or more datacenters via a new multi-select field in the Resource Information section of the Data Editor. Datacenters are managed in Editor Settings by Admins and Group Leaders. The Data Portal includes a new faceted Datacenter filter with result counts for narrowing search results by datacenter."

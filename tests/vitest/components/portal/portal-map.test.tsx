@@ -68,6 +68,16 @@ vi.mock('leaflet', () => ({
     },
 }));
 
+// Mock leaflet.markercluster (requires global L which doesn't exist in jsdom)
+vi.mock('leaflet.markercluster', () => ({}));
+vi.mock('leaflet.markercluster/dist/MarkerCluster.css', () => ({}));
+vi.mock('leaflet.markercluster/dist/MarkerCluster.Default.css', () => ({}));
+
+// Mock ClusterLayer – the real component uses L.markerClusterGroup which isn't available in jsdom
+vi.mock('@/components/portal/PortalMapCluster', () => ({
+    ClusterLayer: () => <div data-testid="cluster-layer" />,
+}));
+
 // Mock leaflet CSS import
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 
@@ -175,7 +185,7 @@ describe('PortalMap', () => {
             expect(screen.getAllByTestId('tile-layer').length).toBeGreaterThan(0);
         });
 
-        it('renders markers for point geo locations', () => {
+        it('renders ClusterLayer for point geo locations', () => {
             const resources = [
                 createMockResourceWithGeo(1, [
                     { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
@@ -184,9 +194,8 @@ describe('PortalMap', () => {
             ];
             render(<PortalMap resources={resources} />);
 
-            // 2 markers x 2 layouts = 4 markers
-            const markers = screen.getAllByTestId('map-marker');
-            expect(markers.length).toBeGreaterThanOrEqual(2);
+            // Markers are now rendered imperatively inside ClusterLayer
+            expect(screen.getAllByTestId('cluster-layer').length).toBeGreaterThan(0);
         });
 
         it('renders rectangles for bounding box geo locations', () => {
@@ -229,21 +238,11 @@ describe('PortalMap', () => {
     });
 
     describe('Popup Content', () => {
-        it('renders resource title in popup', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            // Modify resource title
-            resources[0].title = 'Test Dataset Title';
-            render(<PortalMap resources={resources} />);
+        // Note: Popup content (title, author, year, links) is now generated as HTML strings
+        // by the ClusterLayer component. These are tested in portal-map-config.test.ts
+        // (renderPopupHtml, formatAuthorsShort). Here we only verify what's still in React DOM.
 
-            // Title appears in both layouts' popups
-            expect(screen.getAllByText('Test Dataset Title').length).toBeGreaterThan(0);
-        });
-
-        it('renders resource type badge in popup', () => {
+        it('renders resource type in legend', () => {
             const resources = [
                 createMockResourceWithGeo(1, [
                     { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
@@ -252,50 +251,8 @@ describe('PortalMap', () => {
             resources[0].resourceType = 'Dataset';
             render(<PortalMap resources={resources} />);
 
-            // Badge appears in both layouts' popups
+            // Resource type appears in the legend
             expect(screen.getAllByText('Dataset').length).toBeGreaterThan(0);
-        });
-
-        it('renders author and year in popup', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].creators = [{ name: 'Smith' }];
-            resources[0].year = 2024;
-            render(<PortalMap resources={resources} />);
-
-            // Author/year appear in both layouts' popups
-            expect(screen.getAllByText(/Smith/).length).toBeGreaterThan(0);
-            expect(screen.getAllByText(/2024/).length).toBeGreaterThan(0);
-        });
-
-        it('renders "View Details" link when landing page exists', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].landingPageUrl = '/landing/test';
-            render(<PortalMap resources={resources} />);
-
-            // Links appear in both layouts' popups
-            const links = screen.getAllByRole('link', { name: /view details/i });
-            expect(links.length).toBeGreaterThan(0);
-            expect(links[0]).toHaveAttribute('href', '/landing/test');
-        });
-
-        it('does not render "View Details" when no landing page', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].landingPageUrl = null;
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.queryByRole('link', { name: /view details/i })).not.toBeInTheDocument();
         });
     });
 
@@ -347,15 +304,15 @@ describe('PortalMap', () => {
             ];
             render(<PortalMap resources={resources} />);
 
-            // All shape types rendered (x2 for dual layout)
-            expect(screen.getAllByTestId('map-marker').length).toBeGreaterThan(0);
+            // Point markers handled by ClusterLayer, shapes still React components
+            expect(screen.getAllByTestId('cluster-layer').length).toBeGreaterThan(0);
             expect(screen.getAllByTestId('map-rectangle').length).toBeGreaterThan(0);
             expect(screen.getAllByTestId('map-polygon').length).toBeGreaterThan(0);
         });
     });
 
     describe('IGSN Resources', () => {
-        it('renders secondary badge variant for IGSN resources', () => {
+        it('renders IGSN resource type in legend', () => {
             const resources = [
                 createMockResourceWithGeo(1, [
                     { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
@@ -363,9 +320,10 @@ describe('PortalMap', () => {
             ];
             resources[0].isIgsn = true;
             resources[0].resourceType = 'PhysicalObject';
+            resources[0].resourceTypeSlug = 'physical-object';
             render(<PortalMap resources={resources} />);
 
-            // Badge appears in both layouts' popups
+            // IGSN resource type appears in legend
             expect(screen.getAllByText('PhysicalObject').length).toBeGreaterThan(0);
         });
     });
@@ -596,43 +554,9 @@ describe('PortalMap', () => {
         });
     });
 
-    describe('Author Formatting', () => {
-        it('shows two authors joined with ampersand', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].creators = [{ name: 'Smith' }, { name: 'Jones' }];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByText(/Smith & Jones/).length).toBeGreaterThan(0);
-        });
-
-        it('shows "et al." for three or more authors', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].creators = [{ name: 'Smith' }, { name: 'Jones' }, { name: 'Brown' }];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByText(/Smith et al\./).length).toBeGreaterThan(0);
-        });
-
-        it('shows "Unknown" when no authors', () => {
-            const resources = [
-                createMockResourceWithGeo(1, [
-                    { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
-                ]),
-            ];
-            resources[0].creators = [];
-            render(<PortalMap resources={resources} />);
-
-            expect(screen.getAllByText(/Unknown/).length).toBeGreaterThan(0);
-        });
-    });
+    // Note: Author formatting tests (ampersand, et al., Unknown) are now covered
+    // by portal-map-config.test.ts > formatAuthorsShort since popup content is
+    // generated as HTML strings by ClusterLayer, not as React DOM.
 
     describe('Header Modes', () => {
         it('hides collapsible header when hideHeader is true', () => {
