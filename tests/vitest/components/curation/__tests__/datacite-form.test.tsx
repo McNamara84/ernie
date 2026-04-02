@@ -2555,8 +2555,8 @@ describe('DataCiteForm', () => {
             ],
         });
 
-        await screen.findByText('Validation failed');
-        const alert = screen.getByText('Validation failed').closest('[role="alert"]');
+        await screen.findByText('Unable to save resource. Please review the highlighted issues.');
+        const alert = screen.getByTestId('global-validation-alert');
         expect(alert).not.toBeNull();
         expect(screen.getByText('A main title is required.')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();

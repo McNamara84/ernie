@@ -69,7 +69,7 @@ function seedValidationLookupTables(): int
  * @param  array<string, mixed>  $overrides
  * @return array<string, mixed>
  */
-function validResourcePayload(int $resourceTypeId, array $overrides = []): array
+function validationMsgPayload(int $resourceTypeId, array $overrides = []): array
 {
     return array_merge([
         'resourceId' => null,
@@ -107,7 +107,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, ['year' => null]);
+        $payload = validationMsgPayload($resourceTypeId, ['year' => null]);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -125,7 +125,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, ['year' => 'not-a-number']);
+        $payload = validationMsgPayload($resourceTypeId, ['year' => 'not-a-number']);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -141,7 +141,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         seedValidationLookupTables();
 
-        $payload = validResourcePayload(0, ['resourceType' => null]);
+        $payload = validationMsgPayload(0, ['resourceType' => null]);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -157,7 +157,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, ['titles' => []]);
+        $payload = validationMsgPayload($resourceTypeId, ['titles' => []]);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -173,7 +173,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, ['datacenters' => []]);
+        $payload = validationMsgPayload($resourceTypeId, ['datacenters' => []]);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -189,7 +189,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, ['licenses' => []]);
+        $payload = validationMsgPayload($resourceTypeId, ['licenses' => []]);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -205,7 +205,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, ['authors' => []]);
+        $payload = validationMsgPayload($resourceTypeId, ['authors' => []]);
 
         $response = $this->actingAs($user)
             ->postJson(route('editor.resources.store'), $payload);
@@ -221,7 +221,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'authors' => [
                 [
                     'type' => 'person',
@@ -248,7 +248,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'authors' => [
                 [
                     'type' => 'person',
@@ -278,7 +278,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'authors' => [
                 [
                     'type' => 'institution',
@@ -304,7 +304,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'contributors' => [
                 [
                     'type' => 'person',
@@ -332,7 +332,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'descriptions' => [],
         ]);
 
@@ -351,7 +351,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'spatialTemporalCoverages' => [
                 [
                     'type' => 'polygon',
@@ -379,7 +379,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'titles' => [
                 ['title' => 'Alternate Title', 'titleType' => 'AlternativeTitle'],
             ],
@@ -442,7 +442,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
-        $payload = validResourcePayload($resourceTypeId, [
+        $payload = validationMsgPayload($resourceTypeId, [
             'authors' => [
                 [
                     'type' => 'person',
