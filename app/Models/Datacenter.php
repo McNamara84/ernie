@@ -24,10 +24,10 @@ class Datacenter extends Model
     /** @var list<string> */
     protected $fillable = ['name'];
 
-    /** @return BelongsToMany<Resource, $this> */
+    /** @return BelongsToMany<Resource, static> */
     public function resources(): BelongsToMany
     {
-        /** @var BelongsToMany<Resource, $this> $relation */
+        /** @var BelongsToMany<Resource, static> $relation */
         $relation = $this->belongsToMany(Resource::class, 'resource_datacenter')
             ->withTimestamps();
 
