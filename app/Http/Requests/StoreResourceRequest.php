@@ -790,6 +790,119 @@ class StoreResourceRequest extends FormRequest
         return $normalized !== '' ? $normalized : null;
     }
 
+    /**
+     * Custom validation messages with section-prefixed context (Issue #605).
+     *
+     * Each message starts with the section name so the frontend can group
+     * and display errors in the correct form section.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            // Resource Information
+            'year.required' => '[Resource Information] Publication Year is required.',
+            'year.integer' => '[Resource Information] Publication Year must be a number.',
+            'year.between' => '[Resource Information] Publication Year must be between :min and :max.',
+            'resourceType.required' => '[Resource Information] Resource Type is required.',
+            'resourceType.integer' => '[Resource Information] Resource Type must be a valid selection.',
+            'resourceType.exists' => '[Resource Information] The selected Resource Type is invalid.',
+            'version.max' => '[Resource Information] Version exceeds the maximum length of :max characters.',
+            'language.exists' => '[Resource Information] The selected Language is invalid.',
+            'doi.unique' => '[Resource Information] This DOI is already in use by another resource.',
+            'doi.max' => '[Resource Information] DOI exceeds the maximum length of :max characters.',
+            'titles.required' => '[Resource Information] At least one title is required.',
+            'titles.min' => '[Resource Information] At least one title is required.',
+            'titles.*.title.required' => '[Resource Information] Title #:position must not be empty.',
+            'titles.*.title.max' => '[Resource Information] Title #:position exceeds the maximum length of :max characters.',
+            'titles.*.titleType.required' => '[Resource Information] Title #:position must have a type.',
+            'datacenters.required' => '[Resource Information] At least one datacenter is required.',
+            'datacenters.min' => '[Resource Information] At least one datacenter is required.',
+            'datacenters.*.exists' => '[Resource Information] Datacenter #:position is not a valid datacenter.',
+            'datacenters.*.distinct' => '[Resource Information] Datacenter #:position is a duplicate.',
+
+            // Licenses & Rights
+            'licenses.required' => '[Licenses & Rights] At least one license is required.',
+            'licenses.min' => '[Licenses & Rights] At least one license is required.',
+            'licenses.*.exists' => '[Licenses & Rights] License #:position is not a recognized license.',
+            'licenses.*.distinct' => '[Licenses & Rights] License #:position is a duplicate.',
+
+            // Authors
+            'authors.required' => '[Authors] At least one author is required.',
+            'authors.min' => '[Authors] At least one author is required.',
+            'authors.*.type.required' => '[Authors] Author #:position must have a type (person or institution).',
+            'authors.*.type.in' => '[Authors] Author #:position has an invalid type.',
+            'authors.*.lastName.max' => '[Authors] Author #:position last name exceeds the maximum length.',
+            'authors.*.email.email' => '[Authors] Author #:position has an invalid email address.',
+            'authors.*.website.url' => '[Authors] Author #:position has an invalid website URL.',
+            'authors.*.institutionName.max' => '[Authors] Author #:position institution name exceeds the maximum length.',
+
+            // Contributors
+            'contributors.*.type.required' => '[Contributors] Contributor #:position must have a type (person or institution).',
+            'contributors.*.type.in' => '[Contributors] Contributor #:position has an invalid type.',
+            'contributors.*.roles.required' => '[Contributors] Contributor #:position must have at least one role.',
+            'contributors.*.roles.min' => '[Contributors] Contributor #:position must have at least one role.',
+            'contributors.*.lastName.max' => '[Contributors] Contributor #:position last name exceeds the maximum length.',
+            'contributors.*.email.email' => '[Contributors] Contributor #:position has an invalid email address.',
+            'contributors.*.website.url' => '[Contributors] Contributor #:position has an invalid website URL.',
+            'contributors.*.institutionName.max' => '[Contributors] Contributor #:position institution name exceeds the maximum length.',
+
+            // Descriptions
+            'descriptions.*.description.required' => '[Descriptions] Description #:position must not be empty.',
+            'descriptions.*.descriptionType.required' => '[Descriptions] Description #:position must have a type.',
+            'descriptions.*.descriptionType.in' => '[Descriptions] Description #:position has an invalid type.',
+
+            // Dates
+            'dates.*.dateType.required' => '[Dates] Date #:position must have a type.',
+            'dates.*.dateType.in' => '[Dates] Date #:position has an invalid type.',
+            'dates.*.startDate.date' => '[Dates] Date #:position has an invalid start date.',
+            'dates.*.endDate.date' => '[Dates] Date #:position has an invalid end date.',
+
+            // Controlled Vocabularies
+            'gcmdKeywords.*.id.required' => '[Controlled Vocabularies] Keyword #:position must have an identifier.',
+            'gcmdKeywords.*.text.required' => '[Controlled Vocabularies] Keyword #:position must have a label.',
+            'gcmdKeywords.*.scheme.required' => '[Controlled Vocabularies] Keyword #:position must have a scheme.',
+
+            // Free Keywords
+            'freeKeywords.*.max' => '[Free Keywords] Keyword #:position exceeds the maximum length of :max characters.',
+
+            // Spatial & Temporal Coverage
+            'spatialTemporalCoverages.*.type.required' => '[Spatial & Temporal Coverage] Coverage #:position must have a type.',
+            'spatialTemporalCoverages.*.type.in' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid type.',
+            'spatialTemporalCoverages.*.latMin.between' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid minimum latitude (must be between -90 and 90).',
+            'spatialTemporalCoverages.*.latMax.between' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid maximum latitude (must be between -90 and 90).',
+            'spatialTemporalCoverages.*.lonMin.between' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid minimum longitude (must be between -180 and 180).',
+            'spatialTemporalCoverages.*.lonMax.between' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid maximum longitude (must be between -180 and 180).',
+            'spatialTemporalCoverages.*.startDate.date' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid start date.',
+            'spatialTemporalCoverages.*.endDate.date' => '[Spatial & Temporal Coverage] Coverage #:position has an invalid end date.',
+
+            // Related Work
+            'relatedIdentifiers.*.identifier.required' => '[Related Work] Related identifier #:position must not be empty.',
+            'relatedIdentifiers.*.identifier.max' => '[Related Work] Related identifier #:position exceeds the maximum length.',
+            'relatedIdentifiers.*.identifierType.required' => '[Related Work] Related identifier #:position must have a type.',
+            'relatedIdentifiers.*.identifierType.in' => '[Related Work] Related identifier #:position has an invalid type.',
+            'relatedIdentifiers.*.relationType.required' => '[Related Work] Related identifier #:position must have a relation type.',
+            'relatedIdentifiers.*.relationType.in' => '[Related Work] Related identifier #:position has an invalid relation type.',
+
+            // Funding References
+            'fundingReferences.*.funderName.required' => '[Funding References] Funding reference #:position requires a funder name.',
+            'fundingReferences.*.funderName.max' => '[Funding References] Funding reference #:position funder name exceeds the maximum length.',
+            'fundingReferences.*.awardUri.url' => '[Funding References] Funding reference #:position has an invalid award URI.',
+            'fundingReferences.*.funderIdentifierType.in' => '[Funding References] Funding reference #:position has an invalid funder identifier type.',
+
+            // MSL Laboratories
+            'mslLaboratories.*.identifier.required' => '[MSL Laboratories] Laboratory #:position must have an identifier.',
+            'mslLaboratories.*.name.required' => '[MSL Laboratories] Laboratory #:position must have a name.',
+
+            // Used Instruments
+            'instruments.*.pid.required' => '[Used Instruments] Instrument #:position requires a PID.',
+            'instruments.*.name.required' => '[Used Instruments] Instrument #:position requires a name.',
+            'instruments.*.pidType.required' => '[Used Instruments] Instrument #:position requires a PID type.',
+            'instruments.*.pidType.in' => '[Used Instruments] Instrument #:position has an invalid PID type.',
+        ];
+    }
+
     /** @return array<int, callable(Validator): void> */
     public function after(): array
     {
@@ -824,7 +937,7 @@ class StoreResourceRequest extends FormRequest
                     if (! isset($this->titleTypeDbSlugSet[$candidate])) {
                         $validator->errors()->add(
                             "titles.$index.titleType",
-                            'Unknown title type. Please select a valid title type.',
+                            '[Resource Information] Title #'.($index + 1).' has an unknown title type. Please select a valid title type.',
                         );
                     }
                 }
@@ -850,7 +963,7 @@ class StoreResourceRequest extends FormRequest
                 if (! $hasMainTitle) {
                     $validator->errors()->add(
                         'titles',
-                        'At least one title must be provided as a Main Title.',
+                        '[Resource Information] At least one title must be provided as a Main Title.',
                     );
                 }
             },
@@ -861,7 +974,7 @@ class StoreResourceRequest extends FormRequest
                 if (! is_array($candidateAuthors) || count($candidateAuthors) === 0) {
                     $validator->errors()->add(
                         'authors',
-                        'At least one author must be provided.',
+                        '[Authors] At least one author must be provided.',
                     );
 
                     return;
@@ -871,7 +984,7 @@ class StoreResourceRequest extends FormRequest
                     if (! is_array($author)) {
                         $validator->errors()->add(
                             "authors.$index",
-                            'Each author entry must be an object.',
+                            '[Authors] Author #'.($index + 1).' must be a valid entry.',
                         );
 
                         continue;
@@ -883,7 +996,7 @@ class StoreResourceRequest extends FormRequest
                         if (empty($author['lastName'])) {
                             $validator->errors()->add(
                                 "authors.$index.lastName",
-                                'A last name is required for person authors.',
+                                '[Authors] Author #'.($index + 1).' requires a last name.',
                             );
                         }
 
@@ -893,7 +1006,7 @@ class StoreResourceRequest extends FormRequest
                         if ($isContact && ($email === null || $email === '')) {
                             $validator->errors()->add(
                                 "authors.$index.email",
-                                'A contact email is required when marking an author as the contact person.',
+                                '[Authors] Author #'.($index + 1).' requires a contact email when marked as contact person.',
                             );
                         }
 
@@ -903,7 +1016,7 @@ class StoreResourceRequest extends FormRequest
                     if (empty($author['institutionName'])) {
                         $validator->errors()->add(
                             "authors.$index.institutionName",
-                            'An institution name is required for institution authors.',
+                            '[Authors] Author #'.($index + 1).' requires an institution name.',
                         );
                     }
                 }
@@ -926,7 +1039,7 @@ class StoreResourceRequest extends FormRequest
                     if (! is_array($contributor)) {
                         $validator->errors()->add(
                             "contributors.$index",
-                            'Each contributor entry must be an object.',
+                            '[Contributors] Contributor #'.($index + 1).' must be a valid entry.',
                         );
 
                         continue;
@@ -938,14 +1051,14 @@ class StoreResourceRequest extends FormRequest
                         if (empty($contributor['lastName'])) {
                             $validator->errors()->add(
                                 "contributors.$index.lastName",
-                                'A last name is required for person contributors.',
+                                '[Contributors] Contributor #'.($index + 1).' requires a last name.',
                             );
                         }
                     } else {
                         if (empty($contributor['institutionName'])) {
                             $validator->errors()->add(
                                 "contributors.$index.institutionName",
-                                'An institution name is required for institution contributors.',
+                                '[Contributors] Contributor #'.($index + 1).' requires an institution name.',
                             );
                         }
                     }
@@ -954,7 +1067,7 @@ class StoreResourceRequest extends FormRequest
                     if (! is_array($roles) || count($roles) === 0) {
                         $validator->errors()->add(
                             "contributors.$index.roles",
-                            'At least one role must be provided for each contributor.',
+                            '[Contributors] Contributor #'.($index + 1).' must have at least one role.',
                         );
                     }
 
@@ -970,7 +1083,7 @@ class StoreResourceRequest extends FormRequest
                             if ($email === '') {
                                 $validator->errors()->add(
                                     "contributors.$index.email",
-                                    'A contact email is required when the Contact Person role is assigned.',
+                                    '[Contributors] Contributor #'.($index + 1).' requires a contact email when the Contact Person role is assigned.',
                                 );
                             }
                         }
@@ -999,7 +1112,7 @@ class StoreResourceRequest extends FormRequest
                 if (! $hasAbstract) {
                     $validator->errors()->add(
                         'descriptions',
-                        'An Abstract description is required.',
+                        '[Descriptions] An Abstract description is required.',
                     );
                 }
             },
@@ -1024,7 +1137,7 @@ class StoreResourceRequest extends FormRequest
                         if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                'A polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
                             );
                         }
                     }

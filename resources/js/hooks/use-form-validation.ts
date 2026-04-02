@@ -70,6 +70,8 @@ export interface UseFormValidationReturn {
     resetAllValidation: () => void;
     hasFieldError: (fieldId: string) => boolean;
     getFieldMessages: (fieldId: string) => ValidationMessage[];
+    setFieldErrors: (errors: Array<{ fieldId: string; message: string }>) => void;
+    clearFieldErrors: (fieldId: string) => void;
 }
 
 /**
@@ -311,6 +313,51 @@ export function useFormValidation(): UseFormValidationReturn {
         [validationState],
     );
 
+    /**
+     * Sets external validation errors on fields (e.g., from backend 422 responses).
+     * Marks affected fields as touched so errors are immediately visible.
+     */
+    const setFieldErrors = useCallback((errors: Array<{ fieldId: string; message: string }>) => {
+        setValidationState((prev) => {
+            const newFields = { ...prev.fields };
+            let newInvalidCount = prev.invalidCount;
+            let newTouchedCount = prev.touchedCount;
+
+            for (const { fieldId, message } of errors) {
+                const oldState = newFields[fieldId];
+                const wasInvalid = oldState?.status === 'invalid';
+                const wasTouched = oldState?.touched ?? false;
+
+                newFields[fieldId] = {
+                    status: 'invalid',
+                    messages: [...(oldState?.messages ?? []), { severity: 'error', message, fieldId }],
+                    touched: true,
+                    value: oldState?.value,
+                };
+
+                if (!wasInvalid) newInvalidCount++;
+                if (!wasTouched) newTouchedCount++;
+            }
+
+            return {
+                fields: newFields,
+                invalidCount: newInvalidCount,
+                touchedCount: newTouchedCount,
+                isValid: newInvalidCount === 0,
+            };
+        });
+    }, []);
+
+    /**
+     * Clears validation errors for a specific field (e.g., when user starts editing).
+     */
+    const clearFieldErrors = useCallback(
+        (fieldId: string) => {
+            resetFieldValidation(fieldId);
+        },
+        [resetFieldValidation],
+    );
+
     return {
         validationState,
         validateField,
@@ -320,6 +367,8 @@ export function useFormValidation(): UseFormValidationReturn {
         resetAllValidation,
         hasFieldError,
         getFieldMessages,
+        setFieldErrors,
+        clearFieldErrors,
     };
 }
 
