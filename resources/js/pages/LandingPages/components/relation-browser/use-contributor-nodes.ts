@@ -16,6 +16,7 @@ interface ContributorInfo {
 interface UseContributorNodesResult {
     contributorNodes: GraphNode[];
     contributorLinks: GraphLink[];
+    contributorNodeIdMap: Map<string, string>;
 }
 
 interface Counter {
@@ -195,6 +196,8 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
 
         const contributors = resource.contributors ?? [];
         for (const contributor of contributors) {
+            // Skip institutional contributors — handled by useInstitutionNodes
+            if (contributor.contributorable.type === 'Institution') continue;
             mergeContributor(
                 contributorMap,
                 orcidIndex,
@@ -206,6 +209,7 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
 
         const contributorNodes: GraphNode[] = [];
         const contributorLinks: GraphLink[] = [];
+        const nodeIdMap = new Map<string, string>();
         const idCounter: Counter = { value: 0 };
 
         for (const info of contributorMap.values()) {
@@ -214,6 +218,15 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
             const orcidUrl = buildOrcidUrl(info.orcid);
             const primaryType = info.contributorTypes[0] ?? 'Other';
             const humanizedTypes = info.contributorTypes.map(humanizeContributorType);
+
+            // Build lookup map keyed by ORCID and name key
+            if (info.orcid) {
+                nodeIdMap.set(info.orcid, nodeId);
+            }
+            const nameKey = normalizeNameKey(info.familyName, info.givenName);
+            if (nameKey !== '|') {
+                nodeIdMap.set(nameKey, nodeId);
+            }
 
             contributorNodes.push({
                 id: nodeId,
@@ -239,7 +252,7 @@ export function useContributorNodes(resource: LandingPageResource): UseContribut
             }
         }
 
-        return { contributorNodes, contributorLinks };
+        return { contributorNodes, contributorLinks, contributorNodeIdMap: nodeIdMap };
     }, [resource.contributors]);
 }
 

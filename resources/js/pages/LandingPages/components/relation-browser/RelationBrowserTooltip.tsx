@@ -18,7 +18,7 @@ export function RelationBrowserTooltip({ tooltip, containerRect }: RelationBrows
 
     const padding = 12;
     const tooltipWidth = 280;
-    const tooltipHeight = tooltip.type === 'node' && (tooltip.content.nodeType === 'creator' || tooltip.content.nodeType === 'contributor') ? 140 : 100;
+    const tooltipHeight = tooltip.type === 'node' && (tooltip.content.nodeType === 'creator' || tooltip.content.nodeType === 'contributor' || tooltip.content.nodeType === 'institution') ? 140 : 100;
 
     let left = tooltip.x;
     let top = tooltip.y + 16;
@@ -84,7 +84,27 @@ export function RelationBrowserTooltip({ tooltip, containerRect }: RelationBrows
                     )}
                 </div>
             )}
-            {tooltip.type === 'node' && tooltip.content.nodeType !== 'creator' && tooltip.content.nodeType !== 'contributor' && (
+            {tooltip.type === 'node' && tooltip.content.nodeType === 'institution' && (
+                <div className="space-y-1">
+                    <p className="font-medium text-gray-900 leading-snug">
+                        {tooltip.content.label}
+                    </p>
+                    {tooltip.content.rorId ? (
+                        <>
+                            <p className="text-xs text-gray-500">
+                                ROR: {tooltip.content.rorId}
+                            </p>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-blue-600">
+                                <ExternalLink className="h-3 w-3" />
+                                Click to open ROR entry
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-xs text-gray-400">No ROR ID available</p>
+                    )}
+                </div>
+            )}
+            {tooltip.type === 'node' && tooltip.content.nodeType !== 'creator' && tooltip.content.nodeType !== 'contributor' && tooltip.content.nodeType !== 'institution' && (
                 <div className="space-y-1">
                     <p className="font-medium text-gray-900 leading-snug">
                         {tooltip.content.label}

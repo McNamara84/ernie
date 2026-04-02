@@ -14,16 +14,40 @@ interface CreatorInfo {
     datasetNodeIds: Set<string>;
 }
 
+interface ApiAffiliation {
+    name: string;
+    identifier: string | null;
+    identifier_scheme: string | null;
+}
+
 interface ApiAuthor {
     given_name: string | null;
     family_name: string | null;
     name: string | null;
     orcid: string | null;
+    type?: 'Person' | 'Institution';
+    affiliations?: ApiAffiliation[];
+    ror_id?: string | null;
+}
+
+/**
+ * Extended API author type that includes affiliations (from DataCite REST API).
+ */
+export interface ApiAuthorWithAffiliations {
+    given_name: string | null;
+    family_name: string | null;
+    name: string | null;
+    orcid: string | null;
+    type?: 'Person' | 'Institution';
+    affiliations?: ApiAffiliation[];
+    ror_id?: string | null;
 }
 
 interface UseCreatorNodesResult {
     creatorNodes: GraphNode[];
     creatorLinks: GraphLink[];
+    creatorNodeIdMap: Map<string, string>;
+    apiAuthorsWithAffiliations: Map<string, ApiAuthorWithAffiliations[]>;
     loading: boolean;
 }
 
@@ -266,20 +290,22 @@ export function useCreatorNodes(
     }, [relatedIdentifiers]);
 
     // Build deduplicated creator nodes and links (memoized to prevent simulation restarts)
-    const { creatorNodes, creatorLinks } = useMemo(() => {
+    const { creatorNodes, creatorLinks, creatorNodeIdMap, apiAuthorsWithAffiliations } = useMemo(() => {
         const creatorMap = new Map<string, CreatorInfo>();
         const orcidIndex = new Map<string, string>();
         const counter: Counter = { value: 0 };
 
-        // 1. Central resource creators (immediate)
+        // 1. Central resource creators (immediate) — skip institutions
         const centralCreators = resource.creators ?? [];
         for (const creator of centralCreators) {
+            if (creator.creatorable.type === 'Institution') continue;
             mergeCreator(creatorMap, orcidIndex, fromLandingPageCreator(creator), 'central', counter);
         }
 
-        // 2. Related DOI creators (async)
+        // 2. Related DOI creators (async) — skip institutions
         for (const [nodeId, authors] of apiAuthors) {
             for (const author of authors) {
+                if (author.type === 'Institution') continue;
                 mergeCreator(creatorMap, orcidIndex, fromApiAuthor(author), nodeId, counter);
             }
         }
@@ -287,12 +313,22 @@ export function useCreatorNodes(
         // Build graph nodes
         const nodes: GraphNode[] = [];
         const links: GraphLink[] = [];
+        const nodeIdMap = new Map<string, string>();
         const idCounter: Counter = { value: 0 };
 
-        for (const info of creatorMap.values()) {
+        for (const [mapKey, info] of creatorMap) {
             const nodeId = buildCreatorId(info, idCounter);
             const label = buildCreatorLabel(info);
             const orcidUrl = buildOrcidUrl(info.orcid);
+
+            // Build lookup map keyed by ORCID and name key
+            if (info.orcid) {
+                nodeIdMap.set(info.orcid, nodeId);
+            }
+            const nameKey = normalizeNameKey(info.familyName, info.givenName);
+            if (nameKey !== '|') {
+                nodeIdMap.set(nameKey, nodeId);
+            }
 
             nodes.push({
                 id: nodeId,
@@ -317,12 +353,12 @@ export function useCreatorNodes(
             }
         }
 
-        return { creatorNodes: nodes, creatorLinks: links };
+        return { creatorNodes: nodes, creatorLinks: links, creatorNodeIdMap: nodeIdMap, apiAuthorsWithAffiliations: apiAuthors as Map<string, ApiAuthorWithAffiliations[]> };
     }, [resource.creators, apiAuthors]);
 
-    return { creatorNodes, creatorLinks, loading };
+    return { creatorNodes, creatorLinks, creatorNodeIdMap, apiAuthorsWithAffiliations, loading };
 }
 
 // Export helpers for testing
 export { normalizeNameKey, buildCreatorLabel, buildCreatorId, mergeCreator, fromLandingPageCreator, fromApiAuthor };
-export type { CreatorInfo, ApiAuthor };
+export type { CreatorInfo, ApiAuthor, ApiAffiliation };

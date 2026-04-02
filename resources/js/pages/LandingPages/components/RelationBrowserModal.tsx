@@ -47,19 +47,21 @@ export function RelationBrowserModal({
         [renderableIdentifiers],
     );
 
-    // Receive hasCreators/hasContributors from RelationBrowserGraph to avoid duplicate hook calls
+    // Receive hasCreators/hasContributors/hasInstitutions from RelationBrowserGraph to avoid duplicate hook calls
     const [hasCreators, setHasCreators] = useState(false);
     const [hasContributors, setHasContributors] = useState(false);
+    const [hasInstitutions, setHasInstitutions] = useState(false);
 
-    // Build deduplicated identifier types including Creator/Contributor
+    // Build deduplicated identifier types including Creator/Contributor/Institution
     const allIdentifierTypes = useMemo(() => {
         const types = new Set(activeIdentifierTypes);
         if (hasCreators) types.add('Creator');
         if (hasContributors) types.add('Contributor');
+        if (hasInstitutions) types.add('Institution');
         return [...types];
-    }, [activeIdentifierTypes, hasCreators, hasContributors]);
+    }, [activeIdentifierTypes, hasCreators, hasContributors, hasInstitutions]);
 
-    // Collect active relation types including person role types
+    // Collect active relation types including person role types and affiliation
     const personRelationTypes = useMemo(() => {
         const types = new Set(activeRelationTypes);
         if (hasCreators) types.add('Created');
@@ -69,8 +71,9 @@ export function RelationBrowserModal({
                 types.add(ct);
             }
         }
+        if (hasInstitutions) types.add('AffiliatedWith');
         return [...types];
-    }, [activeRelationTypes, hasCreators, hasContributors, resource.contributors]);
+    }, [activeRelationTypes, hasCreators, hasContributors, hasInstitutions, resource.contributors]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,9 +97,10 @@ export function RelationBrowserModal({
                             resource={resource}
                             relatedIdentifiers={renderableIdentifiers}
                             citationTexts={citationTexts}
-                            onPersonNodesChange={(creators, contributors) => {
+                            onPersonNodesChange={(creators, contributors, institutions) => {
                                 setHasCreators(creators);
                                 setHasContributors(contributors);
+                                setHasInstitutions(institutions);
                             }}
                         />
                     )}

@@ -45,6 +45,9 @@ enum CacheKey: string
     // DOI citation cache keys
     case DOI_CITATION = 'doi:citation';
 
+    // DataCite REST API metadata cache keys
+    case DOI_DATACITE_METADATA = 'doi:datacite_metadata';
+
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
@@ -117,7 +120,8 @@ enum CacheKey: string
             self::PORTAL_DATACENTER_FACETS => 600,
 
             // DOI citations are relatively stable - 24 hours
-            self::DOI_CITATION => 86400,
+            self::DOI_CITATION,
+            self::DOI_DATACITE_METADATA => 86400,
 
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
@@ -168,6 +172,8 @@ enum CacheKey: string
             self::PORTAL_DATACENTER_FACETS => ['portal', 'datacenters'],
 
             self::DOI_CITATION => ['doi', 'citations'],
+
+            self::DOI_DATACITE_METADATA => ['doi', 'datacite_metadata'],
 
             self::CACHE_STATS => ['system'],
 

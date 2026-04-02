@@ -11,6 +11,7 @@ import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
 import { useCreatorNodes } from './use-creator-nodes';
 import { useContributorNodes } from './use-contributor-nodes';
+import { useInstitutionNodes } from './use-institution-nodes';
 import { useRelationGraph } from './use-relation-graph';
 
 const GRAPH_WIDTH = 1000;
@@ -20,7 +21,7 @@ interface RelationBrowserGraphProps {
     resource: LandingPageResource;
     relatedIdentifiers: LandingPageRelatedIdentifier[];
     citationTexts?: Map<string, string>;
-    onPersonNodesChange?: (hasCreators: boolean, hasContributors: boolean) => void;
+    onPersonNodesChange?: (hasCreators: boolean, hasContributors: boolean, hasInstitutions: boolean) => void;
 }
 
 function buildCentralLabel(resource: LandingPageResource): { shortLabel: string; fullLabel: string } {
@@ -125,13 +126,19 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
     });
 
     const citationLabels = useCitationLabels(relatedIdentifiers, citationTexts);
-    const { creatorNodes, creatorLinks } = useCreatorNodes(resource, relatedIdentifiers);
-    const { contributorNodes, contributorLinks } = useContributorNodes(resource);
+    const { creatorNodes, creatorLinks, creatorNodeIdMap, apiAuthorsWithAffiliations } = useCreatorNodes(resource, relatedIdentifiers);
+    const { contributorNodes, contributorLinks, contributorNodeIdMap } = useContributorNodes(resource);
+    const { institutionNodes, institutionLinks } = useInstitutionNodes(
+        resource,
+        creatorNodeIdMap,
+        contributorNodeIdMap,
+        apiAuthorsWithAffiliations,
+    );
 
-    // Report person node presence to parent (for legend)
+    // Report person/institution node presence to parent (for legend)
     useEffect(() => {
-        onPersonNodesChange?.(creatorNodes.length > 0, contributorNodes.length > 0);
-    }, [creatorNodes.length, contributorNodes.length, onPersonNodesChange]);
+        onPersonNodesChange?.(creatorNodes.length > 0, contributorNodes.length > 0, institutionNodes.length > 0);
+    }, [creatorNodes.length, contributorNodes.length, institutionNodes.length, onPersonNodesChange]);
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.
@@ -140,10 +147,10 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
         [resource, relatedIdentifiers],
     );
 
-    // Merge resource nodes with creator and contributor nodes
+    // Merge resource nodes with creator, contributor, and institution nodes
     const nodes = useMemo(
-        () => [...resourceNodes, ...creatorNodes, ...contributorNodes],
-        [resourceNodes, creatorNodes, contributorNodes],
+        () => [...resourceNodes, ...creatorNodes, ...contributorNodes, ...institutionNodes],
+        [resourceNodes, creatorNodes, contributorNodes, institutionNodes],
     );
 
     // Patch citation labels into existing node objects without creating new array
@@ -171,10 +178,10 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
         [relatedIdentifiers],
     );
 
-    // Merge resource links with creator and contributor links
+    // Merge resource links with creator, contributor, and institution links
     const links = useMemo(
-        () => [...resourceLinks, ...creatorLinks, ...contributorLinks],
-        [resourceLinks, creatorLinks, contributorLinks],
+        () => [...resourceLinks, ...creatorLinks, ...contributorLinks, ...institutionLinks],
+        [resourceLinks, creatorLinks, contributorLinks, institutionLinks],
     );
 
     const handleNodeClick = useCallback((node: GraphNode) => {

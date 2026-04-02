@@ -6,6 +6,7 @@ import {
     getEdgeCategoryColorMap,
     getNodeColor,
     GFZ_BLUE,
+    INSTITUTION_COLOR,
 } from './graph-colors';
 
 interface RelationBrowserLegendProps {
@@ -19,17 +20,18 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
     // Deduplicate relation types by category
     const activeCategories = [...new Set(activeRelationTypes.map((rt) => getEdgeCategory(rt)))];
 
-    // Separate Creator and Contributor from identifier types
+    // Separate Creator, Contributor, and Institution from identifier types
     const hasCreators = activeIdentifierTypes.includes('Creator');
     const hasContributors = activeIdentifierTypes.includes('Contributor');
+    const hasInstitutions = activeIdentifierTypes.includes('Institution');
     const identifierTypesWithoutPersons = activeIdentifierTypes.filter(
-        (t) => t !== 'Creator' && t !== 'Contributor',
+        (t) => t !== 'Creator' && t !== 'Contributor' && t !== 'Institution',
     );
 
     const hasNodeTypes = identifierTypesWithoutPersons.length > 0;
     const hasEdgeTypes = activeCategories.length > 0;
 
-    if (!hasNodeTypes && !hasEdgeTypes && !hasCreators && !hasContributors) {
+    if (!hasNodeTypes && !hasEdgeTypes && !hasCreators && !hasContributors && !hasInstitutions) {
         return null;
     }
 
@@ -93,6 +95,21 @@ export function RelationBrowserLegend({ activeIdentifierTypes, activeRelationTyp
                             data-testid="legend-node-Contributor"
                         />
                         <span className="text-xs text-gray-600">Contributor</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Institution nodes */}
+            {hasInstitutions && (
+                <div className="flex items-center gap-4">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Institutions</span>
+                    <div className="flex items-center gap-1.5">
+                        <span
+                            className="inline-block h-3 w-3 rounded-full"
+                            style={{ backgroundColor: INSTITUTION_COLOR }}
+                            data-testid="legend-node-Institution"
+                        />
+                        <span className="text-xs text-gray-600">Institution</span>
                     </div>
                 </div>
             )}
