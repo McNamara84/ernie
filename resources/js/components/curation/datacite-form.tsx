@@ -2117,7 +2117,7 @@ export default function DataCiteForm({
                                     setSelectedDatacenters(ids);
                                     setDatacenterTouched(true);
                                 }}
-                                className="md:col-span-3"
+                                className="md:col-span-2"
                                 required
                                 hasError={datacenterTouched && selectedDatacenters.length === 0}
                             />
