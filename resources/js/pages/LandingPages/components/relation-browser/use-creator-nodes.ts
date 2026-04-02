@@ -316,7 +316,7 @@ export function useCreatorNodes(
         const nodeIdMap = new Map<string, string>();
         const idCounter: Counter = { value: 0 };
 
-        for (const [mapKey, info] of creatorMap) {
+        for (const [, info] of creatorMap) {
             const nodeId = buildCreatorId(info, idCounter);
             const label = buildCreatorLabel(info);
             const orcidUrl = buildOrcidUrl(info.orcid);

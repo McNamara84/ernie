@@ -7,8 +7,6 @@ import {
     resolveRorUrl,
 } from '@/pages/LandingPages/components/relation-browser/use-institution-nodes';
 
-import type { InstitutionInfo } from '@/pages/LandingPages/components/relation-browser/use-institution-nodes';
-
 describe('use-institution-nodes utilities', () => {
     describe('resolveRorUrl', () => {
         it('returns null for null or undefined input', () => {
