@@ -17,8 +17,18 @@ interface InstitutionInfo {
     name: string;
     rorId: string | null;
     rorUrl: string | null;
-    /** Maps connected node IDs to their edge labels */
-    connectedNodeIds: Map<string, string>;
+    /** Maps connected node IDs to their edge metadata */
+    connectedNodeIds: Map<string, EdgeInfo>;
+}
+
+/**
+ * Metadata for a single edge between an institution and a connected node.
+ */
+interface EdgeInfo {
+    /** Human-readable display label for the edge (e.g. "Affiliated with", "Data Collector") */
+    edgeLabel: string;
+    /** PascalCase relation type for edge categorization and coloring (e.g. "AffiliatedWith", "Created", "DataCollector") */
+    relationType: string;
 }
 
 interface UseInstitutionNodesResult {
@@ -67,7 +77,7 @@ function mergeInstitution(
     name: string,
     rorIdentifier: string | null | undefined,
     connectedNodeId: string,
-    edgeLabel: string,
+    edge: EdgeInfo,
 ): void {
     const rorId = extractRorId(rorIdentifier ?? null);
     const rorUrl = resolveRorUrl(rorIdentifier ?? null);
@@ -77,7 +87,7 @@ function mergeInstitution(
         const existingKey = rorIndex.get(rorId);
         if (existingKey) {
             const existing = map.get(existingKey)!;
-            existing.connectedNodeIds.set(connectedNodeId, edgeLabel);
+            existing.connectedNodeIds.set(connectedNodeId, edge);
             return;
         }
     }
@@ -86,7 +96,7 @@ function mergeInstitution(
     const nameKey = `name-${name.trim().toLowerCase()}`;
     const existing = map.get(nameKey);
     if (existing) {
-        existing.connectedNodeIds.set(connectedNodeId, edgeLabel);
+        existing.connectedNodeIds.set(connectedNodeId, edge);
         // Upgrade ROR if this instance has one and existing doesn't
         if (rorId && !existing.rorId) {
             existing.rorId = rorId;
@@ -101,7 +111,7 @@ function mergeInstitution(
         const rorKey = `ror-${rorId}`;
         const existingByRor = map.get(rorKey);
         if (existingByRor) {
-            existingByRor.connectedNodeIds.set(connectedNodeId, edgeLabel);
+            existingByRor.connectedNodeIds.set(connectedNodeId, edge);
             return;
         }
     }
@@ -112,7 +122,7 @@ function mergeInstitution(
         name: name.trim(),
         rorId,
         rorUrl,
-        connectedNodeIds: new Map([[connectedNodeId, edgeLabel]]),
+        connectedNodeIds: new Map([[connectedNodeId, edge]]),
     };
     map.set(key, info);
     if (rorId) {
@@ -148,7 +158,7 @@ function collectCreatorAffiliations(
             affiliation.name,
             isRor ? affiliation.affiliation_identifier : null,
             targetNodeId,
-            'Affiliated with',
+            { edgeLabel: 'Affiliated with', relationType: 'AffiliatedWith' },
         );
     }
 }
@@ -174,7 +184,7 @@ function collectContributorAffiliations(
             affiliation.name,
             isRor ? affiliation.affiliation_identifier : null,
             targetNodeId,
-            'Affiliated with',
+            { edgeLabel: 'Affiliated with', relationType: 'AffiliatedWith' },
         );
     }
 }
@@ -211,7 +221,7 @@ export function useInstitutionNodes(
                     creator.creatorable.name,
                     isRor ? creator.creatorable.name_identifier : null,
                     'central',
-                    'Created',
+                    { edgeLabel: 'Created', relationType: 'Created' },
                 );
             }
         }
@@ -222,13 +232,14 @@ export function useInstitutionNodes(
                 const isRor = contributor.contributorable.name_identifier_scheme === 'ROR';
                 const types = contributor.contributor_types.map(humanizeContributorType);
                 const edgeLabel = types.length > 0 ? types.join(', ') : 'Contributor';
+                const relationType = contributor.contributor_types[0] ?? 'Contributor';
                 mergeInstitution(
                     institutionMap,
                     rorIndex,
                     contributor.contributorable.name,
                     isRor ? contributor.contributorable.name_identifier : null,
                     'central',
-                    edgeLabel,
+                    { edgeLabel, relationType },
                 );
             }
         }
@@ -250,6 +261,19 @@ export function useInstitutionNodes(
         // 5. API response affiliations from related DOIs → edge to remote creator nodes
         for (const [nodeId, authors] of apiAuthorsWithAffiliations) {
             for (const author of authors) {
+                // 5b. Institutional API authors → edge to related DOI node
+                if (author.type === 'Institution' && author.name) {
+                    mergeInstitution(
+                        institutionMap,
+                        rorIndex,
+                        author.name,
+                        author.ror_id ?? null,
+                        nodeId,
+                        { edgeLabel: 'Created', relationType: 'Created' },
+                    );
+                    continue;
+                }
+
                 if (!author.affiliations) continue;
                 for (const affiliation of author.affiliations) {
                     if (!affiliation.name) continue;
@@ -265,7 +289,7 @@ export function useInstitutionNodes(
                         affiliation.name,
                         isRor ? affiliation.identifier : null,
                         targetNodeId,
-                        'Affiliated with',
+                        { edgeLabel: 'Affiliated with', relationType: 'AffiliatedWith' },
                     );
                 }
             }
@@ -292,13 +316,15 @@ export function useInstitutionNodes(
                 rorId: info.rorId,
             });
 
-            for (const [targetId, edgeLabel] of info.connectedNodeIds) {
-                const relationType = edgeLabel === 'Affiliated with' ? 'AffiliatedWith' : edgeLabel === 'Created' ? 'Created' : 'AffiliatedWith';
+            for (const [connectedId, edge] of info.connectedNodeIds) {
+                // Affiliation edges point from person → institution;
+                // Created/Contributor edges point from institution → central/DOI node
+                const isAffiliation = edge.relationType === 'AffiliatedWith';
                 institutionLinks.push({
-                    source: nodeId,
-                    target: targetId,
-                    relationType,
-                    relationLabel: edgeLabel,
+                    source: isAffiliation ? connectedId : nodeId,
+                    target: isAffiliation ? nodeId : connectedId,
+                    relationType: edge.relationType,
+                    relationLabel: edge.edgeLabel,
                 });
             }
         }

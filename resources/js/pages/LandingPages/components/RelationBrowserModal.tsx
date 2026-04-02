@@ -10,7 +10,6 @@ import {
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
-
 import { RelationBrowserGraph } from './relation-browser/RelationBrowserGraph';
 import { RelationBrowserLegend } from './relation-browser/RelationBrowserLegend';
 
@@ -51,6 +50,7 @@ export function RelationBrowserModal({
     const [hasCreators, setHasCreators] = useState(false);
     const [hasContributors, setHasContributors] = useState(false);
     const [hasInstitutions, setHasInstitutions] = useState(false);
+    const [personLinkRelationTypes, setPersonLinkRelationTypes] = useState<string[]>([]);
 
     // Build deduplicated identifier types including Creator/Contributor/Institution
     const allIdentifierTypes = useMemo(() => {
@@ -61,19 +61,14 @@ export function RelationBrowserModal({
         return [...types];
     }, [activeIdentifierTypes, hasCreators, hasContributors, hasInstitutions]);
 
-    // Collect active relation types including person role types and affiliation
-    const personRelationTypes = useMemo(() => {
+    // Collect active relation types by merging resource relation types with actual person/institution link types
+    const allRelationTypes = useMemo(() => {
         const types = new Set(activeRelationTypes);
-        if (hasCreators) types.add('Created');
-        if (hasContributors) {
-            const contributorTypes = (resource.contributors ?? []).flatMap((c) => c.contributor_types);
-            for (const ct of contributorTypes) {
-                types.add(ct);
-            }
+        for (const rt of personLinkRelationTypes) {
+            types.add(rt);
         }
-        if (hasInstitutions) types.add('AffiliatedWith');
         return [...types];
-    }, [activeRelationTypes, hasCreators, hasContributors, hasInstitutions, resource.contributors]);
+    }, [activeRelationTypes, personLinkRelationTypes]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,10 +92,11 @@ export function RelationBrowserModal({
                             resource={resource}
                             relatedIdentifiers={renderableIdentifiers}
                             citationTexts={citationTexts}
-                            onPersonNodesChange={(creators, contributors, institutions) => {
+                            onPersonNodesChange={(creators, contributors, institutions, linkRelTypes) => {
                                 setHasCreators(creators);
                                 setHasContributors(contributors);
                                 setHasInstitutions(institutions);
+                                setPersonLinkRelationTypes(linkRelTypes);
                             }}
                         />
                     )}
@@ -110,7 +106,7 @@ export function RelationBrowserModal({
                 <div className="shrink-0">
                     <RelationBrowserLegend
                         activeIdentifierTypes={allIdentifierTypes}
-                        activeRelationTypes={personRelationTypes}
+                        activeRelationTypes={allRelationTypes}
                     />
                 </div>
             </DialogContent>

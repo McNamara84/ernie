@@ -4,13 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../../lib/resolveIdentifierUrl';
-
 import type { GraphLink, GraphNode, TooltipState } from './graph-types';
 import { truncateLabel } from './graph-utils';
 import { RelationBrowserTooltip } from './RelationBrowserTooltip';
 import { getCitationKey, useCitationLabels } from './use-citation-labels';
-import { useCreatorNodes } from './use-creator-nodes';
 import { useContributorNodes } from './use-contributor-nodes';
+import { useCreatorNodes } from './use-creator-nodes';
 import { useInstitutionNodes } from './use-institution-nodes';
 import { useRelationGraph } from './use-relation-graph';
 
@@ -21,7 +20,7 @@ interface RelationBrowserGraphProps {
     resource: LandingPageResource;
     relatedIdentifiers: LandingPageRelatedIdentifier[];
     citationTexts?: Map<string, string>;
-    onPersonNodesChange?: (hasCreators: boolean, hasContributors: boolean, hasInstitutions: boolean) => void;
+    onPersonNodesChange?: (hasCreators: boolean, hasContributors: boolean, hasInstitutions: boolean, linkRelationTypes: string[]) => void;
 }
 
 function buildCentralLabel(resource: LandingPageResource): { shortLabel: string; fullLabel: string } {
@@ -135,10 +134,16 @@ export function RelationBrowserGraph({ resource, relatedIdentifiers, citationTex
         apiAuthorsWithAffiliations,
     );
 
-    // Report person/institution node presence to parent (for legend)
+    // Collect actual relation types from person/institution links for legend
+    const personLinkRelationTypes = useMemo(
+        () => [...new Set([...creatorLinks, ...contributorLinks, ...institutionLinks].map((l) => l.relationType))],
+        [creatorLinks, contributorLinks, institutionLinks],
+    );
+
+    // Report person/institution node presence and link relation types to parent (for legend)
     useEffect(() => {
-        onPersonNodesChange?.(creatorNodes.length > 0, contributorNodes.length > 0, institutionNodes.length > 0);
-    }, [creatorNodes.length, contributorNodes.length, institutionNodes.length, onPersonNodesChange]);
+        onPersonNodesChange?.(creatorNodes.length > 0, contributorNodes.length > 0, institutionNodes.length > 0, personLinkRelationTypes);
+    }, [creatorNodes.length, contributorNodes.length, institutionNodes.length, personLinkRelationTypes, onPersonNodesChange]);
 
     // Stable node/link references: only rebuild when identifiers change, not on every citation update.
     // Citation labels are patched into existing nodes separately to avoid restarting the simulation.

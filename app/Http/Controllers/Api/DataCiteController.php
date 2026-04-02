@@ -89,7 +89,7 @@ class DataCiteController extends Controller
      * Includes affiliations and distinguishes Person vs. Organizational authors.
      *
      * @param  array<string, mixed>  $metadata  DataCite attributes from REST API
-     * @return array<int, array{given_name: string|null, family_name: string|null, name: string|null, orcid: string|null, type: string, affiliations: array<int, array{name: string, identifier: string|null, identifier_scheme: string|null}>}>
+     * @return array<int, array{given_name: string|null, family_name: string|null, name: string|null, orcid: string|null, type: string, ror_id: string|null, affiliations: array<int, array{name: string, identifier: string|null, identifier_scheme: string|null}>}>
      */
     private function extractDataCiteAuthors(array $metadata): array
     {
