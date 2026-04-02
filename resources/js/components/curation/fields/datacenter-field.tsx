@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ interface DatacenterFieldProps {
 export function DatacenterField({ id, label, options, selected, onChange, className, required = false, hasError = false }: DatacenterFieldProps) {
     const [open, setOpen] = useState(false);
 
-    const selectedNames = options.filter((o) => selected.includes(o.id)).map((o) => o.name);
+    const selectedOptions = options.filter((o) => selected.includes(o.id));
 
     const toggleOption = (optionId: number) => {
         if (selected.includes(optionId)) {
@@ -35,6 +35,11 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
         } else {
             onChange([...selected, optionId]);
         }
+    };
+
+    const removeOption = (e: React.MouseEvent, optionId: number) => {
+        e.stopPropagation();
+        onChange(selected.filter((id) => id !== optionId));
     };
 
     return (
@@ -57,10 +62,25 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         data-testid="datacenter-select"
                     >
                         <span className="flex flex-wrap gap-1">
-                            {selectedNames.length > 0 ? (
-                                selectedNames.map((name) => (
-                                    <Badge key={name} variant="secondary" className="text-xs">
-                                        {name}
+                            {selectedOptions.length > 0 ? (
+                                selectedOptions.map((option) => (
+                                    <Badge key={option.id} variant="secondary" className="gap-1 pr-1 text-xs">
+                                        {option.name}
+                                        <span
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label={`Remove datacenter "${option.name}"`}
+                                            className="text-muted-foreground hover:text-foreground rounded-sm"
+                                            onClick={(e) => removeOption(e, option.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    removeOption(e as unknown as React.MouseEvent, option.id);
+                                                }
+                                            }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </span>
                                     </Badge>
                                 ))
                             ) : (
