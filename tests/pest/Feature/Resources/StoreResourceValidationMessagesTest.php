@@ -238,7 +238,8 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.authors.0.lastName');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['authors.0.lastName'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Authors]');
         expect($errors[0])->toContain('Author #1');
@@ -267,7 +268,8 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.authors.0.email');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['authors.0.email'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Authors]');
         expect($errors[0])->toContain('Author #1');
@@ -294,7 +296,8 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.authors.0.institutionName');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['authors.0.institutionName'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Authors]');
         expect($errors[0])->toContain('Author #1');
@@ -322,7 +325,8 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.contributors.0.roles');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['contributors.0.roles'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Contributors]');
         expect($errors[0])->toContain('Contributor #1');
@@ -369,7 +373,8 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.spatialTemporalCoverages.0.polygonPoints');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['spatialTemporalCoverages.0.polygonPoints'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Spatial & Temporal Coverage]');
         expect($errors[0])->toContain('Coverage #1');
@@ -466,7 +471,8 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.authors.1.lastName');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['authors.1.lastName'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toContain('Author #2');
     });
@@ -499,7 +505,7 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
         expect($errors[0])->toStartWith('[Resource Information]');
     });
 
-    test('draft with invalid author email returns [Authors] prefix', function () {
+    test('draft with author without lastName returns [Authors] prefix', function () {
         $user = User::factory()->create();
         seedValidationLookupTables();
 
@@ -514,8 +520,7 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
                     'type' => 'person',
                     'position' => 0,
                     'firstName' => 'John',
-                    'lastName' => 'Doe',
-                    'email' => 'not-an-email',
+                    'lastName' => '',
                     'affiliations' => [],
                 ],
             ],
@@ -526,7 +531,8 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.authors.0.email');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['authors.0.lastName'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Authors]');
     });
@@ -557,7 +563,8 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
 
         $response->assertStatus(422);
 
-        $errors = $response->json('errors.spatialTemporalCoverages.0.polygonPoints');
+        $allErrors = $response->json('errors');
+        $errors = $allErrors['spatialTemporalCoverages.0.polygonPoints'] ?? null;
         expect($errors)->toBeArray();
         expect($errors[0])->toStartWith('[Spatial & Temporal Coverage]');
     });
