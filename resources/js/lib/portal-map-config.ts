@@ -158,6 +158,20 @@ export function escapeHtmlAttr(text: string): string {
 }
 
 /**
+ * Check whether a URL is safe for use in an href attribute.
+ * Only allows http, https, and relative URLs (starting with /).
+ */
+export function isSafeUrl(url: string): boolean {
+    if (url.startsWith('/')) return true;
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Render popup HTML string for a resource (used by imperative Leaflet markers in ClusterLayer).
  */
 export function renderPopupHtml(resource: PortalResource): string {
@@ -167,7 +181,7 @@ export function renderPopupHtml(resource: PortalResource): string {
 
     const authors = escapeHtml(formatAuthorsShort(resource.creators));
     const year = resource.year ? ` \u2022 ${resource.year}` : '';
-    const link = resource.landingPageUrl
+    const link = resource.landingPageUrl && isSafeUrl(resource.landingPageUrl)
         ? `<a href="${escapeHtmlAttr(resource.landingPageUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;font-weight:500;color:#2563eb;text-decoration:none;">View Details \u2192</a>`
         : '';
 

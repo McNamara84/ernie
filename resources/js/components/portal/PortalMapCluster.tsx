@@ -9,7 +9,6 @@ import {
     createIgsnMarkerIcon,
     createPieChartSvg,
     getClusterSize,
-    getResourceTypeColor,
     renderPopupHtml,
 } from '@/lib/portal-map-config';
 import type { PortalResource } from '@/types/portal';

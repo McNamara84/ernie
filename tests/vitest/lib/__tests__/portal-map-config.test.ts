@@ -12,6 +12,7 @@ import {
     getResourceTypeColor,
     getShapePathOptions,
     isIgsnType,
+    isSafeUrl,
     renderPopupHtml,
     RESOURCE_TYPE_COLORS,
 } from '@/lib/portal-map-config';
@@ -245,6 +246,43 @@ describe('createCircleMarkerIcon', () => {
 });
 
 // ---------------------------------------------------------------------------
+// isSafeUrl
+// ---------------------------------------------------------------------------
+describe('isSafeUrl', () => {
+    it('allows relative URLs starting with /', () => {
+        expect(isSafeUrl('/landing/1')).toBe(true);
+    });
+
+    it('allows https URLs', () => {
+        expect(isSafeUrl('https://example.com/page')).toBe(true);
+    });
+
+    it('allows http URLs', () => {
+        expect(isSafeUrl('http://example.com/page')).toBe(true);
+    });
+
+    it('rejects javascript: scheme', () => {
+        expect(isSafeUrl('javascript:alert(1)')).toBe(false);
+    });
+
+    it('rejects data: scheme', () => {
+        expect(isSafeUrl('data:text/html,<script>alert(1)</script>')).toBe(false);
+    });
+
+    it('rejects vbscript: scheme', () => {
+        expect(isSafeUrl('vbscript:MsgBox("xss")')).toBe(false);
+    });
+
+    it('rejects empty string', () => {
+        expect(isSafeUrl('')).toBe(false);
+    });
+
+    it('rejects malformed URL', () => {
+        expect(isSafeUrl('not a url at all')).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
 // getShapePathOptions
 // ---------------------------------------------------------------------------
 describe('getShapePathOptions', () => {
@@ -364,11 +402,30 @@ describe('renderPopupHtml', () => {
     });
 
     it('escapes HTML in landing page URL to prevent XSS', () => {
-        const resource = { ...baseResource, landingPageUrl: '"/onclick="alert(1)' };
+        const resource = { ...baseResource, landingPageUrl: 'https://example.com/"/onclick="alert(1)' };
         const html = renderPopupHtml(resource);
         // The double quote should be escaped to &quot; in the href attribute
         expect(html).toContain('&quot;');
         expect(html).not.toContain('onclick="alert');
+    });
+
+    it('omits link for javascript: URL scheme', () => {
+        const resource = { ...baseResource, landingPageUrl: 'javascript:alert(1)' };
+        const html = renderPopupHtml(resource);
+        expect(html).not.toContain('href=');
+        expect(html).not.toContain('View Details');
+    });
+
+    it('omits link for data: URL scheme', () => {
+        const resource = { ...baseResource, landingPageUrl: 'data:text/html,<script>alert(1)</script>' };
+        const html = renderPopupHtml(resource);
+        expect(html).not.toContain('href=');
+    });
+
+    it('renders link for https: URL', () => {
+        const resource = { ...baseResource, landingPageUrl: 'https://example.com/landing/1' };
+        const html = renderPopupHtml(resource);
+        expect(html).toContain('href="https://example.com/landing/1"');
     });
 });
 
