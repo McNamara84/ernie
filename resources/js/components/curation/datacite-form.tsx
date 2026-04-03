@@ -384,7 +384,7 @@ export default function DataCiteForm({
     }, []);
 
     // Form validation hook
-    const { validateField, markFieldTouched, getFieldState, getFieldMessages, setFieldErrors } = useFormValidation();
+    const { validateField, markFieldTouched, getFieldState, getFieldMessages, setFieldErrors, clearBackendErrors } = useFormValidation();
 
     // DOI validation hook for duplicate checking
     const {
@@ -1814,6 +1814,7 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setValidationErrors([]);
         setMappedValidationErrors([]);
+        clearBackendErrors();
 
         // Check if required fields are filled - if not, show error list and scroll to first invalid section
         if (!areRequiredFieldsFilled) {
@@ -1982,6 +1983,7 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setValidationErrors([]);
         setMappedValidationErrors([]);
+        clearBackendErrors();
 
         const payload = buildPayload();
 

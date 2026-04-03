@@ -722,10 +722,9 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * After-validation hooks — only structural checks, no mandatory field enforcement.
+     * After-validation hooks — structural checks with minimal mandatory field enforcement.
      *
      * Unlike StoreResourceRequest, this does NOT require:
-     * - A Main Title (title is required at rules level, but type can be anything)
      * - At least one Abstract description
      * - At least one Author with valid fields
      *

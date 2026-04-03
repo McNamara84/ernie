@@ -11,12 +11,18 @@ export type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid';
 export type ValidationSeverity = 'error' | 'warning' | 'success' | 'info';
 
 /**
+ * Source of a validation message
+ */
+export type ValidationSource = 'client' | 'backend';
+
+/**
  * A single validation message
  */
 export interface ValidationMessage {
     severity: ValidationSeverity;
     message: string;
     fieldId?: string;
+    source?: ValidationSource;
 }
 
 /**
@@ -72,6 +78,7 @@ export interface UseFormValidationReturn {
     getFieldMessages: (fieldId: string) => ValidationMessage[];
     setFieldErrors: (errors: Array<{ fieldId: string; message: string }>) => void;
     clearFieldErrors: (fieldId: string) => void;
+    clearBackendErrors: () => void;
 }
 
 /**
@@ -327,19 +334,19 @@ export function useFormValidation(): UseFormValidationReturn {
             // Collect all fieldIds that are being set so we can clear their old backend messages first
             const fieldIdsToSet = new Set(errors.map((e) => e.fieldId));
 
-            // Clear previous backend-injected messages for affected fields
+            // Clear previous backend-injected messages for affected fields (preserve client-side messages)
             for (const fieldId of fieldIdsToSet) {
                 const oldState = newFields[fieldId];
                 if (oldState) {
                     const wasInvalid = oldState.status === 'invalid';
-                    // Keep only messages that originated from client-side validation (non-error or different source)
-                    const clientMessages = oldState.messages.filter((msg) => msg.severity !== 'error');
+                    const remainingMessages = oldState.messages.filter((msg) => msg.source !== 'backend');
+                    const stillInvalid = remainingMessages.some((msg) => msg.severity === 'error');
                     newFields[fieldId] = {
                         ...oldState,
-                        messages: clientMessages,
-                        status: clientMessages.length > 0 ? oldState.status : 'valid',
+                        messages: remainingMessages,
+                        status: stillInvalid ? 'invalid' : (remainingMessages.length > 0 ? oldState.status : 'valid'),
                     };
-                    if (wasInvalid && newFields[fieldId].status !== 'invalid') {
+                    if (wasInvalid && !stillInvalid) {
                         newInvalidCount--;
                     }
                 }
@@ -360,7 +367,7 @@ export function useFormValidation(): UseFormValidationReturn {
                     status: 'invalid',
                     messages: isDuplicate
                         ? existingMessages
-                        : [...existingMessages, { severity: 'error', message, fieldId }],
+                        : [...existingMessages, { severity: 'error', message, fieldId, source: 'backend' }],
                     touched: true,
                     value: oldState?.value,
                 };
@@ -388,6 +395,58 @@ export function useFormValidation(): UseFormValidationReturn {
         [resetFieldValidation],
     );
 
+    /**
+     * Clears all backend-injected errors across all fields.
+     * Call this at the start of every submit/draft-save to remove stale inline errors
+     * while preserving any client-side validation messages.
+     */
+    const clearBackendErrors = useCallback(() => {
+        setValidationState((prev) => {
+            let changed = false;
+            const newFields: Record<string, FieldValidationState> = {};
+            let newInvalidCount = prev.invalidCount;
+            let newTouchedCount = prev.touchedCount;
+
+            for (const [fieldId, fieldState] of Object.entries(prev.fields)) {
+                const remainingMessages = fieldState.messages.filter((msg) => msg.source !== 'backend');
+                if (remainingMessages.length === fieldState.messages.length) {
+                    newFields[fieldId] = fieldState;
+                    continue;
+                }
+
+                changed = true;
+                const wasInvalid = fieldState.status === 'invalid';
+                const stillInvalid = remainingMessages.some((msg) => msg.severity === 'error');
+
+                if (remainingMessages.length === 0) {
+                    // Field has no remaining messages — remove entirely
+                    if (wasInvalid) newInvalidCount = Math.max(0, newInvalidCount - 1);
+                    if (fieldState.touched) newTouchedCount = Math.max(0, newTouchedCount - 1);
+                    continue; // skip adding to newFields
+                }
+
+                newFields[fieldId] = {
+                    ...fieldState,
+                    messages: remainingMessages,
+                    status: stillInvalid ? 'invalid' : 'valid',
+                };
+
+                if (wasInvalid && !stillInvalid) {
+                    newInvalidCount = Math.max(0, newInvalidCount - 1);
+                }
+            }
+
+            if (!changed) return prev;
+
+            return {
+                fields: newFields,
+                invalidCount: newInvalidCount,
+                touchedCount: newTouchedCount,
+                isValid: newInvalidCount === 0,
+            };
+        });
+    }, []);
+
     return {
         validationState,
         validateField,
@@ -399,6 +458,7 @@ export function useFormValidation(): UseFormValidationReturn {
         getFieldMessages,
         setFieldErrors,
         clearFieldErrors,
+        clearBackendErrors,
     };
 }
 
