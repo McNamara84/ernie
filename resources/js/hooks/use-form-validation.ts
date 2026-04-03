@@ -316,6 +316,7 @@ export function useFormValidation(): UseFormValidationReturn {
     /**
      * Sets external validation errors on fields (e.g., from backend 422 responses).
      * Marks affected fields as touched so errors are immediately visible.
+     * Replaces any previously injected backend errors for those fields to prevent duplicates on re-submit.
      */
     const setFieldErrors = useCallback((errors: Array<{ fieldId: string; message: string }>) => {
         setValidationState((prev) => {
@@ -323,14 +324,43 @@ export function useFormValidation(): UseFormValidationReturn {
             let newInvalidCount = prev.invalidCount;
             let newTouchedCount = prev.touchedCount;
 
+            // Collect all fieldIds that are being set so we can clear their old backend messages first
+            const fieldIdsToSet = new Set(errors.map((e) => e.fieldId));
+
+            // Clear previous backend-injected messages for affected fields
+            for (const fieldId of fieldIdsToSet) {
+                const oldState = newFields[fieldId];
+                if (oldState) {
+                    const wasInvalid = oldState.status === 'invalid';
+                    // Keep only messages that originated from client-side validation (non-error or different source)
+                    const clientMessages = oldState.messages.filter((msg) => msg.severity !== 'error');
+                    newFields[fieldId] = {
+                        ...oldState,
+                        messages: clientMessages,
+                        status: clientMessages.length > 0 ? oldState.status : 'valid',
+                    };
+                    if (wasInvalid && newFields[fieldId].status !== 'invalid') {
+                        newInvalidCount--;
+                    }
+                }
+            }
+
             for (const { fieldId, message } of errors) {
                 const oldState = newFields[fieldId];
                 const wasInvalid = oldState?.status === 'invalid';
                 const wasTouched = oldState?.touched ?? false;
 
+                const existingMessages = oldState?.messages ?? [];
+                // Deduplicate: skip if exact same error message already present
+                const isDuplicate = existingMessages.some(
+                    (msg) => msg.severity === 'error' && msg.message === message,
+                );
+
                 newFields[fieldId] = {
                     status: 'invalid',
-                    messages: [...(oldState?.messages ?? []), { severity: 'error', message, fieldId }],
+                    messages: isDuplicate
+                        ? existingMessages
+                        : [...existingMessages, { severity: 'error', message, fieldId }],
                     touched: true,
                     value: oldState?.value,
                 };

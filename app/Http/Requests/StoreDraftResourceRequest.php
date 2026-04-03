@@ -735,6 +735,8 @@ class StoreDraftResourceRequest extends FormRequest
      * - Person authors must have lastName if provided
      * - Contributors must have proper structure if provided
      * - Polygon coverages must have at least 3 points
+     */
+
     /**
      * Custom validation messages with section-prefixed context (Issue #605).
      *

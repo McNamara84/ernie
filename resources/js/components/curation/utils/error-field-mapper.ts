@@ -130,14 +130,14 @@ function resolveFieldSelector(backendKey: string): string | null {
         return '[data-testid="main-title-input"]';
     }
 
-    // For "descriptions" without index, point to abstract
+    // For "descriptions" without index, point to abstract (only stable testid)
     if (backendKey === 'descriptions') {
         return '[data-testid="abstract-textarea"]';
     }
 
-    // For "licenses" without index, point to primary license
+    // For "licenses" without index, return null (no stable testid on license selects)
     if (backendKey === 'licenses') {
-        return '[data-testid="license-select-0"]';
+        return null;
     }
 
     // For "authors" without index, return null to trigger accordion section fallback
@@ -161,21 +161,19 @@ function resolveFieldSelector(backendKey: string): string | null {
             case 'contributors':
                 return `[data-testid="contributor-${index}-type-field"]`;
             case 'descriptions':
-                return `[data-testid="description-${index}-textarea"]`;
-            case 'licenses':
-                return `[data-testid="license-select-${index}"]`;
-            case 'fundingReferences':
-                return `[data-testid="funding-reference-${index}"]`;
-            case 'relatedIdentifiers':
-                return `[data-testid="related-identifier-${index}"]`;
-            case 'spatialTemporalCoverages':
-                return `[data-testid="coverage-entry-${index}"]`;
-            case 'dates':
-                return `[data-testid="date-entry-${index}"]`;
-            case 'instruments':
-                return `[data-testid="instrument-entry-${index}"]`;
+                // Only the abstract textarea has a stable data-testid
+                return index === '0' ? '[data-testid="abstract-textarea"]' : null;
             case 'datacenters':
                 return '#datacenter';
+            // The following field components do not have stable data-testid attributes yet.
+            // Return null to fall back to opening the correct accordion section.
+            case 'licenses':
+            case 'fundingReferences':
+            case 'relatedIdentifiers':
+            case 'spatialTemporalCoverages':
+            case 'dates':
+            case 'instruments':
+                return null;
             default:
                 return null;
         }

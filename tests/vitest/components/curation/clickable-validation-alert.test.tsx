@@ -27,7 +27,7 @@ function createErrors(overrides: Partial<MappedError>[] = []): MappedError[] {
             message: 'At least one license is required.',
             sectionId: 'licenses-rights',
             sectionName: 'Licenses & Rights',
-            fieldSelector: '[data-testid="license-select-0"]',
+            fieldSelector: null,
             fieldId: null,
         },
     ];

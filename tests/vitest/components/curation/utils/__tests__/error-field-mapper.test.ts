@@ -155,7 +155,7 @@ describe('mapBackendErrors', () => {
 
         expect(mapped).toHaveLength(1);
         expect(mapped[0].sectionId).toBe('funding-references');
-        expect(mapped[0].fieldSelector).toBe('[data-testid="funding-reference-0"]');
+        expect(mapped[0].fieldSelector).toBeNull();
     });
 
     it('maps related identifiers to correct section', () => {
@@ -294,14 +294,14 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].fieldSelector).toBe('[data-testid="main-title-input"]');
     });
 
-    it('resolves "licenses" (no index) to first license select', () => {
+    it('resolves "licenses" (no index) to null (accordion section fallback)', () => {
         const errors: Record<string, string[]> = {
             licenses: ['[Licenses & Rights] At least one license is required.'],
         };
 
         const mapped = mapBackendErrors(errors);
 
-        expect(mapped[0].fieldSelector).toBe('[data-testid="license-select-0"]');
+        expect(mapped[0].fieldSelector).toBeNull();
     });
 
     it('resolves "authors" (no index) to null (accordion section fallback)', () => {
@@ -345,7 +345,7 @@ describe('groupErrorsBySection', () => {
                 message: 'At least one license is required.',
                 sectionId: 'licenses-rights',
                 sectionName: 'Licenses & Rights',
-                fieldSelector: '[data-testid="license-select-0"]',
+                fieldSelector: null,
                 fieldId: null,
             },
         ];
