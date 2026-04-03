@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResourceHero } from '@/pages/LandingPages/components/ResourceHero';
@@ -91,6 +91,44 @@ describe('ResourceHero', () => {
             
             // StatusConfig shows "Review Preview" for preview status
             expect(screen.getByText('Review Preview')).toBeInTheDocument();
+        });
+    });
+
+    describe('in review label', () => {
+        it('displays "In Review:" label when status is preview', () => {
+            render(<ResourceHero {...defaultProps} status="preview" />);
+
+            expect(screen.getByText('In Review:')).toBeInTheDocument();
+        });
+
+        it('renders "In Review:" label before the citation text', () => {
+            render(<ResourceHero {...defaultProps} status="preview" />);
+
+            const label = screen.getByText('In Review:');
+            const citation = screen.getByText(/Doe, J\. \(2024\)\. Test Dataset\./);
+
+            // Label should appear before citation in DOM order
+            expect(label.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('does not display "In Review:" label when status is published', () => {
+            render(<ResourceHero {...defaultProps} status="published" />);
+
+            expect(screen.queryByText('In Review:')).not.toBeInTheDocument();
+        });
+
+        it('does not display "In Review:" label when status is draft', () => {
+            render(<ResourceHero {...defaultProps} status="draft" />);
+
+            expect(screen.queryByText('In Review:')).not.toBeInTheDocument();
+        });
+
+        it('renders "In Review:" label with status-consistent styling', () => {
+            render(<ResourceHero {...defaultProps} status="preview" />);
+
+            const label = screen.getByText('In Review:');
+            expect(label).toHaveClass('text-blue-700');
+            expect(label).toHaveClass('font-semibold');
         });
     });
 

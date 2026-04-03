@@ -26,6 +26,10 @@
         ],
         "improvements": [
             {
+                "title": "In Review Label on Landing Page Previews",
+                "description": "Landing page previews now display an 'In Review:' label directly above the citation, making it immediately clear that the page is still under review. This adapts the status display to familiar browsing habits from previous landing page versions. All existing preview indicators (yellow banner, status icon) remain in place."
+            },
+            {
                 "title": "Helpful Validation Error Messages in Editor",
                 "description": "Validation errors in the Data Editor now display grouped by form section (e.g. Resource Information, Authors, Licenses & Rights) with human-readable messages. Each error is clickable and navigates directly to the affected field by opening the corresponding accordion section and scrolling to the input. Error positions use 1-based numbering (e.g. 'Author #2') for clarity."
             },
