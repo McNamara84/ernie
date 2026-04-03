@@ -26,8 +26,8 @@ vi.mock('@/layouts/auth-layout', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/WelcomeController', () => ({
     default: {
         store: {
-            url: vi.fn((_args: unknown, options?: { query?: Record<string, string> }) => {
-                const base = '/welcome/123';
+            url: vi.fn((args: { user: number | string }, options?: { query?: Record<string, string> }) => {
+                const base = `/welcome/${args.user}`;
                 if (options?.query) {
                     const params = new URLSearchParams(options.query).toString();
                     return `${base}?${params}`;
