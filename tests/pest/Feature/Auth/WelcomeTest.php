@@ -1,11 +1,17 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function () {
+    // Clear rate limiter state so throttle:X,Y middleware starts fresh for each test
+    Cache::flush();
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -188,9 +194,6 @@ test('welcome email resend is rate limited', function () {
     $user = User::factory()->create([
         'password_set_at' => null,
     ]);
-
-    // Clear throttle cache to ensure a clean state for this test
-    app('cache')->flush();
 
     // Rate limit is throttle:3,1 (3 requests per minute)
     for ($i = 0; $i < 3; $i++) {

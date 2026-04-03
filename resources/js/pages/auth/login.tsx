@@ -16,8 +16,8 @@ import { type LoginInput, loginSchema } from '@/lib/validations/user';
 import { request } from '@/routes/password';
 
 interface LoginProps {
-    status?: string;
-    error?: string;
+    status?: string | null;
+    error?: string | null;
     canResetPassword: boolean;
 }
 

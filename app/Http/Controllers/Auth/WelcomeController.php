@@ -51,8 +51,8 @@ class WelcomeController extends Controller
             'email' => $user->email,
             'userId' => $user->id,
             'signatureParams' => [
-                'expires' => $request->query('expires'),
-                'signature' => $request->query('signature'),
+                'expires' => (string) $request->query('expires'),
+                'signature' => (string) $request->query('signature'),
             ],
         ]);
     }
