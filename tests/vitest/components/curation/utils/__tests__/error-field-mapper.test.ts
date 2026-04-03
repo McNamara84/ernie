@@ -76,6 +76,7 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].sectionId).toBe('resource-info');
         expect(mapped[0].sectionName).toBe('Resource Information');
         expect(mapped[0].fieldSelector).toBe('#year');
+        expect(mapped[0].fieldId).toBe('year');
     });
 
     it('maps array-indexed key to correct section and selector', () => {
@@ -89,7 +90,8 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].backendKey).toBe('authors.0.lastName');
         expect(mapped[0].sectionId).toBe('authors');
         expect(mapped[0].sectionName).toBe('Authors');
-        expect(mapped[0].fieldSelector).toBe('[data-testid="author-entry-0"]');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="author-0-fields-grid"]');
+        expect(mapped[0].fieldId).toBeNull();
     });
 
     it('maps licenses to correct section', () => {
@@ -113,7 +115,7 @@ describe('mapBackendErrors', () => {
 
         expect(mapped).toHaveLength(1);
         expect(mapped[0].sectionId).toBe('contributors');
-        expect(mapped[0].fieldSelector).toBe('[data-testid="contributor-entry-0"]');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="contributor-0-type-field"]');
     });
 
     it('maps descriptions to correct section', () => {
@@ -279,7 +281,7 @@ describe('mapBackendErrors', () => {
 
         const mapped = mapBackendErrors(errors);
 
-        expect(mapped[0].fieldSelector).toBe('#title-0-input');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="main-title-input"]');
     });
 
     it('resolves "titles" (no index) to main title input', () => {
@@ -289,7 +291,7 @@ describe('mapBackendErrors', () => {
 
         const mapped = mapBackendErrors(errors);
 
-        expect(mapped[0].fieldSelector).toBe('#main-title-input');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="main-title-input"]');
     });
 
     it('resolves "licenses" (no index) to first license select', () => {
@@ -302,14 +304,14 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].fieldSelector).toBe('[data-testid="license-select-0"]');
     });
 
-    it('resolves "authors" (no index) to authors section', () => {
+    it('resolves "authors" (no index) to null (accordion section fallback)', () => {
         const errors: Record<string, string[]> = {
             authors: ['[Authors] At least one author must be provided.'],
         };
 
         const mapped = mapBackendErrors(errors);
 
-        expect(mapped[0].fieldSelector).toBe('[data-testid="authors-section"]');
+        expect(mapped[0].fieldSelector).toBeNull();
     });
 
     it('returns empty array for empty errors input', () => {
@@ -328,13 +330,15 @@ describe('groupErrorsBySection', () => {
                 sectionId: 'resource-info',
                 sectionName: 'Resource Information',
                 fieldSelector: '#year',
+                fieldId: 'year',
             },
             {
                 backendKey: 'titles',
                 message: 'At least one title is required.',
                 sectionId: 'resource-info',
                 sectionName: 'Resource Information',
-                fieldSelector: '#main-title-input',
+                fieldSelector: '[data-testid="main-title-input"]',
+                fieldId: null,
             },
             {
                 backendKey: 'licenses',
@@ -342,6 +346,7 @@ describe('groupErrorsBySection', () => {
                 sectionId: 'licenses-rights',
                 sectionName: 'Licenses & Rights',
                 fieldSelector: '[data-testid="license-select-0"]',
+                fieldId: null,
             },
         ];
 
@@ -374,6 +379,7 @@ describe('groupErrorsBySection', () => {
                 sectionId: 'authors',
                 sectionName: 'Authors',
                 fieldSelector: null,
+                fieldId: null,
             },
             {
                 backendKey: 'year',
@@ -381,6 +387,7 @@ describe('groupErrorsBySection', () => {
                 sectionId: 'resource-info',
                 sectionName: 'Resource Information',
                 fieldSelector: '#year',
+                fieldId: 'year',
             },
         ];
 

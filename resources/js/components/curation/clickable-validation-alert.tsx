@@ -8,13 +8,14 @@ import { type MappedError, groupErrorsBySection } from './utils/error-field-mapp
 interface ClickableValidationAlertProps {
     errors: MappedError[];
     onErrorClick: (error: MappedError) => void;
+    headerMessage?: string;
     className?: string;
     ref?: React.Ref<HTMLDivElement>;
     'data-testid'?: string;
     focusable?: boolean;
 }
 
-function ClickableValidationAlert({ errors, onErrorClick, className, ref, 'data-testid': dataTestId, focusable = false }: ClickableValidationAlertProps) {
+function ClickableValidationAlert({ errors, onErrorClick, headerMessage, className, ref, 'data-testid': dataTestId, focusable = false }: ClickableValidationAlertProps) {
     if (errors.length === 0) {
         return null;
     }
@@ -34,7 +35,7 @@ function ClickableValidationAlert({ errors, onErrorClick, className, ref, 'data-
             <div className="flex items-start gap-2 border-b border-destructive/20 p-3">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <strong className="font-semibold">
-                    Unable to save resource. Please review the highlighted issues.
+                    {headerMessage ?? 'Unable to save resource. Please review the highlighted issues.'}
                 </strong>
             </div>
             <div className="space-y-1 p-3 pt-2">

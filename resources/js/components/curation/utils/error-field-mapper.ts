@@ -19,8 +19,10 @@ export interface MappedError {
     sectionId: string;
     /** Display name of the section, e.g. "Authors" */
     sectionName: string;
-    /** DOM element ID or CSS selector to scroll to / focus, or null if not directly focusable */
+    /** DOM CSS selector to scroll to / focus on click, or null if not directly focusable */
     fieldSelector: string | null;
+    /** Form validation field ID matching useFormValidation state keys (e.g. 'year'), or null */
+    fieldId: string | null;
 }
 
 interface SectionMapping {
@@ -54,7 +56,7 @@ const SECTION_MAP: Record<string, SectionMapping> = {
 };
 
 /**
- * Maps simple top-level backend keys to their corresponding DOM field IDs.
+ * Maps simple top-level backend keys to their corresponding DOM field selectors.
  */
 const SIMPLE_FIELD_MAP: Record<string, string> = {
     doi: '#doi',
@@ -62,6 +64,17 @@ const SIMPLE_FIELD_MAP: Record<string, string> = {
     resourceType: '#resourceType',
     version: '#version',
     language: '#language',
+};
+
+/**
+ * Maps simple top-level backend keys to useFormValidation field IDs.
+ */
+const FIELD_ID_MAP: Record<string, string> = {
+    doi: 'doi',
+    year: 'year',
+    resourceType: 'resourceType',
+    version: 'version',
+    language: 'language',
 };
 
 /**
@@ -104,7 +117,7 @@ export function stripSectionPrefix(message: string): string {
  *
  * For simple keys (e.g., "year"), returns the mapped selector.
  * For array keys (e.g., "authors.0.lastName"), attempts to build a selector
- * based on the field structure.
+ * based on the actual data-testid / id attributes rendered by the field components.
  */
 function resolveFieldSelector(backendKey: string): string | null {
     // Direct simple field mapping
@@ -114,7 +127,7 @@ function resolveFieldSelector(backendKey: string): string | null {
 
     // For "titles" without index, point to main title
     if (backendKey === 'titles') {
-        return '#main-title-input';
+        return '[data-testid="main-title-input"]';
     }
 
     // For "descriptions" without index, point to abstract
@@ -127,9 +140,9 @@ function resolveFieldSelector(backendKey: string): string | null {
         return '[data-testid="license-select-0"]';
     }
 
-    // For "authors" without index, point to authors section
+    // For "authors" without index, return null to trigger accordion section fallback
     if (backendKey === 'authors') {
-        return '[data-testid="authors-section"]';
+        return null;
     }
 
     // Parse array-indexed keys: "field.INDEX.subfield"
@@ -139,11 +152,14 @@ function resolveFieldSelector(backendKey: string): string | null {
 
         switch (prefix) {
             case 'titles':
-                return subfield === 'title' ? `#title-${index}-input` : null;
+                // Main title (index 0) has a stable data-testid; secondary titles use the section
+                return subfield === 'title' && index === '0'
+                    ? '[data-testid="main-title-input"]'
+                    : null;
             case 'authors':
-                return `[data-testid="author-entry-${index}"]`;
+                return `[data-testid="author-${index}-fields-grid"]`;
             case 'contributors':
-                return `[data-testid="contributor-entry-${index}"]`;
+                return `[data-testid="contributor-${index}-type-field"]`;
             case 'descriptions':
                 return `[data-testid="description-${index}-textarea"]`;
             case 'licenses':
@@ -169,6 +185,19 @@ function resolveFieldSelector(backendKey: string): string | null {
 }
 
 /**
+ * Resolves a form validation field ID for a given backend validation key.
+ *
+ * Returns the key that matches `useFormValidation` state (e.g. 'year', 'doi'),
+ * or null for complex array fields where inline validation is not yet supported.
+ */
+function resolveFieldId(backendKey: string): string | null {
+    if (backendKey in FIELD_ID_MAP) {
+        return FIELD_ID_MAP[backendKey];
+    }
+    return null;
+}
+
+/**
  * Maps backend validation errors to structured MappedError objects.
  *
  * @param errors - The errors object from a Laravel 422 response: `{ "key": ["message", ...], ... }`
@@ -190,12 +219,14 @@ export function mapBackendErrors(errors: Record<string, string[]>): MappedError[
                     sectionId: 'unknown',
                     sectionName: 'Other',
                     fieldSelector: null,
+                    fieldId: null,
                 });
             }
             continue;
         }
 
         const fieldSelector = resolveFieldSelector(backendKey);
+        const fieldId = resolveFieldId(backendKey);
 
         for (const message of messages) {
             // Use section name from message prefix if available (more accurate),
@@ -208,6 +239,7 @@ export function mapBackendErrors(errors: Record<string, string[]>): MappedError[
                 sectionId: section.sectionId,
                 sectionName: messageSectionName ?? section.sectionName,
                 fieldSelector,
+                fieldId,
             });
         }
     }

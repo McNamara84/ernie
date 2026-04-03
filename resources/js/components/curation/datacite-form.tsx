@@ -912,6 +912,7 @@ export default function DataCiteForm({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
+    const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
 
     // Compute author validation issues
     const authorValidationIssues = useMemo(() => {
@@ -1935,11 +1936,12 @@ export default function DataCiteForm({
                         // Map backend errors to sections and fields (Issue #605)
                         const mapped = mapBackendErrors(parsed.errors);
                         setMappedValidationErrors(mapped);
+                        setValidationAlertHeader(defaultError);
 
                         // Inject errors into individual field states for inline display
                         const fieldErrors = mapped
-                            .filter((e) => e.fieldSelector)
-                            .map((e) => ({ fieldId: e.fieldSelector!, message: e.message }));
+                            .filter((e) => e.fieldId)
+                            .map((e) => ({ fieldId: e.fieldId!, message: e.message }));
                         if (fieldErrors.length > 0) {
                             setFieldErrors(fieldErrors);
                         }
@@ -2022,11 +2024,12 @@ export default function DataCiteForm({
                         // Map backend errors to sections and fields (Issue #605)
                         const mapped = mapBackendErrors(parsed.errors);
                         setMappedValidationErrors(mapped);
+                        setValidationAlertHeader(defaultError);
 
                         // Inject errors into individual field states for inline display
                         const fieldErrors = mapped
-                            .filter((e) => e.fieldSelector)
-                            .map((e) => ({ fieldId: e.fieldSelector!, message: e.message }));
+                            .filter((e) => e.fieldId)
+                            .map((e) => ({ fieldId: e.fieldId!, message: e.message }));
                         if (fieldErrors.length > 0) {
                             setFieldErrors(fieldErrors);
                         }
@@ -2099,7 +2102,7 @@ export default function DataCiteForm({
     return (
         <form onSubmit={handleSubmit} noValidate className="space-y-6">
             {mappedValidationErrors.length > 0 ? (
-                <ClickableValidationAlert ref={errorRef} errors={mappedValidationErrors} onErrorClick={handleErrorClick} focusable className="p-4" data-testid="global-validation-alert" />
+                <ClickableValidationAlert ref={errorRef} errors={mappedValidationErrors} onErrorClick={handleErrorClick} headerMessage={validationAlertHeader} focusable className="p-4" data-testid="global-validation-alert" />
             ) : (
                 <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
             )}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
@@ -12,13 +12,15 @@ function createErrors(overrides: Partial<MappedError>[] = []): MappedError[] {
             sectionId: 'resource-info',
             sectionName: 'Resource Information',
             fieldSelector: '#year',
+            fieldId: 'year',
         },
         {
             backendKey: 'titles',
             message: 'At least one title is required.',
             sectionId: 'resource-info',
             sectionName: 'Resource Information',
-            fieldSelector: '#main-title-input',
+            fieldSelector: '[data-testid="main-title-input"]',
+            fieldId: null,
         },
         {
             backendKey: 'licenses',
@@ -26,6 +28,7 @@ function createErrors(overrides: Partial<MappedError>[] = []): MappedError[] {
             sectionId: 'licenses-rights',
             sectionName: 'Licenses & Rights',
             fieldSelector: '[data-testid="license-select-0"]',
+            fieldId: null,
         },
     ];
 
@@ -53,6 +56,19 @@ describe('ClickableValidationAlert', () => {
             render(<ClickableValidationAlert errors={createErrors()} onErrorClick={vi.fn()} />);
 
             expect(screen.getByText(/Unable to save resource/)).toBeInTheDocument();
+        });
+
+        it('renders custom header message when provided', () => {
+            render(
+                <ClickableValidationAlert
+                    errors={createErrors()}
+                    onErrorClick={vi.fn()}
+                    headerMessage="Unable to save draft. Please review the highlighted issues."
+                />,
+            );
+
+            expect(screen.getByText(/Unable to save draft/)).toBeInTheDocument();
+            expect(screen.queryByText(/Unable to save resource/)).not.toBeInTheDocument();
         });
 
         it('renders with data-testid when provided', () => {
