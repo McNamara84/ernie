@@ -77,10 +77,8 @@ test('new user can set password with valid signed URL', function () {
     ]);
 
     $signedUrl = URL::temporarySignedRoute('welcome.store', now()->addHours(72), ['user' => $user->id]);
-    $parsed = parse_url($signedUrl);
-    parse_str($parsed['query'], $queryParams);
 
-    $this->post("/welcome/{$user->id}?expires={$queryParams['expires']}&signature={$queryParams['signature']}", [
+    $this->post($signedUrl, [
         'password' => 'SecurePassword123!',
         'password_confirmation' => 'SecurePassword123!',
     ])->assertRedirect(route('login'))
@@ -98,10 +96,8 @@ test('new user can log in after setting password via welcome flow', function () 
     ]);
 
     $signedUrl = URL::temporarySignedRoute('welcome.store', now()->addHours(72), ['user' => $user->id]);
-    $parsed = parse_url($signedUrl);
-    parse_str($parsed['query'], $queryParams);
 
-    $this->post("/welcome/{$user->id}?expires={$queryParams['expires']}&signature={$queryParams['signature']}", [
+    $this->post($signedUrl, [
         'password' => 'SecurePassword123!',
         'password_confirmation' => 'SecurePassword123!',
     ])->assertRedirect(route('login'));
@@ -137,10 +133,8 @@ test('password submission fails with expired signature', function () {
     ]);
 
     $signedUrl = URL::temporarySignedRoute('welcome.store', now()->subHour(), ['user' => $user->id]);
-    $parsed = parse_url($signedUrl);
-    parse_str($parsed['query'], $queryParams);
 
-    $this->post("/welcome/{$user->id}?expires={$queryParams['expires']}&signature={$queryParams['signature']}", [
+    $this->post($signedUrl, [
         'password' => 'SecurePassword123!',
         'password_confirmation' => 'SecurePassword123!',
     ])->assertRedirect(route('login'))
@@ -156,10 +150,8 @@ test('password cannot be set twice via welcome flow', function () {
     ]);
 
     $signedUrl = URL::temporarySignedRoute('welcome.store', now()->addHours(72), ['user' => $user->id]);
-    $parsed = parse_url($signedUrl);
-    parse_str($parsed['query'], $queryParams);
 
-    $this->post("/welcome/{$user->id}?expires={$queryParams['expires']}&signature={$queryParams['signature']}", [
+    $this->post($signedUrl, [
         'password' => 'AnotherPassword123!',
         'password_confirmation' => 'AnotherPassword123!',
     ])->assertRedirect(route('login'))
@@ -173,12 +165,10 @@ test('password validation requires confirmation', function () {
     ]);
 
     $signedUrl = URL::temporarySignedRoute('welcome.store', now()->addHours(72), ['user' => $user->id]);
-    $parsed = parse_url($signedUrl);
-    parse_str($parsed['query'], $queryParams);
 
     $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class)
         ->from($signedUrl)
-        ->post("/welcome/{$user->id}?expires={$queryParams['expires']}&signature={$queryParams['signature']}", [
+        ->post($signedUrl, [
             'password' => 'SecurePassword123!',
             'password_confirmation' => 'DifferentPassword456!',
         ])->assertRedirect($signedUrl)
@@ -199,13 +189,17 @@ test('welcome email resend is rate limited', function () {
         'password_set_at' => null,
     ]);
 
+    // Clear throttle cache to ensure a clean state for this test
+    app('cache')->flush();
+
     // Rate limit is throttle:3,1 (3 requests per minute)
     for ($i = 0; $i < 3; $i++) {
         $this->post(route('welcome.resend'), [
             'email' => $user->email,
-        ]);
+        ])->assertStatus(302);
     }
 
+    // 4th request should be throttled
     $this->post(route('welcome.resend'), [
         'email' => $user->email,
     ])->assertStatus(429);
