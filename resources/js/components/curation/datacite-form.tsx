@@ -1288,7 +1288,7 @@ export default function DataCiteForm({
                 status: resourceInfoStatus,
                 ref: resourceInfoRef,
                 accordionValue: 'resource-info',
-                focusSelector: '#main-title-input', // Focus main title if invalid
+                focusSelector: '[data-testid="main-title-input"]', // Focus main title if invalid
             },
             {
                 status: licensesStatus,
@@ -1953,9 +1953,23 @@ export default function DataCiteForm({
 
                         // Scroll to first errored section after accordion opens
                         if (sectionsWithErrors.length > 0) {
+                            const firstError = mapped[0];
                             requestAnimationFrame(() => {
                                 setTimeout(() => {
-                                    scrollToFirstInvalidSection();
+                                    let target: Element | null = null;
+                                    if (firstError.fieldSelector) {
+                                        target = document.querySelector(firstError.fieldSelector);
+                                    }
+                                    if (!target) {
+                                        const accordionItem = document.querySelector(`[data-accordion-value="${firstError.sectionId}"]`);
+                                        target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
+                                    }
+                                    if (target) {
+                                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        if (target instanceof HTMLElement) {
+                                            target.focus({ preventScroll: true });
+                                        }
+                                    }
                                 }, 300);
                             });
                         }
@@ -2039,6 +2053,29 @@ export default function DataCiteForm({
                         // Auto-open accordion sections that have errors
                         const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
                         setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
+
+                        // Scroll to first errored section after accordion opens
+                        if (sectionsWithErrors.length > 0) {
+                            const firstError = mapped[0];
+                            requestAnimationFrame(() => {
+                                setTimeout(() => {
+                                    let target: Element | null = null;
+                                    if (firstError.fieldSelector) {
+                                        target = document.querySelector(firstError.fieldSelector);
+                                    }
+                                    if (!target) {
+                                        const accordionItem = document.querySelector(`[data-accordion-value="${firstError.sectionId}"]`);
+                                        target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
+                                    }
+                                    if (target) {
+                                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        if (target instanceof HTMLElement) {
+                                            target.focus({ preventScroll: true });
+                                        }
+                                    }
+                                }, 300);
+                            });
+                        }
                     } else {
                         setValidationErrors([]);
                     }
@@ -2087,7 +2124,7 @@ export default function DataCiteForm({
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
             requestAnimationFrame(() => {
                 setTimeout(() => {
-                    let target: Element | null = null;
+                    let target: Element | null;
 
                     if (error.fieldSelector) {
                         target = document.querySelector(error.fieldSelector);
