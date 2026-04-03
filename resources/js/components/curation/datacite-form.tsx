@@ -7,6 +7,7 @@ import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-moda
 import { SectionHeader } from '@/components/curation/section-header';
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { type MappedError, mapBackendErrors } from '@/components/curation/utils/error-field-mapper';
+import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1833,24 +1834,7 @@ export default function DataCiteForm({
             // Scroll to first errored field/section after accordion opens
             if (sectionsWithErrors.length > 0) {
                 const firstError = mapped[0];
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        let target: Element | null = null;
-                        if (firstError.fieldSelector) {
-                            target = document.querySelector(firstError.fieldSelector);
-                        }
-                        if (!target) {
-                            const accordionItem = document.querySelector(`[data-accordion-value="${firstError.sectionId}"]`);
-                            target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
-                        }
-                        if (target) {
-                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            if (target instanceof HTMLElement) {
-                                target.focus({ preventScroll: true });
-                            }
-                        }
-                    }, 300);
-                });
+                scheduleScrollToError(firstError.fieldSelector, firstError.sectionId);
             }
 
             setErrorMessage(serverMessage ?? defaultHeader);
@@ -2097,27 +2081,7 @@ export default function DataCiteForm({
             setOpenAccordionItems((prev) => (prev.includes(error.sectionId) ? prev : [...prev, error.sectionId]));
 
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    let target: Element | null = null;
-
-                    if (error.fieldSelector) {
-                        target = document.querySelector(error.fieldSelector);
-                    }
-                    // Fallback: target the focusable trigger button inside the accordion item
-                    if (!target) {
-                        const accordionItem = document.querySelector(`[data-accordion-value="${error.sectionId}"]`);
-                        target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
-                    }
-
-                    if (target) {
-                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        if (target instanceof HTMLElement) {
-                            target.focus({ preventScroll: true });
-                        }
-                    }
-                }, 150);
-            });
+            scheduleScrollToError(error.fieldSelector, error.sectionId);
         },
         [setOpenAccordionItems],
     );

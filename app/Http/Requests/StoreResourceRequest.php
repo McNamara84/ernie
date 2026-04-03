@@ -971,7 +971,9 @@ class StoreResourceRequest extends FormRequest
                 /** @var mixed $candidateAuthors */
                 $candidateAuthors = $this->input('authors', []);
 
-                // Skip empty-array check — already enforced by 'authors' => ['required', 'array', 'min:1'] in rules()
+                // Guard: bail out early if authors is empty or not an array.
+                // The 'authors' => ['required', 'array', 'min:1'] rule already reports this
+                // validation error, so we only need to stop the deeper per-author checks below.
                 if (! is_array($candidateAuthors) || count($candidateAuthors) === 0) {
                     return;
                 }
