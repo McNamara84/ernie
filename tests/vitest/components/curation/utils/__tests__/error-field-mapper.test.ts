@@ -106,7 +106,7 @@ describe('mapBackendErrors', () => {
         expect(mapped[0].sectionName).toBe('Licenses & Rights');
     });
 
-    it('maps contributors to correct section', () => {
+    it('maps contributor roles to roles field selector', () => {
         const errors: Record<string, string[]> = {
             'contributors.0.roles': ['[Contributors] Contributor #1 must have at least one role.'],
         };
@@ -115,6 +115,17 @@ describe('mapBackendErrors', () => {
 
         expect(mapped).toHaveLength(1);
         expect(mapped[0].sectionId).toBe('contributors');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="contributor-0-roles-field"]');
+    });
+
+    it('maps contributor type to type field selector', () => {
+        const errors: Record<string, string[]> = {
+            'contributors.0.type': ['[Contributors] Contributor #1 must have a type.'],
+        };
+
+        const mapped = mapBackendErrors(errors);
+
+        expect(mapped).toHaveLength(1);
         expect(mapped[0].fieldSelector).toBe('[data-testid="contributor-0-type-field"]');
     });
 

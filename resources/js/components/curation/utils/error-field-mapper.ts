@@ -159,6 +159,9 @@ function resolveFieldSelector(backendKey: string): string | null {
             case 'authors':
                 return `[data-testid="author-${index}-fields-grid"]`;
             case 'contributors':
+                if (subfield === 'roles') {
+                    return `[data-testid="contributor-${index}-roles-field"]`;
+                }
                 return `[data-testid="contributor-${index}-type-field"]`;
             case 'descriptions':
                 // Only the abstract textarea has a stable data-testid

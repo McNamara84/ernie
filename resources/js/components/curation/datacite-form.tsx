@@ -1807,6 +1807,57 @@ export default function DataCiteForm({
         titles,
     ]);
 
+    /**
+     * Shared handler for 422 backend validation errors.
+     * Maps errors to sections, injects inline field errors, opens relevant accordion sections,
+     * and scrolls/focuses the first errored field or section trigger.
+     */
+    const applyBackendValidationErrors = useCallback(
+        (errors: Record<string, string[]>, serverMessage: string | undefined, defaultHeader: string) => {
+            const mapped = mapBackendErrors(errors);
+            setMappedValidationErrors(mapped);
+            setValidationAlertHeader(serverMessage ?? defaultHeader);
+
+            // Inject errors into individual field states for inline display
+            const fieldErrors = mapped
+                .filter((e) => e.fieldId)
+                .map((e) => ({ fieldId: e.fieldId!, message: e.message }));
+            if (fieldErrors.length > 0) {
+                setFieldErrors(fieldErrors);
+            }
+
+            // Auto-open accordion sections that have errors
+            const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
+            setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
+
+            // Scroll to first errored field/section after accordion opens
+            if (sectionsWithErrors.length > 0) {
+                const firstError = mapped[0];
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        let target: Element | null = null;
+                        if (firstError.fieldSelector) {
+                            target = document.querySelector(firstError.fieldSelector);
+                        }
+                        if (!target) {
+                            const accordionItem = document.querySelector(`[data-accordion-value="${firstError.sectionId}"]`);
+                            target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
+                        }
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            if (target instanceof HTMLElement) {
+                                target.focus({ preventScroll: true });
+                            }
+                        }
+                    }, 300);
+                });
+            }
+
+            setErrorMessage(serverMessage ?? defaultHeader);
+        },
+        [setFieldErrors, setOpenAccordionItems],
+    );
+
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -1934,50 +1985,12 @@ export default function DataCiteForm({
                     }
 
                     if (parsed?.errors) {
-                        // Map backend errors to sections and fields (Issue #605)
-                        const mapped = mapBackendErrors(parsed.errors);
-                        setMappedValidationErrors(mapped);
-                        setValidationAlertHeader(defaultError);
-
-                        // Inject errors into individual field states for inline display
-                        const fieldErrors = mapped
-                            .filter((e) => e.fieldId)
-                            .map((e) => ({ fieldId: e.fieldId!, message: e.message }));
-                        if (fieldErrors.length > 0) {
-                            setFieldErrors(fieldErrors);
-                        }
-
-                        // Auto-open accordion sections that have errors
-                        const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
-                        setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
-
-                        // Scroll to first errored section after accordion opens
-                        if (sectionsWithErrors.length > 0) {
-                            const firstError = mapped[0];
-                            requestAnimationFrame(() => {
-                                setTimeout(() => {
-                                    let target: Element | null = null;
-                                    if (firstError.fieldSelector) {
-                                        target = document.querySelector(firstError.fieldSelector);
-                                    }
-                                    if (!target) {
-                                        const accordionItem = document.querySelector(`[data-accordion-value="${firstError.sectionId}"]`);
-                                        target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
-                                    }
-                                    if (target) {
-                                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        if (target instanceof HTMLElement) {
-                                            target.focus({ preventScroll: true });
-                                        }
-                                    }
-                                }, 300);
-                            });
-                        }
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
                     } else {
                         setValidationErrors([]);
+                        setErrorMessage(parsed?.message || defaultError);
                     }
 
-                    setErrorMessage(parsed?.message || defaultError);
                     return;
                 }
             }
@@ -2037,50 +2050,12 @@ export default function DataCiteForm({
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
 
                     if (parsed?.errors) {
-                        // Map backend errors to sections and fields (Issue #605)
-                        const mapped = mapBackendErrors(parsed.errors);
-                        setMappedValidationErrors(mapped);
-                        setValidationAlertHeader(defaultError);
-
-                        // Inject errors into individual field states for inline display
-                        const fieldErrors = mapped
-                            .filter((e) => e.fieldId)
-                            .map((e) => ({ fieldId: e.fieldId!, message: e.message }));
-                        if (fieldErrors.length > 0) {
-                            setFieldErrors(fieldErrors);
-                        }
-
-                        // Auto-open accordion sections that have errors
-                        const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
-                        setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
-
-                        // Scroll to first errored section after accordion opens
-                        if (sectionsWithErrors.length > 0) {
-                            const firstError = mapped[0];
-                            requestAnimationFrame(() => {
-                                setTimeout(() => {
-                                    let target: Element | null = null;
-                                    if (firstError.fieldSelector) {
-                                        target = document.querySelector(firstError.fieldSelector);
-                                    }
-                                    if (!target) {
-                                        const accordionItem = document.querySelector(`[data-accordion-value="${firstError.sectionId}"]`);
-                                        target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
-                                    }
-                                    if (target) {
-                                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        if (target instanceof HTMLElement) {
-                                            target.focus({ preventScroll: true });
-                                        }
-                                    }
-                                }, 300);
-                            });
-                        }
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
                     } else {
                         setValidationErrors([]);
+                        setErrorMessage(parsed?.message || defaultError);
                     }
 
-                    setErrorMessage(parsed?.message || defaultError);
                     return;
                 }
             }
@@ -2124,12 +2099,13 @@ export default function DataCiteForm({
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
             requestAnimationFrame(() => {
                 setTimeout(() => {
-                    let target: Element | null;
+                    let target: Element | null = null;
 
                     if (error.fieldSelector) {
                         target = document.querySelector(error.fieldSelector);
-                    } else {
-                        // Fallback: target the focusable trigger button inside the accordion item
+                    }
+                    // Fallback: target the focusable trigger button inside the accordion item
+                    if (!target) {
                         const accordionItem = document.querySelector(`[data-accordion-value="${error.sectionId}"]`);
                         target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
                     }
