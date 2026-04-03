@@ -5,6 +5,7 @@ interface StatusConfig {
     color: string;
     textColor: string;
     label: string;
+    reviewLabel?: string;
 }
 
 const STATUS_CONFIGS: Record<string, StatusConfig> = {
@@ -26,6 +27,7 @@ const STATUS_CONFIGS: Record<string, StatusConfig> = {
         color: 'text-blue-500',
         textColor: 'text-blue-700',
         label: 'Review Preview',
+        reviewLabel: 'In Review:',
     },
 };
 

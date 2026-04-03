@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResourceHero } from '@/pages/LandingPages/components/ResourceHero';
@@ -123,11 +123,11 @@ describe('ResourceHero', () => {
             expect(screen.queryByText('In Review:')).not.toBeInTheDocument();
         });
 
-        it('renders "In Review:" label with amber styling', () => {
+        it('renders "In Review:" label with status-consistent styling', () => {
             render(<ResourceHero {...defaultProps} status="preview" />);
 
             const label = screen.getByText('In Review:');
-            expect(label).toHaveClass('text-amber-600');
+            expect(label).toHaveClass('text-blue-700');
             expect(label).toHaveClass('font-semibold');
         });
     });

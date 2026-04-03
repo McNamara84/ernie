@@ -59,8 +59,8 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
 
             {/* Bottom: Citation */}
             <div className="border-t border-gray-200 pt-4">
-                {status === 'preview' && (
-                    <p className="mb-2 text-sm font-semibold text-amber-600">In Review:</p>
+                {statusConfig.reviewLabel && (
+                    <p className={`mb-2 text-sm font-semibold ${statusConfig.textColor}`}>{statusConfig.reviewLabel}</p>
                 )}
                 <div className="flex items-start gap-3">
                     <p className="flex-1 text-sm leading-relaxed text-gray-700">{citation}</p>
