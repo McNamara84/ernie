@@ -50,6 +50,29 @@ describe('Login page', () => {
         expect(screen.getByText('Password reset')).toBeInTheDocument();
     });
 
+    it('displays error message when provided', () => {
+        render(<Login canResetPassword={false} error="This link is invalid or has expired." />);
+        expect(screen.getByText('This link is invalid or has expired.')).toBeInTheDocument();
+    });
+
+    it('styles error message with destructive color', () => {
+        render(<Login canResetPassword={false} error="Some error" />);
+        const errorDiv = screen.getByText('Some error');
+        expect(errorDiv.className).toContain('text-destructive');
+    });
+
+    it('displays both status and error messages simultaneously', () => {
+        render(<Login canResetPassword={false} status="Success message" error="Error message" />);
+        expect(screen.getByText('Success message')).toBeInTheDocument();
+        expect(screen.getByText('Error message')).toBeInTheDocument();
+    });
+
+    it('does not render error div when error is undefined', () => {
+        const { container } = render(<Login canResetPassword={false} />);
+        const destructiveElements = container.querySelectorAll('.text-destructive');
+        expect(destructiveElements).toHaveLength(0);
+    });
+
     it('renders validation errors on submit with empty fields', async () => {
         render(<Login canResetPassword={false} />);
         const user = userEvent.setup();

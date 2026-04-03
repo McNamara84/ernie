@@ -50,6 +50,10 @@ class WelcomeController extends Controller
         return Inertia::render('auth/welcome', [
             'email' => $user->email,
             'userId' => $user->id,
+            'signatureParams' => [
+                'expires' => $request->query('expires'),
+                'signature' => $request->query('signature'),
+            ],
         ]);
     }
 

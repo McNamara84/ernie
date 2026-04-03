@@ -15,9 +15,13 @@ import { type WelcomePasswordInput, welcomePasswordSchema } from '@/lib/validati
 interface WelcomeProps {
     email: string;
     userId: number;
+    signatureParams: {
+        expires: string;
+        signature: string;
+    };
 }
 
-export default function Welcome({ email, userId }: WelcomeProps) {
+export default function Welcome({ email, userId, signatureParams }: WelcomeProps) {
     const [processing, setProcessing] = useState(false);
     const form = useForm<WelcomePasswordInput>({
         resolver: zodResolver(welcomePasswordSchema),
@@ -29,7 +33,7 @@ export default function Welcome({ email, userId }: WelcomeProps) {
 
     const onSubmit = (data: WelcomePasswordInput) => {
         setProcessing(true);
-        router.post(WelcomeController.store.url({ user: userId }), data, {
+        router.post(WelcomeController.store.url({ user: userId }, { query: signatureParams }), data, {
             onError: (errors) => {
                 Object.entries(errors).forEach(([key, message]) => {
                     form.setError(key as keyof WelcomePasswordInput, { message });
