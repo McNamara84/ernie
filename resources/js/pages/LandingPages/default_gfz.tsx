@@ -80,6 +80,7 @@ export default function DefaultGfzTemplate() {
                                 licenses={resource.licenses || []}
                                 contactPersons={resource.contact_persons || []}
                                 datasetTitle={mainTitle}
+                                additionalLinks={landingPage?.links}
                             />
                             <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
                             <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />

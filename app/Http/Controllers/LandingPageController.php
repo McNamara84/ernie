@@ -112,6 +112,10 @@ class LandingPageController extends Controller
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
+            'links' => ['nullable', 'array', 'max:10'],
+            'links.*.url' => ['required', new SafeUrl, 'max:2048'],
+            'links.*.label' => ['required', 'string', 'max:255'],
+            'links.*.position' => ['required', 'integer', 'min:0'],
         ]);
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
@@ -193,6 +197,11 @@ class LandingPageController extends Controller
 
                 return $resource->landingPage()->create($createData);
             });
+
+            // Create additional links outside the transaction (after LP exists)
+            if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
+                $landingPage->links()->createMany($validated['links']);
+            }
         } catch (ResourceAlreadyExistsException) {
             // Handle "already exists" condition from inside the transaction.
             // The exception is thrown BEFORE commit, so the transaction was never committed.
@@ -275,7 +284,7 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load('externalDomain');
+        $landingPage->load(['externalDomain', 'links']);
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
@@ -328,6 +337,10 @@ class LandingPageController extends Controller
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
+            'links' => ['nullable', 'array', 'max:10'],
+            'links.*.url' => ['required', new SafeUrl, 'max:2048'],
+            'links.*.label' => ['required', 'string', 'max:255'],
+            'links.*.position' => ['required', 'integer', 'min:0'],
         ]);
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
@@ -391,6 +404,23 @@ class LandingPageController extends Controller
 
         $landingPage->save();
 
+        // Sync additional links if provided
+        if (array_key_exists('links', $validated)) {
+            $landingPage->links()->delete();
+
+            $isLinksTemplate = $effectiveTemplate !== 'external'
+                && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
+
+            if (! empty($validated['links']) && $isLinksTemplate) {
+                $landingPage->links()->createMany($validated['links']);
+            }
+        }
+
+        // Clear links when switching to external or IGSN template
+        if ($effectiveTemplate === 'external' || in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true)) {
+            $landingPage->links()->delete();
+        }
+
         // Handle publication status change: allow publishing a draft
         if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {
             $landingPage->publish();
@@ -401,7 +431,7 @@ class LandingPageController extends Controller
         $this->invalidateCache($resource->id);
 
         $freshLandingPage = $landingPage->fresh();
-        $freshLandingPage?->load(['externalDomain', 'files']);
+        $freshLandingPage?->load(['externalDomain', 'files', 'links']);
 
         return response()->json([
             'message' => 'Landing page updated successfully',
@@ -459,7 +489,7 @@ class LandingPageController extends Controller
             ], 404);
         }
 
-        $landingPage->load(['externalDomain', 'files']);
+        $landingPage->load(['externalDomain', 'files', 'links']);
 
         return response()->json([
             'landing_page' => $landingPage,

@@ -1036,6 +1036,37 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </p>
                         </div>
 
+                        <h3>Additional Download Links</h3>
+                        <p>
+                            You can add up to <strong>10 additional download links</strong> to a landing page. These appear below the primary download
+                            button and are useful for linking to supplementary data, documentation, or related files hosted on external servers.
+                        </p>
+
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Open Landing Page Setup">
+                                <p>Click the landing page icon for your resource and open the setup modal.</p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Add Links">
+                                <p>
+                                    In the <strong>"Additional Links"</strong> section, click <strong>"Add Link"</strong> and enter a URL and label for
+                                    each link.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Reorder via Drag &amp; Drop">
+                                <p>Drag the handle on each link to rearrange the display order on the landing page.</p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Save">
+                                <p>Click Save to persist the links. They will appear on the public landing page immediately.</p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Note:</strong> Additional links are only available for GFZ-hosted landing pages, not for external or IGSN
+                                templates.
+                            </p>
+                        </div>
+
                         <h3>External Landing Pages</h3>
                         <p>
                             Instead of hosting a generated landing page, you can redirect the DOI to an external URL. This is useful when the dataset

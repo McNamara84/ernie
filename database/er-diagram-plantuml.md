@@ -466,6 +466,17 @@ entity "landing_page_files" as landing_page_files {
     updated_at : TIMESTAMP
 }
 
+entity "landing_page_links" as landing_page_links {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>>
+    * url : VARCHAR(2048)
+    * label : VARCHAR(255)
+    * position : SMALLINT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "landing_page_domains" as landing_page_domains {
     * **id** : BIGINT <<PK>>
     --
@@ -849,6 +860,7 @@ users }o--o| users : "deactivated_by"
 ' Landing page domains
 landing_pages }o--o| landing_page_domains
 landing_pages ||--o{ landing_page_files
+landing_pages ||--o{ landing_page_links
 
 ' IGSN relationships
 igsn_metadata ||--|| resources

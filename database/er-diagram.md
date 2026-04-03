@@ -410,6 +410,16 @@ erDiagram
         timestamp updated_at
     }
 
+    landing_page_links {
+        bigint id PK
+        bigint landing_page_id FK
+        varchar url "2048"
+        varchar label "255"
+        smallint position "default 0"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     settings {
         bigint id PK
         varchar key UK
@@ -786,6 +796,7 @@ erDiagram
     %% Landing page domains
     landing_pages }o--o| landing_page_domains : "external domain"
     landing_pages ||--o{ landing_page_files : "has files"
+    landing_pages ||--o{ landing_page_links : "has links"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"

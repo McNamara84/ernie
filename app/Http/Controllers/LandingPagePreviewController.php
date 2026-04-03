@@ -111,6 +111,7 @@ class LandingPagePreviewController extends Controller
             'template' => $template,
             'ftp_url' => $previewData['ftp_url'] ?? null,
             'files' => [],
+            'links' => [],
             'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,

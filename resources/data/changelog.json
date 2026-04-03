@@ -4,6 +4,10 @@
         "date": "2026-04-03",
         "features": [
             {
+                "title": "Additional Download Links on Landing Pages",
+                "description": "Curators can now add up to 10 additional download links to landing pages via the setup modal. Links support custom labels and URLs, and their order can be rearranged using drag-and-drop. The links are displayed in a dedicated section below the primary download button on the public landing page."
+            },
+            {
                 "title": "Resource Type-Specific Map Markers on Portal",
                 "description": "The portal map now visually distinguishes resources by their DataCite resource type. IGSN samples (Physical Objects) are displayed as orange diamond markers, while all other 33 resource types use uniquely colored circle markers. Geographic shapes (bounding boxes, polygons, polylines) are also colored by type. A dynamic legend in the bottom-right corner shows only the resource types currently visible on the map and updates automatically when filters change."
             },
