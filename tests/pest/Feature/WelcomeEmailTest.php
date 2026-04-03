@@ -4,12 +4,16 @@ use App\Enums\UserRole;
 use App\Mail\WelcomeNewUser;
 use App\Models\User;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
+    Cache::flush();
     $this->admin = User::factory()->create(['role' => UserRole::ADMIN]);
     $this->groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
 });
@@ -132,6 +136,45 @@ describe('Welcome Page - Valid Signature', function () {
     });
 });
 
+describe('Password Setup - Signature Handling', function () {
+    it('allows login after setting password via welcome flow', function () {
+        $user = User::factory()->create([
+            'password' => Hash::make(Str::random(32)),
+            'password_set_at' => null,
+        ]);
+
+        $signedUrl = URL::temporarySignedRoute('welcome.store', now()->addHours(72), ['user' => $user->id]);
+
+        $this->post($signedUrl, [
+            'password' => 'SecurePassword123!',
+            'password_confirmation' => 'SecurePassword123!',
+        ])->assertRedirect(route('login'));
+
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'SecurePassword123!',
+        ]);
+
+        $this->assertAuthenticated();
+    });
+
+    it('rejects password submission without signature parameters', function () {
+        $user = User::factory()->create([
+            'password' => Hash::make(Str::random(32)),
+            'password_set_at' => null,
+        ]);
+
+        $this->post("/welcome/{$user->id}", [
+            'password' => 'SecurePassword123!',
+            'password_confirmation' => 'SecurePassword123!',
+        ])->assertRedirect(route('login'))
+            ->assertSessionHas('error');
+
+        $user->refresh();
+        expect($user->password_set_at)->toBeNull();
+    });
+});
+
 describe('Welcome Page - Expired Signature', function () {
     it('shows expired page when signature is invalid without exposing email', function () {
         $user = User::factory()->create(['password_set_at' => null]);
@@ -228,6 +271,26 @@ describe('Welcome Resend', function () {
 
         Mail::assertNotSent(WelcomeNewUser::class);
     });
+
+    it('is rate limited', function () {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'password_set_at' => null,
+        ]);
+
+        // Rate limit is throttle:3,1 (3 requests per minute)
+        for ($i = 0; $i < 3; $i++) {
+            $this->post(route('welcome.resend'), [
+                'email' => $user->email,
+            ])->assertStatus(302);
+        }
+
+        // 4th request should be throttled
+        $this->post(route('welcome.resend'), [
+            'email' => $user->email,
+        ])->assertStatus(429);
+    });
 });
 
 describe('Password Validation', function () {
@@ -263,5 +326,25 @@ describe('Password Validation', function () {
         ]);
 
         $response->assertSessionHasErrors('password');
+    });
+});
+
+describe('Login Page Flash Messages', function () {
+    it('displays error flash message on login page', function () {
+        $this->withSession(['error' => 'This link is invalid or has expired.'])
+            ->get(route('login'))
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/login')
+                ->where('error', 'This link is invalid or has expired.')
+            );
+    });
+
+    it('displays status flash message on login page', function () {
+        $this->withSession(['status' => 'Your password has been set successfully. Please log in.'])
+            ->get(route('login'))
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/login')
+                ->where('status', 'Your password has been set successfully. Please log in.')
+            );
     });
 });

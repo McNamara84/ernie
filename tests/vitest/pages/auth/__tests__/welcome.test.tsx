@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Welcome from '@/pages/auth/welcome';
 
@@ -25,15 +26,30 @@ vi.mock('@/layouts/auth-layout', () => ({
 vi.mock('@/actions/App/Http/Controllers/Auth/WelcomeController', () => ({
     default: {
         store: {
-            url: vi.fn(() => '/welcome'),
+            url: vi.fn((args: { user: number | string }, options?: { query?: Record<string, string> }) => {
+                const base = `/welcome/${args.user}`;
+                if (options?.query) {
+                    const params = new URLSearchParams(options.query).toString();
+                    return `${base}?${params}`;
+                }
+                return base;
+            }),
         },
     },
 }));
+
+beforeEach(() => {
+    routerMock.post.mockReset();
+});
 
 describe('Welcome', () => {
     const defaultProps = {
         email: 'user@example.com',
         userId: 123,
+        signatureParams: {
+            expires: '1712345678',
+            signature: 'abc123def456',
+        },
     };
 
     it('renders the welcome page', () => {
@@ -86,5 +102,107 @@ describe('Welcome', () => {
         render(<Welcome {...defaultProps} />);
         const button = screen.getByRole('button', { name: /Set Password & Continue/i });
         expect(button.closest('form')).toBeInTheDocument();
+    });
+
+    it('includes signature params in the POST request URL', async () => {
+        routerMock.post.mockImplementation((_url: string, _data: unknown, options?: { onFinish?: () => void }) => {
+            options?.onFinish?.();
+        });
+        render(<Welcome {...defaultProps} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Enter your new password'), 'Password123!');
+        await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
+        await user.click(screen.getByRole('button', { name: /Set Password & Continue/i }));
+
+        await waitFor(() => {
+            expect(routerMock.post).toHaveBeenCalledWith(
+                expect.stringContaining('expires=1712345678'),
+                expect.objectContaining({
+                    password: 'Password123!',
+                    password_confirmation: 'Password123!',
+                }),
+                expect.any(Object),
+            );
+        });
+    });
+
+    it('includes signature in the POST request URL', async () => {
+        routerMock.post.mockImplementation((_url: string, _data: unknown, options?: { onFinish?: () => void }) => {
+            options?.onFinish?.();
+        });
+        render(<Welcome {...defaultProps} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Enter your new password'), 'Password123!');
+        await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
+        await user.click(screen.getByRole('button', { name: /Set Password & Continue/i }));
+
+        await waitFor(() => {
+            expect(routerMock.post).toHaveBeenCalledWith(
+                expect.stringContaining('signature=abc123def456'),
+                expect.any(Object),
+                expect.any(Object),
+            );
+        });
+    });
+
+    it('disables submit button while processing', async () => {
+        routerMock.post.mockImplementation(() => {});
+        render(<Welcome {...defaultProps} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Enter your new password'), 'Password123!');
+        await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
+        await user.click(screen.getByRole('button', { name: /Set Password & Continue/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /Set Password & Continue/i })).toBeDisabled();
+        });
+    });
+
+    it('shows validation error when passwords do not match', async () => {
+        render(<Welcome {...defaultProps} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Enter your new password'), 'Password123!');
+        await user.type(screen.getByPlaceholderText('Confirm your password'), 'DifferentPassword!');
+        await user.click(screen.getByRole('button', { name: /Set Password & Continue/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
+        });
+    });
+
+    it('shows validation error when password is too short', async () => {
+        render(<Welcome {...defaultProps} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Enter your new password'), 'short');
+        await user.type(screen.getByPlaceholderText('Confirm your password'), 'short');
+        await user.click(screen.getByRole('button', { name: /Set Password & Continue/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument();
+        });
+    });
+
+    it('shows server errors returned via onError', async () => {
+        routerMock.post.mockImplementation(
+            (_url: string, _data: unknown, options?: { onError?: (errors: Record<string, string>) => void; onFinish?: () => void }) => {
+                options?.onError?.({ password: 'The password is too common.' });
+                options?.onFinish?.();
+            },
+        );
+        render(<Welcome {...defaultProps} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByPlaceholderText('Enter your new password'), 'Password123!');
+        await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
+        await user.click(screen.getByRole('button', { name: /Set Password & Continue/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('The password is too common.')).toBeInTheDocument();
+        });
     });
 });

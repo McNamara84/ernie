@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-02",
+        "date": "2026-04-03",
         "features": [
             {
                 "title": "Resource Type-Specific Map Markers on Portal",
@@ -32,6 +32,12 @@
             {
                 "title": "Skip ORCID Re-Validation on Editor Load",
                 "description": "When opening a saved resource in the Data Editor, ORCIDs that were previously verified are no longer re-validated against the ORCID API. This eliminates unnecessary API calls and loading spinners, making the editor load significantly faster for resources with many authors or contributors. A clickable 'Verified' badge allows manual re-verification at any time."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "First-Time Login After Welcome Password Setup",
+                "description": "Fixed a critical bug where new users could not log in after setting their password through the welcome link. The signed URL parameters were not forwarded during the password submission, causing the server to reject the request silently. Additionally, error messages from expired or invalid welcome links are now displayed on the login page."
             }
         ]
     },

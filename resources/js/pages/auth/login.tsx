@@ -16,11 +16,12 @@ import { type LoginInput, loginSchema } from '@/lib/validations/user';
 import { request } from '@/routes/password';
 
 interface LoginProps {
-    status?: string;
+    status?: string | null;
+    error?: string | null;
     canResetPassword: boolean;
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
+export default function Login({ status, error, canResetPassword }: LoginProps) {
     const [processing, setProcessing] = useState(false);
     const form = useForm<LoginInput>({
         resolver: zodResolver(loginSchema),
@@ -107,6 +108,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
             </Form>
 
             {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
+            {error && <div className="mb-4 text-center text-sm font-medium text-destructive">{error}</div>}
         </AuthLayout>
     );
 }
