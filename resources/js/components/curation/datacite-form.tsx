@@ -2087,7 +2087,15 @@ export default function DataCiteForm({
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
             requestAnimationFrame(() => {
                 setTimeout(() => {
-                    const target = error.fieldSelector ? document.querySelector(error.fieldSelector) : document.querySelector(`[data-accordion-value="${error.sectionId}"]`);
+                    let target: Element | null = null;
+
+                    if (error.fieldSelector) {
+                        target = document.querySelector(error.fieldSelector);
+                    } else {
+                        // Fallback: target the focusable trigger button inside the accordion item
+                        const accordionItem = document.querySelector(`[data-accordion-value="${error.sectionId}"]`);
+                        target = accordionItem?.querySelector('[data-slot="accordion-trigger"]') ?? accordionItem;
+                    }
 
                     if (target) {
                         target.scrollIntoView({ behavior: 'smooth', block: 'center' });

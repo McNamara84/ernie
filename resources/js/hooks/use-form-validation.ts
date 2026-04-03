@@ -344,10 +344,10 @@ export function useFormValidation(): UseFormValidationReturn {
                     newFields[fieldId] = {
                         ...oldState,
                         messages: remainingMessages,
-                        status: stillInvalid ? 'invalid' : (remainingMessages.length > 0 ? oldState.status : 'valid'),
+                        status: stillInvalid ? 'invalid' : 'valid',
                     };
                     if (wasInvalid && !stillInvalid) {
-                        newInvalidCount--;
+                        newInvalidCount = Math.max(0, newInvalidCount - 1);
                     }
                 }
             }
