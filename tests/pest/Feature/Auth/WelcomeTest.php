@@ -2,15 +2,10 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
-
-beforeEach(function () {
-    RateLimiter::clear('welcome-store');
-});
 
 /*
 |--------------------------------------------------------------------------
