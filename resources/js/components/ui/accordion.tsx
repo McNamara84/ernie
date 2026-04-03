@@ -12,12 +12,15 @@ function Accordion({
 
 function AccordionItem({
   className,
+  value,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Item>) {
   return (
     <AccordionPrimitive.Item
       data-slot="accordion-item"
+      data-accordion-value={value}
       className={cn("border-b last:border-b-0", className)}
+      value={value}
       {...props}
     />
   )

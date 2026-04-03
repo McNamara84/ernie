@@ -26,6 +26,10 @@
         ],
         "improvements": [
             {
+                "title": "Helpful Validation Error Messages in Editor",
+                "description": "Validation errors in the Data Editor now display grouped by form section (e.g. Resource Information, Authors, Licenses & Rights) with human-readable messages. Each error is clickable and navigates directly to the affected field by opening the corresponding accordion section and scrolling to the input. Error positions use 1-based numbering (e.g. 'Author #2') for clarity."
+            },
+            {
                 "title": "Skip ORCID Re-Validation on Editor Load",
                 "description": "When opening a saved resource in the Data Editor, ORCIDs that were previously verified are no longer re-validated against the ORCID API. This eliminates unnecessary API calls and loading spinners, making the editor load significantly faster for resources with many authors or contributors. A clickable 'Verified' badge allows manual re-verification at any time."
             }

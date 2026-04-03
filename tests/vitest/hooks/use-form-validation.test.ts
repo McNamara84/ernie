@@ -395,4 +395,327 @@ describe('useFormValidation', () => {
             expect(messages[0].message).toContain('5 characters');
         });
     });
+
+    describe('setFieldErrors (backend error injection)', () => {
+        it('should inject external errors into field state', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Publication Year is required.' },
+                ]);
+            });
+
+            const fieldState = result.current.getFieldState('year');
+            expect(fieldState.status).toBe('invalid');
+            expect(fieldState.touched).toBe(true);
+            expect(fieldState.messages).toHaveLength(1);
+            expect(fieldState.messages[0].severity).toBe('error');
+            expect(fieldState.messages[0].message).toBe('Publication Year is required.');
+            expect(fieldState.messages[0].source).toBe('backend');
+        });
+
+        it('should mark affected fields as touched', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'title', message: 'Title is required.' },
+                ]);
+            });
+
+            expect(result.current.getFieldState('title').touched).toBe(true);
+            expect(result.current.validationState.touchedCount).toBe(1);
+        });
+
+        it('should increment invalidCount for each new invalid field', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Year error' },
+                    { fieldId: 'title', message: 'Title error' },
+                ]);
+            });
+
+            expect(result.current.validationState.invalidCount).toBe(2);
+            expect(result.current.validationState.isValid).toBe(false);
+        });
+
+        it('should not double-count already invalid fields', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            const errorRule = createValidationRule<string>(() => ({
+                severity: 'error',
+                message: 'Existing error',
+            }));
+
+            act(() => {
+                result.current.validateField({
+                    fieldId: 'year',
+                    value: '',
+                    rules: [errorRule],
+                    immediate: true,
+                });
+            });
+
+            expect(result.current.validationState.invalidCount).toBe(1);
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Backend error' },
+                ]);
+            });
+
+            // Should still be 1 since field was already invalid
+            expect(result.current.validationState.invalidCount).toBe(1);
+        });
+
+        it('should append to existing messages', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            const warningRule = createValidationRule<string>(() => ({
+                severity: 'warning',
+                message: 'Existing warning',
+            }));
+
+            act(() => {
+                result.current.validateField({
+                    fieldId: 'doi',
+                    value: 'test',
+                    rules: [warningRule],
+                    immediate: true,
+                });
+            });
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'doi', message: 'Backend error' },
+                ]);
+            });
+
+            const messages = result.current.getFieldMessages('doi');
+            expect(messages).toHaveLength(2);
+            expect(messages[0].severity).toBe('warning');
+            expect(messages[1].severity).toBe('error');
+        });
+
+        it('should handle empty errors array', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([]);
+            });
+
+            expect(result.current.validationState.invalidCount).toBe(0);
+            expect(result.current.validationState.isValid).toBe(true);
+        });
+
+        it('should set hasFieldError to true for injected fields', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'authors', message: 'Authors required' },
+                ]);
+            });
+
+            expect(result.current.hasFieldError('authors')).toBe(true);
+        });
+    });
+
+    describe('clearFieldErrors', () => {
+        it('should clear errors for a specific field', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Year error' },
+                    { fieldId: 'title', message: 'Title error' },
+                ]);
+            });
+
+            expect(result.current.validationState.invalidCount).toBe(2);
+
+            act(() => {
+                result.current.clearFieldErrors('year');
+            });
+
+            expect(result.current.hasFieldError('year')).toBe(false);
+            expect(result.current.hasFieldError('title')).toBe(true);
+            expect(result.current.validationState.invalidCount).toBe(1);
+        });
+
+        it('should reset field to idle state', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Error' },
+                ]);
+            });
+
+            act(() => {
+                result.current.clearFieldErrors('year');
+            });
+
+            const fieldState = result.current.getFieldState('year');
+            expect(fieldState.status).toBe('idle');
+            expect(fieldState.messages).toHaveLength(0);
+        });
+
+        it('should be safe to call on non-existent field', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.clearFieldErrors('nonExistent');
+            });
+
+            expect(result.current.validationState.isValid).toBe(true);
+        });
+    });
+
+    describe('clearBackendErrors', () => {
+        it('should remove backend-injected errors from all fields', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Year error' },
+                    { fieldId: 'title', message: 'Title error' },
+                ]);
+            });
+
+            expect(result.current.validationState.invalidCount).toBe(2);
+
+            act(() => {
+                result.current.clearBackendErrors();
+            });
+
+            expect(result.current.validationState.invalidCount).toBe(0);
+            expect(result.current.validationState.isValid).toBe(true);
+            expect(result.current.hasFieldError('year')).toBe(false);
+            expect(result.current.hasFieldError('title')).toBe(false);
+        });
+
+        it('should preserve client-side validation errors', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            const errorRule = createValidationRule<string>(() => ({
+                severity: 'error',
+                message: 'Client error',
+            }));
+
+            act(() => {
+                result.current.validateField({
+                    fieldId: 'doi',
+                    value: '',
+                    rules: [errorRule],
+                    immediate: true,
+                });
+            });
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'doi', message: 'Backend error' },
+                ]);
+            });
+
+            expect(result.current.getFieldMessages('doi')).toHaveLength(2);
+
+            act(() => {
+                result.current.clearBackendErrors();
+            });
+
+            const messages = result.current.getFieldMessages('doi');
+            expect(messages).toHaveLength(1);
+            expect(messages[0].message).toBe('Client error');
+            expect(result.current.hasFieldError('doi')).toBe(true);
+            expect(result.current.validationState.invalidCount).toBe(1);
+        });
+
+        it('should be safe to call when no backend errors exist', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.clearBackendErrors();
+            });
+
+            expect(result.current.validationState.isValid).toBe(true);
+        });
+    });
+
+    describe('source tagging', () => {
+        it('should tag injected backend errors with source: backend', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'year', message: 'Backend error' },
+                ]);
+            });
+
+            const messages = result.current.getFieldMessages('year');
+            expect(messages[0].source).toBe('backend');
+        });
+
+        it('should not tag client-side validation errors with source', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            const rule = createValidationRule<string>(() => ({
+                severity: 'error',
+                message: 'Client error',
+            }));
+
+            act(() => {
+                result.current.validateField({
+                    fieldId: 'test',
+                    value: '',
+                    rules: [rule],
+                    immediate: true,
+                });
+            });
+
+            const messages = result.current.getFieldMessages('test');
+            expect(messages[0].source).toBeUndefined();
+        });
+
+        it('should only clear backend errors when setFieldErrors is called again', () => {
+            const { result } = renderHook(() => useFormValidation());
+
+            const warningRule = createValidationRule<string>(() => ({
+                severity: 'warning',
+                message: 'Client warning',
+            }));
+
+            act(() => {
+                result.current.validateField({
+                    fieldId: 'doi',
+                    value: 'test',
+                    rules: [warningRule],
+                    immediate: true,
+                });
+            });
+
+            // First backend injection
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'doi', message: 'Old backend error' },
+                ]);
+            });
+
+            // Second backend injection (should replace old backend error, keep client warning)
+            act(() => {
+                result.current.setFieldErrors([
+                    { fieldId: 'doi', message: 'New backend error' },
+                ]);
+            });
+
+            const messages = result.current.getFieldMessages('doi');
+            expect(messages).toHaveLength(2);
+            expect(messages[0].message).toBe('Client warning');
+            expect(messages[1].message).toBe('New backend error');
+            expect(messages[1].source).toBe('backend');
+        });
+    });
 });
