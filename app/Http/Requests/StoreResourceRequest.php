@@ -971,12 +971,8 @@ class StoreResourceRequest extends FormRequest
                 /** @var mixed $candidateAuthors */
                 $candidateAuthors = $this->input('authors', []);
 
+                // Skip empty-array check — already enforced by 'authors' => ['required', 'array', 'min:1'] in rules()
                 if (! is_array($candidateAuthors) || count($candidateAuthors) === 0) {
-                    $validator->errors()->add(
-                        'authors',
-                        '[Authors] At least one author must be provided.',
-                    );
-
                     return;
                 }
 
@@ -1064,12 +1060,8 @@ class StoreResourceRequest extends FormRequest
                     }
 
                     $roles = $contributor['roles'] ?? [];
-                    if (! is_array($roles) || count($roles) === 0) {
-                        $validator->errors()->add(
-                            "contributors.$index.roles",
-                            '[Contributors] Contributor #'.($index + 1).' must have at least one role.',
-                        );
-                    }
+
+                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
 
                     // Require email when Contact Person role is assigned to a person contributor
                     if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {

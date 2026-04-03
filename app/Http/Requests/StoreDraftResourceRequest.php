@@ -722,21 +722,6 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * After-validation hooks — structural checks with minimal mandatory field enforcement.
-     *
-     * Unlike StoreResourceRequest, this does NOT require:
-     * - At least one Abstract description
-     * - At least one Author with valid fields
-     *
-     * It DOES still validate:
-     * - Title type slugs against DB
-     * - Main Title must exist (at least one)
-     * - Person authors must have lastName if provided
-     * - Contributors must have proper structure if provided
-     * - Polygon coverages must have at least 3 points
-     */
-
-    /**
      * Custom validation messages with section-prefixed context (Issue #605).
      *
      * @return array<string, string>
@@ -830,6 +815,19 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
+     * After-validation hooks — structural checks with minimal mandatory field enforcement.
+     *
+     * Unlike StoreResourceRequest, this does NOT require:
+     * - At least one Abstract description
+     * - At least one Author with valid fields
+     *
+     * It DOES still validate:
+     * - Title type slugs against DB
+     * - Main Title must exist (at least one)
+     * - Person authors must have lastName if provided
+     * - Contributors must have proper structure if provided
+     * - Polygon coverages must have at least 3 points
+     *
      * @return array<int, callable(Validator): void>
      */
     public function after(): array
@@ -981,13 +979,7 @@ class StoreDraftResourceRequest extends FormRequest
                         }
                     }
 
-                    $roles = $contributor['roles'] ?? [];
-                    if (! is_array($roles) || count($roles) === 0) {
-                        $validator->errors()->add(
-                            "contributors.$index.roles",
-                            '[Contributors] Contributor #'.($index + 1).' must have at least one role.',
-                        );
-                    }
+                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
                 }
             },
             // Validate polygon coverages have at least 3 points

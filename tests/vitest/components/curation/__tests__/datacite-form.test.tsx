@@ -2555,7 +2555,7 @@ describe('DataCiteForm', () => {
             ],
         });
 
-        await screen.findByText('Unable to save resource. Please review the highlighted issues.');
+        await screen.findByText('Validation failed');
         const alert = screen.getByTestId('global-validation-alert');
         expect(alert).not.toBeNull();
         expect(screen.getByText('A main title is required.')).toBeInTheDocument();
