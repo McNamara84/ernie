@@ -914,6 +914,7 @@ export default function DataCiteForm({
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
+    const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
     // Compute author validation issues
     const authorValidationIssues = useMemo(() => {
@@ -1845,6 +1846,7 @@ export default function DataCiteForm({
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
+        setHasAttemptedSubmit(true);
         setIsSaving(true);
         setErrorMessage(null);
         setValidationErrors([]);
@@ -1940,6 +1942,7 @@ export default function DataCiteForm({
                 }
             }
 
+            setHasAttemptedSubmit(false);
             setShowSuccessModal(true);
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -2019,6 +2022,7 @@ export default function DataCiteForm({
             }
 
             setSuccessMessage(data?.message || 'Draft saved successfully.');
+            setHasAttemptedSubmit(false);
             setShowSuccessModal(true);
         } catch (error) {
             if (axios.isAxiosError(error)) {
@@ -2288,8 +2292,8 @@ export default function DataCiteForm({
                             required
                             counter={{ current: authors.length, max: 100 }}
                         />
-                        {/* Validation issues notification */}
-                        <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />
+                        {/* Validation issues notification (only after save attempt — Issue #625) */}
+                        {hasAttemptedSubmit && <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />}
                         {authorRoleNames.length > 0 && (
                             <p id={authorRolesDescriptionId} className="mb-4 text-sm text-muted-foreground" data-testid="author-roles-availability">
                                 {`The available author ${authorRoleNames.length === 1 ? 'role is' : 'roles are'} ${authorRoleSummary}.`}
@@ -2453,7 +2457,7 @@ export default function DataCiteForm({
                             tooltip="Add dates like collection period, validity, or other relevant temporal information."
                             counter={{ current: dates.length, max: MAX_DATES }}
                         />
-                        <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />
+                        {hasAttemptedSubmit && <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />}
                         <div className="space-y-4">
                             {dates.length === 0 ? (
                                 <EmptyState
