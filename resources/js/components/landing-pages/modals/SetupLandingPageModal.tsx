@@ -394,13 +394,18 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                     ftp_url: ftpUrl || null,
                 };
 
-                // Include links for templates that support them
-                if (supportsLinks && links.length > 0) {
-                    payload.links = links.map((link, index) => ({
-                        url: link.url,
-                        label: link.label,
-                        position: index,
-                    }));
+                // Include complete links for templates that support them (filter out incomplete rows)
+                if (supportsLinks) {
+                    const completeLinks = links
+                        .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
+                        .map((link, index) => ({
+                            url: link.url,
+                            label: link.label,
+                            position: index,
+                        }));
+                    if (completeLinks.length > 0) {
+                        payload.links = completeLinks;
+                    }
                 }
 
                 // Store preview in session and get preview URL

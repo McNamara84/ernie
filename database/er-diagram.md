@@ -415,7 +415,7 @@ erDiagram
         bigint landing_page_id FK
         varchar url "2048"
         varchar label "255"
-        smallint position "default 0"
+        smallint position "default 0, UK(landing_page_id, position)"
         timestamp created_at
         timestamp updated_at
     }

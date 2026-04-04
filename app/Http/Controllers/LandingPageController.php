@@ -115,8 +115,19 @@ class LandingPageController extends Controller
             'links' => ['nullable', 'array', 'max:10'],
             'links.*.url' => ['required', new SafeUrl, 'max:2048'],
             'links.*.label' => ['required', 'string', 'max:255'],
-            'links.*.position' => ['required', 'integer', 'min:0'],
+            'links.*.position' => ['required', 'integer', 'min:0', 'max:9'],
         ]);
+
+        // Ensure link positions are distinct
+        if (! empty($validated['links'])) {
+            $positions = array_column($validated['links'], 'position');
+            if (count($positions) !== count(array_unique($positions))) {
+                return response()->json([
+                    'message' => 'Link positions must be unique.',
+                    'errors' => ['links' => ['Link positions must be unique.']],
+                ], 422);
+            }
+        }
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -343,8 +354,19 @@ class LandingPageController extends Controller
             'links' => ['nullable', 'array', 'max:10'],
             'links.*.url' => ['required', new SafeUrl, 'max:2048'],
             'links.*.label' => ['required', 'string', 'max:255'],
-            'links.*.position' => ['required', 'integer', 'min:0'],
+            'links.*.position' => ['required', 'integer', 'min:0', 'max:9'],
         ]);
+
+        // Ensure link positions are distinct
+        if (! empty($validated['links'])) {
+            $positions = array_column($validated['links'], 'position');
+            if (count($positions) !== count(array_unique($positions))) {
+                return response()->json([
+                    'message' => 'Link positions must be unique.',
+                    'errors' => ['links' => ['Link positions must be unique.']],
+                ], 422);
+            }
+        }
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {

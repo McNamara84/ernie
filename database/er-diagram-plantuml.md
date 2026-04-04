@@ -472,7 +472,7 @@ entity "landing_page_links" as landing_page_links {
     * landing_page_id : BIGINT <<FK>>
     * url : VARCHAR(2048)
     * label : VARCHAR(255)
-    * position : SMALLINT = 0
+    * position : SMALLINT = 0 <<UK(landing_page_id, position)>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
