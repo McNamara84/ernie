@@ -13,9 +13,14 @@ return new class extends Migration
     {
         Schema::table('landing_page_links', function (Blueprint $table): void {
             // Add unique constraint to enforce distinct positions per landing page.
-            // The existing non-unique index is kept because MySQL requires an index
-            // on the FK column; MySQL may auto-drop it once the unique index covers it.
+            // Must be created BEFORE dropping the non-unique index so the FK on
+            // landing_page_id remains satisfied by the new unique index.
             $table->unique(['landing_page_id', 'position']);
+        });
+
+        Schema::table('landing_page_links', function (Blueprint $table): void {
+            // Now safe to drop the redundant non-unique index
+            $table->dropIndex(['landing_page_id', 'position']);
         });
     }
 
@@ -24,6 +29,11 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('landing_page_links', function (Blueprint $table): void {
+            // Restore the non-unique index before dropping the unique constraint
+            $table->index(['landing_page_id', 'position']);
+        });
+
         Schema::table('landing_page_links', function (Blueprint $table): void {
             $table->dropUnique(['landing_page_id', 'position']);
         });
