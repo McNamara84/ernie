@@ -12,14 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('landing_page_links', function (Blueprint $table): void {
-            // Add unique constraint to enforce distinct positions per landing page.
-            // Must be created BEFORE dropping the non-unique index so the FK on
-            // landing_page_id remains satisfied by the new unique index.
+            // Add unique constraint to enforce distinct positions per landing page
             $table->unique(['landing_page_id', 'position']);
         });
 
         Schema::table('landing_page_links', function (Blueprint $table): void {
-            // Now safe to drop the redundant non-unique index
+            // Drop the redundant non-unique composite index (the unique index above
+            // covers the same columns; the FK on landing_page_id has its own index)
             $table->dropIndex(['landing_page_id', 'position']);
         });
     }
