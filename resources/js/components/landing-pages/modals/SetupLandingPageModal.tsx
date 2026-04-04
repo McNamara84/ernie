@@ -202,13 +202,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 payload.external_path = externalPath || null;
             }
 
-            // Add additional links when template supports them
+            // Add additional links when template supports them (filter out incomplete rows)
             if (supportsLinks) {
-                payload.links = links.map((link, index) => ({
-                    url: link.url,
-                    label: link.label,
-                    position: index,
-                }));
+                payload.links = links
+                    .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
+                    .map((link, index) => ({
+                        url: link.url,
+                        label: link.label,
+                        position: index,
+                    }));
             }
 
             const url = `/resources/${resource.id}/landing-page`;
