@@ -1535,7 +1535,7 @@ export default function DataCiteForm({
         };
     }, []);
 
-    const [resolvedResourceId] = useState<number | null>(() => {
+    const [resolvedResourceId, setResolvedResourceId] = useState<number | null>(() => {
         if (!initialResourceId) {
             return null;
         }
@@ -1926,6 +1926,11 @@ export default function DataCiteForm({
             const data = response.data as SaveResponse | null;
             const successMsg = data?.message || 'Successfully saved resource.';
 
+            // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
+            if (data?.resource?.id) {
+                setResolvedResourceId(data.resource.id);
+            }
+
             setHasAttemptedSubmit(false);
 
             // Show toasts before redirect so feedback is visible even if navigation fails
@@ -2026,6 +2031,11 @@ export default function DataCiteForm({
 
             const data = response.data as DraftSaveResponse | null;
             const successMsg = data?.message || 'Draft saved successfully.';
+
+            // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
+            if (data?.resource?.id) {
+                setResolvedResourceId(data.resource.id);
+            }
 
             setHasAttemptedSubmit(false);
 

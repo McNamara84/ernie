@@ -3898,6 +3898,116 @@ describe('DataCiteForm', () => {
             expect(toast.warning).toHaveBeenCalledWith('Could not navigate to the resources list. Your data has been saved.');
         });
 
+        it('persists resource ID when navigation fails so second save updates instead of duplicating', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // First save: backend returns resource ID, but navigation fails
+            mockRouterVisit.mockImplementation((_url: string, options?: { onError?: () => void }) => {
+                options?.onError?.();
+            });
+
+            const mockPost = (axios as unknown as { post: ReturnType<typeof vi.fn> }).post;
+            mockPost.mockResolvedValue({
+                data: { message: 'Resource saved!', resource: { id: 42 } },
+                status: 200,
+            });
+
+            renderFormWithDefaults();
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalled();
+            });
+
+            // Reset mocks for second save — navigation succeeds this time
+            mockPost.mockClear();
+            mockPost.mockResolvedValue({
+                data: { message: 'Resource updated!' },
+                status: 200,
+            });
+            mockRouterVisit.mockClear();
+            mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
+                options?.onSuccess?.();
+            });
+
+            // Second save
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(mockPost).toHaveBeenCalled();
+            });
+
+            // The second save payload should include the resource ID from the first save
+            const secondPayload = mockPost.mock.calls[0][1];
+            expect(secondPayload.resourceId).toBe(42);
+        });
+
+        it('persists resource ID after draft save when navigation fails', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Navigation fails
+            mockRouterVisit.mockImplementation((_url: string, options?: { onError?: () => void }) => {
+                options?.onError?.();
+            });
+
+            const mockPost = (axios as unknown as { post: ReturnType<typeof vi.fn> }).post;
+            mockPost.mockResolvedValue({
+                data: { message: 'Draft saved!', resource: { id: 99 } },
+                status: 200,
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            // Fill title to enable draft save
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'Test Draft Title');
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalled();
+            });
+
+            // Reset mocks for second draft save
+            mockPost.mockClear();
+            mockPost.mockResolvedValue({
+                data: { message: 'Draft updated!' },
+                status: 200,
+            });
+            mockRouterVisit.mockClear();
+
+            // Second draft save
+            await user.click(draftButton);
+
+            await waitFor(() => {
+                expect(mockPost).toHaveBeenCalled();
+            });
+
+            // The second draft save payload should include the resource ID from the first save
+            const secondPayload = mockPost.mock.calls[0][1];
+            expect(secondPayload.resourceId).toBe(99);
+        });
+
         it('does not redirect on client-side validation failure', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
