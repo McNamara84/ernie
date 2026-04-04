@@ -105,14 +105,28 @@ class LandingPageController extends Controller
     {
         $this->authorize('create', LandingPage::class);
 
-        $validated = $request->validate([
+        $rules = [
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
-        ]);
+        ];
+
+        // Only validate links for templates that support them
+        $template = $request->input('template');
+        $supportsLinks = $template !== 'external'
+            && ! in_array($template, self::IGSN_ONLY_TEMPLATES, true);
+
+        if ($supportsLinks) {
+            $rules['links'] = ['nullable', 'array', 'max:10'];
+            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
+            $rules['links.*.label'] = ['required', 'string', 'max:255'];
+            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
+        }
+
+        $validated = $request->validate($rules);
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -191,7 +205,14 @@ class LandingPageController extends Controller
                     $createData['ftp_url'] = null; // FTP URL not relevant for external pages
                 }
 
-                return $resource->landingPage()->create($createData);
+                $landingPage = $resource->landingPage()->create($createData);
+
+                // Create additional links inside the transaction for atomicity
+                if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
+                    $landingPage->links()->createMany($validated['links']);
+                }
+
+                return $landingPage;
             });
         } catch (ResourceAlreadyExistsException) {
             // Handle "already exists" condition from inside the transaction.
@@ -275,7 +296,7 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load('externalDomain');
+        $landingPage->load(['externalDomain', 'links']);
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
@@ -298,6 +319,7 @@ class LandingPageController extends Controller
                 'external_path' => $landingPage->external_path,
                 'external_url' => $landingPage->external_url,
                 'external_domain' => $landingPage->externalDomain,
+                'links' => $landingPage->links,
                 'status' => $status,
                 'preview_token' => $landingPage->preview_token,
                 'preview_url' => $landingPage->preview_url,
@@ -321,14 +343,28 @@ class LandingPageController extends Controller
 
         $this->authorize('update', $landingPage);
 
-        $validated = $request->validate([
+        $rules = [
             'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
-        ]);
+        ];
+
+        // Only validate links for templates that support them
+        $effectiveTemplate = $request->input('template', $landingPage->template);
+        $supportsLinks = $effectiveTemplate !== 'external'
+            && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
+
+        if ($supportsLinks) {
+            $rules['links'] = ['nullable', 'array', 'max:10'];
+            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
+            $rules['links.*.label'] = ['required', 'string', 'max:255'];
+            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
+        }
+
+        $validated = $request->validate($rules);
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -363,33 +399,54 @@ class LandingPageController extends Controller
             ], 422);
         }
 
-        // Update template and ftp_url if provided
-        // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
-        if (isset($validated['template'])) {
-            $landingPage->template = $validated['template'];
-        }
-        if (array_key_exists('ftp_url', $validated)) {
-            $landingPage->ftp_url = $validated['ftp_url'];
-        }
-
-        // Update external landing page fields
+        // Wrap all mutations in a transaction for atomicity.
+        // This ensures the landing page + links are updated together.
         $effectiveTemplate = $validated['template'] ?? $landingPage->template;
-        if ($effectiveTemplate === 'external') {
-            if (array_key_exists('external_domain_id', $validated)) {
-                $landingPage->external_domain_id = $validated['external_domain_id'];
-            }
-            if (array_key_exists('external_path', $validated)) {
-                $landingPage->external_path = $validated['external_path'];
-            }
-            // Clear FTP URL for external pages (not relevant)
-            $landingPage->ftp_url = null;
-        } else {
-            // Clear external fields when switching away from external template
-            $landingPage->external_domain_id = null;
-            $landingPage->external_path = null;
-        }
 
-        $landingPage->save();
+        DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate): void {
+            // Update template and ftp_url if provided
+            // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
+            if (isset($validated['template'])) {
+                $landingPage->template = $validated['template'];
+            }
+            if (array_key_exists('ftp_url', $validated)) {
+                $landingPage->ftp_url = $validated['ftp_url'];
+            }
+
+            // Update external landing page fields
+            if ($effectiveTemplate === 'external') {
+                if (array_key_exists('external_domain_id', $validated)) {
+                    $landingPage->external_domain_id = $validated['external_domain_id'];
+                }
+                if (array_key_exists('external_path', $validated)) {
+                    $landingPage->external_path = $validated['external_path'];
+                }
+                // Clear FTP URL for external pages (not relevant)
+                $landingPage->ftp_url = null;
+            } else {
+                // Clear external fields when switching away from external template
+                $landingPage->external_domain_id = null;
+                $landingPage->external_path = null;
+            }
+
+            $landingPage->save();
+
+            // Sync additional links: determine once whether this template supports links
+            $isLinksTemplate = $effectiveTemplate !== 'external'
+                && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
+
+            if (! $isLinksTemplate) {
+                // Template does not support links – clear any existing ones
+                $landingPage->links()->delete();
+            } elseif (array_key_exists('links', $validated)) {
+                // Template supports links and payload includes link data – replace all
+                $landingPage->links()->delete();
+
+                if (! empty($validated['links'])) {
+                    $landingPage->links()->createMany($validated['links']);
+                }
+            }
+        });
 
         // Handle publication status change: allow publishing a draft
         if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {
@@ -401,7 +458,7 @@ class LandingPageController extends Controller
         $this->invalidateCache($resource->id);
 
         $freshLandingPage = $landingPage->fresh();
-        $freshLandingPage?->load(['externalDomain', 'files']);
+        $freshLandingPage?->load(['externalDomain', 'files', 'links']);
 
         return response()->json([
             'message' => 'Landing page updated successfully',
@@ -459,7 +516,7 @@ class LandingPageController extends Controller
             ], 404);
         }
 
-        $landingPage->load(['externalDomain', 'files']);
+        $landingPage->load(['externalDomain', 'files', 'links']);
 
         return response()->json([
             'landing_page' => $landingPage,

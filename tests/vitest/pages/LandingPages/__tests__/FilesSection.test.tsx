@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { FilesSection } from '@/pages/LandingPages/components/FilesSection';
@@ -94,5 +94,54 @@ describe('FilesSection', () => {
 
         expect(screen.getByText('Download data and description')).toBeInTheDocument();
         expect(screen.queryByText('Request data via contact form')).not.toBeInTheDocument();
+    });
+
+    describe('Additional Links', () => {
+        const mockLinks = [
+            { id: 1, url: 'https://gitlab.com/example/repo', label: 'GitLab Repository', position: 0 },
+            { id: 2, url: 'https://example.com/project', label: 'Project Website', position: 1 },
+        ];
+
+        it('renders additional links below download', () => {
+            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
+
+            expect(screen.getByText('GitLab Repository')).toBeInTheDocument();
+            expect(screen.getByText('Project Website')).toBeInTheDocument();
+        });
+
+        it('renders additional links with correct styling', () => {
+            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
+
+            const link = screen.getByText('GitLab Repository').closest('a');
+            expect(link).toHaveClass('bg-gray-100');
+            expect(link).toHaveClass('text-gray-700');
+        });
+
+        it('renders links in position order', () => {
+            const unorderedLinks = [
+                { id: 2, url: 'https://example.com/second', label: 'Second', position: 1 },
+                { id: 1, url: 'https://example.com/first', label: 'First', position: 0 },
+            ];
+
+            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={unorderedLinks} />);
+
+            const links = screen.getAllByRole('link');
+            const additionalLinkTexts = links.filter((l) => l.classList.contains('bg-gray-100')).map((l) => l.textContent);
+            expect(additionalLinkTexts).toEqual(['First', 'Second']);
+        });
+
+        it('does not render section when additionalLinks is empty', () => {
+            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={[]} />);
+
+            expect(screen.queryByText('GitLab Repository')).not.toBeInTheDocument();
+        });
+
+        it('opens links in new tab with security attributes', () => {
+            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
+
+            const link = screen.getByText('GitLab Repository').closest('a');
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        });
     });
 });

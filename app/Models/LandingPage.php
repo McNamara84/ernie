@@ -286,6 +286,20 @@ class LandingPage extends Model
     }
 
     /**
+     * Get the additional links associated with this landing page.
+     *
+     * Curators can add extra download links (e.g., GitLab repository, project website)
+     * displayed below the primary download link on the public landing page.
+     * Ordered by position for drag-and-drop ordering.
+     *
+     * @return HasMany<LandingPageLink, $this>
+     */
+    public function links(): HasMany
+    {
+        return $this->hasMany(LandingPageLink::class)->orderBy('position');
+    }
+
+    /**
      * Get the external domain for this landing page.
      *
      * Only set when template='external'. The domain provides the base URL

@@ -1,6 +1,10 @@
+import type { DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import axios, { isAxiosError } from 'axios';
-import { Copy, ExternalLink, Eye, Globe } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Copy, ExternalLink, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -9,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain } from '@/types/landing-page';
+import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink } from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -26,6 +30,59 @@ interface SetupLandingPageModalProps {
     existingConfig?: LandingPageConfig | null;
 }
 
+function SortableLinkItem({
+    link,
+    index,
+    onRemove,
+    onUpdate,
+}: {
+    link: LandingPageLink;
+    index: number;
+    onRemove: (index: number) => void;
+    onUpdate: (index: number, field: 'url' | 'label', value: string) => void;
+}) {
+    const sortableId = link.id ?? link._clientId ?? `new-${link.position}`;
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-start gap-2 rounded-md border bg-background p-2">
+            <button
+                type="button"
+                aria-label="Reorder link"
+                className="mt-2 cursor-grab touch-none text-muted-foreground hover:text-foreground"
+                {...attributes}
+                {...listeners}
+            >
+                <GripVertical className="size-4" />
+            </button>
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Input
+                    placeholder="Display text"
+                    value={link.label}
+                    onChange={(e) => onUpdate(index, 'label', e.target.value)}
+                    className="h-8 text-sm"
+                />
+                <Input
+                    type="url"
+                    placeholder="https://..."
+                    value={link.url}
+                    onChange={(e) => onUpdate(index, 'url', e.target.value)}
+                    className="h-8 text-sm"
+                />
+            </div>
+            <Button type="button" variant="ghost" size="icon" aria-label="Remove link" className="mt-1 size-7 shrink-0" onClick={() => onRemove(index)}>
+                <X className="size-3.5" />
+            </Button>
+        </div>
+    );
+}
+
 export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupLandingPageModalProps) {
     const [template, setTemplate] = useState<string>(existingConfig?.template ?? getDefaultTemplate());
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
@@ -40,7 +97,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [externalPath, setExternalPath] = useState<string>(existingConfig?.external_path ?? '');
     const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
 
+    // Additional links state
+    const [links, setLinks] = useState<LandingPageLink[]>(existingConfig?.links ?? []);
+
     const isExternal = template === 'external';
+    const isIgsn = template === 'default_gfz_igsn';
+    const supportsLinks = !isExternal && !isIgsn;
+    const MAX_LINKS = 10;
 
     // Load existing config when modal opens
     useEffect(() => {
@@ -54,6 +117,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setPreviewUrl(existingConfig.preview_url ?? '');
                 setExternalDomainId(String(existingConfig.external_domain_id ?? ''));
                 setExternalPath(existingConfig.external_path ?? '');
+                setLinks(existingConfig.links ?? []);
             } else {
                 // Load from server
                 loadLandingPageConfig();
@@ -69,6 +133,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setPreviewUrl('');
             setExternalDomainId('');
             setExternalPath('');
+            setLinks([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, resource.id]);
@@ -95,6 +160,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setPreviewUrl(config.preview_url);
             setExternalDomainId(String(config.external_domain_id ?? ''));
             setExternalPath(config.external_path ?? '');
+            setLinks(config.links ?? []);
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
@@ -105,6 +171,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setPreviewUrl('');
                 setExternalDomainId('');
                 setExternalPath('');
+                setLinks([]);
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
@@ -135,6 +202,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 payload.external_path = externalPath || null;
             }
 
+            // Add additional links when template supports them (filter out incomplete rows)
+            if (supportsLinks) {
+                payload.links = links
+                    .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
+                    .map((link, index) => ({
+                        url: link.url,
+                        label: link.label,
+                        position: index,
+                    }));
+            }
+
             const url = `/resources/${resource.id}/landing-page`;
 
             // Determine if we should update or create
@@ -163,6 +241,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setIsPublished(updatedConfig.status === 'published');
                 setExternalDomainId(String(updatedConfig.external_domain_id ?? ''));
                 setExternalPath(updatedConfig.external_path ?? '');
+                setLinks(updatedConfig.links ?? []);
             }
 
             // Clear session-based preview if it exists
@@ -239,6 +318,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             // ftpUrl is irrelevant for external templates (backend forces it to null)
             (!isExternalTemplate && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
             isPublished !== (currentConfig.status === 'published');
+
+        // Check if links have changed
+        const currentLinks = currentConfig.links ?? [];
+        const linksChanged =
+            links.length !== currentLinks.length ||
+            links.some((link, i) => {
+                const original = currentLinks[i];
+                return !original || link.url !== original.url || link.label !== original.label || link.position !== original.position;
+            });
+
         if (isExternalTemplate) {
             return (
                 baseChanges ||
@@ -246,8 +335,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 externalPath !== (currentConfig.external_path ?? '')
             );
         }
-        return baseChanges;
-    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath]);
+        return baseChanges || linksChanged;
+    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -302,10 +391,24 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             }
 
             try {
-                const payload = {
+                const payload: Record<string, unknown> = {
                     template,
                     ftp_url: ftpUrl || null,
                 };
+
+                // Include complete links for templates that support them (filter out incomplete rows)
+                if (supportsLinks) {
+                    const completeLinks = links
+                        .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
+                        .map((link, index) => ({
+                            url: link.url,
+                            label: link.label,
+                            position: index,
+                        }));
+                    if (completeLinks.length > 0) {
+                        payload.links = completeLinks;
+                    }
+                }
 
                 // Store preview in session and get preview URL
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
@@ -343,6 +446,42 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
         toast.error('Unable to generate preview');
     };
+
+    // --- Additional Links management ---
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+
+            setLinks((prev) => {
+                const getSortableId = (l: LandingPageLink) => l.id ?? l._clientId ?? `new-${l.position}`;
+                const oldIndex = prev.findIndex((l) => getSortableId(l) === active.id);
+                const newIndex = prev.findIndex((l) => getSortableId(l) === over.id);
+                if (oldIndex === -1 || newIndex === -1) return prev;
+                const reordered = arrayMove(prev, oldIndex, newIndex);
+                return reordered.map((link, i) => ({ ...link, position: i }));
+            });
+        },
+        [],
+    );
+
+    const addLink = useCallback(() => {
+        if (links.length >= MAX_LINKS) return;
+        setLinks((prev) => [...prev, { url: '', label: '', position: prev.length, _clientId: crypto.randomUUID() }]);
+    }, [links.length]);
+
+    const removeLink = useCallback((index: number) => {
+        setLinks((prev) => prev.filter((_, i) => i !== index).map((link, i) => ({ ...link, position: i })));
+    }, []);
+
+    const updateLink = useCallback((index: number, field: 'url' | 'label', value: string) => {
+        setLinks((prev) => prev.map((link, i) => (i === index ? { ...link, [field]: value } : link)));
+    }, []);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -478,6 +617,52 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                 <p className="text-sm text-muted-foreground">
                                     These files were imported from the legacy database and cannot be edited here.
                                 </p>
+                            </div>
+                        )}
+
+                        {/* Additional Links (only for GFZ templates, not external or IGSN) */}
+                        {supportsLinks && (
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <Label>Additional Links</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Additional download links displayed below the main download link on the landing page (e.g., GitLab
+                                        repository, project website)
+                                    </p>
+                                </div>
+
+                                {links.length > 0 && (
+                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                        <SortableContext
+                                            items={links.map((l) => l.id ?? l._clientId ?? `new-${l.position}`)}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            <div className="space-y-2">
+                                                {links.map((link, index) => (
+                                                    <SortableLinkItem
+                                                        key={link.id ?? link._clientId ?? `new-${link.position}`}
+                                                        link={link}
+                                                        index={index}
+                                                        onRemove={removeLink}
+                                                        onUpdate={updateLink}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </SortableContext>
+                                    </DndContext>
+                                )}
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addLink}
+                                    disabled={links.length >= MAX_LINKS}
+                                    className="w-full"
+                                >
+                                    <Plus className="mr-2 size-4" />
+                                    Add Link ({links.length}/{MAX_LINKS})
+                                </Button>
                             </div>
                         )}
 

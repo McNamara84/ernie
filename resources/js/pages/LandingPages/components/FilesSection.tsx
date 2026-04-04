@@ -2,6 +2,7 @@ import { Download, ExternalLink, Mail } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import type { LandingPageLink } from '@/types/landing-page';
 
 import { ContactModal } from './ContactModal';
 import { CreativeCommonsIcon } from './CreativeCommonsIcon';
@@ -31,6 +32,7 @@ interface FilesSectionProps {
     licenses: License[];
     contactPersons?: ContactPerson[];
     datasetTitle?: string;
+    additionalLinks?: LandingPageLink[];
 }
 
 /**
@@ -43,7 +45,7 @@ interface FilesSectionProps {
  */
 type FallbackMode = 'download' | 'contact-form' | 'website' | 'fallback-message';
 
-export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPersons = [], datasetTitle }: FilesSectionProps) {
+export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPersons = [], datasetTitle, additionalLinks = [] }: FilesSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
 
@@ -146,6 +148,26 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                         <p className="text-sm text-gray-500 italic">
                             Download information not available. Please contact the authors for data access.
                         </p>
+                    )}
+
+                    {/* Additional Links - displayed below primary download action, styled in light grey */}
+                    {displayMode === 'download' && additionalLinks.length > 0 && (
+                        <div className="space-y-1.5">
+                            {[...additionalLinks]
+                                .sort((a, b) => a.position - b.position)
+                                .map((link) => (
+                                    <a
+                                        key={link.id ?? `${link.url}-${link.position}`}
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                                    >
+                                        <ExternalLink className="h-4 w-4 shrink-0" />
+                                        <span className="truncate">{link.label}</span>
+                                    </a>
+                                ))}
+                        </div>
                     )}
 
                     {/* License Badges */}

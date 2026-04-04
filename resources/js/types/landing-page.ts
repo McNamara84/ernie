@@ -30,6 +30,29 @@ export interface LandingPageFile {
 }
 
 /**
+ * Landing Page Link
+ *
+ * Represents an additional download link added by curators.
+ * Displayed below the primary download link on the public landing page.
+ */
+export interface LandingPageLink {
+    /** Primary key (undefined for new unsaved links) */
+    id?: number;
+
+    /** Stable client-side identifier for new unsaved links (not sent to server) */
+    _clientId?: string;
+
+    /** Link URL */
+    url: string;
+
+    /** Curator-defined display text */
+    label: string;
+
+    /** Display order (drag-and-drop) */
+    position: number;
+}
+
+/**
  * Landing Page Configuration Type
  *
  * Represents the database model for landing_pages table
@@ -91,6 +114,9 @@ export interface LandingPageConfig {
 
     /** Download file entries from landing_page_files table */
     files?: LandingPageFile[];
+
+    /** Additional download links added by curators */
+    links?: LandingPageLink[];
 }
 
 /**
