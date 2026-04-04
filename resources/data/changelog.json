@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-03",
+        "date": "2026-04-04",
         "features": [
             {
                 "title": "Additional Download Links on Landing Pages",
@@ -30,6 +30,10 @@
         ],
         "improvements": [
             {
+                "title": "Redirect to Resources After Saving",
+                "description": "After successfully saving or drafting a resource, users are now automatically redirected to the resources list instead of seeing a modal dialog. Success and DataCite sync feedback is displayed as toast notifications on the resources page. On validation or network errors, the user remains on the editor with inline error messages."
+            },
+            {
                 "title": "Suppressed premature validation alerts in editor",
                 "description": "Section-level validation errors (e.g., 'Last name is required') now only appear after a save attempt, instead of immediately when opening the editor or adding empty entries."
             },
@@ -47,6 +51,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Used Instruments Section Collapsed by Default",
+                "description": "The 'Used Instruments' section in the Data Editor is now expanded by default when loading the editor, consistent with all other form sections."
+            },
             {
                 "title": "First-Time Login After Welcome Password Setup",
                 "description": "Fixed a critical bug where new users could not log in after setting their password through the welcome link. The signed URL parameters were not forwarded during the password submission, causing the server to reject the request silently. Additionally, error messages from expired or invalid welcome links are now displayed on the login page."

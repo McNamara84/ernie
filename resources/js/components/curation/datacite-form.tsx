@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertCircle, Calendar, CheckCircle, Circle, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,7 +11,6 @@ import { type MappedError, mapBackendErrors } from '@/components/curation/utils/
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
@@ -19,6 +19,7 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
+import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
@@ -370,6 +371,7 @@ export default function DataCiteForm({
         'dates',
         'related-work',
         'funding-references',
+        'used-instruments',
     ]);
 
     // State to trigger auto-switch to MSL tab when it becomes available
@@ -908,8 +910,6 @@ export default function DataCiteForm({
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('Successfully saved resource.');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
@@ -1553,6 +1553,7 @@ export default function DataCiteForm({
 
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
+    const resourcesUrl = useMemo(() => resources.url(), []);
 
     // Shared payload builder for both Save & Validate and Save Draft (Issue #548)
     const buildPayload = useCallback(() => {
@@ -1923,27 +1924,31 @@ export default function DataCiteForm({
             }
 
             const data = response.data as SaveResponse | null;
-            setSuccessMessage(data?.message || 'Successfully saved resource.');
-
-            // DataCite sync feedback via toast notifications
-            if (data?.dataCiteSync?.attempted) {
-                if (data.dataCiteSync.success) {
-                    // Success: Show confirmation that DOI was synced
-                    toast.success('DataCite metadata synchronized', {
-                        description: `DOI ${data.dataCiteSync.doi} has been updated.`,
-                        duration: 4000,
-                    });
-                } else {
-                    // Warning: Sync failed but save succeeded
-                    toast.warning('DataCite update failed', {
-                        description: data.dataCiteSync.errorMessage || 'Please try manually later.',
-                        duration: 8000,
-                    });
-                }
-            }
+            const successMsg = data?.message || 'Successfully saved resource.';
 
             setHasAttemptedSubmit(false);
-            setShowSuccessModal(true);
+
+            // Redirect to resources list with success toast (Issue #624)
+            router.visit(resourcesUrl, {
+                onSuccess: () => {
+                    toast.success(successMsg);
+
+                    // DataCite sync feedback via toast notifications
+                    if (data?.dataCiteSync?.attempted) {
+                        if (data.dataCiteSync.success) {
+                            toast.success('DataCite metadata synchronized', {
+                                description: `DOI ${data.dataCiteSync.doi} has been updated.`,
+                                duration: 4000,
+                            });
+                        } else {
+                            toast.warning('DataCite update failed', {
+                                description: data.dataCiteSync.errorMessage || 'Please try manually later.',
+                                duration: 8000,
+                            });
+                        }
+                    }
+                },
+            });
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
@@ -2015,15 +2020,16 @@ export default function DataCiteForm({
             }
 
             const data = response.data as DraftSaveResponse | null;
+            const successMsg = data?.message || 'Draft saved successfully.';
 
-            // Update the resource ID so subsequent saves target the same resource (Issue #548)
-            if (data?.resource?.id && resolvedResourceId === null) {
-                setResolvedResourceId(data.resource.id);
-            }
-
-            setSuccessMessage(data?.message || 'Draft saved successfully.');
             setHasAttemptedSubmit(false);
-            setShowSuccessModal(true);
+
+            // Redirect to resources list with success toast (Issue #624)
+            router.visit(resourcesUrl, {
+                onSuccess: () => {
+                    toast.success(successMsg);
+                },
+            });
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
@@ -2624,19 +2630,6 @@ export default function DataCiteForm({
                     )}
                 </Tooltip>
             </div>
-            <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Successfully saved resource</DialogTitle>
-                        <DialogDescription>{successMessage}</DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setShowSuccessModal(false)}>
-                            Close
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* DOI Conflict Modal */}
             {conflictData && (
