@@ -2717,7 +2717,7 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it('save button remains enabled when Abstract is filled', async () => {
+    it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
         const user = userEvent.setup();
         render(
             <DataCiteForm

@@ -1535,7 +1535,7 @@ export default function DataCiteForm({
         };
     }, []);
 
-    const [resolvedResourceId, setResolvedResourceId] = useState<number | null>(() => {
+    const [resolvedResourceId] = useState<number | null>(() => {
         if (!initialResourceId) {
             return null;
         }
