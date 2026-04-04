@@ -105,29 +105,28 @@ class LandingPageController extends Controller
     {
         $this->authorize('create', LandingPage::class);
 
-        $validated = $request->validate([
+        $rules = [
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
-            'links' => ['nullable', 'array', 'max:10'],
-            'links.*.url' => ['required', new SafeUrl, 'max:2048'],
-            'links.*.label' => ['required', 'string', 'max:255'],
-            'links.*.position' => ['required', 'integer', 'min:0', 'max:9'],
-        ]);
+        ];
 
-        // Ensure link positions are distinct
-        if (! empty($validated['links'])) {
-            $positions = array_column($validated['links'], 'position');
-            if (count($positions) !== count(array_unique($positions))) {
-                return response()->json([
-                    'message' => 'Link positions must be unique.',
-                    'errors' => ['links' => ['Link positions must be unique.']],
-                ], 422);
-            }
+        // Only validate links for templates that support them
+        $template = $request->input('template');
+        $supportsLinks = $template !== 'external'
+            && ! in_array($template, self::IGSN_ONLY_TEMPLATES, true);
+
+        if ($supportsLinks) {
+            $rules['links'] = ['nullable', 'array', 'max:10'];
+            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
+            $rules['links.*.label'] = ['required', 'string', 'max:255'];
+            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
         }
+
+        $validated = $request->validate($rules);
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -344,29 +343,28 @@ class LandingPageController extends Controller
 
         $this->authorize('update', $landingPage);
 
-        $validated = $request->validate([
+        $rules = [
             'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
-            'links' => ['nullable', 'array', 'max:10'],
-            'links.*.url' => ['required', new SafeUrl, 'max:2048'],
-            'links.*.label' => ['required', 'string', 'max:255'],
-            'links.*.position' => ['required', 'integer', 'min:0', 'max:9'],
-        ]);
+        ];
 
-        // Ensure link positions are distinct
-        if (! empty($validated['links'])) {
-            $positions = array_column($validated['links'], 'position');
-            if (count($positions) !== count(array_unique($positions))) {
-                return response()->json([
-                    'message' => 'Link positions must be unique.',
-                    'errors' => ['links' => ['Link positions must be unique.']],
-                ], 422);
-            }
+        // Only validate links for templates that support them
+        $effectiveTemplate = $request->input('template', $landingPage->template);
+        $supportsLinks = $effectiveTemplate !== 'external'
+            && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
+
+        if ($supportsLinks) {
+            $rules['links'] = ['nullable', 'array', 'max:10'];
+            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
+            $rules['links.*.label'] = ['required', 'string', 'max:255'];
+            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
         }
+
+        $validated = $request->validate($rules);
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
