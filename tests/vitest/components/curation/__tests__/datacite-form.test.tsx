@@ -3705,4 +3705,150 @@ describe('DataCiteForm', () => {
             expect(secondCallData.resourceId).toBe(42);
         });
     });
+
+    describe('Section-level validation alerts suppressed until submit (Issue #625)', () => {
+        const renderForm = (overrides = {}) =>
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    {...overrides}
+                />,
+            );
+
+        it('does not show author validation alert on initial render', { timeout: 30000 }, async () => {
+            renderForm();
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            await ensureAuthorsOpen(user);
+
+            expect(screen.queryByText('Required fields missing')).not.toBeInTheDocument();
+            expect(screen.queryByText('At least one author is required')).not.toBeInTheDocument();
+        });
+
+        it('does not show author validation alert after adding an empty author', { timeout: 30000 }, async () => {
+            renderForm();
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            await ensureAuthorsOpen(user);
+
+            const addButton = screen.queryByRole('button', { name: /Add [Ff]irst [Aa]uthor/i })
+                ?? screen.getByRole('button', { name: /Add [Aa]uthor/i });
+            await user.click(addButton);
+
+            expect(screen.queryByText('Last name is required', { exact: false })).not.toBeInTheDocument();
+        });
+
+        it('shows author validation alert after submit attempt with empty authors', { timeout: 60000 }, async () => {
+            renderForm({
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Test', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenters: [1],
+            });
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+
+            // Fill abstract so author is the only missing field in that section
+            await fillRequiredAbstract(user);
+            await fillRequiredContributor(user);
+
+            await user.click(saveButton);
+
+            await ensureAuthorsOpen(user);
+            await waitFor(() => {
+                expect(screen.getByText('At least one author is required')).toBeInTheDocument();
+            });
+        });
+
+        it('hides author validation alert after successful save', { timeout: 60000 }, async () => {
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
+                data: { message: 'Saved!' },
+                status: 200,
+            });
+
+            renderForm({
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Test', titleType: 'main-title' }],
+                initialLicenses: ['MIT'],
+                availableDatacenters,
+                initialDatacenters: [1],
+            });
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await user.click(saveButton);
+
+            // Wait for success modal
+            await screen.findByRole('dialog', { name: /successfully saved resource/i });
+
+            // Close modal
+            const successDialog = screen.getByRole('dialog');
+            const closeButtons = within(successDialog).getAllByRole('button', { name: /Close/ });
+            await user.click(closeButtons[0]);
+
+            // Author alert should not be visible after successful save
+            await ensureAuthorsOpen(user);
+            expect(screen.queryByText('Required fields missing')).not.toBeInTheDocument();
+        });
+
+        it('does not show date validation alert on initial render', { timeout: 30000 }, async () => {
+            renderForm();
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            await ensureDatesOpen(user);
+
+            expect(screen.queryByText('Date validation issues')).not.toBeInTheDocument();
+        });
+
+        it('hides date validation alert after successful draft save', { timeout: 60000 }, async () => {
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 99 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderForm();
+
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Fill Main Title to enable draft button
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'Draft Dataset');
+
+            // Save draft
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            // Wait for success modal
+            await screen.findByRole('dialog');
+            const successDialog = screen.getByRole('dialog');
+            const closeButtons = within(successDialog).getAllByRole('button', { name: /Close/ });
+            await user.click(closeButtons[0]);
+
+            // Date alert should remain hidden after successful draft save
+            await ensureDatesOpen(user);
+            expect(screen.queryByText('Date validation issues')).not.toBeInTheDocument();
+        });
+    });
 });
