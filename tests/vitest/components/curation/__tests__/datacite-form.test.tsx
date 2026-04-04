@@ -9,13 +9,15 @@ import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
 
-const mockRouterVisit = vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
-    options?.onSuccess?.();
-});
+const { mockRouterVisit } = vi.hoisted(() => ({
+    mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
+        options?.onSuccess?.();
+    }),
+}));
 
 vi.mock('@inertiajs/react', () => ({
     router: {
-        visit: (...args: unknown[]) => mockRouterVisit(...args),
+        visit: mockRouterVisit,
         get: vi.fn(),
         post: vi.fn(),
         reload: vi.fn(),
