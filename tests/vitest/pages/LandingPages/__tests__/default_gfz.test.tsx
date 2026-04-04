@@ -98,6 +98,7 @@ describe('DefaultGfzTemplate', () => {
         const logo = screen.getByAltText('GFZ Data Services');
         expect(logo).toBeInTheDocument();
         expect(logo).toHaveAttribute('src', '/images/gfz-ds-logo.png');
+        expect(logo).toHaveClass('h-24');
     });
 
     it('renders the Legal Notice link', () => {

@@ -30,6 +30,10 @@
         ],
         "improvements": [
             {
+                "title": "Larger GFZ Logo on Landing Pages",
+                "description": "The GFZ Data Services logo in the landing page header is now displayed at a larger size for improved branding visibility."
+            },
+            {
                 "title": "Redirect to Resources After Saving",
                 "description": "After successfully saving or drafting a resource, users are now automatically redirected to the resources list instead of seeing a modal dialog. Success and DataCite sync feedback is displayed as toast notifications on the resources page. On validation or network errors, the user remains on the editor with inline error messages."
             },

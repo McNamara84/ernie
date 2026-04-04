@@ -61,7 +61,7 @@ export default function DefaultGfzTemplate() {
                     </div>
                     {/* Logo - zentriert */}
                     <div className="flex justify-center">
-                        <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className="h-16" />
+                        <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className="h-24" />
                     </div>
                 </header>
 
