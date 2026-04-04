@@ -150,8 +150,8 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                         </p>
                     )}
 
-                    {/* Additional Links - displayed below download, styled in light grey */}
-                    {additionalLinks.length > 0 && (
+                    {/* Additional Links - displayed below primary download action, styled in light grey */}
+                    {displayMode === 'download' && additionalLinks.length > 0 && (
                         <div className="space-y-1.5">
                             {[...additionalLinks]
                                 .sort((a, b) => a.position - b.position)

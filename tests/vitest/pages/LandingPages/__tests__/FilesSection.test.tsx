@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { FilesSection } from '@/pages/LandingPages/components/FilesSection';
@@ -137,7 +137,7 @@ describe('FilesSection', () => {
         });
 
         it('opens links in new tab with security attributes', () => {
-            render(<FilesSection licenses={[]} additionalLinks={mockLinks} />);
+            render(<FilesSection downloadUrl="https://example.com/files" licenses={[]} additionalLinks={mockLinks} />);
 
             const link = screen.getByText('GitLab Repository').closest('a');
             expect(link).toHaveAttribute('target', '_blank');

@@ -52,7 +52,13 @@ function SortableLinkItem({
 
     return (
         <div ref={setNodeRef} style={style} className="flex items-start gap-2 rounded-md border bg-background p-2">
-            <button type="button" className="mt-2 cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+            <button
+                type="button"
+                aria-label="Reorder link"
+                className="mt-2 cursor-grab touch-none text-muted-foreground hover:text-foreground"
+                {...attributes}
+                {...listeners}
+            >
                 <GripVertical className="size-4" />
             </button>
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -70,7 +76,7 @@ function SortableLinkItem({
                     className="h-8 text-sm"
                 />
             </div>
-            <Button type="button" variant="ghost" size="icon" className="mt-1 size-7 shrink-0" onClick={() => onRemove(index)}>
+            <Button type="button" variant="ghost" size="icon" aria-label="Remove link" className="mt-1 size-7 shrink-0" onClick={() => onRemove(index)}>
                 <X className="size-3.5" />
             </Button>
         </div>
