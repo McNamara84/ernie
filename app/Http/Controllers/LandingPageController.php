@@ -379,50 +379,54 @@ class LandingPageController extends Controller
             ], 422);
         }
 
-        // Update template and ftp_url if provided
-        // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
-        if (isset($validated['template'])) {
-            $landingPage->template = $validated['template'];
-        }
-        if (array_key_exists('ftp_url', $validated)) {
-            $landingPage->ftp_url = $validated['ftp_url'];
-        }
-
-        // Update external landing page fields
+        // Wrap all mutations in a transaction for atomicity.
+        // This ensures the landing page + links are updated together.
         $effectiveTemplate = $validated['template'] ?? $landingPage->template;
-        if ($effectiveTemplate === 'external') {
-            if (array_key_exists('external_domain_id', $validated)) {
-                $landingPage->external_domain_id = $validated['external_domain_id'];
+
+        DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate): void {
+            // Update template and ftp_url if provided
+            // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
+            if (isset($validated['template'])) {
+                $landingPage->template = $validated['template'];
             }
-            if (array_key_exists('external_path', $validated)) {
-                $landingPage->external_path = $validated['external_path'];
+            if (array_key_exists('ftp_url', $validated)) {
+                $landingPage->ftp_url = $validated['ftp_url'];
             }
-            // Clear FTP URL for external pages (not relevant)
-            $landingPage->ftp_url = null;
-        } else {
-            // Clear external fields when switching away from external template
-            $landingPage->external_domain_id = null;
-            $landingPage->external_path = null;
-        }
 
-        $landingPage->save();
+            // Update external landing page fields
+            if ($effectiveTemplate === 'external') {
+                if (array_key_exists('external_domain_id', $validated)) {
+                    $landingPage->external_domain_id = $validated['external_domain_id'];
+                }
+                if (array_key_exists('external_path', $validated)) {
+                    $landingPage->external_path = $validated['external_path'];
+                }
+                // Clear FTP URL for external pages (not relevant)
+                $landingPage->ftp_url = null;
+            } else {
+                // Clear external fields when switching away from external template
+                $landingPage->external_domain_id = null;
+                $landingPage->external_path = null;
+            }
 
-        // Sync additional links if provided
-        if (array_key_exists('links', $validated)) {
-            $landingPage->links()->delete();
+            $landingPage->save();
 
+            // Sync additional links: determine once whether this template supports links
             $isLinksTemplate = $effectiveTemplate !== 'external'
                 && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
 
-            if (! empty($validated['links']) && $isLinksTemplate) {
-                $landingPage->links()->createMany($validated['links']);
-            }
-        }
+            if (! $isLinksTemplate) {
+                // Template does not support links – clear any existing ones
+                $landingPage->links()->delete();
+            } elseif (array_key_exists('links', $validated)) {
+                // Template supports links and payload includes link data – replace all
+                $landingPage->links()->delete();
 
-        // Clear links when switching to external or IGSN template
-        if ($effectiveTemplate === 'external' || in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true)) {
-            $landingPage->links()->delete();
-        }
+                if (! empty($validated['links'])) {
+                    $landingPage->links()->createMany($validated['links']);
+                }
+            }
+        });
 
         // Handle publication status change: allow publishing a draft
         if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {

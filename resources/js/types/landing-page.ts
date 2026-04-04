@@ -39,6 +39,9 @@ export interface LandingPageLink {
     /** Primary key (undefined for new unsaved links) */
     id?: number;
 
+    /** Stable client-side identifier for new unsaved links (not sent to server) */
+    _clientId?: string;
+
     /** Link URL */
     url: string;
 

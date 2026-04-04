@@ -40,6 +40,10 @@ class LandingPagePreviewController extends Controller
         $validated = $request->validate([
             'template' => ['required', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'links' => ['nullable', 'array', 'max:10'],
+            'links.*.url' => ['required', new SafeUrl, 'max:2048'],
+            'links.*.label' => ['required', 'string', 'max:255'],
+            'links.*.position' => ['required', 'integer', 'min:0'],
         ]);
 
         // External templates don't have a renderable preview — the frontend opens the external URL directly
@@ -63,9 +67,15 @@ class LandingPagePreviewController extends Controller
 
         // Store preview data in session
         $sessionKey = "landing_page_preview.{$resource->id}";
+
+        // Only include links for templates that support them.
+        // Note: external templates already returned early above, so we only check IGSN here.
+        $isLinksTemplate = ! in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true);
+
         Session::put($sessionKey, [
             'template' => $validated['template'],
             'ftp_url' => $validated['ftp_url'] ?? null,
+            'links' => $isLinksTemplate ? ($validated['links'] ?? []) : [],
             'resource_id' => $resource->id,
         ]);
 
@@ -111,7 +121,7 @@ class LandingPagePreviewController extends Controller
             'template' => $template,
             'ftp_url' => $previewData['ftp_url'] ?? null,
             'files' => [],
-            'links' => [],
+            'links' => is_array($previewData['links'] ?? null) ? $previewData['links'] : [],
             'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,

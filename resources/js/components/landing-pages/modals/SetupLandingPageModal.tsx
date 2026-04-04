@@ -41,7 +41,7 @@ function SortableLinkItem({
     onRemove: (index: number) => void;
     onUpdate: (index: number, field: 'url' | 'label', value: string) => void;
 }) {
-    const sortableId = link.id ?? `new-${link.position}`;
+    const sortableId = link.id ?? link._clientId ?? `new-${link.position}`;
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sortableId });
 
     const style = {
@@ -383,10 +383,19 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             }
 
             try {
-                const payload = {
+                const payload: Record<string, unknown> = {
                     template,
                     ftp_url: ftpUrl || null,
                 };
+
+                // Include links for templates that support them
+                if (supportsLinks && links.length > 0) {
+                    payload.links = links.map((link, index) => ({
+                        url: link.url,
+                        label: link.label,
+                        position: index,
+                    }));
+                }
 
                 // Store preview in session and get preview URL
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
@@ -437,7 +446,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             if (!over || active.id === over.id) return;
 
             setLinks((prev) => {
-                const getSortableId = (l: LandingPageLink) => l.id ?? `new-${l.position}`;
+                const getSortableId = (l: LandingPageLink) => l.id ?? l._clientId ?? `new-${l.position}`;
                 const oldIndex = prev.findIndex((l) => getSortableId(l) === active.id);
                 const newIndex = prev.findIndex((l) => getSortableId(l) === over.id);
                 if (oldIndex === -1 || newIndex === -1) return prev;
@@ -450,7 +459,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const addLink = useCallback(() => {
         if (links.length >= MAX_LINKS) return;
-        setLinks((prev) => [...prev, { url: '', label: '', position: prev.length }]);
+        setLinks((prev) => [...prev, { url: '', label: '', position: prev.length, _clientId: crypto.randomUUID() }]);
     }, [links.length]);
 
     const removeLink = useCallback((index: number) => {
@@ -612,13 +621,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                 {links.length > 0 && (
                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                         <SortableContext
-                                            items={links.map((l) => l.id ?? `new-${l.position}`)}
+                                            items={links.map((l) => l.id ?? l._clientId ?? `new-${l.position}`)}
                                             strategy={verticalListSortingStrategy}
                                         >
                                             <div className="space-y-2">
                                                 {links.map((link, index) => (
                                                     <SortableLinkItem
-                                                        key={link.id ?? `new-${link.position}`}
+                                                        key={link.id ?? link._clientId ?? `new-${link.position}`}
                                                         link={link}
                                                         index={index}
                                                         onRemove={removeLink}
