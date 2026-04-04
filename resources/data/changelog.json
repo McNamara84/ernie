@@ -52,7 +52,7 @@
         ],
         "fixes": [
             {
-                "title": "Used Instruments Section Collapsed by Default",
+                "title": "Used Instruments Section Now Expanded by Default",
                 "description": "The 'Used Instruments' section in the Data Editor is now expanded by default when loading the editor, consistent with all other form sections."
             },
             {

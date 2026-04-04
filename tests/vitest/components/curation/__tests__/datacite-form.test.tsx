@@ -2326,7 +2326,7 @@ describe('DataCiteForm', () => {
         // Should redirect to resources list instead of showing modal (Issue #624)
         await waitFor(() => {
             expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                onSuccess: expect.any(Function),
+                onError: expect.any(Function),
             }));
         });
 
@@ -2395,7 +2395,7 @@ describe('DataCiteForm', () => {
         // Should redirect to resources list instead of showing modal (Issue #624)
         await waitFor(() => {
             expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                onSuccess: expect.any(Function),
+                onError: expect.any(Function),
             }));
         });
 
@@ -3721,7 +3721,7 @@ describe('DataCiteForm', () => {
             // Should redirect to resources list (Issue #624)
             await waitFor(() => {
                 expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                    onSuccess: expect.any(Function),
+                    onError: expect.any(Function),
                 }));
             });
 
@@ -3826,6 +3826,76 @@ describe('DataCiteForm', () => {
             expect(toast.warning).toHaveBeenCalledWith('DataCite update failed', expect.objectContaining({
                 description: 'API timeout',
             }));
+        });
+
+        it('handles null DOI in DataCite sync toast gracefully', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
+                data: {
+                    message: 'Resource saved!',
+                    resource: { id: 1 },
+                    dataCiteSync: {
+                        attempted: true,
+                        success: true,
+                        errorMessage: null,
+                        doi: null,
+                    },
+                },
+                status: 200,
+            });
+
+            renderFormWithDefaults();
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.any(Object));
+            });
+
+            const { toast } = await import('sonner');
+            // Should use fallback description when DOI is null
+            expect(toast.success).toHaveBeenCalledWith('DataCite metadata synchronized', expect.objectContaining({
+                description: 'Metadata has been updated.',
+            }));
+        });
+
+        it('shows warning toast when navigation fails after successful save', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Make router.visit call onError instead of onSuccess
+            mockRouterVisit.mockImplementation((_url: string, options?: { onError?: () => void }) => {
+                options?.onError?.();
+            });
+
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
+                data: { message: 'Resource saved!' },
+                status: 200,
+            });
+
+            renderFormWithDefaults();
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(mockRouterVisit).toHaveBeenCalled();
+            });
+
+            const { toast } = await import('sonner');
+            // Success toast should still be shown (fired before redirect)
+            expect(toast.success).toHaveBeenCalledWith('Resource saved!');
+            // Navigation error warning should also be shown
+            expect(toast.warning).toHaveBeenCalledWith('Could not navigate to the resources list. Your data has been saved.');
         });
 
         it('does not redirect on client-side validation failure', { timeout: 60000 }, async () => {
@@ -4076,7 +4146,7 @@ describe('DataCiteForm', () => {
             // Should redirect to resources list (Issue #624)
             await waitFor(() => {
                 expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                    onSuccess: expect.any(Function),
+                    onError: expect.any(Function),
                 }));
             });
 
@@ -4118,7 +4188,7 @@ describe('DataCiteForm', () => {
             // Should redirect to resources after draft save (Issue #624)
             await waitFor(() => {
                 expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                    onSuccess: expect.any(Function),
+                    onError: expect.any(Function),
                 }));
             });
         });

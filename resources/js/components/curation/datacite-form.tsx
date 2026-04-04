@@ -1928,25 +1928,30 @@ export default function DataCiteForm({
 
             setHasAttemptedSubmit(false);
 
-            // Redirect to resources list with success toast (Issue #624)
-            router.visit(resourcesUrl, {
-                onSuccess: () => {
-                    toast.success(successMsg);
+            // Show toasts before redirect so feedback is visible even if navigation fails
+            toast.success(successMsg);
 
-                    // DataCite sync feedback via toast notifications
-                    if (data?.dataCiteSync?.attempted) {
-                        if (data.dataCiteSync.success) {
-                            toast.success('DataCite metadata synchronized', {
-                                description: `DOI ${data.dataCiteSync.doi} has been updated.`,
-                                duration: 4000,
-                            });
-                        } else {
-                            toast.warning('DataCite update failed', {
-                                description: data.dataCiteSync.errorMessage || 'Please try manually later.',
-                                duration: 8000,
-                            });
-                        }
-                    }
+            // DataCite sync feedback via toast notifications
+            if (data?.dataCiteSync?.attempted) {
+                if (data.dataCiteSync.success) {
+                    toast.success('DataCite metadata synchronized', {
+                        description: data.dataCiteSync.doi
+                            ? `DOI ${data.dataCiteSync.doi} has been updated.`
+                            : 'Metadata has been updated.',
+                        duration: 4000,
+                    });
+                } else {
+                    toast.warning('DataCite update failed', {
+                        description: data.dataCiteSync.errorMessage || 'Please try manually later.',
+                        duration: 8000,
+                    });
+                }
+            }
+
+            // Redirect to resources list (Issue #624)
+            router.visit(resourcesUrl, {
+                onError: () => {
+                    toast.warning('Could not navigate to the resources list. Your data has been saved.');
                 },
             });
         } catch (error) {
@@ -2024,10 +2029,13 @@ export default function DataCiteForm({
 
             setHasAttemptedSubmit(false);
 
-            // Redirect to resources list with success toast (Issue #624)
+            // Show toast before redirect so feedback is visible even if navigation fails
+            toast.success(successMsg);
+
+            // Redirect to resources list (Issue #624)
             router.visit(resourcesUrl, {
-                onSuccess: () => {
-                    toast.success(successMsg);
+                onError: () => {
+                    toast.warning('Could not navigate to the resources list. Your draft has been saved.');
                 },
             });
         } catch (error) {
