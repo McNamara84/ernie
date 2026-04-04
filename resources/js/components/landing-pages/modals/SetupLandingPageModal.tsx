@@ -437,8 +437,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             if (!over || active.id === over.id) return;
 
             setLinks((prev) => {
-                const oldIndex = prev.findIndex((l) => l.id ?? l.position === active.id);
-                const newIndex = prev.findIndex((l) => l.id ?? l.position === over.id);
+                const getSortableId = (l: LandingPageLink) => l.id ?? `new-${l.position}`;
+                const oldIndex = prev.findIndex((l) => getSortableId(l) === active.id);
+                const newIndex = prev.findIndex((l) => getSortableId(l) === over.id);
                 if (oldIndex === -1 || newIndex === -1) return prev;
                 const reordered = arrayMove(prev, oldIndex, newIndex);
                 return reordered.map((link, i) => ({ ...link, position: i }));

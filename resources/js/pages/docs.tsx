@@ -1056,7 +1056,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Drag the handle on each link to rearrange the display order on the landing page.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Save">
-                                <p>Click Save to persist the links. They will appear on the public landing page immediately.</p>
+                                <p>
+                                    Click Save to persist the links. They will appear on the preview immediately and on the public
+                                    landing page once it is published.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 

@@ -147,7 +147,8 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                     {displayMode === 'fallback-message' && (
                         <p className="text-sm text-gray-500 italic">
                             Download information not available. Please contact the authors for data access.
-                        </p>                    )}
+                        </p>
+                    )}
 
                     {/* Additional Links - displayed below download, styled in light grey */}
                     {additionalLinks.length > 0 && (
@@ -166,7 +167,8 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                         <span className="truncate">{link.label}</span>
                                     </a>
                                 ))}
-                        </div>                    )}
+                        </div>
+                    )}
 
                     {/* License Badges */}
                     {licenses.length > 0 && (

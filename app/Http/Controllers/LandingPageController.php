@@ -195,13 +195,15 @@ class LandingPageController extends Controller
                     $createData['ftp_url'] = null; // FTP URL not relevant for external pages
                 }
 
-                return $resource->landingPage()->create($createData);
-            });
+                $landingPage = $resource->landingPage()->create($createData);
 
-            // Create additional links outside the transaction (after LP exists)
-            if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
-                $landingPage->links()->createMany($validated['links']);
-            }
+                // Create additional links inside the transaction for atomicity
+                if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
+                    $landingPage->links()->createMany($validated['links']);
+                }
+
+                return $landingPage;
+            });
         } catch (ResourceAlreadyExistsException) {
             // Handle "already exists" condition from inside the transaction.
             // The exception is thrown BEFORE commit, so the transaction was never committed.
@@ -307,6 +309,7 @@ class LandingPageController extends Controller
                 'external_path' => $landingPage->external_path,
                 'external_url' => $landingPage->external_url,
                 'external_domain' => $landingPage->externalDomain,
+                'links' => $landingPage->links,
                 'status' => $status,
                 'preview_token' => $landingPage->preview_token,
                 'preview_url' => $landingPage->preview_url,
