@@ -320,10 +320,10 @@ describe('rights list conversion edge cases', function () {
         $rights = $result['rightsList'][0];
 
         expect($rights['rights'])->toBe('Creative Commons Attribution 4.0');
-        expect($rights['rightsURI'])->toBe('https://creativecommons.org/licenses/by/4.0/');
+        expect($rights['rightsUri'])->toBe('https://creativecommons.org/licenses/by/4.0/');
         expect($rights['rightsIdentifier'])->toBe('CC-BY-4.0');
         expect($rights['rightsIdentifierScheme'])->toBe('SPDX');
-        expect($rights['schemeURI'])->toBe('https://spdx.org/licenses/');
+        expect($rights['schemeUri'])->toBe('https://spdx.org/licenses/');
         expect($rights['lang'])->toBe('en');
     });
 
