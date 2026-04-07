@@ -53,10 +53,19 @@ export default function DefaultGfzTemplate() {
             <div className="mx-auto max-w-7xl rounded-xl bg-white">
                 {/* Header */}
                 <header className="px-4 py-2">
-                    {/* Legal Notice - ganz oben rechts */}
-                    <div className="mb-1 flex justify-end">
+                    {/* Legal Notice & Data Protection - top right */}
+                    <div className="mb-1 flex items-center justify-end gap-3">
                         <a href="/legal-notice" className="text-xs text-gray-600 hover:text-gray-900 hover:underline">
                             Legal Notice
+                        </a>
+                        <span className="text-xs text-gray-300" aria-hidden="true">|</span>
+                        <a
+                            href="https://dataservices.gfz.de/web/about-us/data-protection"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-gray-600 hover:text-gray-900 hover:underline"
+                        >
+                            Data Protection
                         </a>
                     </div>
                     {/* Logo - zentriert */}

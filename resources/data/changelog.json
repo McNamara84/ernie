@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-04",
+        "date": "2026-04-07",
         "features": [
+            {
+                "title": "Data Protection Link on Landing Pages",
+                "description": "All landing page templates now include a 'Data Protection' link next to the existing 'Legal Notice' link. The link opens the GFZ data protection policy in a new browser tab."
+            },
             {
                 "title": "Additional Download Links on Landing Pages",
                 "description": "Curators can now add up to 10 additional download links to landing pages via the setup modal. Links support custom labels and URLs, and their order can be rearranged using drag-and-drop. The links are displayed in a dedicated section below the primary download button on the public landing page."
