@@ -394,7 +394,8 @@ describe('JSON Upload - Flat DataCite JSON format', function () {
         $data = getJsonUploadData($response);
 
         expect($data['titles'][0]['title'])->toBe('Flat Format Test');
-        expect($data['authors'][0]['lastName'])->toBe('Smith, John');
+        expect($data['authors'][0]['lastName'])->toBe('Smith');
+        expect($data['authors'][0]['firstName'])->toBe('John');
     });
 });
 

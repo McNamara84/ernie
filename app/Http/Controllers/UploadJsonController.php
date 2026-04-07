@@ -436,11 +436,20 @@ class UploadJsonController extends Controller
 
             $orcid = $this->extractOrcidFromNameIdentifiers($creator['nameIdentifiers'] ?? []);
 
+            $givenName = $creator['givenName'] ?? null;
+            $familyName = $creator['familyName'] ?? null;
+
+            if (! is_string($familyName) || $familyName === '') {
+                $split = $this->splitCreatorName($creator['name'] ?? null);
+                $familyName = $split['familyName'] ?? '';
+                $givenName = $split['givenName'] ?? $givenName ?? '';
+            }
+
             $authors[] = [
                 'type' => 'person',
                 'orcid' => $orcid,
-                'firstName' => $creator['givenName'] ?? '',
-                'lastName' => $creator['familyName'] ?? ($creator['name'] ?? ''),
+                'firstName' => $givenName ?? '',
+                'lastName' => $familyName,
                 'affiliations' => $affiliations,
             ];
         }
@@ -502,12 +511,21 @@ class UploadJsonController extends Controller
 
             $orcid = $this->extractOrcidFromNameIdentifiers($contributor['nameIdentifiers'] ?? []);
 
+            $givenName = $contributor['givenName'] ?? null;
+            $familyName = $contributor['familyName'] ?? null;
+
+            if (! is_string($familyName) || $familyName === '') {
+                $split = $this->splitCreatorName($contributor['name'] ?? null);
+                $familyName = $split['familyName'] ?? '';
+                $givenName = $split['givenName'] ?? $givenName ?? '';
+            }
+
             $result[] = [
                 'type' => 'person',
                 'roles' => $roles,
                 'orcid' => $orcid,
-                'firstName' => $contributor['givenName'] ?? '',
-                'lastName' => $contributor['familyName'] ?? ($contributor['name'] ?? ''),
+                'firstName' => $givenName ?? '',
+                'lastName' => $familyName,
                 'affiliations' => $affiliations,
             ];
         }
@@ -947,6 +965,35 @@ class UploadJsonController extends Controller
      *
      * @param  array<int, array<string, mixed>>  $nameIdentifiers
      */
+    /**
+     * Split a "FamilyName, GivenName" string into parts.
+     *
+     * @return array{familyName: string|null, givenName: string|null}
+     */
+    private function splitCreatorName(mixed $name): array
+    {
+        if (! is_string($name) || $name === '') {
+            return ['familyName' => null, 'givenName' => null];
+        }
+
+        $parts = array_map('trim', explode(',', $name, 2));
+
+        if (count($parts) === 2) {
+            return [
+                'familyName' => $parts[0] !== '' ? $parts[0] : null,
+                'givenName' => $parts[1] !== '' ? $parts[1] : null,
+            ];
+        }
+
+        return [
+            'familyName' => $name,
+            'givenName' => null,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $nameIdentifiers
+     */
     private function extractOrcidFromNameIdentifiers(array $nameIdentifiers): string
     {
         foreach ($nameIdentifiers as $ni) {
@@ -1012,7 +1059,14 @@ class UploadJsonController extends Controller
             return null;
         }
 
+        $givenName = $contributor['givenName'] ?? null;
         $familyName = $contributor['familyName'] ?? null;
+
+        if (! is_string($familyName) || trim($familyName) === '') {
+            $split = $this->splitCreatorName($contributor['name'] ?? null);
+            $familyName = $split['familyName'] ?? null;
+            $givenName = $split['givenName'] ?? $givenName;
+        }
 
         if (! is_string($familyName) || trim($familyName) === '') {
             return null;
@@ -1021,7 +1075,7 @@ class UploadJsonController extends Controller
         return [
             'type' => 'person',
             'orcid' => $this->extractOrcidFromNameIdentifiers($contributor['nameIdentifiers'] ?? []),
-            'firstName' => $contributor['givenName'] ?? '',
+            'firstName' => is_string($givenName) ? $givenName : '',
             'lastName' => $familyName,
             'affiliations' => $this->extractAffiliationsFromJson($contributor['affiliation'] ?? []),
         ];
