@@ -4,6 +4,10 @@
         "date": "2026-04-07",
         "features": [
             {
+                "title": "DataCite JSON and JSON-LD Upload",
+                "description": "Resources can now be created by uploading DataCite JSON or JSON-LD files in addition to XML. The system auto-detects the format based on file content and extracts all metadata fields including authors, contributors, subjects, geo locations, funding references, and related identifiers. The upload dropzone on the dashboard now accepts .json and .jsonld files alongside XML and CSV."
+            },
+            {
                 "title": "Data Protection Link on Landing Pages",
                 "description": "All landing page templates now include a 'Data Protection' link next to the existing 'Legal Notice' link. The link opens the GFZ data protection policy in a new browser tab."
             },

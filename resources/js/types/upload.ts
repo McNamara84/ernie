@@ -72,9 +72,18 @@ export interface CsvUploadSuccessResponse {
 }
 
 /**
+ * Success response from JSON upload endpoint.
+ * Same structure as XML upload: contains session key for editor navigation.
+ */
+export interface JsonUploadSuccessResponse {
+    /** Session key for retrieving parsed JSON data */
+    sessionKey: string;
+}
+
+/**
  * Union type for all upload responses.
  */
-export type UploadResponse = UploadErrorResponse | XmlUploadSuccessResponse | CsvUploadSuccessResponse;
+export type UploadResponse = UploadErrorResponse | XmlUploadSuccessResponse | JsonUploadSuccessResponse | CsvUploadSuccessResponse;
 
 /**
  * Type guard to check if response is an error.
@@ -88,7 +97,18 @@ export function isUploadError(response: UploadResponse): response is UploadError
  * Note: Backend XML success response only contains 'sessionKey', not 'success'.
  */
 export function isXmlUploadSuccess(response: UploadResponse): response is XmlUploadSuccessResponse {
-    return 'sessionKey' in response && (response.success === true || response.success === undefined);
+    if (!('sessionKey' in response)) return false;
+    if ('success' in response) return (response as unknown as { success: unknown }).success !== false;
+    return true;
+}
+
+/**
+ * Type guard to check if response is JSON upload success.
+ */
+export function isJsonUploadSuccess(response: UploadResponse): response is JsonUploadSuccessResponse {
+    if (!('sessionKey' in response)) return false;
+    if ('success' in response) return (response as unknown as { success: unknown }).success !== false;
+    return true;
 }
 
 /**

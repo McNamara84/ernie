@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
-import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
+import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { UploadErrorResponse } from '@/types/upload';
 
@@ -73,8 +73,61 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
     }
 };
 
+export const handleJsonFiles = async (files: File[]): Promise<void> => {
+    if (!files.length) return;
+
+    const csrfHeaders = buildCsrfHeaders();
+
+    if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
+        throw new Error('CSRF token not found. Please reload the page (Ctrl+F5) and try again.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', files[0]);
+    const filename = files[0].name;
+
+    try {
+        const response = await fetch(uploadJsonRoute.url(), {
+            method: 'POST',
+            body: formData,
+            headers: csrfHeaders,
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            if (response.status === 419) {
+                console.warn('CSRF token expired, reloading page...');
+                window.location.reload();
+                throw new Error('Session expired. Reloading page...');
+            }
+
+            try {
+                const errorData: UploadErrorResponse = await response.json();
+                const message = errorData.message || 'Upload failed';
+                throw new Error(message);
+            } catch (parseErr) {
+                if (parseErr instanceof Error && parseErr.message !== 'Upload failed') {
+                    throw parseErr;
+                }
+                throw new Error(`Failed to upload ${filename}`, { cause: parseErr });
+            }
+        }
+
+        const data: { sessionKey: string } = await response.json();
+
+        router.get(editorRoute({ query: { jsonSession: data.sessionKey } }).url);
+    } catch (error) {
+        console.error('JSON upload failed', error);
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error(`Failed to upload ${filename}`, { cause: error });
+    }
+};
+
 type DashboardProps = {
     onXmlFiles?: (files: File[]) => Promise<void>;
+    onJsonFiles?: (files: File[]) => Promise<void>;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -99,7 +152,7 @@ type DashboardPageProps = SharedData & {
     laravelVersion?: string;
 };
 
-export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
+export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = handleJsonFiles }: DashboardProps = {}) {
     const {
         auth,
         dataResourceCount,
@@ -364,7 +417,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                         <CardDescription>Upload DataCite XML files from ELMO or IGSN CSV files for sample metadata.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
-                        <UnifiedDropzone onXmlUpload={onXmlFiles} />
+                        <UnifiedDropzone onXmlUpload={onXmlFiles} onJsonUpload={onJsonFiles} />
                     </CardContent>
                 </Card>
             </div>

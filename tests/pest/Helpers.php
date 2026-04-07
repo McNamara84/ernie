@@ -141,3 +141,17 @@ function assertArraySubset(array $expected, mixed $actual, string $path = ''): v
         }
     }
 }
+
+/**
+ * Helper function to extract JSON upload data from session-based response.
+ *
+ * Identical to getXmlUploadData – the UploadJsonController also stores
+ * parsed metadata in the session and returns a sessionKey.
+ *
+ * @param  TestResponse  $response  The response from /dashboard/upload-json endpoint
+ * @return array<string, mixed> The uploaded JSON data stored in session
+ */
+function getJsonUploadData(TestResponse $response): array
+{
+    return getXmlUploadData($response);
+}

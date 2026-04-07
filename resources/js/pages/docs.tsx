@@ -89,7 +89,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             After logging in at <code>/login</code>, you will be redirected to the Dashboard. The Dashboard is your central hub for:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Uploading XML files from ELMO</li>
+                            <li>Uploading XML or JSON files from ELMO or DataCite</li>
                             <li>Uploading IGSN CSV files for physical samples</li>
                             <li>Viewing resource statistics</li>
                             <li>Quick access to recent resources</li>
@@ -460,12 +460,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
         () => [
             {
                 id: 'xml-upload',
-                title: 'XML Upload',
+                title: 'File Upload (XML / JSON)',
                 icon: Upload,
                 minRole: 'beginner',
                 content: (
                     <>
-                        <h3>Uploading XML Files</h3>
+                        <h3>Uploading DataCite Files</h3>
                         <p>
                             The Dashboard (<code>/dashboard</code>) features a unified dropzone for file uploads.
                         </p>
@@ -473,6 +473,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Supported Formats</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>DataCite XML v4.x</li>
+                            <li>DataCite JSON (standard API format)</li>
+                            <li>DataCite JSON-LD (linked data format with <code>@context</code>)</li>
                             <li>ELMO's DataCite 4.6 + ISO envelope format</li>
                         </ul>
 
@@ -483,8 +485,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Go to <code>/dashboard</code> after logging in.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={2} title="Upload XML">
-                                <p>Drag and drop your XML file or click the dropzone to select a file.</p>
+                            <WorkflowSteps.Step number={2} title="Upload File">
+                                <p>
+                                    Drag and drop your XML, JSON, or JSON-LD file or click the dropzone to select a file.
+                                    The system automatically detects the format based on the file content.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Automatic Redirect">
                                 <p>
@@ -507,7 +512,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Review Metadata">
-                                <p>Check all pre-populated fields from the XML upload for accuracy.</p>
+                                <p>Check all pre-populated fields from the file upload for accuracy.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Validate Authors">
                                 <p>Verify author information, add ORCID iDs, and confirm ROR affiliations.</p>

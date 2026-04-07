@@ -13,7 +13,7 @@ import { uploadIgsnCsv as uploadIgsnCsvRoute } from '@/routes/dashboard';
 import { index as igsnIndexRoute } from '@/routes/igsns';
 import { getUploadErrors, hasMultipleErrors, type UploadError, type UploadErrorResponse } from '@/types/upload';
 
-type FileType = 'xml' | 'csv' | 'unknown';
+type FileType = 'xml' | 'json' | 'csv' | 'unknown';
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
 
 /**
@@ -36,6 +36,7 @@ type CsvUploadResult = {
 
 type UnifiedDropzoneProps = {
     onXmlUpload: (files: File[]) => Promise<void>;
+    onJsonUpload: (files: File[]) => Promise<void>;
 };
 
 /**
@@ -61,7 +62,7 @@ function normalizeErrors(errors?: LegacyUploadError[] | UploadError[]): UploadEr
     });
 }
 
-export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
+export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzoneProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [uploadState, setUploadState] = useState<UploadState>('idle');
@@ -133,6 +134,9 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
         const name = file.name.toLowerCase();
         if (name.endsWith('.xml') || file.type === 'text/xml' || file.type === 'application/xml') {
             return 'xml';
+        }
+        if (name.endsWith('.json') || name.endsWith('.jsonld') || file.type === 'application/json' || file.type === 'application/ld+json') {
+            return 'json';
         }
         if (name.endsWith('.csv') || name.endsWith('.txt') || file.type === 'text/csv') {
             return 'csv';
@@ -240,20 +244,47 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
         [onXmlUpload],
     );
 
+    const uploadJson = useCallback(
+        async (file: File) => {
+            setUploadState('uploading');
+            setUploadProgress(50);
+            setSelectedFile(file);
+            setLastUploadType('json');
+            setError(null);
+
+            try {
+                await onJsonUpload([file]);
+                // If successful, the page will navigate to the editor
+            } catch (err) {
+                setUploadState('error');
+                const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+                setError(errorMessage);
+
+                toast.error(`Upload failed: ${file.name}`, {
+                    description: errorMessage,
+                    duration: 8000,
+                });
+            }
+        },
+        [onJsonUpload],
+    );
+
     const handleFile = useCallback(
         async (file: File) => {
             const type = detectFileType(file);
 
             if (type === 'xml') {
                 await uploadXml(file);
+            } else if (type === 'json') {
+                await uploadJson(file);
             } else if (type === 'csv') {
                 await uploadCsv(file);
             } else {
                 setUploadState('error');
-                setError('Unsupported file type. Please upload an XML or CSV file.');
+                setError('Unsupported file type. Please upload an XML, JSON, or CSV file.');
             }
         },
-        [uploadXml, uploadCsv],
+        [uploadXml, uploadJson, uploadCsv],
     );
 
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -330,7 +361,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
             <div data-testid="dropzone-uploading-state" className="flex w-full flex-col items-center gap-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Spinner size="md" />
-                    <span>Uploading {lastUploadType === 'csv' ? 'CSV' : 'XML'} file...</span>
+                    <span>Uploading {lastUploadType === 'csv' ? 'CSV' : lastUploadType === 'json' ? 'JSON' : 'XML'} file...</span>
                 </div>
                 <Progress value={uploadProgress} className="w-full max-w-xs" />
                 {selectedFile && <p className="text-sm text-muted-foreground">{selectedFile.name}</p>}
@@ -398,7 +429,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                 <p className="mb-2 text-sm font-medium text-foreground">Drag &amp; drop files here</p>
                 <p className="mb-4 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
-                        <FileText className="h-3 w-3" /> XML (DataCite)
+                        <FileText className="h-3 w-3" /> DataCite (XML/JSON)
                     </span>
                     {' or '}
                     <span className="inline-flex items-center gap-1">
@@ -409,7 +440,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
                     ref={fileInputRef}
                     data-testid="unified-file-input"
                     type="file"
-                    accept=".xml,.csv,.txt"
+                    accept=".xml,.json,.jsonld,.csv,.txt"
                     className="hidden"
                     onChange={handleFileSelect}
                 />

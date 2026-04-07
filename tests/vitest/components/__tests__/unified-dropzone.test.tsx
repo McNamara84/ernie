@@ -13,6 +13,7 @@ vi.mock('@inertiajs/react', () => ({
 // Mock routes
 vi.mock('@/routes/dashboard', () => ({
     uploadIgsnCsv: { url: () => '/api/igsns/upload' },
+    uploadJson: { url: () => '/dashboard/upload-json' },
 }));
 vi.mock('@/routes/igsns', () => ({
     index: { url: () => '/igsns' },
@@ -60,40 +61,42 @@ function createFile(name: string, type: string, content = 'dummy') {
 
 describe('UnifiedDropzone', () => {
     const mockOnXmlUpload = vi.fn();
+    const mockOnJsonUpload = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
         mockOnXmlUpload.mockResolvedValue(undefined);
+        mockOnJsonUpload.mockResolvedValue(undefined);
     });
 
     describe('idle state', () => {
         it('renders the dropzone container', () => {
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             expect(screen.getByTestId('unified-dropzone')).toBeInTheDocument();
         });
 
         it('renders the file input', () => {
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             const input = screen.getByTestId('unified-file-input');
             expect(input).toBeInTheDocument();
             expect(input).toHaveAttribute('type', 'file');
-            expect(input).toHaveAttribute('accept', '.xml,.csv,.txt');
+            expect(input).toHaveAttribute('accept', '.xml,.json,.jsonld,.csv,.txt');
         });
 
         it('renders the browse button', () => {
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             expect(screen.getByTestId('unified-upload-button')).toBeInTheDocument();
         });
 
         it('shows supported file types text', () => {
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
-            expect(screen.getByText(/XML.*DataCite/)).toBeInTheDocument();
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            expect(screen.getByText(/DataCite.*XML.*JSON/)).toBeInTheDocument();
         });
     });
 
     describe('XML upload', () => {
         it('delegates XML files to onXmlUpload prop', async () => {
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             const input = screen.getByTestId('unified-file-input');
             const xmlFile = createFile('metadata.xml', 'text/xml');
 
@@ -107,10 +110,49 @@ describe('UnifiedDropzone', () => {
         it('shows uploading state during XML upload', async () => {
             mockOnXmlUpload.mockImplementation(() => new Promise(() => {})); // never resolves
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             const input = screen.getByTestId('unified-file-input');
 
             await userEvent.upload(input, createFile('test.xml', 'text/xml'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-uploading-state')).toBeInTheDocument();
+            });
+        });
+    });
+
+    describe('JSON upload', () => {
+        it('delegates JSON files to onJsonUpload prop', async () => {
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            const input = screen.getByTestId('unified-file-input');
+            const jsonFile = createFile('metadata.json', 'application/json');
+
+            await userEvent.upload(input, jsonFile);
+
+            await waitFor(() => {
+                expect(mockOnJsonUpload).toHaveBeenCalledWith([jsonFile]);
+            });
+        });
+
+        it('delegates .jsonld files to onJsonUpload prop', async () => {
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            const input = screen.getByTestId('unified-file-input');
+            const jsonLdFile = createFile('metadata.jsonld', 'application/ld+json');
+
+            await userEvent.upload(input, jsonLdFile);
+
+            await waitFor(() => {
+                expect(mockOnJsonUpload).toHaveBeenCalledWith([jsonLdFile]);
+            });
+        });
+
+        it('shows uploading state during JSON upload', async () => {
+            mockOnJsonUpload.mockImplementation(() => new Promise(() => {})); // never resolves
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            const input = screen.getByTestId('unified-file-input');
+
+            await userEvent.upload(input, createFile('test.json', 'application/json'));
 
             await waitFor(() => {
                 expect(screen.getByTestId('dropzone-uploading-state')).toBeInTheDocument();
@@ -127,7 +169,7 @@ describe('UnifiedDropzone', () => {
                 }),
             );
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             const input = screen.getByTestId('unified-file-input');
 
             await userEvent.upload(input, createFile('samples.csv', 'text/csv'));
@@ -145,7 +187,7 @@ describe('UnifiedDropzone', () => {
                 }),
             );
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('test.csv', 'text/csv'));
 
             await waitFor(() => {
@@ -161,7 +203,7 @@ describe('UnifiedDropzone', () => {
                 }),
             );
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('bad.csv', 'text/csv'));
 
             await waitFor(() => {
@@ -172,7 +214,7 @@ describe('UnifiedDropzone', () => {
         it('shows error when fetch rejects', async () => {
             vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('test.csv', 'text/csv'));
 
             await waitFor(() => {
@@ -190,7 +232,7 @@ describe('UnifiedDropzone', () => {
                 }),
             );
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('test.csv', 'text/csv'));
 
             await waitFor(() => {
@@ -204,7 +246,7 @@ describe('UnifiedDropzone', () => {
         it('resets to idle when "Try Again" button is clicked after error', async () => {
             vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fail'));
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('test.csv', 'text/csv'));
 
             await waitFor(() => {
@@ -220,7 +262,7 @@ describe('UnifiedDropzone', () => {
         it('rejects unsupported file types', async () => {
             const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             const input = screen.getByTestId('unified-file-input');
 
             await userEvent.upload(input, createFile('photo.png', 'image/png'));
@@ -233,7 +275,7 @@ describe('UnifiedDropzone', () => {
 
     describe('browse button', () => {
         it('clicks hidden file input when browse button is clicked', async () => {
-            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} />);
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
             const input = screen.getByTestId('unified-file-input');
             const clickSpy = vi.spyOn(input, 'click');
 

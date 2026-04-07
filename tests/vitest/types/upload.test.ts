@@ -5,8 +5,10 @@ import {
     getUploadErrors,
     hasMultipleErrors,
     isCsvUploadSuccess,
+    isJsonUploadSuccess,
     isUploadError,
     isXmlUploadSuccess,
+    type JsonUploadSuccessResponse,
     type UploadError,
     type UploadErrorResponse,
     type XmlUploadSuccessResponse,
@@ -79,6 +81,49 @@ describe('Upload Types', () => {
             };
 
             expect(isCsvUploadSuccess(response)).toBe(false);
+        });
+    });
+
+    describe('isJsonUploadSuccess', () => {
+        it('returns true for JSON upload success response', () => {
+            const response: JsonUploadSuccessResponse = {
+                sessionKey: 'json_upload_abc123',
+            };
+
+            expect(isJsonUploadSuccess(response)).toBe(true);
+        });
+
+        it('returns false for error response', () => {
+            const response: UploadErrorResponse = {
+                success: false,
+                message: 'Invalid JSON',
+                error: {
+                    category: 'data',
+                    code: 'json_parse_error',
+                    message: 'Invalid JSON',
+                },
+            };
+
+            expect(isJsonUploadSuccess(response)).toBe(false);
+        });
+
+        it('returns false for CSV success response', () => {
+            const response: CsvUploadSuccessResponse = {
+                success: true,
+                created: 3,
+            };
+
+            expect(isJsonUploadSuccess(response)).toBe(false);
+        });
+
+        it('returns true for XML success response (also has sessionKey)', () => {
+            const response: XmlUploadSuccessResponse = {
+                success: true,
+                sessionKey: 'xml_upload_abc123',
+            };
+
+            // XmlUploadSuccessResponse also has sessionKey, so isJsonUploadSuccess returns true
+            expect(isJsonUploadSuccess(response)).toBe(true);
         });
     });
 

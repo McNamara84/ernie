@@ -13,6 +13,7 @@ use App\Http\Controllers\PortalController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
+use App\Http\Controllers\UploadJsonController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Affiliation;
@@ -377,6 +378,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
+
+    Route::post('dashboard/upload-json', UploadJsonController::class)
+        ->name('dashboard.upload-json');
 
     Route::post('dashboard/upload-igsn-csv', UploadIgsnCsvController::class)
         ->name('dashboard.upload-igsn-csv');
