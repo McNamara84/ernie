@@ -116,8 +116,13 @@ export default function LandingPageLayout({
                                     Impressum
                                 </a>
                                 <span className="text-gray-300 dark:text-gray-600">•</span>
-                                <a href="/privacy" className="transition-colors hover:text-gray-900 hover:underline dark:hover:text-white">
-                                    Privacy Policy
+                                <a
+                                    href="https://dataservices.gfz.de/web/about-us/data-protection"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="transition-colors hover:text-gray-900 hover:underline dark:hover:text-white"
+                                >
+                                    Data Protection
                                 </a>
                             </div>
                         </div>
