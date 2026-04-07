@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Data Protection Link on Landing Pages",
-                "description": "All landing pages now include a 'Data Protection' link next to the existing 'Legal Notice' link in the header. The link opens the GFZ data protection policy in a new browser tab."
+                "description": "All landing page templates now include a 'Data Protection' link next to the existing 'Legal Notice' link. The link opens the GFZ data protection policy in a new browser tab."
             },
             {
                 "title": "Additional Download Links on Landing Pages",

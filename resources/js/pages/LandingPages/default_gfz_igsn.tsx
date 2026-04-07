@@ -54,7 +54,7 @@ export default function DefaultGfzIgsnTemplate() {
                         <a href="/legal-notice" className="text-xs text-gray-600 hover:text-gray-900 hover:underline">
                             Legal Notice
                         </a>
-                        <span className="text-xs text-gray-300">|</span>
+                        <span className="text-xs text-gray-300" aria-hidden="true">|</span>
                         <a
                             href="https://dataservices.gfz.de/web/about-us/data-protection"
                             target="_blank"
