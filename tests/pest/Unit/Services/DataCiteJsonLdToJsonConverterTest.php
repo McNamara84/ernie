@@ -454,7 +454,7 @@ describe('rightsList conversion', function () {
         $result = $this->converter->convert($jsonLd);
 
         expect($result['rightsList'][0]['rightsIdentifier'])->toBe('CC-BY-4.0');
-        expect($result['rightsList'][0]['rightsURI'])->toBe('https://creativecommons.org/licenses/by/4.0/');
+        expect($result['rightsList'][0]['rightsUri'])->toBe('https://creativecommons.org/licenses/by/4.0/');
         expect($result['rightsList'][0]['rights'])->toBe('Creative Commons Attribution 4.0 International');
     });
 });

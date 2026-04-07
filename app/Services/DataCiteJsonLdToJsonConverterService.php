@@ -312,10 +312,15 @@ class DataCiteJsonLdToJsonConverterService
                 'name' => $this->unwrapValue($item),
             ];
             if (isset($item['attrs'])) {
-                foreach (['affiliationIdentifier', 'affiliationIdentifierScheme', 'schemeURI'] as $key) {
+                foreach (['affiliationIdentifier', 'affiliationIdentifierScheme'] as $key) {
                     if (isset($item['attrs'][$key])) {
                         $result[$key] = $item['attrs'][$key];
                     }
+                }
+                // Normalize JSON-LD schemeURI → standard DataCite schemeUri
+                $schemeUri = $item['attrs']['schemeURI'] ?? $item['attrs']['schemeUri'] ?? null;
+                if ($schemeUri !== null) {
+                    $result['schemeUri'] = $schemeUri;
                 }
             }
 
@@ -578,10 +583,19 @@ class DataCiteJsonLdToJsonConverterService
             $result = ['rights' => $this->unwrapValue($item)];
 
             if (is_array($item) && isset($item['attrs'])) {
-                foreach (['rightsURI', 'rightsIdentifier', 'rightsIdentifierScheme', 'schemeURI', 'lang'] as $key) {
+                foreach (['rightsIdentifier', 'rightsIdentifierScheme', 'lang'] as $key) {
                     if (isset($item['attrs'][$key])) {
                         $result[$key] = $item['attrs'][$key];
                     }
+                }
+                // Normalize JSON-LD rightsURI/schemeURI → standard DataCite rightsUri/schemeUri
+                $result['rightsUri'] = $item['attrs']['rightsURI'] ?? $item['attrs']['rightsUri'] ?? null;
+                $result['schemeUri'] = $item['attrs']['schemeURI'] ?? $item['attrs']['schemeUri'] ?? null;
+                if ($result['rightsUri'] === null) {
+                    unset($result['rightsUri']);
+                }
+                if ($result['schemeUri'] === null) {
+                    unset($result['schemeUri']);
                 }
             }
 
