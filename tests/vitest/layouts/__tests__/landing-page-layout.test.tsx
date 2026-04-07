@@ -67,7 +67,7 @@ describe('LandingPageLayout', () => {
             'href',
             'https://dataservices.gfz-potsdam.de'
         );
-        expect(screen.getByRole('link', { name: 'Impressum' })).toHaveAttribute('href', '/imprint');
+        expect(screen.getByRole('link', { name: 'Legal Notice' })).toHaveAttribute('href', '/legal-notice');
         expect(screen.getByRole('link', { name: 'Data Protection' })).toHaveAttribute(
             'href',
             'https://dataservices.gfz.de/web/about-us/data-protection'

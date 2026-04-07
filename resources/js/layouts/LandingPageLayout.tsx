@@ -112,8 +112,8 @@ export default function LandingPageLayout({
                                     Data Services
                                 </a>
                                 <span className="text-gray-300 dark:text-gray-600">•</span>
-                                <a href="/imprint" className="transition-colors hover:text-gray-900 hover:underline dark:hover:text-white">
-                                    Impressum
+                                <a href="/legal-notice" className="transition-colors hover:text-gray-900 hover:underline dark:hover:text-white">
+                                    Legal Notice
                                 </a>
                                 <span className="text-gray-300 dark:text-gray-600">•</span>
                                 <a
