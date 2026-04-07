@@ -15,7 +15,7 @@ namespace App\Services;
  *
  * @see DataCiteLinkedDataExporter for the forward transformation
  */
-class DataCiteJsonLdToJsonConverter
+class DataCiteJsonLdToJsonConverterService
 {
     /**
      * Convert DataCite JSON-LD to standard DataCite JSON attributes.

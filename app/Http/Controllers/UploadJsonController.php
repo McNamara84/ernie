@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\UploadErrorCode;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
-use App\Services\DataCiteJsonLdToJsonConverter;
+use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\UploadLogService;
 use App\Support\GcmdUriHelper;
@@ -107,7 +107,7 @@ class UploadJsonController extends Controller
     public function __construct(
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
-        private readonly DataCiteJsonLdToJsonConverter $jsonLdConverter,
+        private readonly DataCiteJsonLdToJsonConverterService $jsonLdConverter,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse

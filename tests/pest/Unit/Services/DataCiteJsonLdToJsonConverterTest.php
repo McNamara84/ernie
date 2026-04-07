@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Services\DataCiteJsonLdToJsonConverter;
+use App\Services\DataCiteJsonLdToJsonConverterService;
 
 beforeEach(function () {
-    $this->converter = new DataCiteJsonLdToJsonConverter;
+    $this->converter = new DataCiteJsonLdToJsonConverterService;
 });
 
-covers(DataCiteJsonLdToJsonConverter::class);
+covers(DataCiteJsonLdToJsonConverterService::class);
 
 describe('format detection and basic conversion', function () {
     it('strips @context and @id from root', function () {
