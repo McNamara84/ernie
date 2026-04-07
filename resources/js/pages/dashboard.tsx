@@ -101,16 +101,16 @@ export const handleJsonFiles = async (files: File[]): Promise<void> => {
                 throw new Error('Session expired. Reloading page...');
             }
 
+            let message = `Failed to upload ${filename}`;
             try {
                 const errorData: UploadErrorResponse = await response.json();
-                const message = errorData.message || 'Upload failed';
-                throw new Error(message);
-            } catch (parseErr) {
-                if (parseErr instanceof Error && parseErr.message !== 'Upload failed') {
-                    throw parseErr;
+                if (errorData.message) {
+                    message = errorData.message;
                 }
-                throw new Error(`Failed to upload ${filename}`, { cause: parseErr });
+            } catch {
+                // Response body is not valid JSON (e.g. HTML error page) – use generic message
             }
+            throw new Error(message);
         }
 
         const data: { sessionKey: string } = await response.json();
@@ -414,7 +414,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                 <Card className="flex flex-col items-center justify-center">
                     <CardHeader className="items-center text-center">
                         <CardTitle>Upload Files</CardTitle>
-                        <CardDescription>Upload DataCite XML files from ELMO or IGSN CSV files for sample metadata.</CardDescription>
+                        <CardDescription>Upload DataCite files (XML, JSON, JSON-LD) or IGSN CSV files for sample metadata.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
                         <UnifiedDropzone onXmlUpload={onXmlFiles} onJsonUpload={onJsonFiles} />

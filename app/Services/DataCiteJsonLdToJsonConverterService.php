@@ -224,11 +224,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertCreators(array $data): array
+    private function convertCreators(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'creator');
 
         return array_values(array_map(fn (array $creator): array => $this->convertSingleCreator($creator), $items));
@@ -321,11 +324,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertTitles(array $data): array
+    private function convertTitles(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'title');
 
         return array_values(array_map(function (mixed $item): array {
@@ -344,11 +350,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<string, string|null>
      */
-    private function convertPublisher(array $data): array
+    private function convertPublisher(mixed $data): array
     {
+        if (! is_array($data)) {
+            return is_string($data) ? ['name' => $data] : [];
+        }
+
         $result = ['name' => $this->unwrapValue($data)];
 
         if (isset($data['attrs'])) {
@@ -363,11 +372,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<string, string>
      */
-    private function convertResourceType(array $data): array
+    private function convertResourceType(mixed $data): array
     {
+        if (! is_array($data)) {
+            return is_string($data) ? ['resourceType' => $data] : [];
+        }
+
         $result = [];
 
         if (isset($data['attrs']['resourceTypeGeneral'])) {
@@ -380,11 +392,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertSubjects(array $data): array
+    private function convertSubjects(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'subject');
 
         return array_values(array_map(function (mixed $item): array {
@@ -403,11 +418,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertContributors(array $data): array
+    private function convertContributors(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'contributor');
 
         return array_values(array_map(fn (array $contributor): array => $this->convertSingleContributor($contributor), $items));
@@ -458,11 +476,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertDates(array $data): array
+    private function convertDates(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'date');
 
         return array_values(array_map(function (mixed $item): array {
@@ -482,11 +503,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, string>>
      */
-    private function convertAlternateIdentifiers(array $data): array
+    private function convertAlternateIdentifiers(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'alternateIdentifier');
 
         return array_values(array_map(function (mixed $item): array {
@@ -500,11 +524,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertRelatedIdentifiers(array $data): array
+    private function convertRelatedIdentifiers(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'relatedIdentifier');
 
         return array_values(array_map(function (mixed $item): array {
@@ -523,22 +550,28 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return list<mixed>
      */
-    private function convertSizes(array $data): array
+    private function convertSizes(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'size');
 
         return array_values(array_map(fn (mixed $item): mixed => $this->unwrapValue($item), $items));
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, string>>
      */
-    private function convertRightsList(array $data): array
+    private function convertRightsList(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'rights');
 
         return array_values(array_map(function (mixed $item): array {
@@ -557,11 +590,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertDescriptions(array $data): array
+    private function convertDescriptions(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'description');
 
         return array_values(array_map(function (mixed $item): array {
@@ -581,11 +617,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertGeoLocations(array $data): array
+    private function convertGeoLocations(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'geoLocation');
 
         return array_values(array_map(fn (array $geo): array => $this->convertSingleGeoLocation($geo), $items));
@@ -649,11 +688,14 @@ class DataCiteJsonLdToJsonConverterService
     }
 
     /**
-     * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
      */
-    private function convertFundingReferences(array $data): array
+    private function convertFundingReferences(mixed $data): array
     {
+        if (! is_array($data)) {
+            return [];
+        }
+
         $items = $this->unwrapSingularKey($data, 'fundingReference');
 
         return array_values(array_map(fn (array $item): array => $this->convertSingleFundingReference($item), $items));

@@ -30,7 +30,7 @@ class UploadJsonRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required' => 'Please upload a JSON file.',
+            'file.required' => 'Please upload a JSON or JSON-LD file.',
             'file.file' => 'The uploaded item must be a file.',
             'file.max' => 'The file must not be larger than 8 MB.',
         ];

@@ -164,18 +164,14 @@ class UploadJsonController extends Controller
         // Auto-detect format and extract attributes
         try {
             $attributes = $this->extractAttributes($decoded);
-        } catch (\RuntimeException $e) {
-            $error = UploadError::withMessage(
-                UploadErrorCode::INVALID_JSON_STRUCTURE,
-                $e->getMessage()
-            );
+        } catch (\Throwable $e) {
+            $errorCode = $e instanceof \RuntimeException
+                ? UploadErrorCode::INVALID_JSON_STRUCTURE
+                : UploadErrorCode::JSON_LD_CONVERSION_ERROR;
+            $error = UploadError::withMessage($errorCode, $e->getMessage());
             $this->uploadLogService->logFailure('json', $filename, $error);
 
-            return $this->errorResponse(
-                UploadErrorCode::INVALID_JSON_STRUCTURE,
-                $filename,
-                $e->getMessage()
-            );
+            return $this->errorResponse($errorCode, $filename, $e->getMessage());
         }
 
         // Validate against DataCite 4.7 schema (non-strict: DOI optional)
@@ -313,7 +309,15 @@ class UploadJsonController extends Controller
         if (isset($decoded['@context'])) {
             Log::info('Detected DataCite JSON-LD format, converting to JSON');
 
-            return $this->jsonLdConverter->convert($decoded);
+            try {
+                return $this->jsonLdConverter->convert($decoded);
+            } catch (\Throwable $e) {
+                Log::warning('JSON-LD conversion failed', ['error' => $e->getMessage()]);
+
+                throw new \RuntimeException(
+                    'Failed to convert JSON-LD to DataCite JSON: ' . $e->getMessage()
+                );
+            }
         }
 
         // Check for DataCite JSON API format (data.attributes)

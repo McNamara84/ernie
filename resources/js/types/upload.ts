@@ -93,23 +93,26 @@ export function isUploadError(response: UploadResponse): response is UploadError
 }
 
 /**
- * Type guard to check if response is XML success.
- * Note: Backend XML success response only contains 'sessionKey', not 'success'.
+ * Type guard to check if a session-based upload (XML or JSON) succeeded.
+ * Both XML and JSON uploads return a sessionKey for editor navigation.
  */
-export function isXmlUploadSuccess(response: UploadResponse): response is XmlUploadSuccessResponse {
+export function isSessionUploadSuccess(
+    response: UploadResponse,
+): response is XmlUploadSuccessResponse | JsonUploadSuccessResponse {
     if (!('sessionKey' in response)) return false;
     if ('success' in response) return (response as unknown as { success: unknown }).success !== false;
     return true;
 }
 
 /**
- * Type guard to check if response is JSON upload success.
+ * @deprecated Use isSessionUploadSuccess instead. Kept for backward compatibility.
  */
-export function isJsonUploadSuccess(response: UploadResponse): response is JsonUploadSuccessResponse {
-    if (!('sessionKey' in response)) return false;
-    if ('success' in response) return (response as unknown as { success: unknown }).success !== false;
-    return true;
-}
+export const isXmlUploadSuccess = isSessionUploadSuccess;
+
+/**
+ * @deprecated Use isSessionUploadSuccess instead. Kept for backward compatibility.
+ */
+export const isJsonUploadSuccess = isSessionUploadSuccess;
 
 /**
  * Type guard to check if response is CSV success.
