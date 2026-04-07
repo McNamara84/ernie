@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UploadErrorCode;
+use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\DataCiteJsonLdToJsonConverterService;
@@ -165,9 +166,9 @@ class UploadJsonController extends Controller
         try {
             $attributes = $this->extractAttributes($decoded);
         } catch (\Throwable $e) {
-            $errorCode = $e instanceof \RuntimeException
-                ? UploadErrorCode::INVALID_JSON_STRUCTURE
-                : UploadErrorCode::JSON_LD_CONVERSION_ERROR;
+            $errorCode = $e instanceof JsonLdConversionException
+                ? UploadErrorCode::JSON_LD_CONVERSION_ERROR
+                : UploadErrorCode::INVALID_JSON_STRUCTURE;
             $error = UploadError::withMessage($errorCode, $e->getMessage());
             $this->uploadLogService->logFailure('json', $filename, $error);
 
@@ -302,6 +303,7 @@ class UploadJsonController extends Controller
      * @return array<string, mixed>
      *
      * @throws \RuntimeException If format cannot be detected
+     * @throws JsonLdConversionException If JSON-LD conversion fails
      */
     private function extractAttributes(array $decoded): array
     {
@@ -314,8 +316,9 @@ class UploadJsonController extends Controller
             } catch (\Throwable $e) {
                 Log::warning('JSON-LD conversion failed', ['error' => $e->getMessage()]);
 
-                throw new \RuntimeException(
-                    'Failed to convert JSON-LD to DataCite JSON: ' . $e->getMessage()
+                throw new JsonLdConversionException(
+                    'Failed to convert JSON-LD to DataCite JSON: ' . $e->getMessage(),
+                    previous: $e,
                 );
             }
         }

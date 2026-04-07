@@ -488,7 +488,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={2} title="Upload File">
                                 <p>
                                     Drag and drop your XML, JSON, or JSON-LD file or click the dropzone to select a file.
-                                    The system automatically detects the format based on the file content.
+                                    The system routes files by extension (XML vs JSON) and then detects the JSON
+                                    sub-format (standard JSON vs JSON-LD) based on the file content.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Automatic Redirect">

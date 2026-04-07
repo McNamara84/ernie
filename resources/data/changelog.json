@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "DataCite JSON and JSON-LD Upload",
-                "description": "Resources can now be created by uploading DataCite JSON or JSON-LD files in addition to XML. The system auto-detects the format based on file content and extracts all metadata fields including authors, contributors, subjects, geo locations, funding references, and related identifiers. The upload dropzone on the dashboard now accepts .json and .jsonld files alongside XML and CSV."
+                "description": "Resources can now be created by uploading DataCite JSON or JSON-LD files in addition to XML. The dropzone routes files by extension (XML, JSON/JSON-LD, CSV) and automatically distinguishes standard DataCite JSON from JSON-LD based on the file content. All metadata fields are extracted including authors, contributors, subjects, geo locations, funding references, and related identifiers."
             },
             {
                 "title": "Data Protection Link on Landing Pages",
