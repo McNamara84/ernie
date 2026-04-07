@@ -155,3 +155,33 @@ function getJsonUploadData(TestResponse $response): array
 {
     return getXmlUploadData($response);
 }
+
+/**
+ * Build a minimal valid DataCite JSON attributes array.
+ *
+ * The DataCite 4.7 schema requires: creators, titles, publisher, publicationYear, types.
+ * This helper provides required-field defaults that tests can override.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function minimalAttributes(array $overrides = []): array
+{
+    return array_merge([
+        'titles' => [['title' => 'Test Dataset']],
+        'creators' => [['name' => 'Smith, John', 'nameType' => 'Personal']],
+        'publisher' => ['name' => 'GFZ Data Services'],
+        'publicationYear' => '2025',
+        'types' => ['resourceTypeGeneral' => 'Dataset', 'resourceType' => 'Dataset'],
+    ], $overrides);
+}
+
+/**
+ * Wrap attributes in the DataCite JSON API envelope.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function dataCiteJson(array $attributes): string
+{
+    return (string) json_encode(['data' => ['attributes' => $attributes]]);
+}
