@@ -103,8 +103,15 @@ describe('LandingPageLayout', () => {
             </LandingPageLayout>
         );
 
-        const externalLink = screen.getByRole('link', { name: 'www.gfz-potsdam.de' });
-        expect(externalLink).toHaveAttribute('target', '_blank');
-        expect(externalLink).toHaveAttribute('rel', 'noopener noreferrer');
+        const externalLinks = [
+            screen.getByRole('link', { name: 'www.gfz-potsdam.de' }),
+            screen.getByRole('link', { name: 'Data Services' }),
+            screen.getByRole('link', { name: 'Data Protection' }),
+        ];
+
+        for (const link of externalLinks) {
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        }
     });
 });
