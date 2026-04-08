@@ -125,19 +125,6 @@ class UploadJsonController extends Controller
             return $this->errorResponse(UploadErrorCode::FILE_UNREADABLE, $filename);
         }
 
-        // Validate file extension
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (! in_array($extension, ['json', 'jsonld'], true)) {
-            $error = UploadError::fromCode(UploadErrorCode::INVALID_FILE_TYPE);
-            $this->uploadLogService->logFailure('json', $filename, $error);
-
-            return $this->errorResponse(
-                UploadErrorCode::INVALID_FILE_TYPE,
-                $filename,
-                'The file must be a JSON (.json) or JSON-LD (.jsonld) file.',
-            );
-        }
-
         // Parse JSON
         try {
             $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
@@ -215,7 +202,7 @@ class UploadJsonController extends Controller
 
         // Extract all metadata fields
         try {
-            $doi = $attributes['doi'] ?? null;
+            $doi = $attributes['doi'] ?? $this->extractDoiFromIdentifiers($attributes['identifiers'] ?? []);
             $year = isset($attributes['publicationYear']) ? (string) $attributes['publicationYear'] : null;
             $version = $attributes['version'] ?? null;
             $language = $attributes['language'] ?? null;
@@ -343,6 +330,25 @@ class UploadJsonController extends Controller
         throw new \RuntimeException(
             'Unrecognized JSON format. Expected DataCite JSON (with data.attributes) or DataCite JSON-LD (with @context).'
         );
+    }
+
+    /**
+     * Extract DOI from the identifiers array when not present as top-level attribute.
+     *
+     * @param  array<int, array<string, mixed>>  $identifiers
+     */
+    private function extractDoiFromIdentifiers(array $identifiers): ?string
+    {
+        foreach ($identifiers as $identifier) {
+            $type = $identifier['identifierType'] ?? null;
+            $value = $identifier['identifier'] ?? null;
+
+            if (is_string($type) && strcasecmp($type, 'DOI') === 0 && is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

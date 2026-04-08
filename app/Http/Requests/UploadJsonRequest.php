@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,7 +19,20 @@ class UploadJsonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'max:8192'],
+            'file' => [
+                'required',
+                'file',
+                'max:8192',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! ($value instanceof \Illuminate\Http\UploadedFile)) {
+                        return;
+                    }
+                    $extension = strtolower($value->getClientOriginalExtension());
+                    if (! in_array($extension, ['json', 'jsonld'], true)) {
+                        $fail('The file must be a JSON (.json) or JSON-LD (.jsonld) file.');
+                    }
+                },
+            ],
         ];
     }
 
