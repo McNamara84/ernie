@@ -156,10 +156,17 @@ class UploadJsonController extends Controller
             $errorCode = $e instanceof JsonLdConversionException
                 ? UploadErrorCode::JSON_LD_CONVERSION_ERROR
                 : UploadErrorCode::INVALID_JSON_STRUCTURE;
+
+            Log::warning('JSON upload format detection failed', [
+                'filename' => $filename,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             $error = UploadError::withMessage($errorCode, $e->getMessage());
             $this->uploadLogService->logFailure('json', $filename, $error);
 
-            return $this->errorResponse($errorCode, $filename, $e->getMessage());
+            return $this->errorResponse($errorCode, $filename);
         }
 
         // Validate against DataCite 4.7 schema (non-strict: DOI optional)

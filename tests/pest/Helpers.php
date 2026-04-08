@@ -183,5 +183,5 @@ function minimalAttributes(array $overrides = []): array
  */
 function dataCiteJson(array $attributes): string
 {
-    return (string) json_encode(['data' => ['attributes' => $attributes]]);
+    return json_encode(['data' => ['attributes' => $attributes]], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 }
