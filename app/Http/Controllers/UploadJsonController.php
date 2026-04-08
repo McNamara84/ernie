@@ -749,8 +749,12 @@ class UploadJsonController extends Controller
 
             // MSL vocabulary
             if ($scheme === self::MSL_VOCABULARY_SCHEME) {
+                if (! is_string($valueUri) || trim($valueUri) === '') {
+                    continue;
+                }
+
                 $keyword = [
-                    'id' => is_string($valueUri) ? trim($valueUri) : '',
+                    'id' => trim($valueUri),
                     'text' => $this->extractLastPathSegment($text),
                     'path' => $text,
                     'language' => 'en',
@@ -769,8 +773,12 @@ class UploadJsonController extends Controller
 
             // GEMET vocabulary
             if (is_string($scheme) && $scheme === self::GEMET_VOCABULARY_SCHEME) {
+                if (! is_string($valueUri) || trim($valueUri) === '') {
+                    continue;
+                }
+
                 $keyword = [
-                    'id' => is_string($valueUri) ? trim($valueUri) : '',
+                    'id' => trim($valueUri),
                     'text' => $this->extractLastPathSegment($text),
                     'path' => $text,
                     'language' => 'en',
