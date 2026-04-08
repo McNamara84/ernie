@@ -833,11 +833,21 @@ class UploadJsonController extends Controller
                 continue;
             }
 
-            // Unknown scheme with valueURI or classificationCode → treat as GCMD-like
-            if (is_string($scheme) && (is_string($valueUri) || is_string($classificationCode))) {
+            // Unknown scheme with non-empty valueURI or classificationCode → treat as GCMD-like
+            if (is_string($scheme) && (
+                (is_string($valueUri) && trim($valueUri) !== '') ||
+                (is_string($classificationCode) && trim($classificationCode) !== '')
+            )) {
+                $id = '';
+                if (is_string($valueUri) && trim($valueUri) !== '') {
+                    $id = trim($valueUri);
+                } elseif (is_string($classificationCode)) {
+                    $id = $classificationCode;
+                }
+
                 $keyword = [
                     'uuid' => '',
-                    'id' => is_string($valueUri) && $valueUri !== '' ? trim($valueUri) : (is_string($classificationCode) ? $classificationCode : ''),
+                    'id' => $id,
                     'text' => $text,
                     'path' => $text,
                     'scheme' => $scheme,

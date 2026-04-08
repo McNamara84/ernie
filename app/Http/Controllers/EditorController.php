@@ -25,7 +25,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class EditorController extends Controller
 {
     /**
-     * Required array keys in XML session data.
+     * Required array keys in upload session data (XML and JSON uploads).
      *
      * @var array<int, string>
      */
