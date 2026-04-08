@@ -431,7 +431,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 <p className="mb-2 text-sm font-medium text-foreground">Drag &amp; drop files here</p>
                 <p className="mb-4 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
-                        <FileText className="h-3 w-3" /> DataCite (XML/JSON)
+                        <FileText className="h-3 w-3" /> DataCite (XML/JSON/JSON-LD)
                     </span>
                     {' or '}
                     <span className="inline-flex items-center gap-1">
