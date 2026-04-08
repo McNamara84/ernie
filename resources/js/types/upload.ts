@@ -99,7 +99,7 @@ export function isUploadError(response: UploadResponse): response is UploadError
 export function isSessionUploadSuccess(
     response: UploadResponse,
 ): response is XmlUploadSuccessResponse | JsonUploadSuccessResponse {
-    return 'sessionKey' in response && !('success' in response && response.success === false);
+    return 'sessionKey' in response;
 }
 
 /**
