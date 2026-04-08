@@ -314,9 +314,12 @@ class UploadJsonController extends Controller
         if (isset($decoded['data']['attributes']) && is_array($decoded['data']['attributes'])) {
             $attributes = $decoded['data']['attributes'];
 
-            // Carry over DOI from data.attributes if present
-            if (isset($decoded['data']['attributes']['doi'])) {
-                $attributes['doi'] = $decoded['data']['attributes']['doi'];
+            // Populate DOI from data.id (primary location in DataCite REST API)
+            if (! isset($attributes['doi']) || ! is_string($attributes['doi']) || trim($attributes['doi']) === '') {
+                $dataId = $decoded['data']['id'] ?? null;
+                if (is_string($dataId) && trim($dataId) !== '') {
+                    $attributes['doi'] = trim($dataId);
+                }
             }
 
             return $attributes;
