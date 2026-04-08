@@ -247,8 +247,8 @@ describe('JSON Upload - Geo location edge cases', function () {
 
         expect($data['coverages'])->toHaveCount(1);
         expect($data['coverages'][0]['polygonPoints'])->toHaveCount(4);
-        expect($data['coverages'][0]['polygonPoints'][0]['latitude'])->toBe(52.0);
-        expect($data['coverages'][0]['polygonPoints'][0]['longitude'])->toBe(13.0);
+        expect($data['coverages'][0]['polygonPoints'][0]['lat'])->toBe(52.0);
+        expect($data['coverages'][0]['polygonPoints'][0]['lon'])->toBe(13.0);
     });
 
     test('creates temporal-only coverage from dates', function () {

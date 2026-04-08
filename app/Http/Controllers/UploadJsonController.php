@@ -384,9 +384,10 @@ class UploadJsonController extends Controller
             }
 
             $titleType = $title['titleType'] ?? null;
+            $normalizedType = is_string($titleType) && trim($titleType) !== '' ? Str::kebab($titleType) : 'main-title';
             $result[] = [
                 'title' => $titleText,
-                'titleType' => $titleType !== null ? Str::kebab($titleType) : 'main-title',
+                'titleType' => $normalizedType,
             ];
         }
 
@@ -690,8 +691,8 @@ class UploadJsonController extends Controller
                 $polygonPoints = $polygon['polygonPoints'] ?? [];
                 foreach ($polygonPoints as $pt) {
                     $points[] = [
-                        'latitude' => (float) ($pt['pointLatitude'] ?? 0),
-                        'longitude' => (float) ($pt['pointLongitude'] ?? 0),
+                        'lat' => (float) ($pt['pointLatitude'] ?? 0),
+                        'lon' => (float) ($pt['pointLongitude'] ?? 0),
                     ];
                 }
 
