@@ -19,7 +19,7 @@ class UploadLogService
     /**
      * Log an upload failure.
      *
-     * @param  'xml'|'csv'  $uploadType  Type of upload (xml or csv)
+     * @param  'xml'|'json'|'csv'  $uploadType  Type of upload (xml, json, or csv)
      * @param  string  $filename  Name of the uploaded file
      * @param  UploadError  $error  Structured error information
      * @param  array<string, mixed>  $context  Additional context for logging
@@ -52,7 +52,7 @@ class UploadLogService
     /**
      * Log a simple upload failure from an error code.
      *
-     * @param  'xml'|'csv'  $uploadType
+     * @param  'xml'|'json'|'csv'  $uploadType
      * @param  array<string, mixed>  $context
      */
     public function logSimpleFailure(
@@ -125,7 +125,7 @@ class UploadLogService
     /**
      * Log a successful upload (for audit trail).
      *
-     * @param  'xml'|'csv'  $uploadType
+     * @param  'xml'|'json'|'csv'  $uploadType
      * @param  array<string, mixed>  $context
      */
     public function logSuccess(

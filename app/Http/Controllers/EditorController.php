@@ -25,22 +25,22 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class EditorController extends Controller
 {
     /**
-     * Required array keys in XML session data.
+     * Required array keys in upload session data (XML and JSON uploads).
      *
      * @var array<int, string>
      */
-    private const XML_SESSION_REQUIRED_ARRAY_KEYS = [
+    private const UPLOAD_SESSION_REQUIRED_ARRAY_KEYS = [
         'titles', 'licenses', 'authors', 'contributors', 'descriptions',
         'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
         'coverages', 'relatedWorks', 'instruments', 'fundingReferences', 'mslLaboratories',
     ];
 
     /**
-     * Scalar keys that must be string/numeric in XML session data.
+     * Scalar keys that must be string/numeric in upload session data.
      *
      * @var array<int, string>
      */
-    private const XML_SESSION_SCALAR_KEYS = [
+    private const UPLOAD_SESSION_SCALAR_KEYS = [
         'doi', 'year', 'version', 'language', 'resourceType',
     ];
 
@@ -57,12 +57,18 @@ class EditorController extends Controller
     public function show(Request $request): Response|\Illuminate\Http\RedirectResponse
     {
         $xmlSessionKey = $request->query('xmlSession');
+        $jsonSessionKey = $request->query('jsonSession');
         $oldDatasetId = $request->query('oldDatasetId');
         $resourceId = $request->query('resourceId');
 
         // Priority 1: XML session data
         if ($xmlSessionKey !== null && is_string($xmlSessionKey)) {
             return $this->loadFromXmlSession($xmlSessionKey);
+        }
+
+        // Priority 1b: JSON session data
+        if ($jsonSessionKey !== null && is_string($jsonSessionKey)) {
+            return $this->loadFromUploadSession($jsonSessionKey, 'json_upload_', 'JSON');
         }
 
         // Priority 2: Legacy database
@@ -100,14 +106,74 @@ class EditorController extends Controller
         }
 
         // Validate session data structure to prevent tampering
-        foreach (self::XML_SESSION_REQUIRED_ARRAY_KEYS as $key) {
+        foreach (self::UPLOAD_SESSION_REQUIRED_ARRAY_KEYS as $key) {
             if (isset($sessionData[$key]) && ! is_array($sessionData[$key])) {
                 abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be an array');
             }
         }
 
         // Validate scalar fields are strings if present
-        foreach (self::XML_SESSION_SCALAR_KEYS as $key) {
+        foreach (self::UPLOAD_SESSION_SCALAR_KEYS as $key) {
+            if (isset($sessionData[$key]) && ! is_string($sessionData[$key]) && ! is_numeric($sessionData[$key])) {
+                abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be a string or numeric');
+            }
+        }
+
+        return Inertia::render('editor', array_merge(
+            $this->transformer->getCommonProps(),
+            [
+                'doi' => $sessionData['doi'] ?? '',
+                'year' => $sessionData['year'] ?? '',
+                'version' => $sessionData['version'] ?? '',
+                'language' => $sessionData['language'] ?? '',
+                'resourceType' => $sessionData['resourceType'] ?? '',
+                'titles' => $sessionData['titles'] ?? [],
+                'initialLicenses' => $sessionData['licenses'] ?? [],
+                'authors' => $sessionData['authors'] ?? [],
+                'contributors' => $sessionData['contributors'] ?? [],
+                'descriptions' => $sessionData['descriptions'] ?? [],
+                'dates' => $sessionData['dates'] ?? [],
+                'gcmdKeywords' => $sessionData['gcmdKeywords'] ?? [],
+                'freeKeywords' => $sessionData['freeKeywords'] ?? [],
+                'mslKeywords' => $sessionData['mslKeywords'] ?? [],
+                'gemetKeywords' => $sessionData['gemetKeywords'] ?? [],
+                'coverages' => $sessionData['coverages'] ?? [],
+                'relatedWorks' => $sessionData['relatedWorks'] ?? [],
+                'instruments' => $sessionData['instruments'] ?? [],
+                'fundingReferences' => $sessionData['fundingReferences'] ?? [],
+                'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
+            ]
+        ));
+    }
+
+    /**
+     * Load editor data from a generic upload session (JSON, etc.).
+     *
+     * @param  string  $sessionKey  Session key to look up
+     * @param  string  $prefix  Required prefix (e.g. 'json_upload_')
+     * @param  string  $label  Human-readable format label for error messages
+     */
+    private function loadFromUploadSession(string $sessionKey, string $prefix, string $label): Response|\Illuminate\Http\RedirectResponse
+    {
+        if (! str_starts_with($sessionKey, $prefix)) {
+            abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session key format');
+        }
+
+        $sessionData = session()->pull($sessionKey);
+
+        if (! is_array($sessionData)) {
+            return redirect()->route('dashboard')
+                ->with('error', $label.' upload session expired. Please upload the file again.');
+        }
+
+        // Validate session data structure
+        foreach (self::UPLOAD_SESSION_REQUIRED_ARRAY_KEYS as $key) {
+            if (isset($sessionData[$key]) && ! is_array($sessionData[$key])) {
+                abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be an array');
+            }
+        }
+
+        foreach (self::UPLOAD_SESSION_SCALAR_KEYS as $key) {
             if (isset($sessionData[$key]) && ! is_string($sessionData[$key]) && ! is_numeric($sessionData[$key])) {
                 abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be a string or numeric');
             }

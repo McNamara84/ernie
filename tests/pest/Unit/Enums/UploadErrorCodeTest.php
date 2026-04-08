@@ -12,8 +12,8 @@ covers(UploadErrorCode::class, UploadError::class);
 // =========================================================================
 
 describe('UploadErrorCode', function () {
-    it('has 19 error codes', function () {
-        expect(UploadErrorCode::cases())->toHaveCount(19);
+    it('has 23 error codes', function () {
+        expect(UploadErrorCode::cases())->toHaveCount(23);
     });
 
     it('returns a human-readable message for every code', function () {

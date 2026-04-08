@@ -5,8 +5,11 @@ import {
     getUploadErrors,
     hasMultipleErrors,
     isCsvUploadSuccess,
+    isJsonUploadSuccess,
+    isSessionUploadSuccess,
     isUploadError,
     isXmlUploadSuccess,
+    type JsonUploadSuccessResponse,
     type UploadError,
     type UploadErrorResponse,
     type XmlUploadSuccessResponse,
@@ -33,23 +36,44 @@ describe('Upload Types', () => {
         });
     });
 
-    describe('isXmlUploadSuccess', () => {
+    describe('isSessionUploadSuccess', () => {
         it('returns true for XML success response with explicit success', () => {
             const response: XmlUploadSuccessResponse = {
                 success: true,
                 sessionKey: 'abc123',
             };
 
-            expect(isXmlUploadSuccess(response)).toBe(true);
+            expect(isSessionUploadSuccess(response)).toBe(true);
         });
 
         it('returns true for XML success response without success field (real backend response)', () => {
-            // Backend XML upload only returns { sessionKey: '...' }
             const response = {
                 sessionKey: 'abc123',
             } as XmlUploadSuccessResponse;
 
-            expect(isXmlUploadSuccess(response)).toBe(true);
+            expect(isSessionUploadSuccess(response)).toBe(true);
+        });
+
+        it('returns true for JSON upload success response', () => {
+            const response: JsonUploadSuccessResponse = {
+                sessionKey: 'json_upload_abc123',
+            };
+
+            expect(isSessionUploadSuccess(response)).toBe(true);
+        });
+
+        it('returns false for error response', () => {
+            const response: UploadErrorResponse = {
+                success: false,
+                message: 'Invalid JSON',
+                error: {
+                    category: 'data',
+                    code: 'json_parse_error',
+                    message: 'Invalid JSON',
+                },
+            };
+
+            expect(isSessionUploadSuccess(response)).toBe(false);
         });
 
         it('returns false for CSV success response', () => {
@@ -58,7 +82,17 @@ describe('Upload Types', () => {
                 created: 5,
             };
 
-            expect(isXmlUploadSuccess(response)).toBe(false);
+            expect(isSessionUploadSuccess(response)).toBe(false);
+        });
+    });
+
+    describe('deprecated aliases', () => {
+        it('isXmlUploadSuccess is an alias for isSessionUploadSuccess', () => {
+            expect(isXmlUploadSuccess).toBe(isSessionUploadSuccess);
+        });
+
+        it('isJsonUploadSuccess is an alias for isSessionUploadSuccess', () => {
+            expect(isJsonUploadSuccess).toBe(isSessionUploadSuccess);
         });
     });
 

@@ -141,3 +141,47 @@ function assertArraySubset(array $expected, mixed $actual, string $path = ''): v
         }
     }
 }
+
+/**
+ * Helper function to extract JSON upload data from session-based response.
+ *
+ * Identical to getXmlUploadData – the UploadJsonController also stores
+ * parsed metadata in the session and returns a sessionKey.
+ *
+ * @param  TestResponse  $response  The response from /dashboard/upload-json endpoint
+ * @return array<string, mixed> The uploaded JSON data stored in session
+ */
+function getJsonUploadData(TestResponse $response): array
+{
+    return getXmlUploadData($response);
+}
+
+/**
+ * Build a minimal valid DataCite JSON attributes array.
+ *
+ * The DataCite 4.7 schema requires: creators, titles, publisher, publicationYear, types.
+ * This helper provides required-field defaults that tests can override.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function minimalAttributes(array $overrides = []): array
+{
+    return array_merge([
+        'titles' => [['title' => 'Test Dataset']],
+        'creators' => [['name' => 'Smith, John', 'nameType' => 'Personal']],
+        'publisher' => ['name' => 'GFZ Data Services'],
+        'publicationYear' => '2025',
+        'types' => ['resourceTypeGeneral' => 'Dataset', 'resourceType' => 'Dataset'],
+    ], $overrides);
+}
+
+/**
+ * Wrap attributes in the DataCite JSON API envelope.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function dataCiteJson(array $attributes): string
+{
+    return json_encode(['data' => ['attributes' => $attributes]], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+}

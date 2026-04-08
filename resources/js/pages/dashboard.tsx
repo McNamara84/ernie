@@ -9,27 +9,27 @@ import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
-import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
+import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { UploadErrorResponse } from '@/types/upload';
 
-export const handleXmlFiles = async (files: File[]): Promise<void> => {
-    if (!files.length) return;
-
+/**
+ * Shared helper for session-based file uploads (XML, JSON, JSON-LD).
+ * Posts the file to the given route and navigates to the editor with the session key.
+ */
+async function uploadSessionFile(file: File, route: { url: () => string }, sessionQueryKey: string): Promise<void> {
     const csrfHeaders = buildCsrfHeaders();
 
-    // Accept either the unencrypted meta token (X-CSRF-TOKEN) or the
-    // encrypted cookie token (X-XSRF-TOKEN) — Laravel decrypts the latter.
     if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
         throw new Error('CSRF token not found. Please reload the page (Ctrl+F5) and try again.');
     }
 
     const formData = new FormData();
-    formData.append('file', files[0]);
-    const filename = files[0].name;
+    formData.append('file', file);
+    const filename = file.name;
 
     try {
-        const response = await fetch(uploadXmlRoute.url(), {
+        const response = await fetch(route.url(), {
             method: 'POST',
             body: formData,
             headers: csrfHeaders,
@@ -37,44 +37,49 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         });
 
         if (!response.ok) {
-            // Handle 419 CSRF token mismatch specifically
             if (response.status === 419) {
                 console.warn('CSRF token expired, reloading page...');
                 window.location.reload();
                 throw new Error('Session expired. Reloading page...');
             }
 
-            // Try to parse structured error response
+            let message = `Failed to upload ${filename}`;
             try {
                 const errorData: UploadErrorResponse = await response.json();
-                // Include filename in error for better context
-                const message = errorData.message || 'Upload failed';
-                throw new Error(message);
-            } catch (parseErr) {
-                // If parsing fails, throw generic error
-                if (parseErr instanceof Error && parseErr.message !== 'Upload failed') {
-                    throw parseErr;
+                if (errorData.message) {
+                    message = errorData.message;
                 }
-                throw new Error(`Failed to upload ${filename}`, { cause: parseErr });
+            } catch {
+                // Response body is not valid JSON (e.g. HTML error page) – use generic message
             }
+            throw new Error(message);
         }
 
-        // Backend now returns a session key instead of all data
         const data: { sessionKey: string } = await response.json();
 
-        // Navigate to editor with session key
-        router.get(editorRoute({ query: { xmlSession: data.sessionKey } }).url);
+        router.get(editorRoute({ query: { [sessionQueryKey]: data.sessionKey } }).url);
     } catch (error) {
-        console.error('XML upload failed', error);
+        console.error(`${sessionQueryKey} upload failed`, error);
         if (error instanceof Error) {
             throw error;
         }
         throw new Error(`Failed to upload ${filename}`, { cause: error });
     }
+}
+
+export const handleXmlFiles = async (files: File[]): Promise<void> => {
+    if (!files.length) return;
+    await uploadSessionFile(files[0], uploadXmlRoute, 'xmlSession');
+};
+
+export const handleJsonFiles = async (files: File[]): Promise<void> => {
+    if (!files.length) return;
+    await uploadSessionFile(files[0], uploadJsonRoute, 'jsonSession');
 };
 
 type DashboardProps = {
     onXmlFiles?: (files: File[]) => Promise<void>;
+    onJsonFiles?: (files: File[]) => Promise<void>;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -99,7 +104,7 @@ type DashboardPageProps = SharedData & {
     laravelVersion?: string;
 };
 
-export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
+export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = handleJsonFiles }: DashboardProps = {}) {
     const {
         auth,
         dataResourceCount,
@@ -361,10 +366,10 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                 <Card className="flex flex-col items-center justify-center">
                     <CardHeader className="items-center text-center">
                         <CardTitle>Upload Files</CardTitle>
-                        <CardDescription>Upload DataCite XML files from ELMO or IGSN CSV files for sample metadata.</CardDescription>
+                        <CardDescription>Upload DataCite files (XML, JSON, JSON-LD) or IGSN CSV files for sample metadata.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
-                        <UnifiedDropzone onXmlUpload={onXmlFiles} />
+                        <UnifiedDropzone onXmlUpload={onXmlFiles} onJsonUpload={onJsonFiles} />
                     </CardContent>
                 </Card>
             </div>

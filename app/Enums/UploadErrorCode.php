@@ -24,6 +24,12 @@ enum UploadErrorCode: string
     case INVALID_XML_STRUCTURE = 'invalid_xml_structure';
     case INVALID_DOI_FORMAT = 'invalid_doi_format';
 
+    // JSON-specific errors
+    case JSON_PARSE_ERROR = 'json_parse_error';
+    case INVALID_JSON_STRUCTURE = 'invalid_json_structure';
+    case JSON_SCHEMA_VALIDATION_ERROR = 'json_schema_validation_error';
+    case JSON_LD_CONVERSION_ERROR = 'json_ld_conversion_error';
+
     // CSV-specific errors
     case CSV_PARSE_ERROR = 'csv_parse_error';
     case INVALID_CSV_STRUCTURE = 'invalid_csv_structure';
@@ -55,6 +61,10 @@ enum UploadErrorCode: string
             self::XML_PARSE_ERROR => 'The XML file could not be parsed.',
             self::INVALID_XML_STRUCTURE => 'The XML structure is invalid or does not conform to DataCite schema.',
             self::INVALID_DOI_FORMAT => 'The DOI format is invalid.',
+            self::JSON_PARSE_ERROR => 'The JSON file could not be parsed.',
+            self::INVALID_JSON_STRUCTURE => 'The JSON structure is invalid. Expected DataCite JSON or DataCite JSON-LD format.',
+            self::JSON_SCHEMA_VALIDATION_ERROR => 'The JSON file does not conform to the DataCite 4.7 schema.',
+            self::JSON_LD_CONVERSION_ERROR => 'The JSON-LD file could not be converted to DataCite JSON.',
             self::CSV_PARSE_ERROR => 'The CSV file could not be parsed.',
             self::INVALID_CSV_STRUCTURE => 'The CSV structure is invalid.',
             self::MISSING_HEADER => 'A required CSV header is missing.',
@@ -89,6 +99,10 @@ enum UploadErrorCode: string
             self::XML_PARSE_ERROR,
             self::INVALID_XML_STRUCTURE,
             self::INVALID_DOI_FORMAT,
+            self::JSON_PARSE_ERROR,
+            self::INVALID_JSON_STRUCTURE,
+            self::JSON_SCHEMA_VALIDATION_ERROR,
+            self::JSON_LD_CONVERSION_ERROR,
             self::CSV_PARSE_ERROR,
             self::INVALID_CSV_STRUCTURE,
             self::MISSING_HEADER,

@@ -147,7 +147,7 @@ describe('Docs page', () => {
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched by checking Datasets-only content is rendered
-        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         // Legacy Import requires admin role
         expect(screen.queryByText('Importing from Old Datasets')).not.toBeInTheDocument();
     });
@@ -159,7 +159,7 @@ describe('Docs page', () => {
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched and admin sees Legacy Import
-        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Importing from Old Datasets')).toBeInTheDocument();
     });
 
@@ -170,7 +170,7 @@ describe('Docs page', () => {
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched by checking Datasets-only content is rendered
-        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         // Landing Pages requires curator role
         expect(screen.queryByText('Creating Landing Pages')).not.toBeInTheDocument();
     });
@@ -182,7 +182,7 @@ describe('Docs page', () => {
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched and curator sees Landing Pages
-        expect(screen.getByText('Uploading XML Files')).toBeInTheDocument();
+        expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
     });
 
