@@ -29,18 +29,18 @@ class EditorController extends Controller
      *
      * @var array<int, string>
      */
-    private const XML_SESSION_REQUIRED_ARRAY_KEYS = [
+    private const UPLOAD_SESSION_REQUIRED_ARRAY_KEYS = [
         'titles', 'licenses', 'authors', 'contributors', 'descriptions',
         'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
         'coverages', 'relatedWorks', 'instruments', 'fundingReferences', 'mslLaboratories',
     ];
 
     /**
-     * Scalar keys that must be string/numeric in XML session data.
+     * Scalar keys that must be string/numeric in upload session data.
      *
      * @var array<int, string>
      */
-    private const XML_SESSION_SCALAR_KEYS = [
+    private const UPLOAD_SESSION_SCALAR_KEYS = [
         'doi', 'year', 'version', 'language', 'resourceType',
     ];
 
@@ -106,14 +106,14 @@ class EditorController extends Controller
         }
 
         // Validate session data structure to prevent tampering
-        foreach (self::XML_SESSION_REQUIRED_ARRAY_KEYS as $key) {
+        foreach (self::UPLOAD_SESSION_REQUIRED_ARRAY_KEYS as $key) {
             if (isset($sessionData[$key]) && ! is_array($sessionData[$key])) {
                 abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be an array');
             }
         }
 
         // Validate scalar fields are strings if present
-        foreach (self::XML_SESSION_SCALAR_KEYS as $key) {
+        foreach (self::UPLOAD_SESSION_SCALAR_KEYS as $key) {
             if (isset($sessionData[$key]) && ! is_string($sessionData[$key]) && ! is_numeric($sessionData[$key])) {
                 abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be a string or numeric');
             }
@@ -167,13 +167,13 @@ class EditorController extends Controller
         }
 
         // Validate session data structure
-        foreach (self::XML_SESSION_REQUIRED_ARRAY_KEYS as $key) {
+        foreach (self::UPLOAD_SESSION_REQUIRED_ARRAY_KEYS as $key) {
             if (isset($sessionData[$key]) && ! is_array($sessionData[$key])) {
                 abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be an array');
             }
         }
 
-        foreach (self::XML_SESSION_SCALAR_KEYS as $key) {
+        foreach (self::UPLOAD_SESSION_SCALAR_KEYS as $key) {
             if (isset($sessionData[$key]) && ! is_string($sessionData[$key]) && ! is_numeric($sessionData[$key])) {
                 abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session data structure: '.$key.' must be a string or numeric');
             }
