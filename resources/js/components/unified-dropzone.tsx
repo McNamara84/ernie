@@ -280,6 +280,8 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             } else if (type === 'csv') {
                 await uploadCsv(file);
             } else {
+                resetState();
+                setSelectedFile(file);
                 setUploadState('error');
                 setError('Unsupported file type. Please upload an XML, JSON, or CSV file.');
             }

@@ -961,11 +961,6 @@ class UploadJsonController extends Controller
     }
 
     /**
-     * Extract ORCID from nameIdentifiers array.
-     *
-     * @param  array<int, array<string, mixed>>  $nameIdentifiers
-     */
-    /**
      * Split a "FamilyName, GivenName" string into parts.
      *
      * @return array{familyName: string|null, givenName: string|null}
