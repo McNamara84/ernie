@@ -89,7 +89,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             After logging in at <code>/login</code>, you will be redirected to the Dashboard. The Dashboard is your central hub for:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Uploading XML or JSON files from ELMO or DataCite</li>
+                            <li>Uploading XML files from ELMO or DataCite JSON/JSON-LD files</li>
                             <li>Uploading IGSN CSV files for physical samples</li>
                             <li>Viewing resource statistics</li>
                             <li>Quick access to recent resources</li>
