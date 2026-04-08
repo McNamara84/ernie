@@ -384,9 +384,9 @@ describe('JSON Upload - Flat DataCite JSON format', function () {
     test('accepts flat attributes without data wrapper', function () {
         $this->actingAs(User::factory()->create());
 
-        $json = (string) json_encode(minimalAttributes([
+        $json = json_encode(minimalAttributes([
             'titles' => [['title' => 'Flat Format Test']],
-        ]));
+        ]), JSON_THROW_ON_ERROR);
         $file = UploadedFile::fake()->createWithContent('flat.json', $json);
 
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
@@ -403,7 +403,7 @@ describe('JSON Upload - JSON-LD format', function () {
     test('accepts JSON-LD with @context and converts to DataCite JSON', function () {
         $this->actingAs(User::factory()->create());
 
-        $jsonLd = (string) json_encode([
+        $jsonLd = json_encode([
             '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
             '@id' => 'https://doi.org/10.5880/test.2025.jsonld',
             'titles' => [
@@ -425,7 +425,7 @@ describe('JSON Upload - JSON-LD format', function () {
                 'attrs' => ['resourceTypeGeneral' => 'Dataset'],
                 'value' => 'Dataset',
             ],
-        ]);
+        ], JSON_THROW_ON_ERROR);
 
         $file = UploadedFile::fake()->createWithContent('test.jsonld', $jsonLd);
 
@@ -442,7 +442,7 @@ describe('JSON Upload - JSON-LD format', function () {
     test('accepts JSON-LD with attrs/value pattern for titles', function () {
         $this->actingAs(User::factory()->create());
 
-        $jsonLd = (string) json_encode([
+        $jsonLd = json_encode([
             '@context' => 'https://schema.datacite.org/meta/kernel-4.7/doc/jsonldcontext.jsonld',
             'titles' => [
                 'title' => [

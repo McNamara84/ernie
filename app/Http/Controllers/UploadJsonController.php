@@ -677,11 +677,16 @@ class UploadJsonController extends Controller
                 $coverage['description'] = trim($geo['geoLocationPlace']);
             }
 
-            // geoLocationPoint
+            // geoLocationPoint (only set when both coordinates are present)
             if (isset($geo['geoLocationPoint'])) {
                 $point = $geo['geoLocationPoint'];
-                $coverage['latMin'] = $this->formatCoordinate((string) ($point['pointLatitude'] ?? ''));
-                $coverage['lonMin'] = $this->formatCoordinate((string) ($point['pointLongitude'] ?? ''));
+                $lat = $this->formatCoordinate((string) ($point['pointLatitude'] ?? ''));
+                $lon = $this->formatCoordinate((string) ($point['pointLongitude'] ?? ''));
+
+                if ($lat !== '' && $lon !== '') {
+                    $coverage['latMin'] = $lat;
+                    $coverage['lonMin'] = $lon;
+                }
             }
 
             // geoLocationBox (takes precedence)
@@ -699,11 +704,24 @@ class UploadJsonController extends Controller
                 $points = [];
 
                 $polygonPoints = $polygon['polygonPoints'] ?? [];
-                foreach ($polygonPoints as $pt) {
-                    $points[] = [
-                        'lat' => (float) ($pt['pointLatitude'] ?? 0),
-                        'lon' => (float) ($pt['pointLongitude'] ?? 0),
-                    ];
+                if (is_array($polygonPoints)) {
+                    foreach ($polygonPoints as $pt) {
+                        if (! is_array($pt)) {
+                            continue;
+                        }
+
+                        $lat = $pt['pointLatitude'] ?? null;
+                        $lon = $pt['pointLongitude'] ?? null;
+
+                        if (! is_numeric($lat) || ! is_numeric($lon)) {
+                            continue;
+                        }
+
+                        $points[] = [
+                            'lat' => (float) $lat,
+                            'lon' => (float) $lon,
+                        ];
+                    }
                 }
 
                 if (count($points) > 0) {
