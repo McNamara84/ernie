@@ -325,15 +325,16 @@ class IgsnDifXmlParser
             return;
         }
 
-        $dateValue = $startDate ?? '';
-        if ($endDate !== null && $endDate !== $startDate) {
-            $dateValue .= " – {$endDate}";
-        }
+        // Use start_date/end_date for ranges (consistent with DataCiteToResourceTransformer
+        // and IgsnStorageService); date_value only for single-date cases.
+        $hasRange = $startDate !== null && $endDate !== null;
 
         ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $this->collectedDateTypeId,
-            'date_value' => trim($dateValue),
+            'date_value' => $hasRange ? null : ($startDate ?? $endDate),
+            'start_date' => $hasRange ? $startDate : null,
+            'end_date' => $hasRange ? $endDate : null,
         ]);
     }
 

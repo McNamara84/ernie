@@ -135,8 +135,9 @@ describe('IgsnDifXmlParser', function () {
 
         $date = ResourceDate::where('resource_id', $this->resource->id)->first();
         expect($date)->not->toBeNull();
-        expect($date->date_value)->toContain('2020-06-15');
-        expect($date->date_value)->toContain('2020-06-20');
+        expect($date->date_value)->toBeNull();
+        expect($date->start_date)->toBe('2020-06-15');
+        expect($date->end_date)->toBe('2020-06-20');
     });
 
     it('maps collector as ResourceContributor', function () {
