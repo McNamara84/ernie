@@ -135,6 +135,7 @@ const defaultProps = {
     sort: { key: 'updated_at' as const, direction: 'desc' as const },
     canDelete: true,
     canRegister: true,
+    canImport: false,
     search: '',
     totalCount: 2,
     filters: { prefix: '', status: '' },

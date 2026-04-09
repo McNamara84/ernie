@@ -53,6 +53,8 @@ describe('Services', function () {
             'App\Services\DataCiteLinkedDataExporter',
             'App\Services\SchemaOrgJsonLdExporter',
             'App\Services\DataCiteToResourceTransformer',
+            'App\Services\DataCiteToIgsnTransformer',
+            'App\Services\IgsnDifXmlParser',
             'App\Services\Editor\EditorDataTransformer',
             'App\Services\LandingPageResourceTransformer',
             'App\Services\MslKeywordTransformer',
