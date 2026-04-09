@@ -39,18 +39,18 @@ class LandingPageObserver
         $oaiIdentifier = config('oaipmh.identifier_prefix') . ':' . $resource->doi;
 
         if (! $landingPage->is_published) {
-            // Depublished → track as deleted in OAI-PMH
-            if (! OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->exists()) {
-                $resource->loadMissing('resourceType');
-                $sets = $this->oaiPmhSetService->getSetsForResource($resource);
+            // Depublished → track as deleted in OAI-PMH (concurrency-safe)
+            $resource->loadMissing('resourceType');
+            $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
-                OaiPmhDeletedRecord::create([
-                    'oai_identifier' => $oaiIdentifier,
+            OaiPmhDeletedRecord::firstOrCreate(
+                ['oai_identifier' => $oaiIdentifier],
+                [
                     'doi' => $resource->doi,
                     'datestamp' => now(),
                     'sets' => $sets,
-                ]);
-            }
+                ],
+            );
         } else {
             // Republished → remove from deleted records
             OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->delete();

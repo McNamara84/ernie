@@ -815,8 +815,8 @@ entity oai_pmh_resumption_tokens {
     set_spec : VARCHAR
     from_date : TIMESTAMP
     until_date : TIMESTAMP
-    * cursor : INT
-    * complete_list_size : INT
+    * cursor : BIGINT UNSIGNED
+    * complete_list_size : BIGINT UNSIGNED
     * expires_at : TIMESTAMP
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

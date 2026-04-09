@@ -82,7 +82,7 @@ class OaiPmhXmlResponseBuilder
      */
     public function addIdentifyContent(string $earliestDatestamp, string $sampleIdentifier): self
     {
-        $identify = $this->dom->createElement('Identify');
+        $identify = $this->dom->createElementNS(self::OAI_NAMESPACE, 'Identify');
         $this->root->appendChild($identify);
 
         $this->appendTextElement($identify, 'repositoryName', (string) config('oaipmh.repository_name'));
@@ -94,7 +94,7 @@ class OaiPmhXmlResponseBuilder
         $this->appendTextElement($identify, 'granularity', (string) config('oaipmh.granularity'));
 
         // oai-identifier description
-        $description = $this->dom->createElement('description');
+        $description = $this->dom->createElementNS(self::OAI_NAMESPACE, 'description');
         $identify->appendChild($description);
 
         $oaiId = $this->dom->createElementNS(self::OAI_IDENTIFIER_NAMESPACE, 'oai-identifier');
@@ -110,10 +110,10 @@ class OaiPmhXmlResponseBuilder
         );
         $description->appendChild($oaiId);
 
-        $this->appendTextElement($oaiId, 'scheme', 'oai');
-        $this->appendTextElement($oaiId, 'repositoryIdentifier', 'ernie.gfz.de');
-        $this->appendTextElement($oaiId, 'delimiter', ':');
-        $this->appendTextElement($oaiId, 'sampleIdentifier', $sampleIdentifier);
+        $this->appendTextElement($oaiId, 'scheme', 'oai', self::OAI_IDENTIFIER_NAMESPACE);
+        $this->appendTextElement($oaiId, 'repositoryIdentifier', 'ernie.gfz.de', self::OAI_IDENTIFIER_NAMESPACE);
+        $this->appendTextElement($oaiId, 'delimiter', ':', self::OAI_IDENTIFIER_NAMESPACE);
+        $this->appendTextElement($oaiId, 'sampleIdentifier', $sampleIdentifier, self::OAI_IDENTIFIER_NAMESPACE);
 
         return $this;
     }
@@ -125,11 +125,11 @@ class OaiPmhXmlResponseBuilder
      */
     public function addListMetadataFormatsContent(array $formats): self
     {
-        $listFormats = $this->dom->createElement('ListMetadataFormats');
+        $listFormats = $this->dom->createElementNS(self::OAI_NAMESPACE, 'ListMetadataFormats');
         $this->root->appendChild($listFormats);
 
         foreach ($formats as $prefix => $format) {
-            $mf = $this->dom->createElement('metadataFormat');
+            $mf = $this->dom->createElementNS(self::OAI_NAMESPACE, 'metadataFormat');
             $listFormats->appendChild($mf);
 
             $this->appendTextElement($mf, 'metadataPrefix', $prefix);
@@ -147,11 +147,11 @@ class OaiPmhXmlResponseBuilder
      */
     public function addListSetsContent(array $sets): self
     {
-        $listSets = $this->dom->createElement('ListSets');
+        $listSets = $this->dom->createElementNS(self::OAI_NAMESPACE, 'ListSets');
         $this->root->appendChild($listSets);
 
         foreach ($sets as $set) {
-            $setEl = $this->dom->createElement('set');
+            $setEl = $this->dom->createElementNS(self::OAI_NAMESPACE, 'set');
             $listSets->appendChild($setEl);
 
             $this->appendTextElement($setEl, 'setSpec', $set['spec']);
@@ -166,7 +166,7 @@ class OaiPmhXmlResponseBuilder
      */
     public function beginListIdentifiers(): DOMElement
     {
-        $el = $this->dom->createElement('ListIdentifiers');
+        $el = $this->dom->createElementNS(self::OAI_NAMESPACE, 'ListIdentifiers');
         $this->root->appendChild($el);
 
         return $el;
@@ -177,7 +177,7 @@ class OaiPmhXmlResponseBuilder
      */
     public function beginListRecords(): DOMElement
     {
-        $el = $this->dom->createElement('ListRecords');
+        $el = $this->dom->createElementNS(self::OAI_NAMESPACE, 'ListRecords');
         $this->root->appendChild($el);
 
         return $el;
@@ -188,7 +188,7 @@ class OaiPmhXmlResponseBuilder
      */
     public function beginGetRecord(): DOMElement
     {
-        $el = $this->dom->createElement('GetRecord');
+        $el = $this->dom->createElementNS(self::OAI_NAMESPACE, 'GetRecord');
         $this->root->appendChild($el);
 
         return $el;
@@ -206,7 +206,7 @@ class OaiPmhXmlResponseBuilder
         array $setSpecs = [],
         bool $deleted = false,
     ): DOMElement {
-        $header = $this->dom->createElement('header');
+        $header = $this->dom->createElementNS(self::OAI_NAMESPACE, 'header');
         if ($deleted) {
             $header->setAttribute('status', 'deleted');
         }
@@ -234,12 +234,12 @@ class OaiPmhXmlResponseBuilder
         array $setSpecs,
         string $metadataXml,
     ): void {
-        $record = $this->dom->createElement('record');
+        $record = $this->dom->createElementNS(self::OAI_NAMESPACE, 'record');
         $parent->appendChild($record);
 
         $this->addHeader($record, $identifier, $datestamp, $setSpecs);
 
-        $metadata = $this->dom->createElement('metadata');
+        $metadata = $this->dom->createElementNS(self::OAI_NAMESPACE, 'metadata');
         $record->appendChild($metadata);
 
         // Import metadata XML fragment
@@ -263,7 +263,7 @@ class OaiPmhXmlResponseBuilder
         string $datestamp,
         array $setSpecs = [],
     ): void {
-        $record = $this->dom->createElement('record');
+        $record = $this->dom->createElementNS(self::OAI_NAMESPACE, 'record');
         $parent->appendChild($record);
 
         $this->addHeader($record, $identifier, $datestamp, $setSpecs, deleted: true);
@@ -279,7 +279,7 @@ class OaiPmhXmlResponseBuilder
         int $cursor,
         ?string $expirationDate = null,
     ): void {
-        $el = $this->dom->createElement('resumptionToken');
+        $el = $this->dom->createElementNS(self::OAI_NAMESPACE, 'resumptionToken');
         if ($token !== null) {
             $el->textContent = $token;
         }
@@ -296,7 +296,7 @@ class OaiPmhXmlResponseBuilder
      */
     public function addError(string $code, string $message): self
     {
-        $error = $this->dom->createElement('error');
+        $error = $this->dom->createElementNS(self::OAI_NAMESPACE, 'error');
         $error->setAttribute('code', $code);
         $error->textContent = $message;
         $this->root->appendChild($error);
@@ -352,11 +352,14 @@ class OaiPmhXmlResponseBuilder
     }
 
     /**
-     * Append a text element to a parent.
+     * Append a namespaced text element to a parent.
+     *
+     * Defaults to the OAI-PMH namespace so child elements inherit the root
+     * namespace declaration instead of producing an empty xmlns="".
      */
-    private function appendTextElement(DOMElement $parent, string $name, string $value): DOMElement
+    private function appendTextElement(DOMElement $parent, string $name, string $value, string $namespace = self::OAI_NAMESPACE): DOMElement
     {
-        $el = $this->dom->createElement($name);
+        $el = $this->dom->createElementNS($namespace, $name);
         $el->textContent = $value;
         $parent->appendChild($el);
 

@@ -67,7 +67,8 @@ describe('getSetsForResource', function () {
         $service = app(OaiPmhSetService::class);
         $sets = $service->getSetsForResource($resource);
 
-        expect($sets)->not->toContain('year:');
+        $yearSets = array_filter($sets, fn (string $s) => str_starts_with($s, 'year:'));
+        expect($yearSets)->toBeEmpty();
     });
 });
 

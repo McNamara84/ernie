@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property string $token Random 64-character token string
- * @property string $verb OAI-PMH verb (ListRecords, ListIdentifiers, ListSets)
+ * @property string $verb OAI-PMH verb (ListRecords, ListIdentifiers)
  * @property string|null $metadata_prefix Metadata format prefix
  * @property string|null $set_spec Set filter specification
  * @property \Illuminate\Support\Carbon|null $from_date Date range start

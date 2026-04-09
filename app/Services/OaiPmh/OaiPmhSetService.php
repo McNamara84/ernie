@@ -6,6 +6,7 @@ namespace App\Services\OaiPmh;
 
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -26,18 +27,18 @@ class OaiPmhSetService
     {
         $sets = [];
 
-        // Resource type sets from published resources
-        $types = Resource::query()
-            ->whereHas('landingPage', fn (Builder $q) => $q->where('is_published', true))
-            ->whereNotNull('doi')
-            ->whereHas('resourceType')
-            ->with('resourceType')
-            ->get()
-            ->pluck('resourceType.name')
-            ->unique()
-            ->filter()
-            ->sort()
-            ->values();
+        // Resource type sets via SQL join + distinct (avoids loading all models)
+        $types = DB::table('resources')
+            ->join('resource_types', 'resources.resource_type_id', '=', 'resource_types.id')
+            ->whereExists(fn ($q) => $q->select(DB::raw(1))
+                ->from('landing_pages')
+                ->whereColumn('landing_pages.resource_id', 'resources.id')
+                ->where('landing_pages.is_published', true))
+            ->whereNotNull('resources.doi')
+            ->select('resource_types.name')
+            ->distinct()
+            ->orderBy('resource_types.name')
+            ->pluck('name');
 
         foreach ($types as $typeName) {
             $sets[] = [
@@ -46,13 +47,17 @@ class OaiPmhSetService
             ];
         }
 
-        // Publication year sets from published resources
-        $years = Resource::query()
-            ->whereHas('landingPage', fn (Builder $q) => $q->where('is_published', true))
-            ->whereNotNull('doi')
-            ->whereNotNull('publication_year')
+        // Publication year sets via SQL distinct
+        $years = DB::table('resources')
+            ->whereExists(fn ($q) => $q->select(DB::raw(1))
+                ->from('landing_pages')
+                ->whereColumn('landing_pages.resource_id', 'resources.id')
+                ->where('landing_pages.is_published', true))
+            ->whereNotNull('resources.doi')
+            ->whereNotNull('resources.publication_year')
+            ->select('resources.publication_year')
             ->distinct()
-            ->orderBy('publication_year')
+            ->orderBy('resources.publication_year')
             ->pluck('publication_year');
 
         foreach ($years as $year) {

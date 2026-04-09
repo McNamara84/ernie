@@ -742,8 +742,8 @@ erDiagram
         varchar set_spec "nullable"
         timestamp from_date "nullable"
         timestamp until_date "nullable"
-        int cursor "unsigned, default 0"
-        int complete_list_size "unsigned, default 0"
+        bigint_unsigned cursor
+        bigint_unsigned complete_list_size
         timestamp expires_at
         timestamp created_at
         timestamp updated_at

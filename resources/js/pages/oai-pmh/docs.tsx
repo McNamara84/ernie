@@ -23,15 +23,25 @@ interface Props {
 function CopyButton({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // Clipboard API not available or denied — silently ignore
+        }
     };
 
     return (
-        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={handleCopy} title="Copy to clipboard">
-            {copied ? <span className="text-xs text-green-600">✓</span> : <Copy className="h-3.5 w-3.5" />}
+        <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            onClick={handleCopy}
+            aria-label={copied ? 'Copied to clipboard' : 'Copy to clipboard'}
+        >
+            {copied ? <span className="text-xs text-green-600" aria-hidden="true">✓</span> : <Copy className="h-3.5 w-3.5" />}
         </Button>
     );
 }

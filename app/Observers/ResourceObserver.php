@@ -214,20 +214,16 @@ class ResourceObserver
         }
 
         $oaiIdentifier = config('oaipmh.identifier_prefix') . ':' . $resource->doi;
-
-        // Don't create duplicate entries
-        if (OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->exists()) {
-            return;
-        }
-
         $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
-        OaiPmhDeletedRecord::create([
-            'oai_identifier' => $oaiIdentifier,
-            'doi' => $resource->doi,
-            'datestamp' => now(),
-            'sets' => $sets,
-        ]);
+        OaiPmhDeletedRecord::firstOrCreate(
+            ['oai_identifier' => $oaiIdentifier],
+            [
+                'doi' => $resource->doi,
+                'datestamp' => now(),
+                'sets' => $sets,
+            ],
+        );
     }
 
     /**

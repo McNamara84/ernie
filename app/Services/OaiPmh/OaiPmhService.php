@@ -251,7 +251,7 @@ class OaiPmhService
         }
 
         // Find the published resource
-        $resource = $this->findPublishedResource($doi);
+        $resource = $this->findPublishedResource($doi, $metadataPrefix);
         if ($resource === null) {
             return $this->errorResponse(
                 'idDoesNotExist',
@@ -324,9 +324,11 @@ class OaiPmhService
             // Parse and validate date parameters
             $from = null;
             $until = null;
+            $fromGranularity = null;
+            $untilGranularity = null;
 
             if ($fromStr !== null) {
-                $from = $this->parseOaiDate($fromStr);
+                [$from, $fromGranularity] = $this->parseOaiDate($fromStr);
                 if ($from === null) {
                     return $this->errorResponse('badArgument', 'Invalid from date format', $verb, $requestAttrs);
                 }
@@ -334,11 +336,21 @@ class OaiPmhService
             }
 
             if ($untilStr !== null) {
-                $until = $this->parseOaiDate($untilStr);
+                [$until, $untilGranularity] = $this->parseOaiDate($untilStr, isUntil: true);
                 if ($until === null) {
                     return $this->errorResponse('badArgument', 'Invalid until date format', $verb, $requestAttrs);
                 }
                 $requestAttrs['until'] = $untilStr;
+            }
+
+            // OAI-PMH requires from and until to have the same granularity
+            if ($fromGranularity !== null && $untilGranularity !== null && $fromGranularity !== $untilGranularity) {
+                return $this->errorResponse(
+                    'badArgument',
+                    'The from and until parameters must have the same granularity (both YYYY-MM-DD or both YYYY-MM-DDThh:mm:ssZ)',
+                    $verb,
+                    $requestAttrs,
+                );
             }
 
             if ($from !== null && $until !== null && $from->greaterThan($until)) {
@@ -382,9 +394,17 @@ class OaiPmhService
         $builder = $this->xmlBuilder->createEnvelope($verb, $requestAttrs);
         $container = $headersOnly ? $builder->beginListIdentifiers() : $builder->beginListRecords();
 
-        // First, include deleted records (only for the first page)
-        if ($cursor === 0) {
-            $deletedRecords = $deletedQuery->orderBy('datestamp')->get();
+        $emitted = 0;
+
+        // Deleted records occupy the first $deletedCount positions in the virtual list.
+        // If the cursor falls within that range, emit deleted records for this page.
+        if ($cursor < $deletedCount) {
+            $deletedRecords = $deletedQuery
+                ->orderBy('datestamp')
+                ->skip($cursor)
+                ->take($pageSize)
+                ->get();
+
             foreach ($deletedRecords as $deleted) {
                 if ($headersOnly) {
                     $builder->addHeader(
@@ -402,42 +422,43 @@ class OaiPmhService
                         array_values($deleted->sets ?? []),
                     );
                 }
+                $emitted++;
             }
         }
 
-        // Adjust cursor to account for deleted records
-        $resourceCursor = $cursor > 0 ? $cursor - $deletedCount : 0;
-        $resourceCursor = max(0, $resourceCursor);
+        // Fill remaining page space with live records
+        $remainingSlots = $pageSize - $emitted;
+        if ($remainingSlots > 0) {
+            $resourceOffset = max(0, $cursor - $deletedCount);
 
-        $resources = $query
-            ->skip($resourceCursor)
-            ->take($pageSize)
-            ->get();
+            $resources = $query
+                ->skip($resourceOffset)
+                ->take($remainingSlots)
+                ->get();
 
-        if (! $headersOnly) {
-            $resources->loadMissing($this->getRelationsForMetadata($metadataPrefix));
-        } else {
-            $resources->loadMissing(['resourceType']);
-        }
-
-        foreach ($resources as $resource) {
-            $oaiId = $this->buildOaiIdentifier($resource->doi);
-            $datestamp = ($resource->updated_at ?? now())->utc()->format('Y-m-d\TH:i:s\Z');
-            $sets = $this->setService->getSetsForResource($resource);
-
-            if ($headersOnly) {
-                $builder->addHeader($container, $oaiId, $datestamp, $sets);
+            if (! $headersOnly) {
+                $resources->loadMissing($this->getRelationsForMetadata($metadataPrefix));
             } else {
-                $metadataXml = $this->buildMetadataXml($resource, $metadataPrefix);
-                $builder->addRecord($container, $oaiId, $datestamp, $sets, $metadataXml);
+                $resources->loadMissing(['resourceType']);
+            }
+
+            foreach ($resources as $resource) {
+                $oaiId = $this->buildOaiIdentifier($resource->doi);
+                $datestamp = ($resource->updated_at ?? now())->utc()->format('Y-m-d\TH:i:s\Z');
+                $sets = $this->setService->getSetsForResource($resource);
+
+                if ($headersOnly) {
+                    $builder->addHeader($container, $oaiId, $datestamp, $sets);
+                } else {
+                    $metadataXml = $this->buildMetadataXml($resource, $metadataPrefix);
+                    $builder->addRecord($container, $oaiId, $datestamp, $sets, $metadataXml);
+                }
+                $emitted++;
             }
         }
 
         // Add resumption token if more results exist
-        $nextCursor = $cursor + $deletedCount + $resources->count();
-        if ($cursor === 0) {
-            $nextCursor = $deletedCount + $resources->count();
-        }
+        $nextCursor = $cursor + $emitted;
 
         if ($nextCursor < $completeListSize) {
             $newToken = $this->tokenService->create(
@@ -467,10 +488,13 @@ class OaiPmhService
 
     /**
      * Validate arguments for a given verb.
+     *
+     * Merges query string and POST body parameters to ensure consistent
+     * validation regardless of HTTP method (OAI-PMH supports both GET and POST).
      */
     private function validateArguments(Request $request, string $verb): ?string
     {
-        $allParams = array_keys($request->query());
+        $allParams = array_keys($request->all());
         $legalArgs = self::VERB_ARGUMENTS[$verb] ?? [];
         $requiredArgs = self::REQUIRED_ARGUMENTS[$verb] ?? [];
 
@@ -531,14 +555,16 @@ class OaiPmhService
 
     /**
      * Find a published resource by DOI.
+     *
+     * Eager-loads only the relations needed for the requested metadata format.
      */
-    private function findPublishedResource(string $doi): ?Resource
+    private function findPublishedResource(string $doi, string $metadataPrefix = 'oai_datacite'): ?Resource
     {
         $resource = $this->buildHarvestableQuery()
             ->where('doi', $doi)
             ->first();
 
-        $resource?->loadMissing($this->getRelationsForMetadata('oai_datacite'));
+        $resource?->loadMissing($this->getRelationsForMetadata($metadataPrefix));
 
         return $resource;
     }
@@ -672,19 +698,27 @@ class OaiPmhService
 
     /**
      * Parse an OAI-PMH date string (YYYY-MM-DD or YYYY-MM-DDThh:mm:ssZ).
+     *
+     * Returns [Carbon, granularity] or [null, null] if the format is invalid.
+     * When $isUntil is true and the granularity is date-only, the time is set
+     * to end-of-day (23:59:59) to make the range inclusive per OAI-PMH spec.
+     *
+     * @return array{0: Carbon|null, 1: string|null}
      */
-    private function parseOaiDate(string $dateStr): ?Carbon
+    private function parseOaiDate(string $dateStr, bool $isUntil = false): array
     {
         // Full datetime: YYYY-MM-DDThh:mm:ssZ
         if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $dateStr)) {
-            return Carbon::parse($dateStr)->utc();
+            return [Carbon::parse($dateStr)->utc(), 'datetime'];
         }
 
         // Date only: YYYY-MM-DD
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr)) {
-            return Carbon::parse($dateStr)->startOfDay()->utc();
+            $date = Carbon::parse($dateStr)->utc();
+
+            return [$isUntil ? $date->endOfDay() : $date->startOfDay(), 'date'];
         }
 
-        return null;
+        return [null, null];
     }
 }
