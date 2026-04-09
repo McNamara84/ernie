@@ -314,6 +314,14 @@ describe('ImportIgsnsModal', () => {
         await waitFor(() => {
             expect(screen.getByText(/import completed/i)).toBeInTheDocument();
         });
+
+        // Close the modal via the outline Close button (not the dialog X)
+        const closeButtons = screen.getAllByRole('button', { name: /^close$/i });
+        const outlineClose = closeButtons.find(btn => btn.dataset.slot === 'button');
+        expect(outlineClose).toBeTruthy();
+        await user.click(outlineClose!);
+
+        expect(mockOnSuccess).toHaveBeenCalled();
     });
 
     it('prevents closing modal while import is running', async () => {

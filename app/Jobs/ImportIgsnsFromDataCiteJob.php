@@ -136,6 +136,14 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
                 $doi = $igsnRecord['attributes']['doi'] ?? $igsnRecord['id'] ?? null;
 
+                if ($doi !== null) {
+                    $doi = strtolower($doi);
+                    // Normalize DOI in record so transformer stores it lowercase
+                    if (isset($igsnRecord['attributes']['doi'])) {
+                        $igsnRecord['attributes']['doi'] = $doi;
+                    }
+                }
+
                 if ($doi === null) {
                     $failed++;
                     if (count($failedDois) < $maxStoredDois) {
@@ -316,7 +324,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
                 $parentResources = Resource::query()
                     ->whereNotNull('doi')
-                    ->whereIn(DB::raw('LOWER(doi)'), $fullDois)
+                    ->whereIn('doi', $fullDois)
                     ->get()
                     ->keyBy(fn (Resource $r): string => strtoupper((string) substr((string) $r->doi, (int) strrpos((string) $r->doi, '/') + 1)));
 

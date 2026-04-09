@@ -82,7 +82,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
     });
 
     it('skips existing DOIs', function () {
-        Resource::factory()->create(['doi' => '10.60510/EXISTING001']);
+        Resource::factory()->create(['doi' => '10.60510/existing001']);
 
         $this->importService
             ->shouldReceive('getTotalIgsnCount')
@@ -108,7 +108,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
         $status = Cache::get("igsn_import:{$importId}");
         expect($status['skipped'])->toBe(1);
-        expect($status['skipped_dois'])->toContain('10.60510/EXISTING001');
+        expect($status['skipped_dois'])->toContain('10.60510/existing001');
     });
 
     it('tracks enrichment counter separately from imported', function () {
@@ -191,7 +191,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->andReturnUsing(function ($data, $userId) {
                 $doi = $data['attributes']['doi'] ?? '';
-                if ($doi === '10.60510/FAIL001') {
+                if ($doi === '10.60510/fail001') {
                     throw new \Exception('Transform failed');
                 }
 
@@ -211,7 +211,7 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['status'])->toBe('completed');
         expect($status['imported'])->toBe(1);
         expect($status['failed'])->toBe(1);
-        expect($status['failed_dois'][0]['doi'])->toBe('10.60510/FAIL001');
+        expect($status['failed_dois'][0]['doi'])->toBe('10.60510/fail001');
     });
 
     it('limits stored failed DOIs to prevent memory issues', function () {
@@ -412,8 +412,8 @@ describe('ImportIgsnsFromDataCiteJob', function () {
     });
 
     it('resolves parent-child relationships after import', function () {
-        // Create a parent resource first
-        $parentResource = Resource::factory()->create(['doi' => '10.60510/GFPARENT002']);
+        // Create a parent resource first (lowercase DOI — normalized at import time)
+        $parentResource = Resource::factory()->create(['doi' => '10.60510/gfparent002']);
         IgsnMetadata::create([
             'resource_id' => $parentResource->id,
             'upload_status' => IgsnMetadata::STATUS_REGISTERED,
@@ -439,8 +439,8 @@ describe('ImportIgsnsFromDataCiteJob', function () {
                 ];
             })());
 
-        // Create the child resource with a parent handle in description_json
-        $childResource = Resource::factory()->create(['doi' => '10.60510/GFCHILD002']);
+        // Create the child resource with a parent handle in description_json (lowercase DOI)
+        $childResource = Resource::factory()->create(['doi' => '10.60510/gfchild002']);
         $childIgsn = IgsnMetadata::create([
             'resource_id' => $childResource->id,
             'upload_status' => IgsnMetadata::STATUS_REGISTERED,
