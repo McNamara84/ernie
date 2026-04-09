@@ -263,8 +263,7 @@ class IgsnDifXmlParser
 
         $geoData = [
             'resource_id' => $resource->id,
-            'geo_location_place' => $place !== '' ? $place : null,
-            'position' => 0,
+            'place' => $place !== '' ? $place : null,
         ];
 
         if ($lat !== null && $lon !== null && is_numeric($lat) && is_numeric($lon)) {
@@ -273,7 +272,8 @@ class IgsnDifXmlParser
         }
 
         if ($elevation !== null && is_numeric($elevation)) {
-            $geoData['description'] = "Elevation: {$elevation} m";
+            $geoData['elevation'] = (float) $elevation;
+            $geoData['elevation_unit'] = 'm';
         }
 
         GeoLocation::create($geoData);
@@ -312,7 +312,6 @@ class IgsnDifXmlParser
             'resource_id' => $resource->id,
             'date_type_id' => $collectedTypeId,
             'date_value' => trim($dateValue),
-            'position' => 0,
         ]);
     }
 
@@ -333,7 +332,7 @@ class IgsnDifXmlParser
             return;
         }
 
-        $dataCollectorType = ContributorType::where('name', 'DataCollector')->first();
+        $dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
         if ($dataCollectorType === null) {
             return;
         }
@@ -349,10 +348,10 @@ class IgsnDifXmlParser
 
         ResourceContributor::create([
             'resource_id' => $resource->id,
-            'person_id' => $person->id,
-            'contributor_type_id' => $dataCollectorType->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
             'position' => 0,
-        ]);
+        ])->contributorTypes()->sync([$dataCollectorType->id]);
     }
 
     /**
