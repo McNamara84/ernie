@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
  *
  * @param  array<string, mixed>  $attributes
  */
-function createPublishedResource(array $attributes = []): Resource
+function createOaiPmhResource(array $attributes = []): Resource
 {
     $resource = Resource::factory()->create($attributes);
 
@@ -59,7 +59,7 @@ test('Identify returns valid OAI-PMH response', function () {
 });
 
 test('Identify includes sample identifier when published resources exist', function () {
-    $resource = createPublishedResource(['doi' => '10.5880/GFZ.1.2.2024.001']);
+    $resource = createOaiPmhResource(['doi' => '10.5880/GFZ.1.2.2024.001']);
 
     $response = $this->get('/oai-pmh?verb=Identify');
     $content = $response->getContent();
@@ -87,7 +87,7 @@ test('ListMetadataFormats returns oai_dc and oai_datacite', function () {
 });
 
 test('ListMetadataFormats with valid identifier returns formats', function () {
-    $resource = createPublishedResource(['doi' => '10.5880/test.2024.001']);
+    $resource = createOaiPmhResource(['doi' => '10.5880/test.2024.001']);
     $identifier = 'oai:ernie.gfz.de:10.5880/test.2024.001';
 
     $response = $this->get("/oai-pmh?verb=ListMetadataFormats&identifier={$identifier}");
@@ -112,7 +112,7 @@ test('ListMetadataFormats with unknown identifier returns idDoesNotExist', funct
 // ===================================================================
 
 test('ListSets returns resource type and year sets', function () {
-    createPublishedResource(['publication_year' => 2024]);
+    createOaiPmhResource(['publication_year' => 2024]);
 
     $response = $this->get('/oai-pmh?verb=ListSets');
 
@@ -141,7 +141,7 @@ test('ListSets with resumptionToken returns badResumptionToken', function () {
 // ===================================================================
 
 test('ListRecords with oai_dc returns Dublin Core metadata', function () {
-    createPublishedResource(['doi' => '10.5880/test.2024.001', 'publication_year' => 2024]);
+    createOaiPmhResource(['doi' => '10.5880/test.2024.001', 'publication_year' => 2024]);
 
     $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc');
 
@@ -154,7 +154,7 @@ test('ListRecords with oai_dc returns Dublin Core metadata', function () {
 });
 
 test('ListRecords with oai_datacite returns DataCite metadata', function () {
-    createPublishedResource(['doi' => '10.5880/test.2024.002']);
+    createOaiPmhResource(['doi' => '10.5880/test.2024.002']);
 
     $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_datacite');
 
@@ -181,8 +181,8 @@ test('ListRecords with invalid metadataPrefix returns cannotDisseminateFormat', 
 });
 
 test('ListRecords with set filter returns only matching records', function () {
-    createPublishedResource(['doi' => '10.5880/a.2024.001', 'publication_year' => 2024]);
-    createPublishedResource(['doi' => '10.5880/a.2023.001', 'publication_year' => 2023]);
+    createOaiPmhResource(['doi' => '10.5880/a.2024.001', 'publication_year' => 2024]);
+    createOaiPmhResource(['doi' => '10.5880/a.2023.001', 'publication_year' => 2023]);
 
     $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&set=year:2024');
 
@@ -193,7 +193,7 @@ test('ListRecords with set filter returns only matching records', function () {
 });
 
 test('ListRecords with date range filtering works', function () {
-    $resource = createPublishedResource(['doi' => '10.5880/date.2024.001']);
+    $resource = createOaiPmhResource(['doi' => '10.5880/date.2024.001']);
 
     // Use current time range to ensure the record is within range
     $from = now()->subDay()->format('Y-m-d');
@@ -224,7 +224,7 @@ test('ListRecords with no matching records returns noRecordsMatch', function () 
 });
 
 test('ListRecords includes deleted records on the first page', function () {
-    createPublishedResource(['doi' => '10.5880/live.2024.001']);
+    createOaiPmhResource(['doi' => '10.5880/live.2024.001']);
 
     OaiPmhDeletedRecord::create([
         'oai_identifier' => 'oai:ernie.gfz.de:10.5880/deleted.2024.001',
@@ -247,7 +247,7 @@ test('ListRecords includes deleted records on the first page', function () {
 // ===================================================================
 
 test('ListIdentifiers returns headers without metadata', function () {
-    createPublishedResource(['doi' => '10.5880/hdr.2024.001']);
+    createOaiPmhResource(['doi' => '10.5880/hdr.2024.001']);
 
     $response = $this->get('/oai-pmh?verb=ListIdentifiers&metadataPrefix=oai_dc');
 
@@ -263,7 +263,7 @@ test('ListIdentifiers returns headers without metadata', function () {
 // ===================================================================
 
 test('GetRecord returns a single record', function () {
-    createPublishedResource(['doi' => '10.5880/single.2024.001']);
+    createOaiPmhResource(['doi' => '10.5880/single.2024.001']);
 
     $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/single.2024.001&metadataPrefix=oai_dc');
 
