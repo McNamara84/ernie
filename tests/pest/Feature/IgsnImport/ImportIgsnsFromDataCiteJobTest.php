@@ -388,6 +388,29 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($childIgsn->parent_resource_id)->toBeNull();
     });
 
+    it('returns early with cancelled status when cancelled before job starts', function () {
+        $importId = Str::uuid()->toString();
+        $cacheKey = "igsn_import:{$importId}";
+
+        // Pre-set cache to cancelled (simulating cancel before job is dispatched)
+        Cache::put($cacheKey, ['status' => 'cancelled'], 3600);
+
+        // Import service should never be called
+        $this->importService->shouldReceive('getTotalIgsnCount')->never();
+        $this->importService->shouldReceive('fetchAllIgsns')->never();
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService);
+
+        $status = Cache::get($cacheKey);
+        expect($status['status'])->toBe('cancelled');
+        expect($status['total'])->toBe(0);
+        expect($status['processed'])->toBe(0);
+        expect($status['imported'])->toBe(0);
+    });
+
     it('resolves parent-child relationships after import', function () {
         // Create a parent resource first
         $parentResource = Resource::factory()->create(['doi' => '10.60510/GFPARENT002']);

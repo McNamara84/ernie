@@ -68,6 +68,30 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $startTime = now();
 
         try {
+            // Check if import was cancelled before the job even started (race condition)
+            $existingStatus = Cache::get($this->getCacheKey());
+            if (isset($existingStatus['status']) && $existingStatus['status'] === 'cancelled') {
+                Log::info('IGSN import was cancelled before job started', [
+                    'import_id' => $this->importId,
+                ]);
+
+                $this->updateProgress([
+                    'status' => 'cancelled',
+                    'total' => 0,
+                    'processed' => 0,
+                    'imported' => 0,
+                    'skipped' => 0,
+                    'failed' => 0,
+                    'enriched' => 0,
+                    'skipped_dois' => [],
+                    'failed_dois' => [],
+                    'started_at' => $startTime->toIso8601String(),
+                    'completed_at' => now()->toIso8601String(),
+                ]);
+
+                return;
+            }
+
             $total = $importService->getTotalIgsnCount();
 
             $this->updateProgress([
@@ -96,19 +120,19 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $maxStoredDois = 100;
 
             foreach ($importService->fetchAllIgsns() as $igsnRecord) {
-                $processed++;
-
-                // Check for cancellation every 50 records
-                if ($processed === 1 || $processed % 50 === 0) {
+                // Check for cancellation every 50 records (before incrementing processed)
+                if ($processed === 0 || $processed % 50 === 0) {
                     $currentStatus = Cache::get($this->getCacheKey());
                     if (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled') {
                         Log::info('IGSN import cancelled by user', [
                             'import_id' => $this->importId,
-                            'processed' => $processed - 1,
+                            'processed' => $processed,
                         ]);
                         break;
                     }
                 }
+
+                $processed++;
 
                 $doi = $igsnRecord['attributes']['doi'] ?? $igsnRecord['id'] ?? null;
 
@@ -282,17 +306,17 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                     return;
                 }
 
-                // Bulk-fetch all parent resources for this chunk's handles in one query
+                // Bulk-fetch all parent resources using reconstructed full DOIs (index-friendly)
                 $handles = array_keys($handleMap);
+                $igsnPrefix = (string) config('datacite.production.igsn_prefix', '10.60510');
+                $fullDois = array_map(
+                    fn (string $handle): string => strtolower($igsnPrefix . '/' . $handle),
+                    $handles,
+                );
 
-                // Build LIKE conditions to match DOIs ending with each handle (cross-database compatible)
                 $parentResources = Resource::query()
                     ->whereNotNull('doi')
-                    ->where(function ($query) use ($handles): void {
-                        foreach ($handles as $handle) {
-                            $query->orWhere(DB::raw('UPPER(doi)'), 'LIKE', '%/' . $handle);
-                        }
-                    })
+                    ->whereIn(DB::raw('LOWER(doi)'), $fullDois)
                     ->get()
                     ->keyBy(fn (Resource $r): string => strtoupper((string) substr((string) $r->doi, (int) strrpos((string) $r->doi, '/') + 1)));
 

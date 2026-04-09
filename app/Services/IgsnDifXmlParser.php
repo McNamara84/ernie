@@ -249,6 +249,14 @@ class IgsnDifXmlParser
         $country = $this->getElementText($sample, 'country', $ns);
         $city = $this->getElementText($sample, 'city', $ns);
 
+        // Normalize N/A placeholders to null
+        if ($country !== null && strtolower($country) === 'n/a') {
+            $country = null;
+        }
+        if ($city !== null && strtolower($city) === 'n/a') {
+            $city = null;
+        }
+
         // Only create if we have at least coordinates or location name
         if ($lat === null && $lon === null && $country === null && $city === null) {
             return;
@@ -288,6 +296,14 @@ class IgsnDifXmlParser
 
         $startDate = $this->getElementText($sample, 'collection_start_date', $ns);
         $endDate = $this->getElementText($sample, 'collection_end_date', $ns);
+
+        // Normalize N/A placeholders to null
+        if ($startDate !== null && strtolower($startDate) === 'n/a') {
+            $startDate = null;
+        }
+        if ($endDate !== null && strtolower($endDate) === 'n/a') {
+            $endDate = null;
+        }
 
         if ($startDate === null && $endDate === null) {
             return;

@@ -558,4 +558,75 @@ describe('IgsnDifXmlParser', function () {
         expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->count())->toBe(1);
         expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->first()->value)->toBe('Existing Formation');
     });
+
+    it('skips geo location when country and city are N/A', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <latitude>52.3759</latitude>
+                        <longitude>13.0683</longitude>
+                        <country>N/A</country>
+                        <city>n/a</city>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        $geo = GeoLocation::where('resource_id', $this->resource->id)->first();
+        expect($geo)->not->toBeNull();
+        // Coordinates should still be set
+        expect((float) $geo->point_latitude)->toBe(52.3759);
+        expect((float) $geo->point_longitude)->toBe(13.0683);
+        // Place should be null (N/A values filtered out)
+        expect($geo->place)->toBeNull();
+    });
+
+    it('skips geo location entirely when only N/A place and no coordinates', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <country>N/A</country>
+                        <city>N/A</city>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(GeoLocation::where('resource_id', $this->resource->id)->count())->toBe(0);
+    });
+
+    it('skips collection dates when values are N/A', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <collection_start_date>N/A</collection_start_date>
+                        <collection_end_date>n/a</collection_end_date>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(ResourceDate::where('resource_id', $this->resource->id)->count())->toBe(0);
+    });
 });
