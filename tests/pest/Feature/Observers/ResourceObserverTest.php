@@ -6,6 +6,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Observers\ResourceObserver;
 use App\Services\KeywordSuggestionService;
+use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 
@@ -14,7 +15,8 @@ covers(ResourceObserver::class);
 beforeEach(function () {
     $this->cacheService = Mockery::mock(ResourceCacheService::class); // @phpstan-ignore variable.undefined
     $this->keywordService = Mockery::mock(KeywordSuggestionService::class); // @phpstan-ignore variable.undefined
-    $this->observer = new ResourceObserver($this->cacheService, $this->keywordService);
+    $this->oaiPmhSetService = Mockery::mock(OaiPmhSetService::class); // @phpstan-ignore variable.undefined
+    $this->observer = new ResourceObserver($this->cacheService, $this->keywordService, $this->oaiPmhSetService);
 });
 
 // =========================================================================
@@ -98,6 +100,8 @@ describe('deleted', function () {
             ->once();
         $this->keywordService->shouldReceive('invalidateCache')
             ->once();
+        $this->oaiPmhSetService->shouldReceive('getSetsForResource')
+            ->andReturn([]);
 
         $this->observer->deleted($resource);
     });
