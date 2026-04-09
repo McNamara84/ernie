@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-07",
+        "date": "2026-04-09",
         "features": [
+            {
+                "title": "IGSN Import from DataCite",
+                "description": "Admins and Group Leaders can now bulk-import all ~38,500 IGSNs registered under the GFZ IGSN prefix (10.60510) directly from the DataCite API. The import automatically enriches each IGSN with legacy metadata (sample type, material, coordinates, collector, classifications, geological ages) from Solr and the legacy IGSN database (~94% enrichment rate). Parent-child relationships between samples are resolved after import. Progress is tracked in real-time with counters for imported, enriched, skipped, and failed records."
+            },
             {
                 "title": "DataCite JSON and JSON-LD Upload",
                 "description": "Resources can now be created by uploading DataCite JSON or JSON-LD files in addition to XML. The dropzone routes files by extension (XML, JSON/JSON-LD, CSV) and automatically distinguishes standard DataCite JSON from JSON-LD based on the file content. All metadata fields are extracted including authors, contributors, subjects, geo locations, funding references, and related identifiers."

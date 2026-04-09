@@ -1,10 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { Braces, CloudUpload, FileJson, Globe, RefreshCw } from 'lucide-react';
+import { Braces, CloudUpload, Download, FileJson, Globe, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
+import ImportIgsnsModal from '@/components/igsns/modals/ImportIgsnsModal';
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
@@ -68,6 +69,7 @@ interface IgsnsPageProps {
     pagination: PaginationInfo;
     sort: SortState<SortKey>;
     canDelete: boolean;
+    canImport: boolean;
     canRegister: boolean;
     search: string;
     totalCount: number;
@@ -133,7 +135,7 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canRegister, search: initialSearch, totalCount, filters: initialFilters, filterOptions: initialFilterOptions }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canImport, canRegister, search: initialSearch, totalCount, filters: initialFilters, filterOptions: initialFilterOptions }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -146,6 +148,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
     const [registeringIgsns, setRegisteringIgsns] = useState<Set<number>>(new Set());
@@ -505,10 +508,20 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Physical Samples (IGSNs)</CardTitle>
-                        <CardDescription>
-                            Manage physical sample metadata with International Generic Sample Numbers.
-                        </CardDescription>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Physical Samples (IGSNs)</CardTitle>
+                                <CardDescription>
+                                    Manage physical sample metadata with International Generic Sample Numbers.
+                                </CardDescription>
+                            </div>
+                            {canImport && (
+                                <Button onClick={() => setIsImportModalOpen(true)}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Import from DataCite
+                                </Button>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
@@ -806,6 +819,12 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                     onClose={handleCloseLandingPageModal}
                 />
             )}
+
+            <ImportIgsnsModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => router.reload()}
+            />
         </AppLayout>
     );
 }
