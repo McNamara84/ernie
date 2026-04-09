@@ -114,6 +114,7 @@ class IgsnController extends Controller
         $user = $request->user();
         $canDelete = $user !== null && $user->role === UserRole::ADMIN;
         $canRegister = $user?->can('register-production-doi') ?? false;
+        $canImport = $user?->can('importFromDataCite', Resource::class) ?? false;
 
         return Inertia::render('igsns/index', [
             'igsns' => $igsns,
@@ -134,6 +135,7 @@ class IgsnController extends Controller
             'totalCount' => $totalCount ?? $paginated->total(),
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
+            'canImport' => $canImport,
             'filters' => [
                 'prefix' => $prefix,
                 'status' => $status,

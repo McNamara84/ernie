@@ -32,6 +32,8 @@ return [
             '10.1594',
             '10.14470',
         ],
+        'igsn_prefix' => '10.60510',
+        'igsn_client_id' => 'gfz.igsn',
     ],
 
     /*
@@ -76,6 +78,22 @@ return [
     'publisher' => [
         'name' => 'GFZ Helmholtz Centre for Geosciences',
         'ror_id' => 'https://ror.org/04z8jg394',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Solr IGSN Enrichment
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the Solr index used to enrich imported IGSNs with
+    | legacy DIF XML metadata. The igsnaa core contains ~35k IGSN records.
+    |
+    */
+    'solr' => [
+        'host' => env('SOLR_HOST'),
+        'port' => env('SOLR_PORT', '443'),
+        'user' => env('SOLR_USER'),
+        'password' => env('SOLR_PASSWORD'),
     ],
 
     /*

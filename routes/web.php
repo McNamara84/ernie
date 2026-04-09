@@ -392,6 +392,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.filter-options');
     Route::get('igsns-map', [IgsnMapController::class, 'index'])
         ->name('igsns.map');
+    // IGSN Import from DataCite
+    Route::post('igsns/import/start', [\App\Http\Controllers\IgsnImportController::class, 'start'])
+        ->name('igsns.import.start');
+    Route::get('igsns/import/{importId}/status', [\App\Http\Controllers\IgsnImportController::class, 'status'])
+        ->name('igsns.import.status');
+    Route::post('igsns/import/{importId}/cancel', [\App\Http\Controllers\IgsnImportController::class, 'cancel'])
+        ->name('igsns.import.cancel');
     // Batch operations must be defined before routes with {resource} parameter
     Route::delete('igsns/batch', [\App\Http\Controllers\BatchIgsnController::class, 'destroy'])
         ->name('igsns.batch.destroy');
