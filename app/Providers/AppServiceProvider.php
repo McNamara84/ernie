@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         Resource::observe(ResourceObserver::class);
+        \App\Models\LandingPage::observe(\App\Observers\LandingPageObserver::class);
 
         // Configure rate limiters
         $this->configureRateLimiting();

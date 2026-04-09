@@ -75,6 +75,11 @@ Route::get('/changelog', function () {
 // ===========================================================
 Route::get('/portal', [PortalController::class, 'index'])->name('portal');
 
+// OAI-PMH Harvesting Endpoint
+// ===========================================================
+Route::get('/oai-pmh/docs', [\App\Http\Controllers\OaiPmh\OaiPmhDocsController::class, 'index'])->name('oaipmh.docs');
+Route::match(['get', 'post'], '/oai-pmh', \App\Http\Controllers\OaiPmh\OaiPmhController::class)->name('oaipmh');
+
 // Public Landing Pages (accessible without authentication)
 // ===========================================================
 

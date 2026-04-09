@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
+use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +27,7 @@ class ResourceObserver
     public function __construct(
         private readonly ResourceCacheService $cacheService,
         private readonly KeywordSuggestionService $keywordService,
+        private readonly OaiPmhSetService $oaiPmhSetService,
     ) {}
 
     /**
@@ -173,13 +176,15 @@ class ResourceObserver
      * Handle the Resource "deleted" event.
      *
      * Invalidates all resource caches since the resource
-     * will be removed from list views.
+     * will be removed from list views. Also tracks the deletion
+     * for OAI-PMH persistent deleted records support.
      */
     public function deleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
         $this->invalidatePortalFacets();
+        $this->trackOaiPmhDeletion($resource);
     }
 
     /**
@@ -193,6 +198,36 @@ class ResourceObserver
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
         $this->invalidatePortalFacets();
+    }
+
+    /**
+     * Track a resource deletion in OAI-PMH deleted records.
+     *
+     * Only tracks resources that had a DOI (harvestable resources).
+     * The resource's relationships may already be deleted by cascade,
+     * so we load the resource type eagerly before deletion if possible.
+     */
+    private function trackOaiPmhDeletion(Resource $resource): void
+    {
+        if ($resource->doi === null || $resource->doi === '') {
+            return;
+        }
+
+        $oaiIdentifier = config('oaipmh.identifier_prefix') . ':' . $resource->doi;
+
+        // Don't create duplicate entries
+        if (OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->exists()) {
+            return;
+        }
+
+        $sets = $this->oaiPmhSetService->getSetsForResource($resource);
+
+        OaiPmhDeletedRecord::create([
+            'oai_identifier' => $oaiIdentifier,
+            'doi' => $resource->doi,
+            'datestamp' => now(),
+            'sets' => $sets,
+        ]);
     }
 
     /**

@@ -54,3 +54,9 @@ Schedule::call(function () {
 })->weeklyOn(0, '02:00')
     ->name('discover-relations')
     ->withoutOverlapping();
+
+// Purge expired OAI-PMH resumption tokens daily at 03:00 UTC
+Schedule::command('oaipmh:purge-tokens')
+    ->dailyAt('03:00')
+    ->name('purge-oaipmh-tokens')
+    ->withoutOverlapping();

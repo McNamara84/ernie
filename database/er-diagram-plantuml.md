@@ -792,6 +792,37 @@ entity "dismissed_rors" as dismissed_rors {
 }
 
 ' ==========================================================================
+' OAI-PMH TABLES (Harvesting Protocol)
+' ==========================================================================
+
+entity oai_pmh_deleted_records {
+    * id : BIGINT <<PK>>
+    --
+    * oai_identifier : VARCHAR <<UNIQUE>>
+    * doi : VARCHAR
+    * datestamp : TIMESTAMP
+    sets : JSON
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity oai_pmh_resumption_tokens {
+    * id : BIGINT <<PK>>
+    --
+    * token : VARCHAR(64) <<UNIQUE>>
+    * verb : VARCHAR
+    metadata_prefix : VARCHAR
+    set_spec : VARCHAR
+    from_date : TIMESTAMP
+    until_date : TIMESTAMP
+    * cursor : INT
+    * complete_list_size : INT
+    * expires_at : TIMESTAMP
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+' ==========================================================================
 ' RELATIONSHIPS
 ' ==========================================================================
 
