@@ -1,7 +1,13 @@
 <?php
 
+use App\Models\ContributorType;
+use App\Models\DateType;
 use App\Models\GeoLocation;
+use App\Models\IgsnClassification;
+use App\Models\IgsnGeologicalAge;
+use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceDate;
@@ -275,5 +281,281 @@ describe('IgsnDifXmlParser', function () {
         expect($geo)->not->toBeNull();
         expect($geo->place)->toBe('Iceland');
         expect($geo->point_latitude)->toBeNull();
+    });
+
+    it('adds Collected date even when a Created date already exists', function () {
+        $createdTypeId = DateType::where('name', 'Created')->value('id');
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $createdTypeId,
+            'date_value' => '2024-01-01',
+        ]);
+
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <collection_start_date>2020-06-15</collection_start_date>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        $collectedTypeId = DateType::where('name', 'Collected')->value('id');
+        $collectedDate = ResourceDate::where('resource_id', $this->resource->id)
+            ->where('date_type_id', $collectedTypeId)
+            ->first();
+        expect($collectedDate)->not->toBeNull();
+        expect($collectedDate->date_value)->toBe('2020-06-15');
+
+        // Both dates should exist
+        expect(ResourceDate::where('resource_id', $this->resource->id)->count())->toBe(2);
+    });
+
+    it('adds DataCollector even when other contributors already exist', function () {
+        $otherType = ContributorType::where('slug', '!=', 'DataCollector')->first();
+        $person = Person::firstOrCreate(['family_name' => 'Existing', 'given_name' => 'Person']);
+        $contributor = ResourceContributor::create([
+            'resource_id' => $this->resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 0,
+        ]);
+        $contributor->contributorTypes()->sync([$otherType->id]);
+
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <collector>Müller, Hans</collector>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        // Both contributors should exist
+        expect(ResourceContributor::where('resource_id', $this->resource->id)->count())->toBe(2);
+
+        $dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
+        $dataCollector = ResourceContributor::where('resource_id', $this->resource->id)
+            ->whereHas('contributorTypes', fn ($q) => $q->where('contributor_types.id', $dataCollectorType->id))
+            ->first();
+        expect($dataCollector)->not->toBeNull();
+    });
+
+    it('maps classification from DIF XML', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <classification>Igneous</classification>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        $classification = IgsnClassification::where('resource_id', $this->resource->id)->first();
+        expect($classification)->not->toBeNull();
+        expect($classification->value)->toBe('Igneous');
+    });
+
+    it('skips classification when N/A', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <classification>N/A</classification>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(IgsnClassification::where('resource_id', $this->resource->id)->count())->toBe(0);
+    });
+
+    it('skips classification if one already exists', function () {
+        IgsnClassification::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Existing',
+        ]);
+
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <classification>Igneous</classification>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(IgsnClassification::where('resource_id', $this->resource->id)->count())->toBe(1);
+        expect(IgsnClassification::where('resource_id', $this->resource->id)->first()->value)->toBe('Existing');
+    });
+
+    it('maps geological age from DIF XML', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <geological_age>Jurassic</geological_age>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        $age = IgsnGeologicalAge::where('resource_id', $this->resource->id)->first();
+        expect($age)->not->toBeNull();
+        expect($age->value)->toBe('Jurassic');
+    });
+
+    it('skips geological age when N/A', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <geological_age>n/a</geological_age>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->count())->toBe(0);
+    });
+
+    it('skips geological age if one already exists', function () {
+        IgsnGeologicalAge::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Cretaceous',
+        ]);
+
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <geological_age>Jurassic</geological_age>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->count())->toBe(1);
+        expect(IgsnGeologicalAge::where('resource_id', $this->resource->id)->first()->value)->toBe('Cretaceous');
+    });
+
+    it('maps geological unit from DIF XML', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <geological_unit>Eifel Formation</geological_unit>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        $unit = IgsnGeologicalUnit::where('resource_id', $this->resource->id)->first();
+        expect($unit)->not->toBeNull();
+        expect($unit->value)->toBe('Eifel Formation');
+    });
+
+    it('skips geological unit when N/A', function () {
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <geological_unit>N/A</geological_unit>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->count())->toBe(0);
+    });
+
+    it('skips geological unit if one already exists', function () {
+        IgsnGeologicalUnit::create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Existing Formation',
+        ]);
+
+        $xml = <<<'XML'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <DIF>
+            <supplementalMetadata>
+                <record>
+                    <sample>
+                        <sample_type>Rock</sample_type>
+                        <geological_unit>Eifel Formation</geological_unit>
+                    </sample>
+                </record>
+            </supplementalMetadata>
+        </DIF>
+        XML;
+
+        $this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata);
+
+        expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->count())->toBe(1);
+        expect(IgsnGeologicalUnit::where('resource_id', $this->resource->id)->first()->value)->toBe('Existing Formation');
     });
 });

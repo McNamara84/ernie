@@ -29,6 +29,13 @@ describe('IgsnImportService', function () {
         new IgsnImportService;
     })->throws(RuntimeException::class, 'IGSN prefix is not configured');
 
+    it('throws exception when credentials are missing', function () {
+        Config::set('datacite.production.username', '');
+        Config::set('datacite.production.password', '');
+
+        new IgsnImportService;
+    })->throws(RuntimeException::class, 'credentials are not configured');
+
     it('fetches total IGSN count from API', function () {
         Http::fake([
             'api.datacite.org/dois*' => Http::response([

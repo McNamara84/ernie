@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -314,5 +314,285 @@ describe('ImportIgsnsModal', () => {
         await waitFor(() => {
             expect(screen.getByText(/import completed/i)).toBeInTheDocument();
         });
+    });
+
+    it('prevents closing modal while import is running', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-running-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'running',
+                total: 100,
+                processed: 10,
+                imported: 8,
+                skipped: 1,
+                failed: 1,
+                enriched: 7,
+                skipped_dois: [],
+                failed_dois: [],
+                started_at: new Date().toISOString(),
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/import is in progress/i)).toBeInTheDocument();
+        });
+
+        // The Cancel Import button should be visible (not the close/cancel confirmation button)
+        expect(screen.getByRole('button', { name: /cancel import/i })).toBeInTheDocument();
+    });
+
+    it('sends cancel request when cancel import button is clicked', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock)
+            .mockResolvedValueOnce({
+                data: { import_id: 'test-cancel-123', message: 'Import started' },
+            })
+            .mockResolvedValueOnce({ data: { status: 'cancelled' } });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'running',
+                total: 100,
+                processed: 10,
+                imported: 8,
+                skipped: 1,
+                failed: 1,
+                enriched: 7,
+                skipped_dois: [],
+                failed_dois: [],
+                started_at: new Date().toISOString(),
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /cancel import/i })).toBeInTheDocument();
+        });
+
+        const cancelButton = screen.getByRole('button', { name: /cancel import/i });
+        await user.click(cancelButton);
+
+        // Should have called POST twice: start + cancel
+        expect(axios.post).toHaveBeenCalledTimes(2);
+        expect(axios.post).toHaveBeenLastCalledWith(
+            '/igsns/import/test-cancel-123/cancel',
+            {},
+            expect.objectContaining({ headers: expect.any(Object) }),
+        );
+    });
+
+    it('shows completed state with summary statistics', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-summary-123', message: 'Import started' },
+        });
+
+        const now = new Date().toISOString();
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 100,
+                processed: 100,
+                imported: 90,
+                skipped: 5,
+                failed: 5,
+                enriched: 80,
+                skipped_dois: ['10.60510/SKIP1'],
+                failed_dois: [{ doi: '10.60510/FAIL1', error: 'Test error' }],
+                started_at: now,
+                completed_at: now,
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/import completed/i)).toBeInTheDocument();
+        });
+
+        // Verify statistics are shown
+        expect(screen.getByText('90')).toBeInTheDocument();
+        expect(screen.getByText('80')).toBeInTheDocument();
+    });
+
+    it('shows failed state with error message', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-fail-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'failed',
+                error: 'Connection to DataCite API failed',
+                total: 0,
+                processed: 0,
+                imported: 0,
+                skipped: 0,
+                failed: 0,
+                enriched: 0,
+                skipped_dois: [],
+                failed_dois: [],
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Connection to DataCite API failed/i)).toBeInTheDocument();
+        });
+    });
+
+    it('shows close button in completed state', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-close-btn-123', message: 'Import started' },
+        });
+
+        const now = new Date().toISOString();
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 10,
+                processed: 10,
+                imported: 10,
+                skipped: 0,
+                failed: 0,
+                enriched: 10,
+                skipped_dois: [],
+                failed_dois: [],
+                started_at: now,
+                completed_at: now,
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/import completed/i)).toBeInTheDocument();
+        });
+
+        // Close button should be visible in completed state (outline variant, not the dialog X)
+        const closeButtons = screen.getAllByRole('button', { name: /close/i });
+        const outlineClose = closeButtons.find(btn => btn.textContent === 'Close' && btn.dataset.variant === 'outline');
+        expect(outlineClose).toBeTruthy();
+    });
+
+    it('shows cancelled state with partial import summary', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-cancelled-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'cancelled',
+                total: 100,
+                processed: 30,
+                imported: 25,
+                skipped: 3,
+                failed: 2,
+                enriched: 20,
+                skipped_dois: [],
+                failed_dois: [],
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            expect(screen.getByText(/import cancelled/i)).toBeInTheDocument();
+        });
+
+        // Should show partial import stats
+        expect(screen.getByText('25')).toBeInTheDocument();
+        expect(screen.getByText('20')).toBeInTheDocument();
+
+        // Should NOT show "Import Failed" messaging
+        expect(screen.queryByText(/import failed/i)).not.toBeInTheDocument();
+    });
+
+    it('shows cancelled description text', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-cancelled-desc', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'cancelled',
+                total: 50,
+                processed: 10,
+                imported: 8,
+                skipped: 1,
+                failed: 1,
+                enriched: 7,
+                skipped_dois: [],
+                failed_dois: [],
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+            },
+        });
+
+        render(
+            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
+        );
+
+        const startButton = screen.getByRole('button', { name: /start import/i });
+        await user.click(startButton);
+
+        await waitFor(() => {
+            // The alert title contains "Import Cancelled"
+            expect(screen.getByText(/import cancelled/i)).toBeInTheDocument();
+        });
+
+        // Should show processing progress in alert description
+        expect(screen.getByText(/processing 10 of 50/i)).toBeInTheDocument();
     });
 });

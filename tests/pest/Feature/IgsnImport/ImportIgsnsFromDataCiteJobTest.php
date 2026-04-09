@@ -329,6 +329,115 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['imported'])->toBe(1);
         expect($status['enriched'])->toBe(0);
     });
+
+    it('skips parent resolution when import is cancelled', function () {
+        // Create a parent resource for potential resolution
+        $parentResource = Resource::factory()->create(['doi' => '10.60510/GFPARENT_CANCEL']);
+        IgsnMetadata::create([
+            'resource_id' => $parentResource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+
+        $importId = Str::uuid()->toString();
+        $cacheKey = "igsn_import:{$importId}";
+
+        $this->importService
+            ->shouldReceive('getTotalIgsnCount')
+            ->once()
+            ->andReturn(1);
+
+        // The generator sets cancel AFTER job sets 'running', but BEFORE cancel check
+        $this->importService
+            ->shouldReceive('fetchAllIgsns')
+            ->once()
+            ->andReturn((function () use ($cacheKey) {
+                // Set cancel before yielding — processed++ and cancel check happen after yield
+                Cache::put($cacheKey, ['status' => 'cancelled'], 3600);
+
+                yield [
+                    'id' => '10.60510/GFCANCEL001',
+                    'attributes' => [
+                        'doi' => '10.60510/GFCANCEL001',
+                        'titles' => [['title' => 'Cancelled IGSN']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'PhysicalObject'],
+                    ],
+                ];
+            })());
+
+        // The record should not be transformed because cancel is checked at processed=1
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        // Create a child resource with parent handle (simulating a previous import)
+        $childResource = Resource::factory()->create(['doi' => '10.60510/GFCHILD_CANCEL']);
+        $childIgsn = IgsnMetadata::create([
+            'resource_id' => $childResource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+            'description_json' => ['parent_igsn_handle' => 'GFPARENT_CANCEL'],
+        ]);
+
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService);
+
+        $status = Cache::get($cacheKey);
+        expect($status['status'])->toBe('cancelled');
+
+        // Parent should NOT have been resolved
+        $childIgsn->refresh();
+        expect($childIgsn->parent_resource_id)->toBeNull();
+    });
+
+    it('resolves parent-child relationships after import', function () {
+        // Create a parent resource first
+        $parentResource = Resource::factory()->create(['doi' => '10.60510/GFPARENT002']);
+        IgsnMetadata::create([
+            'resource_id' => $parentResource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+        ]);
+
+        $this->importService
+            ->shouldReceive('getTotalIgsnCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllIgsns')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.60510/GFCHILD002',
+                    'attributes' => [
+                        'doi' => '10.60510/GFCHILD002',
+                        'titles' => [['title' => 'Child IGSN']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'PhysicalObject'],
+                    ],
+                ];
+            })());
+
+        // Create the child resource with a parent handle in description_json
+        $childResource = Resource::factory()->create(['doi' => '10.60510/GFCHILD002']);
+        $childIgsn = IgsnMetadata::create([
+            'resource_id' => $childResource->id,
+            'upload_status' => IgsnMetadata::STATUS_REGISTERED,
+            'description_json' => ['parent_igsn_handle' => 'GFPARENT002'],
+        ]);
+
+        // The DOI already exists, so transform won't be called (skipped)
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService);
+
+        // Parent should be resolved
+        $childIgsn->refresh();
+        expect($childIgsn->parent_resource_id)->toBe($parentResource->id);
+        // Handle should be removed from description_json
+        expect($childIgsn->description_json)->toBeNull();
+    });
 });
 
 /**

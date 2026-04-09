@@ -60,7 +60,18 @@ class IgsnImportService
             );
         }
 
-        $this->client = Http::withHeaders([
+        $username = $config['username'];
+        $password = $config['password'];
+
+        if (empty($username) || empty($password)) {
+            throw new \RuntimeException(
+                'DataCite production credentials are not configured. '
+                . 'Please set DATACITE_USERNAME and DATACITE_PASSWORD.'
+            );
+        }
+
+        $this->client = Http::withBasicAuth($username, $password)
+            ->withHeaders([
             'Accept' => 'application/vnd.api+json',
             'User-Agent' => 'ERNIE/1.0 (GFZ Helmholtz Centre; mailto:ernie@gfz.de)',
         ])

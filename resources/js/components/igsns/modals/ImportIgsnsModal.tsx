@@ -33,13 +33,14 @@ interface ImportIgsnsModalProps {
     onSuccess?: () => void;
 }
 
-type ModalState = 'confirm' | 'running' | 'completed' | 'failed';
+type ModalState = 'confirm' | 'running' | 'completed' | 'cancelled' | 'failed';
 
 export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportIgsnsModalProps) {
     const [modalState, setModalState] = useState<ModalState>('confirm');
     const [importId, setImportId] = useState<string | null>(null);
     const [progress, setProgress] = useState<ImportProgress | null>(null);
     const [isStarting, setIsStarting] = useState(false);
+    const [isCancelling, setIsCancelling] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showSkippedDois, setShowSkippedDois] = useState(false);
     const [showFailedDois, setShowFailedDois] = useState(false);
@@ -50,6 +51,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
             setImportId(null);
             setProgress(null);
             setIsStarting(false);
+            setIsCancelling(false);
             setError(null);
             setShowSkippedDois(false);
             setShowFailedDois(false);
@@ -63,7 +65,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
         }
 
         let isCancelled = false;
-        let timeoutId: ReturnType<typeof setTimeout>;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const startTime = Date.now();
 
         const poll = async () => {
@@ -79,7 +81,10 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                 if (response.data.status === 'completed') {
                     setModalState('completed');
                     return;
-                } else if (response.data.status === 'failed' || response.data.status === 'cancelled') {
+                } else if (response.data.status === 'cancelled') {
+                    setModalState('cancelled');
+                    return;
+                } else if (response.data.status === 'failed') {
                     setModalState('failed');
                     setError(response.data.error || 'Import failed');
                     return;
@@ -156,13 +161,31 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
     }, []);
 
     const handleClose = useCallback(() => {
-        if (modalState === 'completed') {
+        if (modalState === 'running') {
+            return;
+        }
+        if (modalState === 'completed' || modalState === 'cancelled') {
             if (onSuccess) {
                 onSuccess();
             }
         }
         onClose();
     }, [modalState, onClose, onSuccess]);
+
+    const cancelImport = useCallback(async () => {
+        if (!importId || isCancelling) return;
+
+        setIsCancelling(true);
+        try {
+            await axios.post(`/igsns/import/${importId}/cancel`, {}, { headers: buildCsrfHeaders() });
+            toast.info('Import cancellation requested');
+        } catch (err) {
+            console.error('Failed to cancel IGSN import:', err);
+            toast.error('Failed to cancel import');
+        } finally {
+            setIsCancelling(false);
+        }
+    }, [importId, isCancelling]);
 
     const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
 
@@ -199,7 +222,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!open && modalState !== 'running') handleClose(); }}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
@@ -210,6 +233,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                         {modalState === 'confirm' && 'Import all registered IGSNs from the DataCite production API and enrich them with legacy metadata.'}
                         {modalState === 'running' && 'Import is in progress...'}
                         {modalState === 'completed' && 'Import completed successfully.'}
+                        {modalState === 'cancelled' && 'Import was cancelled.'}
                         {modalState === 'failed' && 'Import failed.'}
                     </DialogDescription>
                 </DialogHeader>
@@ -353,8 +377,8 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
                                         <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-red-200 bg-red-50/50 p-2 dark:border-red-800 dark:bg-red-950/50">
-                                            {progress.failed_dois.map(({ doi, error }) => (
-                                                <div key={doi} className="border-b border-red-100 py-2 last:border-0 dark:border-red-900">
+                                            {progress.failed_dois.map(({ doi, error }, index) => (
+                                                <div key={`${index}-${doi}`} className="border-b border-red-100 py-2 last:border-0 dark:border-red-900">
                                                     <div className="font-mono text-xs">{doi}</div>
                                                     <div className="text-xs text-red-600 dark:text-red-400">{error}</div>
                                                 </div>
@@ -363,6 +387,39 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                                     </CollapsibleContent>
                                 </Collapsible>
                             )}
+                        </div>
+                    )}
+
+                    {/* Cancelled State */}
+                    {modalState === 'cancelled' && progress && (
+                        <div className="space-y-4">
+                            <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+                                <AlertCircle className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                <AlertTitle className="text-yellow-800 dark:text-yellow-200">Import Cancelled</AlertTitle>
+                                <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+                                    Import was cancelled after processing {progress.processed} of {progress.total || '?'} IGSNs.
+                                    {progress.imported > 0 && ` ${progress.imported} IGSNs were imported before cancellation.`}
+                                </AlertDescription>
+                            </Alert>
+
+                            <div className="grid grid-cols-4 gap-3 text-center">
+                                <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
+                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.imported}</div>
+                                    <div className="text-xs text-muted-foreground">Imported</div>
+                                </div>
+                                <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
+                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{progress.enriched}</div>
+                                    <div className="text-xs text-muted-foreground">Enriched</div>
+                                </div>
+                                <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950">
+                                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{progress.skipped}</div>
+                                    <div className="text-xs text-muted-foreground">Skipped</div>
+                                </div>
+                                <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950">
+                                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.failed}</div>
+                                    <div className="text-xs text-muted-foreground">Failed</div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -399,13 +456,19 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                     )}
 
                     {modalState === 'running' && (
-                        <Button variant="outline" disabled>
-                            <Spinner size="sm" className="mr-2" />
-                            Import in progress...
+                        <Button variant="destructive" onClick={cancelImport} disabled={isCancelling}>
+                            {isCancelling ? (
+                                <>
+                                    <Spinner size="sm" className="mr-2" />
+                                    Cancelling...
+                                </>
+                            ) : (
+                                'Cancel Import'
+                            )}
                         </Button>
                     )}
 
-                    {(modalState === 'completed' || modalState === 'failed') && (
+                    {(modalState === 'completed' || modalState === 'cancelled' || modalState === 'failed') && (
                         <Button variant="outline" onClick={handleClose}>
                             Close
                         </Button>

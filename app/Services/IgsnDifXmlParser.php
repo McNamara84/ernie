@@ -293,13 +293,13 @@ class IgsnDifXmlParser
             return;
         }
 
-        // Skip if dates already exist for this resource
-        if ($resource->dates()->exists()) {
+        $collectedTypeId = DateType::where('name', 'Collected')->value('id');
+        if ($collectedTypeId === null) {
             return;
         }
 
-        $collectedTypeId = DateType::where('name', 'Collected')->value('id');
-        if ($collectedTypeId === null) {
+        // Skip only if a 'Collected' date already exists for this resource
+        if ($resource->dates()->where('date_type_id', $collectedTypeId)->exists()) {
             return;
         }
 
@@ -327,13 +327,15 @@ class IgsnDifXmlParser
             return;
         }
 
-        // Skip if contributors already exist
-        if ($resource->contributors()->exists()) {
+        $dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
+        if ($dataCollectorType === null) {
             return;
         }
 
-        $dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
-        if ($dataCollectorType === null) {
+        // Skip only if a DataCollector contributor already exists
+        if ($resource->contributors()
+            ->whereHas('contributorTypes', fn ($q) => $q->where('contributor_types.id', $dataCollectorType->id))
+            ->exists()) {
             return;
         }
 
@@ -372,8 +374,7 @@ class IgsnDifXmlParser
 
         IgsnClassification::create([
             'resource_id' => $resource->id,
-            'classification' => $classification,
-            'classification_uri' => null,
+            'value' => $classification,
         ]);
     }
 
@@ -395,8 +396,7 @@ class IgsnDifXmlParser
 
         IgsnGeologicalAge::create([
             'resource_id' => $resource->id,
-            'geological_age' => $age,
-            'geological_age_uri' => null,
+            'value' => $age,
         ]);
     }
 
@@ -418,8 +418,7 @@ class IgsnDifXmlParser
 
         IgsnGeologicalUnit::create([
             'resource_id' => $resource->id,
-            'geological_unit' => $unit,
-            'geological_unit_uri' => null,
+            'value' => $unit,
         ]);
     }
 }

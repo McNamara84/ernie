@@ -199,13 +199,15 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $failedDois, $total);
             }
 
-            // Resolve parent-child relationships after all imports
-            $this->resolveParentRelationships();
-
+            // Resolve parent-child relationships after all imports (skip if cancelled)
             $currentStatus = Cache::get($this->getCacheKey());
-            $finalStatus = (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled')
-                ? 'cancelled'
-                : 'completed';
+            $wasCancelled = isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled';
+
+            if (! $wasCancelled) {
+                $this->resolveParentRelationships();
+            }
+
+            $finalStatus = $wasCancelled ? 'cancelled' : 'completed';
 
             $this->updateProgress([
                 'status' => $finalStatus,
@@ -264,24 +266,47 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             ->whereNull('parent_resource_id')
             ->whereNotNull('description_json')
             ->chunkById(500, function ($records) use (&$resolved): void {
+                // Collect all parent handles in this chunk
+                /** @var array<string, list<IgsnMetadata>> */
+                $handleMap = [];
                 foreach ($records as $igsnMeta) {
                     $descJson = $igsnMeta->description_json;
                     if (! is_array($descJson) || ! isset($descJson['parent_igsn_handle'])) {
                         continue;
                     }
+                    $handle = strtoupper($descJson['parent_igsn_handle']);
+                    $handleMap[$handle][] = $igsnMeta;
+                }
 
-                    $parentHandle = strtoupper($descJson['parent_igsn_handle']);
+                if ($handleMap === []) {
+                    return;
+                }
 
-                    // Find parent by DOI suffix match (case-insensitive)
-                    $parentResource = Resource::whereRaw(
-                        'UPPER(SUBSTRING_INDEX(doi, \'/\', -1)) = ?',
-                        [$parentHandle]
-                    )->first();
+                // Bulk-fetch all parent resources for this chunk's handles in one query
+                $handles = array_keys($handleMap);
 
-                    if ($parentResource !== null) {
+                // Build LIKE conditions to match DOIs ending with each handle (cross-database compatible)
+                $parentResources = Resource::query()
+                    ->whereNotNull('doi')
+                    ->where(function ($query) use ($handles): void {
+                        foreach ($handles as $handle) {
+                            $query->orWhere(DB::raw('UPPER(doi)'), 'LIKE', '%/' . $handle);
+                        }
+                    })
+                    ->get()
+                    ->keyBy(fn (Resource $r): string => strtoupper((string) substr((string) $r->doi, (int) strrpos((string) $r->doi, '/') + 1)));
+
+                // Assign parents from the bulk result
+                foreach ($handleMap as $handle => $metaRecords) {
+                    $parentResource = $parentResources->get($handle);
+                    if ($parentResource === null) {
+                        continue;
+                    }
+
+                    foreach ($metaRecords as $igsnMeta) {
                         $igsnMeta->parent_resource_id = $parentResource->id;
 
-                        // Clean up the temporary handle from description_json
+                        $descJson = $igsnMeta->description_json;
                         unset($descJson['parent_igsn_handle']);
                         $igsnMeta->description_json = $descJson !== [] ? $descJson : null;
 
