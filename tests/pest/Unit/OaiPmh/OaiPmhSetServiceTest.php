@@ -91,6 +91,26 @@ describe('isValidSetSpec', function () {
         expect($service->isValidSetSpec('unknown:value'))->toBeFalse()
             ->and($service->isValidSetSpec('invalid'))->toBeFalse();
     });
+
+    it('rejects empty value after year prefix', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('year:'))->toBeFalse();
+    });
+
+    it('rejects non-numeric year values', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('year:abcd'))->toBeFalse()
+            ->and($service->isValidSetSpec('year:20'))->toBeFalse()
+            ->and($service->isValidSetSpec('year:20241'))->toBeFalse();
+    });
+
+    it('rejects empty value after resourcetype prefix', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('resourcetype:'))->toBeFalse();
+    });
 });
 
 describe('applySetFilter', function () {

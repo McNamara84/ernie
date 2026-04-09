@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
+use App\Models\OaiPmhResumptionToken;
 use App\Models\Resource;
 use App\Models\Title;
 use App\Models\TitleType;
@@ -408,4 +411,185 @@ test('OAI-PMH docs page is accessible', function () {
     $response = $this->get('/oai-pmh/docs');
 
     $response->assertStatus(200);
+});
+
+// ===================================================================
+// CSRF Exclusion (POST without CSRF token)
+// ===================================================================
+
+test('POST requests work without CSRF token', function () {
+    // Simulate an external harvester (no session/CSRF)
+    $response = $this->post('/oai-pmh', ['verb' => 'Identify']);
+
+    $response->assertStatus(200);
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->Identify->repositoryName)->not->toBeEmpty();
+});
+
+// ===================================================================
+// Resumption Token Verb Mismatch
+// ===================================================================
+
+test('resumption token issued for different verb returns badResumptionToken', function () {
+    $token = OaiPmhResumptionToken::create([
+        'token' => 'verb-mismatch-token',
+        'verb' => 'ListIdentifiers',
+        'metadata_prefix' => 'oai_dc',
+        'cursor' => 100,
+        'complete_list_size' => 200,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    // Try using the ListIdentifiers token with ListRecords
+    $response = $this->get('/oai-pmh?verb=ListRecords&resumptionToken=verb-mismatch-token');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badResumptionToken');
+});
+
+// ===================================================================
+// Idempotent Resumption Token Reuse
+// ===================================================================
+
+test('resumption token can be reused for retry on transient failure', function () {
+    // Create enough resources to trigger pagination
+    for ($i = 1; $i <= 3; $i++) {
+        createOaiPmhResource(['doi' => "10.5880/page.2024.{$i}"]);
+    }
+
+    // Create a resumption token pointing to cursor=1
+    $token = OaiPmhResumptionToken::create([
+        'token' => 'retry-token',
+        'verb' => 'ListRecords',
+        'metadata_prefix' => 'oai_dc',
+        'cursor' => 1,
+        'complete_list_size' => 3,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    // First request
+    $response1 = $this->get('/oai-pmh?verb=ListRecords&resumptionToken=retry-token');
+    $response1->assertStatus(200);
+
+    // Token should still exist (idempotent reuse)
+    expect(OaiPmhResumptionToken::where('token', 'retry-token')->exists())->toBeTrue();
+
+    // Second request (retry) should also succeed
+    $response2 = $this->get('/oai-pmh?verb=ListRecords&resumptionToken=retry-token');
+    $response2->assertStatus(200);
+});
+
+// ===================================================================
+// Request Element Echoes resumptionToken
+// ===================================================================
+
+test('request element echoes resumptionToken attribute when using token', function () {
+    createOaiPmhResource(['doi' => '10.5880/echo.2024.001']);
+
+    $token = OaiPmhResumptionToken::create([
+        'token' => 'echo-test-token',
+        'verb' => 'ListRecords',
+        'metadata_prefix' => 'oai_dc',
+        'cursor' => 0,
+        'complete_list_size' => 1,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $response = $this->get('/oai-pmh?verb=ListRecords&resumptionToken=echo-test-token');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->request['resumptionToken'])->toBe('echo-test-token');
+});
+
+// ===================================================================
+// Stricter Set Spec Validation
+// ===================================================================
+
+test('empty set value after prefix returns badArgument', function () {
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&set=year:');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badArgument');
+});
+
+test('non-numeric year set value returns badArgument', function () {
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&set=year:abcd');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badArgument');
+});
+
+test('five-digit year set value returns badArgument', function () {
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&set=year:20241');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badArgument');
+});
+
+test('empty resourcetype value returns badArgument', function () {
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&set=resourcetype:');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badArgument');
+});
+
+// ===================================================================
+// Granularity Mismatch
+// ===================================================================
+
+test('mixed date granularity between from and until returns badArgument', function () {
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&from=2024-01-01&until=2024-12-31T23:59:59Z');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badArgument')
+        ->and((string) $xml->error)->toContain('granularity');
+});
+
+// ===================================================================
+// Dublin Core Description Mapping
+// ===================================================================
+
+test('ListRecords oai_dc includes dc:description from resource', function () {
+    $resource = createOaiPmhResource(['doi' => '10.5880/desc.2024.001']);
+
+    $descType = DescriptionType::firstOrCreate(
+        ['slug' => 'Abstract'],
+        ['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true],
+    );
+
+    Description::create([
+        'resource_id' => $resource->id,
+        'value' => 'This is a test abstract for DC mapping',
+        'description_type_id' => $descType->id,
+    ]);
+
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc');
+
+    $content = $response->getContent();
+
+    expect($content)->toContain('dc:description')
+        ->and($content)->toContain('This is a test abstract for DC mapping');
+});
+
+// ===================================================================
+// Identify repositoryIdentifier from config
+// ===================================================================
+
+test('Identify response derives repositoryIdentifier from config', function () {
+    $response = $this->get('/oai-pmh?verb=Identify');
+
+    $content = $response->getContent();
+
+    // repositoryIdentifier should match the part after "oai:" in identifier_prefix
+    $expectedId = str_replace('oai:', '', (string) config('oaipmh.identifier_prefix'));
+
+    expect($content)->toContain("<repositoryIdentifier>{$expectedId}</repositoryIdentifier>");
 });

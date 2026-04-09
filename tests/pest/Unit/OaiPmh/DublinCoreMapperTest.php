@@ -2,9 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\Format;
+use App\Models\GeoLocation;
+use App\Models\Institution;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
 use App\Models\Subject;
@@ -141,4 +147,128 @@ it('maps dc:creator from person creators', function () {
     $dc = $this->mapper->map($this->resource);
 
     expect($dc['creator'])->toContain('Doe, John');
+});
+
+it('maps dc:creator from institution creators', function () {
+    $institution = Institution::create([
+        'name' => 'GFZ Helmholtz Centre Potsdam',
+    ]);
+
+    ResourceCreator::create([
+        'resource_id' => $this->resource->id,
+        'creatorable_id' => $institution->id,
+        'creatorable_type' => Institution::class,
+        'position' => 0,
+    ]);
+
+    $this->resource->load('creators.creatorable');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['creator'])->toContain('GFZ Helmholtz Centre Potsdam');
+});
+
+it('maps dc:description from resource descriptions', function () {
+    $descType = DescriptionType::firstOrCreate(
+        ['slug' => 'Abstract'],
+        ['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true],
+    );
+
+    Description::create([
+        'resource_id' => $this->resource->id,
+        'value' => 'A comprehensive dataset about seismic activity',
+        'description_type_id' => $descType->id,
+    ]);
+
+    $this->resource->load('descriptions.descriptionType');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['description'])->toBe(['A comprehensive dataset about seismic activity']);
+});
+
+it('maps dc:contributor from person contributors', function () {
+    $person = Person::create([
+        'family_name' => 'Smith',
+        'given_name' => 'Jane',
+    ]);
+
+    ResourceContributor::create([
+        'resource_id' => $this->resource->id,
+        'contributorable_id' => $person->id,
+        'contributorable_type' => Person::class,
+        'position' => 0,
+    ]);
+
+    $this->resource->load('contributors.contributorable');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['contributor'])->toContain('Smith, Jane');
+});
+
+it('maps dc:relation from related identifiers', function () {
+    $identifierType = \App\Models\IdentifierType::firstOrCreate(
+        ['slug' => 'DOI'],
+        ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true],
+    );
+
+    $relationType = \App\Models\RelationType::firstOrCreate(
+        ['slug' => 'References'],
+        ['name' => 'References', 'slug' => 'References', 'is_active' => true],
+    );
+
+    RelatedIdentifier::create([
+        'resource_id' => $this->resource->id,
+        'identifier' => 'https://doi.org/10.1234/related',
+        'identifier_type_id' => $identifierType->id,
+        'relation_type_id' => $relationType->id,
+        'position' => 0,
+    ]);
+
+    $this->resource->load('relatedIdentifiers');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['relation'])->toBe(['https://doi.org/10.1234/related']);
+});
+
+it('maps dc:coverage from geo locations with place', function () {
+    GeoLocation::create([
+        'resource_id' => $this->resource->id,
+        'place' => 'Potsdam, Germany',
+    ]);
+
+    $this->resource->load('geoLocations');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['coverage'])->toBe(['Potsdam, Germany']);
+});
+
+it('maps dc:coverage from geo locations with point coordinates', function () {
+    GeoLocation::create([
+        'resource_id' => $this->resource->id,
+        'point_latitude' => 52.3906,
+        'point_longitude' => 13.0645,
+    ]);
+
+    $this->resource->load('geoLocations');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['coverage'][0])->toContain('Point(')
+        ->and($dc['coverage'][0])->toContain('52.3906')
+        ->and($dc['coverage'][0])->toContain('13.0645');
+});
+
+it('maps dc:coverage from geo locations with bounding box', function () {
+    GeoLocation::create([
+        'resource_id' => $this->resource->id,
+        'south_bound_latitude' => 50.0,
+        'west_bound_longitude' => 10.0,
+        'north_bound_latitude' => 55.0,
+        'east_bound_longitude' => 15.0,
+    ]);
+
+    $this->resource->load('geoLocations');
+    $dc = $this->mapper->map($this->resource);
+
+    expect($dc['coverage'][0])->toContain('Box(')
+        ->and($dc['coverage'][0])->toContain('50')
+        ->and($dc['coverage'][0])->toContain('15');
 });

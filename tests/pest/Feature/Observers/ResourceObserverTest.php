@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\LandingPage;
+use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Observers\ResourceObserver;
 use App\Services\KeywordSuggestionService;
@@ -104,6 +105,20 @@ describe('deleted', function () {
             ->andReturn([]);
 
         $this->observer->deleted($resource);
+    });
+
+    it('does not track OAI-PMH deletion for resources without DOI', function () {
+        $resource = Resource::factory()->create(['doi' => null]);
+
+        $this->cacheService->shouldReceive('invalidateAllResourceCaches')
+            ->once();
+        $this->keywordService->shouldReceive('invalidateCache')
+            ->once();
+        $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
+
+        $this->observer->deleted($resource);
+
+        expect(OaiPmhDeletedRecord::count())->toBe(0);
     });
 });
 

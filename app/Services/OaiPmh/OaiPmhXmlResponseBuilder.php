@@ -111,7 +111,8 @@ class OaiPmhXmlResponseBuilder
         $description->appendChild($oaiId);
 
         $this->appendTextElement($oaiId, 'scheme', 'oai', self::OAI_IDENTIFIER_NAMESPACE);
-        $this->appendTextElement($oaiId, 'repositoryIdentifier', 'ernie.gfz.de', self::OAI_IDENTIFIER_NAMESPACE);
+        $repositoryIdentifier = str_replace('oai:', '', (string) config('oaipmh.identifier_prefix'));
+        $this->appendTextElement($oaiId, 'repositoryIdentifier', $repositoryIdentifier, self::OAI_IDENTIFIER_NAMESPACE);
         $this->appendTextElement($oaiId, 'delimiter', ':', self::OAI_IDENTIFIER_NAMESPACE);
         $this->appendTextElement($oaiId, 'sampleIdentifier', $sampleIdentifier, self::OAI_IDENTIFIER_NAMESPACE);
 
@@ -225,6 +226,9 @@ class OaiPmhXmlResponseBuilder
     /**
      * Add a full record element (header + metadata).
      *
+     * Uses libxml internal error handling to gracefully handle malformed
+     * metadata XML. If parsing fails, the record is emitted without metadata.
+     *
      * @param  list<string>  $setSpecs
      */
     public function addRecord(
@@ -242,11 +246,14 @@ class OaiPmhXmlResponseBuilder
         $metadata = $this->dom->createElementNS(self::OAI_NAMESPACE, 'metadata');
         $record->appendChild($metadata);
 
-        // Import metadata XML fragment
+        // Import metadata XML fragment with error handling
+        $previousUseErrors = libxml_use_internal_errors(true);
         $metadataDoc = new DOMDocument('1.0', 'UTF-8');
-        $metadataDoc->loadXML($metadataXml);
+        $parseSuccess = $metadataDoc->loadXML($metadataXml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousUseErrors);
 
-        if ($metadataDoc->documentElement !== null) {
+        if ($parseSuccess && $metadataDoc->documentElement !== null) {
             $imported = $this->dom->importNode($metadataDoc->documentElement, true);
             $metadata->appendChild($imported);
         }

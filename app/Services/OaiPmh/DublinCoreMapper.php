@@ -49,7 +49,7 @@ class DublinCoreMapper
         // dc:description (prefer Abstract type)
         $descriptions = $resource->descriptions
             ->sortByDesc(fn ($d) => $d->descriptionType->slug === 'Abstract' ? 1 : 0)
-            ->pluck('description')
+            ->pluck('value')
             ->filter()
             ->values()
             ->all();
@@ -176,9 +176,9 @@ class DublinCoreMapper
             $parts[] = "Point({$geo->point_latitude}, {$geo->point_longitude})";
         }
 
-        if ($geo->box_south !== null && $geo->box_west !== null
-            && $geo->box_north !== null && $geo->box_east !== null) {
-            $parts[] = "Box({$geo->box_south}, {$geo->box_west}, {$geo->box_north}, {$geo->box_east})";
+        if ($geo->south_bound_latitude !== null && $geo->west_bound_longitude !== null
+            && $geo->north_bound_latitude !== null && $geo->east_bound_longitude !== null) {
+            $parts[] = "Box({$geo->south_bound_latitude}, {$geo->west_bound_longitude}, {$geo->north_bound_latitude}, {$geo->east_bound_longitude})";
         }
 
         return $parts !== [] ? implode('; ', $parts) : null;

@@ -293,16 +293,18 @@ class OaiPmhService
                 return $this->errorResponse('badResumptionToken', 'Invalid or expired resumption token', $verb);
             }
 
+            // Verify the token's verb matches the current request verb
+            if ($token->verb !== $verb) {
+                return $this->errorResponse('badResumptionToken', 'Resumption token was issued for a different verb', $verb);
+            }
+
             $metadataPrefix = $token->metadata_prefix ?? '';
             $setSpec = $token->set_spec;
             $from = $token->from_date;
             $until = $token->until_date;
             $cursor = $token->cursor;
 
-            // Consume the token (one-time use)
-            $this->tokenService->consume($token);
-
-            $requestAttrs = ['metadataPrefix' => $metadataPrefix];
+            $requestAttrs = ['resumptionToken' => $resumptionToken];
         } else {
             $metadataPrefix = (string) $request->input('metadataPrefix', '');
             $setSpec = $request->input('set');

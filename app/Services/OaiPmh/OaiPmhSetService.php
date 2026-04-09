@@ -114,10 +114,13 @@ class OaiPmhSetService
 
     /**
      * Validate whether a set spec is syntactically valid.
+     *
+     * - resourcetype:{non-empty alphanumeric/space value}
+     * - year:{4-digit year}
      */
     public function isValidSetSpec(string $setSpec): bool
     {
-        return str_starts_with($setSpec, 'resourcetype:')
-            || str_starts_with($setSpec, 'year:');
+        return (bool) preg_match('/^resourcetype:[A-Za-z0-9 ]+$/', $setSpec)
+            || (bool) preg_match('/^year:\d{4}$/', $setSpec);
     }
 }
