@@ -29,6 +29,12 @@ describe('IgsnImportService', function () {
         new IgsnImportService;
     })->throws(RuntimeException::class, 'IGSN prefix is not configured');
 
+    it('throws exception when IGSN client ID is missing', function () {
+        Config::set('datacite.production.igsn_client_id', '');
+
+        new IgsnImportService;
+    })->throws(RuntimeException::class, 'IGSN client ID is not configured');
+
     it('throws exception when credentials are missing', function () {
         Config::set('datacite.production.username', '');
         Config::set('datacite.production.password', '');

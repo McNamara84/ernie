@@ -27,6 +27,10 @@ use Illuminate\Support\Facades\Log;
  */
 class IgsnDifXmlParser
 {
+    private ?int $collectedDateTypeId = null;
+
+    private ?ContributorType $dataCollectorType = null;
+
     /**
      * Parse DIF XML and enrich an existing Resource + IgsnMetadata.
      *
@@ -309,13 +313,15 @@ class IgsnDifXmlParser
             return;
         }
 
-        $collectedTypeId = DateType::where('name', 'Collected')->value('id');
-        if ($collectedTypeId === null) {
+        if ($this->collectedDateTypeId === null) {
+            $this->collectedDateTypeId = DateType::where('name', 'Collected')->value('id');
+        }
+        if ($this->collectedDateTypeId === null) {
             return;
         }
 
         // Skip only if a 'Collected' date already exists for this resource
-        if ($resource->dates()->where('date_type_id', $collectedTypeId)->exists()) {
+        if ($resource->dates()->where('date_type_id', $this->collectedDateTypeId)->exists()) {
             return;
         }
 
@@ -326,7 +332,7 @@ class IgsnDifXmlParser
 
         ResourceDate::create([
             'resource_id' => $resource->id,
-            'date_type_id' => $collectedTypeId,
+            'date_type_id' => $this->collectedDateTypeId,
             'date_value' => trim($dateValue),
         ]);
     }
@@ -343,14 +349,16 @@ class IgsnDifXmlParser
             return;
         }
 
-        $dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
-        if ($dataCollectorType === null) {
+        if ($this->dataCollectorType === null) {
+            $this->dataCollectorType = ContributorType::where('slug', 'DataCollector')->first();
+        }
+        if ($this->dataCollectorType === null) {
             return;
         }
 
         // Skip only if a DataCollector contributor already exists
         if ($resource->contributors()
-            ->whereHas('contributorTypes', fn ($q) => $q->where('contributor_types.id', $dataCollectorType->id))
+            ->whereHas('contributorTypes', fn ($q) => $q->where('contributor_types.id', $this->dataCollectorType->id))
             ->exists()) {
             return;
         }
@@ -369,7 +377,7 @@ class IgsnDifXmlParser
             'contributorable_type' => Person::class,
             'contributorable_id' => $person->id,
             'position' => 0,
-        ])->contributorTypes()->sync([$dataCollectorType->id]);
+        ])->contributorTypes()->sync([$this->dataCollectorType->id]);
     }
 
     /**

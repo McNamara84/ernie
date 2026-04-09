@@ -60,6 +60,12 @@ class IgsnImportService
             );
         }
 
+        if (empty($this->igsnClientId)) {
+            throw new \RuntimeException(
+                'DataCite IGSN client ID is not configured. Please set igsn_client_id in config/datacite.php.'
+            );
+        }
+
         $username = $config['username'];
         $password = $config['password'];
 
