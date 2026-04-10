@@ -145,7 +145,8 @@ test('ListSets with resumptionToken returns badResumptionToken', function () {
 
     $xml = simplexml_load_string($response->getContent());
 
-    expect((string) $xml->error['code'])->toBe('badResumptionToken');
+    expect((string) $xml->error['code'])->toBe('badResumptionToken')
+        ->and((string) $xml->request['resumptionToken'])->toBe('sometoken');
 });
 
 // ===================================================================

@@ -82,6 +82,12 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(60)->by((string) $identifier);
         });
+
+        // Rate limiter for OAI-PMH harvesting endpoint
+        // Allows 120 requests per minute per IP (harvester-friendly but prevents abuse)
+        RateLimiter::for('oai-pmh', function (Request $request) {
+            return Limit::perMinute(120)->by((string) $request->ip());
+        });
     }
 
     /**

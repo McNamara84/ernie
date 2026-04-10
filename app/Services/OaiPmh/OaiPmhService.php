@@ -108,8 +108,10 @@ class OaiPmhService
      */
     private function identify(): string
     {
-        $earliest = $this->buildHarvestableQuery()
+        $earliest = Resource::query()
+            ->whereNotNull('doi')
             ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+            ->where('landing_pages.is_published', true)
             ->selectRaw('MIN(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) as earliest')
             ->value('earliest');
 
@@ -177,10 +179,13 @@ class OaiPmhService
         $resumptionToken = $request->input('resumptionToken');
 
         if ($resumptionToken !== null) {
+            $requestAttrs = is_string($resumptionToken) ? ['resumptionToken' => $resumptionToken] : [];
+
             return $this->errorResponse(
                 'badResumptionToken',
                 'Resumption tokens are not supported for ListSets',
                 'ListSets',
+                $requestAttrs,
             );
         }
 
@@ -385,10 +390,12 @@ class OaiPmhService
             }
         }
 
-        // Build query for published resources
-        $query = $this->buildHarvestableQuery()
+        // Build query for published resources (join replaces whereHas to avoid redundant EXISTS)
+        $query = Resource::query()
+            ->whereNotNull('doi')
             ->select('resources.*')
             ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+            ->where('landing_pages.is_published', true)
             ->when($setSpec !== null, fn (Builder $q) => $this->setService->applySetFilter($q, $setSpec))
             ->when($from !== null, fn (Builder $q) => $q->whereRaw('(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) >= ?', [$from]))
             ->when($until !== null, fn (Builder $q) => $q->whereRaw('(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) <= ?', [$until]))

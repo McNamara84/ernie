@@ -80,7 +80,7 @@ Route::get('/portal', [PortalController::class, 'index'])->name('portal');
 // OAI-PMH Harvesting Endpoint
 // ===========================================================
 Route::get('/oai-pmh/docs', [OaiPmhDocsController::class, 'index'])->name('oaipmh.docs');
-Route::match(['get', 'post'], '/oai-pmh', OaiPmhController::class)->name('oaipmh');
+Route::match(['get', 'post'], '/oai-pmh', OaiPmhController::class)->middleware('throttle:oai-pmh')->name('oaipmh');
 
 // Public Landing Pages (accessible without authentication)
 // ===========================================================
