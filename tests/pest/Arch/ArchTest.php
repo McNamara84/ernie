@@ -65,6 +65,8 @@ describe('Services', function () {
             'App\Services\OldDatasetEditorLoader',
             'App\Services\JsonSchemaValidator',
             'App\Services\DataCiteSyncResult',
+            'App\Services\OaiPmh\OaiPmhXmlResponseBuilder',
+            'App\Services\OaiPmh\DublinCoreMapper',
         ]);
 
     arch('services are not extending controllers')

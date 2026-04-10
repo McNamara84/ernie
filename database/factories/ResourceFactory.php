@@ -26,8 +26,8 @@ class ResourceFactory extends Factory
     {
         // Get or create default resource type
         $resourceType = ResourceType::firstOrCreate(
-            ['slug' => 'Dataset'],
-            ['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]
+            ['slug' => 'dataset'],
+            ['name' => 'Dataset', 'slug' => 'dataset', 'is_active' => true]
         );
 
         // Get or create default language

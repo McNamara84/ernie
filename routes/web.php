@@ -7,6 +7,8 @@ use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Http\Controllers\OaiPmh\OaiPmhController;
+use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
@@ -74,6 +76,11 @@ Route::get('/changelog', function () {
 // Public Portal (Dataset Discovery)
 // ===========================================================
 Route::get('/portal', [PortalController::class, 'index'])->name('portal');
+
+// OAI-PMH Harvesting Endpoint
+// ===========================================================
+Route::get('/oai-pmh/docs', [OaiPmhDocsController::class, 'index'])->name('oaipmh.docs');
+Route::match(['get', 'post'], '/oai-pmh', OaiPmhController::class)->middleware('throttle:oai-pmh')->name('oaipmh');
 
 // Public Landing Pages (accessible without authentication)
 // ===========================================================

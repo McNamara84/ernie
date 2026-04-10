@@ -35,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // CSRF token validation - using standard Laravel middleware
         $middleware->preventRequestForgery(except: [
-            // Add any routes that should be excluded from CSRF verification
+            'oai-pmh', // OAI-PMH harvesting endpoint (harvesters send POST without CSRF tokens)
         ]);
 
         $middleware->web(append: [

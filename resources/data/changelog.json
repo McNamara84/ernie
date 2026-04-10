@@ -4,6 +4,10 @@
         "date": "2026-04-09",
         "features": [
             {
+                "title": "OAI-PMH 2.0 Harvesting Endpoint",
+                "description": "A fully OAI-PMH 2.0 compliant harvesting endpoint is now available at /oai-pmh for third-party metadata harvesters. It supports all 6 standard verbs (Identify, ListMetadataFormats, ListSets, ListIdentifiers, ListRecords, GetRecord) with Dublin Core (oai_dc) and DataCite Kernel 4.7 (oai_datacite) metadata formats. Features include cursor-based pagination with resumption tokens, selective harvesting by date range and sets (resource type, publication year), and persistent deleted record tracking. A comprehensive harvester documentation page is available at /oai-pmh/docs."
+            },
+            {
                 "title": "IGSN Import from DataCite",
                 "description": "Admins and Group Leaders can now bulk-import all ~38,500 IGSNs registered under the GFZ IGSN prefix (10.60510) directly from the DataCite API. The import automatically enriches each IGSN with legacy metadata (sample type, material, coordinates, collector, classifications, geological ages) from Solr and the legacy IGSN database (~94% enrichment rate). Parent-child relationships between samples are resolved after import. Progress is tracked in real-time with counters for imported, enriched, skipped, and failed records."
             },

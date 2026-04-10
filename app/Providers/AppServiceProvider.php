@@ -9,8 +9,10 @@ use App\Jobs\DiscoverRelationsJob;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
+use App\Observers\LandingPageObserver;
 use App\Observers\ResourceObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
@@ -44,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         Resource::observe(ResourceObserver::class);
+        LandingPage::observe(LandingPageObserver::class);
 
         // Configure rate limiters
         $this->configureRateLimiting();
@@ -78,6 +81,12 @@ class AppServiceProvider extends ServiceProvider
             $identifier = $user !== null ? $user->id : $request->ip();
 
             return Limit::perMinute(60)->by((string) $identifier);
+        });
+
+        // Rate limiter for OAI-PMH harvesting endpoint
+        // Allows 120 requests per minute per IP (harvester-friendly but prevents abuse)
+        RateLimiter::for('oai-pmh', function (Request $request) {
+            return Limit::perMinute(120)->by((string) $request->ip());
         });
     }
 

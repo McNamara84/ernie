@@ -721,6 +721,35 @@ erDiagram
     }
 
     %% =========================================================================
+    %% OAI-PMH TABLES (Harvesting Protocol)
+    %% =========================================================================
+
+    oai_pmh_deleted_records {
+        bigint id PK
+        varchar oai_identifier UK
+        varchar doi
+        timestamp datestamp
+        json sets "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    oai_pmh_resumption_tokens {
+        bigint id PK
+        varchar token UK "64 chars"
+        varchar verb
+        varchar metadata_prefix "nullable"
+        varchar set_spec "nullable"
+        timestamp from_date "nullable"
+        timestamp until_date "nullable"
+        bigint_unsigned cursor
+        bigint_unsigned complete_list_size
+        timestamp expires_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
 
