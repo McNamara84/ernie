@@ -17,7 +17,7 @@ it('handles malformed metadata XML gracefully in addRecord', function () {
         $container,
         'oai:ernie.gfz.de:10.5880/test',
         '2024-01-01T00:00:00Z',
-        ['resourcetype:Dataset'],
+        ['resourcetype:dataset'],
         'this is not valid XML <broken>',
     );
 
@@ -89,7 +89,7 @@ it('adds deleted record with status attribute', function () {
         $container,
         'oai:ernie.gfz.de:10.5880/deleted',
         '2024-06-15T00:00:00Z',
-        ['resourcetype:Dataset'],
+        ['resourcetype:dataset'],
     );
 
     $xml = $this->builder->toXml();

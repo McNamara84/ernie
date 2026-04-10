@@ -15,7 +15,7 @@ describe('create', function () {
         $token = $service->create(
             verb: 'ListRecords',
             metadataPrefix: 'oai_dc',
-            setSpec: 'resourcetype:Dataset',
+            setSpec: 'resourcetype:dataset',
             from: null,
             until: null,
             cursor: 100,
@@ -25,7 +25,7 @@ describe('create', function () {
         expect($token)->toBeInstanceOf(OaiPmhResumptionToken::class)
             ->and($token->verb)->toBe('ListRecords')
             ->and($token->metadata_prefix)->toBe('oai_dc')
-            ->and($token->set_spec)->toBe('resourcetype:Dataset')
+            ->and($token->set_spec)->toBe('resourcetype:dataset')
             ->and($token->cursor)->toBe(100)
             ->and($token->complete_list_size)->toBe(500)
             ->and($token->token)->toHaveLength(64)

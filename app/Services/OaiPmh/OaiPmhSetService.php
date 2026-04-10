@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
  * Manages OAI-PMH set enumeration and query filtering.
  *
  * Sets are organized hierarchically:
- * - resourcetype:{TypeName} – By DataCite resource type
+ * - resourcetype:{slug} – By resource type slug (lowercase, e.g. dataset, physical-object)
  * - year:{YYYY} – By publication year
  */
 class OaiPmhSetService
@@ -121,7 +121,7 @@ class OaiPmhSetService
      */
     public function isValidSetSpec(string $setSpec): bool
     {
-        return (bool) preg_match('/^resourcetype:[A-Za-z0-9_-]+$/', $setSpec)
+        return (bool) preg_match('/^resourcetype:[a-z0-9_-]+$/', $setSpec)
             || (bool) preg_match('/^year:\d{4}$/', $setSpec);
     }
 }

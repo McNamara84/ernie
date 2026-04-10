@@ -76,7 +76,7 @@ describe('isValidSetSpec', function () {
     it('accepts resourcetype: prefix with alphanumeric slug', function () {
         $service = app(OaiPmhSetService::class);
 
-        expect($service->isValidSetSpec('resourcetype:Dataset'))->toBeTrue();
+        expect($service->isValidSetSpec('resourcetype:dataset'))->toBeTrue();
     });
 
     it('accepts resourcetype: prefix with hyphens', function () {
@@ -95,6 +95,13 @@ describe('isValidSetSpec', function () {
         $service = app(OaiPmhSetService::class);
 
         expect($service->isValidSetSpec('resourcetype:Physical Object'))->toBeFalse();
+    });
+
+    it('rejects resourcetype: prefix with uppercase letters', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('resourcetype:Dataset'))->toBeFalse()
+            ->and($service->isValidSetSpec('resourcetype:PhysicalObject'))->toBeFalse();
     });
 
     it('accepts year: prefix', function () {

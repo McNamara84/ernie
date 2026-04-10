@@ -37,7 +37,7 @@ describe('LandingPageObserver OAI-PMH tracking', function () {
             'oai_identifier' => "{$prefix}:10.5880/obs.2024.002",
             'doi' => '10.5880/obs.2024.002',
             'datestamp' => now(),
-            'sets' => ['resourcetype:Dataset'],
+            'sets' => ['resourcetype:dataset'],
         ]);
 
         $landingPage->update(['is_published' => true]);

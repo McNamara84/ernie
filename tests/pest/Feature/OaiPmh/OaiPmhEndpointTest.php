@@ -242,7 +242,7 @@ test('ListRecords includes deleted records on the first page', function () {
         'oai_identifier' => oaiId('10.5880/deleted.2024.001'),
         'doi' => '10.5880/deleted.2024.001',
         'datestamp' => now(),
-        'sets' => ['resourcetype:Dataset'],
+        'sets' => ['resourcetype:dataset'],
     ]);
 
     $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc');
@@ -299,7 +299,7 @@ test('GetRecord for deleted record returns status deleted', function () {
         'oai_identifier' => oaiId('10.5880/deleted.001'),
         'doi' => '10.5880/deleted.001',
         'datestamp' => now(),
-        'sets' => ['resourcetype:Dataset'],
+        'sets' => ['resourcetype:dataset'],
     ]);
 
     $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/deleted.001') . '&metadataPrefix=oai_dc');

@@ -423,6 +423,7 @@ class OaiPmhService
         if ($cursor < $deletedCount) {
             $deletedRecords = $deletedQuery
                 ->orderBy('datestamp')
+                ->orderBy('id')
                 ->skip($cursor)
                 ->take($pageSize)
                 ->get();
