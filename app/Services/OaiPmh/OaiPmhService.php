@@ -423,7 +423,14 @@ class OaiPmhService
         }
 
         $deletedCount = $deletedQuery->count();
-        $completeListSize = $totalCount + $deletedCount;
+
+        // In resumption token mode, use the stored complete_list_size for stable
+        // pagination across pages. For initial requests, calculate from current state.
+        if (is_string($resumptionToken)) {
+            $completeListSize = $token->complete_list_size;
+        } else {
+            $completeListSize = $totalCount + $deletedCount;
+        }
 
         if ($completeListSize === 0) {
             return $this->errorResponse('noRecordsMatch', 'No records match the given criteria', $verb, $requestAttrs);

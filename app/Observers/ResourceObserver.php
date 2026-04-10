@@ -181,7 +181,7 @@ class ResourceObserver
     public function deleting(Resource $resource): void
     {
         if ($resource->doi !== null && $resource->doi !== '') {
-            $resource->loadMissing('resourceType');
+            $resource->loadMissing(['resourceType', 'landingPage']);
         }
     }
 
@@ -223,6 +223,12 @@ class ResourceObserver
     private function trackOaiPmhDeletion(Resource $resource): void
     {
         if ($resource->doi === null || $resource->doi === '') {
+            return;
+        }
+
+        // Only track deletion for resources that were previously published
+        // to avoid leaking draft DOIs via OAI-PMH deleted headers
+        if ($resource->landingPage === null || ! $resource->landingPage->is_published) {
             return;
         }
 
