@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\OaiPmh;
 
 use App\Http\Controllers\Controller;
+use App\Services\OaiPmh\OaiPmhSetService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,12 +15,23 @@ use Inertia\Response;
  */
 class OaiPmhDocsController extends Controller
 {
-    public function index(): Response
+    public function index(OaiPmhSetService $setService): Response
     {
-        $resourceTypeSlugs = DB::table('resource_types')
-            ->orderBy('name')
-            ->pluck('slug')
+        $activeSets = $setService->listSets();
+
+        $resourceTypeSlugs = collect($activeSets)
+            ->filter(fn (array $set) => str_starts_with($set['spec'], 'resourcetype:'))
+            ->map(fn (array $set) => substr($set['spec'], strlen('resourcetype:')))
+            ->values()
             ->all();
+
+        // Fall back to all resource types when no published sets exist yet
+        if ($resourceTypeSlugs === []) {
+            $resourceTypeSlugs = DB::table('resource_types')
+                ->orderBy('name')
+                ->pluck('slug')
+                ->all();
+        }
 
         return Inertia::render('oai-pmh/docs', [
             'baseUrl' => config('oaipmh.base_url'),

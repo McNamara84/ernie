@@ -173,6 +173,19 @@ class ResourceObserver
     }
 
     /**
+     * Handle the Resource "deleting" event.
+     *
+     * Eagerly loads relationships needed for OAI-PMH deletion tracking
+     * before database cascades remove related records.
+     */
+    public function deleting(Resource $resource): void
+    {
+        if ($resource->doi !== null && $resource->doi !== '') {
+            $resource->loadMissing('resourceType');
+        }
+    }
+
+    /**
      * Handle the Resource "deleted" event.
      *
      * Invalidates all resource caches since the resource
@@ -204,8 +217,8 @@ class ResourceObserver
      * Track a resource deletion in OAI-PMH deleted records.
      *
      * Only tracks resources that had a DOI (harvestable resources).
-     * The resource's relationships may already be deleted by cascade,
-     * so we load the resource type eagerly before deletion if possible.
+     * The resource type relationship is eagerly loaded in the `deleting`
+     * observer to ensure it is available after cascade deletes.
      */
     private function trackOaiPmhDeletion(Resource $resource): void
     {
