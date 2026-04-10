@@ -116,7 +116,7 @@ test('ListMetadataFormats with unknown identifier returns idDoesNotExist', funct
 // ===================================================================
 
 test('ListSets returns resource type and year sets', function () {
-    createOaiPmhResource(['publication_year' => 2024]);
+    $resource = createOaiPmhResource(['publication_year' => 2024]);
 
     $response = $this->get('/oai-pmh?verb=ListSets');
 
@@ -128,7 +128,7 @@ test('ListSets returns resource type and year sets', function () {
         $specs[] = (string) $set->setSpec;
     }
 
-    expect($specs)->toContain('resourcetype:Dataset')
+    expect($specs)->toContain('resourcetype:' . $resource->resourceType->slug)
         ->and($specs)->toContain('year:2024');
 });
 

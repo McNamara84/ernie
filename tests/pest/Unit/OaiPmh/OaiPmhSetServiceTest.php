@@ -25,7 +25,7 @@ describe('listSets', function () {
 
         $specs = array_column($sets, 'spec');
 
-        expect($specs)->toContain('resourcetype:Dataset');
+        expect($specs)->toContain('resourcetype:' . $resource->resourceType->slug);
     });
 
     it('returns year sets from published resources', function () {
@@ -57,7 +57,7 @@ describe('getSetsForResource', function () {
         $service = app(OaiPmhSetService::class);
         $sets = $service->getSetsForResource($resource);
 
-        expect($sets)->toContain('resourcetype:Dataset')
+        expect($sets)->toContain('resourcetype:' . $resource->resourceType->slug)
             ->and($sets)->toContain('year:2024');
     });
 
@@ -138,7 +138,7 @@ describe('applySetFilter', function () {
 
         $service = app(OaiPmhSetService::class);
         $query = Resource::query();
-        $filtered = $service->applySetFilter($query, 'resourcetype:Dataset');
+        $filtered = $service->applySetFilter($query, 'resourcetype:' . $resource->resourceType->slug);
 
         expect($filtered->count())->toBe(1);
     });

@@ -57,6 +57,11 @@ function ExampleUrl({ url }: { url: string }) {
 }
 
 export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs }: Props) {
+    const exampleSetSpec = resourceTypeSlugs.includes('dataset')
+        ? 'resourcetype:dataset'
+        : resourceTypeSlugs.length > 0
+          ? `resourcetype:${resourceTypeSlugs[0]}`
+          : 'resourcetype:dataset';
     return (
         <PublicLayout>
             <Head title="OAI-PMH Documentation" />
@@ -248,7 +253,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm">Filter by set and date range:</p>
-                                    <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=resourcetype:Dataset&from=2024-01-01&until=2024-12-31`} />
+                                    <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${exampleSetSpec}&from=2024-01-01&until=2024-12-31`} />
                                 </div>
                             </TabsContent>
 
@@ -259,7 +264,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm">Harvest DataCite XML for datasets only:</p>
-                                    <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=resourcetype:Dataset`} />
+                                    <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${exampleSetSpec}`} />
                                 </div>
                             </TabsContent>
 
@@ -309,7 +314,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                             <h4 className="mb-1 font-medium">Set-based Harvesting</h4>
                             <p className="text-muted-foreground">
                                 Use the <code>set</code> parameter to harvest only records belonging to a specific set.
-                                For example, <code>set=resourcetype:Dataset</code> harvests only dataset records.
+                                For example, <code>set={exampleSetSpec}</code> harvests only dataset records.
                             </p>
                         </div>
                         <div>
@@ -317,7 +322,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                             <p className="text-muted-foreground">
                                 Date and set filters can be combined for targeted harvesting:
                             </p>
-                            <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=resourcetype:Dataset&from=2024-01-01`} />
+                            <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${exampleSetSpec}&from=2024-01-01`} />
                         </div>
                     </CardContent>
                 </Card>

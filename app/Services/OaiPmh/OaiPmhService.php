@@ -141,6 +141,10 @@ class OaiPmhService
         $identifier = $request->input('identifier');
 
         if ($identifier !== null) {
+            if (! is_string($identifier)) {
+                return $this->errorResponse('badArgument', 'The identifier argument must be a single value', 'ListMetadataFormats');
+            }
+
             // Validate the identifier exists
             $doi = $this->extractDoiFromIdentifier($identifier);
             if ($doi === null || ! $this->resourceExists($doi)) {
@@ -209,8 +213,15 @@ class OaiPmhService
      */
     private function getRecord(Request $request): string
     {
-        $identifier = (string) $request->input('identifier', '');
-        $metadataPrefix = (string) $request->input('metadataPrefix', '');
+        $rawIdentifier = $request->input('identifier', '');
+        $rawMetadataPrefix = $request->input('metadataPrefix', '');
+
+        if (! is_string($rawIdentifier) || ! is_string($rawMetadataPrefix)) {
+            return $this->errorResponse('badArgument', 'Arguments must be single values', 'GetRecord');
+        }
+
+        $identifier = $rawIdentifier;
+        $metadataPrefix = $rawMetadataPrefix;
 
         $requestAttrs = ['identifier' => $identifier, 'metadataPrefix' => $metadataPrefix];
 
@@ -285,8 +296,16 @@ class OaiPmhService
         $resumptionToken = $request->input('resumptionToken');
         $pageSize = (int) config('oaipmh.page_size', 100);
 
+        // Reject array parameters – OAI-PMH arguments must be single values
+        foreach (['resumptionToken', 'metadataPrefix', 'set', 'from', 'until'] as $param) {
+            $value = $request->input($param);
+            if ($value !== null && ! is_string($value)) {
+                return $this->errorResponse('badArgument', "The {$param} argument must be a single value", $verb);
+            }
+        }
+
         // Resumption token mode: restore query state from token
-        if ($resumptionToken !== null) {
+        if (is_string($resumptionToken)) {
             $token = $this->tokenService->resolve($resumptionToken);
             if ($token === null) {
                 return $this->errorResponse('badResumptionToken', 'Invalid or expired resumption token', $verb);
