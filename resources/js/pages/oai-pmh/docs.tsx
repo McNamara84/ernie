@@ -359,7 +359,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                         <ul className="list-inside list-disc space-y-2 text-muted-foreground">
                             <li>Use incremental harvesting with <code>from</code> dates to avoid re-harvesting unchanged records.</li>
                             <li>Prefer <code>oai_datacite</code> format for richer metadata (DataCite Kernel 4.7).</li>
-                            <li>Implement retry logic for transient errors (HTTP 503 with Retry-After header).</li>
+                            <li>Implement retry logic for rate limiting (HTTP 429); back off and retry after the indicated delay.</li>
                             <li>Respect the <code>resumptionToken</code> expiration; do not cache tokens beyond {tokenTtlHours} hours.</li>
                             <li>Process deleted records to remove or flag previously harvested entries.</li>
                         </ul>

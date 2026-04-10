@@ -229,7 +229,7 @@ class ResourceObserver
         $oaiIdentifier = config('oaipmh.identifier_prefix') . ':' . $resource->doi;
         $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
-        OaiPmhDeletedRecord::firstOrCreate(
+        OaiPmhDeletedRecord::updateOrCreate(
             ['oai_identifier' => $oaiIdentifier],
             [
                 'doi' => $resource->doi,

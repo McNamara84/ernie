@@ -43,7 +43,7 @@ class LandingPageObserver
             $resource->loadMissing('resourceType');
             $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
-            OaiPmhDeletedRecord::firstOrCreate(
+            OaiPmhDeletedRecord::updateOrCreate(
                 ['oai_identifier' => $oaiIdentifier],
                 [
                     'doi' => $resource->doi,
