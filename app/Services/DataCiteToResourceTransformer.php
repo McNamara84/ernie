@@ -445,14 +445,32 @@ class DataCiteToResourceTransformer
      */
     private function findOrCreatePerson(array $data): Person
     {
-        $familyName = $data['familyName'] ?? null;
-        $givenName = $data['givenName'] ?? null;
+        $familyName = isset($data['familyName']) ? trim((string) $data['familyName']) : null;
+        $givenName = isset($data['givenName']) ? trim((string) $data['givenName']) : null;
+
+        // Treat empty strings as null after trimming
+        if ($familyName === '') {
+            $familyName = null;
+        }
+        if ($givenName === '') {
+            $givenName = null;
+        }
 
         // If no structured name, try to parse from 'name' field
         if ($familyName === null && isset($data['name'])) {
-            $parts = $this->parsePersonName($data['name']);
-            $familyName = $parts['family'];
-            $givenName = $parts['given'];
+            $name = trim((string) $data['name']);
+            if ($name !== '') {
+                $parts = $this->parsePersonName($name);
+                $familyName = $parts['family'] !== null ? trim($parts['family']) : null;
+                $givenName = $parts['given'] !== null ? trim($parts['given']) : null;
+
+                if ($familyName === '') {
+                    $familyName = null;
+                }
+                if ($givenName === '') {
+                    $givenName = null;
+                }
+            }
         }
 
         // Extract ORCID from name identifiers
@@ -516,7 +534,7 @@ class DataCiteToResourceTransformer
         }
 
         // Safety guard: family_name is NOT NULL in the database
-        if ($familyName === null || $familyName === '') {
+        if ($familyName === null || trim($familyName) === '') {
             throw new \InvalidArgumentException(
                 'Cannot create Person: family_name is required but was empty. Data: '
                 . json_encode($data, JSON_UNESCAPED_UNICODE)
@@ -543,15 +561,28 @@ class DataCiteToResourceTransformer
      */
     private function inferNameType(array $data): string
     {
-        $hasFamilyName = isset($data['familyName']) && $data['familyName'] !== '';
-        $hasGivenName = isset($data['givenName']) && $data['givenName'] !== '';
-        $hasName = isset($data['name']) && $data['name'] !== '';
+        $hasFamilyName = isset($data['familyName']) && trim((string) $data['familyName']) !== '';
+        $hasGivenName = isset($data['givenName']) && trim((string) $data['givenName']) !== '';
 
-        if (! $hasFamilyName && ! $hasGivenName && $hasName) {
-            return 'Organizational';
+        if ($hasFamilyName || $hasGivenName) {
+            return 'Personal';
         }
 
-        return 'Personal';
+        $name = isset($data['name']) ? trim((string) $data['name']) : '';
+
+        if ($name === '') {
+            return 'Personal';
+        }
+
+        // Try to parse the name — if it yields a plausible family name,
+        // this is likely a Personal creator (e.g. "Doe, John").
+        $parts = $this->parsePersonName($name);
+
+        if ($parts['family'] !== null && trim($parts['family']) !== '') {
+            return 'Personal';
+        }
+
+        return 'Organizational';
     }
 
     /**
@@ -561,9 +592,9 @@ class DataCiteToResourceTransformer
      */
     private function hasAnyName(array $data): bool
     {
-        return ! empty($data['name'])
-            || ! empty($data['familyName'])
-            || ! empty($data['givenName']);
+        return (isset($data['name']) && trim((string) $data['name']) !== '')
+            || (isset($data['familyName']) && trim((string) $data['familyName']) !== '')
+            || (isset($data['givenName']) && trim((string) $data['givenName']) !== '');
     }
 
     /**
