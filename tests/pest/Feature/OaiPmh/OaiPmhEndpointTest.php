@@ -367,7 +367,8 @@ test('invalid resumptionToken returns badResumptionToken', function () {
 
     $xml = simplexml_load_string($response->getContent());
 
-    expect((string) $xml->error['code'])->toBe('badResumptionToken');
+    expect((string) $xml->error['code'])->toBe('badResumptionToken')
+        ->and((string) $xml->request['resumptionToken'])->toBe('nonexistent_token');
 });
 
 test('invalid set specification returns badArgument', function () {
@@ -455,7 +456,8 @@ test('resumption token issued for different verb returns badResumptionToken', fu
 
     $xml = simplexml_load_string($response->getContent());
 
-    expect((string) $xml->error['code'])->toBe('badResumptionToken');
+    expect((string) $xml->error['code'])->toBe('badResumptionToken')
+        ->and((string) $xml->request['resumptionToken'])->toBe('verb-mismatch-token');
 });
 
 // ===================================================================

@@ -308,12 +308,12 @@ class OaiPmhService
         if (is_string($resumptionToken)) {
             $token = $this->tokenService->resolve($resumptionToken);
             if ($token === null) {
-                return $this->errorResponse('badResumptionToken', 'Invalid or expired resumption token', $verb);
+                return $this->errorResponse('badResumptionToken', 'Invalid or expired resumption token', $verb, ['resumptionToken' => $resumptionToken]);
             }
 
             // Verify the token's verb matches the current request verb
             if ($token->verb !== $verb) {
-                return $this->errorResponse('badResumptionToken', 'Resumption token was issued for a different verb', $verb);
+                return $this->errorResponse('badResumptionToken', 'Resumption token was issued for a different verb', $verb, ['resumptionToken' => $resumptionToken]);
             }
 
             $metadataPrefix = $token->metadata_prefix ?? '';
