@@ -7,7 +7,6 @@ namespace App\Services\OaiPmh;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\DataCiteXmlExporter;
-use DOMElement;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -109,10 +108,10 @@ class OaiPmhService
      */
     private function identify(): string
     {
-        $earliest = Resource::query()
-            ->whereHas('landingPage', fn (Builder $q) => $q->where('is_published', true))
-            ->whereNotNull('doi')
-            ->min('updated_at');
+        $earliest = $this->buildHarvestableQuery()
+            ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
+            ->selectRaw('MIN(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) as earliest')
+            ->value('earliest');
 
         $earliestDatestamp = $earliest !== null
             ? Carbon::parse($earliest)->utc()->format('Y-m-d\TH:i:s\Z')
@@ -270,7 +269,7 @@ class OaiPmhService
         $builder->addRecord(
             $container,
             $this->buildOaiIdentifier($resource->doi),
-            ($resource->updated_at ?? now())->utc()->format('Y-m-d\TH:i:s\Z'),
+            $this->effectiveDatestamp($resource),
             $sets,
             $metadataXml,
         );
@@ -369,10 +368,12 @@ class OaiPmhService
 
         // Build query for published resources
         $query = $this->buildHarvestableQuery()
+            ->select('resources.*')
+            ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
             ->when($setSpec !== null, fn (Builder $q) => $this->setService->applySetFilter($q, $setSpec))
-            ->when($from !== null, fn (Builder $q) => $q->where('resources.updated_at', '>=', $from))
-            ->when($until !== null, fn (Builder $q) => $q->where('resources.updated_at', '<=', $until))
-            ->orderBy('resources.updated_at')
+            ->when($from !== null, fn (Builder $q) => $q->whereRaw('(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) >= ?', [$from]))
+            ->when($until !== null, fn (Builder $q) => $q->whereRaw('(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) <= ?', [$until]))
+            ->orderByRaw('CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END')
             ->orderBy('resources.id');
 
         $totalCount = $query->count();
@@ -439,14 +440,14 @@ class OaiPmhService
                 ->get();
 
             if (! $headersOnly) {
-                $resources->loadMissing($this->getRelationsForMetadata($metadataPrefix));
+                $resources->loadMissing(['landingPage', ...$this->getRelationsForMetadata($metadataPrefix)]);
             } else {
-                $resources->loadMissing(['resourceType']);
+                $resources->loadMissing(['landingPage', 'resourceType']);
             }
 
             foreach ($resources as $resource) {
                 $oaiId = $this->buildOaiIdentifier($resource->doi);
-                $datestamp = ($resource->updated_at ?? now())->utc()->format('Y-m-d\TH:i:s\Z');
+                $datestamp = $this->effectiveDatestamp($resource);
                 $sets = $this->setService->getSetsForResource($resource);
 
                 if ($headersOnly) {
@@ -566,7 +567,7 @@ class OaiPmhService
             ->where('doi', $doi)
             ->first();
 
-        $resource?->loadMissing($this->getRelationsForMetadata($metadataPrefix));
+        $resource?->loadMissing(['landingPage', ...$this->getRelationsForMetadata($metadataPrefix)]);
 
         return $resource;
     }
@@ -587,6 +588,24 @@ class OaiPmhService
     private function buildOaiIdentifier(?string $doi): string
     {
         return config('oaipmh.identifier_prefix') . ':' . ($doi ?? 'unknown');
+    }
+
+    /**
+     * Compute the effective OAI-PMH datestamp for a resource.
+     *
+     * Uses the greater of resources.updated_at and landing_pages.published_at
+     * so that the datestamp reflects whichever event happened more recently.
+     */
+    private function effectiveDatestamp(Resource $resource): string
+    {
+        $updated = $resource->updated_at ?? now();
+        $published = $resource->landingPage?->published_at;
+
+        $effective = ($published !== null && $published->greaterThan($updated))
+            ? $published
+            : $updated;
+
+        return $effective->utc()->format('Y-m-d\TH:i:s\Z');
     }
 
     /**

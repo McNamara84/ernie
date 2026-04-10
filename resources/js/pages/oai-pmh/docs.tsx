@@ -18,6 +18,7 @@ interface Props {
     baseUrl: string;
     adminEmail: string;
     metadataFormats: Record<string, MetadataFormat>;
+    resourceTypeSlugs: string[];
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -55,7 +56,7 @@ function ExampleUrl({ url }: { url: string }) {
     );
 }
 
-export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats }: Props) {
+export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs }: Props) {
     return (
         <PublicLayout>
             <Head title="OAI-PMH Documentation" />
@@ -188,8 +189,8 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats }: Pro
                                 Filter by DataCite resource type using the <code>set</code> parameter.
                             </p>
                             <div className="flex flex-wrap gap-2">
-                                {['Dataset', 'Text', 'Image', 'PhysicalObject', 'Software', 'Collection'].map((type) => (
-                                    <Badge key={type} variant="outline">resourcetype:{type}</Badge>
+                                {resourceTypeSlugs.map((slug) => (
+                                    <Badge key={slug} variant="outline">resourcetype:{slug}</Badge>
                                 ))}
                             </div>
                         </div>

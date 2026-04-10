@@ -11,6 +11,7 @@ use App\Models\Resource;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -592,4 +593,63 @@ test('Identify response derives repositoryIdentifier from config', function () {
     $expectedId = str_replace('oai:', '', (string) config('oaipmh.identifier_prefix'));
 
     expect($content)->toContain("<repositoryIdentifier>{$expectedId}</repositoryIdentifier>");
+});
+
+// ===================================================================
+// Set Spec with Spaces (OAI-PMH grammar violation)
+// ===================================================================
+
+test('resourcetype set spec with spaces returns badArgument', function () {
+    $response = $this->get('/oai-pmh?verb=ListRecords&metadataPrefix=oai_dc&set=resourcetype:Physical Object');
+
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->error['code'])->toBe('badArgument');
+});
+
+// ===================================================================
+// Effective Datestamp (GREATEST of updated_at, published_at)
+// ===================================================================
+
+test('datestamp reflects published_at when it is newer than updated_at', function () {
+    $resource = Resource::factory()->create(['doi' => '10.5880/datestamp.2024.001']);
+
+    // Set updated_at to an older date without triggering model events
+    Resource::withoutTimestamps(fn () => Resource::where('id', $resource->id)->update([
+        'updated_at' => '2024-01-01 00:00:00',
+    ]));
+
+    // Set published_at to a newer date
+    $publishedAt = Carbon::parse('2024-06-15 12:00:00');
+    LandingPage::factory()->create([
+        'resource_id' => $resource->id,
+        'is_published' => true,
+        'published_at' => $publishedAt,
+    ]);
+
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/datestamp.2024.001&metadataPrefix=oai_dc');
+
+    $content = $response->getContent();
+
+    expect($content)->toContain('2024-06-15T12:00:00Z');
+});
+
+test('datestamp reflects updated_at when it is newer than published_at', function () {
+    $updatedAt = Carbon::parse('2024-09-01 10:00:00');
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/datestamp.2024.002',
+        'updated_at' => $updatedAt,
+    ]);
+
+    LandingPage::factory()->create([
+        'resource_id' => $resource->id,
+        'is_published' => true,
+        'published_at' => Carbon::parse('2024-01-01 00:00:00'),
+    ]);
+
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/datestamp.2024.002&metadataPrefix=oai_dc');
+
+    $content = $response->getContent();
+
+    expect($content)->toContain('2024-09-01T10:00:00Z');
 });

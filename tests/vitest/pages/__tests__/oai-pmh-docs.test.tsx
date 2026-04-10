@@ -24,6 +24,7 @@ const defaultProps = {
             namespace: 'http://datacite.org/schema/kernel-4',
         },
     },
+    resourceTypeSlugs: ['collection', 'dataset', 'image', 'physical-object', 'software', 'text'],
 };
 
 describe('OaiPmhDocs', () => {
@@ -69,10 +70,10 @@ describe('OaiPmhDocs', () => {
         expect(screen.getByText('OAI Identifier Format')).toBeInTheDocument();
     });
 
-    it('renders resource type set badges', () => {
+    it('renders resource type set badges from props', () => {
         render(<OaiPmhDocs {...defaultProps} />);
-        expect(screen.getByText('resourcetype:Dataset')).toBeInTheDocument();
-        expect(screen.getByText('resourcetype:PhysicalObject')).toBeInTheDocument();
+        expect(screen.getByText('resourcetype:dataset')).toBeInTheDocument();
+        expect(screen.getByText('resourcetype:physical-object')).toBeInTheDocument();
     });
 
     it('renders OAI identifier example', () => {

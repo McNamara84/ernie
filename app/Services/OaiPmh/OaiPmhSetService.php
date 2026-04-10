@@ -35,15 +35,15 @@ class OaiPmhSetService
                 ->whereColumn('landing_pages.resource_id', 'resources.id')
                 ->where('landing_pages.is_published', true))
             ->whereNotNull('resources.doi')
-            ->select('resource_types.name')
+            ->select('resource_types.slug', 'resource_types.name')
             ->distinct()
             ->orderBy('resource_types.name')
-            ->pluck('name');
+            ->get();
 
-        foreach ($types as $typeName) {
+        foreach ($types as $type) {
             $sets[] = [
-                'spec' => 'resourcetype:' . $typeName,
-                'name' => $typeName,
+                'spec' => 'resourcetype:' . $type->slug,
+                'name' => $type->name,
             ];
         }
 
@@ -81,7 +81,7 @@ class OaiPmhSetService
         return match (true) {
             str_starts_with($setSpec, 'resourcetype:') => $query->whereHas(
                 'resourceType',
-                fn (Builder $q) => $q->where('name', Str::after($setSpec, 'resourcetype:')),
+                fn (Builder $q) => $q->where('slug', Str::after($setSpec, 'resourcetype:')),
             ),
             str_starts_with($setSpec, 'year:') => $query->where(
                 'publication_year',
@@ -100,9 +100,9 @@ class OaiPmhSetService
     {
         $sets = [];
 
-        $typeName = $resource->resourceType?->name;
-        if ($typeName !== null && $typeName !== '') {
-            $sets[] = 'resourcetype:' . $typeName;
+        $typeSlug = $resource->resourceType?->slug;
+        if ($typeSlug !== null && $typeSlug !== '') {
+            $sets[] = 'resourcetype:' . $typeSlug;
         }
 
         if ($resource->publication_year !== null) {
@@ -115,12 +115,13 @@ class OaiPmhSetService
     /**
      * Validate whether a set spec is syntactically valid.
      *
-     * - resourcetype:{non-empty alphanumeric/space value}
+     * OAI-PMH setSpec grammar requires URL-safe characters without spaces.
+     * - resourcetype:{slug with alphanumeric, hyphens, underscores}
      * - year:{4-digit year}
      */
     public function isValidSetSpec(string $setSpec): bool
     {
-        return (bool) preg_match('/^resourcetype:[A-Za-z0-9 ]+$/', $setSpec)
+        return (bool) preg_match('/^resourcetype:[A-Za-z0-9_-]+$/', $setSpec)
             || (bool) preg_match('/^year:\d{4}$/', $setSpec);
     }
 }

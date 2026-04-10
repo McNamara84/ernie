@@ -73,10 +73,28 @@ describe('getSetsForResource', function () {
 });
 
 describe('isValidSetSpec', function () {
-    it('accepts resourcetype: prefix', function () {
+    it('accepts resourcetype: prefix with alphanumeric slug', function () {
         $service = app(OaiPmhSetService::class);
 
         expect($service->isValidSetSpec('resourcetype:Dataset'))->toBeTrue();
+    });
+
+    it('accepts resourcetype: prefix with hyphens', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('resourcetype:physical-object'))->toBeTrue();
+    });
+
+    it('accepts resourcetype: prefix with underscores', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('resourcetype:data_paper'))->toBeTrue();
+    });
+
+    it('rejects resourcetype: prefix with spaces', function () {
+        $service = app(OaiPmhSetService::class);
+
+        expect($service->isValidSetSpec('resourcetype:Physical Object'))->toBeFalse();
     });
 
     it('accepts year: prefix', function () {
