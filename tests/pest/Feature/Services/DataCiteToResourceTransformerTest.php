@@ -811,3 +811,216 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
     });
 
 });
+
+describe('DataCiteToResourceTransformer - nameType inference and null family_name handling', function (): void {
+
+    beforeEach(function (): void {
+        test()->seed(ResourceTypeSeeder::class);
+        test()->seed(TitleTypeSeeder::class);
+        test()->seed(DescriptionTypeSeeder::class);
+        test()->seed(ContributorTypeSeeder::class);
+        test()->seed(LanguageSeeder::class);
+        test()->seed(PublisherSeeder::class);
+    });
+
+    it('infers Organizational nameType when only name field is present', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/orgtest.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Organizational Creator']],
+                'creators' => [
+                    [
+                        'name' => 'GFZ German Research Centre for Geosciences',
+                        // No nameType, no familyName, no givenName
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Should be stored as institution, not person
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(\App\Models\Institution::class);
+    });
+
+    it('keeps Personal nameType when familyName is present', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/persontest.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Personal Creator']],
+                'creators' => [
+                    [
+                        'familyName' => 'Müller',
+                        'givenName' => 'Hans',
+                        // No nameType provided
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(Person::class);
+
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Müller')
+            ->and($person->given_name)->toBe('Hans');
+    });
+
+    it('skips creators without any name data', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/emptyname.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Empty Creator']],
+                'creators' => [
+                    [
+                        // No name, no familyName, no givenName
+                        'affiliation' => [['name' => 'Some University']],
+                    ],
+                    [
+                        'familyName' => 'Valid',
+                        'givenName' => 'Person',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Only the valid creator should be stored
+        expect($resource->creators()->count())->toBe(1);
+
+        $creator = $resource->creators()->first();
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Valid');
+    });
+
+    it('does not crash on null familyName and givenName with null name', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/nullall.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Null Name Fields']],
+                'creators' => [
+                    [
+                        'name' => null,
+                        'familyName' => null,
+                        'givenName' => null,
+                    ],
+                    [
+                        'familyName' => 'Backup',
+                        'givenName' => 'Creator',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // The null-name creator should be skipped, only valid one remains
+        expect($resource->creators()->count())->toBe(1);
+    });
+
+    it('infers Organizational for contributors without familyName/givenName', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/orgcontrib.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Org Contributor']],
+                'creators' => [
+                    ['familyName' => 'Smith', 'givenName' => 'John', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'Helmholtz Centre Potsdam',
+                        'contributorType' => 'HostingInstitution',
+                        // No nameType, no familyName, no givenName
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $contributor = $resource->contributors()->first();
+        expect($contributor)->not->toBeNull()
+            ->and($contributor->contributorable_type)->toBe(\App\Models\Institution::class);
+    });
+
+    it('imports mixed Personal and Organizational creators without error', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/mixed.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Mixed Creators Test']],
+                'creators' => [
+                    [
+                        'familyName' => 'Doe',
+                        'givenName' => 'Jane',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'Alfred Wegener Institute',
+                        'nameType' => 'Organizational',
+                    ],
+                    [
+                        'name' => 'Unknown Organization Without NameType',
+                        // No nameType → should be inferred as Organizational
+                    ],
+                    [
+                        'name' => 'Lastname, Firstname',
+                        'familyName' => 'Lastname',
+                        'givenName' => 'Firstname',
+                        // Has familyName → should stay Personal
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        expect($resource->creators()->count())->toBe(4);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        // Creator 1: Personal (explicit)
+        expect($creators[0]->creatorable_type)->toBe(Person::class);
+
+        // Creator 2: Organizational (explicit)
+        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // Creator 3: Organizational (inferred)
+        expect($creators[2]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // Creator 4: Personal (has familyName)
+        expect($creators[3]->creatorable_type)->toBe(Person::class);
+    });
+
+});

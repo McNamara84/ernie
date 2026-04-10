@@ -265,14 +265,34 @@ class DataCiteToResourceTransformer
     private function transformCreators(array $creators, Resource $resource): void
     {
         foreach ($creators as $position => $creatorData) {
-            $nameType = $creatorData['nameType'] ?? 'Personal';
+            // Skip records without any name information
+            if (! $this->hasAnyName($creatorData)) {
+                Log::warning('Skipping creator without any name data', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'data' => $creatorData,
+                ]);
+
+                continue;
+            }
+
+            $nameType = $creatorData['nameType'] ?? $this->inferNameType($creatorData);
 
             if ($nameType === 'Organizational') {
                 $entity = $this->findOrCreateInstitution($creatorData);
                 $entityType = Institution::class;
             } else {
-                $entity = $this->findOrCreatePerson($creatorData);
-                $entityType = Person::class;
+                try {
+                    $entity = $this->findOrCreatePerson($creatorData);
+                    $entityType = Person::class;
+                } catch (\InvalidArgumentException $e) {
+                    Log::warning('Skipping creator with unresolvable name', [
+                        'resource_id' => $resource->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    continue;
+                }
             }
 
             $resourceCreator = ResourceCreator::create([
@@ -296,14 +316,34 @@ class DataCiteToResourceTransformer
     private function transformContributors(array $contributors, Resource $resource): void
     {
         foreach ($contributors as $position => $contributorData) {
-            $nameType = $contributorData['nameType'] ?? 'Personal';
+            // Skip records without any name information
+            if (! $this->hasAnyName($contributorData)) {
+                Log::warning('Skipping contributor without any name data', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'data' => $contributorData,
+                ]);
+
+                continue;
+            }
+
+            $nameType = $contributorData['nameType'] ?? $this->inferNameType($contributorData);
 
             if ($nameType === 'Organizational') {
                 $entity = $this->findOrCreateInstitution($contributorData);
                 $entityType = Institution::class;
             } else {
-                $entity = $this->findOrCreatePerson($contributorData);
-                $entityType = Person::class;
+                try {
+                    $entity = $this->findOrCreatePerson($contributorData);
+                    $entityType = Person::class;
+                } catch (\InvalidArgumentException $e) {
+                    Log::warning('Skipping contributor with unresolvable name', [
+                        'resource_id' => $resource->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    continue;
+                }
             }
 
             $contributorTypeId = null;
@@ -475,6 +515,14 @@ class DataCiteToResourceTransformer
             }
         }
 
+        // Safety guard: family_name is NOT NULL in the database
+        if ($familyName === null || $familyName === '') {
+            throw new \InvalidArgumentException(
+                'Cannot create Person: family_name is required but was empty. Data: '
+                . json_encode($data, JSON_UNESCAPED_UNICODE)
+            );
+        }
+
         // Create new person
         return Person::create([
             'given_name' => $givenName,
@@ -483,6 +531,39 @@ class DataCiteToResourceTransformer
             'name_identifier_scheme' => $scheme,
             'scheme_uri' => $schemeUri,
         ]);
+    }
+
+    /**
+     * Infer nameType when DataCite doesn't provide it.
+     *
+     * A creator/contributor without familyName AND without givenName
+     * but WITH a 'name' field is likely an organization.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function inferNameType(array $data): string
+    {
+        $hasFamilyName = isset($data['familyName']) && $data['familyName'] !== '';
+        $hasGivenName = isset($data['givenName']) && $data['givenName'] !== '';
+        $hasName = isset($data['name']) && $data['name'] !== '';
+
+        if (! $hasFamilyName && ! $hasGivenName && $hasName) {
+            return 'Organizational';
+        }
+
+        return 'Personal';
+    }
+
+    /**
+     * Check if a creator/contributor record has any name information.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function hasAnyName(array $data): bool
+    {
+        return ! empty($data['name'])
+            || ! empty($data['familyName'])
+            || ! empty($data['givenName']);
     }
 
     /**
