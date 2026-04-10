@@ -7,6 +7,8 @@ use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Http\Controllers\OaiPmh\OaiPmhController;
+use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
@@ -77,8 +79,8 @@ Route::get('/portal', [PortalController::class, 'index'])->name('portal');
 
 // OAI-PMH Harvesting Endpoint
 // ===========================================================
-Route::get('/oai-pmh/docs', [\App\Http\Controllers\OaiPmh\OaiPmhDocsController::class, 'index'])->name('oaipmh.docs');
-Route::match(['get', 'post'], '/oai-pmh', \App\Http\Controllers\OaiPmh\OaiPmhController::class)->name('oaipmh');
+Route::get('/oai-pmh/docs', [OaiPmhDocsController::class, 'index'])->name('oaipmh.docs');
+Route::match(['get', 'post'], '/oai-pmh', OaiPmhController::class)->name('oaipmh');
 
 // Public Landing Pages (accessible without authentication)
 // ===========================================================

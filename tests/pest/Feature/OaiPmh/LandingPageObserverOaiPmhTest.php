@@ -11,6 +11,7 @@ uses(RefreshDatabase::class);
 
 describe('LandingPageObserver OAI-PMH tracking', function () {
     it('creates a deleted record when landing page is depublished', function () {
+        $prefix = config('oaipmh.identifier_prefix');
         $resource = Resource::factory()->create(['doi' => '10.5880/obs.2024.001']);
         $landingPage = LandingPage::factory()->published()->create([
             'resource_id' => $resource->id,
@@ -21,10 +22,11 @@ describe('LandingPageObserver OAI-PMH tracking', function () {
         $deleted = OaiPmhDeletedRecord::where('doi', '10.5880/obs.2024.001')->first();
 
         expect($deleted)->not->toBeNull()
-            ->and($deleted->oai_identifier)->toBe('oai:ernie.gfz.de:10.5880/obs.2024.001');
+            ->and($deleted->oai_identifier)->toBe("{$prefix}:10.5880/obs.2024.001");
     });
 
     it('removes deleted record when landing page is republished', function () {
+        $prefix = config('oaipmh.identifier_prefix');
         $resource = Resource::factory()->create(['doi' => '10.5880/obs.2024.002']);
         $landingPage = LandingPage::factory()->draft()->create([
             'resource_id' => $resource->id,
@@ -32,7 +34,7 @@ describe('LandingPageObserver OAI-PMH tracking', function () {
 
         // Create a deleted record as if previously depublished
         OaiPmhDeletedRecord::create([
-            'oai_identifier' => 'oai:ernie.gfz.de:10.5880/obs.2024.002',
+            'oai_identifier' => "{$prefix}:10.5880/obs.2024.002",
             'doi' => '10.5880/obs.2024.002',
             'datestamp' => now(),
             'sets' => ['resourcetype:Dataset'],
@@ -55,6 +57,7 @@ describe('LandingPageObserver OAI-PMH tracking', function () {
     });
 
     it('does not create duplicate deleted records', function () {
+        $prefix = config('oaipmh.identifier_prefix');
         $resource = Resource::factory()->create(['doi' => '10.5880/obs.2024.003']);
         $landingPage = LandingPage::factory()->published()->create([
             'resource_id' => $resource->id,
@@ -62,7 +65,7 @@ describe('LandingPageObserver OAI-PMH tracking', function () {
 
         // Pre-create a deleted record
         OaiPmhDeletedRecord::create([
-            'oai_identifier' => 'oai:ernie.gfz.de:10.5880/obs.2024.003',
+            'oai_identifier' => "{$prefix}:10.5880/obs.2024.003",
             'doi' => '10.5880/obs.2024.003',
             'datestamp' => now(),
             'sets' => [],

@@ -26,6 +26,7 @@ class OaiPmhDocsController extends Controller
             'adminEmail' => config('oaipmh.admin_email'),
             'metadataFormats' => config('oaipmh.metadata_formats'),
             'resourceTypeSlugs' => $resourceTypeSlugs,
+            'identifierPrefix' => config('oaipmh.identifier_prefix'),
         ]);
     }
 }

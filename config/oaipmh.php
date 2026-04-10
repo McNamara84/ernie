@@ -19,7 +19,7 @@ return [
 
     'admin_email' => 'datapub@gfz.de',
 
-    'identifier_prefix' => 'oai:ernie.gfz.de',
+    'identifier_prefix' => 'oai:' . parse_url((string) env('APP_URL', 'https://ernie.gfz.de'), PHP_URL_HOST),
 
     'deleted_record' => 'persistent',
 

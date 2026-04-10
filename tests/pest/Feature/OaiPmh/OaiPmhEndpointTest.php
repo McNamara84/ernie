@@ -42,6 +42,14 @@ function createOaiPmhResource(array $attributes = []): Resource
     return $resource->refresh();
 }
 
+/**
+ * Build OAI identifier from a DOI using the configured prefix.
+ */
+function oaiId(string $doi): string
+{
+    return config('oaipmh.identifier_prefix') . ':' . $doi;
+}
+
 // ===================================================================
 // Verb: Identify
 // ===================================================================
@@ -92,7 +100,7 @@ test('ListMetadataFormats returns oai_dc and oai_datacite', function () {
 
 test('ListMetadataFormats with valid identifier returns formats', function () {
     $resource = createOaiPmhResource(['doi' => '10.5880/test.2024.001']);
-    $identifier = 'oai:ernie.gfz.de:10.5880/test.2024.001';
+    $identifier = oaiId('10.5880/test.2024.001');
 
     $response = $this->get("/oai-pmh?verb=ListMetadataFormats&identifier={$identifier}");
 
@@ -103,7 +111,7 @@ test('ListMetadataFormats with valid identifier returns formats', function () {
 });
 
 test('ListMetadataFormats with unknown identifier returns idDoesNotExist', function () {
-    $response = $this->get('/oai-pmh?verb=ListMetadataFormats&identifier=oai:ernie.gfz.de:10.9999/nonexistent');
+    $response = $this->get('/oai-pmh?verb=ListMetadataFormats&identifier=' . oaiId('10.9999/nonexistent'));
 
     $response->assertStatus(200);
     $xml = simplexml_load_string($response->getContent());
@@ -152,7 +160,7 @@ test('ListRecords with oai_dc returns Dublin Core metadata', function () {
     $response->assertStatus(200);
     $content = $response->getContent();
 
-    expect($content)->toContain('oai:ernie.gfz.de:10.5880/test.2024.001')
+    expect($content)->toContain(oaiId('10.5880/test.2024.001'))
         ->and($content)->toContain('Test Dataset Title')
         ->and($content)->toContain('dc:title');
 });
@@ -165,7 +173,7 @@ test('ListRecords with oai_datacite returns DataCite metadata', function () {
     $response->assertStatus(200);
     $content = $response->getContent();
 
-    expect($content)->toContain('oai:ernie.gfz.de:10.5880/test.2024.002');
+    expect($content)->toContain(oaiId('10.5880/test.2024.002'));
 });
 
 test('ListRecords without metadataPrefix returns badArgument', function () {
@@ -231,7 +239,7 @@ test('ListRecords includes deleted records on the first page', function () {
     createOaiPmhResource(['doi' => '10.5880/live.2024.001']);
 
     OaiPmhDeletedRecord::create([
-        'oai_identifier' => 'oai:ernie.gfz.de:10.5880/deleted.2024.001',
+        'oai_identifier' => oaiId('10.5880/deleted.2024.001'),
         'doi' => '10.5880/deleted.2024.001',
         'datestamp' => now(),
         'sets' => ['resourcetype:Dataset'],
@@ -258,7 +266,7 @@ test('ListIdentifiers returns headers without metadata', function () {
     $response->assertStatus(200);
     $content = $response->getContent();
 
-    expect($content)->toContain('oai:ernie.gfz.de:10.5880/hdr.2024.001')
+    expect($content)->toContain(oaiId('10.5880/hdr.2024.001'))
         ->and($content)->not->toContain('dc:title');
 });
 
@@ -269,17 +277,17 @@ test('ListIdentifiers returns headers without metadata', function () {
 test('GetRecord returns a single record', function () {
     createOaiPmhResource(['doi' => '10.5880/single.2024.001']);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/single.2024.001&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/single.2024.001') . '&metadataPrefix=oai_dc');
 
     $response->assertStatus(200);
     $content = $response->getContent();
 
-    expect($content)->toContain('oai:ernie.gfz.de:10.5880/single.2024.001')
+    expect($content)->toContain(oaiId('10.5880/single.2024.001'))
         ->and($content)->toContain('dc:title');
 });
 
 test('GetRecord with nonexistent identifier returns idDoesNotExist', function () {
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.9999/nonexistent&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.9999/nonexistent') . '&metadataPrefix=oai_dc');
 
     $xml = simplexml_load_string($response->getContent());
 
@@ -288,13 +296,13 @@ test('GetRecord with nonexistent identifier returns idDoesNotExist', function ()
 
 test('GetRecord for deleted record returns status deleted', function () {
     OaiPmhDeletedRecord::create([
-        'oai_identifier' => 'oai:ernie.gfz.de:10.5880/deleted.001',
+        'oai_identifier' => oaiId('10.5880/deleted.001'),
         'doi' => '10.5880/deleted.001',
         'datestamp' => now(),
         'sets' => ['resourcetype:Dataset'],
     ]);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/deleted.001&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/deleted.001') . '&metadataPrefix=oai_dc');
 
     $content = $response->getContent();
 
@@ -310,7 +318,7 @@ test('GetRecord without identifier returns badArgument', function () {
 });
 
 test('GetRecord without metadataPrefix returns badArgument', function () {
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/test');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/test') . '');
 
     $xml = simplexml_load_string($response->getContent());
 
@@ -627,7 +635,7 @@ test('datestamp reflects published_at when it is newer than updated_at', functio
         'published_at' => $publishedAt,
     ]);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/datestamp.2024.001&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/datestamp.2024.001') . '&metadataPrefix=oai_dc');
 
     $content = $response->getContent();
 
@@ -647,7 +655,7 @@ test('datestamp reflects updated_at when it is newer than published_at', functio
         'published_at' => Carbon::parse('2024-01-01 00:00:00'),
     ]);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/datestamp.2024.002&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/datestamp.2024.002') . '&metadataPrefix=oai_dc');
 
     $content = $response->getContent();
 

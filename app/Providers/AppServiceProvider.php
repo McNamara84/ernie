@@ -9,8 +9,10 @@ use App\Jobs\DiscoverRelationsJob;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
+use App\Observers\LandingPageObserver;
 use App\Observers\ResourceObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
@@ -44,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         Resource::observe(ResourceObserver::class);
-        \App\Models\LandingPage::observe(\App\Observers\LandingPageObserver::class);
+        LandingPage::observe(LandingPageObserver::class);
 
         // Configure rate limiters
         $this->configureRateLimiting();

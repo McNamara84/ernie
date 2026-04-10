@@ -25,6 +25,7 @@ const defaultProps = {
         },
     },
     resourceTypeSlugs: ['collection', 'dataset', 'image', 'physical-object', 'software', 'text'],
+    identifierPrefix: 'oai:ernie.gfz.de',
 };
 
 describe('OaiPmhDocs', () => {
@@ -78,6 +79,6 @@ describe('OaiPmhDocs', () => {
 
     it('renders OAI identifier example', () => {
         render(<OaiPmhDocs {...defaultProps} />);
-        expect(screen.getByText('oai:ernie.gfz.de:10.5880/GFZ.1.2.2024.001')).toBeInTheDocument();
+        expect(screen.getByText(`${defaultProps.identifierPrefix}:10.5880/GFZ.1.2.2024.001`)).toBeInTheDocument();
     });
 });

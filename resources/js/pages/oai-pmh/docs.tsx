@@ -19,6 +19,7 @@ interface Props {
     adminEmail: string;
     metadataFormats: Record<string, MetadataFormat>;
     resourceTypeSlugs: string[];
+    identifierPrefix: string;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -56,7 +57,7 @@ function ExampleUrl({ url }: { url: string }) {
     );
 }
 
-export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs }: Props) {
+export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs, identifierPrefix }: Props) {
     const exampleSetSpec = resourceTypeSlugs.includes('dataset')
         ? 'resourcetype:dataset'
         : resourceTypeSlugs.length > 0
@@ -270,7 +271,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
 
                             <TabsContent value="getrecord" className="space-y-2">
                                 <p className="text-sm">Retrieve a single record by its OAI identifier:</p>
-                                <ExampleUrl url={`${baseUrl}?verb=GetRecord&identifier=oai:ernie.gfz.de:10.5880/GFZ.1.2.2024.001&metadataPrefix=oai_dc`} />
+                                <ExampleUrl url={`${baseUrl}?verb=GetRecord&identifier=${identifierPrefix}:10.5880/GFZ.1.2.2024.001&metadataPrefix=oai_dc`} />
                             </TabsContent>
                         </Tabs>
                     </CardContent>
@@ -371,10 +372,10 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     <CardContent className="space-y-2 text-sm">
                         <p>Record identifiers follow the format:</p>
                         <div className="rounded-md bg-muted/50 px-3 py-2">
-                            <code>oai:ernie.gfz.de:&#123;DOI&#125;</code>
+                            <code>{identifierPrefix}:&#123;DOI&#125;</code>
                         </div>
                         <p className="text-muted-foreground">
-                            Example: <code>oai:ernie.gfz.de:10.5880/GFZ.1.2.2024.001</code>
+                            Example: <code>{identifierPrefix}:10.5880/GFZ.1.2.2024.001</code>
                         </p>
                     </CardContent>
                 </Card>
