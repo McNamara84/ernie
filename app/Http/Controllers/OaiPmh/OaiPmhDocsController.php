@@ -39,6 +39,8 @@ class OaiPmhDocsController extends Controller
             'metadataFormats' => config('oaipmh.metadata_formats'),
             'resourceTypeSlugs' => $resourceTypeSlugs,
             'identifierPrefix' => config('oaipmh.identifier_prefix'),
+            'pageSize' => (int) config('oaipmh.page_size', 100),
+            'tokenTtlHours' => (int) round((int) config('oaipmh.resumption_token_ttl', 86400) / 3600),
         ]);
     }
 }

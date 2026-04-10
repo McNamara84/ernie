@@ -20,6 +20,8 @@ interface Props {
     metadataFormats: Record<string, MetadataFormat>;
     resourceTypeSlugs: string[];
     identifierPrefix: string;
+    pageSize: number;
+    tokenTtlHours: number;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -57,7 +59,7 @@ function ExampleUrl({ url }: { url: string }) {
     );
 }
 
-export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs, identifierPrefix }: Props) {
+export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs, identifierPrefix, pageSize, tokenTtlHours }: Props) {
     const exampleSetSpec = resourceTypeSlugs.includes('dataset')
         ? 'resourcetype:dataset'
         : resourceTypeSlugs.length > 0
@@ -285,13 +287,13 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <p>
-                            When a <code>ListRecords</code> or <code>ListIdentifiers</code> response contains more than <strong>100 records</strong>,
+                            When a <code>ListRecords</code> or <code>ListIdentifiers</code> response contains more than <strong>{pageSize} records</strong>,
                             the response includes a <code>&lt;resumptionToken&gt;</code> element.
                         </p>
                         <p>To retrieve the next page, send a new request with the token as the exclusive parameter:</p>
                         <ExampleUrl url={`${baseUrl}?verb=ListRecords&resumptionToken=<token_value>`} />
                         <p className="text-muted-foreground">
-                            Tokens expire after <strong>24 hours</strong>. An empty <code>&lt;resumptionToken&gt;</code> element
+                            Tokens expire after <strong>{tokenTtlHours} hours</strong>. An empty <code>&lt;resumptionToken&gt;</code> element
                             (with no text content) signals the end of the result set.
                         </p>
                     </CardContent>
@@ -358,7 +360,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                             <li>Use incremental harvesting with <code>from</code> dates to avoid re-harvesting unchanged records.</li>
                             <li>Prefer <code>oai_datacite</code> format for richer metadata (DataCite Kernel 4.7).</li>
                             <li>Implement retry logic for transient errors (HTTP 503 with Retry-After header).</li>
-                            <li>Respect the <code>resumptionToken</code> expiration; do not cache tokens beyond 24 hours.</li>
+                            <li>Respect the <code>resumptionToken</code> expiration; do not cache tokens beyond {tokenTtlHours} hours.</li>
                             <li>Process deleted records to remove or flag previously harvested entries.</li>
                         </ul>
                     </CardContent>

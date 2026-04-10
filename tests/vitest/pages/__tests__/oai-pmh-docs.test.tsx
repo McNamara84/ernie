@@ -26,6 +26,8 @@ const defaultProps = {
     },
     resourceTypeSlugs: ['collection', 'dataset', 'image', 'physical-object', 'software', 'text'],
     identifierPrefix: 'oai:ernie.gfz.de',
+    pageSize: 100,
+    tokenTtlHours: 24,
 };
 
 describe('OaiPmhDocs', () => {
