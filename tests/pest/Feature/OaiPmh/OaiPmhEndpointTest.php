@@ -606,6 +606,24 @@ test('Identify response derives repositoryIdentifier from config', function () {
     expect($content)->toContain("<repositoryIdentifier>{$expectedId}</repositoryIdentifier>");
 });
 
+test('Identify earliestDatestamp considers deleted records', function () {
+    // Create a published resource with a recent datestamp
+    createOaiPmhResource(['doi' => '10.5880/recent.2024.001']);
+
+    // Create a deleted record with an earlier datestamp
+    OaiPmhDeletedRecord::create([
+        'oai_identifier' => oaiId('10.5880/old.2020.001'),
+        'doi' => '10.5880/old.2020.001',
+        'datestamp' => '2020-01-15 08:00:00',
+        'sets' => ['resourcetype:dataset'],
+    ]);
+
+    $response = $this->get('/oai-pmh?verb=Identify');
+    $xml = simplexml_load_string($response->getContent());
+
+    expect((string) $xml->Identify->earliestDatestamp)->toBe('2020-01-15T08:00:00Z');
+});
+
 // ===================================================================
 // Set Spec with Spaces (OAI-PMH grammar violation)
 // ===================================================================

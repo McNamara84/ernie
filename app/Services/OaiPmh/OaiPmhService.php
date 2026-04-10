@@ -108,12 +108,21 @@ class OaiPmhService
      */
     private function identify(): string
     {
-        $earliest = Resource::query()
+        $earliestPublished = Resource::query()
             ->whereNotNull('doi')
             ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
             ->where('landing_pages.is_published', true)
             ->selectRaw('MIN(CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END) as earliest')
             ->value('earliest');
+
+        $earliestDeleted = OaiPmhDeletedRecord::query()->min('datestamp');
+
+        $earliest = match (true) {
+            $earliestPublished !== null && $earliestDeleted !== null => min($earliestPublished, $earliestDeleted),
+            $earliestPublished !== null => $earliestPublished,
+            $earliestDeleted !== null => $earliestDeleted,
+            default => null,
+        };
 
         $earliestDatestamp = $earliest !== null
             ? Carbon::parse($earliest)->utc()->format('Y-m-d\TH:i:s\Z')
