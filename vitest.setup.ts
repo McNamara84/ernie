@@ -174,7 +174,7 @@ if (typeof navigator !== 'undefined') {
 // Without these mocks, any test rendering a layout component would need to mock those exports.
 // Tests that specifically test these components override these mocks in their own test files.
 vi.mock('@/components/page-transition', () => ({
-    PageTransition: ({ children }: { children?: unknown }) => children,
+    PageTransition: ({ children }: { children?: React.ReactNode }) => children ?? null,
 }));
 
 vi.mock('@/hooks/use-nprogress', () => ({

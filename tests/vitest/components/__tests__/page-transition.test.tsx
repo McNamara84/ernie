@@ -39,7 +39,7 @@ describe('PageTransition', () => {
         expect(container.querySelector('[data-slot="page-transition"]')).toBeInTheDocument();
     });
 
-    it('does not wrap in motion div when reduced motion is preferred', () => {
+    it('renders a plain div wrapper when reduced motion is preferred', () => {
         vi.mocked(useReducedMotion).mockReturnValue(true);
 
         const { container } = render(
@@ -48,7 +48,10 @@ describe('PageTransition', () => {
             </PageTransition>,
         );
 
-        expect(container.querySelector('[data-slot="page-transition"]')).not.toBeInTheDocument();
+        const wrapper = container.querySelector('[data-slot="page-transition"]');
+        expect(wrapper).toBeInTheDocument();
+        expect(wrapper?.tagName).toBe('DIV');
+        expect(wrapper).toHaveClass('flex', 'flex-1', 'flex-col', 'min-h-0');
         expect(screen.getByText('Static')).toBeInTheDocument();
     });
 });

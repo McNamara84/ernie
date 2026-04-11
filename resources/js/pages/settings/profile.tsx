@@ -13,6 +13,7 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { feedback } from '@/lib/feedback';
 import { type UpdateProfileInput, updateProfileSchema } from '@/lib/validations/user';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
@@ -44,6 +45,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         router.patch(ProfileController.update.url(), data, {
             preserveScroll: true,
             onSuccess: () => {
+                feedback.saved('Profile');
                 setRecentlySuccessful(true);
                 setTimeout(() => setRecentlySuccessful(false), 2000);
             },

@@ -6,15 +6,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Password from '@/pages/settings/password';
 
-const { routerMock } = vi.hoisted(() => ({
+const { routerMock, feedbackMock } = vi.hoisted(() => ({
     routerMock: {
         put: vi.fn(),
+    },
+    feedbackMock: {
+        saved: vi.fn(),
     },
 }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     router: routerMock,
+}));
+
+vi.mock('@/lib/feedback', () => ({
+    feedback: feedbackMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -36,6 +43,7 @@ vi.mock('@/actions/App/Http/Controllers/Settings/PasswordController', () => ({
 describe('Password settings page', () => {
     beforeEach(() => {
         routerMock.put.mockReset();
+        feedbackMock.saved.mockReset();
     });
 
     it('renders fields for updating password', () => {
@@ -73,6 +81,7 @@ describe('Password settings page', () => {
 
         await waitFor(() => {
             expect(screen.getByText(/saved/i)).toBeInTheDocument();
+            expect(feedbackMock.saved).toHaveBeenCalledWith('Password');
         });
     });
 

@@ -15,7 +15,7 @@ export function PageTransition({ children }: PropsWithChildren) {
     const prefersReducedMotion = useReducedMotion();
 
     if (prefersReducedMotion) {
-        return <>{children}</>;
+        return <div data-slot="page-transition" className="flex min-h-0 flex-1 flex-col">{children}</div>;
     }
 
     return (

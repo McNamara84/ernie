@@ -6,10 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Profile from '@/pages/settings/profile';
 
-const { authUser, routerMock } = vi.hoisted(() => ({
+const { authUser, routerMock, feedbackMock } = vi.hoisted(() => ({
     authUser: { name: 'John Doe', email: 'john@example.com', email_verified_at: null },
     routerMock: {
         patch: vi.fn(),
+    },
+    feedbackMock: {
+        saved: vi.fn(),
     },
 }));
 
@@ -22,6 +25,10 @@ vi.mock('@inertiajs/react', () => ({
     ),
     usePage: () => ({ props: { auth: { user: authUser } } }),
     router: routerMock,
+}));
+
+vi.mock('@/lib/feedback', () => ({
+    feedback: feedbackMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -51,6 +58,7 @@ vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
 describe('Profile settings page', () => {
     beforeEach(() => {
         routerMock.patch.mockReset();
+        feedbackMock.saved.mockReset();
     });
 
     it('renders profile form with user data and verification link', () => {
@@ -114,6 +122,7 @@ describe('Profile settings page', () => {
 
         await waitFor(() => {
             expect(screen.getByText(/saved/i)).toBeInTheDocument();
+            expect(feedbackMock.saved).toHaveBeenCalledWith('Profile');
         });
     });
 
