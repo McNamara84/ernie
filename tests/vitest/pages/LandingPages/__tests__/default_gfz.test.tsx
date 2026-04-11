@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
+    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -322,5 +323,76 @@ describe('DefaultGfzTemplate', () => {
         const downloadLink = screen.getByText('Download data and description');
         expect(downloadLink).toBeInTheDocument();
         expect(downloadLink.closest('a')).toHaveAttribute('href', 'https://ftp.example.com/dataset');
+    });
+
+    describe('accessibility', () => {
+        beforeEach(() => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+        });
+
+        it('renders a skip navigation link', () => {
+            render(<DefaultGfzTemplate />);
+
+            const skipLink = screen.getByText('Skip to main content');
+            expect(skipLink).toBeInTheDocument();
+            expect(skipLink).toHaveAttribute('href', '#main-content');
+        });
+
+        it('renders a main landmark element', () => {
+            render(<DefaultGfzTemplate />);
+
+            const main = screen.getByRole('main');
+            expect(main).toBeInTheDocument();
+            expect(main).toHaveAttribute('id', 'main-content');
+        });
+
+        it('renders preview banner with role="status"', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: true,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            const statusElements = screen.getAllByRole('status');
+            const banner = statusElements.find(el => el.textContent === 'Preview Mode');
+            expect(banner).toBeTruthy();
+        });
+
+        it('renders order classes for mobile-first reading order', () => {
+            render(<DefaultGfzTemplate />);
+
+            // The abstract column (order-1 on mobile) comes before files column (order-2)
+            const main = screen.getByRole('main');
+            const grid = main.querySelector('.grid');
+            expect(grid).toBeTruthy();
+
+            const columns = grid!.querySelectorAll(':scope > div');
+            expect(columns.length).toBe(2);
+
+            // First column in DOM has order-1 (abstract - first on mobile)
+            expect(columns[0]).toHaveClass('order-1');
+            // Second column in DOM has order-2 (files - second on mobile)
+            expect(columns[1]).toHaveClass('order-2');
+        });
+
+        it('renders decorative logos with dark mode invert classes', () => {
+            render(<DefaultGfzTemplate />);
+
+            const dsLogo = screen.getByAltText('GFZ Data Services');
+            expect(dsLogo).toHaveClass('dark:brightness-200', 'dark:invert');
+
+            const gfzLogo = screen.getByAltText('GFZ');
+            expect(gfzLogo).toHaveClass('dark:brightness-200', 'dark:invert');
+        });
     });
 });

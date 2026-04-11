@@ -1,6 +1,9 @@
 import { ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { Skeleton } from '@/components/ui/skeleton';
+
+import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 
 interface RelatedIdentifier {
@@ -24,6 +27,7 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     const [citation, setCitation] = useState<string | null>(null);
     const [doi, setDoi] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const { ref, isVisible } = useFadeInOnScroll();
 
     // Finde die IsSupplementTo-Relation
     const supplementTo = relatedIdentifiers.find((rel) => rel.relation_type === 'IsSupplementTo');
@@ -81,20 +85,29 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     }
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">Model Description</h3>
+        <section
+            ref={ref}
+            aria-labelledby="heading-model-description"
+            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        >
+            <h2 id="heading-model-description" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Model Description</h2>
 
             <div className="space-y-3">
-                {loading && <p className="text-sm text-gray-500">Loading citation...</p>}
+                {loading && (
+                    <div className="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700" aria-busy="true">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                    </div>
+                )}
 
                 {!loading && citation && doi && resolvedUrl && (
                     <a
                         href={resolvedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50"
                     >
-                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
+                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
                         <span className="flex-1">{citation}</span>
                     </a>
                 )}
@@ -104,15 +117,15 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
                         href={resolvedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50"
                     >
-                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
+                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
                         <span className="flex-1">
                             {supplementTo.related_title || supplementTo.identifier}
                         </span>
                     </a>
                 )}
             </div>
-        </div>
+        </section>
     );
 }

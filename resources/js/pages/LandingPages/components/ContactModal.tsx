@@ -153,9 +153,9 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
 
                 {formStatus === 'success' ? (
                     <div className="flex flex-col items-center gap-4 py-8">
-                        <CheckCircle className="h-12 w-12 text-green-500" />
-                        <p className="text-center font-medium text-green-700">Message sent successfully!</p>
-                        <p className="text-center text-sm text-gray-500">
+                        <CheckCircle className="h-12 w-12 text-green-500 dark:text-green-400" />
+                        <p className="text-center font-medium text-green-700 dark:text-green-400">Message sent successfully!</p>
+                        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                             The contact person(s) will receive your message and can reply directly to your email.
                         </p>
                     </div>
@@ -184,8 +184,8 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
 
                         {/* Recipient display for single selection or "all" */}
                         {(contactPersons.length === 1 || selectedPerson === null) && (
-                            <div className="rounded-lg bg-gray-50 p-3 text-sm">
-                                <span className="text-gray-500">To: </span>
+                            <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800">
+                                <span className="text-gray-500 dark:text-gray-400">To: </span>
                                 <span className="font-medium">{recipientLabel}</span>
                             </div>
                         )}
@@ -231,7 +231,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                                 required
                                 minLength={10}
                             />
-                            <p className="text-xs text-gray-500">Minimum 10 characters</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Minimum 10 characters</p>
                         </div>
 
                         {/* Copy to sender checkbox */}
@@ -261,7 +261,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
 
                         {/* Error message */}
                         {errorMessage && (
-                            <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                            <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
                                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                                 {errorMessage}
                             </div>

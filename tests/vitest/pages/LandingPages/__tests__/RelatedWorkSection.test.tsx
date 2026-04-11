@@ -1,4 +1,4 @@
-﻿import { render, screen, waitFor } from '@tests/vitest/utils/render';
+﻿import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { beforeEach,describe, expect, it, vi } from 'vitest';
 
 import { RelatedWorkSection } from '@/pages/LandingPages/components/RelatedWorkSection';
@@ -197,7 +197,9 @@ describe('RelatedWorkSection', () => {
 
         render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
-        expect(screen.getByText('Loading citation...')).toBeInTheDocument();
+        // Loading state now uses Skeleton components with aria-busy
+        const busyEl = document.querySelector('[aria-busy="true"]');
+        expect(busyEl).toBeInTheDocument();
     });
 
     it('displays citation after successful fetch', async () => {
@@ -463,7 +465,7 @@ describe('RelatedWorkSection', () => {
 
         render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
-        const headings = screen.getAllByRole('heading', { level: 4 });
+        const headings = screen.getAllByRole('heading', { level: 3 });
         const headingTexts = headings.map((h) => h.textContent);
 
         // Should be sorted alphabetically
@@ -606,6 +608,125 @@ describe('RelatedWorkSection', () => {
             await waitFor(() => {
                 expect(screen.getByTestId('relation-browser-modal')).toBeInTheDocument();
                 expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
+            });
+        });
+    });
+
+    describe('accessibility', () => {
+        it('renders as a section element with aria-labelledby', () => {
+            const relatedIdentifiers = [
+                { id: 1, identifier: '10.5880/test', identifier_type: 'DOI', relation_type: 'References' },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ citation: 'Test' }),
+            });
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const section = screen.getByRole('region', { name: 'Related Work' });
+            expect(section).toBeInTheDocument();
+        });
+
+        it('renders heading as h2 and group headings as h3', () => {
+            const relatedIdentifiers = [
+                { id: 1, identifier: '10.5880/test', identifier_type: 'DOI', relation_type: 'References' },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ citation: 'Test' }),
+            });
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            expect(screen.getByRole('heading', { level: 2, name: 'Related Work' })).toBeInTheDocument();
+            expect(screen.getByRole('heading', { level: 3, name: 'References' })).toBeInTheDocument();
+        });
+
+        it('renders Skeleton with aria-busy when citations are loading', () => {
+            const relatedIdentifiers = [
+                { id: 1, identifier: '10.5880/test', identifier_type: 'DOI', relation_type: 'References' },
+            ];
+
+            global.fetch = vi.fn().mockReturnValue(new Promise(() => {}));
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const busyEls = document.querySelectorAll('[aria-busy="true"]');
+            expect(busyEls.length).toBeGreaterThan(0);
+        });
+
+        it('renders Relation Browser button with minimum touch target', () => {
+            const relatedIdentifiers = [
+                { id: 1, identifier: '10.5880/test', identifier_type: 'DOI', relation_type: 'References' },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ citation: 'Test' }),
+            });
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const button = screen.getByTestId('relation-browser-button');
+            expect(button).toHaveClass('min-h-11', 'min-w-11');
+        });
+    });
+
+    describe('collapsible on mobile', () => {
+        it('does not show expand button when entries <= 9', () => {
+            const relatedIdentifiers = Array.from({ length: 5 }, (_, i) => ({
+                id: i + 1,
+                identifier: `https://example.com/${i}`,
+                identifier_type: 'URL',
+                relation_type: 'References',
+            }));
+
+            global.fetch = vi.fn();
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            expect(screen.queryByRole('button', { name: /Show all/i })).not.toBeInTheDocument();
+        });
+
+        it('shows expand button when entries > 9', () => {
+            const relatedIdentifiers = Array.from({ length: 12 }, (_, i) => ({
+                id: i + 1,
+                identifier: `https://example.com/${i}`,
+                identifier_type: 'URL',
+                relation_type: 'References',
+            }));
+
+            global.fetch = vi.fn();
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const expandButton = screen.getByRole('button', { name: /Show all \(12\)/i });
+            expect(expandButton).toBeInTheDocument();
+            expect(expandButton).toHaveAttribute('aria-expanded', 'false');
+            expect(expandButton).toHaveAttribute('aria-controls', 'related-work-list');
+        });
+
+        it('toggles expanded state on button click', async () => {
+            const relatedIdentifiers = Array.from({ length: 12 }, (_, i) => ({
+                id: i + 1,
+                identifier: `https://example.com/${i}`,
+                identifier_type: 'URL',
+                relation_type: 'References',
+            }));
+
+            global.fetch = vi.fn();
+
+            render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
+
+            const expandButton = screen.getByRole('button', { name: /Show all/i });
+            fireEvent.click(expandButton);
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Show less/i })).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: /Show less/i })).toHaveAttribute('aria-expanded', 'true');
             });
         });
     });

@@ -53,7 +53,7 @@ describe('ModelDescriptionSection', () => {
         expect(screen.getByRole('heading', { name: 'Model Description' })).toBeInTheDocument();
     });
 
-    it('shows loading message while fetching citation', () => {
+    it('shows loading skeleton while fetching citation', () => {
         const relatedIdentifiers = [
             {
                 id: 1,
@@ -68,7 +68,9 @@ describe('ModelDescriptionSection', () => {
 
         render(<ModelDescriptionSection relatedIdentifiers={relatedIdentifiers} />);
 
-        expect(screen.getByText('Loading citation...')).toBeInTheDocument();
+        // Loading state now uses Skeleton components with aria-busy
+        const busyEl = document.querySelector('[aria-busy="true"]');
+        expect(busyEl).toBeInTheDocument();
     });
 
     it('displays citation after successful fetch', async () => {

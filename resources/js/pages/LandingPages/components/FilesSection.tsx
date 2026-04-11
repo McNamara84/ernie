@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { LandingPageLink } from '@/types/landing-page';
 
+import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { ContactModal } from './ContactModal';
 import { CreativeCommonsIcon } from './CreativeCommonsIcon';
 
@@ -48,6 +49,7 @@ type FallbackMode = 'download' | 'contact-form' | 'website' | 'fallback-message'
 export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPersons = [], datasetTitle, additionalLinks = [] }: FilesSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
+    const { ref, isVisible } = useFadeInOnScroll();
 
     // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
@@ -86,8 +88,12 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
 
     return (
         <>
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">Files</h3>
+            <section
+                ref={ref}
+                aria-labelledby="heading-files"
+                className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+            >
+                <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Files</h2>
 
                 <div className="space-y-3">
                     {/* Download Link(s) - shown when download URLs are available */}
@@ -96,9 +102,9 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                             href={effectiveDownloads[0]}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="gfz-action-button flex items-center gap-2 rounded-lg bg-[#0C2A63] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                            className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
                         >
-                            <Download className="h-4 w-4" />
+                            <Download className="h-4 w-4" aria-hidden="true" />
                             Download data and description
                         </a>
                     )}
@@ -110,9 +116,9 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                     href={url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="gfz-action-button flex items-center gap-2 rounded-lg bg-[#0C2A63] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                                    className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
                                 >
-                                    <Download className="h-4 w-4" />
+                                    <Download className="h-4 w-4" aria-hidden="true" />
                                     <span className="truncate">Download ({index + 1})</span>
                                 </a>
                             ))}
@@ -125,7 +131,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                             onClick={() => handleContactClick(contactPersonWithEmail)}
                             className="gfz-action-button flex w-full items-center gap-2 bg-gfz-primary text-gfz-primary-foreground hover:bg-gfz-primary/90"
                         >
-                            <Mail className="h-4 w-4" />
+                            <Mail className="h-4 w-4" aria-hidden="true" />
                             Request data via contact form
                         </Button>
                     )}
@@ -136,16 +142,16 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                             href={contactPersonWithWebsite.website!}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="gfz-action-button flex items-center gap-2 rounded-lg bg-[#0C2A63] px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                            className="gfz-action-button flex items-center gap-2 rounded-lg bg-gfz-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
                         >
-                            <ExternalLink className="h-4 w-4" />
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
                             Visit contact person website
                         </a>
                     )}
 
                     {/* No download available message - when no contact options are available */}
                     {displayMode === 'fallback-message' && (
-                        <p className="text-sm text-gray-500 italic">
+                        <p className="text-sm text-gray-500 italic dark:text-gray-400">
                             Download information not available. Please contact the authors for data access.
                         </p>
                     )}
@@ -161,9 +167,9 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                         href={link.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                                        className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                                     >
-                                        <ExternalLink className="h-4 w-4 shrink-0" />
+                                        <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
                                         <span className="truncate">{link.label}</span>
                                     </a>
                                 ))}
@@ -173,7 +179,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                     {/* License Badges */}
                     {licenses.length > 0 && (
                         <div className="mt-4 space-y-2">
-                            <p className="text-xs font-medium text-gray-500">License</p>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">License</p>
                             <div className="flex flex-col gap-2">
                                 {licenses.map((license) => (
                                     <a
@@ -181,7 +187,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                         href={license.reference}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200"
+                                        className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
                                         title={`SPDX: ${license.spdx_id}`}
                                     >
                                         <CreativeCommonsIcon spdxId={license.spdx_id} className="h-4 w-4" />
@@ -192,7 +198,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                         </div>
                     )}
                 </div>
-            </div>
+            </section>
 
             {/* Contact Modal - rendered when user clicks contact button */}
             {selectedPerson && (
