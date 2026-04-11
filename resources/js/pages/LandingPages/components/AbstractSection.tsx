@@ -1,6 +1,7 @@
-import { Braces, ExternalLink, FileCode, FileJson } from 'lucide-react';
+import { Braces, Clock, ExternalLink, FileCode, FileJson, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite } from 'lucide-react';
 
 import {
+    getSchemeLabel,
     SCHEME_GCMD_INSTRUMENTS,
     SCHEME_GCMD_PLATFORMS,
     SCHEME_GCMD_SCIENCE,
@@ -16,6 +17,8 @@ import type {
     LandingPageSubject,
 } from '@/types/landing-page';
 
+import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
+
 interface AbstractSectionProps {
     descriptions: LandingPageDescription[];
     creators: LandingPageCreator[];
@@ -27,27 +30,32 @@ interface AbstractSectionProps {
     jsonLdExportUrl?: string;
 }
 
-/** Single source of truth: ordered thesaurus definitions with badge styling */
-const THESAURUS_DEFINITIONS: { scheme: string; bgClass: string; textClass: string }[] = [
-    { scheme: SCHEME_GCMD_SCIENCE, bgClass: 'bg-blue-600', textClass: 'text-white' },
-    { scheme: SCHEME_GCMD_PLATFORMS, bgClass: 'bg-emerald-600', textClass: 'text-white' },
-    { scheme: SCHEME_GCMD_INSTRUMENTS, bgClass: 'bg-amber-600', textClass: 'text-white' },
-    { scheme: SCHEME_MSL, bgClass: 'bg-purple-600', textClass: 'text-white' },
-    { scheme: SCHEME_GEMET, bgClass: 'bg-rose-600', textClass: 'text-white' },
-    { scheme: SCHEME_ICS_CHRONOSTRAT, bgClass: 'bg-teal-600', textClass: 'text-white' },
+/** Single source of truth: ordered thesaurus definitions with badge styling and icons */
+const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon; bgClass: string; textClass: string }[] = [
+    { scheme: SCHEME_GCMD_SCIENCE, icon: Globe, bgClass: 'bg-blue-600 dark:bg-blue-500', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_PLATFORMS, icon: Satellite, bgClass: 'bg-emerald-600 dark:bg-emerald-500', textClass: 'text-white' },
+    { scheme: SCHEME_GCMD_INSTRUMENTS, icon: Microscope, bgClass: 'bg-amber-600 dark:bg-amber-500', textClass: 'text-white' },
+    { scheme: SCHEME_MSL, icon: FlaskConical, bgClass: 'bg-purple-600 dark:bg-purple-500', textClass: 'text-white' },
+    { scheme: SCHEME_GEMET, icon: Leaf, bgClass: 'bg-rose-600 dark:bg-rose-500', textClass: 'text-white' },
+    { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock, bgClass: 'bg-teal-600 dark:bg-teal-500', textClass: 'text-white' },
 ];
 
 const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
-const SCHEME_STYLES = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass }]));
+const SCHEME_CONFIG = Object.fromEntries(
+    THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass, icon: d.icon }]),
+);
 
 const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
 
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style?: { bg: string; text: string } }) {
+function KeywordBadge({ subject, style, icon: Icon }: { subject: LandingPageSubject; style?: { bg: string; text: string }; icon?: LucideIcon }) {
     const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
-    const { bg, text } = style ?? SCHEME_STYLES[subject.subject_scheme ?? ''] ?? FREE_KEYWORD_STYLE;
+    const config = SCHEME_CONFIG[subject.subject_scheme ?? ''];
+    const { bg, text } = style ?? config ?? FREE_KEYWORD_STYLE;
+    const BadgeIcon = Icon ?? config?.icon;
+    const schemeLabel = getSchemeLabel(subject.subject_scheme ?? null);
 
     return (
         <a
@@ -56,9 +64,11 @@ function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style?:
             rel="noopener noreferrer"
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${bg} ${text}`}
             title={`Search for "${subject.subject}" in the portal`}
+            aria-label={`${subject.subject} (${schemeLabel})`}
         >
+            {BadgeIcon && <BadgeIcon className="h-3 w-3" aria-hidden="true" />}
             {subject.subject}
-            <ExternalLink className="h-3 w-3 opacity-70" />
+            <ExternalLink className="h-3 w-3 opacity-70" aria-hidden="true" />
         </a>
     );
 }
@@ -80,7 +90,9 @@ function formatPersonName(familyName: string | null, givenName: string | null): 
  * Funders, Subjects/Keywords, and Download Metadata sections.
  */
 export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId, jsonLdExportUrl }: AbstractSectionProps) {
-    // Finde die Abstract-Description (case-insensitive)
+    const { ref, isVisible } = useFadeInOnScroll();
+
+    // Find the Abstract description (case-insensitive)
     const abstract = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'abstract');
     const methods = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'methods');
 
@@ -107,9 +119,14 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
     const hasAnyKeywords = thesauriKeywords.length > 0 || freeKeywords.length > 0;
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="abstract-section">
-            <h3 className="text-lg font-semibold text-gray-900">Abstract</h3>
-            <div className="prose prose-sm max-w-none text-gray-700">
+        <section
+            ref={ref}
+            aria-labelledby="heading-abstract"
+            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+            data-testid="abstract-section"
+        >
+            <h2 id="heading-abstract" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Abstract</h2>
+            <div className="prose prose-sm max-w-none text-gray-700 dark:prose-invert dark:text-gray-300">
                 <p className="mt-0 whitespace-pre-wrap" data-testid="abstract-text">
                     {abstract.value}
                 </p>
@@ -118,8 +135,8 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
             {/* Methods Section */}
             {methods && (
                 <div className="mt-6" data-testid="methods-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Methods</h3>
-                    <div className="prose prose-sm max-w-none text-gray-700">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Methods</h3>
+                    <div className="prose prose-sm max-w-none text-gray-700 dark:prose-invert dark:text-gray-300">
                         <p className="mt-0 whitespace-pre-wrap" data-testid="methods-text">
                             {methods.value}
                         </p>
@@ -130,24 +147,21 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
             {/* Creators Section */}
             {creators.length > 0 && (
                 <div className="mt-6" data-testid="creators-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Creators</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Creators</h3>
                     <ul className="space-y-2" data-testid="creators-list">
                         {creators.map((creator) => {
                             const creatorable = creator.creatorable;
                             const firstAffiliation = creator.affiliations[0];
                             const isPerson = creatorable.type === 'Person';
                             const hasOrcid = isPerson && creatorable.name_identifier && creatorable.name_identifier_scheme === 'ORCID';
+                            const personName = isPerson
+                                ? formatPersonName(creatorable.family_name, creatorable.given_name)
+                                : creatorable.name;
 
                             return (
-                                <li key={creator.id} className="flex items-center gap-1 text-sm text-gray-700">
+                                <li key={creator.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
                                     {/* Creator Name */}
-                                    {isPerson ? (
-                                        <span>
-                                            {formatPersonName(creatorable.family_name, creatorable.given_name)}
-                                        </span>
-                                    ) : (
-                                        <span>{creatorable.name}</span>
-                                    )}
+                                    <span>{personName}</span>
 
                                     {/* ORCID Icon (only for persons) */}
                                     {hasOrcid && (
@@ -155,17 +169,16 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                             href={`https://orcid.org/${creatorable.name_identifier}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="shrink-0"
-                                            title={`ORCID: ${creatorable.name_identifier}`}
+                                            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                            aria-label={`ORCID profile of ${personName}`}
                                         >
-                                            <img src="/images/pid-icons/orcid-icon.png" alt="ORCID" className="h-4 w-4" />
+                                            <img src="/images/pid-icons/orcid-icon.png" alt="" className="h-4 w-4" />
                                         </a>
                                     )}
 
                                     {/* Affiliation */}
                                     {firstAffiliation && (
                                         <>
-                                            {/* Semikolon nur wenn: Institution ODER Person ohne ORCID */}
                                             {(!isPerson || !hasOrcid) && <span>; </span>}
                                             <span>{firstAffiliation.name}</span>
 
@@ -175,10 +188,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                                     href={firstAffiliation.affiliation_identifier}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="shrink-0"
-                                                    title={`ROR ID: ${firstAffiliation.affiliation_identifier}`}
+                                                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                                    aria-label={`ROR profile of ${firstAffiliation.name}`}
                                                 >
-                                                    <img src="/images/pid-icons/ror-icon.png" alt="ROR" className="h-4 w-4" />
+                                                    <img src="/images/pid-icons/ror-icon.png" alt="" className="h-4 w-4" />
                                                 </a>
                                             )}
                                         </>
@@ -193,24 +206,21 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
             {/* Contributors Section */}
             {contributors.length > 0 && (
                 <div className="mt-6" data-testid="contributors-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Contributors</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contributors</h3>
                     <ul className="space-y-2" data-testid="contributors-list">
                         {contributors.map((contributor) => {
                             const contributorable = contributor.contributorable;
                             const firstAffiliation = contributor.affiliations[0];
                             const isPerson = contributorable.type === 'Person';
                             const hasOrcid = isPerson && contributorable.name_identifier && contributorable.name_identifier_scheme === 'ORCID';
+                            const personName = isPerson
+                                ? formatPersonName(contributorable.family_name, contributorable.given_name)
+                                : contributorable.name;
 
                             return (
-                                <li key={contributor.id} className="flex items-center gap-1 text-sm text-gray-700">
+                                <li key={contributor.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
                                     {/* Contributor Name */}
-                                    {isPerson ? (
-                                        <span>
-                                            {formatPersonName(contributorable.family_name, contributorable.given_name)}
-                                        </span>
-                                    ) : (
-                                        <span>{contributorable.name}</span>
-                                    )}
+                                    <span>{personName}</span>
 
                                     {/* ORCID Icon (only for persons) */}
                                     {hasOrcid && (
@@ -218,10 +228,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                             href={`https://orcid.org/${contributorable.name_identifier}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="shrink-0"
-                                            title={`ORCID: ${contributorable.name_identifier}`}
+                                            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                            aria-label={`ORCID profile of ${personName}`}
                                         >
-                                            <img src="/images/pid-icons/orcid-icon.png" alt="ORCID" className="h-4 w-4" />
+                                            <img src="/images/pid-icons/orcid-icon.png" alt="" className="h-4 w-4" />
                                         </a>
                                     )}
 
@@ -237,10 +247,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                                     href={firstAffiliation.affiliation_identifier}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="shrink-0"
-                                                    title={`ROR ID: ${firstAffiliation.affiliation_identifier}`}
+                                                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                                    aria-label={`ROR profile of ${firstAffiliation.name}`}
                                                 >
-                                                    <img src="/images/pid-icons/ror-icon.png" alt="ROR" className="h-4 w-4" />
+                                                    <img src="/images/pid-icons/ror-icon.png" alt="" className="h-4 w-4" />
                                                 </a>
                                             )}
                                         </>
@@ -248,7 +258,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
 
                                     {/* Contributor Types */}
                                     {contributor.contributor_types.length > 0 && (
-                                        <span className="text-gray-500">({contributor.contributor_types.join(', ')})</span>
+                                        <span className="text-gray-500 dark:text-gray-400">({contributor.contributor_types.join(', ')})</span>
                                     )}
                                 </li>
                             );
@@ -260,10 +270,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
             {/* Funders Section */}
             {fundingReferences.length > 0 && (
                 <div className="mt-6" data-testid="funding-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Funders</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Funders</h3>
                     <ul className="space-y-2" data-testid="funding-list">
                         {fundingReferences.map((funding) => (
-                            <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700">
+                            <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
                                 {/* Funder Name */}
                                 <span>{funding.funder_name}</span>
 
@@ -273,10 +283,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                         href={funding.funder_identifier}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="shrink-0"
-                                        title={`ROR ID: ${funding.funder_identifier}`}
+                                        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                        aria-label={`ROR profile of ${funding.funder_name}`}
                                     >
-                                        <img src="/images/pid-icons/ror-icon.png" alt="ROR" className="h-4 w-4" />
+                                        <img src="/images/pid-icons/ror-icon.png" alt="" className="h-4 w-4" />
                                     </a>
                                 )}
 
@@ -286,10 +296,10 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
                                         href={`https://doi.org/${funding.funder_identifier}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="shrink-0"
-                                        title={`Crossref Funder ID: ${funding.funder_identifier}`}
+                                        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                        aria-label={`Crossref Funder ID for ${funding.funder_name}`}
                                     >
-                                        <img src="/images/pid-icons/crossref-funder.png" alt="Crossref Funder ID" className="h-4 w-4" />
+                                        <img src="/images/pid-icons/crossref-funder.png" alt="" className="h-4 w-4" />
                                     </a>
                                 )}
                             </li>
@@ -301,7 +311,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
             {/* Keywords Section (Thesauri + Free Keywords) */}
             {hasAnyKeywords && (
                 <div className="mt-6" data-testid="subjects-section">
-                    <h3 className="text-lg font-semibold text-gray-900">Keywords</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
 
                     {/* Thesauri Keywords */}
                     {thesauriKeywords.length > 0 && (
@@ -314,7 +324,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
 
                     {/* Separator between thesauri and free keywords */}
                     {thesauriKeywords.length > 0 && freeKeywords.length > 0 && (
-                        <hr className="my-3 border-gray-200" />
+                        <hr className="my-3 border-gray-200 dark:border-gray-700" />
                     )}
 
                     {/* Free Keywords */}
@@ -330,42 +340,42 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
 
             {/* Download Metadata Section */}
             <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900">Download Metadata</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Download Metadata</h3>
                 <div className="flex items-center gap-4">
                     {/* DataCite Logo */}
-                    <img src="/images/datacite-logo.png" alt="DataCite" className="h-8" />
+                    <img src="/images/datacite-logo.png" alt="DataCite" className="h-8 dark:brightness-200 dark:invert" />
 
                     {/* XML Download Button */}
                     <a
                         href={`/resources/${resourceId}/export-datacite-xml`}
-                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         title="Download as DataCite XML"
                     >
-                        <FileCode className="h-5 w-5" />
+                        <FileCode className="h-5 w-5" aria-hidden="true" />
                         XML
                     </a>
 
                     {/* JSON Download Button */}
                     <a
                         href={`/resources/${resourceId}/export-datacite-json`}
-                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         title="Download as DataCite JSON"
                     >
-                        <FileJson className="h-5 w-5" />
+                        <FileJson className="h-5 w-5" aria-hidden="true" />
                         JSON
                     </a>
 
                     {/* JSON-LD Download Button */}
                     <a
                         href={jsonLdExportUrl ?? `/resources/${resourceId}/export-jsonld`}
-                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         title="Download as JSON-LD (Linked Data)"
                     >
-                        <Braces className="h-5 w-5" />
+                        <Braces className="h-5 w-5" aria-hidden="true" />
                         JSON-LD
                     </a>
                 </div>
             </div>
-        </div>
+        </section>
     );
 }

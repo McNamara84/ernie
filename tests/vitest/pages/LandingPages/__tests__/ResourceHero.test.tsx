@@ -36,13 +36,15 @@ describe('ResourceHero', () => {
         it('renders subtitle when provided', () => {
             render(<ResourceHero {...defaultProps} subtitle="A supplementary dataset" />);
             
-            expect(screen.getByRole('heading', { level: 2, name: 'A supplementary dataset' })).toBeInTheDocument();
+            expect(screen.getByText('A supplementary dataset')).toBeInTheDocument();
+            // Subtitle is now a <p> element, not a heading
+            expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
         });
 
         it('does not render subtitle when not provided', () => {
             render(<ResourceHero {...defaultProps} />);
             
-            expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+            expect(screen.queryByText('A supplementary dataset')).not.toBeInTheDocument();
         });
 
         it('renders the resource type label', () => {
@@ -152,7 +154,7 @@ describe('ResourceHero', () => {
             });
         });
 
-        it('shows success message after copying', async () => {
+        it('shows success feedback after copying via aria-live region', async () => {
             mockClipboard.writeText.mockResolvedValueOnce(undefined);
             
             render(<ResourceHero {...defaultProps} />);
@@ -160,7 +162,8 @@ describe('ResourceHero', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
             
             await waitFor(() => {
-                expect(screen.getByText('Citation copied to clipboard!')).toBeInTheDocument();
+                // Success message is now announced via sr-only aria-live region
+                expect(screen.getByRole('status')).toHaveTextContent('Citation copied to clipboard');
             });
         });
 
@@ -195,6 +198,52 @@ describe('ResourceHero', () => {
             
             // Success message should not appear
             expect(screen.queryByText('Citation copied to clipboard!')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('accessibility', () => {
+        it('renders as a section element with aria-labelledby', () => {
+            render(<ResourceHero {...defaultProps} />);
+            
+            const section = screen.getByRole('region', { name: defaultProps.mainTitle });
+            expect(section).toBeInTheDocument();
+        });
+
+        it('renders title as h1 (not h2 or lower)', () => {
+            render(<ResourceHero {...defaultProps} />);
+            
+            const heading = screen.getByRole('heading', { level: 1 });
+            expect(heading).toHaveTextContent(defaultProps.mainTitle);
+            expect(heading).toHaveAttribute('id', 'heading-title');
+        });
+
+        it('renders subtitle as paragraph, not heading', () => {
+            render(<ResourceHero {...defaultProps} subtitle="Test subtitle" />);
+            
+            const subtitle = screen.getByText('Test subtitle');
+            expect(subtitle.tagName).toBe('P');
+        });
+
+        it('renders copy button with minimum touch target 44x44', () => {
+            render(<ResourceHero {...defaultProps} />);
+            
+            const copyButton = screen.getByRole('button', { name: 'Copy citation to clipboard' });
+            expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
+        });
+
+        it('has an aria-live region for copy feedback', () => {
+            render(<ResourceHero {...defaultProps} />);
+            
+            const liveRegion = document.querySelector('[aria-live="polite"]');
+            expect(liveRegion).toBeInTheDocument();
+            expect(liveRegion).toHaveClass('sr-only');
+        });
+
+        it('includes dark mode classes on the section', () => {
+            render(<ResourceHero {...defaultProps} />);
+            
+            const section = screen.getByRole('region', { name: defaultProps.mainTitle });
+            expect(section.className).toContain('dark:');
         });
     });
 });

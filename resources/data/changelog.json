@@ -76,6 +76,26 @@
             {
                 "title": "Skip ORCID Re-Validation on Editor Load",
                 "description": "When opening a saved resource in the Data Editor, ORCIDs that were previously verified are no longer re-validated against the ORCID API. This eliminates unnecessary API calls and loading spinners, making the editor load significantly faster for resources with many authors or contributors. A clickable 'Verified' badge allows manual re-verification at any time."
+            },
+            {
+                "title": "Enhanced Accessibility & Dark Mode for Landing Pages",
+                "description": "The default GFZ landing page template has been comprehensively improved for accessibility and modern UX. All sections now use semantic HTML landmarks (section, main, header, footer) with aria-labelledby headings for screen reader navigation. A skip-to-content link allows keyboard users to bypass the header. Interactive elements (copy button, ORCID/ROR links, Relation Browser button) meet the WCAG 44×44px minimum touch target size. ORCID and ROR links use descriptive aria-labels (e.g. 'ORCID profile of Doe, John'). Citation copy feedback is announced via an aria-live region and a Sonner toast. Loading states use Skeleton placeholders with aria-busy instead of text spinners. The heading hierarchy follows a strict h1→h2→h3 structure across all sections."
+            },
+            {
+                "title": "System Dark Mode for Landing Pages",
+                "description": "Landing pages now automatically adapt to the visitor's OS-level dark mode preference (prefers-color-scheme: dark). All sections, cards, text, borders, and badges switch to dark-friendly colors. The interactive map uses CartoDB dark tiles when dark mode is active. Logos in the header and footer are inverted for proper contrast on dark backgrounds."
+            },
+            {
+                "title": "Mobile-First Reading Order on Landing Pages",
+                "description": "On mobile devices, the landing page two-column layout now shows the Abstract and Location sections first, followed by Files, Contact, and Related Work. This prioritizes content consumption over download actions on smaller screens. On desktop, the original left-right column order is preserved using CSS order classes."
+            },
+            {
+                "title": "Collapsible Related Work on Mobile",
+                "description": "When more than 9 related works are present, the Related Work section on landing pages is collapsed on mobile with a 'Show all (N)' button featuring aria-expanded and aria-controls attributes. On desktop, all entries remain fully visible."
+            },
+            {
+                "title": "Scroll-Triggered Fade-In Animations on Landing Pages",
+                "description": "Landing page sections now fade in smoothly as the user scrolls down the page. The effect uses a lightweight IntersectionObserver-based hook and CSS opacity transitions. Animations are automatically disabled when the visitor's OS has 'prefers-reduced-motion' enabled."
             }
         ],
         "fixes": [

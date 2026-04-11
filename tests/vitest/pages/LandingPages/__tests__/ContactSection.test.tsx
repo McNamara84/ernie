@@ -137,11 +137,10 @@ describe('ContactSection', () => {
                 />
             );
             
-            // accessible name comes from img alt="ORCID"
-            const orcidLink = screen.getByRole('link', { name: /^ORCID$/i });
+            // accessible name comes from aria-label
+            const orcidLink = screen.getByRole('link', { name: /ORCID profile of/i });
             expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1825-0097');
             expect(orcidLink).toHaveAttribute('target', '_blank');
-            expect(orcidLink).toHaveAttribute('title', 'ORCID Profile');
         });
 
         it('does not render ORCID link when person has no ORCID', () => {
@@ -216,10 +215,9 @@ describe('ContactSection', () => {
                 />
             );
             
-            // accessible name comes from img alt="ROR"
-            const rorLink = screen.getByRole('link', { name: /^ROR$/i });
+            // accessible name comes from aria-label
+            const rorLink = screen.getByRole('link', { name: /ROR profile of/i });
             expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
-            expect(rorLink).toHaveAttribute('title', 'ROR Profile');
         });
 
         it('does not render ROR link when scheme is not ROR', () => {
@@ -317,6 +315,54 @@ describe('ContactSection', () => {
             expect(screen.getByTestId('contact-modal')).toBeInTheDocument();
             expect(screen.getByTestId('selected-person')).toHaveTextContent('All');
             expect(screen.getByTestId('contact-count')).toHaveTextContent('2');
+        });
+    });
+
+    describe('accessibility', () => {
+        it('renders as a section element with aria-labelledby', () => {
+            render(<ContactSection {...defaultProps} />);
+            
+            const section = screen.getByRole('region', { name: 'Contact Information' });
+            expect(section).toBeInTheDocument();
+        });
+
+        it('renders heading as h2', () => {
+            render(<ContactSection {...defaultProps} />);
+            
+            const heading = screen.getByRole('heading', { level: 2, name: 'Contact Information' });
+            expect(heading).toBeInTheDocument();
+            expect(heading).toHaveAttribute('id', 'heading-contact');
+        });
+
+        it('renders ORCID link with descriptive aria-label including person name', () => {
+            render(
+                <ContactSection
+                    {...defaultProps}
+                    contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]}
+                />
+            );
+            
+            const orcidLink = screen.getByRole('link', { name: /ORCID profile of Doe, John/i });
+            expect(orcidLink).toBeInTheDocument();
+        });
+
+        it('renders ORCID link with minimum touch target size', () => {
+            render(
+                <ContactSection
+                    {...defaultProps}
+                    contactPersons={[createContactPerson({ orcid: '0000-0002-1825-0097' })]}
+                />
+            );
+            
+            const orcidLink = screen.getByRole('link', { name: /ORCID profile of/i });
+            expect(orcidLink).toHaveClass('min-h-11', 'min-w-11');
+        });
+
+        it('includes dark mode classes on the section', () => {
+            render(<ContactSection {...defaultProps} />);
+            
+            const section = screen.getByRole('region', { name: 'Contact Information' });
+            expect(section.className).toContain('dark:');
         });
     });
 });

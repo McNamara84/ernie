@@ -10,7 +10,7 @@ vi.mock('react-leaflet', () => ({
     MapContainer: vi.fn(({ children }) => (
         <div data-testid="leaflet-map">{children}</div>
     )),
-    TileLayer: vi.fn(() => <div data-testid="tile-layer" />),
+    TileLayer: vi.fn(({ url }) => <div data-testid="tile-layer" data-url={url} />),
     Marker: vi.fn(({ position }) => (
         <div data-testid="marker" data-position={JSON.stringify(position)} />
     )),
@@ -368,27 +368,43 @@ describe('LocationSection', () => {
     });
 
     describe('TileLayer', () => {
-        it('should render TileLayer with OpenStreetMap', () => {
-            render(
-                <LocationSection
-                    geoLocations={[
-                        {
-                            id: 1,
-                            place: 'Test',
-                            point_longitude: 10.0,
-                            point_latitude: 50.0,
-                            west_bound_longitude: null,
-                            east_bound_longitude: null,
-                            south_bound_latitude: null,
-                            north_bound_latitude: null,
-                            polygon_points: null,
-                            geo_type: null,
-                        },
-                    ]}
-                />,
-            );
+        const sampleGeoLocations = [
+            {
+                id: 1,
+                place: 'Test',
+                point_longitude: 10.0,
+                point_latitude: 50.0,
+                west_bound_longitude: null,
+                east_bound_longitude: null,
+                south_bound_latitude: null,
+                north_bound_latitude: null,
+                polygon_points: null,
+                geo_type: null,
+            },
+        ];
 
+        it('should render TileLayer with OpenStreetMap', () => {
+            render(<LocationSection geoLocations={sampleGeoLocations} />);
             expect(screen.getByTestId('tile-layer')).toBeInTheDocument();
+        });
+
+        it('should use OpenStreetMap tiles by default (light mode)', () => {
+            render(<LocationSection geoLocations={sampleGeoLocations} />);
+            const tile = screen.getByTestId('tile-layer');
+            expect(tile.dataset.url).toContain('openstreetmap.org');
+        });
+
+        it('should use CartoDB dark tiles when isDark is true', () => {
+            render(<LocationSection geoLocations={sampleGeoLocations} isDark={true} />);
+            const tile = screen.getByTestId('tile-layer');
+            expect(tile.dataset.url).toContain('basemaps.cartocdn.com');
+            expect(tile.dataset.url).toContain('dark_all');
+        });
+
+        it('should use OpenStreetMap tiles when isDark is false', () => {
+            render(<LocationSection geoLocations={sampleGeoLocations} isDark={false} />);
+            const tile = screen.getByTestId('tile-layer');
+            expect(tile.dataset.url).toContain('openstreetmap.org');
         });
     });
 

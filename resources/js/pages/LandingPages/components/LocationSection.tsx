@@ -9,6 +9,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+
+import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
 // Using unknown as intermediate step for safer type assertion
@@ -38,6 +41,8 @@ interface GeoLocation {
 
 interface LocationSectionProps {
     geoLocations: GeoLocation[];
+    /** Whether system dark mode is active. Passed down from the page root. */
+    isDark?: boolean;
 }
 
 // GFZ Corporate Blue
@@ -344,8 +349,9 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
  * Auto-zooms to fit all locations with padding.
  * Hidden when no valid geo locations are available.
  */
-export function LocationSection({ geoLocations }: LocationSectionProps) {
+export function LocationSection({ geoLocations, isDark = false }: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
+    const { ref, isVisible } = useFadeInOnScroll();
 
     // Client-side only rendering (Leaflet needs window/document)
     useEffect(() => {
@@ -363,24 +369,46 @@ export function LocationSection({ geoLocations }: LocationSectionProps) {
         return null;
     }
 
-    // Show loading placeholder during SSR
+    // Tile layer URL based on dark mode
+    // Light: OpenStreetMap (free, no API key). Dark: CartoDB dark_all (free, no API key required).
+    const tileUrl = isDark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const tileAttribution = isDark
+        ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+    // Show loading placeholder during SSR — always visible (no fade-in gating)
     if (!isMounted) {
         return (
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">Location</h3>
-                <div className="h-[300px] w-full animate-pulse rounded-lg bg-gray-100" />
-            </div>
+            <section
+                ref={ref}
+                aria-labelledby="heading-location"
+                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+            >
+                <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
+                <Skeleton className="h-[300px] w-full rounded-lg" />
+            </section>
         );
     }
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="geolocation-section">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">Location</h3>
-            <div className="relative z-0 h-[300px] w-full overflow-hidden rounded-lg" data-testid="map-container">
+        <section
+            ref={ref}
+            aria-labelledby="heading-location"
+            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+            data-testid="geolocation-section"
+        >
+            <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
+            <div
+                className="relative z-0 h-[300px] w-full overflow-hidden rounded-lg"
+                data-testid="map-container"
+                aria-label="Map showing the geographic location of the dataset"
+            >
                 <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution={tileAttribution}
+                        url={tileUrl}
                     />
                     <FitBoundsControl bounds={bounds} />
                     <FullscreenControl />
@@ -390,6 +418,6 @@ export function LocationSection({ geoLocations }: LocationSectionProps) {
                     ))}
                 </MapContainer>
             </div>
-        </div>
+        </section>
     );
 }
