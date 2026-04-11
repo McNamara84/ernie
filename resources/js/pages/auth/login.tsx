@@ -5,12 +5,11 @@ import { useForm } from 'react-hook-form';
 
 import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { PasswordInput } from '@/components/ui/password-input';
-import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { type LoginInput, loginSchema } from '@/lib/validations/user';
 import { request } from '@/routes/password';
@@ -99,10 +98,9 @@ export default function Login({ status, error, canResetPassword }: LoginProps) {
                             )}
                         />
 
-                        <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
-                            {processing && <Spinner size="sm" data-testid="loading-spinner" />}
+                        <LoadingButton type="submit" className="mt-4 w-full" tabIndex={4} loading={processing}>
                             Log in
-                        </Button>
+                        </LoadingButton>
                     </div>
                 </form>
             </Form>

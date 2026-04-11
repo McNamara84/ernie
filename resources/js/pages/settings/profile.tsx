@@ -7,11 +7,13 @@ import { useForm } from 'react-hook-form';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import HeadingSmall from '@/components/heading-small';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { feedback } from '@/lib/feedback';
 import { type UpdateProfileInput, updateProfileSchema } from '@/lib/validations/user';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
@@ -28,6 +30,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
     const { auth } = usePage<SharedData>().props;
     const [processing, setProcessing] = useState(false);
     const [recentlySuccessful, setRecentlySuccessful] = useState(false);
+    const prefersReducedMotion = useReducedMotion();
 
     const form = useForm<UpdateProfileInput>({
         resolver: zodResolver(updateProfileSchema),
@@ -42,6 +45,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         router.patch(ProfileController.update.url(), data, {
             preserveScroll: true,
             onSuccess: () => {
+                feedback.saved('Profile');
                 setRecentlySuccessful(true);
                 setTimeout(() => setRecentlySuccessful(false), 2000);
             },
@@ -114,15 +118,15 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                             )}
 
                             <div className="flex items-center gap-4">
-                                <Button disabled={processing}>Save</Button>
+                                <LoadingButton loading={processing}>Save</LoadingButton>
 
                                 <AnimatePresence>
                                     {recentlySuccessful && (
                                         <motion.p
-                                            initial={{ opacity: 0 }}
+                                            initial={prefersReducedMotion ? false : { opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ ease: 'easeInOut' }}
+                                            transition={{ ease: 'easeInOut', duration: prefersReducedMotion ? 0 : undefined }}
                                             className="text-sm text-neutral-600"
                                         >
                                             Saved

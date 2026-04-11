@@ -3,8 +3,7 @@ import { Form, Head } from '@inertiajs/react';
 
 import EmailVerificationNotificationController from '@/actions/App/Http/Controllers/Auth/EmailVerificationNotificationController';
 import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 import AuthLayout from '@/layouts/auth-layout';
 import { logout } from '@/routes';
 
@@ -22,10 +21,9 @@ export default function VerifyEmail({ status }: { status?: string }) {
             <Form {...EmailVerificationNotificationController.store.post()} className="space-y-6 text-center">
                 {({ processing }) => (
                     <>
-                        <Button disabled={processing} variant="secondary">
-                            {processing && <Spinner size="sm" />}
+                        <LoadingButton loading={processing} variant="secondary">
                             Resend verification email
-                        </Button>
+                        </LoadingButton>
 
                         <TextLink href={logout()} className="mx-auto block text-sm">
                             Log out

@@ -6,10 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Profile from '@/pages/settings/profile';
 
-const { authUser, routerMock } = vi.hoisted(() => ({
+const { authUser, routerMock, feedbackMock } = vi.hoisted(() => ({
     authUser: { name: 'John Doe', email: 'john@example.com', email_verified_at: null },
     routerMock: {
         patch: vi.fn(),
+    },
+    feedbackMock: {
+        saved: vi.fn(),
     },
 }));
 
@@ -22,6 +25,10 @@ vi.mock('@inertiajs/react', () => ({
     ),
     usePage: () => ({ props: { auth: { user: authUser } } }),
     router: routerMock,
+}));
+
+vi.mock('@/lib/feedback', () => ({
+    feedback: feedbackMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -51,6 +58,7 @@ vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
 describe('Profile settings page', () => {
     beforeEach(() => {
         routerMock.patch.mockReset();
+        feedbackMock.saved.mockReset();
     });
 
     it('renders profile form with user data and verification link', () => {
@@ -96,6 +104,45 @@ describe('Profile settings page', () => {
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+        });
+    });
+
+    it('shows success message after successful update', async () => {
+        routerMock.patch.mockImplementation(
+            (_url: string, _data: unknown, options?: { onSuccess?: () => void; onFinish?: () => void }) => {
+                options?.onSuccess?.();
+                options?.onFinish?.();
+            },
+        );
+
+        render(<Profile mustVerifyEmail={false} />);
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/saved/i)).toBeInTheDocument();
+            expect(feedbackMock.saved).toHaveBeenCalledWith('Profile');
+        });
+    });
+
+    it('shows server-side errors on the correct fields', async () => {
+        routerMock.patch.mockImplementation(
+            (_url: string, _data: unknown, options?: { onError?: (errors: Record<string, string>) => void; onFinish?: () => void }) => {
+                options?.onError?.({
+                    email: 'The email has already been taken.',
+                });
+                options?.onFinish?.();
+            },
+        );
+
+        render(<Profile mustVerifyEmail={false} />);
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/the email has already been taken/i)).toBeInTheDocument();
         });
     });
 });

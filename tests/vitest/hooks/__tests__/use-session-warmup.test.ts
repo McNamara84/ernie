@@ -4,6 +4,9 @@ import { renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
+// Override global mock from vitest.setup.ts to test the actual hook
+vi.unmock('@/hooks/use-session-warmup');
+
 vi.mock('axios', () => ({
     default: {
         get: vi.fn(),

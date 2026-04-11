@@ -286,7 +286,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 setError('Unsupported file type. Please upload an XML, JSON, or CSV file.');
             }
         },
-        [uploadXml, uploadJson, uploadCsv],
+        [uploadXml, uploadJson, uploadCsv, resetState],
     );
 
     const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {

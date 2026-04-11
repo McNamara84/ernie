@@ -4,6 +4,10 @@
         "date": "2026-04-11",
         "features": [
             {
+                "title": "Unified Feedback & Animation System",
+                "description": "A comprehensive animation and feedback system has been implemented across the entire application. All page navigations now feature smooth fade transitions (~200ms), a thin NProgress bar at the top of the viewport indicates loading during navigation, and all form submission buttons show a spinner with disabled state via the new LoadingButton component. Reusable skeleton loaders (table, card, form, stat, filter) are available for consistent loading placeholders. A centralized feedback utility (feedback.ts) provides standardized toast messages. All animations respect the OS-level 'prefers-reduced-motion' setting for WCAG compliance."
+            },
+            {
                 "title": "OAI-PMH 2.0 Harvesting Endpoint",
                 "description": "A fully OAI-PMH 2.0 compliant harvesting endpoint is now available at /oai-pmh for third-party metadata harvesters. It supports all 6 standard verbs (Identify, ListMetadataFormats, ListSets, ListIdentifiers, ListRecords, GetRecord) with Dublin Core (oai_dc) and DataCite Kernel 4.7 (oai_datacite) metadata formats. Features include cursor-based pagination with resumption tokens, selective harvesting by date range and sets (resource type, publication year), and persistent deleted record tracking. A comprehensive harvester documentation page is available at /oai-pmh/docs."
             },

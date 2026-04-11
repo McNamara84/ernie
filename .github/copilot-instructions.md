@@ -354,6 +354,7 @@ All UI elements should use shadcn/ui components from `resources/js/components/ui
 | Side panels | `<Sheet>` | `@/components/ui/sheet` |
 | Notifications | `toast()` from Sonner | `sonner` |
 | Loading spinner | `<Spinner>` | `@/components/ui/spinner` |
+| Loading button | `<LoadingButton>` | `@/components/ui/loading-button` |
 | Loading placeholder | `<Skeleton>` | `@/components/ui/skeleton` |
 | Data tables | `<DataTable>` | `@/components/ui/data-table` |
 | Forms with validation | `<Form>`, `<FormField>` | `@/components/ui/form` |
@@ -528,6 +529,7 @@ Defined in `resources/css/app.css`:
 
 ❌ **Do NOT use:**
 - Native `<button>` elements – use `<Button>` component
+- Manual `{processing && <Spinner />}` in buttons – use `<LoadingButton loading={processing}>` from `@/components/ui/loading-button`
 - Inline `animate-spin` – use `<Spinner>` component
 - Custom modal implementations – use `<Dialog>` or `<AlertDialog>`
 - Direct Radix imports – use wrappers from `components/ui/`
@@ -539,20 +541,45 @@ Defined in `resources/css/app.css`:
 ### Loading States
 
 ```tsx
-// Inline loading (buttons, small areas)
-<Button disabled={isLoading}>
-    {isLoading && <Spinner size="sm" className="mr-2" />}
-    Save
-</Button>
+// Inline loading (buttons) – use LoadingButton
+import { LoadingButton } from '@/components/ui/loading-button';
+<LoadingButton loading={processing}>Save</LoadingButton>
 
 // Content placeholder loading
 <Skeleton className="h-4 w-[200px]" />
+
+// Reusable skeleton components
+import { TableSkeleton } from '@/components/ui/skeletons/table-skeleton';
+import { CardSkeleton } from '@/components/ui/skeletons/card-skeleton';
+import { FormSkeleton } from '@/components/ui/skeletons/form-skeleton';
+import { StatSkeleton } from '@/components/ui/skeletons/stat-skeleton';
+import { FilterSkeleton } from '@/components/ui/skeletons/filter-skeleton';
 
 // Full-page loading
 <div className="flex items-center justify-center p-8">
     <Spinner size="lg" />
 </div>
 ```
+
+### Page Transitions & Animations
+
+The main layouts (`app-sidebar-layout`, `portal-layout`, `public-layout`, `auth-layout`) include `<PageTransition>` (fade, ~200ms) and `useNProgress()` (progress bar).
+Animation constants are centralized in `resources/js/lib/animations.ts`.
+All animations respect `prefers-reduced-motion` via the `useReducedMotion()` hook.
+
+### Feedback Strategy (Toast-Centric)
+
+| Scenario | Feedback Type | Example |
+|----------|--------------|---------|
+| Field validation error | **Inline** (`<FormMessage>`) | "Email is required" |
+| Form submission success | **Toast success** | `feedback.saved('Resource')` |
+| Form submission error | **Toast error** + inline | `feedback.error(msg)` + `form.setError()` |
+| Destructive action prompt | **AlertDialog** | "Delete this resource?" |
+| Destructive action done | **Toast success** | `feedback.deleted('Resource')` |
+| Background job started | **Toast info** | `feedback.importStarted('DataCite')` |
+| Network/session error | **Toast error** | `feedback.sessionExpired()` |
+
+Use `feedback.*` helpers from `@/lib/feedback.ts` for consistent toast messages.
 
 ### Validation Schemas
 

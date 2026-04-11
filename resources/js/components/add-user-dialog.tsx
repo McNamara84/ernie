@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { type CreateUserInput, createUserSchema } from '@/lib/validations/user';
 
 interface AddUserDialogProps {
@@ -122,10 +122,9 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
                                     Cancel
                                 </Button>
                             </DialogClose>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Spinner size="sm" className="mr-2" />}
+                            <LoadingButton type="submit" loading={isSubmitting}>
                                 {isSubmitting ? 'Creating...' : 'Create User'}
-                            </Button>
+                            </LoadingButton>
                         </DialogFooter>
                     </form>
                 </Form>
