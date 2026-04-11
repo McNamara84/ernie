@@ -16,8 +16,11 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
  */
 export function useFadeInOnScroll(options?: { threshold?: number }) {
     const [node, setNode] = useState<HTMLElement | null>(null);
-    const [isVisible, setIsVisible] = useState(false);
     const prefersReducedMotion = useReducedMotion();
+
+    // Initialize visible immediately when reduced motion is active
+    // so the first paint never shows opacity-0.
+    const [isVisible, setIsVisible] = useState(prefersReducedMotion);
 
     // Stable callback ref — consumers attach via `ref={ref}`
     const ref = useCallback((element: HTMLElement | null) => {
