@@ -88,8 +88,7 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
         <section
             ref={ref}
             aria-labelledby="heading-model-description"
-            inert={!isVisible || undefined}
-            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'visible opacity-100' : 'invisible opacity-0'}`}
         >
             <h2 id="heading-model-description" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Model Description</h2>
 
