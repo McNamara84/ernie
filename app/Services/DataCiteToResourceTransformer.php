@@ -604,7 +604,8 @@ class DataCiteToResourceTransformer
         if ($parts['given'] !== null && trim($parts['given']) !== '') {
             // Additional guard: multi-word names with 4+ tokens are likely orgs
             // (e.g. "Helmholtz Centre Potsdam GFZ") even if parsePersonName splits them.
-            $tokenCount = count(explode(' ', $name));
+            $tokens = preg_split('/\s+/', $name, -1, PREG_SPLIT_NO_EMPTY);
+            $tokenCount = $tokens !== false ? count($tokens) : 0;
             if ($tokenCount >= 4) {
                 return 'Organizational';
             }
