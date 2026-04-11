@@ -48,6 +48,12 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
             }
             copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
         } catch {
+            // Clear any stale "copied" state from a previous success
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+                copyTimeoutRef.current = null;
+            }
+            setCopied(false);
             toast.error('Failed to copy citation');
         }
     };
