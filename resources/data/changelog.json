@@ -83,7 +83,7 @@
             },
             {
                 "title": "System Dark Mode for Landing Pages",
-                "description": "Landing pages now automatically adapt to the visitor's OS-level dark mode preference (prefers-color-scheme: dark). All sections, cards, text, borders, and badges switch to dark-friendly colors. The interactive map uses Stadia Maps dark tiles when dark mode is active. Logos in the header and footer are inverted for proper contrast on dark backgrounds."
+                "description": "Landing pages now automatically adapt to the visitor's OS-level dark mode preference (prefers-color-scheme: dark). All sections, cards, text, borders, and badges switch to dark-friendly colors. The interactive map uses CartoDB dark tiles when dark mode is active. Logos in the header and footer are inverted for proper contrast on dark backgrounds."
             },
             {
                 "title": "Mobile-First Reading Order on Landing Pages",
