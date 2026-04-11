@@ -563,7 +563,7 @@ import { FilterSkeleton } from '@/components/ui/skeletons/filter-skeleton';
 
 ### Page Transitions & Animations
 
-All layouts include `<PageTransition>` (fade, ~200ms) and `useNProgress()` (progress bar).
+The main layouts (`app-sidebar-layout`, `portal-layout`, `public-layout`, `auth-layout`) include `<PageTransition>` (fade, ~200ms) and `useNProgress()` (progress bar).
 Animation constants are centralized in `resources/js/lib/animations.ts`.
 All animations respect `prefers-reduced-motion` via the `useReducedMotion()` hook.
 

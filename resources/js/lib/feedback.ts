@@ -7,7 +7,7 @@ import { toast } from 'sonner';
  * - Toasts for all action confirmations (save, delete, create, etc.)
  * - Inline FormMessage for field-level validation errors
  * - AlertDialog before destructive actions
- * - Persistent toast.error for critical system errors
+ * - toast.error for system errors (auto-dismiss like all other toasts)
  */
 export const feedback = {
     saved: (entity: string) => toast.success(`${entity} saved successfully`),
