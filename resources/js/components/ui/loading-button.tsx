@@ -1,10 +1,9 @@
+import type { VariantProps } from 'class-variance-authority';
 import * as React from 'react';
 
 import { Button, type buttonVariants } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
-
-import type { VariantProps } from 'class-variance-authority';
 
 interface LoadingButtonProps
     extends React.ComponentProps<'button'>,
@@ -30,6 +29,8 @@ function LoadingButton({
         <Button
             data-slot="loading-button"
             disabled={loading || disabled}
+            aria-busy={loading}
+            aria-disabled={loading || disabled || undefined}
             className={cn(className)}
             {...props}
         >

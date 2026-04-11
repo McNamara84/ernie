@@ -56,4 +56,24 @@ describe('LoadingButton', () => {
         render(<LoadingButton loading>Saving...</LoadingButton>);
         expect(screen.getByText('Saving...')).toBeInTheDocument();
     });
+
+    it('sets aria-busy when loading', () => {
+        render(<LoadingButton loading>Save</LoadingButton>);
+        expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('does not set aria-busy when not loading', () => {
+        render(<LoadingButton>Save</LoadingButton>);
+        expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'false');
+    });
+
+    it('sets aria-disabled when loading', () => {
+        render(<LoadingButton loading>Save</LoadingButton>);
+        expect(screen.getByRole('button')).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('does not set aria-disabled when idle', () => {
+        render(<LoadingButton>Save</LoadingButton>);
+        expect(screen.getByRole('button')).not.toHaveAttribute('aria-disabled');
+    });
 });

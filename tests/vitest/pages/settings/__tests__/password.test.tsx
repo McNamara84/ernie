@@ -75,4 +75,28 @@ describe('Password settings page', () => {
             expect(screen.getByText(/saved/i)).toBeInTheDocument();
         });
     });
+
+    it('shows server-side errors on the correct fields', async () => {
+        routerMock.put.mockImplementation(
+            (_url: string, _data: unknown, options?: { onError?: (errors: Record<string, string>) => void; onFinish?: () => void }) => {
+                options?.onError?.({
+                    current_password: 'The current password is incorrect.',
+                    password: 'The password has already been used.',
+                });
+                options?.onFinish?.();
+            },
+        );
+        render(<Password />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText(/current password/i), 'wrongpassword');
+        await user.type(screen.getByLabelText(/^new password$/i), 'newpassword');
+        await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
+        await user.click(screen.getByRole('button', { name: /save password/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/the current password is incorrect/i)).toBeInTheDocument();
+            expect(screen.getByText(/the password has already been used/i)).toBeInTheDocument();
+        });
+    });
 });

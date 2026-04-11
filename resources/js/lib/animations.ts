@@ -25,8 +25,8 @@ export const staggerContainer: Variants = {
 
 /**
  * Returns animation props that respect the reduced motion preference.
- * When reduced motion is active, returns `false` for initial/animate/exit
- * which tells Framer Motion to skip animations entirely.
+ * When reduced motion is active, sets `initial` to `false` (skip mount animation),
+ * keeps `animate`/`exit` at full opacity, and uses a zero-duration transition.
  */
 export function getReducedMotionProps(prefersReducedMotion: boolean) {
     if (prefersReducedMotion) {

@@ -9,7 +9,7 @@ interface TableSkeletonProps {
 
 /**
  * Generic table skeleton loader with configurable rows and columns.
- * Uses an HTML table structure that matches the data table layout.
+ * Uses flexbox rows to visually match the data table layout.
  */
 function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
     return (
