@@ -62,7 +62,7 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
         <section
             ref={ref}
             aria-labelledby="heading-title"
-            className={`mx-8 my-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'visible opacity-100' : 'invisible opacity-0'}`}
+            className={`mx-8 my-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         >
             {/* Top Row: Resource Type, Title, Status */}
             <div className="mb-6 flex items-start justify-between gap-4">
