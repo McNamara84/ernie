@@ -378,13 +378,13 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
         ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-    // Show loading placeholder during SSR
+    // Show loading placeholder during SSR — always visible (no fade-in gating)
     if (!isMounted) {
         return (
             <section
                 ref={ref}
                 aria-labelledby="heading-location"
-                className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
             >
                 <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
                 <Skeleton className="h-[300px] w-full rounded-lg" />
@@ -396,6 +396,7 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
         <section
             ref={ref}
             aria-labelledby="heading-location"
+            inert={!isVisible || undefined}
             className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
             data-testid="geolocation-section"
         >

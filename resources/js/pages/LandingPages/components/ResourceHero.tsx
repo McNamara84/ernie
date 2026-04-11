@@ -1,5 +1,5 @@
 import { Check, Copy, FlaskConical } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ interface ResourceHeroProps {
 
 export function ResourceHero({ resourceType, status, mainTitle, subtitle, citation, useIgsnIcon = false }: ResourceHeroProps) {
     const [copied, setCopied] = useState(false);
+    const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { ref, isVisible } = useFadeInOnScroll();
 
     // Use FlaskConical for IGSN, otherwise use resource type icon
@@ -27,12 +28,25 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
     const statusConfig = getStatusConfig(status);
     const StatusIcon = statusConfig.icon;
 
+    // Clear pending timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+            }
+        };
+    }, []);
+
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(citation);
             setCopied(true);
             toast.success('Citation copied to clipboard');
-            setTimeout(() => setCopied(false), 2000);
+            // Clear any existing timeout before scheduling a new one
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+            }
+            copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
         } catch {
             toast.error('Failed to copy citation');
         }
@@ -42,6 +56,7 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
         <section
             ref={ref}
             aria-labelledby="heading-title"
+            inert={!isVisible || undefined}
             className={`mx-8 my-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         >
             {/* Top Row: Resource Type, Title, Status */}

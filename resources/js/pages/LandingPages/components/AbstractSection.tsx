@@ -122,6 +122,7 @@ export function AbstractSection({ descriptions, creators, contributors, fundingR
         <section
             ref={ref}
             aria-labelledby="heading-abstract"
+            inert={!isVisible || undefined}
             className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
             data-testid="abstract-section"
         >

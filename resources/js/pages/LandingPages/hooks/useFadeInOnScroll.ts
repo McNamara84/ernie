@@ -7,7 +7,11 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
  *
  * Uses IntersectionObserver to detect when an element enters the viewport,
  * then sets `isVisible` to true (one-shot — once visible, stays visible).
- * Respects `prefers-reduced-motion` by skipping the animation entirely.
+ * Respects `prefers-reduced-motion` by returning `isVisible=true` on the
+ * very first render so no opacity-0 flash occurs.
+ *
+ * Falls back to immediately visible when IntersectionObserver is unavailable
+ * (older browsers, some embedded WebViews).
  *
  * Uses a callback ref so the observer reattaches when the target element
  * changes (e.g. conditional rendering like SSR skeleton → mounted map).
@@ -18,9 +22,11 @@ export function useFadeInOnScroll(options?: { threshold?: number }) {
     const [node, setNode] = useState<HTMLElement | null>(null);
     const prefersReducedMotion = useReducedMotion();
 
-    // Initialize visible immediately when reduced motion is active
-    // so the first paint never shows opacity-0.
-    const [isVisible, setIsVisible] = useState(prefersReducedMotion);
+    const observerSupported = typeof IntersectionObserver !== 'undefined';
+
+    // Initialize visible immediately when reduced motion is active or
+    // IntersectionObserver is unavailable, so the first paint never renders opacity-0.
+    const [isVisible, setIsVisible] = useState(prefersReducedMotion || !observerSupported);
 
     // Stable callback ref — consumers attach via `ref={ref}`
     const ref = useCallback((element: HTMLElement | null) => {
@@ -32,7 +38,7 @@ export function useFadeInOnScroll(options?: { threshold?: number }) {
     thresholdRef.current = options?.threshold ?? 0.1;
 
     useEffect(() => {
-        if (prefersReducedMotion) {
+        if (prefersReducedMotion || !observerSupported) {
             setIsVisible(true);
             return;
         }
@@ -53,7 +59,7 @@ export function useFadeInOnScroll(options?: { threshold?: number }) {
 
         observer.observe(node);
         return () => observer.disconnect();
-    }, [prefersReducedMotion, node]);
+    }, [prefersReducedMotion, observerSupported, node]);
 
     return { ref, isVisible };
 }
