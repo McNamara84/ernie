@@ -267,7 +267,7 @@ class DataCiteToResourceTransformer
         foreach ($creators as $position => $creatorData) {
             // Skip records without any name information
             if (! $this->hasAnyName($creatorData)) {
-                Log::warning('Skipping creator without any name data', [
+                Log::debug('Skipping creator without any name data', [
                     'resource_id' => $resource->id,
                     'position' => $position,
                     'name' => $creatorData['name'] ?? null,
@@ -288,7 +288,7 @@ class DataCiteToResourceTransformer
                     $entity = $this->findOrCreatePerson($creatorData);
                     $entityType = Person::class;
                 } catch (\InvalidArgumentException $e) {
-                    Log::warning('Skipping creator with unresolvable name', [
+                    Log::debug('Skipping creator with unresolvable name', [
                         'resource_id' => $resource->id,
                         'position' => $position,
                         'name' => $creatorData['name'] ?? null,
@@ -324,7 +324,7 @@ class DataCiteToResourceTransformer
         foreach ($contributors as $position => $contributorData) {
             // Skip records without any name information
             if (! $this->hasAnyName($contributorData)) {
-                Log::warning('Skipping contributor without any name data', [
+                Log::debug('Skipping contributor without any name data', [
                     'resource_id' => $resource->id,
                     'position' => $position,
                     'name' => $contributorData['name'] ?? null,
@@ -345,7 +345,7 @@ class DataCiteToResourceTransformer
                     $entity = $this->findOrCreatePerson($contributorData);
                     $entityType = Person::class;
                 } catch (\InvalidArgumentException $e) {
-                    Log::warning('Skipping contributor with unresolvable name', [
+                    Log::debug('Skipping contributor with unresolvable name', [
                         'resource_id' => $resource->id,
                         'position' => $position,
                         'name' => $contributorData['name'] ?? null,
@@ -602,14 +602,6 @@ class DataCiteToResourceTransformer
         $parts = $this->parsePersonName($name);
 
         if ($parts['given'] !== null && trim($parts['given']) !== '') {
-            // Additional guard: multi-word names with 4+ tokens are likely orgs
-            // (e.g. "Helmholtz Centre Potsdam GFZ") even if parsePersonName splits them.
-            $tokens = preg_split('/\s+/', $name, -1, PREG_SPLIT_NO_EMPTY);
-            $tokenCount = $tokens !== false ? count($tokens) : 0;
-            if ($tokenCount >= 4) {
-                return 'Organizational';
-            }
-
             return 'Personal';
         }
 
