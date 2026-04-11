@@ -154,12 +154,16 @@ class DataCiteApiService
         $authors = $metadata['author'] ?? [];
         $authorStrings = [];
         foreach ($authors as $author) {
-            if (isset($author['family']) && isset($author['given'])) {
-                $authorStrings[] = $author['family'].', '.$this->abbreviateGivenName($author['given']);
-            } elseif (isset($author['literal'])) {
-                $authorStrings[] = $author['literal'];
-            } elseif (isset($author['family'])) {
-                $authorStrings[] = $author['family'];
+            $family = isset($author['family']) && is_string($author['family']) ? $author['family'] : null;
+            $given = isset($author['given']) && is_string($author['given']) ? $author['given'] : null;
+            $literal = isset($author['literal']) && is_string($author['literal']) ? $author['literal'] : null;
+
+            if ($family !== null && $given !== null) {
+                $authorStrings[] = $family.', '.$this->abbreviateGivenName($given);
+            } elseif ($literal !== null) {
+                $authorStrings[] = $literal;
+            } elseif ($family !== null) {
+                $authorStrings[] = $family;
             }
         }
         $authorsString = ! empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
