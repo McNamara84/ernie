@@ -91,6 +91,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
             <section
                 ref={ref}
                 aria-labelledby="heading-files"
+                data-testid="files-section"
                 className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
             >
                 <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Files</h2>

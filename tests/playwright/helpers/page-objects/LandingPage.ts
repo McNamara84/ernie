@@ -70,39 +70,39 @@ export class LandingPage {
     this.citationModal = page.locator('[role="dialog"]');
 
     // Abstract section
-    this.abstractSection = page.locator('[data-testid="abstract-section"], section:has-text("Abstract")').first();
+    this.abstractSection = page.locator('[data-testid="abstract-section"]').or(page.locator('section[aria-labelledby="heading-abstract"]'));
     this.abstractText = this.abstractSection.locator('p, [data-testid="abstract-text"]').first();
 
     // Creators section
-    this.creatorsSection = page.locator('[data-testid="creators-section"], section:has-text("Authors")').first();
+    this.creatorsSection = page.locator('[data-testid="creators-section"]');
     this.creatorsList = this.creatorsSection.locator('ul, [data-testid="creators-list"]');
 
     // Contributors section
-    this.contributorsSection = page.locator('[data-testid="contributors-section"], section:has-text("Contributors")').first();
+    this.contributorsSection = page.locator('[data-testid="contributors-section"]');
     this.contributorsList = this.contributorsSection.locator('ul, [data-testid="contributors-list"]');
 
     // Related Works section
-    this.relatedWorksSection = page.locator('[data-testid="related-works-section"], section:has-text("Related")').first();
+    this.relatedWorksSection = page.locator('[data-testid="related-works-section"]').or(page.locator('section[aria-labelledby="heading-related-work"]'));
     this.relatedWorksList = this.relatedWorksSection.locator('ul, [data-testid="related-works-list"]');
 
     // Funding section
-    this.fundingSection = page.locator('[data-testid="funding-section"], section:has-text("Funding")').first();
+    this.fundingSection = page.locator('[data-testid="funding-section"]');
     this.fundingList = this.fundingSection.locator('ul, [data-testid="funding-list"]');
 
     // GeoLocation section
-    this.geoLocationSection = page.locator('[data-testid="geolocation-section"], section:has-text("Location")').first();
+    this.geoLocationSection = page.locator('[data-testid="geolocation-section"]').or(page.locator('section[aria-labelledby="heading-location"]'));
     this.mapContainer = page.locator('.leaflet-container, [data-testid="map-container"]').first();
 
     // Subjects/Keywords section
-    this.subjectsSection = page.locator('[data-testid="subjects-section"], section:has-text("Keywords")').first();
+    this.subjectsSection = page.locator('[data-testid="subjects-section"]');
     this.keywordsList = this.subjectsSection.locator('[data-testid="keywords-list"], .flex.flex-wrap');
 
     // License section - licenses are displayed within the Files section
     this.licenseSection = page.locator('[data-testid="license-section"]').first();
 
-    // Files section (contains licenses) - look for heading "Files" and its parent container
+    // Files section (contains licenses)
     this.filesSection = page.locator('[data-testid="files-section"]').or(
-      page.locator(':has(> h3:text("Files"))').first()
+      page.locator('section[aria-labelledby="heading-files"]')
     );
     this.downloadButton = this.filesSection.locator('a:has-text("Download data and description")');
     // Contact form is now a button (opens modal), not a link
