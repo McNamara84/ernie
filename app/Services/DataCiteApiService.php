@@ -155,7 +155,7 @@ class DataCiteApiService
         $authorStrings = [];
         foreach ($authors as $author) {
             if (isset($author['family']) && isset($author['given'])) {
-                $authorStrings[] = $author['family'].', '.$author['given'];
+                $authorStrings[] = $author['family'].', '.$this->abbreviateGivenName($author['given']);
             } elseif (isset($author['literal'])) {
                 $authorStrings[] = $author['literal'];
             } elseif (isset($author['family'])) {
@@ -268,5 +268,35 @@ class DataCiteApiService
 
             return self::CACHE_TRANSIENT_FAILURE;
         }
+    }
+
+    /**
+     * Abbreviate a given name to initials for citation display.
+     *
+     * Each space-separated part is abbreviated independently.
+     * Hyphenated parts preserve the hyphen (e.g. Jean-Pierre → J.-P.).
+     */
+    private function abbreviateGivenName(string $givenName): string
+    {
+        $givenName = trim($givenName);
+
+        if ($givenName === '') {
+            return '';
+        }
+
+        $parts = preg_split('/\\s+/', $givenName) ?: [$givenName];
+
+        $abbreviated = array_map(function (string $part): string {
+            return implode('-', array_map(function (string $sub): string {
+                // Already abbreviated (e.g. "A." or "A")
+                if (mb_strlen($sub) <= 2 && (mb_strlen($sub) === 1 || str_ends_with($sub, '.'))) {
+                    return str_ends_with($sub, '.') ? $sub : $sub.'.';
+                }
+
+                return mb_strtoupper(mb_substr($sub, 0, 1)).'.';
+            }, explode('-', $part)));
+        }, $parts);
+
+        return implode(' ', $abbreviated);
     }
 }

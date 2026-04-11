@@ -228,7 +228,7 @@ describe('buildCitationFromMetadata', function (): void {
 
         $result = $this->service->buildCitationFromMetadata($metadata);
 
-        expect($result)->toBe('Doe, John; Smith, Jane (2024): Test Dataset. GFZ. https://doi.org/10.5880/test.2024.001');
+        expect($result)->toBe('Doe, J.; Smith, J. (2024): Test Dataset. GFZ. https://doi.org/10.5880/test.2024.001');
     });
 
     it('handles literal author names', function (): void {

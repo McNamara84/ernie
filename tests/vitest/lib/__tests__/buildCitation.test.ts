@@ -31,7 +31,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Ehrmann, Holger (2024): TESTTITLE. GFZ Data Services. https://doi.org/10.5880/GFZ1243'
+            'Ehrmann, H. (2024): TESTTITLE. GFZ Data Services. https://doi.org/10.5880/GFZ1243'
         );
     });
 
@@ -98,7 +98,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Doe, John; Smith, Jane (2025): Collaborative Research. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2025'
+            'Doe, J.; Smith, J. (2025): Collaborative Research. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2025'
         );
     });
 
@@ -127,7 +127,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (n.d.): Undated Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (n.d.): Undated Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -204,7 +204,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'User, Legacy (2020): Legacy Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LEGACY'
+            'User, L. (2020): Legacy Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LEGACY'
         );
     });
 
@@ -234,7 +234,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2022): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (2022): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -258,7 +258,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2024): Test Dataset. GFZ Data Services. DOI not available'
+            'Author, T. (2024): Test Dataset. GFZ Data Services. DOI not available'
         );
     });
 
@@ -283,7 +283,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -307,7 +307,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -332,7 +332,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2024): New Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (2024): New Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -357,7 +357,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2024): Alternative Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (2024): Alternative Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -428,7 +428,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Valid (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, V. (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
@@ -467,7 +467,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Author, Test (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 });
