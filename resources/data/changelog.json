@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-09",
+        "date": "2026-04-10",
         "features": [
             {
                 "title": "OAI-PMH 2.0 Harvesting Endpoint",

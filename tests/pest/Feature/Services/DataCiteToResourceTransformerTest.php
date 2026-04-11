@@ -811,3 +811,463 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
     });
 
 });
+
+describe('DataCiteToResourceTransformer - nameType inference and null family_name handling', function (): void {
+
+    it('infers Organizational nameType for single-word name without nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/orgtest.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Organizational Creator']],
+                'creators' => [
+                    [
+                        'name' => 'GEOMAR',
+                        // Single word → parsePersonName returns family only, no given name
+                        // → inferred as Organizational
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(\App\Models\Institution::class);
+    });
+
+    it('infers Personal nameType for comma-separated name without nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/commaname.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Comma Name']],
+                'creators' => [
+                    [
+                        'name' => 'Doe, John',
+                        // No nameType, no familyName, no givenName
+                        // Should be inferred as Personal via parsePersonName
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(Person::class);
+
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Doe')
+            ->and($person->given_name)->toBe('John');
+    });
+
+    it('infers Personal nameType for space-separated name without nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/spacename.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Space Name']],
+                'creators' => [
+                    [
+                        'name' => 'John Smith',
+                        // No nameType → inferred as Personal via parsePersonName
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(Person::class);
+
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Smith')
+            ->and($person->given_name)->toBe('John');
+    });
+
+    it('keeps Personal nameType when familyName is present', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/persontest.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Personal Creator']],
+                'creators' => [
+                    [
+                        'familyName' => 'Müller',
+                        'givenName' => 'Hans',
+                        // No nameType provided
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(Person::class);
+
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Müller')
+            ->and($person->given_name)->toBe('Hans');
+    });
+
+    it('skips creators without any name data', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/emptyname.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Empty Creator']],
+                'creators' => [
+                    [
+                        // No name, no familyName, no givenName
+                        'affiliation' => [['name' => 'Some University']],
+                    ],
+                    [
+                        'familyName' => 'Valid',
+                        'givenName' => 'Person',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Only the valid creator should be stored
+        expect($resource->creators()->count())->toBe(1);
+
+        $creator = $resource->creators()->first();
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Valid');
+    });
+
+    it('does not crash on null familyName and givenName with null name', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/nullall.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Null Name Fields']],
+                'creators' => [
+                    [
+                        'name' => null,
+                        'familyName' => null,
+                        'givenName' => null,
+                    ],
+                    [
+                        'familyName' => 'Backup',
+                        'givenName' => 'Creator',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // The null-name creator should be skipped, only valid one remains
+        expect($resource->creators()->count())->toBe(1);
+    });
+
+    it('creates Organizational contributor when explicit nameType is provided', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/orgcontrib.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Org Contributor']],
+                'creators' => [
+                    ['familyName' => 'Smith', 'givenName' => 'John', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'Helmholtz Centre Potsdam',
+                        'nameType' => 'Organizational',
+                        'contributorType' => 'HostingInstitution',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $contributor = $resource->contributors()->first();
+        expect($contributor)->not->toBeNull()
+            ->and($contributor->contributorable_type)->toBe(\App\Models\Institution::class);
+    });
+
+    it('infers Personal for contributor with parseable name and no nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/contribperson.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test Contributor Name Parsing']],
+                'creators' => [
+                    ['familyName' => 'Smith', 'givenName' => 'John', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'Müller, Hans',
+                        'contributorType' => 'DataCollector',
+                        // No nameType → parsePersonName yields family="Müller", given="Hans" → Personal
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $contributor = $resource->contributors()->first();
+        expect($contributor)->not->toBeNull()
+            ->and($contributor->contributorable_type)->toBe(Person::class);
+
+        $person = Person::find($contributor->contributorable_id);
+        expect($person->family_name)->toBe('Müller')
+            ->and($person->given_name)->toBe('Hans');
+    });
+
+    it('imports mixed Personal and Organizational creators without error', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/mixed.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Mixed Creators Test']],
+                'creators' => [
+                    [
+                        'familyName' => 'Doe',
+                        'givenName' => 'Jane',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'Alfred Wegener Institute',
+                        'nameType' => 'Organizational',
+                    ],
+                    [
+                        'name' => 'Schmidt, Maria',
+                        // No nameType → parsePersonName splits into family/given → Personal
+                    ],
+                    [
+                        'name' => 'Lastname, Firstname',
+                        'familyName' => 'Lastname',
+                        'givenName' => 'Firstname',
+                        // Has familyName → should stay Personal
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        expect($resource->creators()->count())->toBe(4);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        // Creator 1: Personal (explicit)
+        expect($creators[0]->creatorable_type)->toBe(Person::class);
+
+        // Creator 2: Organizational (explicit)
+        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // Creator 3: Personal (inferred via parsePersonName from "Schmidt, Maria")
+        expect($creators[2]->creatorable_type)->toBe(Person::class);
+
+        // Creator 4: Personal (has familyName)
+        expect($creators[3]->creatorable_type)->toBe(Person::class);
+    });
+
+    it('skips creators with whitespace-only name data', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/whitespace.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Whitespace Name Test']],
+                'creators' => [
+                    [
+                        'name' => '   ',
+                        'familyName' => '  ',
+                        'givenName' => '  ',
+                    ],
+                    [
+                        'familyName' => 'Valid',
+                        'givenName' => 'Person',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Whitespace-only creator should be skipped
+        expect($resource->creators()->count())->toBe(1);
+
+        $person = Person::find($resource->creators()->first()->creatorable_id);
+        expect($person->family_name)->toBe('Valid');
+    });
+
+    it('trims whitespace from familyName and givenName', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/trimtest.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Trim Test']],
+                'creators' => [
+                    [
+                        'familyName' => '  Schmidt  ',
+                        'givenName' => '  Anna  ',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $person = Person::find($resource->creators()->first()->creatorable_id);
+        expect($person->family_name)->toBe('Schmidt')
+            ->and($person->given_name)->toBe('Anna');
+    });
+
+    it('skips creator with givenName only and no familyName or name', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/givenonly.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Given Name Only Test']],
+                'creators' => [
+                    [
+                        'givenName' => 'John',
+                        // No familyName, no name → cannot create Person (family_name NOT NULL)
+                        // Should be skipped via InvalidArgumentException catch
+                    ],
+                    [
+                        'familyName' => 'Valid',
+                        'givenName' => 'Creator',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // givenName-only creator should be skipped, only valid one remains
+        expect($resource->creators()->count())->toBe(1);
+
+        $person = Person::find($resource->creators()->first()->creatorable_id);
+        expect($person->family_name)->toBe('Valid');
+    });
+
+    it('infers Personal for comma-suffix name like "Smith, Jr."', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/suffixname.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Suffix Name Test']],
+                'creators' => [
+                    [
+                        'name' => 'Smith, Jr.',
+                        // No nameType → parsePersonName returns family="Smith, Jr.", given=null
+                        // Comma present → should be inferred as Personal, not Organizational
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(Person::class);
+
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Smith, Jr.');
+    });
+
+    it('infers Organizational for multi-word organization name without nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/multiwordorg.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Multi-Word Org Test']],
+                'creators' => [
+                    [
+                        'name' => 'Alfred Wegener Institute',
+                        // No nameType → should be inferred as Organizational
+                        // via keyword detection ("institute")
+                    ],
+                    [
+                        'name' => 'Helmholtz Centre Potsdam GFZ',
+                        // No nameType → 4+ tokens AND keyword "helmholtz"/"centre"
+                    ],
+                    [
+                        'name' => 'John Smith',
+                        // 2 tokens, no org keyword → Personal
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        expect($resource->creators()->count())->toBe(3);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        // "Alfred Wegener Institute" → Organizational (keyword "institute")
+        expect($creators[0]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // "Helmholtz Centre Potsdam GFZ" → Organizational (keyword "helmholtz"/"centre" + 4 tokens)
+        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // "John Smith" → Personal (2 tokens, no org keyword)
+        expect($creators[2]->creatorable_type)->toBe(Person::class);
+    });
+
+});

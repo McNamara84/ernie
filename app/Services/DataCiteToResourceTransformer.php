@@ -265,14 +265,40 @@ class DataCiteToResourceTransformer
     private function transformCreators(array $creators, Resource $resource): void
     {
         foreach ($creators as $position => $creatorData) {
-            $nameType = $creatorData['nameType'] ?? 'Personal';
+            // Skip records without any name information
+            if (! $this->hasAnyName($creatorData)) {
+                Log::debug('Skipping creator without any name data', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'name' => $creatorData['name'] ?? null,
+                    'familyName' => $creatorData['familyName'] ?? null,
+                    'givenName' => $creatorData['givenName'] ?? null,
+                ]);
 
-            if ($nameType === 'Organizational') {
-                $entity = $this->findOrCreateInstitution($creatorData);
-                $entityType = Institution::class;
-            } else {
-                $entity = $this->findOrCreatePerson($creatorData);
-                $entityType = Person::class;
+                continue;
+            }
+
+            $nameType = $creatorData['nameType'] ?? $this->inferNameType($creatorData);
+
+            try {
+                if ($nameType === 'Organizational') {
+                    $entity = $this->findOrCreateInstitution($creatorData);
+                    $entityType = Institution::class;
+                } else {
+                    $entity = $this->findOrCreatePerson($creatorData);
+                    $entityType = Person::class;
+                }
+            } catch (\InvalidArgumentException $e) {
+                Log::debug('Skipping creator with unresolvable name', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'name' => $creatorData['name'] ?? null,
+                    'familyName' => $creatorData['familyName'] ?? null,
+                    'givenName' => $creatorData['givenName'] ?? null,
+                    'reason' => $e->getMessage(),
+                ]);
+
+                continue;
             }
 
             $resourceCreator = ResourceCreator::create([
@@ -296,14 +322,40 @@ class DataCiteToResourceTransformer
     private function transformContributors(array $contributors, Resource $resource): void
     {
         foreach ($contributors as $position => $contributorData) {
-            $nameType = $contributorData['nameType'] ?? 'Personal';
+            // Skip records without any name information
+            if (! $this->hasAnyName($contributorData)) {
+                Log::debug('Skipping contributor without any name data', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'name' => $contributorData['name'] ?? null,
+                    'familyName' => $contributorData['familyName'] ?? null,
+                    'givenName' => $contributorData['givenName'] ?? null,
+                ]);
 
-            if ($nameType === 'Organizational') {
-                $entity = $this->findOrCreateInstitution($contributorData);
-                $entityType = Institution::class;
-            } else {
-                $entity = $this->findOrCreatePerson($contributorData);
-                $entityType = Person::class;
+                continue;
+            }
+
+            $nameType = $contributorData['nameType'] ?? $this->inferNameType($contributorData);
+
+            try {
+                if ($nameType === 'Organizational') {
+                    $entity = $this->findOrCreateInstitution($contributorData);
+                    $entityType = Institution::class;
+                } else {
+                    $entity = $this->findOrCreatePerson($contributorData);
+                    $entityType = Person::class;
+                }
+            } catch (\InvalidArgumentException $e) {
+                Log::debug('Skipping contributor with unresolvable name', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'name' => $contributorData['name'] ?? null,
+                    'familyName' => $contributorData['familyName'] ?? null,
+                    'givenName' => $contributorData['givenName'] ?? null,
+                    'reason' => $e->getMessage(),
+                ]);
+
+                continue;
             }
 
             $contributorTypeId = null;
@@ -405,14 +457,32 @@ class DataCiteToResourceTransformer
      */
     private function findOrCreatePerson(array $data): Person
     {
-        $familyName = $data['familyName'] ?? null;
-        $givenName = $data['givenName'] ?? null;
+        $familyName = isset($data['familyName']) ? trim((string) $data['familyName']) : null;
+        $givenName = isset($data['givenName']) ? trim((string) $data['givenName']) : null;
+
+        // Treat empty strings as null after trimming
+        if ($familyName === '') {
+            $familyName = null;
+        }
+        if ($givenName === '') {
+            $givenName = null;
+        }
 
         // If no structured name, try to parse from 'name' field
         if ($familyName === null && isset($data['name'])) {
-            $parts = $this->parsePersonName($data['name']);
-            $familyName = $parts['family'];
-            $givenName = $parts['given'];
+            $name = trim((string) $data['name']);
+            if ($name !== '') {
+                $parts = $this->parsePersonName($name);
+                $familyName = $parts['family'] !== null ? trim($parts['family']) : null;
+                $givenName = $parts['given'] !== null ? trim($parts['given']) : null;
+
+                if ($familyName === '') {
+                    $familyName = null;
+                }
+                if ($givenName === '') {
+                    $givenName = null;
+                }
+            }
         }
 
         // Extract ORCID from name identifiers
@@ -475,6 +545,13 @@ class DataCiteToResourceTransformer
             }
         }
 
+        // Safety guard: family_name is NOT NULL in the database
+        if ($familyName === null || trim($familyName) === '') {
+            throw new \InvalidArgumentException(
+                'Cannot create Person: family_name is required but was empty.'
+            );
+        }
+
         // Create new person
         return Person::create([
             'given_name' => $givenName,
@@ -486,13 +563,102 @@ class DataCiteToResourceTransformer
     }
 
     /**
+     * Infer nameType when DataCite doesn't provide it.
+     *
+     * A creator/contributor without familyName AND without givenName
+     * but WITH a 'name' field is likely an organization.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function inferNameType(array $data): string
+    {
+        $hasFamilyName = isset($data['familyName']) && trim((string) $data['familyName']) !== '';
+        $hasGivenName = isset($data['givenName']) && trim((string) $data['givenName']) !== '';
+
+        if ($hasFamilyName || $hasGivenName) {
+            return 'Personal';
+        }
+
+        $name = isset($data['name']) ? trim((string) $data['name']) : '';
+
+        if ($name === '') {
+            return 'Personal';
+        }
+
+        // Organization names often contain institutional keywords.
+        // Check for these BEFORE parsePersonName, which would split
+        // "Alfred Wegener Institute" into given="Alfred Wegener", family="Institute".
+        if ($this->looksLikeOrganization($name)) {
+            return 'Organizational';
+        }
+
+        // Try to parse the name — if parsing yields both a family AND a given
+        // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
+        // Names that only yield a family part (single word like "GEOMAR") default
+        // to Organizational. Comma+suffix names like "Smith, Jr." are treated as
+        // Personal via the comma-detection fallback below.
+        $parts = $this->parsePersonName($name);
+
+        if ($parts['given'] !== null && trim($parts['given']) !== '') {
+            return 'Personal';
+        }
+
+        // If parsePersonName returned a family name but no given name,
+        // check if the original name contains a comma — this indicates
+        // a structured person name (e.g. "Smith, Jr.") rather than an org.
+        if ($parts['family'] !== null && str_contains($name, ',')) {
+            return 'Personal';
+        }
+
+        return 'Organizational';
+    }
+
+    /**
+     * Check if a name string looks like an organization based on common keywords.
+     * Uses word-boundary matching to avoid substring false positives
+     * (e.g. "inc" must not match inside "Vincenzo").
+     */
+    private function looksLikeOrganization(string $name): bool
+    {
+        $orgKeywords = [
+            'institute', 'institution', 'university', 'universität',
+            'centre', 'center', 'laboratory', 'laboratoire',
+            'agency', 'organization', 'organisation', 'foundation',
+            'corporation', 'consortium', 'council', 'commission',
+            'department', 'ministry', 'bureau', 'authority',
+            'association', 'society', 'academy', 'museum',
+            'library', 'service', 'survey', 'observatory',
+            'gmbh', 'ltd', 'inc', 'e\.v\.', 'helmholtz',
+        ];
+
+        $pattern = '/\b(' . implode('|', $orgKeywords) . ')\b/iu';
+
+        return (bool) preg_match($pattern, $name);
+    }
+
+    /**
+     * Check if a creator/contributor record has any name information.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function hasAnyName(array $data): bool
+    {
+        return (isset($data['name']) && trim((string) $data['name']) !== '')
+            || (isset($data['familyName']) && trim((string) $data['familyName']) !== '')
+            || (isset($data['givenName']) && trim((string) $data['givenName']) !== '');
+    }
+
+    /**
      * Find or create an Institution entity.
      *
      * @param  array<string, mixed>  $data
      */
     private function findOrCreateInstitution(array $data): Institution
     {
-        $name = $data['name'] ?? 'Unknown Institution';
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            throw new \InvalidArgumentException('Cannot create Institution: name is required but was empty.');
+        }
 
         // Extract ROR from name identifiers
         $ror = null;
