@@ -614,6 +614,8 @@ class DataCiteToResourceTransformer
 
     /**
      * Check if a name string looks like an organization based on common keywords.
+     * Uses word-boundary matching to avoid substring false positives
+     * (e.g. "inc" must not match inside "Vincenzo").
      */
     private function looksLikeOrganization(string $name): bool
     {
@@ -625,18 +627,12 @@ class DataCiteToResourceTransformer
             'department', 'ministry', 'bureau', 'authority',
             'association', 'society', 'academy', 'museum',
             'library', 'service', 'survey', 'observatory',
-            'gmbh', 'ltd', 'inc', 'e.v.', 'helmholtz',
+            'gmbh', 'ltd', 'inc', 'e\.v\.', 'helmholtz',
         ];
 
-        $lowerName = mb_strtolower($name);
+        $pattern = '/\b(' . implode('|', $orgKeywords) . ')\b/iu';
 
-        foreach ($orgKeywords as $keyword) {
-            if (str_contains($lowerName, $keyword)) {
-                return true;
-            }
-        }
-
-        return false;
+        return (bool) preg_match($pattern, $name);
     }
 
     /**
