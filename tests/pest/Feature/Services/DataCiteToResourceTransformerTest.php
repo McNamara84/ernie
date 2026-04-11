@@ -814,7 +814,7 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
 describe('DataCiteToResourceTransformer - nameType inference and null family_name handling', function (): void {
 
-    it('infers Organizational nameType for single-word org name', function (): void {
+    it('infers Organizational nameType for single-word name without nameType', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
 
@@ -826,10 +826,8 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
                 'creators' => [
                     [
                         'name' => 'GEOMAR',
-                        // Single word → parsePersonName returns it as family name → Personal
-                        // But single-word names are still treated as Personal by parsePersonName.
-                        // To truly test Organizational inference, we would need a name that
-                        // parsePersonName cannot split. Let's use an explicit nameType test instead.
+                        // Single word → parsePersonName returns family only, no given name
+                        // → inferred as Organizational
                     ],
                 ],
             ],
@@ -837,10 +835,9 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
 
         $resource = $transformer->transform($doiData, $user->id);
 
-        // Single-word name is parsed as family_name by parsePersonName → Personal
         $creator = $resource->creators()->first();
         expect($creator)->not->toBeNull()
-            ->and($creator->creatorable_type)->toBe(Person::class);
+            ->and($creator->creatorable_type)->toBe(\App\Models\Institution::class);
     });
 
     it('infers Personal nameType for comma-separated name without nameType', function (): void {

@@ -288,7 +288,10 @@ class DataCiteToResourceTransformer
                 } catch (\InvalidArgumentException $e) {
                     Log::warning('Skipping creator with unresolvable name', [
                         'resource_id' => $resource->id,
-                        'error' => $e->getMessage(),
+                        'position' => $position,
+                        'name' => $creatorData['name'] ?? null,
+                        'familyName' => $creatorData['familyName'] ?? null,
+                        'givenName' => $creatorData['givenName'] ?? null,
                     ]);
 
                     continue;
@@ -339,7 +342,10 @@ class DataCiteToResourceTransformer
                 } catch (\InvalidArgumentException $e) {
                     Log::warning('Skipping contributor with unresolvable name', [
                         'resource_id' => $resource->id,
-                        'error' => $e->getMessage(),
+                        'position' => $position,
+                        'name' => $contributorData['name'] ?? null,
+                        'familyName' => $contributorData['familyName'] ?? null,
+                        'givenName' => $contributorData['givenName'] ?? null,
                     ]);
 
                     continue;
@@ -536,8 +542,10 @@ class DataCiteToResourceTransformer
         // Safety guard: family_name is NOT NULL in the database
         if ($familyName === null || trim($familyName) === '') {
             throw new \InvalidArgumentException(
-                'Cannot create Person: family_name is required but was empty. Data: '
-                . json_encode($data, JSON_UNESCAPED_UNICODE)
+                'Cannot create Person: family_name is required but was empty.'
+                . ' name=' . ($data['name'] ?? 'null')
+                . ', familyName=' . ($data['familyName'] ?? 'null')
+                . ', givenName=' . ($data['givenName'] ?? 'null')
             );
         }
 
@@ -574,11 +582,13 @@ class DataCiteToResourceTransformer
             return 'Personal';
         }
 
-        // Try to parse the name — if it yields a plausible family name,
-        // this is likely a Personal creator (e.g. "Doe, John").
+        // Try to parse the name — if parsing yields both a family AND a given
+        // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
+        // A single-word or multi-word name without a clear given/family split
+        // (e.g. "GFZ German Research Centre") defaults to Organizational.
         $parts = $this->parsePersonName($name);
 
-        if ($parts['family'] !== null && trim($parts['family']) !== '') {
+        if ($parts['given'] !== null && trim($parts['given']) !== '') {
             return 'Personal';
         }
 
