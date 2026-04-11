@@ -4,7 +4,8 @@
  * Rules:
  * - Each space-separated part is abbreviated independently
  * - Hyphenated parts preserve the hyphen (Jean-Pierre → J.-P.)
- * - Already-abbreviated names (single letter or letter+dot) pass through unchanged
+ * - Already-abbreviated names with dot (e.g. "A.") pass through unchanged
+ * - Single letters without dot get a dot appended (e.g. "A" → "A.")
  * - Null/empty input returns empty string
  *
  * @example

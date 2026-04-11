@@ -275,6 +275,8 @@ class DataCiteApiService
      *
      * Each space-separated part is abbreviated independently.
      * Hyphenated parts preserve the hyphen (e.g. Jean-Pierre → J.-P.).
+     * Already-abbreviated names with dot pass through unchanged.
+     * Single letters without dot get a dot appended (e.g. "A" → "A.").
      */
     private function abbreviateGivenName(string $givenName): string
     {

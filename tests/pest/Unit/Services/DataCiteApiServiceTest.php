@@ -351,6 +351,104 @@ describe('buildCitationFromMetadata', function (): void {
 
         expect($result)->not->toContain('https://doi.org/');
     });
+
+    it('abbreviates multiple space-separated given names', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'Alice Marie']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Doe, A. M. (2024)');
+    });
+
+    it('abbreviates hyphenated given names preserving hyphen', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Dupont', 'given' => 'Jean-Pierre']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Dupont, J.-P. (2024)');
+    });
+
+    it('abbreviates combined hyphenated and space-separated given names', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Mueller', 'given' => 'Hans-Jürgen Peter']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Mueller, H.-J. P. (2024)');
+    });
+
+    it('passes through already abbreviated given name with dot', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'A.']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Doe, A. (2024)');
+    });
+
+    it('appends dot to single letter given name without dot', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'A']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Doe, A. (2024)');
+    });
+
+    it('passes through already abbreviated multi-part given name', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'A. M.']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Doe, A. M. (2024)');
+    });
+
+    it('handles already abbreviated hyphenated given name', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Dupont', 'given' => 'J.-P.']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toStartWith('Dupont, J.-P. (2024)');
+    });
 });
 
 // =========================================================================
