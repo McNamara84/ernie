@@ -82,7 +82,7 @@ export default function DefaultGfzIgsnTemplate() {
                     </header>
 
                     {/* Content - Only ResourceHero for IGSN */}
-                    <main id="main-content" className="pb-6">
+                    <main id="main-content" tabIndex={-1} className="pb-6">
                         <ResourceHero
                             resourceType="IGSN"
                             status={status}

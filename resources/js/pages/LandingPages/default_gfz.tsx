@@ -85,7 +85,7 @@ export default function DefaultGfzTemplate() {
                         </div>
                     </header>
 
-                    <main id="main-content">
+                    <main id="main-content" tabIndex={-1}>
                         {/* Hero Section - Full Width */}
                         <ResourceHero resourceType={resourceType} status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} />
 
