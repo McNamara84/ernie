@@ -46,6 +46,11 @@ export function useSystemDarkMode(): boolean {
 
     useEffect(() => {
         const el = document.documentElement;
+
+        // Capture previous state so we can restore it on unmount
+        const prevHadDark = el.classList.contains('dark');
+        const prevColorScheme = el.style.colorScheme;
+
         if (isDark) {
             el.classList.add('dark');
             el.style.colorScheme = 'dark';
@@ -54,8 +59,9 @@ export function useSystemDarkMode(): boolean {
             el.style.colorScheme = 'light';
         }
         return () => {
-            el.classList.remove('dark');
-            el.style.colorScheme = '';
+            // Restore the state that existed before this hook took over
+            el.classList.toggle('dark', prevHadDark);
+            el.style.colorScheme = prevColorScheme;
         };
     }, [isDark]);
 

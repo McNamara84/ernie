@@ -1,11 +1,11 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Toaster } from 'sonner';
 
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
 import { ContactSection } from './components/ContactSection';
 import { FilesSection } from './components/FilesSection';
+import { LandingPageToaster } from './components/LandingPageToaster';
 import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
@@ -134,7 +134,7 @@ export default function DefaultGfzTemplate() {
                     </footer>
                 </div>
 
-                <Toaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
+                <LandingPageToaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
             </div>
         </>
     );

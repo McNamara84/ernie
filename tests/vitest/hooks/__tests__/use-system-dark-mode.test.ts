@@ -70,13 +70,33 @@ describe('useSystemDarkMode', () => {
         expect(document.documentElement.style.colorScheme).toBe('light');
     });
 
-    it('removes dark class and resets colorScheme on unmount', () => {
+    it('restores previous dark class and colorScheme on unmount', () => {
+        // Simulate a pre-existing dark state (e.g. set by useAppearance in the main app)
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+
         matches = true;
         const { unmount } = renderHook(() => useSystemDarkMode());
         expect(document.documentElement.classList.contains('dark')).toBe(true);
         expect(document.documentElement.style.colorScheme).toBe('dark');
 
         unmount();
+        // Should restore the captured pre-existing state, not force-remove
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+        expect(document.documentElement.style.colorScheme).toBe('dark');
+    });
+
+    it('restores previous light state on unmount when it was light before', () => {
+        // No pre-existing dark state
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = '';
+
+        matches = true;
+        const { unmount } = renderHook(() => useSystemDarkMode());
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+        unmount();
+        // Should restore the original light state
         expect(document.documentElement.classList.contains('dark')).toBe(false);
         expect(document.documentElement.style.colorScheme).toBe('');
     });
