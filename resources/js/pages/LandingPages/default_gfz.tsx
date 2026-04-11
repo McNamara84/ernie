@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
+import { Toaster } from 'sonner';
 
-import { Toaster } from '@/components/ui/sonner';
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';

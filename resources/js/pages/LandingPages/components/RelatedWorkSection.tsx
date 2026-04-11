@@ -163,6 +163,14 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
         [filteredRelations],
     );
 
+    // IDs of items that should be hidden on mobile when collapsed (beyond threshold)
+    const hiddenItemIds = useMemo(() => {
+        if (renderableRelations.length <= COLLAPSE_THRESHOLD || expanded) {
+            return new Set<number>();
+        }
+        return new Set(renderableRelations.slice(COLLAPSE_THRESHOLD).map((r) => r.id));
+    }, [renderableRelations, expanded]);
+
     if (renderableRelations.length === 0) {
         return null;
     }
@@ -193,7 +201,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
 
             <div
                 id="related-work-list"
-                className={`space-y-6 ${shouldCollapse && !expanded ? 'max-h-[600px] overflow-hidden md:max-h-none md:overflow-visible' : ''}`}
+                className="space-y-6"
                 data-testid="related-works-list"
                 aria-live="polite"
             >
@@ -206,8 +214,13 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                         return null;
                     }
 
+                    // If all renderable items in this group are hidden, hide the group heading on mobile too
+                    const allItemsHidden = items.every(
+                        (rel) => !resolveIdentifierUrl(rel.identifier, rel.identifier_type) || hiddenItemIds.has(rel.id),
+                    );
+
                     return (
-                        <div key={relationType}>
+                        <div key={relationType} className={allItemsHidden ? 'hidden md:block' : ''}>
                             <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">{formatRelationType(relationType)}</h3>
                             <ul className="space-y-2">
                                 {items.map((rel) => {
@@ -217,6 +230,8 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                                         return null;
                                     }
 
+                                    const isHiddenOnMobile = hiddenItemIds.has(rel.id);
+
                                     // DOI: show citation (fetched async)
                                     if (rel.identifier_type === 'DOI') {
                                         const doiKey = normalizeDoiKey(rel.identifier);
@@ -224,7 +239,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                                         const isLoading = !citationData || citationData.loading;
 
                                         return (
-                                            <li key={rel.id}>
+                                            <li key={rel.id} className={isHiddenOnMobile ? 'hidden md:list-item' : ''}>
                                                 {isLoading && (
                                                     <div className="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700" aria-busy="true">
                                                         <Skeleton className="h-4 w-3/4" />
@@ -261,7 +276,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
 
                                     // Non-DOI: show identifier as link directly
                                     return (
-                                        <li key={rel.id}>
+                                        <li key={rel.id} className={isHiddenOnMobile ? 'hidden md:list-item' : ''}>
                                             <a
                                                 href={url}
                                                 target="_blank"

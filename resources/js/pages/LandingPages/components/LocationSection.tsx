@@ -402,7 +402,6 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
             <div
                 className="relative z-0 h-[300px] w-full overflow-hidden rounded-lg"
                 data-testid="map-container"
-                role="img"
                 aria-label="Map showing the geographic location of the dataset"
             >
                 <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
