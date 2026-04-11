@@ -44,17 +44,17 @@ describe('useNProgress', () => {
         vi.clearAllMocks();
         vi.mocked(useReducedMotion).mockReturnValue(false);
 
-        vi.mocked(router.on).mockImplementation((<E extends string>(event: E, cb: () => void) => {
+        vi.mocked(router.on).mockImplementation(((event: string, cb: (...args: unknown[]) => unknown) => {
             if (event === 'start') {
-                startCallback = cb;
+                startCallback = cb as () => void;
                 return removeStart;
             }
             if (event === 'finish') {
-                finishCallback = cb;
+                finishCallback = cb as () => void;
                 return removeFinish;
             }
             return vi.fn();
-        }) as typeof router.on);
+        }) as unknown as typeof router.on);
     });
 
     afterEach(() => {
