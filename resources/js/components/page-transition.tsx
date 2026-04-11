@@ -23,6 +23,7 @@ export function PageTransition({ children }: PropsWithChildren) {
             <motion.div
                 key={url}
                 data-slot="page-transition"
+                className="flex min-h-0 flex-1 flex-col"
                 variants={fadeVariants}
                 initial="initial"
                 animate="animate"
