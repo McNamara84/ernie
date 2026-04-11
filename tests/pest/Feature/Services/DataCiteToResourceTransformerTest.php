@@ -1227,4 +1227,47 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         expect($person->family_name)->toBe('Smith, Jr.');
     });
 
+    it('infers Organizational for multi-word organization name without nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/multiwordorg.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Multi-Word Org Test']],
+                'creators' => [
+                    [
+                        'name' => 'Alfred Wegener Institute',
+                        // No nameType → should be inferred as Organizational
+                        // via keyword detection ("institute")
+                    ],
+                    [
+                        'name' => 'Helmholtz Centre Potsdam GFZ',
+                        // No nameType → 4+ tokens AND keyword "helmholtz"/"centre"
+                    ],
+                    [
+                        'name' => 'John Smith',
+                        // 2 tokens, no org keyword → Personal
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        expect($resource->creators()->count())->toBe(3);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        // "Alfred Wegener Institute" → Organizational (keyword "institute")
+        expect($creators[0]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // "Helmholtz Centre Potsdam GFZ" → Organizational (keyword "helmholtz"/"centre" + 4 tokens)
+        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+
+        // "John Smith" → Personal (2 tokens, no org keyword)
+        expect($creators[2]->creatorable_type)->toBe(Person::class);
+    });
+
 });

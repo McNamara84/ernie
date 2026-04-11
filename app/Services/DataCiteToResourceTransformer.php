@@ -294,6 +294,7 @@ class DataCiteToResourceTransformer
                         'name' => $creatorData['name'] ?? null,
                         'familyName' => $creatorData['familyName'] ?? null,
                         'givenName' => $creatorData['givenName'] ?? null,
+                        'reason' => $e->getMessage(),
                     ]);
 
                     continue;
@@ -350,6 +351,7 @@ class DataCiteToResourceTransformer
                         'name' => $contributorData['name'] ?? null,
                         'familyName' => $contributorData['familyName'] ?? null,
                         'givenName' => $contributorData['givenName'] ?? null,
+                        'reason' => $e->getMessage(),
                     ]);
 
                     continue;
@@ -586,6 +588,13 @@ class DataCiteToResourceTransformer
             return 'Personal';
         }
 
+        // Organization names often contain institutional keywords.
+        // Check for these BEFORE parsePersonName, which would split
+        // "Alfred Wegener Institute" into given="Alfred Wegener", family="Institute".
+        if ($this->looksLikeOrganization($name)) {
+            return 'Organizational';
+        }
+
         // Try to parse the name — if parsing yields both a family AND a given
         // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
         // Names that only yield a family part (single word like "GEOMAR", or
@@ -593,6 +602,13 @@ class DataCiteToResourceTransformer
         $parts = $this->parsePersonName($name);
 
         if ($parts['given'] !== null && trim($parts['given']) !== '') {
+            // Additional guard: multi-word names with 4+ tokens are likely orgs
+            // (e.g. "Helmholtz Centre Potsdam GFZ") even if parsePersonName splits them.
+            $tokenCount = count(explode(' ', $name));
+            if ($tokenCount >= 4) {
+                return 'Organizational';
+            }
+
             return 'Personal';
         }
 
@@ -604,6 +620,33 @@ class DataCiteToResourceTransformer
         }
 
         return 'Organizational';
+    }
+
+    /**
+     * Check if a name string looks like an organization based on common keywords.
+     */
+    private function looksLikeOrganization(string $name): bool
+    {
+        $orgKeywords = [
+            'institute', 'institution', 'university', 'universität',
+            'centre', 'center', 'laboratory', 'laboratoire',
+            'agency', 'organization', 'organisation', 'foundation',
+            'corporation', 'consortium', 'council', 'commission',
+            'department', 'ministry', 'bureau', 'authority',
+            'association', 'society', 'academy', 'museum',
+            'library', 'service', 'survey', 'observatory',
+            'gmbh', 'ltd', 'inc', 'e.v.', 'helmholtz',
+        ];
+
+        $lowerName = mb_strtolower($name);
+
+        foreach ($orgKeywords as $keyword) {
+            if (str_contains($lowerName, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
