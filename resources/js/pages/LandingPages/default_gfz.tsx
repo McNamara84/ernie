@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Toaster } from 'sonner';
 
+import { Toaster } from '@/components/ui/sonner';
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
@@ -33,7 +33,7 @@ interface DefaultGfzTemplatePageProps {
 
 export default function DefaultGfzTemplate() {
     const { resource, landingPage, isPreview, schemaOrgJsonLd } = usePage<DefaultGfzTemplatePageProps>().props;
-    useSystemDarkMode();
+    const isDark = useSystemDarkMode();
 
     // Extract data for ResourceHero
     const resourceType = resource.resource_type?.name || 'Other';
@@ -102,7 +102,7 @@ export default function DefaultGfzTemplate() {
                                     resourceId={resource.id}
                                     jsonLdExportUrl={landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined}
                                 />
-                                <LocationSection geoLocations={resource.geo_locations || []} />
+                                <LocationSection geoLocations={resource.geo_locations || []} isDark={isDark} />
                             </div>
 
                             {/* Left Column (Files, Contact, Related) — show second on mobile */}
@@ -134,7 +134,7 @@ export default function DefaultGfzTemplate() {
                     </footer>
                 </div>
 
-                <Toaster position="bottom-right" richColors />
+                <Toaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
             </div>
         </>
     );

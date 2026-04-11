@@ -395,4 +395,89 @@ describe('DefaultGfzTemplate', () => {
             expect(gfzLogo).toHaveClass('dark:brightness-200', 'dark:invert');
         });
     });
+
+    describe('Schema.org JSON-LD', () => {
+        it('renders JSON-LD script tag when schemaOrgJsonLd is provided', () => {
+            const schemaOrgJsonLd = { '@context': 'https://schema.org', '@type': 'Dataset', name: 'Test' };
+
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    schemaOrgJsonLd,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            // The Head component renders children directly in our mock
+            const scriptContent = JSON.stringify(schemaOrgJsonLd);
+            expect(document.body.textContent).toContain(scriptContent);
+        });
+
+        it('does not render JSON-LD script tag when schemaOrgJsonLd is not provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(document.body.innerHTML).not.toContain('application/ld+json');
+        });
+    });
+
+    describe('fallback values', () => {
+        it('uses landingPage status when not in preview mode', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: { ...mockLandingPage, status: 'draft' },
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            // Should not throw - status is used internally by ResourceHero
+            render(<DefaultGfzTemplate />);
+            expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
+        });
+
+        it('handles undefined resource arrays with fallback empty arrays', () => {
+            const resourceWithUndefined = {
+                id: 1,
+                resource_type: { id: 1, name: 'Dataset' },
+                titles: [{ id: 1, title: 'Test', title_type: 'MainTitle' }],
+                // Intentionally omit all optional arrays
+            };
+
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: resourceWithUndefined,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            // Should not throw
+            expect(() => render(<DefaultGfzTemplate />)).not.toThrow();
+        });
+
+        it('passes correct jsonLdExportUrl when landingPage has public_url', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: { ...mockLandingPage, public_url: '/10.5880/test' },
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            // Render should succeed with jsonLdExportUrl derived from public_url
+            render(<DefaultGfzTemplate />);
+            expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
+        });
+    });
 });

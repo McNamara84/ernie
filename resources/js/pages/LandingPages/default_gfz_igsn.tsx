@@ -1,8 +1,10 @@
 import { Head, usePage } from '@inertiajs/react';
 
+import { Toaster } from '@/components/ui/sonner';
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
 import { ResourceHero } from './components/ResourceHero';
+import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { buildCitation } from './lib/buildCitation';
 
 /**
@@ -30,6 +32,7 @@ interface DefaultGfzIgsnTemplatePageProps {
  */
 export default function DefaultGfzIgsnTemplate() {
     const { resource, landingPage, isPreview, schemaOrgJsonLd } = usePage<DefaultGfzIgsnTemplatePageProps>().props;
+    const isDark = useSystemDarkMode();
 
     const status = isPreview ? 'preview' : landingPage?.status || 'published';
     const mainTitle = resource.titles?.find((t) => !t.title_type || t.title_type === 'MainTitle')?.title || 'Untitled';
@@ -43,10 +46,10 @@ export default function DefaultGfzIgsnTemplate() {
                     <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
                 </Head>
             )}
-            <div className="min-h-screen bg-gfz-primary pt-6">
+            <div className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
             {isPreview && <div className="bg-yellow-400 px-4 py-2 text-center text-sm font-medium text-gray-900">Preview Mode</div>}
 
-            <div className="mx-auto max-w-7xl rounded bg-white">
+            <div className="mx-auto max-w-7xl rounded bg-white dark:bg-gray-900">
                 {/* Header */}
                 <header className="px-4 py-2">
                     {/* Legal Notice & Data Protection - top right */}
@@ -94,6 +97,8 @@ export default function DefaultGfzIgsnTemplate() {
                     </div>
                 </footer>
             </div>
+
+                <Toaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
         </div>
         </>
     );

@@ -1,7 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -69,5 +68,16 @@ describe('useFadeInOnScroll', () => {
     it('accepts a custom threshold option', () => {
         render(<TestComponent threshold={0.5} />);
         expect(screen.getByTestId('target')).toHaveAttribute('data-visible', 'true');
+    });
+
+    it('handles missing ref element gracefully', () => {
+        // Render just the hook without attaching ref to a DOM element
+        function NoRefComponent() {
+            const { isVisible } = useFadeInOnScroll();
+            return <span data-testid="no-ref">{isVisible ? 'visible' : 'hidden'}</span>;
+        }
+
+        render(<NoRefComponent />);
+        expect(screen.getByTestId('no-ref')).toHaveTextContent('hidden');
     });
 });

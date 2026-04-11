@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
-import { useSystemDarkMode } from '../hooks/useSystemDarkMode';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
 // Using unknown as intermediate step for safer type assertion
@@ -42,6 +41,8 @@ interface GeoLocation {
 
 interface LocationSectionProps {
     geoLocations: GeoLocation[];
+    /** Whether system dark mode is active. Passed down from the page root. */
+    isDark?: boolean;
 }
 
 // GFZ Corporate Blue
@@ -348,10 +349,9 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
  * Auto-zooms to fit all locations with padding.
  * Hidden when no valid geo locations are available.
  */
-export function LocationSection({ geoLocations }: LocationSectionProps) {
+export function LocationSection({ geoLocations, isDark = false }: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
     const { ref, isVisible } = useFadeInOnScroll();
-    const isDark = useSystemDarkMode();
 
     // Client-side only rendering (Leaflet needs window/document)
     useEffect(() => {
