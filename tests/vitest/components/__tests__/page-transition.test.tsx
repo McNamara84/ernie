@@ -3,6 +3,9 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+// Override global mock from vitest.setup.ts to test the actual component
+vi.unmock('@/components/page-transition');
+
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(() => ({ url: '/test-page' })),
 }));
@@ -11,8 +14,8 @@ vi.mock('@/hooks/use-reduced-motion', () => ({
     useReducedMotion: vi.fn(() => false),
 }));
 
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { PageTransition } from '@/components/page-transition';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 describe('PageTransition', () => {
     it('renders children', () => {

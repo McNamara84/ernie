@@ -168,3 +168,19 @@ if (typeof navigator !== 'undefined') {
         writable: true,
     });
 }
+
+// Global mocks for layout-level components to prevent @inertiajs/react dependency issues in tests.
+// PageTransition uses usePage() and useNProgress uses router.on() from @inertiajs/react.
+// Without these mocks, any test rendering a layout component would need to mock those exports.
+// Tests that specifically test these components override these mocks in their own test files.
+vi.mock('@/components/page-transition', () => ({
+    PageTransition: ({ children }: { children?: unknown }) => children,
+}));
+
+vi.mock('@/hooks/use-nprogress', () => ({
+    useNProgress: () => {},
+}));
+
+vi.mock('@/hooks/use-session-warmup', () => ({
+    useSessionWarmup: () => {},
+}));

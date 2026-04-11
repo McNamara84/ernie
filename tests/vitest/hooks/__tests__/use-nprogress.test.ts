@@ -3,6 +3,9 @@ import '@testing-library/jest-dom/vitest';
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Override global mock from vitest.setup.ts to test the actual hook
+vi.unmock('@/hooks/use-nprogress');
+
 // Mock dependencies — vi.mock is hoisted, so we cannot reference outer variables in the factory.
 // Instead, use vi.hoisted() or import the mock after vi.mock.
 
@@ -25,10 +28,11 @@ vi.mock('@/hooks/use-reduced-motion', () => ({
     useReducedMotion: vi.fn(() => false),
 }));
 
-import NProgress from 'nprogress';
 import { router } from '@inertiajs/react';
-import { useReducedMotion } from '@/hooks/use-reduced-motion';
+import NProgress from 'nprogress';
+
 import { useNProgress } from '@/hooks/use-nprogress';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 describe('useNProgress', () => {
     let startCallback: () => void;
@@ -40,8 +44,7 @@ describe('useNProgress', () => {
         vi.clearAllMocks();
         vi.mocked(useReducedMotion).mockReturnValue(false);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        vi.mocked(router.on).mockImplementation(((event: string, cb: () => void) => {
+        vi.mocked(router.on).mockImplementation((<E extends string>(event: E, cb: () => void) => {
             if (event === 'start') {
                 startCallback = cb;
                 return removeStart;
@@ -51,7 +54,7 @@ describe('useNProgress', () => {
                 return removeFinish;
             }
             return vi.fn();
-        }) as any);
+        }) as typeof router.on);
     });
 
     afterEach(() => {
