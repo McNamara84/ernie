@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import ConfirmablePasswordController from '@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 import AuthLayout from '@/layouts/auth-layout';
 import { type ConfirmPasswordInput, confirmPasswordSchema } from '@/lib/validations/user';
 
@@ -56,10 +55,9 @@ export default function ConfirmPassword() {
                     />
 
                     <div className="flex items-center">
-                        <Button className="w-full" disabled={processing}>
-                            {processing && <Spinner size="sm" />}
+                        <LoadingButton className="w-full" loading={processing}>
                             Confirm password
-                        </Button>
+                        </LoadingButton>
                     </div>
                 </form>
             </Form>

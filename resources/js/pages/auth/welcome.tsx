@@ -4,11 +4,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import WelcomeController from '@/actions/App/Http/Controllers/Auth/WelcomeController';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 import AuthLayout from '@/layouts/auth-layout';
 import { type WelcomePasswordInput, welcomePasswordSchema } from '@/lib/validations/user';
 
@@ -82,10 +81,9 @@ export default function Welcome({ email, userId, signatureParams }: WelcomeProps
                         )}
                     />
 
-                    <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                        {processing && <Spinner size="sm" className="mr-2" />}
+                    <LoadingButton type="submit" className="mt-4 w-full" loading={processing}>
                         Set Password & Continue
-                    </Button>
+                    </LoadingButton>
                 </form>
             </Form>
         </AuthLayout>

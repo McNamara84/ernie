@@ -5,10 +5,9 @@ import { useForm } from 'react-hook-form';
 
 import PasswordResetLinkController from '@/actions/App/Http/Controllers/Auth/PasswordResetLinkController';
 import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 import AuthLayout from '@/layouts/auth-layout';
 import { type ForgotPasswordInput, forgotPasswordSchema } from '@/lib/validations/user';
 import { login } from '@/routes';
@@ -58,10 +57,9 @@ export default function ForgotPassword({ status }: { status?: string }) {
                         />
 
                         <div className="my-6 flex items-center justify-start">
-                            <Button className="w-full" disabled={processing}>
-                                {processing && <Spinner size="sm" />}
+                            <LoadingButton className="w-full" loading={processing}>
                                 Email password reset link
-                            </Button>
+                            </LoadingButton>
                         </div>
                     </form>
                 </Form>

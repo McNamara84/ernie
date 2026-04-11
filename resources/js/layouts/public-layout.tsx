@@ -2,11 +2,15 @@ import { Link, usePage } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
 import { AppFooter } from '@/components/app-footer';
+import { PageTransition } from '@/components/page-transition';
+import { useNProgress } from '@/hooks/use-nprogress';
 import { dashboard, login } from '@/routes';
 import { type SharedData } from '@/types';
 
 export default function PublicLayout({ children }: PropsWithChildren) {
     const { auth } = usePage<SharedData>().props;
+    useNProgress();
+
     return (
         <div className="flex min-h-screen flex-col bg-background text-foreground">
             <header className="border-b border-sidebar-border/80 bg-background">
@@ -22,7 +26,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                     )}
                 </nav>
             </header>
-            <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12">{children}</main>
+            <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12">
+                <PageTransition>{children}</PageTransition>
+            </main>
             <AppFooter />
         </div>
     );

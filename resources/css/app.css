@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@yaireo/tagify/dist/tagify.css';
+@import 'nprogress/nprogress.css';
 
 @plugin 'tailwindcss-animate';
 
@@ -302,4 +303,33 @@
         var(--sidebar-border);
     --color-sidebar-ring:
         var(--sidebar-ring);
+}
+
+/* NProgress bar customization */
+#nprogress .bar {
+    background: var(--gfz-primary);
+    height: 2px;
+}
+
+#nprogress .peg {
+    box-shadow:
+        0 0 10px var(--gfz-primary),
+        0 0 5px var(--gfz-primary);
+}
+
+/* Hide default NProgress spinner — we use our own loading states */
+#nprogress .spinner {
+    display: none;
+}
+
+/* WCAG: Disable all animations when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

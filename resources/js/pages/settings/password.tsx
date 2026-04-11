@@ -6,9 +6,10 @@ import { useForm } from 'react-hook-form';
 
 import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
 import HeadingSmall from '@/components/heading-small';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { LoadingButton } from '@/components/ui/loading-button';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type UpdatePasswordInput, updatePasswordSchema } from '@/lib/validations/user';
@@ -27,6 +28,7 @@ export default function Password() {
     const [recentlySuccessful, setRecentlySuccessful] = useState(false);
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
+    const prefersReducedMotion = useReducedMotion();
 
     const form = useForm<UpdatePasswordInput>({
         resolver: zodResolver(updatePasswordSchema),
@@ -146,15 +148,15 @@ export default function Password() {
                             />
 
                             <div className="flex items-center gap-4">
-                                <Button disabled={processing}>Save password</Button>
+                                <LoadingButton loading={processing}>Save password</LoadingButton>
 
                                 <AnimatePresence>
                                     {recentlySuccessful && (
                                         <motion.p
-                                            initial={{ opacity: 0 }}
+                                            initial={prefersReducedMotion ? false : { opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ ease: 'easeInOut' }}
+                                            transition={{ ease: 'easeInOut', duration: prefersReducedMotion ? 0 : undefined }}
                                             className="text-sm text-neutral-600"
                                         >
                                             Saved

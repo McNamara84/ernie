@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import NewPasswordController from '@/actions/App/Http/Controllers/Auth/NewPasswordController';
-import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 import AuthLayout from '@/layouts/auth-layout';
 import { type ResetPasswordInput, resetPasswordSchema } from '@/lib/validations/user';
 
@@ -87,10 +86,9 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                         )}
                     />
 
-                    <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                        {processing && <Spinner size="sm" />}
+                    <LoadingButton type="submit" className="mt-4 w-full" loading={processing}>
                         Reset password
-                    </Button>
+                    </LoadingButton>
                 </form>
             </Form>
         </AuthLayout>

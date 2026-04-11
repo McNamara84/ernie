@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { type DeleteAccountInput, deleteAccountSchema } from '@/lib/validations/user';
 
 export default function DeleteUser() {
@@ -106,9 +107,9 @@ export default function DeleteUser() {
                                         </Button>
                                     </DialogClose>
 
-                                    <Button type="submit" variant="destructive" disabled={processing}>
+                                    <LoadingButton type="submit" variant="destructive" loading={processing}>
                                         Delete account
-                                    </Button>
+                                    </LoadingButton>
                                 </DialogFooter>
                             </form>
                         </Form>
