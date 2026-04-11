@@ -29,7 +29,7 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     const [loading, setLoading] = useState(false);
     const { ref, isVisible } = useFadeInOnScroll();
 
-    // Finde die IsSupplementTo-Relation
+    // Find the IsSupplementTo relation
     const supplementTo = relatedIdentifiers.find((rel) => rel.relation_type === 'IsSupplementTo');
 
     useEffect(() => {

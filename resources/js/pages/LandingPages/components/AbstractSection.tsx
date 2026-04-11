@@ -92,7 +92,7 @@ function formatPersonName(familyName: string | null, givenName: string | null): 
 export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId, jsonLdExportUrl }: AbstractSectionProps) {
     const { ref, isVisible } = useFadeInOnScroll();
 
-    // Finde die Abstract-Description (case-insensitive)
+    // Find the Abstract description (case-insensitive)
     const abstract = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'abstract');
     const methods = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'methods');
 

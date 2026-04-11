@@ -30,8 +30,8 @@ interface Citation {
 }
 
 /**
- * Wandelt CamelCase in lesbaren Text mit Leerzeichen um
- * z.B. "IsDocumentedBy" -> "Is Documented By"
+ * Converts CamelCase to readable text with spaces.
+ * e.g. "IsDocumentedBy" -> "Is Documented By"
  */
 function formatRelationType(type: string): string {
     return type.replace(/([A-Z])/g, ' $1').trim();
@@ -43,8 +43,8 @@ const COLLAPSE_THRESHOLD = 9;
 /**
  * Related Work Section
  *
- * Zeigt alle Related Identifiers gruppiert nach RelationType an.
- * Erste IsSupplementTo-Relation wird ausgeschlossen (die ist in Model Description).
+ * Displays all Related Identifiers grouped by RelationType.
+ * The first IsSupplementTo relation is excluded (shown in Model Description).
  */
 export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWorkSectionProps) {
     // Citation cache keyed by DOI string (deduplicated across relation types)
@@ -53,7 +53,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
     const [expanded, setExpanded] = useState(false);
     const { ref, isVisible } = useFadeInOnScroll();
 
-    // Erste IsSupplementTo-Relation ausschließen (memoized for referential stability)
+    // Exclude the first IsSupplementTo relation (memoized for referential stability)
     const filteredRelations = useMemo(() => {
         const firstSupplementToIndex = relatedIdentifiers.findIndex((rel) => rel.relation_type === 'IsSupplementTo');
         return relatedIdentifiers.filter((rel, index) => {
@@ -64,7 +64,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
         });
     }, [relatedIdentifiers]);
 
-    // Nach RelationType gruppieren
+    // Group by RelationType
     const groupedByType = useMemo(
         () =>
             filteredRelations.reduce(
@@ -80,7 +80,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
         [filteredRelations],
     );
 
-    // Sortiere die Gruppen alphabetisch
+    // Sort groups alphabetically
     const sortedTypes = useMemo(() => Object.keys(groupedByType).sort(), [groupedByType]);
 
     useEffect(() => {
