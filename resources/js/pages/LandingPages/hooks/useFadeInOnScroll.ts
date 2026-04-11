@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
@@ -9,12 +9,24 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
  * then sets `isVisible` to true (one-shot — once visible, stays visible).
  * Respects `prefers-reduced-motion` by skipping the animation entirely.
  *
- * @returns `ref` to attach to the target element and `isVisible` boolean
+ * Uses a callback ref so the observer reattaches when the target element
+ * changes (e.g. conditional rendering like SSR skeleton → mounted map).
+ *
+ * @returns `ref` callback ref to attach to the target element and `isVisible` boolean
  */
 export function useFadeInOnScroll(options?: { threshold?: number }) {
-    const ref = useRef<HTMLElement>(null);
+    const [node, setNode] = useState<HTMLElement | null>(null);
     const [isVisible, setIsVisible] = useState(false);
     const prefersReducedMotion = useReducedMotion();
+
+    // Stable callback ref — consumers attach via `ref={ref}`
+    const ref = useCallback((element: HTMLElement | null) => {
+        setNode(element);
+    }, []);
+
+    // Store threshold in a ref to keep the effect dep list stable
+    const thresholdRef = useRef(options?.threshold ?? 0.1);
+    thresholdRef.current = options?.threshold ?? 0.1;
 
     useEffect(() => {
         if (prefersReducedMotion) {
@@ -22,8 +34,7 @@ export function useFadeInOnScroll(options?: { threshold?: number }) {
             return;
         }
 
-        const element = ref.current;
-        if (!element) {
+        if (!node) {
             return;
         }
 
@@ -34,12 +45,12 @@ export function useFadeInOnScroll(options?: { threshold?: number }) {
                     observer.disconnect();
                 }
             },
-            { threshold: options?.threshold ?? 0.1 },
+            { threshold: thresholdRef.current },
         );
 
-        observer.observe(element);
+        observer.observe(node);
         return () => observer.disconnect();
-    }, [prefersReducedMotion, options?.threshold]);
+    }, [prefersReducedMotion, node]);
 
     return { ref, isVisible };
 }

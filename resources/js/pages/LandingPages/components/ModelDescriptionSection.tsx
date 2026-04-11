@@ -21,7 +21,7 @@ interface ModelDescriptionSectionProps {
 /**
  * Model Description Section
  *
- * Zeigt die IsSupplementTo-Relation mit Zitation von der DOI an.
+ * Displays the IsSupplementTo relation with citation fetched from the DOI.
  */
 export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescriptionSectionProps) {
     const [citation, setCitation] = useState<string | null>(null);

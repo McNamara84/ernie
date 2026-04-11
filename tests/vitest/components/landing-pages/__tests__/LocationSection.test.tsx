@@ -394,11 +394,11 @@ describe('LocationSection', () => {
             expect(tile.dataset.url).toContain('openstreetmap.org');
         });
 
-        it('should use Stadia dark tiles when isDark is true', () => {
+        it('should use CartoDB dark tiles when isDark is true', () => {
             render(<LocationSection geoLocations={sampleGeoLocations} isDark={true} />);
             const tile = screen.getByTestId('tile-layer');
-            expect(tile.dataset.url).toContain('stadiamaps.com');
-            expect(tile.dataset.url).toContain('alidade_smooth_dark');
+            expect(tile.dataset.url).toContain('basemaps.cartocdn.com');
+            expect(tile.dataset.url).toContain('dark_all');
         });
 
         it('should use OpenStreetMap tiles when isDark is false', () => {

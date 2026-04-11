@@ -21,7 +21,7 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
 function TestComponent({ threshold }: { threshold?: number } = {}) {
     const { ref, isVisible } = useFadeInOnScroll({ threshold });
     return (
-        <div ref={ref as React.Ref<HTMLDivElement>} data-testid="target" data-visible={String(isVisible)}>
+        <div ref={ref} data-testid="target" data-visible={String(isVisible)}>
             {isVisible ? 'visible' : 'hidden'}
         </div>
     );
