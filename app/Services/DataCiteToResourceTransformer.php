@@ -270,7 +270,9 @@ class DataCiteToResourceTransformer
                 Log::warning('Skipping creator without any name data', [
                     'resource_id' => $resource->id,
                     'position' => $position,
-                    'data' => $creatorData,
+                    'name' => $creatorData['name'] ?? null,
+                    'familyName' => $creatorData['familyName'] ?? null,
+                    'givenName' => $creatorData['givenName'] ?? null,
                 ]);
 
                 continue;
@@ -324,7 +326,9 @@ class DataCiteToResourceTransformer
                 Log::warning('Skipping contributor without any name data', [
                     'resource_id' => $resource->id,
                     'position' => $position,
-                    'data' => $contributorData,
+                    'name' => $contributorData['name'] ?? null,
+                    'familyName' => $contributorData['familyName'] ?? null,
+                    'givenName' => $contributorData['givenName'] ?? null,
                 ]);
 
                 continue;
@@ -584,11 +588,18 @@ class DataCiteToResourceTransformer
 
         // Try to parse the name — if parsing yields both a family AND a given
         // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
-        // A single-word or multi-word name without a clear given/family split
-        // (e.g. "GFZ German Research Centre") defaults to Organizational.
+        // Names that only yield a family part (single word like "GEOMAR", or
+        // comma+suffix like "Smith, Jr.") default to Organizational.
         $parts = $this->parsePersonName($name);
 
         if ($parts['given'] !== null && trim($parts['given']) !== '') {
+            return 'Personal';
+        }
+
+        // If parsePersonName returned a family name but no given name,
+        // check if the original name contains a comma — this indicates
+        // a structured person name (e.g. "Smith, Jr.") rather than an org.
+        if ($parts['family'] !== null && str_contains($name, ',')) {
             return 'Personal';
         }
 

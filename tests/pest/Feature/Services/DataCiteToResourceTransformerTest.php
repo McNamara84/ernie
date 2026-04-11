@@ -1165,4 +1165,66 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
             ->and($person->given_name)->toBe('Anna');
     });
 
+    it('skips creator with givenName only and no familyName or name', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/givenonly.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Given Name Only Test']],
+                'creators' => [
+                    [
+                        'givenName' => 'John',
+                        // No familyName, no name → cannot create Person (family_name NOT NULL)
+                        // Should be skipped via InvalidArgumentException catch
+                    ],
+                    [
+                        'familyName' => 'Valid',
+                        'givenName' => 'Creator',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // givenName-only creator should be skipped, only valid one remains
+        expect($resource->creators()->count())->toBe(1);
+
+        $person = Person::find($resource->creators()->first()->creatorable_id);
+        expect($person->family_name)->toBe('Valid');
+    });
+
+    it('infers Personal for comma-suffix name like "Smith, Jr."', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/suffixname.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Suffix Name Test']],
+                'creators' => [
+                    [
+                        'name' => 'Smith, Jr.',
+                        // No nameType → parsePersonName returns family="Smith, Jr.", given=null
+                        // Comma present → should be inferred as Personal, not Organizational
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->creatorable_type)->toBe(Person::class);
+
+        $person = Person::find($creator->creatorable_id);
+        expect($person->family_name)->toBe('Smith, Jr.');
+    });
+
 });
