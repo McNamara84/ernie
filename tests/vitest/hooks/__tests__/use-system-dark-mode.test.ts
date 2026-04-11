@@ -127,6 +127,40 @@ describe('useSystemDarkMode', () => {
         expect(document.documentElement.classList.contains('dark')).toBe(true);
         expect(document.documentElement.style.colorScheme).toBe('dark');
     });
+
+    it('restores original pre-hook state on unmount even after OS preference change', () => {
+        // Pre-existing state: light (no dark class, empty colorScheme)
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = '';
+
+        matches = false;
+        const { result, unmount } = renderHook(() => useSystemDarkMode());
+        expect(result.current).toBe(false);
+
+        // Simulate OS preference change to dark while hook is active
+        matches = true;
+        Object.defineProperty(window, 'matchMedia', {
+            writable: true,
+            value: vi.fn().mockImplementation((query: string) => ({
+                matches: true,
+                media: query,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+            })),
+        });
+
+        act(() => {
+            listeners.forEach((l) => l());
+        });
+
+        expect(result.current).toBe(true);
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+        // Unmount should restore original pre-hook state, not the intermediate state
+        unmount();
+        expect(document.documentElement.classList.contains('dark')).toBe(false);
+        expect(document.documentElement.style.colorScheme).toBe('');
+    });
 });
 
 describe('usePrefersDarkMode', () => {

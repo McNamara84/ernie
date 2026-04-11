@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 const QUERY = '(prefers-color-scheme: dark)';
 
@@ -44,12 +44,19 @@ export function usePrefersDarkMode(): boolean {
 export function useSystemDarkMode(): boolean {
     const isDark = usePrefersDarkMode();
 
+    // Capture the original document state once on first mount
+    const initialState = useRef<{ hadDark: boolean; colorScheme: string } | null>(null);
+
     useEffect(() => {
         const el = document.documentElement;
 
-        // Capture previous state so we can restore it on unmount
-        const prevHadDark = el.classList.contains('dark');
-        const prevColorScheme = el.style.colorScheme;
+        // Store the pre-hook state exactly once
+        if (initialState.current === null) {
+            initialState.current = {
+                hadDark: el.classList.contains('dark'),
+                colorScheme: el.style.colorScheme,
+            };
+        }
 
         if (isDark) {
             el.classList.add('dark');
@@ -58,12 +65,19 @@ export function useSystemDarkMode(): boolean {
             el.classList.remove('dark');
             el.style.colorScheme = 'light';
         }
-        return () => {
-            // Restore the state that existed before this hook took over
-            el.classList.toggle('dark', prevHadDark);
-            el.style.colorScheme = prevColorScheme;
-        };
     }, [isDark]);
+
+    // Restore the original state on unmount (separate effect so it only runs once)
+    useEffect(() => {
+        return () => {
+            const el = document.documentElement;
+            const saved = initialState.current;
+            if (saved) {
+                el.classList.toggle('dark', saved.hadDark);
+                el.style.colorScheme = saved.colorScheme;
+            }
+        };
+    }, []);
 
     return isDark;
 }

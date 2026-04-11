@@ -163,13 +163,30 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
         [filteredRelations],
     );
 
-    // IDs of items that should be hidden on mobile when collapsed (beyond threshold)
+    // IDs of items that should be hidden on mobile when collapsed (beyond threshold).
+    // Computed in the same order items are rendered: alphabetically by relation type group,
+    // then by item order within each group — so the first N visible items match what the user sees.
     const hiddenItemIds = useMemo(() => {
-        if (renderableRelations.length <= COLLAPSE_THRESHOLD || expanded) {
+        if (expanded) {
             return new Set<number>();
         }
-        return new Set(renderableRelations.slice(COLLAPSE_THRESHOLD).map((r) => r.id));
-    }, [renderableRelations, expanded]);
+
+        // Build a flat list of renderable IDs in rendered order (grouped + sorted)
+        const orderedIds: number[] = [];
+        for (const relationType of sortedTypes) {
+            const items = groupedByType[relationType];
+            for (const rel of items) {
+                if (resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null) {
+                    orderedIds.push(rel.id);
+                }
+            }
+        }
+
+        if (orderedIds.length <= COLLAPSE_THRESHOLD) {
+            return new Set<number>();
+        }
+        return new Set(orderedIds.slice(COLLAPSE_THRESHOLD));
+    }, [sortedTypes, groupedByType, expanded]);
 
     if (renderableRelations.length === 0) {
         return null;
