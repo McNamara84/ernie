@@ -669,7 +669,10 @@ class DataCiteToResourceTransformer
      */
     private function findOrCreateInstitution(array $data): Institution
     {
-        $name = $data['name'] ?? 'Unknown Institution';
+        $name = trim((string) ($data['name'] ?? ''));
+        if ($name === '') {
+            $name = 'Unknown Institution';
+        }
 
         // Extract ROR from name identifiers
         $ror = null;
