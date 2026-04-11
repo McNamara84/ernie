@@ -280,25 +280,25 @@ class DataCiteToResourceTransformer
 
             $nameType = $creatorData['nameType'] ?? $this->inferNameType($creatorData);
 
-            if ($nameType === 'Organizational') {
-                $entity = $this->findOrCreateInstitution($creatorData);
-                $entityType = Institution::class;
-            } else {
-                try {
+            try {
+                if ($nameType === 'Organizational') {
+                    $entity = $this->findOrCreateInstitution($creatorData);
+                    $entityType = Institution::class;
+                } else {
                     $entity = $this->findOrCreatePerson($creatorData);
                     $entityType = Person::class;
-                } catch (\InvalidArgumentException $e) {
-                    Log::debug('Skipping creator with unresolvable name', [
-                        'resource_id' => $resource->id,
-                        'position' => $position,
-                        'name' => $creatorData['name'] ?? null,
-                        'familyName' => $creatorData['familyName'] ?? null,
-                        'givenName' => $creatorData['givenName'] ?? null,
-                        'reason' => $e->getMessage(),
-                    ]);
-
-                    continue;
                 }
+            } catch (\InvalidArgumentException $e) {
+                Log::debug('Skipping creator with unresolvable name', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'name' => $creatorData['name'] ?? null,
+                    'familyName' => $creatorData['familyName'] ?? null,
+                    'givenName' => $creatorData['givenName'] ?? null,
+                    'reason' => $e->getMessage(),
+                ]);
+
+                continue;
             }
 
             $resourceCreator = ResourceCreator::create([
@@ -337,25 +337,25 @@ class DataCiteToResourceTransformer
 
             $nameType = $contributorData['nameType'] ?? $this->inferNameType($contributorData);
 
-            if ($nameType === 'Organizational') {
-                $entity = $this->findOrCreateInstitution($contributorData);
-                $entityType = Institution::class;
-            } else {
-                try {
+            try {
+                if ($nameType === 'Organizational') {
+                    $entity = $this->findOrCreateInstitution($contributorData);
+                    $entityType = Institution::class;
+                } else {
                     $entity = $this->findOrCreatePerson($contributorData);
                     $entityType = Person::class;
-                } catch (\InvalidArgumentException $e) {
-                    Log::debug('Skipping contributor with unresolvable name', [
-                        'resource_id' => $resource->id,
-                        'position' => $position,
-                        'name' => $contributorData['name'] ?? null,
-                        'familyName' => $contributorData['familyName'] ?? null,
-                        'givenName' => $contributorData['givenName'] ?? null,
-                        'reason' => $e->getMessage(),
-                    ]);
-
-                    continue;
                 }
+            } catch (\InvalidArgumentException $e) {
+                Log::debug('Skipping contributor with unresolvable name', [
+                    'resource_id' => $resource->id,
+                    'position' => $position,
+                    'name' => $contributorData['name'] ?? null,
+                    'familyName' => $contributorData['familyName'] ?? null,
+                    'givenName' => $contributorData['givenName'] ?? null,
+                    'reason' => $e->getMessage(),
+                ]);
+
+                continue;
             }
 
             $contributorTypeId = null;
@@ -549,9 +549,6 @@ class DataCiteToResourceTransformer
         if ($familyName === null || trim($familyName) === '') {
             throw new \InvalidArgumentException(
                 'Cannot create Person: family_name is required but was empty.'
-                . ' name=' . ($data['name'] ?? 'null')
-                . ', familyName=' . ($data['familyName'] ?? 'null')
-                . ', givenName=' . ($data['givenName'] ?? 'null')
             );
         }
 
@@ -663,7 +660,7 @@ class DataCiteToResourceTransformer
     {
         $name = trim((string) ($data['name'] ?? ''));
         if ($name === '') {
-            $name = 'Unknown Institution';
+            throw new \InvalidArgumentException('Cannot create Institution: name is required but was empty.');
         }
 
         // Extract ROR from name identifiers
