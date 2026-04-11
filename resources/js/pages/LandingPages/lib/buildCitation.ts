@@ -1,3 +1,5 @@
+import { abbreviateGivenName } from './abbreviateGivenName';
+
 interface Creatorable {
     type: string;
     given_name?: string | null;
@@ -43,7 +45,7 @@ export function buildCitation(resource: Resource): string {
                     }
                     if (creator.creatorable.type === 'Person') {
                         if (creator.creatorable.family_name && creator.creatorable.given_name) {
-                            return `${creator.creatorable.family_name}, ${creator.creatorable.given_name}`;
+                            return `${creator.creatorable.family_name}, ${abbreviateGivenName(creator.creatorable.given_name)}`;
                         }
                         if (creator.creatorable.family_name) {
                             return creator.creatorable.family_name;
@@ -56,7 +58,7 @@ export function buildCitation(resource: Resource): string {
                     return creator.institution_name;
                 }
                 if (creator.family_name && creator.given_name) {
-                    return `${creator.family_name}, ${creator.given_name}`;
+                    return `${creator.family_name}, ${abbreviateGivenName(creator.given_name)}`;
                 }
                 if (creator.family_name) {
                     return creator.family_name;

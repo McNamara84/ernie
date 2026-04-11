@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-10",
+        "date": "2026-04-11",
         "features": [
             {
                 "title": "OAI-PMH 2.0 Harvesting Endpoint",
@@ -45,6 +45,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Abbreviated First Names in Citations",
+                "description": "First names in the citation section on landing pages are now abbreviated to initials following standard academic citation practice (e.g. Bobcat, Alice → Bobcat, A.). Hyphenated names preserve their structure (e.g. Jean-Pierre → J.-P.). Full names remain stored in the database and are displayed in the creators list. The same abbreviation is applied to citations from external DOI lookups."
+            },
             {
                 "title": "Larger GFZ Logo on Landing Pages",
                 "description": "The GFZ Data Services logo in the landing page header is now displayed at a larger size for improved branding visibility."

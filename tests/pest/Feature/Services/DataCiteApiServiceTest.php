@@ -116,8 +116,8 @@ describe('DataCiteApiService', function () {
 
             $citation = $this->service->buildCitationFromMetadata($metadata);
 
-            expect($citation)->toContain('Doe, John')
-                ->and($citation)->toContain('Smith, Jane')
+            expect($citation)->toContain('Doe, J.')
+                ->and($citation)->toContain('Smith, J.')
                 ->and($citation)->toContain('2025')
                 ->and($citation)->toContain('Test Publication');
         });

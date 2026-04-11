@@ -154,12 +154,16 @@ class DataCiteApiService
         $authors = $metadata['author'] ?? [];
         $authorStrings = [];
         foreach ($authors as $author) {
-            if (isset($author['family']) && isset($author['given'])) {
-                $authorStrings[] = $author['family'].', '.$author['given'];
-            } elseif (isset($author['literal'])) {
-                $authorStrings[] = $author['literal'];
-            } elseif (isset($author['family'])) {
-                $authorStrings[] = $author['family'];
+            $family = isset($author['family']) && is_string($author['family']) ? $author['family'] : null;
+            $given = isset($author['given']) && is_string($author['given']) ? $author['given'] : null;
+            $literal = isset($author['literal']) && is_string($author['literal']) ? $author['literal'] : null;
+
+            if ($family !== null && $given !== null) {
+                $authorStrings[] = $family.', '.$this->abbreviateGivenName($given);
+            } elseif ($literal !== null) {
+                $authorStrings[] = $literal;
+            } elseif ($family !== null) {
+                $authorStrings[] = $family;
             }
         }
         $authorsString = ! empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
@@ -268,5 +272,37 @@ class DataCiteApiService
 
             return self::CACHE_TRANSIENT_FAILURE;
         }
+    }
+
+    /**
+     * Abbreviate a given name to initials for citation display.
+     *
+     * Each space-separated part is abbreviated independently.
+     * Hyphenated parts preserve the hyphen (e.g. Jean-Pierre → J.-P.).
+     * Already-abbreviated names with dot pass through unchanged.
+     * Single letters without dot get a dot appended (e.g. "A" → "A.").
+     */
+    private function abbreviateGivenName(string $givenName): string
+    {
+        $givenName = trim($givenName);
+
+        if ($givenName === '') {
+            return '';
+        }
+
+        $parts = preg_split('/\\s+/', $givenName) ?: [$givenName];
+
+        $abbreviated = array_map(function (string $part): string {
+            return implode('-', array_map(function (string $sub): string {
+                // Already abbreviated (e.g. "A." or "A")
+                if (mb_strlen($sub) <= 2 && (mb_strlen($sub) === 1 || str_ends_with($sub, '.'))) {
+                    return str_ends_with($sub, '.') ? $sub : $sub.'.';
+                }
+
+                return mb_strtoupper(mb_substr($sub, 0, 1)).'.';
+            }, explode('-', $part)));
+        }, $parts);
+
+        return implode(' ', $abbreviated);
     }
 }
