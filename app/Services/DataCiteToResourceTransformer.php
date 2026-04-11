@@ -594,8 +594,9 @@ class DataCiteToResourceTransformer
 
         // Try to parse the name — if parsing yields both a family AND a given
         // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
-        // Names that only yield a family part (single word like "GEOMAR", or
-        // comma+suffix like "Smith, Jr.") default to Organizational.
+        // Names that only yield a family part (single word like "GEOMAR") default
+        // to Organizational. Comma+suffix names like "Smith, Jr." are treated as
+        // Personal via the comma-detection fallback below.
         $parts = $this->parsePersonName($name);
 
         if ($parts['given'] !== null && trim($parts['given']) !== '') {
