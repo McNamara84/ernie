@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render } from '@testing-library/react';
+import { render } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { CrossrefFunderIcon, OrcidIcon, RorIcon } from '@/pages/LandingPages/components/PidIcons';

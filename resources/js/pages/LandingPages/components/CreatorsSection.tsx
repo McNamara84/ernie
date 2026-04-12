@@ -24,9 +24,12 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
                     const firstAffiliation = creator.affiliations[0];
                     const isPerson = creatorable.type === 'Person';
                     const hasOrcid = isPerson && creatorable.name_identifier && creatorable.name_identifier_scheme === 'ORCID';
-                    const personName = isPerson
+                    const formattedName = isPerson
                         ? formatPersonName(creatorable.family_name, creatorable.given_name)
                         : creatorable.name;
+                    const personName = formattedName === 'Unknown' && creatorable.name
+                        ? creatorable.name
+                        : formattedName;
 
                     return (
                         <li key={creator.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">

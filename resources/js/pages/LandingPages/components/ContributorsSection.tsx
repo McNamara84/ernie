@@ -27,9 +27,12 @@ export function ContributorsSection({ contributors }: ContributorsSectionProps) 
                     const firstAffiliation = contributor.affiliations[0];
                     const isPerson = contributorable.type === 'Person';
                     const hasOrcid = isPerson && contributorable.name_identifier && contributorable.name_identifier_scheme === 'ORCID';
-                    const personName = isPerson
+                    const formattedName = isPerson
                         ? formatPersonName(contributorable.family_name, contributorable.given_name)
                         : contributorable.name;
+                    const personName = formattedName === 'Unknown' && contributorable.name
+                        ? contributorable.name
+                        : formattedName;
 
                     return (
                         <li key={contributor.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">

@@ -383,6 +383,7 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     if (!isMounted) {
         return (
             <LandingPageCard
+                disableFadeIn
                 aria-labelledby="heading-location"
             >
                 <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>

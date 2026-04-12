@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CollapsibleList } from '@/pages/LandingPages/components/CollapsibleList';

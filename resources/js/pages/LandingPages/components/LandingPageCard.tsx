@@ -4,6 +4,8 @@ import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 
 interface LandingPageCardProps extends React.ComponentProps<'section'> {
     children: React.ReactNode;
+    /** When true, the card is immediately visible without scroll-triggered fade-in. */
+    disableFadeIn?: boolean;
 }
 
 /**
@@ -12,15 +14,16 @@ interface LandingPageCardProps extends React.ComponentProps<'section'> {
  * Provides consistent visual styling (border, shadow, dark mode) and
  * integrates the scroll-triggered fade-in animation via CSS class.
  */
-export function LandingPageCard({ className, children, ...props }: LandingPageCardProps) {
+export function LandingPageCard({ className, children, disableFadeIn = false, ...props }: LandingPageCardProps) {
     const fadeRef = useFadeInOnScroll();
 
     return (
         <section
-            ref={fadeRef}
+            ref={disableFadeIn ? undefined : fadeRef}
             data-slot="landing-page-card"
             className={cn(
-                'fade-in-on-scroll rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md dark:border-gray-700 dark:bg-gray-800',
+                'rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md dark:border-gray-700 dark:bg-gray-800',
+                !disableFadeIn && 'fade-in-on-scroll',
                 className,
             )}
             {...props}
