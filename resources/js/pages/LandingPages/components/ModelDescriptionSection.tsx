@@ -2,20 +2,13 @@ import { ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import type { LandingPageRelatedIdentifier } from '@/types/landing-page';
 
-import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
-
-interface RelatedIdentifier {
-    id: number;
-    identifier: string;
-    identifier_type: string;
-    relation_type: string;
-    related_title?: string;
-}
+import { LandingPageCard } from './LandingPageCard';
 
 interface ModelDescriptionSectionProps {
-    relatedIdentifiers: RelatedIdentifier[];
+    relatedIdentifiers: LandingPageRelatedIdentifier[];
 }
 
 /**
@@ -27,7 +20,6 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     const [citation, setCitation] = useState<string | null>(null);
     const [doi, setDoi] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const { ref, isVisible } = useFadeInOnScroll();
 
     // Find the IsSupplementTo relation
     const supplementTo = relatedIdentifiers.find((rel) => rel.relation_type === 'IsSupplementTo');
@@ -85,10 +77,8 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
     }
 
     return (
-        <section
-            ref={ref}
+        <LandingPageCard
             aria-labelledby="heading-model-description"
-            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         >
             <h2 id="heading-model-description" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Model Description</h2>
 
@@ -126,6 +116,6 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
                     </a>
                 )}
             </div>
-        </section>
+        </LandingPageCard>
     );
 }

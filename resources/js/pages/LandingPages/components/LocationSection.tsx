@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
+import { LandingPageCard } from './LandingPageCard';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
 // Using unknown as intermediate step for safer type assertion
@@ -351,7 +352,7 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
  */
 export function LocationSection({ geoLocations, isDark = false }: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
-    const { ref, isVisible } = useFadeInOnScroll();
+    const fadeRef = useFadeInOnScroll();
 
     // Client-side only rendering (Leaflet needs window/document)
     useEffect(() => {
@@ -381,22 +382,20 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     // Show loading placeholder during SSR — always visible (no fade-in gating)
     if (!isMounted) {
         return (
-            <section
-                ref={ref}
+            <LandingPageCard
                 aria-labelledby="heading-location"
-                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
             >
                 <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
                 <Skeleton className="h-[300px] w-full rounded-lg" />
-            </section>
+            </LandingPageCard>
         );
     }
 
     return (
         <section
-            ref={ref}
+            ref={fadeRef}
             aria-labelledby="heading-location"
-            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+            className="fade-in-on-scroll rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
             data-testid="geolocation-section"
         >
             <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>

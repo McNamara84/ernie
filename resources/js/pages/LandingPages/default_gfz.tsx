@@ -4,6 +4,7 @@ import type { LandingPageConfig, LandingPageResource } from '@/types/landing-pag
 
 import { AbstractSection } from './components/AbstractSection';
 import { ContactSection } from './components/ContactSection';
+import { DarkModeImage } from './components/DarkModeImage';
 import { FilesSection } from './components/FilesSection';
 import { LandingPageToaster } from './components/LandingPageToaster';
 import { LocationSection } from './components/LocationSection';
@@ -125,7 +126,12 @@ export default function DefaultGfzTemplate() {
                     <footer className="border-t border-gray-300 px-4 py-6 dark:border-gray-700">
                         <div className="flex items-center justify-between">
                             <a href="https://www.gfz.de" target="_blank" rel="noopener noreferrer">
-                                <img src="/images/gfz-logo-en.gif" alt="GFZ" className="h-12 dark:brightness-200 dark:invert" />
+                                <DarkModeImage
+                                    lightSrc="/images/gfz-logo-en.gif"
+                                    darkSrc="/images/gfz-logo_en.svg"
+                                    alt="GFZ"
+                                    className="h-12"
+                                />
                             </a>
                             <a href="https://www.helmholtz.de" target="_blank" rel="noopener noreferrer">
                                 <img src="/images/helmholtz-logo-blue.png" alt="Helmholtz" className="h-8 dark:brightness-200 dark:invert" />

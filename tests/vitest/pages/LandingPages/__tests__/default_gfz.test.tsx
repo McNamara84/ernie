@@ -391,8 +391,13 @@ describe('DefaultGfzTemplate', () => {
             const dsLogo = screen.getByAltText('GFZ Data Services');
             expect(dsLogo).toHaveClass('dark:brightness-200', 'dark:invert');
 
+            // GFZ footer logo uses DarkModeImage (<picture>) instead of CSS filter
             const gfzLogo = screen.getByAltText('GFZ');
-            expect(gfzLogo).toHaveClass('dark:brightness-200', 'dark:invert');
+            const picture = gfzLogo.closest('picture');
+            expect(picture).toBeInTheDocument();
+            expect(picture).toHaveAttribute('data-slot', 'dark-mode-image');
+            const source = picture!.querySelector('source');
+            expect(source).toHaveAttribute('media', '(prefers-color-scheme: dark)');
         });
     });
 

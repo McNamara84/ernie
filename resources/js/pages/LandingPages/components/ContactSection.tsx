@@ -2,31 +2,14 @@ import { ExternalLink, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import type { LandingPageContactPerson } from '@/types/landing-page';
 
-import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { ContactModal } from './ContactModal';
-
-interface Affiliation {
-    name: string;
-    identifier: string | null;
-    scheme: string | null;
-}
-
-interface ContactPerson {
-    id: number;
-    name: string;
-    given_name: string | null;
-    family_name: string | null;
-    type: string;
-    source: 'creator' | 'contributor';
-    affiliations: Affiliation[];
-    orcid: string | null;
-    website: string | null;
-    has_email: boolean;
-}
+import { LandingPageCard } from './LandingPageCard';
+import { OrcidIcon, RorIcon } from './PidIcons';
 
 interface ContactSectionProps {
-    contactPersons: ContactPerson[];
+    contactPersons: LandingPageContactPerson[];
     datasetTitle: string;
 }
 
@@ -42,14 +25,13 @@ interface ContactSectionProps {
  */
 export function ContactSection({ contactPersons, datasetTitle }: ContactSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
-    const { ref, isVisible } = useFadeInOnScroll();
+    const [selectedPerson, setSelectedPerson] = useState<LandingPageContactPerson | null>(null);
 
     if (contactPersons.length === 0) {
         return null;
     }
 
-    const handleContactClick = (person: ContactPerson) => {
+    const handleContactClick = (person: LandingPageContactPerson) => {
         setSelectedPerson(person);
         setIsModalOpen(true);
     };
@@ -61,10 +43,8 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
 
     return (
         <>
-            <section
-                ref={ref}
+            <LandingPageCard
                 aria-labelledby="heading-contact"
-                className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
             >
                 <h2 id="heading-contact" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Contact Information</h2>
 
@@ -100,7 +80,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                             aria-label={`ORCID profile of ${displayName}`}
                                             className="inline-flex min-h-11 min-w-11 items-center justify-center -m-3 p-3 transition-opacity hover:opacity-80"
                                         >
-                                            <img src="https://orcid.org/assets/vectors/orcid.logo.icon.svg" alt="" className="h-4 w-4" />
+                                            <OrcidIcon />
                                         </a>
                                     )}
 
@@ -133,11 +113,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                                                         aria-label={`ROR profile of ${aff.name}`}
                                                         className="inline-flex min-h-11 min-w-11 items-center justify-center -m-3 p-3 transition-opacity hover:opacity-80"
                                                     >
-                                                        <img
-                                                            src="https://raw.githubusercontent.com/ror-community/ror-logos/main/ror-icon-rgb.svg"
-                                                            alt=""
-                                                            className="h-3 w-3"
-                                                        />
+                                                        <RorIcon className="h-3 w-3" />
                                                     </a>
                                                 )}
                                                 {idx < person.affiliations.length - 1 && ','}
@@ -167,7 +143,7 @@ export function ContactSection({ contactPersons, datasetTitle }: ContactSectionP
                         Send Request
                     </Button>
                 </div>
-            </section>
+            </LandingPageCard>
 
             {/* Contact Modal */}
             <ContactModal

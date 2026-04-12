@@ -223,6 +223,8 @@ export interface LandingPageRelatedIdentifier {
     value?: string;
     /** Legacy: related identifier type */
     related_identifier_type?: string;
+    /** Related resource title (if available) */
+    related_title?: string | null;
 }
 
 /**
