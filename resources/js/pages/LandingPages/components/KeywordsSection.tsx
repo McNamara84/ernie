@@ -94,11 +94,13 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
             <CollapsibleList itemCount={totalKeywords} itemLabel="keywords">
 
             {thesauriKeywords.length > 0 && (
-                <div className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
                     {thesauriKeywords.map((subject) => (
-                        <KeywordBadge key={subject.id} subject={subject} />
+                        <li key={subject.id}>
+                            <KeywordBadge subject={subject} />
+                        </li>
                     ))}
-                </div>
+                </ul>
             )}
 
             {thesauriKeywords.length > 0 && freeKeywords.length > 0 && (
@@ -106,11 +108,13 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
             )}
 
             {freeKeywords.length > 0 && (
-                <div className="flex flex-wrap gap-2" data-testid="keywords-list">
+                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
                     {freeKeywords.map((subject) => (
-                        <KeywordBadge key={subject.id} subject={subject} style={FREE_KEYWORD_STYLE} />
+                        <li key={subject.id}>
+                            <KeywordBadge subject={subject} style={FREE_KEYWORD_STYLE} />
+                        </li>
                     ))}
-                </div>
+                </ul>
             )}
             </CollapsibleList>
         </div>

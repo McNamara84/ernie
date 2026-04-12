@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { useCallback, useId, useRef, useState } from 'react';
+import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -13,7 +13,7 @@ interface CollapsibleListProps {
     /** Number of items above which the list is collapsible (defaults to 10) */
     threshold?: number;
     /** The full list content */
-    children: React.ReactNode;
+    children: ReactNode;
     /** Label for the expand/collapse button (e.g. "contributors") */
     itemLabel: string;
     className?: string;
@@ -30,52 +30,52 @@ export function CollapsibleList({ itemCount, threshold = DEFAULT_THRESHOLD, chil
     const regionId = useId();
     const reducedMotion = useReducedMotion();
     const contentRef = useRef<HTMLDivElement>(null);
-    const [collapsedHeight, setCollapsedHeight] = useState<number | null>(null);
+    // Start at 0 to stay collapsed before measurement (avoids flash)
+    const [collapsedHeight, setCollapsedHeight] = useState(0);
+    const [fullHeight, setFullHeight] = useState(0);
 
     /**
-     * Callback ref that measures the natural collapsed height once on mount.
-     * Looks for the first `threshold` direct list items and sums their height.
+     * Measures collapsed and full heights in the layout phase (before paint)
+     * so the component renders collapsed from the very first frame.
+     * Looks for direct children of a `ul/ol/[role="list"]` inside the region,
+     * or falls back to the region's own direct children.
      */
-    const measureRef = useCallback(
-        (node: HTMLDivElement | null) => {
-            if (!node) return;
-            (contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    useLayoutEffect(() => {
+        const node = contentRef.current;
+        if (!node || itemCount <= threshold) return;
 
-            // Defer measurement to allow the browser to layout the content
-            requestAnimationFrame(() => {
-                const listEl = node.querySelector('ul, ol, [role="list"]') ?? node;
-                const items = Array.from(listEl.children);
-                if (items.length <= threshold) {
-                    setCollapsedHeight(null);
-                    return;
-                }
-                let height = 0;
-                for (let i = 0; i < Math.min(threshold, items.length); i++) {
-                    const itemEl = items[i] as HTMLElement;
-                    const style = getComputedStyle(itemEl);
-                    height += itemEl.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
-                }
-                setCollapsedHeight(height);
-            });
-        },
-        [threshold],
-    );
+        const listEl = node.querySelector('ul, ol, [role="list"]') ?? node;
+        const items = Array.from(listEl.children);
+
+        setFullHeight(node.scrollHeight);
+
+        if (items.length <= threshold) {
+            // Can't measure per-item; use full height
+            setCollapsedHeight(node.scrollHeight);
+            return;
+        }
+
+        let height = 0;
+        for (let i = 0; i < Math.min(threshold, items.length); i++) {
+            const itemEl = items[i] as HTMLElement;
+            const style = getComputedStyle(itemEl);
+            height += itemEl.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+        }
+        setCollapsedHeight(height);
+    }, [itemCount, threshold, children]);
 
     if (itemCount <= threshold) {
         return <div className={className}>{children}</div>;
     }
 
-    const scrollHeight = contentRef.current?.scrollHeight ?? 0;
     const maxHeight = isExpanded
-        ? `${scrollHeight}px`
-        : collapsedHeight !== null
-            ? `${collapsedHeight}px`
-            : undefined;
+        ? `${fullHeight}px`
+        : `${collapsedHeight}px`;
 
     return (
         <div className={className}>
             <div
-                ref={measureRef}
+                ref={contentRef}
                 id={regionId}
                 role="region"
                 aria-label={`${itemLabel} list`}

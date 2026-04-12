@@ -1,9 +1,11 @@
+import type { ComponentProps, ReactNode } from 'react';
+
 import { cn } from '@/lib/utils';
 
 import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 
-interface LandingPageCardProps extends React.ComponentProps<'section'> {
-    children: React.ReactNode;
+interface LandingPageCardProps extends ComponentProps<'section'> {
+    children: ReactNode;
     /** When true, the card is immediately visible without scroll-triggered fade-in. */
     disableFadeIn?: boolean;
 }
