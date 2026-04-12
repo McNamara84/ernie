@@ -12,7 +12,7 @@ export function DownloadMetadataSection({ resourceId, jsonLdExportUrl }: Downloa
     return (
         <div className="mt-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Download Metadata</h3>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <img src="/images/datacite-logo.png" alt="DataCite" className="h-8 dark:brightness-200 dark:invert" />
 
                 <a
