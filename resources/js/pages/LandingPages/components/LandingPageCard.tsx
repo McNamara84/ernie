@@ -1,10 +1,15 @@
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
 import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 
-interface LandingPageCardProps extends ComponentProps<'section'> {
+/**
+ * Extends `<section>` props but intentionally omits `ref` so consumers
+ * cannot accidentally override the internal `fadeRef` used for scroll-
+ * triggered fade-in.
+ */
+interface LandingPageCardProps extends ComponentPropsWithoutRef<'section'> {
     children: ReactNode;
     /** When true, the card is immediately visible without scroll-triggered fade-in. */
     disableFadeIn?: boolean;

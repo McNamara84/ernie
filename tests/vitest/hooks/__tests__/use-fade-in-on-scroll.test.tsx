@@ -5,7 +5,7 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useFadeInOnScroll } from '@/pages/LandingPages/hooks/useFadeInOnScroll';
+import { _resetJsFadeReady, useFadeInOnScroll } from '@/pages/LandingPages/hooks/useFadeInOnScroll';
 
 // Mock use-reduced-motion hook
 vi.mock('@/hooks/use-reduced-motion', () => ({
@@ -35,6 +35,7 @@ describe('useFadeInOnScroll', () => {
     afterEach(() => {
         vi.restoreAllMocks();
         document.documentElement.classList.remove('js-fade-ready');
+        _resetJsFadeReady();
     });
 
     it('does not add is-visible class before observer triggers', () => {

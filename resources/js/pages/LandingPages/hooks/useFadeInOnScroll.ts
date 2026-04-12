@@ -3,14 +3,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 /**
- * Adds `.js-fade-ready` to `<html>` once so the CSS fade-in rules activate.
- * Without this class, `.fade-in-on-scroll` has no effect and content stays
- * visible — making SSR / no-JS scenarios safe.
+ * Module-level flag so the `js-fade-ready` class is added to `<html>` at most
+ * once per page load.  The actual DOM write happens in a `useEffect` (after
+ * commit) to avoid side effects during render — important for StrictMode.
  */
-function ensureJsFadeReady(): void {
-    if (typeof document !== 'undefined') {
-        document.documentElement.classList.add('js-fade-ready');
-    }
+let jsFadeReadyApplied = false;
+
+/** @internal Resets the module-level flag — only for use in tests. */
+export function _resetJsFadeReady(): void {
+    jsFadeReadyApplied = false;
 }
 
 /**
@@ -35,8 +36,6 @@ function ensureJsFadeReady(): void {
  * @returns Callback ref to attach to the target element
  */
 export function useFadeInOnScroll(options?: { threshold?: number }): (element: HTMLElement | null) => void {
-    ensureJsFadeReady();
-
     const [node, setNode] = useState<HTMLElement | null>(null);
     const prefersReducedMotion = useReducedMotion();
 
@@ -57,6 +56,15 @@ export function useFadeInOnScroll(options?: { threshold?: number }): (element: H
 
     // Capture threshold once — intentionally not reactive (see JSDoc above)
     const thresholdRef = useRef(options?.threshold ?? 0.1);
+
+    // Add `js-fade-ready` to <html> once after commit so CSS fade-in rules
+    // activate. Runs in useEffect (not during render) to satisfy StrictMode.
+    useEffect(() => {
+        if (!jsFadeReadyApplied) {
+            document.documentElement.classList.add('js-fade-ready');
+            jsFadeReadyApplied = true;
+        }
+    }, []);
 
     useEffect(() => {
         if (!node) {
