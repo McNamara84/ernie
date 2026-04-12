@@ -113,7 +113,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         igsnInstitutionCount,
         draftCount,
         recentDrafts,
-        pendingSuggestedRelationsCount,
+        pendingAssistanceTotalCount,
         phpVersion = '8.4.12',
         laravelVersion = '12.28.1',
     } = usePage<DashboardPageProps>().props;
@@ -305,10 +305,10 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                 <strong className="font-semibold text-foreground">{igsnCountDisplay}</strong> IGSNs from{' '}
                                 <strong className="font-semibold text-foreground">{igsnInstitutions}</strong> institutions
                             </p>
-                            {auth.user?.can_access_assistance && (pendingSuggestedRelationsCount ?? 0) > 0 && (
+                            {auth.user?.can_access_assistance && (pendingAssistanceTotalCount ?? 0) > 0 && (
                                 <p>
-                                    <strong className="font-semibold text-foreground">{pendingSuggestedRelationsCount}</strong> suggested
-                                    relations
+                                    <strong className="font-semibold text-foreground">{pendingAssistanceTotalCount}</strong> pending
+                                    suggestions
                                 </p>
                             )}
                         </CardContent>

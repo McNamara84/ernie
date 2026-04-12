@@ -567,7 +567,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                 {/* Section cards — one per assistant, ordered by sortOrder */}
                 {manifests.map((manifest) => {
-                    const sectionData = sections[manifest.id] as PaginatedData<Record<string, unknown>> | undefined;
+                    const sectionData = sections[manifest.id] as unknown as PaginatedData<Record<string, unknown>> | undefined;
                     const state = states[manifest.id];
 
                     if (!sectionData) return null;
