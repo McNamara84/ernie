@@ -24,12 +24,8 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
                     const firstAffiliation = creator.affiliations[0];
                     const isPerson = creatorable.type === 'Person';
                     const hasOrcid = isPerson && creatorable.name_identifier && creatorable.name_identifier_scheme === 'ORCID';
-                    const formattedName = isPerson
-                        ? formatPersonName(creatorable.family_name, creatorable.given_name)
-                        : creatorable.name;
-                    const personName = formattedName === 'Unknown' && creatorable.name
-                        ? creatorable.name
-                        : formattedName;
+                    const formattedName = isPerson ? formatPersonName(creatorable.family_name, creatorable.given_name) : creatorable.name;
+                    const personName = formattedName === 'Unknown' && creatorable.name ? creatorable.name : formattedName;
 
                     return (
                         <li key={creator.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
@@ -40,7 +36,7 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
                                     href={`https://orcid.org/${creatorable.name_identifier}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                    className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
                                     aria-label={`ORCID profile of ${personName}`}
                                 >
                                     <OrcidIcon />
@@ -57,7 +53,7 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
                                             href={firstAffiliation.affiliation_identifier}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center -m-3 p-3"
+                                            className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
                                             aria-label={`ROR profile of ${firstAffiliation.name}`}
                                         >
                                             <RorIcon />

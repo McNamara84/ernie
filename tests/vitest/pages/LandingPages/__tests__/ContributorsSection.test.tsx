@@ -61,17 +61,13 @@ describe('ContributorsSection', () => {
     });
 
     it('does not show expand button when under threshold', () => {
-        const contributors = Array.from({ length: 5 }, (_, i) =>
-            mockContributor({ id: i + 1 }),
-        );
+        const contributors = Array.from({ length: 5 }, (_, i) => mockContributor({ id: i + 1 }));
         render(<ContributorsSection contributors={contributors} />);
         expect(screen.queryByText(/Show all/)).not.toBeInTheDocument();
     });
 
     it('shows expand button when above threshold', () => {
-        const contributors = Array.from({ length: 12 }, (_, i) =>
-            mockContributor({ id: i + 1 }),
-        );
+        const contributors = Array.from({ length: 12 }, (_, i) => mockContributor({ id: i + 1 }));
         render(<ContributorsSection contributors={contributors} />);
         expect(screen.getByText('Show all 12 contributors')).toBeInTheDocument();
     });

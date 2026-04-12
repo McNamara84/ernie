@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -24,23 +24,27 @@ interface CollapsibleListProps {
  * Uses measured `scrollHeight` for accurate expand/collapse animation
  * regardless of individual item height.
  * Respects prefers-reduced-motion for accessibility.
+ *
+ * SSR-safe: content renders fully visible until the first client-side
+ * measurement completes, then collapses. This avoids hidden content when
+ * JS is disabled or during slow hydration.
  */
 export function CollapsibleList({ itemCount, threshold = DEFAULT_THRESHOLD, children, itemLabel, className }: CollapsibleListProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const regionId = useId();
     const reducedMotion = useReducedMotion();
     const contentRef = useRef<HTMLDivElement>(null);
-    // Start at 0 to stay collapsed before measurement (avoids flash)
+    const [hasMeasured, setHasMeasured] = useState(false);
     const [collapsedHeight, setCollapsedHeight] = useState(0);
     const [fullHeight, setFullHeight] = useState(0);
 
     /**
-     * Measures collapsed and full heights in the layout phase (before paint)
-     * so the component renders collapsed from the very first frame.
+     * Measures collapsed and full heights on the client after hydration.
+     * Until measured, content is fully visible (maxHeight undefined).
      * Looks for direct children of a `ul/ol/[role="list"]` inside the region,
      * or falls back to the region's own direct children.
      */
-    useLayoutEffect(() => {
+    useEffect(() => {
         const node = contentRef.current;
         if (!node || itemCount <= threshold) return;
 
@@ -50,27 +54,27 @@ export function CollapsibleList({ itemCount, threshold = DEFAULT_THRESHOLD, chil
         setFullHeight(node.scrollHeight);
 
         if (items.length <= threshold) {
-            // Can't measure per-item; use full height
             setCollapsedHeight(node.scrollHeight);
-            return;
+        } else {
+            let height = 0;
+            for (let i = 0; i < Math.min(threshold, items.length); i++) {
+                const itemEl = items[i] as HTMLElement;
+                const style = getComputedStyle(itemEl);
+                height += itemEl.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+            }
+            setCollapsedHeight(height);
         }
 
-        let height = 0;
-        for (let i = 0; i < Math.min(threshold, items.length); i++) {
-            const itemEl = items[i] as HTMLElement;
-            const style = getComputedStyle(itemEl);
-            height += itemEl.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
-        }
-        setCollapsedHeight(height);
+        setHasMeasured(true);
     }, [itemCount, threshold, children]);
 
     if (itemCount <= threshold) {
         return <div className={className}>{children}</div>;
     }
 
-    const maxHeight = isExpanded
-        ? `${fullHeight}px`
-        : `${collapsedHeight}px`;
+    // Before measurement: no maxHeight constraint (fully visible, SSR-safe).
+    // After measurement: apply collapsed or expanded height.
+    const maxHeight = hasMeasured ? (isExpanded ? `${fullHeight}px` : `${collapsedHeight}px`) : undefined;
 
     return (
         <div className={className}>
@@ -79,10 +83,7 @@ export function CollapsibleList({ itemCount, threshold = DEFAULT_THRESHOLD, chil
                 id={regionId}
                 role="region"
                 aria-label={`${itemLabel} list`}
-                className={cn(
-                    'overflow-hidden',
-                    !reducedMotion && 'transition-[max-height] duration-300 ease-in-out',
-                )}
+                className={cn('overflow-hidden', !reducedMotion && 'transition-[max-height] duration-300 ease-in-out')}
                 style={{ maxHeight }}
             >
                 {children}
@@ -97,16 +98,10 @@ export function CollapsibleList({ itemCount, threshold = DEFAULT_THRESHOLD, chil
                 className="mt-2 gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
                 <ChevronDown
-                    className={cn(
-                        'h-4 w-4',
-                        !reducedMotion && 'transition-transform duration-200',
-                        isExpanded && 'rotate-180',
-                    )}
+                    className={cn('h-4 w-4', !reducedMotion && 'transition-transform duration-200', isExpanded && 'rotate-180')}
                     aria-hidden="true"
                 />
-                {isExpanded
-                    ? `Show fewer ${itemLabel}`
-                    : `Show all ${itemCount} ${itemLabel}`}
+                {isExpanded ? `Show fewer ${itemLabel}` : `Show all ${itemCount} ${itemLabel}`}
             </Button>
         </div>
     );

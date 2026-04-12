@@ -30,14 +30,17 @@ export function useFadeInOnScroll(options?: { threshold?: number }): (element: H
     const observerSupported = typeof IntersectionObserver !== 'undefined';
 
     // Stable callback ref — consumers attach via `ref={ref}`
-    const ref = useCallback((element: HTMLElement | null) => {
-        setNode(element);
+    const ref = useCallback(
+        (element: HTMLElement | null) => {
+            setNode(element);
 
-        // Immediately make visible when reduced motion is active or IO unavailable
-        if (element && (prefersReducedMotion || !observerSupported)) {
-            element.classList.add('is-visible');
-        }
-    }, [prefersReducedMotion, observerSupported]);
+            // Immediately make visible when reduced motion is active or IO unavailable
+            if (element && (prefersReducedMotion || !observerSupported)) {
+                element.classList.add('is-visible');
+            }
+        },
+        [prefersReducedMotion, observerSupported],
+    );
 
     // Capture threshold once — intentionally not reactive (see JSDoc above)
     const thresholdRef = useRef(options?.threshold ?? 0.1);

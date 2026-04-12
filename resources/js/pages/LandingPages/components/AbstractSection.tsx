@@ -31,7 +31,15 @@ interface AbstractSectionProps {
  * Wraps Description, Creators, Contributors, Funders, Keywords, and
  * Download Metadata sub-components inside a single LandingPageCard.
  */
-export function AbstractSection({ descriptions, creators, contributors, fundingReferences, subjects, resourceId, jsonLdExportUrl }: AbstractSectionProps) {
+export function AbstractSection({
+    descriptions,
+    creators,
+    contributors,
+    fundingReferences,
+    subjects,
+    resourceId,
+    jsonLdExportUrl,
+}: AbstractSectionProps) {
     const hasAbstract = descriptions.some((desc) => desc.description_type?.toLowerCase() === 'abstract');
 
     if (!hasAbstract) {

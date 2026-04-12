@@ -364,7 +364,7 @@ describe('DefaultGfzTemplate', () => {
             render(<DefaultGfzTemplate />);
 
             const statusElements = screen.getAllByRole('status');
-            const banner = statusElements.find(el => el.textContent === 'Preview Mode');
+            const banner = statusElements.find((el) => el.textContent === 'Preview Mode');
             expect(banner).toBeTruthy();
         });
 

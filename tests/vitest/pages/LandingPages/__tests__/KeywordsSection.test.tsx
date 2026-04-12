@@ -44,10 +44,7 @@ describe('KeywordsSection', () => {
     });
 
     it('renders separator between thesauri and free keywords', () => {
-        const subjects = [
-            gcmdKeyword(1, 'Earth Science'),
-            freeKeyword(2, 'seismology'),
-        ];
+        const subjects = [gcmdKeyword(1, 'Earth Science'), freeKeyword(2, 'seismology')];
         render(<KeywordsSection subjects={subjects} />);
         expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
         expect(screen.getByTestId('keywords-list')).toBeInTheDocument();
@@ -61,17 +58,13 @@ describe('KeywordsSection', () => {
     });
 
     it('does not show expand button when under threshold', () => {
-        const subjects = Array.from({ length: 5 }, (_, i) =>
-            freeKeyword(i + 1, `keyword-${i + 1}`),
-        );
+        const subjects = Array.from({ length: 5 }, (_, i) => freeKeyword(i + 1, `keyword-${i + 1}`));
         render(<KeywordsSection subjects={subjects} />);
         expect(screen.queryByText(/Show all/)).not.toBeInTheDocument();
     });
 
     it('shows expand button when above threshold', () => {
-        const subjects = Array.from({ length: 12 }, (_, i) =>
-            freeKeyword(i + 1, `keyword-${i + 1}`),
-        );
+        const subjects = Array.from({ length: 12 }, (_, i) => freeKeyword(i + 1, `keyword-${i + 1}`));
         render(<KeywordsSection subjects={subjects} />);
         expect(screen.getByText('Show all 12 keywords')).toBeInTheDocument();
     });

@@ -54,7 +54,7 @@ export default function DefaultGfzTemplate() {
                 {/* Skip Navigation Link */}
                 <a
                     href="#main-content"
-                    className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gfz-primary focus:shadow-lg"
+                    className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gfz-primary focus:shadow-lg"
                 >
                     Skip to main content
                 </a>
@@ -68,10 +68,15 @@ export default function DefaultGfzTemplate() {
                 <div className="mx-auto max-w-7xl rounded-xl bg-white dark:bg-gray-900">
                     <header className="px-4 py-2">
                         <div className="mb-1 flex items-center justify-end gap-3">
-                            <a href="/legal-notice" className="text-xs text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200">
+                            <a
+                                href="/legal-notice"
+                                className="text-xs text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200"
+                            >
                                 Legal Notice
                             </a>
-                            <span className="text-xs text-gray-300 dark:text-gray-600" aria-hidden="true">|</span>
+                            <span className="text-xs text-gray-300 dark:text-gray-600" aria-hidden="true">
+                                |
+                            </span>
                             <a
                                 href="https://dataservices.gfz.de/web/about-us/data-protection"
                                 target="_blank"
@@ -126,12 +131,7 @@ export default function DefaultGfzTemplate() {
                     <footer className="border-t border-gray-300 px-4 py-6 dark:border-gray-700">
                         <div className="flex items-center justify-between">
                             <a href="https://www.gfz.de" target="_blank" rel="noopener noreferrer">
-                                <DarkModeImage
-                                    lightSrc="/images/gfz-logo-en.gif"
-                                    darkSrc="/images/gfz-logo_en.svg"
-                                    alt="GFZ"
-                                    className="h-12"
-                                />
+                                <DarkModeImage lightSrc="/images/gfz-logo-en.gif" darkSrc="/images/gfz-logo_en.svg" alt="GFZ" className="h-12" />
                             </a>
                             <a href="https://www.helmholtz.de" target="_blank" rel="noopener noreferrer">
                                 <img src="/images/helmholtz-logo-blue.png" alt="Helmholtz" className="h-8 dark:brightness-200 dark:invert" />

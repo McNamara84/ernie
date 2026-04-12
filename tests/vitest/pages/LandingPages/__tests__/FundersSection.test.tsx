@@ -37,10 +37,7 @@ describe('FundersSection', () => {
             funder_identifier_type: 'ROR',
         });
         render(<FundersSection fundingReferences={[funder]} />);
-        expect(screen.getByLabelText('ROR profile of DFG')).toHaveAttribute(
-            'href',
-            'https://ror.org/018mejw64',
-        );
+        expect(screen.getByLabelText('ROR profile of DFG')).toHaveAttribute('href', 'https://ror.org/018mejw64');
     });
 
     it('renders Crossref link for funder with Crossref Funder ID', () => {
@@ -50,24 +47,17 @@ describe('FundersSection', () => {
             funder_identifier_type: 'Crossref Funder ID',
         });
         render(<FundersSection fundingReferences={[funder]} />);
-        expect(screen.getByLabelText('Crossref Funder ID for EU Commission')).toHaveAttribute(
-            'href',
-            'https://doi.org/10.13039/501100000780',
-        );
+        expect(screen.getByLabelText('Crossref Funder ID for EU Commission')).toHaveAttribute('href', 'https://doi.org/10.13039/501100000780');
     });
 
     it('does not show expand button when under threshold', () => {
-        const funders = Array.from({ length: 5 }, (_, i) =>
-            mockFunder({ id: i + 1, funder_name: `Funder ${i + 1}` }),
-        );
+        const funders = Array.from({ length: 5 }, (_, i) => mockFunder({ id: i + 1, funder_name: `Funder ${i + 1}` }));
         render(<FundersSection fundingReferences={funders} />);
         expect(screen.queryByText(/Show all/)).not.toBeInTheDocument();
     });
 
     it('shows expand button when above threshold', () => {
-        const funders = Array.from({ length: 15 }, (_, i) =>
-            mockFunder({ id: i + 1, funder_name: `Funder ${i + 1}` }),
-        );
+        const funders = Array.from({ length: 15 }, (_, i) => mockFunder({ id: i + 1, funder_name: `Funder ${i + 1}` }));
         render(<FundersSection fundingReferences={funders} />);
         expect(screen.getByText('Show all 15 funders')).toBeInTheDocument();
     });

@@ -24,9 +24,7 @@ const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon; bgClass: string
 ];
 
 const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
-const SCHEME_CONFIG = Object.fromEntries(
-    THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass, icon: d.icon }]),
-);
+const SCHEME_CONFIG = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass, icon: d.icon }]));
 
 const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
 
@@ -92,30 +90,27 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
         <div className="mt-6" data-testid="subjects-section">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
             <CollapsibleList itemCount={totalKeywords} itemLabel="keywords">
+                {thesauriKeywords.length > 0 && (
+                    <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                        {thesauriKeywords.map((subject) => (
+                            <li key={subject.id}>
+                                <KeywordBadge subject={subject} />
+                            </li>
+                        ))}
+                    </ul>
+                )}
 
-            {thesauriKeywords.length > 0 && (
-                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
-                    {thesauriKeywords.map((subject) => (
-                        <li key={subject.id}>
-                            <KeywordBadge subject={subject} />
-                        </li>
-                    ))}
-                </ul>
-            )}
+                {thesauriKeywords.length > 0 && freeKeywords.length > 0 && <hr className="my-3 border-gray-200 dark:border-gray-700" />}
 
-            {thesauriKeywords.length > 0 && freeKeywords.length > 0 && (
-                <hr className="my-3 border-gray-200 dark:border-gray-700" />
-            )}
-
-            {freeKeywords.length > 0 && (
-                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
-                    {freeKeywords.map((subject) => (
-                        <li key={subject.id}>
-                            <KeywordBadge subject={subject} style={FREE_KEYWORD_STYLE} />
-                        </li>
-                    ))}
-                </ul>
-            )}
+                {freeKeywords.length > 0 && (
+                    <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
+                        {freeKeywords.map((subject) => (
+                            <li key={subject.id}>
+                                <KeywordBadge subject={subject} style={FREE_KEYWORD_STYLE} />
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </CollapsibleList>
         </div>
     );
