@@ -52,9 +52,6 @@ enum CacheKey: string
     case CACHE_STATS = 'system:cache_stats';
 
     // Assistance suggestion counts
-    case SUGGESTED_RELATIONS_COUNT = 'assistance:suggested_relations_count';
-    case SUGGESTED_ORCIDS_COUNT = 'assistance:suggested_orcids_count';
-    case SUGGESTED_RORS_COUNT = 'assistance:suggested_rors_count';
     case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
 
     // Landing page Schema.org JSON-LD
@@ -126,10 +123,7 @@ enum CacheKey: string
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
 
-            // Suggested relations/orcids/rors count - 2 minutes (changes after discovery jobs)
-            self::SUGGESTED_RELATIONS_COUNT,
-            self::SUGGESTED_ORCIDS_COUNT,
-            self::SUGGESTED_RORS_COUNT,
+            // Assistance total pending count - 2 minutes (changes after discovery jobs)
             self::ASSISTANCE_TOTAL_PENDING_COUNT => 120,
 
             // Schema.org JSON-LD - 1 hour (invalidated by ResourceObserver on update)
@@ -178,9 +172,6 @@ enum CacheKey: string
 
             self::CACHE_STATS => ['system'],
 
-            self::SUGGESTED_RELATIONS_COUNT,
-            self::SUGGESTED_ORCIDS_COUNT,
-            self::SUGGESTED_RORS_COUNT,
             self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],

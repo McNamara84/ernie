@@ -15,7 +15,6 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
-use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -28,8 +27,6 @@ use Illuminate\Support\Facades\Log;
  */
 class RorDiscoveryService
 {
-    use ChecksCacheTagging;
-
     /**
      * Minimum similarity score (0.0–1.0) to include a ROR suggestion.
      */
@@ -112,7 +109,7 @@ class RorDiscoveryService
         ]);
 
         if ($newCount > 0) {
-            $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+            $this->invalidateAssistanceCache();
         }
 
         return $newCount;
@@ -154,7 +151,7 @@ class RorDiscoveryService
 
                 if ($entity === null) {
                     $suggestion->delete();
-                    $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+                    $this->invalidateAssistanceCache();
 
                     return [
                         'success' => false,
@@ -177,7 +174,7 @@ class RorDiscoveryService
                     SuggestedRor::where('entity_type', $entityType)
                         ->where('entity_id', $entityId)
                         ->delete();
-                    $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+                    $this->invalidateAssistanceCache();
 
                     return [
                         'success' => false,
@@ -220,7 +217,7 @@ class RorDiscoveryService
             SuggestedRor::where('entity_type', $entityType)
                 ->where('entity_id', $entityId)
                 ->delete();
-            $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+            $this->invalidateAssistanceCache();
 
             return [
                 'success' => false,
@@ -237,7 +234,7 @@ class RorDiscoveryService
 
         // Sync affected resources with DataCite (outside transaction)
         $syncedDois = $this->syncResourcesForEntity($suggestion);
-        $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+        $this->invalidateAssistanceCache();
 
         $syncCount = count($syncedDois);
         $message = $syncCount > 0
@@ -275,7 +272,7 @@ class RorDiscoveryService
             ->where('suggested_ror_id', $suggestion->suggested_ror_id)
             ->delete();
 
-        $this->forgetCacheKey(CacheKey::SUGGESTED_RORS_COUNT);
+        $this->invalidateAssistanceCache();
     }
 
     /**
@@ -1011,14 +1008,10 @@ class RorDiscoveryService
     }
 
     /**
-     * Forget a cache key, using tags if supported.
-     *
-     * Also invalidates the total pending count so the sidebar badge updates.
+     * Invalidate the total pending count so the sidebar badge updates.
      */
-    private function forgetCacheKey(CacheKey $cacheKey): void
+    private function invalidateAssistanceCache(): void
     {
-        $this->getCacheInstance($cacheKey->tags())->forget($cacheKey->key());
-
         Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
     }
 }

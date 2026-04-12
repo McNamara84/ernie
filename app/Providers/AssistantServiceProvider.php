@@ -123,10 +123,21 @@ class AssistantServiceProvider extends ServiceProvider
         /** @var list<string> $paths */
         $paths = $paths !== false ? $paths : [];
 
-        file_put_contents(
-            base_path(self::CACHE_PATH),
+        $cachePath = base_path(self::CACHE_PATH);
+        $cacheDir = dirname($cachePath);
+
+        if (! is_dir($cacheDir) && ! mkdir($cacheDir, 0755, true) && ! is_dir($cacheDir)) {
+            throw new \RuntimeException("Cannot create cache directory: {$cacheDir}");
+        }
+
+        $result = file_put_contents(
+            $cachePath,
             '<?php return ' . var_export($paths, true) . ';' . PHP_EOL,
         );
+
+        if ($result === false) {
+            throw new \RuntimeException("Failed to write assistant manifest cache to: {$cachePath}");
+        }
     }
 
     private function clearCachedManifestPaths(): void

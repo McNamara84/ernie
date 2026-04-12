@@ -12,7 +12,6 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
 use App\Models\User;
-use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -26,8 +25,6 @@ use Illuminate\Support\Facades\Log;
  */
 class OrcidDiscoveryService
 {
-    use ChecksCacheTagging;
-
     /**
      * Maximum ORCID candidates to suggest per person.
      */
@@ -93,7 +90,7 @@ class OrcidDiscoveryService
         ]);
 
         if ($newCount > 0) {
-            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+            $this->invalidateAssistanceCache();
         }
 
         return $newCount;
@@ -294,7 +291,7 @@ class OrcidDiscoveryService
 
                 if ($person === null) {
                     $suggestion->delete();
-                    $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+                    $this->invalidateAssistanceCache();
 
                     return [
                         'success' => false,
@@ -309,7 +306,7 @@ class OrcidDiscoveryService
                     && $person->name_identifier_scheme === 'ORCID'
                 ) {
                     SuggestedOrcid::where('person_id', $personId)->delete();
-                    $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+                    $this->invalidateAssistanceCache();
 
                     return [
                         'success' => false,
@@ -329,7 +326,7 @@ class OrcidDiscoveryService
 
                 if ($existingPerson !== null) {
                     SuggestedOrcid::where('suggested_orcid', $orcid)->delete();
-                    $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+                    $this->invalidateAssistanceCache();
 
                     return [
                         'success' => false,
@@ -358,7 +355,7 @@ class OrcidDiscoveryService
             }
 
             SuggestedOrcid::where('person_id', $personId)->delete();
-            $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+            $this->invalidateAssistanceCache();
 
             return [
                 'success' => false,
@@ -376,7 +373,7 @@ class OrcidDiscoveryService
         $person = Person::find($personId);
         $syncedDois = $person !== null ? $this->syncAffectedResources($person) : [];
 
-        $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+        $this->invalidateAssistanceCache();
 
         $syncCount = count($syncedDois);
         $message = $syncCount > 0
@@ -413,7 +410,7 @@ class OrcidDiscoveryService
                 ->delete();
         });
 
-        $this->forgetCacheKey(CacheKey::SUGGESTED_ORCIDS_COUNT);
+        $this->invalidateAssistanceCache();
     }
 
     /**
@@ -677,14 +674,10 @@ class OrcidDiscoveryService
     }
 
     /**
-     * Forget a cache key, using tags if supported.
-     *
-     * Also invalidates the total pending count so the sidebar badge updates.
+     * Invalidate the total pending count so the sidebar badge updates.
      */
-    private function forgetCacheKey(CacheKey $cacheKey): void
+    private function invalidateAssistanceCache(): void
     {
-        $this->getCacheInstance($cacheKey->tags())->forget($cacheKey->key());
-
         Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
     }
 }

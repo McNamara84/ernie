@@ -269,33 +269,57 @@ interface SectionState {
 }
 
 function useSectionState(manifests: AssistantManifest[]) {
+    const defaultState = (): SectionState => ({ isChecking: false, progress: '', processingIds: new Set() });
+
     const [states, setStates] = useState<Record<string, SectionState>>(() => {
         const initial: Record<string, SectionState> = {};
         for (const m of manifests) {
-            initial[m.id] = { isChecking: false, progress: '', processingIds: new Set() };
+            initial[m.id] = defaultState();
         }
         return initial;
     });
 
+    // Sync states when manifests change (assistant added/removed after Inertia reload)
+    useEffect(() => {
+        setStates((prev) => {
+            const manifestIds = new Set(manifests.map((m) => m.id));
+            const next: Record<string, SectionState> = {};
+            for (const m of manifests) {
+                next[m.id] = prev[m.id] ?? defaultState();
+            }
+            // Only update if IDs actually changed
+            const prevIds = new Set(Object.keys(prev));
+            if (prevIds.size === manifestIds.size && [...manifestIds].every((id) => prevIds.has(id))) {
+                return prev;
+            }
+            return next;
+        });
+    }, [manifests]);
+
     const pollingRefs = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
 
     const patch = useCallback((id: string, update: Partial<SectionState>) => {
-        setStates((prev) => ({ ...prev, [id]: { ...prev[id], ...update } }));
+        setStates((prev) => {
+            const current = prev[id] ?? defaultState();
+            return { ...prev, [id]: { ...current, ...update } };
+        });
     }, []);
 
     const addProcessingId = useCallback((sectionId: string, suggestionId: number) => {
         setStates((prev) => {
-            const next = new Set(prev[sectionId].processingIds);
+            const current = prev[sectionId] ?? defaultState();
+            const next = new Set(current.processingIds);
             next.add(suggestionId);
-            return { ...prev, [sectionId]: { ...prev[sectionId], processingIds: next } };
+            return { ...prev, [sectionId]: { ...current, processingIds: next } };
         });
     }, []);
 
     const removeProcessingId = useCallback((sectionId: string, suggestionId: number) => {
         setStates((prev) => {
-            const next = new Set(prev[sectionId].processingIds);
+            const current = prev[sectionId] ?? defaultState();
+            const next = new Set(current.processingIds);
             next.delete(suggestionId);
-            return { ...prev, [sectionId]: { ...prev[sectionId], processingIds: next } };
+            return { ...prev, [sectionId]: { ...current, processingIds: next } };
         });
     }, []);
 
@@ -434,7 +458,21 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 patch(m.id, { isChecking: false, progress: '' });
             }
             if (axios.isAxiosError(error) && error.response?.status === 409) {
-                toast.warning(error.response.data?.error ?? 'All discovery jobs are already running.');
+                const responseData = error.response.data as Record<string, string> | undefined;
+                // Show per-assistant error messages if available
+                let shownPerAssistant = false;
+                if (responseData) {
+                    for (const m of manifests) {
+                        const perError = responseData[`${m.id}Error`];
+                        if (perError) {
+                            toast.warning(`${m.name}: ${perError}`);
+                            shownPerAssistant = true;
+                        }
+                    }
+                }
+                if (!shownPerAssistant) {
+                    toast.warning(responseData?.error ?? 'All discovery jobs are already running.');
+                }
             } else {
                 toast.error('Failed to start discovery.');
             }

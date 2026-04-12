@@ -77,6 +77,22 @@ readonly class AssistantManifest
             );
         }
 
+        // Validate id: must be kebab-case, max 64 chars
+        $id = (string) $data['id'];
+        if (! preg_match('/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/', $id) || strlen($id) > 64) {
+            throw new \InvalidArgumentException(
+                "Manifest 'id' must be kebab-case (lowercase, hyphens only) and max 64 characters, got '{$id}' in {$path}"
+            );
+        }
+
+        // Validate route_prefix: must be a safe URL segment
+        $routePrefix = (string) $data['route_prefix'];
+        if (! preg_match('/^[a-z][a-z0-9_-]*$/', $routePrefix) || strlen($routePrefix) > 64) {
+            throw new \InvalidArgumentException(
+                "Manifest 'route_prefix' must be a safe URL segment (lowercase, hyphens/underscores) and max 64 characters, got '{$routePrefix}' in {$path}"
+            );
+        }
+
         $defaultStatusLabels = [
             'checking' => "Starting {$data['name']} discovery...",
             'completed_with_results' => "{$data['name']} completed: {count} new suggestion(s) found.",
@@ -91,13 +107,13 @@ readonly class AssistantManifest
         ];
 
         return new self(
-            id: (string) $data['id'],
+            id: $id,
             name: (string) $data['name'],
             description: (string) $data['description'],
             icon: (string) $data['icon'],
             version: (string) $data['version'],
             assistantClass: (string) $data['assistant_class'],
-            routePrefix: (string) $data['route_prefix'],
+            routePrefix: $routePrefix,
             lockKey: (string) $data['lock_key'],
             cacheKeyPrefix: (string) $data['cache_key_prefix'],
             sortOrder: (int) ($data['sort_order'] ?? 100),

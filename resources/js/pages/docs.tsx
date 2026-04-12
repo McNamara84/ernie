@@ -16,6 +16,7 @@ import {
     Palette,
     Rocket,
     Settings,
+    Sparkles,
     Tags,
     Type,
     Upload,
@@ -393,6 +394,66 @@ DATACITE_TEST_USERNAME=your_test_username
 DATACITE_TEST_PASSWORD=your_test_password`}
                             language="bash"
                         />
+                    </>
+                ),
+            },
+            {
+                id: 'assistance',
+                title: 'Assistance',
+                icon: Sparkles,
+                minRole: 'curator',
+                content: (
+                    <>
+                        <h3>Metadata Enrichment Assistance</h3>
+                        <p>
+                            The <strong>Assistance</strong> page (<code>/assistance</code>) helps curators discover and fix missing metadata
+                            across all resources. Each assistant module focuses on a specific type of metadata enrichment.
+                        </p>
+
+                        <h4>Available Assistants</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Suggested Relations</strong> – Discovers missing related identifiers between resources using the
+                                Scholexplorer API
+                            </li>
+                            <li>
+                                <strong>Suggested ORCIDs</strong> – Finds ORCID identifiers for authors and contributors without one by
+                                searching the ORCID API
+                            </li>
+                            <li>
+                                <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and
+                                funders via the ROR API v2
+                            </li>
+                        </ul>
+
+                        <h4>Workflow</h4>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Check for suggestions">
+                                <p>
+                                    Click &quot;Check all&quot; to scan all resources at once, or use the individual &quot;Check&quot; button
+                                    on each card.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Review suggestions">
+                                <p>
+                                    Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
+                                    score.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Accept or decline">
+                                <p>
+                                    Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to
+                                    permanently dismiss that suggestion.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending
+                                suggestions across all assistants.
+                            </p>
+                        </div>
                     </>
                 ),
             },

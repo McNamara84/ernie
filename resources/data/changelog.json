@@ -50,6 +50,10 @@
         ],
         "improvements": [
             {
+                "title": "Modular Assistance Framework",
+                "description": "The Assistance page has been refactored into a modular, auto-discoverable architecture. Each assistant (Suggested Relations, Suggested ORCIDs, Suggested ROR-IDs) is now a self-contained module with its own manifest, routes, controller, service, and frontend component under modules/assistants/. New assistants can be added by dropping a folder with a manifest.json — no registration code required. The unified 'Check all' button runs all assistants in parallel and the sidebar badge shows a single aggregated pending count."
+            },
+            {
                 "title": "Abbreviated First Names in Citations",
                 "description": "First names in the citation section on landing pages are now abbreviated to initials following standard academic citation practice (e.g. Bobcat, Alice → Bobcat, A.). Hyphenated names preserve their structure (e.g. Jean-Pierre → J.-P.). Full names remain stored in the database and are displayed in the creators list. The same abbreviation is applied to citations from external DOI lookups."
             },
