@@ -401,13 +401,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'assistance',
                 title: 'Assistance',
                 icon: Sparkles,
-                minRole: 'curator',
+                minRole: 'group_leader',
                 content: (
                     <>
                         <h3>Metadata Enrichment Assistance</h3>
                         <p>
-                            The <strong>Assistance</strong> page (<code>/assistance</code>) helps curators discover and fix missing metadata
-                            across all resources. Each assistant module focuses on a specific type of metadata enrichment.
+                            The <strong>Assistance</strong> page (<code>/assistance</code>) helps admins and group leaders discover and fix
+                            missing metadata across all resources. Each assistant module focuses on a specific type of metadata enrichment.
                         </p>
 
                         <h4>Available Assistants</h4>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use Illuminate\Support\Facades\Cache;
+
 /**
  * Centralized cache key management for the application.
  *
@@ -176,6 +178,27 @@ enum CacheKey: string
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],
         };
+    }
+
+    /**
+     * Forget this cache key, using tag-aware invalidation when the store supports tagging.
+     *
+     * This ensures that entries written via a tagged cache repository
+     * (e.g. Cache::tags([...])->remember(...)) are properly cleared on
+     * Redis/Memcached where Cache::forget() alone would not work.
+     *
+     * @param  string|int|null  $suffix  Optional key suffix (same as key())
+     */
+    public function forget(string|int|null $suffix = null): bool
+    {
+        $fullKey = $this->key($suffix);
+        $tags = $this->tags();
+
+        if ($tags !== [] && method_exists(Cache::getStore(), 'tags')) {
+            return Cache::tags($tags)->forget($fullKey);
+        }
+
+        return Cache::forget($fullKey);
     }
 
     /**

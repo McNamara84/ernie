@@ -8,7 +8,6 @@ use App\Enums\CacheKey;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Base class for existing assistant modules that use their own database tables.
@@ -136,6 +135,6 @@ abstract class AbstractAssistant implements AssistantContract
      */
     private function forgetTotalPendingCount(): void
     {
-        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
+        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
     }
 }

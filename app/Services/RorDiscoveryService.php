@@ -1012,6 +1012,6 @@ class RorDiscoveryService
      */
     private function invalidateAssistanceCache(): void
     {
-        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
+        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
     }
 }

@@ -304,8 +304,10 @@ describe('acceptSuggestion', function () {
         $resource = Resource::factory()->create();
         $assistant = new TestGenericAssistant();
 
-        $cacheKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
-        Cache::put($cacheKey, 5, now()->addHour());
+        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $cacheKey = $cacheEnum->key();
+        $tags = $cacheEnum->tags();
+        Cache::tags($tags)->put($cacheKey, 5, now()->addHour());
 
         $suggestion = AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -319,7 +321,7 @@ describe('acceptSuggestion', function () {
 
         $assistant->acceptSuggestion($suggestion->id);
 
-        expect(Cache::has($cacheKey))->toBeFalse();
+        expect(Cache::tags($tags)->has($cacheKey))->toBeFalse();
     });
 });
 
@@ -359,8 +361,10 @@ describe('declineSuggestion', function () {
         $user = User::factory()->create();
         $assistant = new TestGenericAssistant();
 
-        $cacheKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
-        Cache::put($cacheKey, 5, now()->addHour());
+        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $cacheKey = $cacheEnum->key();
+        $tags = $cacheEnum->tags();
+        Cache::tags($tags)->put($cacheKey, 5, now()->addHour());
 
         $suggestion = AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -374,7 +378,7 @@ describe('declineSuggestion', function () {
 
         $assistant->declineSuggestion($suggestion->id, $user, 'Not relevant');
 
-        expect(Cache::has($cacheKey))->toBeFalse();
+        expect(Cache::tags($tags)->has($cacheKey))->toBeFalse();
     });
 });
 

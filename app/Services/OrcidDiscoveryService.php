@@ -13,7 +13,6 @@ use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
 use App\Models\User;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -678,6 +677,6 @@ class OrcidDiscoveryService
      */
     private function invalidateAssistanceCache(): void
     {
-        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
+        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
     }
 }

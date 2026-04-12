@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property string $assistant_id
- * @property int|null $resource_id
+ * @property int $resource_id
  * @property string $target_type
  * @property int $target_id
  * @property string $suggested_value
@@ -30,7 +30,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $discovered_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Resource|null $resource
+ * @property-read Resource $resource
  */
 #[Fillable([
     'assistant_id',

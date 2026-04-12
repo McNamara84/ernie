@@ -130,7 +130,7 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
             ]);
 
             if ($newCount > 0) {
-                Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
+                CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
             }
         } catch (\Exception $e) {
             Log::error('DiscoverAssistantSuggestionsJob failed', [

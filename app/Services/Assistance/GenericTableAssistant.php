@@ -15,7 +15,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * Base class for NEW student-created assistant modules that use the generic tables.
  *
- * Students extend this class and only need to implement two methods:
+ * Students extend this class and need to implement three methods:
+ * - getManifestPath(): Return the path to the module's manifest.json
  * - discover(): Query an external API and store suggestions via storeSuggestion()
  * - applyAccepted(): Update the actual entity when a curator accepts a suggestion
  *
@@ -150,7 +151,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
      * Automatically skips duplicates (same assistant + target + value).
      * Also skips suggestions that have been previously dismissed.
      *
-     * @param  int|null  $resourceId  FK to resources table (nullable)
+     * @param  int  $resourceId  FK to resources table
      * @param  string  $targetType  Entity type being enriched (e.g. "right", "person")
      * @param  int  $targetId  Primary key of the entity being enriched
      * @param  string  $suggestedValue  The suggested value (e.g. SPDX identifier, ORCID)
@@ -160,7 +161,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
      * @return bool  True if stored, false if skipped (duplicate or dismissed)
      */
     protected function storeSuggestion(
-        ?int $resourceId,
+        int $resourceId,
         string $targetType,
         int $targetId,
         string $suggestedValue,

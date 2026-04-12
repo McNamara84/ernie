@@ -240,8 +240,10 @@ describe('handle', function () {
         $assistantId = 'test-assistant';
         $cacheKey = "test_cache:{$uuid}";
 
-        $totalCountKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
-        Cache::put($totalCountKey, 10, now()->addHour());
+        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $totalCountKey = $cacheEnum->key();
+        $tags = $cacheEnum->tags();
+        Cache::tags($tags)->put($totalCountKey, 10, now()->addHour());
 
         $mockAssistant = Mockery::mock(GenericTableAssistant::class);
         $mockAssistant->shouldReceive('getJobStatusCacheKey')
@@ -262,7 +264,7 @@ describe('handle', function () {
         $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid);
         $job->handle($registrar);
 
-        expect(Cache::has($totalCountKey))->toBeFalse();
+        expect(Cache::tags($tags)->has($totalCountKey))->toBeFalse();
     });
 
     it('preserves total pending count when no new suggestions found', function () {
@@ -270,8 +272,10 @@ describe('handle', function () {
         $assistantId = 'test-assistant';
         $cacheKey = "test_cache:{$uuid}";
 
-        $totalCountKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
-        Cache::put($totalCountKey, 10, now()->addHour());
+        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $totalCountKey = $cacheEnum->key();
+        $tags = $cacheEnum->tags();
+        Cache::tags($tags)->put($totalCountKey, 10, now()->addHour());
 
         $mockAssistant = Mockery::mock(GenericTableAssistant::class);
         $mockAssistant->shouldReceive('getJobStatusCacheKey')
@@ -292,8 +296,8 @@ describe('handle', function () {
         $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid);
         $job->handle($registrar);
 
-        expect(Cache::has($totalCountKey))->toBeTrue();
-        expect(Cache::get($totalCountKey))->toBe(10);
+        expect(Cache::tags($tags)->has($totalCountKey))->toBeTrue();
+        expect(Cache::tags($tags)->get($totalCountKey))->toBe(10);
     });
 });
 

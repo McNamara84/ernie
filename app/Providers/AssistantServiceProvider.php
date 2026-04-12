@@ -50,7 +50,9 @@ class AssistantServiceProvider extends ServiceProvider
             $this->registerRoutes($registrar);
         }
 
-        $this->registerCacheCommand();
+        if ($this->app->runningInConsole()) {
+            $this->registerCacheCommand();
+        }
     }
 
     /**

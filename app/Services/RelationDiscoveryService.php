@@ -12,7 +12,6 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -326,6 +325,6 @@ class RelationDiscoveryService
      */
     private function invalidateAssistanceCache(): void
     {
-        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
+        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
     }
 }
