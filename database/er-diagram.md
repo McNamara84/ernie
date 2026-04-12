@@ -752,7 +752,7 @@ erDiagram
     assistant_suggestions {
         bigint id PK
         varchar assistant_id
-        bigint resource_id FK "nullable"
+        bigint resource_id FK
         varchar target_type
         bigint_unsigned target_id
         varchar suggested_value

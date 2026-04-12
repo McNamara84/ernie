@@ -22,7 +22,7 @@ return new class extends Migration
         Schema::create('assistant_suggestions', function (Blueprint $table) use ($isMysql) {
             $table->id();
             $table->string('assistant_id', 100);
-            $table->foreignId('resource_id')->nullable()->constrained('resources')->cascadeOnDelete();
+            $table->foreignId('resource_id')->constrained('resources')->cascadeOnDelete();
             $table->string('target_type', 100);
             $table->unsignedBigInteger('target_id');
             $table->string('suggested_value', 1000);

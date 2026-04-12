@@ -826,7 +826,7 @@ entity assistant_suggestions {
     * id : BIGINT <<PK>>
     --
     * assistant_id : VARCHAR(100)
-    resource_id : BIGINT <<FK>> <<nullable>>
+    * resource_id : BIGINT <<FK>>
     * target_type : VARCHAR(100)
     * target_id : BIGINT UNSIGNED
     * suggested_value : VARCHAR(1000)

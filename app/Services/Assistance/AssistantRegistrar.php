@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Models\AssistantSuggestion;
+use App\Models\SuggestedOrcid;
+use App\Models\SuggestedRelation;
+use App\Models\SuggestedRor;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -133,16 +138,26 @@ class AssistantRegistrar
     /**
      * Get the total number of pending suggestions across all assistants.
      *
-     * Used for the sidebar badge count.
+     * Uses a single UNION ALL query to count across all suggestion tables
+     * instead of issuing separate COUNT(*) queries per assistant.
      */
     public function totalPendingCount(): int
     {
-        $total = 0;
-
-        foreach ($this->assistants as $assistant) {
-            $total += $assistant->countPending();
+        if ($this->assistants === []) {
+            return 0;
         }
 
-        return $total;
+        $result = DB::query()
+            ->selectRaw('SUM(cnt) as total')
+            ->fromSub(
+                DB::query()->selectRaw('COUNT(*) as cnt')->from((new SuggestedRelation())->getTable())
+                    ->unionAll(DB::query()->selectRaw('COUNT(*) as cnt')->from((new SuggestedOrcid())->getTable()))
+                    ->unionAll(DB::query()->selectRaw('COUNT(*) as cnt')->from((new SuggestedRor())->getTable()))
+                    ->unionAll(DB::query()->selectRaw('COUNT(*) as cnt')->from((new AssistantSuggestion())->getTable())),
+                'counts',
+            )
+            ->value('total');
+
+        return (int) $result;
     }
 }

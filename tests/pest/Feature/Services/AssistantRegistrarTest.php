@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Models\AssistantSuggestion;
+use App\Models\Person;
+use App\Models\Resource;
 use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantManifest;
 use App\Services\Assistance\AssistantRegistrar;
+use Illuminate\Support\Facades\DB;
 
 covers(AssistantRegistrar::class);
 
@@ -122,21 +126,79 @@ describe('register', function () {
 // =========================================================================
 
 describe('totalPendingCount', function () {
-    it('sums pending counts across all assistants', function () {
+    it('sums pending counts across all suggestion tables', function () {
+        $resource = Resource::factory()->create();
         $registrar = new AssistantRegistrar();
 
-        $assistant1 = Mockery::mock(AssistantContract::class);
-        $assistant1->shouldReceive('getId')->andReturn('a');
-        $assistant1->shouldReceive('countPending')->andReturn(5);
+        // Register a dummy assistant so the list is not empty
+        $assistant = Mockery::mock(AssistantContract::class);
+        $assistant->shouldReceive('getId')->andReturn('test');
+        $registrar->register($assistant);
 
-        $assistant2 = Mockery::mock(AssistantContract::class);
-        $assistant2->shouldReceive('getId')->andReturn('b');
-        $assistant2->shouldReceive('countPending')->andReturn(3);
+        // Insert rows in each legacy table (seed FK targets first)
+        $identifierType = DB::table('identifier_types')->insertGetId([
+            'name' => 'DOI',
+            'slug' => 'doi',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $relationType = DB::table('relation_types')->insertGetId([
+            'name' => 'IsSupplementTo',
+            'slug' => 'is-supplement-to',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $person = Person::factory()->create();
 
-        $registrar->register($assistant1);
-        $registrar->register($assistant2);
+        DB::table('suggested_relations')->insert([
+            'resource_id' => $resource->id,
+            'identifier' => '10.1234/test',
+            'identifier_type_id' => $identifierType,
+            'relation_type_id' => $relationType,
+            'source' => 'scholexplorer',
+            'discovered_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        expect($registrar->totalPendingCount())->toBe(8);
+        DB::table('suggested_orcids')->insert([
+            'resource_id' => $resource->id,
+            'person_id' => $person->id,
+            'suggested_orcid' => '0000-0001-2345-6789',
+            'similarity_score' => 0.9,
+            'source_context' => 'creator',
+            'discovered_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('suggested_rors')->insert([
+            'resource_id' => $resource->id,
+            'entity_type' => 'affiliation',
+            'entity_id' => 1,
+            'entity_name' => 'GFZ Potsdam',
+            'suggested_ror_id' => 'https://ror.org/04t3en479',
+            'suggested_name' => 'GFZ German Research Centre for Geosciences',
+            'similarity_score' => 0.85,
+            'discovered_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Insert row in the generic table
+        AssistantSuggestion::create([
+            'assistant_id' => 'test',
+            'resource_id' => $resource->id,
+            'target_type' => 'right',
+            'target_id' => 1,
+            'suggested_value' => 'MIT',
+            'suggested_label' => 'MIT License',
+            'discovered_at' => now(),
+        ]);
+
+        expect($registrar->totalPendingCount())->toBe(4);
     });
 
     it('returns zero when no assistants registered', function () {

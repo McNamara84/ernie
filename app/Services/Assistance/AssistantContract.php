@@ -24,7 +24,7 @@ interface AssistantContract
     /**
      * Get the unique identifier for this assistant (kebab-case).
      *
-     * Must match the folder name in modules/assistants/.
+     * Used for registration, routing, and cache keys.
      * Example: "orcid-suggestion", "spdx-license"
      */
     public function getId(): string;

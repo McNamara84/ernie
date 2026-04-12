@@ -15,7 +15,7 @@ namespace App\Services\Assistance;
 readonly class AssistantManifest
 {
     /**
-     * @param  string  $id  Unique identifier (kebab-case, matches folder name)
+     * @param  string  $id  Unique identifier (kebab-case, used for registration and routing)
      * @param  string  $name  Display name in UI
      * @param  string  $description  Short description / subtitle
      * @param  string  $icon  Lucide icon name (e.g. "User", "Building2")

@@ -414,7 +414,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Suggested Relations</strong> – Discovers missing related identifiers between resources using the
-                                Scholexplorer API
+                                ScholExplorer API
                             </li>
                             <li>
                                 <strong>Suggested ORCIDs</strong> – Finds ORCID identifiers for authors and contributors without one by
