@@ -27,10 +27,24 @@ export interface PaginatedData<T> {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
+export interface AssistantManifest {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    version: string;
+    routePrefix: string;
+    lockKey: string;
+    cacheKeyPrefix: string;
+    sortOrder: number;
+    statusLabels: Record<string, string>;
+    emptyState: { title: string; description: string };
+    cardComponent: string | null;
+}
+
 export interface AssistancePageProps {
-    suggestions: PaginatedData<SuggestedRelationItem>;
-    orcidSuggestions: PaginatedData<SuggestedOrcidItem>;
-    rorSuggestions: PaginatedData<SuggestedRorItem>;
+    sections: Record<string, PaginatedData<SuggestedRelationItem | SuggestedOrcidItem | SuggestedRorItem>>;
+    manifests: AssistantManifest[];
 }
 
 export interface SuggestedOrcidItem {
@@ -53,34 +67,17 @@ export interface SuggestedOrcidItem {
 export interface CheckStatusResponse {
     status: 'queued' | 'running' | 'completed' | 'failed' | 'unknown';
     progress?: string;
-    totalDois?: number;
-    processedDois?: number;
-    newRelationsFound?: number;
     error?: string;
     startedAt?: string;
     completedAt?: string;
+    [key: string]: unknown;
 }
 
 export interface AcceptResponse {
     success: boolean;
-    datacite_synced: boolean;
-    message: string;
-}
-
-export interface OrcidCheckStatusResponse {
-    status: 'queued' | 'running' | 'completed' | 'failed' | 'unknown';
-    progress?: string;
-    totalPersons?: number;
-    processedPersons?: number;
-    newOrcidsFound?: number;
-    error?: string;
-    startedAt?: string;
-    completedAt?: string;
-}
-
-export interface OrcidAcceptResponse {
-    success: boolean;
-    synced_dois: string[];
+    datacite_synced?: boolean;
+    synced_dois?: string[];
+    replaced_identifier?: string | null;
     message: string;
 }
 
@@ -99,22 +96,4 @@ export interface SuggestedRorItem {
     existing_identifier: string | null;
     existing_identifier_type: string | null;
     discovered_at: string;
-}
-
-export interface RorCheckStatusResponse {
-    status: 'queued' | 'running' | 'completed' | 'failed' | 'unknown';
-    progress?: string;
-    totalEntities?: number;
-    processedEntities?: number;
-    newRorsFound?: number;
-    error?: string;
-    startedAt?: string;
-    completedAt?: string;
-}
-
-export interface RorAcceptResponse {
-    success: boolean;
-    synced_dois: string[];
-    message: string;
-    replaced_identifier: string | null;
 }

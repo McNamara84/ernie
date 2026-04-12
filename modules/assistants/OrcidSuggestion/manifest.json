@@ -1,0 +1,24 @@
+{
+    "id": "orcid-suggestion",
+    "name": "ORCID Suggestions",
+    "description": "Discovers missing ORCID identifiers for persons via the ORCID Public API.",
+    "icon": "User",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\OrcidSuggestion\\Assistant",
+    "route_prefix": "orcids",
+    "lock_key": "orcid_discovery_running",
+    "cache_key_prefix": "orcid_discovery",
+    "sort_order": 20,
+    "status_labels": {
+        "checking": "Starting ORCID discovery...",
+        "completed_with_results": "ORCID discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "ORCID discovery completed: No new suggestions found.",
+        "failed": "ORCID discovery failed: {error}",
+        "already_running": "An ORCID discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending ORCID suggestions",
+        "description": "No new ORCID matches found. Click \"Check\" to search again."
+    },
+    "card_component": null
+}

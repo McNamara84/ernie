@@ -115,7 +115,8 @@
             "@data/*": ["./resources/data/*"],
             "@tests/*": ["./tests/*"],
             "@test-helpers": ["./tests/vitest/test-helpers/index.ts"],
-            "@test-helpers/*": ["./tests/vitest/test-helpers/*"]
+            "@test-helpers/*": ["./tests/vitest/test-helpers/*"],
+            "@assistants/*": ["./modules/assistants/*"]
         },
         "jsx": "react-jsx"
     },
@@ -124,6 +125,8 @@
         "resources/js/**/*.d.ts",
         "resources/js/**/*.tsx",
         "tests/vitest/**/*.ts",
-        "tests/vitest/**/*.tsx"
+        "tests/vitest/**/*.tsx",
+        "modules/assistants/**/*.ts",
+        "modules/assistants/**/*.tsx"
     ]
 }

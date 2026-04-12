@@ -1,0 +1,24 @@
+{
+    "id": "relation-suggestion",
+    "name": "Relation Suggestions",
+    "description": "Discovers related works via ScholExplorer and DataCite Event Data APIs.",
+    "icon": "Link",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\RelationSuggestion\\Assistant",
+    "route_prefix": "relations",
+    "lock_key": "relation_discovery_running",
+    "cache_key_prefix": "relation_discovery",
+    "sort_order": 10,
+    "status_labels": {
+        "checking": "Starting relation discovery...",
+        "completed_with_results": "Relation discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "Relation discovery completed: No new suggestions found.",
+        "failed": "Relation discovery failed: {error}",
+        "already_running": "A relation discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending relations",
+        "description": "No new related works found. Click \"Check\" to search again."
+    },
+    "card_component": null
+}

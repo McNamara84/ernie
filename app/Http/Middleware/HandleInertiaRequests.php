@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
-use App\Models\SuggestedOrcid;
-use App\Models\SuggestedRelation;
-use App\Models\SuggestedRor;
+use App\Services\Assistance\AssistantRegistrar;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
@@ -83,28 +81,12 @@ class HandleInertiaRequests extends Middleware
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
-            'pendingSuggestedRelationsCount' => $request->user()?->can('access-assistance')
+            'pendingAssistanceTotalCount' => $request->user()?->can('access-assistance')
                 ? $this->getCacheInstance(CacheKey::SUGGESTED_RELATIONS_COUNT->tags())
                     ->remember(
-                        CacheKey::SUGGESTED_RELATIONS_COUNT->key(),
+                        'assistance:total_pending_count',
                         CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
-                        fn () => SuggestedRelation::count(),
-                    )
-                : 0,
-            'pendingSuggestedOrcidsCount' => $request->user()?->can('access-assistance')
-                ? $this->getCacheInstance(CacheKey::SUGGESTED_ORCIDS_COUNT->tags())
-                    ->remember(
-                        CacheKey::SUGGESTED_ORCIDS_COUNT->key(),
-                        CacheKey::SUGGESTED_ORCIDS_COUNT->ttl(),
-                        fn () => SuggestedOrcid::count(),
-                    )
-                : 0,
-            'pendingSuggestedRorsCount' => $request->user()?->can('access-assistance')
-                ? $this->getCacheInstance(CacheKey::SUGGESTED_RORS_COUNT->tags())
-                    ->remember(
-                        CacheKey::SUGGESTED_RORS_COUNT->key(),
-                        CacheKey::SUGGESTED_RORS_COUNT->ttl(),
-                        fn () => SuggestedRor::count(),
+                        fn () => app(AssistantRegistrar::class)->totalPendingCount(),
                     )
                 : 0,
         ];
