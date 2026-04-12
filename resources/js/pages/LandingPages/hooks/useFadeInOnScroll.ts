@@ -3,6 +3,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 /**
+ * Adds `.js-fade-ready` to `<html>` once so the CSS fade-in rules activate.
+ * Without this class, `.fade-in-on-scroll` has no effect and content stays
+ * visible — making SSR / no-JS scenarios safe.
+ */
+function ensureJsFadeReady(): void {
+    if (typeof document !== 'undefined') {
+        document.documentElement.classList.add('js-fade-ready');
+    }
+}
+
+/**
  * Lightweight scroll-triggered fade-in hook for landing page sections.
  *
  * Uses IntersectionObserver to detect when an element enters the viewport,
@@ -24,6 +35,8 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
  * @returns Callback ref to attach to the target element
  */
 export function useFadeInOnScroll(options?: { threshold?: number }): (element: HTMLElement | null) => void {
+    ensureJsFadeReady();
+
     const [node, setNode] = useState<HTMLElement | null>(null);
     const prefersReducedMotion = useReducedMotion();
 

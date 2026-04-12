@@ -80,7 +80,13 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
     const thesauriKeywords = THESAURUS_DEFINITIONS.flatMap((d) => schemeGroups.get(d.scheme) ?? []);
     const hasAnyKeywords = thesauriKeywords.length > 0 || freeKeywords.length > 0;
 
-    const totalKeywords = thesauriKeywords.length + freeKeywords.length;
+    // Build a flat ordered array: thesauri keywords first, then free keywords.
+    // Each entry carries a `group` tag so the render function can style them.
+    type TaggedKeyword = { subject: LandingPageSubject; group: 'thesaurus' | 'free' };
+    const allKeywords: TaggedKeyword[] = [
+        ...thesauriKeywords.map((s) => ({ subject: s, group: 'thesaurus' as const })),
+        ...freeKeywords.map((s) => ({ subject: s, group: 'free' as const })),
+    ];
 
     if (!hasAnyKeywords) {
         return null;
@@ -89,29 +95,39 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
     return (
         <div className="mt-6" data-testid="subjects-section">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
-            <CollapsibleList itemCount={totalKeywords} itemLabel="keywords">
-                {thesauriKeywords.length > 0 && (
-                    <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
-                        {thesauriKeywords.map((subject) => (
-                            <li key={subject.id}>
-                                <KeywordBadge subject={subject} />
-                            </li>
-                        ))}
-                    </ul>
+            <CollapsibleList
+                items={allKeywords}
+                itemLabel="keywords"
+                renderItem={(item) => (
+                    <li key={item.subject.id}>
+                        <KeywordBadge subject={item.subject} style={item.group === 'free' ? FREE_KEYWORD_STYLE : undefined} />
+                    </li>
                 )}
+                wrapper={(children) => {
+                    // Split rendered children back into thesauri and free groups for visual separation.
+                    // Children are in order: thesauri first, free second.
+                    const childArray = Array.isArray(children) ? children : [children];
+                    const thesauriCount = Math.min(thesauriKeywords.length, childArray.length);
+                    const thesauriItems = childArray.slice(0, thesauriCount);
+                    const freeItems = childArray.slice(thesauriCount);
 
-                {thesauriKeywords.length > 0 && freeKeywords.length > 0 && <hr className="my-3 border-gray-200 dark:border-gray-700" />}
-
-                {freeKeywords.length > 0 && (
-                    <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
-                        {freeKeywords.map((subject) => (
-                            <li key={subject.id}>
-                                <KeywordBadge subject={subject} style={FREE_KEYWORD_STYLE} />
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </CollapsibleList>
+                    return (
+                        <>
+                            {thesauriItems.length > 0 && (
+                                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                                    {thesauriItems}
+                                </ul>
+                            )}
+                            {thesauriItems.length > 0 && freeItems.length > 0 && <hr className="my-3 border-gray-200 dark:border-gray-700" />}
+                            {freeItems.length > 0 && (
+                                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
+                                    {freeItems}
+                                </ul>
+                            )}
+                        </>
+                    );
+                }}
+            />
         </div>
     );
 }

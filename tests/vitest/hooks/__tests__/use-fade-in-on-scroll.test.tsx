@@ -34,6 +34,7 @@ describe('useFadeInOnScroll', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        document.documentElement.classList.remove('js-fade-ready');
     });
 
     it('does not add is-visible class before observer triggers', () => {
@@ -79,5 +80,11 @@ describe('useFadeInOnScroll', () => {
 
         render(<NoRefComponent />);
         expect(screen.getByTestId('no-ref')).toBeInTheDocument();
+    });
+
+    it('adds js-fade-ready class to the document element', () => {
+        expect(document.documentElement).not.toHaveClass('js-fade-ready');
+        render(<TestComponent />);
+        expect(document.documentElement).toHaveClass('js-fade-ready');
     });
 });

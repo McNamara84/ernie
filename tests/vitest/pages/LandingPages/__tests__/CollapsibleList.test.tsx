@@ -10,58 +10,71 @@ vi.mock('@/hooks/use-reduced-motion', () => ({
     useReducedMotion: vi.fn(() => false),
 }));
 
+function makeItems(count: number) {
+    return Array.from({ length: count }, (_, i) => `Item ${i + 1}`);
+}
+
 describe('CollapsibleList', () => {
-    it('renders children directly when under threshold', () => {
+    it('renders all items directly when under threshold', () => {
         render(
-            <CollapsibleList itemCount={5} itemLabel="items">
-                <ul data-testid="list">
-                    <li>Item</li>
-                </ul>
-            </CollapsibleList>,
+            <CollapsibleList
+                items={makeItems(5)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                itemLabel="items"
+                wrapper={(children) => <ul data-testid="list">{children}</ul>}
+            />,
         );
         expect(screen.getByTestId('list')).toBeInTheDocument();
+        expect(screen.getAllByRole('listitem')).toHaveLength(5);
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('renders expand button when above threshold', () => {
+    it('renders only threshold items when above threshold and collapsed', () => {
         render(
-            <CollapsibleList itemCount={15} itemLabel="contributors">
-                <ul data-testid="list">
-                    <li>Item</li>
-                </ul>
-            </CollapsibleList>,
+            <CollapsibleList
+                items={makeItems(15)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                itemLabel="contributors"
+                wrapper={(children) => <ul>{children}</ul>}
+            />,
         );
         expect(screen.getByRole('button')).toHaveTextContent('Show all 15 contributors');
+        expect(screen.getAllByRole('listitem')).toHaveLength(10);
     });
 
     it('toggles expanded state on button click', () => {
         render(
-            <CollapsibleList itemCount={15} itemLabel="items">
-                <ul>
-                    <li>Item</li>
-                </ul>
-            </CollapsibleList>,
+            <CollapsibleList
+                items={makeItems(15)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                itemLabel="items"
+                wrapper={(children) => <ul>{children}</ul>}
+            />,
         );
         const button = screen.getByRole('button');
         expect(button).toHaveTextContent('Show all 15 items');
         expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getAllByRole('listitem')).toHaveLength(10);
 
         fireEvent.click(button);
         expect(button).toHaveTextContent('Show fewer items');
         expect(button).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getAllByRole('listitem')).toHaveLength(15);
 
         fireEvent.click(button);
         expect(button).toHaveTextContent('Show all 15 items');
         expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getAllByRole('listitem')).toHaveLength(10);
     });
 
     it('uses aria-controls to reference the region', () => {
         render(
-            <CollapsibleList itemCount={12} itemLabel="funders">
-                <ul>
-                    <li>Item</li>
-                </ul>
-            </CollapsibleList>,
+            <CollapsibleList
+                items={makeItems(12)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                itemLabel="funders"
+                wrapper={(children) => <ul>{children}</ul>}
+            />,
         );
         const button = screen.getByRole('button');
         const regionId = button.getAttribute('aria-controls');
@@ -71,23 +84,35 @@ describe('CollapsibleList', () => {
 
     it('respects custom threshold', () => {
         render(
-            <CollapsibleList itemCount={8} threshold={5} itemLabel="items">
-                <ul>
-                    <li>Item</li>
-                </ul>
-            </CollapsibleList>,
+            <CollapsibleList
+                items={makeItems(8)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                threshold={5}
+                itemLabel="items"
+                wrapper={(children) => <ul>{children}</ul>}
+            />,
         );
         expect(screen.getByRole('button')).toHaveTextContent('Show all 8 items');
+        expect(screen.getAllByRole('listitem')).toHaveLength(5);
     });
 
     it('does not show button when itemCount equals threshold', () => {
         render(
-            <CollapsibleList itemCount={10} threshold={10} itemLabel="items">
-                <ul>
-                    <li>Item</li>
-                </ul>
-            </CollapsibleList>,
+            <CollapsibleList
+                items={makeItems(10)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                threshold={10}
+                itemLabel="items"
+                wrapper={(children) => <ul>{children}</ul>}
+            />,
         );
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        expect(screen.getAllByRole('listitem')).toHaveLength(10);
+    });
+
+    it('renders without wrapper when none provided', () => {
+        render(<CollapsibleList items={makeItems(3)} renderItem={(item) => <span key={item}>{item}</span>} itemLabel="items" />);
+        expect(screen.getByText('Item 1')).toBeInTheDocument();
+        expect(screen.getByText('Item 3')).toBeInTheDocument();
     });
 });

@@ -19,39 +19,44 @@ export function FundersSection({ fundingReferences }: FundersSectionProps) {
     return (
         <div className="mt-6" data-testid="funding-section">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Funders</h3>
-            <CollapsibleList itemCount={fundingReferences.length} itemLabel="funders">
-                <ul className="space-y-2" data-testid="funding-list">
-                    {fundingReferences.map((funding) => (
-                        <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                            <span>{funding.funder_name}</span>
+            <CollapsibleList
+                items={fundingReferences}
+                itemLabel="funders"
+                wrapper={(children) => (
+                    <ul className="space-y-2" data-testid="funding-list">
+                        {children}
+                    </ul>
+                )}
+                renderItem={(funding) => (
+                    <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
+                        <span>{funding.funder_name}</span>
 
-                            {funding.funder_identifier_type === 'ROR' && funding.funder_identifier && (
-                                <a
-                                    href={funding.funder_identifier}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
-                                    aria-label={`ROR profile of ${funding.funder_name}`}
-                                >
-                                    <RorIcon />
-                                </a>
-                            )}
+                        {funding.funder_identifier_type === 'ROR' && funding.funder_identifier && (
+                            <a
+                                href={funding.funder_identifier}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
+                                aria-label={`ROR profile of ${funding.funder_name}`}
+                            >
+                                <RorIcon />
+                            </a>
+                        )}
 
-                            {funding.funder_identifier_type === 'Crossref Funder ID' && funding.funder_identifier && (
-                                <a
-                                    href={`https://doi.org/${funding.funder_identifier}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
-                                    aria-label={`Crossref Funder ID for ${funding.funder_name}`}
-                                >
-                                    <CrossrefFunderIcon />
-                                </a>
-                            )}
-                        </li>
-                    ))}
-                </ul>
-            </CollapsibleList>
+                        {funding.funder_identifier_type === 'Crossref Funder ID' && funding.funder_identifier && (
+                            <a
+                                href={`https://doi.org/${funding.funder_identifier}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"
+                                aria-label={`Crossref Funder ID for ${funding.funder_name}`}
+                            >
+                                <CrossrefFunderIcon />
+                            </a>
+                        )}
+                    </li>
+                )}
+            />
         </div>
     );
 }
