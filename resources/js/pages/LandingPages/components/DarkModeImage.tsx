@@ -6,11 +6,11 @@ interface DarkModeImageProps {
 }
 
 /**
- * Renders a `<picture>` element that switches between light and dark logo variants
- * based on the system color scheme preference.
+ * Renders a `<picture>` element that switches between light and dark logo variants.
  *
- * This works for landing pages because `useSystemDarkMode` syncs the `.dark` class
- * based on `prefers-color-scheme`, so the media query in `<source>` matches.
+ * The `<source media="(prefers-color-scheme: dark)">` is evaluated natively by the
+ * browser based on the operating system's color scheme setting — it does not depend
+ * on any JavaScript class toggling (e.g. the `.dark` utility class).
  */
 export function DarkModeImage({ lightSrc, darkSrc, alt, className }: DarkModeImageProps) {
     return (

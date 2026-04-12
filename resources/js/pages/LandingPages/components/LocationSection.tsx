@@ -11,7 +11,6 @@ import { MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, useMap }
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { LandingPageCard } from './LandingPageCard';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
@@ -352,7 +351,6 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
  */
 export function LocationSection({ geoLocations, isDark = false }: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
-    const fadeRef = useFadeInOnScroll();
 
     // Client-side only rendering (Leaflet needs window/document)
     useEffect(() => {
@@ -393,10 +391,8 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     }
 
     return (
-        <section
-            ref={fadeRef}
+        <LandingPageCard
             aria-labelledby="heading-location"
-            className="fade-in-on-scroll rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
             data-testid="geolocation-section"
         >
             <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
@@ -418,6 +414,6 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
                     ))}
                 </MapContainer>
             </div>
-        </section>
+        </LandingPageCard>
     );
 }
