@@ -15,14 +15,14 @@ vi.mock('@/hooks/use-reduced-motion', () => ({
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 /**
- * Test wrapper that attaches the ref to an actual DOM element,
- * which is required for IntersectionObserver to be created.
+ * Test wrapper that attaches the callback ref to an actual DOM element.
+ * The new API returns a callback ref (element => void) instead of { ref, isVisible }.
  */
 function TestComponent({ threshold }: { threshold?: number } = {}) {
-    const { ref, isVisible } = useFadeInOnScroll({ threshold });
+    const fadeRef = useFadeInOnScroll({ threshold });
     return (
-        <div ref={ref} data-testid="target" data-visible={String(isVisible)}>
-            {isVisible ? 'visible' : 'hidden'}
+        <div ref={fadeRef} data-testid="target" className="fade-in-on-scroll">
+            content
         </div>
     );
 }
@@ -30,13 +30,16 @@ function TestComponent({ threshold }: { threshold?: number } = {}) {
 describe('useFadeInOnScroll', () => {
     beforeEach(() => {
         vi.mocked(useReducedMotion).mockReturnValue(false);
+        // Simulate the inline Blade script that runs before first paint
+        document.documentElement.classList.add('js-fade-ready');
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
+        document.documentElement.classList.remove('js-fade-ready');
     });
 
-    it('returns hidden initially before observer triggers', () => {
+    it('does not add is-visible class before observer triggers', () => {
         // Override the global mock so the observer does NOT auto-trigger
         const originalIO = globalThis.IntersectionObserver;
         globalThis.IntersectionObserver = class {
@@ -46,38 +49,44 @@ describe('useFadeInOnScroll', () => {
         } as unknown as typeof IntersectionObserver;
 
         render(<TestComponent />);
-        expect(screen.getByTestId('target')).toHaveAttribute('data-visible', 'false');
+        expect(screen.getByTestId('target')).not.toHaveClass('is-visible');
 
         globalThis.IntersectionObserver = originalIO;
     });
 
-    it('sets isVisible to true when IntersectionObserver triggers (mock auto-triggers)', () => {
+    it('adds is-visible class when IntersectionObserver triggers', () => {
         // The global mock IntersectionObserver in vitest.setup.ts immediately
-        // triggers isIntersecting: true, so isVisible should be true after render
+        // triggers isIntersecting: true, so is-visible class should be added
         render(<TestComponent />);
-        expect(screen.getByTestId('target')).toHaveAttribute('data-visible', 'true');
+        expect(screen.getByTestId('target')).toHaveClass('is-visible');
     });
 
-    it('respects reduced motion by setting isVisible true immediately', () => {
+    it('respects reduced motion by adding is-visible immediately', () => {
         vi.mocked(useReducedMotion).mockReturnValue(true);
 
         render(<TestComponent />);
-        expect(screen.getByTestId('target')).toHaveAttribute('data-visible', 'true');
+        expect(screen.getByTestId('target')).toHaveClass('is-visible');
     });
 
     it('accepts a custom threshold option', () => {
         render(<TestComponent threshold={0.5} />);
-        expect(screen.getByTestId('target')).toHaveAttribute('data-visible', 'true');
+        expect(screen.getByTestId('target')).toHaveClass('is-visible');
     });
 
-    it('handles missing ref element gracefully', () => {
-        // Render just the hook without attaching ref to a DOM element
+    it('handles null ref element gracefully', () => {
         function NoRefComponent() {
-            const { isVisible } = useFadeInOnScroll();
-            return <span data-testid="no-ref">{isVisible ? 'visible' : 'hidden'}</span>;
+            const fadeRef = useFadeInOnScroll();
+            void fadeRef;
+            return <span data-testid="no-ref">content</span>;
         }
 
         render(<NoRefComponent />);
-        expect(screen.getByTestId('no-ref')).toHaveTextContent('hidden');
+        expect(screen.getByTestId('no-ref')).toBeInTheDocument();
+    });
+
+    it('expects js-fade-ready class set by Blade inline script', () => {
+        // The inline <script> in app.blade.php adds js-fade-ready before first paint.
+        // The hook itself does NOT manage this class.
+        expect(document.documentElement).toHaveClass('js-fade-ready');
     });
 });

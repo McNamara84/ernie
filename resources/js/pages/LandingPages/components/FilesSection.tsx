@@ -2,36 +2,17 @@ import { Download, ExternalLink, Mail } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type { LandingPageLink } from '@/types/landing-page';
+import type { LandingPageContactPerson, LandingPageLicense, LandingPageLink } from '@/types/landing-page';
 
-import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { ContactModal } from './ContactModal';
 import { CreativeCommonsIcon } from './CreativeCommonsIcon';
-
-interface License {
-    id: number;
-    name: string;
-    spdx_id: string;
-    reference: string;
-}
-
-interface ContactPerson {
-    id: number;
-    name: string;
-    given_name: string | null;
-    family_name: string | null;
-    type: string;
-    source: 'creator' | 'contributor';
-    orcid: string | null;
-    website: string | null;
-    has_email: boolean;
-}
+import { LandingPageCard } from './LandingPageCard';
 
 interface FilesSectionProps {
     downloadUrl?: string | null;
     downloadFiles?: { url: string }[];
-    licenses: License[];
-    contactPersons?: ContactPerson[];
+    licenses: LandingPageLicense[];
+    contactPersons?: LandingPageContactPerson[];
     datasetTitle?: string;
     additionalLinks?: LandingPageLink[];
 }
@@ -48,8 +29,7 @@ type FallbackMode = 'download' | 'contact-form' | 'website' | 'fallback-message'
 
 export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPersons = [], datasetTitle, additionalLinks = [] }: FilesSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
-    const { ref, isVisible } = useFadeInOnScroll();
+    const [selectedPerson, setSelectedPerson] = useState<LandingPageContactPerson | null>(null);
 
     // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
@@ -76,7 +56,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
             ? 'website'
             : 'fallback-message';
 
-    const handleContactClick = (person: ContactPerson) => {
+    const handleContactClick = (person: LandingPageContactPerson) => {
         setSelectedPerson(person);
         setIsModalOpen(true);
     };
@@ -88,11 +68,9 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
 
     return (
         <>
-            <section
-                ref={ref}
+            <LandingPageCard
                 aria-labelledby="heading-files"
                 data-testid="files-section"
-                className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
             >
                 <h2 id="heading-files" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Files</h2>
 
@@ -199,7 +177,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                         </div>
                     )}
                 </div>
-            </section>
+            </LandingPageCard>
 
             {/* Contact Modal - rendered when user clicks contact button */}
             {selectedPerson && (

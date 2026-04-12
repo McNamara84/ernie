@@ -20,6 +20,22 @@
             })();
         </script>
 
+        {{-- Mark that JS is active so CSS fade-in animations apply on landing pages.
+             Without this class, .fade-in-on-scroll content stays fully visible (progressive enhancement).
+             Scoped to landing pages only so other pages are never affected if the bundle fails.
+             Fail-safe: if no element receives .is-visible within 4 s (e.g. bundle fails to load),
+             js-fade-ready is removed so SSR content becomes visible again. --}}
+        @if(str_starts_with($page['component'], 'LandingPages/'))
+            <script>
+                document.documentElement.classList.add('js-fade-ready');
+                setTimeout(function(){
+                    if(!document.querySelector('.fade-in-on-scroll.is-visible')){
+                        document.documentElement.classList.remove('js-fade-ready');
+                    }
+                },4000);
+            </script>
+        @endif
+
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {

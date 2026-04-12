@@ -70,7 +70,7 @@ class RelatedIdentifierTypeController extends Controller
                         'pattern' => $p->pattern,
                         'priority' => $p->priority,
                     ])
-                    ->all(),
+                    ->toArray(),
                 'detection' => $type->patterns
                     ->where('type', 'detection')
                     ->values()
@@ -78,7 +78,7 @@ class RelatedIdentifierTypeController extends Controller
                         'pattern' => $p->pattern,
                         'priority' => $p->priority,
                     ])
-                    ->all(),
+                    ->toArray(),
             ],
         ])->all();
     }

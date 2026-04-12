@@ -3,23 +3,15 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { LandingPageResource } from '@/types/landing-page';
+import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
-import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
+import { LandingPageCard } from './LandingPageCard';
 
 const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then(m => ({ default: m.RelationBrowserModal })));
 
-interface RelatedIdentifier {
-    id: number;
-    identifier: string;
-    identifier_type: string;
-    relation_type: string;
-    related_title?: string;
-}
-
 interface RelatedWorkSectionProps {
-    relatedIdentifiers: RelatedIdentifier[];
+    relatedIdentifiers: LandingPageRelatedIdentifier[];
     resource: LandingPageResource;
 }
 
@@ -47,11 +39,9 @@ const COLLAPSE_THRESHOLD = 9;
  * The first IsSupplementTo relation is excluded (shown in Model Description).
  */
 export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWorkSectionProps) {
-    // Citation cache keyed by DOI string (deduplicated across relation types)
     const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
-    const { ref, isVisible } = useFadeInOnScroll();
 
     // Exclude the first IsSupplementTo relation (memoized for referential stability)
     const filteredRelations = useMemo(() => {
@@ -75,7 +65,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                     acc[rel.relation_type].push(rel);
                     return acc;
                 },
-                {} as Record<string, RelatedIdentifier[]>,
+                {} as Record<string, LandingPageRelatedIdentifier[]>,
             ),
         [filteredRelations],
     );
@@ -195,10 +185,8 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
     const shouldCollapse = renderableRelations.length > COLLAPSE_THRESHOLD;
 
     return (
-        <section
-            ref={ref}
+        <LandingPageCard
             aria-labelledby="heading-related-work"
-            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
             data-testid="related-works-section"
         >
             <div className="mb-4 flex items-center justify-between">
@@ -349,6 +337,6 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                     />
                 </Suspense>
             )}
-        </section>
+        </LandingPageCard>
     );
 }

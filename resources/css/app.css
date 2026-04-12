@@ -286,23 +286,39 @@
     }
 }
 
+/* Landing page: scroll-triggered fade-in animation.
+ * Only applies when JS has set `.js-fade-ready` on <html>, so SSR/no-JS
+ * content stays fully visible (opacity: 1) by default. */
+.js-fade-ready .fade-in-on-scroll {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.js-fade-ready .fade-in-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity 0.4s ease-out,
+        transform 0.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .js-fade-ready .fade-in-on-scroll {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
 @theme inline {
-    --color-sidebar:
-        var(--sidebar);
-    --color-sidebar-foreground:
-        var(--sidebar-foreground);
-    --color-sidebar-primary:
-        var(--sidebar-primary);
-    --color-sidebar-primary-foreground:
-        var(--sidebar-primary-foreground);
-    --color-sidebar-accent:
-        var(--sidebar-accent);
-    --color-sidebar-accent-foreground:
-        var(--sidebar-accent-foreground);
-    --color-sidebar-border:
-        var(--sidebar-border);
-    --color-sidebar-ring:
-        var(--sidebar-ring);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
 }
 
 /* NProgress bar customization */

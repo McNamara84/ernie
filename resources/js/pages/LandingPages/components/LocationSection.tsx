@@ -1,8 +1,8 @@
 import 'leaflet/dist/leaflet.css';
 
 import L from 'leaflet';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +11,7 @@ import { MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, useMap }
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { useFadeInOnScroll } from '../hooks/useFadeInOnScroll';
+import { LandingPageCard } from './LandingPageCard';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
 // Using unknown as intermediate step for safer type assertion
@@ -351,7 +351,6 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
  */
 export function LocationSection({ geoLocations, isDark = false }: LocationSectionProps) {
     const [isMounted, setIsMounted] = useState(false);
-    const { ref, isVisible } = useFadeInOnScroll();
 
     // Client-side only rendering (Leaflet needs window/document)
     useEffect(() => {
@@ -359,7 +358,10 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     }, []);
 
     // Filter: Only GeoLocations with actual coordinates
-    const validLocations = useMemo(() => geoLocations.filter((geo) => hasPoint(geo) || hasBox(geo) || hasPolygon(geo) || hasLine(geo)), [geoLocations]);
+    const validLocations = useMemo(
+        () => geoLocations.filter((geo) => hasPoint(geo) || hasBox(geo) || hasPolygon(geo) || hasLine(geo)),
+        [geoLocations],
+    );
 
     // Calculate bounds for auto-zoom
     const bounds = useMemo(() => calculateBounds(validLocations), [validLocations]);
@@ -371,9 +373,7 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
 
     // Tile layer URL based on dark mode
     // Light: OpenStreetMap (free, no API key). Dark: CartoDB dark_all (free, no API key required).
-    const tileUrl = isDark
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const tileUrl = isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const tileAttribution = isDark
         ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -381,35 +381,27 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
     // Show loading placeholder during SSR — always visible (no fade-in gating)
     if (!isMounted) {
         return (
-            <section
-                ref={ref}
-                aria-labelledby="heading-location"
-                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-            >
-                <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
+            <LandingPageCard disableFadeIn aria-labelledby="heading-location">
+                <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Location
+                </h2>
                 <Skeleton className="h-[300px] w-full rounded-lg" />
-            </section>
+            </LandingPageCard>
         );
     }
 
     return (
-        <section
-            ref={ref}
-            aria-labelledby="heading-location"
-            className={`rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-opacity duration-200 ease-in-out hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-            data-testid="geolocation-section"
-        >
-            <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Location</h2>
+        <LandingPageCard aria-labelledby="heading-location" data-testid="geolocation-section">
+            <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Location
+            </h2>
             <div
                 className="relative z-0 h-[300px] w-full overflow-hidden rounded-lg"
                 data-testid="map-container"
                 aria-label="Map showing the geographic location of the dataset"
             >
                 <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer
-                        attribution={tileAttribution}
-                        url={tileUrl}
-                    />
+                    <TileLayer attribution={tileAttribution} url={tileUrl} />
                     <FitBoundsControl bounds={bounds} />
                     <FullscreenControl />
 
@@ -418,6 +410,6 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
                     ))}
                 </MapContainer>
             </div>
-        </section>
+        </LandingPageCard>
     );
 }
