@@ -3,6 +3,18 @@ import type { LandingPageFundingReference } from '@/types/landing-page';
 import { CollapsibleList } from './CollapsibleList';
 import { CrossrefFunderIcon, RorIcon } from './PidIcons';
 
+/**
+ * Resolves a Crossref Funder identifier to a full URL.
+ * If the value is already an http(s) URL, it is returned as-is.
+ * Otherwise it is treated as a bare DOI and prefixed with the doi.org resolver.
+ */
+function resolveCrossrefFunderUrl(identifier: string): string {
+    if (/^https?:\/\//i.test(identifier)) {
+        return identifier;
+    }
+    return `https://doi.org/${identifier}`;
+}
+
 interface FundersSectionProps {
     fundingReferences: LandingPageFundingReference[];
 }
@@ -45,7 +57,7 @@ export function FundersSection({ fundingReferences }: FundersSectionProps) {
 
                         {funding.funder_identifier_type === 'Crossref Funder ID' && funding.funder_identifier && (
                             <a
-                                href={`https://doi.org/${funding.funder_identifier}`}
+                                href={resolveCrossrefFunderUrl(funding.funder_identifier)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3"

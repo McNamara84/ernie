@@ -40,7 +40,7 @@ describe('FundersSection', () => {
         expect(screen.getByLabelText('ROR profile of DFG')).toHaveAttribute('href', 'https://ror.org/018mejw64');
     });
 
-    it('renders Crossref link for funder with Crossref Funder ID', () => {
+    it('renders Crossref link for funder with bare DOI identifier', () => {
         const funder = mockFunder({
             funder_name: 'EU Commission',
             funder_identifier: '10.13039/501100000780',
@@ -48,6 +48,16 @@ describe('FundersSection', () => {
         });
         render(<FundersSection fundingReferences={[funder]} />);
         expect(screen.getByLabelText('Crossref Funder ID for EU Commission')).toHaveAttribute('href', 'https://doi.org/10.13039/501100000780');
+    });
+
+    it('uses Crossref identifier as-is when it is already a full URL', () => {
+        const funder = mockFunder({
+            funder_name: 'NSF',
+            funder_identifier: 'https://doi.org/10.13039/100000001',
+            funder_identifier_type: 'Crossref Funder ID',
+        });
+        render(<FundersSection fundingReferences={[funder]} />);
+        expect(screen.getByLabelText('Crossref Funder ID for NSF')).toHaveAttribute('href', 'https://doi.org/10.13039/100000001');
     });
 
     it('does not show expand button when under threshold', () => {
