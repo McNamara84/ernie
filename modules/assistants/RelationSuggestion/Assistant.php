@@ -37,7 +37,7 @@ class Assistant extends AbstractAssistant
     {
         return SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
             ->orderBy('discovered_at', 'desc')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], 'relation_page');
     }
 
     #[\Override]

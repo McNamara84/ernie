@@ -172,6 +172,8 @@ class AssistanceController extends Controller
             $lock = Cache::lock($assistant->getLockKey(), 7200);
 
             if (! $lock->get()) {
+                $result["{$id}Error"] = $assistant->getManifest()->statusLabels['already_running']
+                    ?? 'A discovery job is already running.';
                 continue;
             }
 
@@ -196,8 +198,11 @@ class AssistanceController extends Controller
             }
         }
 
-        if (empty($result)) {
+        $hasJobIds = collect($result)->keys()->contains(fn (string $k) => str_ends_with($k, 'JobId'));
+
+        if (! $hasJobIds) {
             return response()->json([
+                ...$result,
                 'error' => 'All discovery jobs are already running. Please wait for them to finish.',
             ], 409);
         }

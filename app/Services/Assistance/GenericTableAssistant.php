@@ -179,8 +179,8 @@ abstract class GenericTableAssistant extends AbstractAssistant
             return false;
         }
 
-        // Use updateOrCreate to avoid duplicates
-        $wasRecentlyCreated = AssistantSuggestion::updateOrCreate(
+        // Skip if already exists (same assistant + target + value)
+        $wasRecentlyCreated = AssistantSuggestion::firstOrCreate(
             [
                 'assistant_id' => $this->getId(),
                 'target_type' => $targetType,

@@ -14,6 +14,7 @@ use App\Models\SuggestedOrcid;
 use App\Models\User;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -677,9 +678,13 @@ class OrcidDiscoveryService
 
     /**
      * Forget a cache key, using tags if supported.
+     *
+     * Also invalidates the total pending count so the sidebar badge updates.
      */
     private function forgetCacheKey(CacheKey $cacheKey): void
     {
         $this->getCacheInstance($cacheKey->tags())->forget($cacheKey->key());
+
+        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
     }
 }

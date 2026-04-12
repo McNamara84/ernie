@@ -46,7 +46,9 @@ class AssistantServiceProvider extends ServiceProvider
             $registrar->discoverModules(base_path('modules/assistants'));
         }
 
-        $this->registerRoutes($registrar);
+        if (! $this->app->routesAreCached()) {
+            $this->registerRoutes($registrar);
+        }
 
         $this->registerCacheCommand();
     }

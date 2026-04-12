@@ -168,7 +168,27 @@ describe('checkAll', function () {
         expect($hasJobIds)->toBeGreaterThanOrEqual(1);
     });
 
-    it('returns 409 when all assistants are already locked', function () {
+    it('returns error info for locked assistants instead of silently skipping', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        // Lock only the relation-suggestion assistant
+        $registrar = app(AssistantRegistrar::class);
+        $relationAssistant = $registrar->get('relation-suggestion');
+        Cache::lock($relationAssistant->getLockKey(), 7200)->get();
+
+        $response = $this->actingAs($user)
+            ->post('/assistance/check-all')
+            ->assertOk();
+
+        $data = $response->json();
+        // Locked assistant should have an error entry
+        expect($data)->toHaveKey('relation-suggestionError');
+        // Other assistants should still get job IDs
+        $hasJobIds = collect($data)->keys()->filter(fn ($k) => str_ends_with($k, 'JobId'))->count();
+        expect($hasJobIds)->toBeGreaterThanOrEqual(1);
+    });
+
+    it('returns 409 with error entries when all assistants are already locked', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         // Lock all real assistants
@@ -177,8 +197,14 @@ describe('checkAll', function () {
             Cache::lock($assistant->getLockKey(), 7200)->get();
         }
 
-        $this->actingAs($user)
+        $response = $this->actingAs($user)
             ->post('/assistance/check-all')
             ->assertStatus(409);
+
+        $data = $response->json();
+        // Should have per-assistant error entries plus the global error
+        expect($data)->toHaveKey('error');
+        $errorKeys = collect($data)->keys()->filter(fn ($k) => str_ends_with($k, 'Error'));
+        expect($errorKeys->count())->toBeGreaterThanOrEqual(1);
     });
 });

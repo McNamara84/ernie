@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\CacheKey;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\GenericTableAssistant;
 use Illuminate\Bus\Queueable;
@@ -127,6 +128,10 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
                 'jobId' => $this->jobId,
                 'newSuggestionsFound' => $newCount,
             ]);
+
+            if ($newCount > 0) {
+                Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
+            }
         } catch (\Exception $e) {
             Log::error('DiscoverAssistantSuggestionsJob failed', [
                 'assistantId' => $this->assistantId,

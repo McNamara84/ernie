@@ -1012,9 +1012,13 @@ class RorDiscoveryService
 
     /**
      * Forget a cache key, using tags if supported.
+     *
+     * Also invalidates the total pending count so the sidebar badge updates.
      */
     private function forgetCacheKey(CacheKey $cacheKey): void
     {
         $this->getCacheInstance($cacheKey->tags())->forget($cacheKey->key());
+
+        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
     }
 }

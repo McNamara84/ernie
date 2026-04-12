@@ -122,6 +122,38 @@ describe('storeSuggestion', function () {
             ->count())->toBe(1);
     });
 
+    it('does not update existing suggestion when duplicate is stored', function () {
+        $resource = Resource::factory()->create();
+        $assistant = new TestGenericAssistant();
+
+        $assistant->storeSuggestion(
+            resourceId: $resource->id,
+            targetType: 'right',
+            targetId: 1,
+            suggestedValue: 'MIT',
+            suggestedLabel: 'MIT License',
+            similarityScore: 0.80,
+        );
+
+        // Attempt to store again with different label and score
+        $assistant->storeSuggestion(
+            resourceId: $resource->id,
+            targetType: 'right',
+            targetId: 1,
+            suggestedValue: 'MIT',
+            suggestedLabel: 'Updated Label',
+            similarityScore: 0.99,
+        );
+
+        $suggestion = AssistantSuggestion::where('assistant_id', $assistant->getId())
+            ->where('suggested_value', 'MIT')
+            ->first();
+
+        // Original values should be preserved (firstOrCreate does not update)
+        expect($suggestion->suggested_label)->toBe('MIT License')
+            ->and($suggestion->similarity_score)->toBe(0.80);
+    });
+
     it('skips previously dismissed suggestions', function () {
         $resource = Resource::factory()->create();
         $user = User::factory()->create();
@@ -267,6 +299,28 @@ describe('acceptSuggestion', function () {
 
         expect($result['success'])->toBeFalse();
     });
+
+    it('invalidates total pending count cache', function () {
+        $resource = Resource::factory()->create();
+        $assistant = new TestGenericAssistant();
+
+        $cacheKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
+        Cache::put($cacheKey, 5, now()->addHour());
+
+        $suggestion = AssistantSuggestion::create([
+            'assistant_id' => $assistant->getId(),
+            'resource_id' => $resource->id,
+            'target_type' => 'right',
+            'target_id' => 1,
+            'suggested_value' => 'MIT',
+            'suggested_label' => 'MIT License',
+            'discovered_at' => now(),
+        ]);
+
+        $assistant->acceptSuggestion($suggestion->id);
+
+        expect(Cache::has($cacheKey))->toBeFalse();
+    });
 });
 
 describe('declineSuggestion', function () {
@@ -298,6 +352,29 @@ describe('declineSuggestion', function () {
         expect($dismissed)->not->toBeNull()
             ->and($dismissed->dismissed_by)->toBe($user->id)
             ->and($dismissed->reason)->toBe('Not applicable');
+    });
+
+    it('invalidates total pending count cache', function () {
+        $resource = Resource::factory()->create();
+        $user = User::factory()->create();
+        $assistant = new TestGenericAssistant();
+
+        $cacheKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
+        Cache::put($cacheKey, 5, now()->addHour());
+
+        $suggestion = AssistantSuggestion::create([
+            'assistant_id' => $assistant->getId(),
+            'resource_id' => $resource->id,
+            'target_type' => 'right',
+            'target_id' => 1,
+            'suggested_value' => 'MIT',
+            'suggested_label' => 'MIT License',
+            'discovered_at' => now(),
+        ]);
+
+        $assistant->declineSuggestion($suggestion->id, $user, 'Not relevant');
+
+        expect(Cache::has($cacheKey))->toBeFalse();
     });
 });
 

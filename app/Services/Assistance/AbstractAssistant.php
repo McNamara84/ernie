@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Enums\CacheKey;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Base class for existing assistant modules that use their own database tables.
@@ -109,7 +111,11 @@ abstract class AbstractAssistant implements AssistantContract
             return ['success' => false, 'message' => 'Suggestion not found.'];
         }
 
-        return $this->accept($suggestion);
+        $result = $this->accept($suggestion);
+
+        $this->forgetTotalPendingCount();
+
+        return $result;
     }
 
     public function declineSuggestion(int $id, User $user, ?string $reason): void
@@ -121,5 +127,15 @@ abstract class AbstractAssistant implements AssistantContract
         }
 
         $this->decline($suggestion, $user, $reason);
+
+        $this->forgetTotalPendingCount();
+    }
+
+    /**
+     * Invalidate the cached total pending count so the sidebar badge updates.
+     */
+    private function forgetTotalPendingCount(): void
+    {
+        Cache::forget(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key());
     }
 }

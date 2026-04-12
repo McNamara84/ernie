@@ -234,6 +234,67 @@ describe('handle', function () {
         expect($newLock->get())->toBeTrue();
         $newLock->release();
     });
+
+    it('invalidates total pending count when new suggestions found', function () {
+        $uuid = Str::uuid()->toString();
+        $assistantId = 'test-assistant';
+        $cacheKey = "test_cache:{$uuid}";
+
+        $totalCountKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
+        Cache::put($totalCountKey, 10, now()->addHour());
+
+        $mockAssistant = Mockery::mock(GenericTableAssistant::class);
+        $mockAssistant->shouldReceive('getJobStatusCacheKey')
+            ->with($uuid)
+            ->andReturn($cacheKey);
+        $mockAssistant->shouldReceive('runDiscovery')
+            ->once()
+            ->andReturn(3); // 3 new suggestions found
+        $mockAssistant->shouldReceive('getLockKey')->andReturn('test_lock');
+
+        $registrar = Mockery::mock(AssistantRegistrar::class);
+        $registrar->shouldReceive('get')
+            ->with($assistantId)
+            ->andReturn($mockAssistant);
+
+        $this->app->instance(AssistantRegistrar::class, $registrar);
+
+        $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid);
+        $job->handle($registrar);
+
+        expect(Cache::has($totalCountKey))->toBeFalse();
+    });
+
+    it('preserves total pending count when no new suggestions found', function () {
+        $uuid = Str::uuid()->toString();
+        $assistantId = 'test-assistant';
+        $cacheKey = "test_cache:{$uuid}";
+
+        $totalCountKey = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key();
+        Cache::put($totalCountKey, 10, now()->addHour());
+
+        $mockAssistant = Mockery::mock(GenericTableAssistant::class);
+        $mockAssistant->shouldReceive('getJobStatusCacheKey')
+            ->with($uuid)
+            ->andReturn($cacheKey);
+        $mockAssistant->shouldReceive('runDiscovery')
+            ->once()
+            ->andReturn(0); // No new suggestions
+        $mockAssistant->shouldReceive('getLockKey')->andReturn('test_lock');
+
+        $registrar = Mockery::mock(AssistantRegistrar::class);
+        $registrar->shouldReceive('get')
+            ->with($assistantId)
+            ->andReturn($mockAssistant);
+
+        $this->app->instance(AssistantRegistrar::class, $registrar);
+
+        $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid);
+        $job->handle($registrar);
+
+        expect(Cache::has($totalCountKey))->toBeTrue();
+        expect(Cache::get($totalCountKey))->toBe(10);
+    });
 });
 
 // =========================================================================
