@@ -17,7 +17,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('assistant_suggestions', function (Blueprint $table) {
+        $isMysql = Schema::getConnection()->getDriverName() === 'mysql';
+
+        Schema::create('assistant_suggestions', function (Blueprint $table) use ($isMysql) {
             $table->id();
             $table->string('assistant_id', 100);
             $table->foreignId('resource_id')->nullable()->constrained('resources')->cascadeOnDelete();
@@ -25,30 +27,50 @@ return new class extends Migration
             $table->unsignedBigInteger('target_id');
             $table->string('suggested_value', 1000);
             $table->string('suggested_label', 1000);
+
+            if ($isMysql) {
+                // MySQL: computed hash column for safe unique index length (utf8mb4 limit)
+                $table->char('suggested_value_hash', 64)->storedAs('sha2(suggested_value, 256)');
+            }
+
             $table->decimal('similarity_score', 5, 4)->nullable();
             $table->json('metadata')->nullable();
             $table->timestamp('discovered_at');
             $table->timestamps();
 
             // Prevent duplicate suggestions per assistant + target + value
-            $table->unique(['assistant_id', 'target_type', 'target_id', 'suggested_value'], 'assistant_suggestions_unique');
+            if ($isMysql) {
+                $table->unique(['assistant_id', 'target_type', 'target_id', 'suggested_value_hash'], 'assistant_suggestions_unique');
+            } else {
+                $table->unique(['assistant_id', 'target_type', 'target_id', 'suggested_value'], 'assistant_suggestions_unique');
+            }
 
             // Fast lookup per assistant for pagination
             $table->index(['assistant_id', 'discovered_at']);
         });
 
-        Schema::create('assistant_dismissed', function (Blueprint $table) {
+        Schema::create('assistant_dismissed', function (Blueprint $table) use ($isMysql) {
             $table->id();
             $table->string('assistant_id', 100);
             $table->string('target_type', 100);
             $table->unsignedBigInteger('target_id');
             $table->string('dismissed_value', 1000);
+
+            if ($isMysql) {
+                // MySQL: computed hash column for safe unique index length (utf8mb4 limit)
+                $table->char('dismissed_value_hash', 64)->storedAs('sha2(dismissed_value, 256)');
+            }
+
             $table->foreignId('dismissed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('reason', 255)->nullable();
             $table->timestamps();
 
             // Prevent duplicate dismissed entries
-            $table->unique(['assistant_id', 'target_type', 'target_id', 'dismissed_value'], 'assistant_dismissed_unique');
+            if ($isMysql) {
+                $table->unique(['assistant_id', 'target_type', 'target_id', 'dismissed_value_hash'], 'assistant_dismissed_unique');
+            } else {
+                $table->unique(['assistant_id', 'target_type', 'target_id', 'dismissed_value'], 'assistant_dismissed_unique');
+            }
         });
     }
 

@@ -14,6 +14,7 @@ import {
     type AcceptResponse,
     type AssistancePageProps,
     type AssistantManifest,
+    type BaseSuggestionItem,
     type CheckStatusResponse,
     type PaginatedData,
     type SuggestedOrcidItem,
@@ -341,7 +342,24 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     if (status.status === 'completed') {
                         pollingRefs.current[id] = null;
                         patch(id, { isChecking: false, progress: '' });
-                        toast.success(manifest.statusLabels.completed_with_results ?? `${manifest.name} completed.`);
+
+                        // Pick correct label and interpolate {count}
+                        const found = (status as Record<string, unknown>).newSuggestionsFound
+                            ?? (status as Record<string, unknown>).newRelationsFound
+                            ?? (status as Record<string, unknown>).newOrcidsFound
+                            ?? (status as Record<string, unknown>).newRorsFound
+                            ?? 0;
+                        const count = Number(found);
+                        const label = count > 0
+                            ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
+                            : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
+                        const message = label.replace('{count}', String(count));
+
+                        if (count > 0) {
+                            toast.success(message);
+                        } else {
+                            toast.info(message);
+                        }
                         router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
                     } else if (status.status === 'failed') {
                         pollingRefs.current[id] = null;
@@ -468,7 +486,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
     // ── Render helpers ───────────────────────────────────────────────
 
-    function renderCard(manifest: AssistantManifest, item: Record<string, unknown>, isProcessing: boolean) {
+    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
         const onAccept = (id: number) => handleAccept(manifest, id);
         const onDecline = (id: number) => handleDecline(manifest, id);
 
@@ -508,15 +526,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                             <div className="min-w-0 flex-1 space-y-1">
                                 <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    Discovered: {item.discovered_at ? new Date(String(item.discovered_at)).toLocaleDateString() : '—'}
+                                    Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
                                 </p>
                             </div>
                             <div className="flex shrink-0 gap-2">
-                                <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id as number)}>
+                                <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
                                     <X className="mr-1 h-4 w-4" />
                                     Decline
                                 </Button>
-                                <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id as number)}>
+                                <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
                                     <Check className="mr-1 h-4 w-4" />
                                     Accept
                                 </Button>
@@ -567,19 +585,19 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                 {/* Section cards — one per assistant, ordered by sortOrder */}
                 {manifests.map((manifest) => {
-                    const sectionData = sections[manifest.id] as unknown as PaginatedData<Record<string, unknown>> | undefined;
+                    const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
                     const state = states[manifest.id];
 
                     if (!sectionData) return null;
 
                     // Group items by resource
-                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: Record<string, unknown>[] }>>(
+                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
                         (groups, item) => {
-                            const resourceId = item.resource_id as number;
+                            const resourceId = item.resource_id;
                             if (!groups[resourceId]) {
                                 groups[resourceId] = {
-                                    doi: String(item.resource_doi ?? ''),
-                                    title: String(item.resource_title ?? 'Untitled'),
+                                    doi: item.resource_doi ?? '',
+                                    title: item.resource_title ?? 'Untitled',
                                     items: [],
                                 };
                             }

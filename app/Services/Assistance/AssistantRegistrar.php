@@ -54,6 +54,24 @@ class AssistantRegistrar
     }
 
     /**
+     * Register assistants from a pre-resolved list of manifest paths (cached boot).
+     *
+     * @param  list<string>  $manifestPaths
+     */
+    public function registerFromPaths(array $manifestPaths): void
+    {
+        foreach ($manifestPaths as $manifestPath) {
+            try {
+                $this->registerFromManifest($manifestPath);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to register assistant from {$manifestPath}: {$e->getMessage()}");
+            }
+        }
+
+        uasort($this->assistants, fn (AssistantContract $a, AssistantContract $b) => $a->getManifest()->sortOrder <=> $b->getManifest()->sortOrder);
+    }
+
+    /**
      * Register an assistant from a manifest.json file path.
      */
     private function registerFromManifest(string $manifestPath): void

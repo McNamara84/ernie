@@ -34,16 +34,24 @@ export interface AssistantManifest {
     icon: string;
     version: string;
     routePrefix: string;
-    lockKey: string;
-    cacheKeyPrefix: string;
     sortOrder: number;
     statusLabels: Record<string, string>;
     emptyState: { title: string; description: string };
     cardComponent: string | null;
 }
 
+/** Base fields shared by all suggestion types (including generic assistant_suggestions). */
+export interface BaseSuggestionItem {
+    id: number;
+    resource_id: number;
+    resource_doi: string;
+    resource_title: string;
+    discovered_at: string;
+    [key: string]: unknown;
+}
+
 export interface AssistancePageProps {
-    sections: Record<string, PaginatedData<SuggestedRelationItem | SuggestedOrcidItem | SuggestedRorItem>>;
+    sections: Record<string, PaginatedData<BaseSuggestionItem>>;
     manifests: AssistantManifest[];
 }
 

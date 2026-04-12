@@ -749,9 +749,42 @@ erDiagram
         timestamp updated_at
     }
 
+    assistant_suggestions {
+        bigint id PK
+        varchar assistant_id
+        bigint resource_id FK "nullable"
+        varchar target_type
+        bigint_unsigned target_id
+        varchar suggested_value
+        varchar suggested_label
+        char suggested_value_hash "generated"
+        decimal similarity_score "nullable"
+        json metadata "nullable"
+        timestamp discovered_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    assistant_dismissed {
+        bigint id PK
+        varchar assistant_id
+        varchar target_type
+        bigint_unsigned target_id
+        varchar dismissed_value
+        char dismissed_value_hash "generated"
+        bigint dismissed_by FK "nullable"
+        varchar reason "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% RELATIONSHIPS
     %% =========================================================================
+
+    %% Assistant module relationships
+    resources ||--o{ assistant_suggestions : "has"
+    users ||--o{ assistant_dismissed : "dismissed by"
 
     %% Resource core relationships
     resources ||--o{ titles : "has"

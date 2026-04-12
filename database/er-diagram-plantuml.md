@@ -822,9 +822,44 @@ entity oai_pmh_resumption_tokens {
     updated_at : TIMESTAMP
 }
 
+entity assistant_suggestions {
+    * id : BIGINT <<PK>>
+    --
+    * assistant_id : VARCHAR(100)
+    resource_id : BIGINT <<FK>> <<nullable>>
+    * target_type : VARCHAR(100)
+    * target_id : BIGINT UNSIGNED
+    * suggested_value : VARCHAR(1000)
+    * suggested_label : VARCHAR(1000)
+    * suggested_value_hash : CHAR(64) <<generated>>
+    similarity_score : DECIMAL(5,4) <<nullable>>
+    metadata : JSON <<nullable>>
+    * discovered_at : TIMESTAMP
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity assistant_dismissed {
+    * id : BIGINT <<PK>>
+    --
+    * assistant_id : VARCHAR(100)
+    * target_type : VARCHAR(100)
+    * target_id : BIGINT UNSIGNED
+    * dismissed_value : VARCHAR(1000)
+    * dismissed_value_hash : CHAR(64) <<generated>>
+    dismissed_by : BIGINT <<FK>> <<nullable>>
+    reason : VARCHAR(255) <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 ' ==========================================================================
 ' RELATIONSHIPS
 ' ==========================================================================
+
+' Assistant module relationships
+resources ||--o{ assistant_suggestions
+users ||--o{ assistant_dismissed
 
 ' Resource core relationships
 resources ||--o{ titles

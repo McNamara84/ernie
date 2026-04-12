@@ -82,10 +82,10 @@ class HandleInertiaRequests extends Middleware
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
             'pendingAssistanceTotalCount' => $request->user()?->can('access-assistance')
-                ? $this->getCacheInstance(CacheKey::SUGGESTED_RELATIONS_COUNT->tags())
+                ? $this->getCacheInstance(CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->tags())
                     ->remember(
-                        'assistance:total_pending_count',
-                        CacheKey::SUGGESTED_RELATIONS_COUNT->ttl(),
+                        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->key(),
+                        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->ttl(),
                         fn () => app(AssistantRegistrar::class)->totalPendingCount(),
                     )
                 : 0,

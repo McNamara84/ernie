@@ -59,9 +59,19 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
 
     /**
      * Get the cache key for tracking job progress.
+     *
+     * Resolves the assistant from the registrar to use the manifest's cache key prefix,
+     * matching the key the controller polls via AssistantContract::getJobStatusCacheKey().
      */
     public function getCacheKey(): string
     {
+        $assistant = app(AssistantRegistrar::class)->get($this->assistantId);
+
+        if ($assistant !== null) {
+            return $assistant->getJobStatusCacheKey($this->jobId);
+        }
+
+        // Fallback for edge cases (assistant removed between dispatch and execution)
         return "{$this->assistantId}:{$this->jobId}";
     }
 
