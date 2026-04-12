@@ -3,18 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 /**
- * Module-level flag so the `js-fade-ready` class is added to `<html>` at most
- * once per page load.  The actual DOM write happens in a `useEffect` (after
- * commit) to avoid side effects during render — important for StrictMode.
- */
-let jsFadeReadyApplied = false;
-
-/** @internal Resets the module-level flag — only for use in tests. */
-export function _resetJsFadeReady(): void {
-    jsFadeReadyApplied = false;
-}
-
-/**
  * Lightweight scroll-triggered fade-in hook for landing page sections.
  *
  * Uses IntersectionObserver to detect when an element enters the viewport,
@@ -56,15 +44,6 @@ export function useFadeInOnScroll(options?: { threshold?: number }): (element: H
 
     // Capture threshold once — intentionally not reactive (see JSDoc above)
     const thresholdRef = useRef(options?.threshold ?? 0.1);
-
-    // Add `js-fade-ready` to <html> once after commit so CSS fade-in rules
-    // activate. Runs in useEffect (not during render) to satisfy StrictMode.
-    useEffect(() => {
-        if (!jsFadeReadyApplied) {
-            document.documentElement.classList.add('js-fade-ready');
-            jsFadeReadyApplied = true;
-        }
-    }, []);
 
     useEffect(() => {
         if (!node) {

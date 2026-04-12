@@ -5,7 +5,7 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { _resetJsFadeReady, useFadeInOnScroll } from '@/pages/LandingPages/hooks/useFadeInOnScroll';
+import { useFadeInOnScroll } from '@/pages/LandingPages/hooks/useFadeInOnScroll';
 
 // Mock use-reduced-motion hook
 vi.mock('@/hooks/use-reduced-motion', () => ({
@@ -30,12 +30,13 @@ function TestComponent({ threshold }: { threshold?: number } = {}) {
 describe('useFadeInOnScroll', () => {
     beforeEach(() => {
         vi.mocked(useReducedMotion).mockReturnValue(false);
+        // Simulate the inline Blade script that runs before first paint
+        document.documentElement.classList.add('js-fade-ready');
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
         document.documentElement.classList.remove('js-fade-ready');
-        _resetJsFadeReady();
     });
 
     it('does not add is-visible class before observer triggers', () => {
@@ -83,9 +84,9 @@ describe('useFadeInOnScroll', () => {
         expect(screen.getByTestId('no-ref')).toBeInTheDocument();
     });
 
-    it('adds js-fade-ready class to the document element', () => {
-        expect(document.documentElement).not.toHaveClass('js-fade-ready');
-        render(<TestComponent />);
+    it('expects js-fade-ready class set by Blade inline script', () => {
+        // The inline <script> in app.blade.php adds js-fade-ready before first paint.
+        // The hook itself does NOT manage this class.
         expect(document.documentElement).toHaveClass('js-fade-ready');
     });
 });

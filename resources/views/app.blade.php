@@ -20,6 +20,10 @@
             })();
         </script>
 
+        {{-- Mark that JS is active so CSS fade-in animations apply.
+             Without this class, .fade-in-on-scroll content stays fully visible (progressive enhancement). --}}
+        <script>document.documentElement.classList.add('js-fade-ready');</script>
+
         {{-- Inline style to set the HTML background color based on our theme in app.css --}}
         <style>
             html {

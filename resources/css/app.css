@@ -292,14 +292,14 @@
 .js-fade-ready .fade-in-on-scroll {
     opacity: 0;
     transform: translateY(8px);
-    transition:
-        opacity 0.4s ease-out,
-        transform 0.4s ease-out;
 }
 
 .js-fade-ready .fade-in-on-scroll.is-visible {
     opacity: 1;
     transform: translateY(0);
+    transition:
+        opacity 0.4s ease-out,
+        transform 0.4s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
