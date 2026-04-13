@@ -26,7 +26,9 @@ export function useNProgress(): void {
         });
     }, [prefersReducedMotion]);
 
-    // Subscribe to router events once; stable across reduced-motion changes
+    // Subscribe to router events once; stable across reduced-motion changes.
+    // A 250 ms delay prevents the progress bar from flashing during Inertia
+    // prefetch requests (triggered on hover) and fast cached navigations.
     useEffect(() => {
         NProgress.configure({
             showSpinner: false,
@@ -35,15 +37,29 @@ export function useNProgress(): void {
             trickleSpeed: motionRef.current ? 0 : 200,
         });
 
+        let timeout: ReturnType<typeof setTimeout> | null = null;
+
         const removeStart = router.on('start', () => {
-            NProgress.start();
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            timeout = setTimeout(() => {
+                NProgress.start();
+            }, 250);
         });
 
         const removeFinish = router.on('finish', () => {
+            if (timeout) {
+                clearTimeout(timeout);
+                timeout = null;
+            }
             NProgress.done();
         });
 
         return () => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
             removeStart();
             removeFinish();
             NProgress.remove();

@@ -41,6 +41,7 @@ describe('useNProgress', () => {
     const removeFinish = vi.fn();
 
     beforeEach(() => {
+        vi.useFakeTimers();
         vi.clearAllMocks();
         vi.mocked(useReducedMotion).mockReturnValue(false);
 
@@ -58,6 +59,7 @@ describe('useNProgress', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -72,16 +74,33 @@ describe('useNProgress', () => {
         );
     });
 
-    it('starts NProgress on Inertia start event', () => {
+    it('starts NProgress after 250 ms delay on Inertia start event', () => {
         renderHook(() => useNProgress());
 
         startCallback();
-        expect(NProgress.start).toHaveBeenCalled();
+        expect(NProgress.start).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(250);
+        expect(NProgress.start).toHaveBeenCalledOnce();
+    });
+
+    it('does not start NProgress if finish arrives before delay', () => {
+        renderHook(() => useNProgress());
+
+        startCallback();
+        vi.advanceTimersByTime(100);
+        finishCallback();
+
+        vi.advanceTimersByTime(200);
+        expect(NProgress.start).not.toHaveBeenCalled();
+        expect(NProgress.done).toHaveBeenCalledOnce();
     });
 
     it('finishes NProgress on Inertia finish event', () => {
         renderHook(() => useNProgress());
 
+        startCallback();
+        vi.advanceTimersByTime(250);
         finishCallback();
         expect(NProgress.done).toHaveBeenCalled();
     });
