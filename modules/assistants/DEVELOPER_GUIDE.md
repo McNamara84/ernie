@@ -25,6 +25,8 @@ The **Assistance** feature helps curators enrich metadata by automatically disco
 
 Each assistant is a **self-contained module** inside `modules/assistants/`. Removing the folder removes the assistant — no other files need to change.
 
+> **Cache note:** In production (or when `php artisan config:cache` has been run), assistant module paths are cached in `bootstrap/cache/assistants.php`. After adding or removing a module folder, run `php artisan optimize:clear` to refresh the cache.
+
 ```
 modules/assistants/
 ├── OrcidSuggestion/       ← discovers missing ORCIDs
@@ -82,6 +84,8 @@ modules/assistants/
 5. The controller delegates all requests to the correct assistant.
 
 **Key insight:** If the folder does not exist, **nothing happens**. No errors, no routes, no data.
+
+> **Important:** Steps 1–5 describe the **uncached** boot path. When `php artisan config:cache` has been run, the service provider reads a cached list of manifest paths from `bootstrap/cache/assistants.php` instead of scanning the filesystem. After adding or removing a module folder in a cached environment, run `php artisan optimize:clear` to rebuild the list.
 
 ---
 

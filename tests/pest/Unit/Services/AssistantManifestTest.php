@@ -29,6 +29,17 @@ describe('fromFile', function () {
         AssistantManifest::fromFile('/non/existent/manifest.json');
     })->throws(InvalidArgumentException::class, 'Manifest file not found');
 
+    it('throws for invalid JSON', function () {
+        $path = tempnam(sys_get_temp_dir(), 'manifest_');
+        file_put_contents($path, '{ invalid json }');
+
+        try {
+            AssistantManifest::fromFile($path);
+        } finally {
+            unlink($path);
+        }
+    })->throws(InvalidArgumentException::class, 'Invalid JSON in manifest file');
+
     it('provides default status labels', function () {
         $manifest = AssistantManifest::fromFile(
             base_path('modules/assistants/RelationSuggestion/manifest.json'),

@@ -61,8 +61,12 @@ readonly class AssistantManifest
             throw new \InvalidArgumentException("Could not read manifest file: {$path}");
         }
 
-        /** @var array<string, mixed>|null $data */
-        $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        try {
+            /** @var array<string, mixed>|null $data */
+            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new \InvalidArgumentException("Invalid JSON in manifest file {$path}: {$e->getMessage()}", 0, $e);
+        }
 
         if (! is_array($data)) {
             throw new \InvalidArgumentException("Manifest file must contain a JSON object: {$path}");
