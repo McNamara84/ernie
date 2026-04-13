@@ -131,7 +131,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
     #[\Override]
     public function dispatchDiscovery(string $jobId, string $lockOwner): void
     {
-        DiscoverAssistantSuggestionsJob::dispatch($this->getId(), $jobId, $lockOwner);
+        DiscoverAssistantSuggestionsJob::dispatch($this->getId(), $jobId, $lockOwner, $this->getLockKey());
     }
 
     /**

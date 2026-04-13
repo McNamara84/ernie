@@ -45,6 +45,7 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
      * @param  string  $assistantId  The assistant module ID (e.g. "spdx-license")
      * @param  string  $jobId  Unique identifier for progress tracking (UUID format)
      * @param  string|null  $lockOwner  Cache lock owner token for releasing the lock on completion
+     * @param  string|null  $lockKey  Cache lock key persisted at dispatch time
      *
      * @throws \InvalidArgumentException If jobId is not a valid UUID
      */
@@ -52,6 +53,7 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
         private readonly string $assistantId,
         private readonly string $jobId,
         private readonly ?string $lockOwner = null,
+        private readonly ?string $lockKey = null,
     ) {
         if (! Str::isUuid($jobId)) {
             throw new \InvalidArgumentException('Job ID must be a valid UUID');
@@ -175,10 +177,8 @@ class DiscoverAssistantSuggestionsJob implements ShouldQueue
      */
     private function releaseLock(): void
     {
-        if ($this->lockOwner !== null) {
-            $assistant = app(AssistantRegistrar::class)->get($this->assistantId);
-            $lockKey = $assistant?->getLockKey() ?? "{$this->assistantId}_discovery_running";
-            Cache::restoreLock($lockKey, $this->lockOwner)->release();
+        if ($this->lockOwner !== null && $this->lockKey !== null) {
+            Cache::restoreLock($this->lockKey, $this->lockOwner)->release();
         }
     }
 }

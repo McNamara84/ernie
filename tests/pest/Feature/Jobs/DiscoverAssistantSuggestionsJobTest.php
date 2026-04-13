@@ -217,7 +217,6 @@ describe('handle', function () {
         $mockAssistant->shouldReceive('runDiscovery')
             ->once()
             ->andReturn(0);
-        $mockAssistant->shouldReceive('getLockKey')->andReturn($lockKey);
 
         $registrar = Mockery::mock(AssistantRegistrar::class);
         $registrar->shouldReceive('get')
@@ -226,7 +225,7 @@ describe('handle', function () {
 
         $this->app->instance(AssistantRegistrar::class, $registrar);
 
-        $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid, $lockOwner);
+        $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid, $lockOwner, $lockKey);
         $job->handle($registrar);
 
         // Lock should have been released — acquiring again should succeed
@@ -408,7 +407,6 @@ describe('failed', function () {
         $mockAssistant->shouldReceive('getJobStatusCacheKey')
             ->with($uuid)
             ->andReturn("test_cache:{$uuid}");
-        $mockAssistant->shouldReceive('getLockKey')->andReturn($lockKey);
 
         $registrar = Mockery::mock(AssistantRegistrar::class);
         $registrar->shouldReceive('get')
@@ -417,7 +415,7 @@ describe('failed', function () {
 
         $this->app->instance(AssistantRegistrar::class, $registrar);
 
-        $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid, $lockOwner);
+        $job = new DiscoverAssistantSuggestionsJob($assistantId, $uuid, $lockOwner, $lockKey);
         $job->failed(new RuntimeException('Queue timeout'));
 
         // Lock should be released

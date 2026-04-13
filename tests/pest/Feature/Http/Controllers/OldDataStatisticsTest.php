@@ -43,6 +43,7 @@ function mockMetaworksConnection(): void
         ->andReturnUsing(fn ($value) => new \Illuminate\Database\Query\Expression($value));
 
     $realManager = DB::getFacadeRoot();
+    test()->originalDbManager = $realManager;
     $mock = Mockery::mock($realManager)->makePartial();
     $mock->shouldReceive('connection')
         ->with('metaworks')
@@ -55,6 +56,9 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    if (isset(test()->originalDbManager)) {
+        DB::swap(test()->originalDbManager);
+    }
     Cache::flush();
 });
 

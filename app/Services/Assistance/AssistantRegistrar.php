@@ -73,10 +73,18 @@ class AssistantRegistrar
 
     /**
      * Register an assistant from a manifest.json file path.
+     *
+     * Skips registration if another assistant with the same ID is already registered.
      */
     private function registerFromManifest(string $manifestPath): void
     {
         $manifest = AssistantManifest::fromFile($manifestPath);
+
+        if (isset($this->assistants[$manifest->id])) {
+            Log::warning("Duplicate assistant ID '{$manifest->id}' in {$manifestPath} — skipping (already registered).");
+
+            return;
+        }
 
         $class = $manifest->assistantClass;
 
