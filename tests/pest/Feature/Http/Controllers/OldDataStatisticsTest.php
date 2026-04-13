@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Mock the metaworks database connection to prevent actual database queries.
+ *
+ * Uses a partial mock so that only 'metaworks' connection calls are intercepted
+ * while the default database connection continues to work normally.
  */
 function mockMetaworksConnection(): void
 {
@@ -39,12 +42,12 @@ function mockMetaworksConnection(): void
     $connection->shouldReceive('raw')
         ->andReturnUsing(fn ($value) => new \Illuminate\Database\Query\Expression($value));
 
-    DB::shouldReceive('connection')
+    $realManager = DB::getFacadeRoot();
+    $mock = Mockery::mock($realManager)->makePartial();
+    $mock->shouldReceive('connection')
         ->with('metaworks')
         ->andReturn($connection);
-
-    DB::shouldReceive('raw')
-        ->andReturnUsing(fn ($value) => new \Illuminate\Database\Query\Expression($value));
+    DB::swap($mock);
 }
 
 beforeEach(function () {

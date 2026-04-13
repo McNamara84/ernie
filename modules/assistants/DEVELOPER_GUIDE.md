@@ -1,10 +1,5 @@
 # Assistance Module — Developer Guide
 
-> **Audience:** Students with Python experience who are new to PHP / Laravel.
-> **Goal:** Create a new metadata enrichment assistant by adding **one folder** with **two files**.
-
----
-
 ## Table of Contents
 
 1. [Overview](#overview)
