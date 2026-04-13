@@ -55,7 +55,7 @@ class TestGenericAssistant extends GenericTableAssistant
      * Public proxy for testing the protected storeSuggestion().
      */
     public function storeSuggestion(
-        ?int $resourceId,
+        int $resourceId,
         string $targetType,
         int $targetId,
         string $suggestedValue,

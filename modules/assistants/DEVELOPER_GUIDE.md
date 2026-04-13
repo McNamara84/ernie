@@ -253,7 +253,7 @@ Every assistant **must** have a `manifest.json` in its root folder.
 
 ### For new assistants: extend `GenericTableAssistant`
 
-You only implement **two methods**:
+You only implement **three methods**:
 
 ```php
 // 1. Where is your manifest.json?
@@ -284,7 +284,7 @@ Call this inside `discover()` to store a suggestion:
 
 ```php
 $this->storeSuggestion(
-    resourceId:      $resource->id,     // FK to resources table (nullable)
+    resourceId:      $resource->id,     // FK to resources table (required)
     targetType:      'person',          // what entity type you're enriching
     targetId:        $person->id,       // PK of that entity
     suggestedValue:  '0000-0001-...',   // the actual suggestion

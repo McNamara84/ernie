@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
-use App\Models\AssistantSuggestion;
-use App\Models\SuggestedOrcid;
-use App\Models\SuggestedRelation;
-use App\Models\SuggestedRor;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -135,33 +131,20 @@ class AssistantRegistrar
     }
 
     /**
-     * Get the total number of pending suggestions across all assistants.
+     * Get the total number of pending suggestions across all registered assistants.
      *
-     * Uses a single UNION ALL query to count across all suggestion tables
-     * instead of issuing separate COUNT(*) queries per assistant.
-     *
-     * Resolves the database connection via Eloquent's model resolver
-     * instead of the DB facade to avoid conflicts with facade mocks in tests.
+     * Delegates to each assistant's countPending() so that only registered
+     * modules contribute to the total. With 3–5 assistants, this is a
+     * negligible number of simple COUNT queries.
      */
     public function totalPendingCount(): int
     {
-        if ($this->assistants === []) {
-            return 0;
+        $total = 0;
+
+        foreach ($this->assistants as $assistant) {
+            $total += $assistant->countPending();
         }
 
-        $db = (new AssistantSuggestion())->getConnection();
-
-        $result = $db->query()
-            ->selectRaw('SUM(cnt) as total')
-            ->fromSub(
-                $db->query()->selectRaw('COUNT(*) as cnt')->from((new SuggestedRelation())->getTable())
-                    ->unionAll($db->query()->selectRaw('COUNT(*) as cnt')->from((new SuggestedOrcid())->getTable()))
-                    ->unionAll($db->query()->selectRaw('COUNT(*) as cnt')->from((new SuggestedRor())->getTable()))
-                    ->unionAll($db->query()->selectRaw('COUNT(*) as cnt')->from((new AssistantSuggestion())->getTable())),
-                'counts',
-            )
-            ->value('total');
-
-        return (int) $result;
+        return $total;
     }
 }
