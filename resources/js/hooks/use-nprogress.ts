@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import NProgress from 'nprogress';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
@@ -13,13 +13,26 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion';
  */
 export function useNProgress(): void {
     const prefersReducedMotion = useReducedMotion();
+    const motionRef = useRef(prefersReducedMotion);
 
+    // Keep ref in sync without re-running the event-listener effect
     useEffect(() => {
+        motionRef.current = prefersReducedMotion;
         NProgress.configure({
             showSpinner: false,
             minimum: 0.1,
             speed: prefersReducedMotion ? 0 : 300,
             trickleSpeed: prefersReducedMotion ? 0 : 200,
+        });
+    }, [prefersReducedMotion]);
+
+    // Subscribe to router events once; stable across reduced-motion changes
+    useEffect(() => {
+        NProgress.configure({
+            showSpinner: false,
+            minimum: 0.1,
+            speed: motionRef.current ? 0 : 300,
+            trickleSpeed: motionRef.current ? 0 : 200,
         });
 
         const removeStart = router.on('start', () => {
@@ -35,5 +48,5 @@ export function useNProgress(): void {
             removeFinish();
             NProgress.remove();
         };
-    }, [prefersReducedMotion]);
+    }, []);
 }

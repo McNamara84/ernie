@@ -13,12 +13,10 @@ import { type BreadcrumbItem } from '@/types';
 import {
     type AcceptResponse,
     type AssistancePageProps,
+    type AssistantManifest,
+    type BaseSuggestionItem,
     type CheckStatusResponse,
-    type OrcidAcceptResponse,
-    type OrcidCheckStatusResponse,
     type PaginatedData,
-    type RorAcceptResponse,
-    type RorCheckStatusResponse,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
@@ -262,465 +260,330 @@ function RorSuggestionCard({
     );
 }
 
-export default function AssistancePage({ suggestions: paginatedSuggestions, orcidSuggestions: paginatedOrcidSuggestions, rorSuggestions: paginatedRorSuggestions }: AssistancePageProps) {
-    // Relation suggestions state
-    const [suggestions, setSuggestions] = useState<SuggestedRelationItem[]>(paginatedSuggestions.data);
-    const [pagination, setPagination] = useState<Omit<PaginatedData<SuggestedRelationItem>, 'data'>>(paginatedSuggestions);
-    const [isCheckingRelations, setIsCheckingRelations] = useState(false);
-    const [relationCheckProgress, setRelationCheckProgress] = useState<string>('');
-    const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
-    const relationPollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+// ── Per-section state ────────────────────────────────────────────────
 
-    // ORCID suggestions state
-    const [orcidSuggestions, setOrcidSuggestions] = useState<SuggestedOrcidItem[]>(paginatedOrcidSuggestions.data);
-    const [orcidPagination, setOrcidPagination] = useState<Omit<PaginatedData<SuggestedOrcidItem>, 'data'>>(paginatedOrcidSuggestions);
-    const [isCheckingOrcids, setIsCheckingOrcids] = useState(false);
-    const [orcidCheckProgress, setOrcidCheckProgress] = useState<string>('');
-    const [orcidProcessingIds, setOrcidProcessingIds] = useState<Set<number>>(new Set());
-    const orcidPollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+interface SectionState {
+    isChecking: boolean;
+    progress: string;
+    processingIds: Set<number>;
+}
 
-    // ROR suggestions state
-    const [rorSuggestions, setRorSuggestions] = useState<SuggestedRorItem[]>(paginatedRorSuggestions.data);
-    const [rorPagination, setRorPagination] = useState<Omit<PaginatedData<SuggestedRorItem>, 'data'>>(paginatedRorSuggestions);
-    const [isCheckingRors, setIsCheckingRors] = useState(false);
-    const [rorCheckProgress, setRorCheckProgress] = useState<string>('');
-    const [rorProcessingIds, setRorProcessingIds] = useState<Set<number>>(new Set());
-    const rorPollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function useSectionState(manifests: AssistantManifest[]) {
+    const defaultState = (): SectionState => ({ isChecking: false, progress: '', processingIds: new Set() });
 
-    // Sync state when Inertia updates props
-    useEffect(() => {
-        setSuggestions(paginatedSuggestions.data);
-        setPagination(paginatedSuggestions);
-    }, [paginatedSuggestions]);
-
-    useEffect(() => {
-        setOrcidSuggestions(paginatedOrcidSuggestions.data);
-        setOrcidPagination(paginatedOrcidSuggestions);
-    }, [paginatedOrcidSuggestions]);
-
-    useEffect(() => {
-        setRorSuggestions(paginatedRorSuggestions.data);
-        setRorPagination(paginatedRorSuggestions);
-    }, [paginatedRorSuggestions]);
-
-    const stopRelationPolling = useCallback(() => {
-        if (relationPollingRef.current !== null) {
-            clearTimeout(relationPollingRef.current);
-            relationPollingRef.current = null;
+    const [states, setStates] = useState<Record<string, SectionState>>(() => {
+        const initial: Record<string, SectionState> = {};
+        for (const m of manifests) {
+            initial[m.id] = defaultState();
         }
+        return initial;
+    });
+
+    // Sync states when manifests change (assistant added/removed after Inertia reload)
+    useEffect(() => {
+        setStates((prev) => {
+            const manifestIds = new Set(manifests.map((m) => m.id));
+            const next: Record<string, SectionState> = {};
+            for (const m of manifests) {
+                next[m.id] = prev[m.id] ?? defaultState();
+            }
+            // Only update if IDs actually changed
+            const prevIds = new Set(Object.keys(prev));
+            if (prevIds.size === manifestIds.size && [...manifestIds].every((id) => prevIds.has(id))) {
+                return prev;
+            }
+            return next;
+        });
+    }, [manifests]);
+
+    const pollingRefs = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
+
+    const patch = useCallback((id: string, update: Partial<SectionState>) => {
+        setStates((prev) => {
+            const current = prev[id] ?? defaultState();
+            return { ...prev, [id]: { ...current, ...update } };
+        });
     }, []);
 
-    const stopOrcidPolling = useCallback(() => {
-        if (orcidPollingRef.current !== null) {
-            clearTimeout(orcidPollingRef.current);
-            orcidPollingRef.current = null;
-        }
+    const addProcessingId = useCallback((sectionId: string, suggestionId: number) => {
+        setStates((prev) => {
+            const current = prev[sectionId] ?? defaultState();
+            const next = new Set(current.processingIds);
+            next.add(suggestionId);
+            return { ...prev, [sectionId]: { ...current, processingIds: next } };
+        });
     }, []);
 
-    const stopRorPolling = useCallback(() => {
-        if (rorPollingRef.current !== null) {
-            clearTimeout(rorPollingRef.current);
-            rorPollingRef.current = null;
-        }
+    const removeProcessingId = useCallback((sectionId: string, suggestionId: number) => {
+        setStates((prev) => {
+            const current = prev[sectionId] ?? defaultState();
+            const next = new Set(current.processingIds);
+            next.delete(suggestionId);
+            return { ...prev, [sectionId]: { ...current, processingIds: next } };
+        });
     }, []);
 
-    // Cleanup polling on unmount
+    // Cleanup all polling on unmount
     useEffect(() => {
         return () => {
-            stopRelationPolling();
-            stopOrcidPolling();
-            stopRorPolling();
-        };
-    }, [stopRelationPolling, stopOrcidPolling, stopRorPolling]);
-
-    const isChecking = isCheckingRelations || isCheckingOrcids || isCheckingRors;
-
-    // --- Relation discovery ---
-    const startRelationPolling = useCallback((jobId: string) => {
-        const pollStatus = async () => {
-            try {
-                const { data: status } = await axios.get<CheckStatusResponse>(`/assistance/check/${jobId}/status`);
-                setRelationCheckProgress(status.progress ?? '');
-
-                if (status.status === 'completed') {
-                    relationPollingRef.current = null;
-                    setIsCheckingRelations(false);
-                    const found = status.newRelationsFound ?? 0;
-                    if (found > 0) {
-                        toast.success(`Relation discovery completed: ${found} new relation(s) found.`);
-                    } else {
-                        toast.info('Relation discovery completed: No new relations found.');
-                    }
-                    router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
-                } else if (status.status === 'failed') {
-                    relationPollingRef.current = null;
-                    setIsCheckingRelations(false);
-                    toast.error(`Relation discovery failed: ${status.error ?? 'Unknown error'}`);
-                } else {
-                    relationPollingRef.current = setTimeout(pollStatus, 3000);
-                }
-            } catch {
-                relationPollingRef.current = null;
-                setIsCheckingRelations(false);
-                toast.error('Failed to check relation discovery status.');
+            for (const timer of Object.values(pollingRefs.current)) {
+                if (timer !== null) clearTimeout(timer);
             }
         };
-
-        relationPollingRef.current = setTimeout(pollStatus, 3000);
     }, []);
 
-    const handleCheckRelations = useCallback(async () => {
-        setIsCheckingRelations(true);
-        setRelationCheckProgress('Starting relation discovery...');
-        stopRelationPolling();
+    return { states, patch, addProcessingId, removeProcessingId, pollingRefs };
+}
 
-        try {
-            const { data } = await axios.post<{ jobId: string }>('/assistance/check');
-            startRelationPolling(data.jobId);
-        } catch (error) {
-            setIsCheckingRelations(false);
-            if (axios.isAxiosError(error) && error.response?.status === 409) {
-                toast.warning(error.response.data?.error ?? 'A relation discovery job is already running.');
-            } else {
-                toast.error('Failed to start relation discovery.');
-            }
+// ── Main page component ──────────────────────────────────────────────
+
+export default function AssistancePage({ sections, manifests }: AssistancePageProps) {
+    const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
+
+    const isAnyChecking = Object.values(states).some((s) => s.isChecking);
+
+    // ── Polling logic ────────────────────────────────────────────────
+
+    const stopPolling = useCallback((id: string) => {
+        const timer = pollingRefs.current[id];
+        if (timer !== null) {
+            clearTimeout(timer);
+            pollingRefs.current[id] = null;
         }
-    }, [stopRelationPolling, startRelationPolling]);
+    }, [pollingRefs]);
 
-    // --- ORCID discovery ---
-    const startOrcidPolling = useCallback((jobId: string) => {
-        const pollStatus = async () => {
-            try {
-                const { data: status } = await axios.get<OrcidCheckStatusResponse>(`/assistance/check-orcids/${jobId}/status`);
-                setOrcidCheckProgress(status.progress ?? '');
+    const startPolling = useCallback(
+        (manifest: AssistantManifest, jobId: string) => {
+            const id = manifest.id;
 
-                if (status.status === 'completed') {
-                    orcidPollingRef.current = null;
-                    setIsCheckingOrcids(false);
-                    const found = status.newOrcidsFound ?? 0;
-                    if (found > 0) {
-                        toast.success(`ORCID discovery completed: ${found} new suggestion(s) found.`);
+            const pollStatus = async () => {
+                try {
+                    const { data: status } = await axios.get<CheckStatusResponse>(
+                        `/assistance/check/${id}/${jobId}/status`,
+                    );
+                    patch(id, { progress: status.progress ?? '' });
+
+                    if (status.status === 'completed') {
+                        pollingRefs.current[id] = null;
+                        patch(id, { isChecking: false, progress: '' });
+
+                        // Pick correct label and interpolate {count}
+                        const found = (status as Record<string, unknown>).newSuggestionsFound
+                            ?? (status as Record<string, unknown>).newRelationsFound
+                            ?? (status as Record<string, unknown>).newOrcidsFound
+                            ?? (status as Record<string, unknown>).newRorsFound
+                            ?? 0;
+                        const count = Number(found);
+                        const label = count > 0
+                            ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
+                            : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
+                        const message = label.replace('{count}', String(count));
+
+                        if (count > 0) {
+                            toast.success(message);
+                        } else {
+                            toast.info(message);
+                        }
+                        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                    } else if (status.status === 'failed') {
+                        pollingRefs.current[id] = null;
+                        patch(id, { isChecking: false, progress: '' });
+                        toast.error(`${manifest.name} failed: ${status.error ?? 'Unknown error'}`);
                     } else {
-                        toast.info('ORCID discovery completed: No new suggestions found.');
+                        pollingRefs.current[id] = setTimeout(pollStatus, 3000);
                     }
-                    router.reload({ only: ['orcidSuggestions', 'pendingSuggestedOrcidsCount'] });
-                } else if (status.status === 'failed') {
-                    orcidPollingRef.current = null;
-                    setIsCheckingOrcids(false);
-                    toast.error(`ORCID discovery failed: ${status.error ?? 'Unknown error'}`);
-                } else {
-                    orcidPollingRef.current = setTimeout(pollStatus, 3000);
+                } catch {
+                    pollingRefs.current[id] = null;
+                    patch(id, { isChecking: false, progress: '' });
+                    toast.error(`Failed to check ${manifest.name} status.`);
                 }
-            } catch {
-                orcidPollingRef.current = null;
-                setIsCheckingOrcids(false);
-                toast.error('Failed to check ORCID discovery status.');
-            }
-        };
+            };
 
-        orcidPollingRef.current = setTimeout(pollStatus, 3000);
-    }, []);
+            pollingRefs.current[id] = setTimeout(pollStatus, 3000);
+        },
+        [patch, pollingRefs],
+    );
 
-    const handleCheckOrcids = useCallback(async () => {
-        setIsCheckingOrcids(true);
-        setOrcidCheckProgress('Starting ORCID discovery...');
-        stopOrcidPolling();
+    // ── Check one assistant ──────────────────────────────────────────
 
-        try {
-            const { data } = await axios.post<{ jobId: string }>('/assistance/check-orcids');
-            startOrcidPolling(data.jobId);
-        } catch (error) {
-            setIsCheckingOrcids(false);
-            if (axios.isAxiosError(error) && error.response?.status === 409) {
-                toast.warning(error.response.data?.error ?? 'An ORCID discovery job is already running.');
-            } else {
-                toast.error('Failed to start ORCID discovery.');
-            }
-        }
-    }, [stopOrcidPolling, startOrcidPolling]);
+    const handleCheck = useCallback(
+        async (manifest: AssistantManifest) => {
+            const id = manifest.id;
+            patch(id, { isChecking: true, progress: manifest.statusLabels.checking ?? 'Starting...' });
+            stopPolling(id);
 
-    // --- ROR discovery ---
-    const startRorPolling = useCallback((jobId: string) => {
-        const pollStatus = async () => {
             try {
-                const { data: status } = await axios.get<RorCheckStatusResponse>(`/assistance/check-rors/${jobId}/status`);
-                setRorCheckProgress(status.progress ?? '');
-
-                if (status.status === 'completed') {
-                    rorPollingRef.current = null;
-                    setIsCheckingRors(false);
-                    const found = status.newRorsFound ?? 0;
-                    if (found > 0) {
-                        toast.success(`ROR discovery completed: ${found} new suggestion(s) found.`);
-                    } else {
-                        toast.info('ROR discovery completed: No new suggestions found.');
-                    }
-                    router.reload({ only: ['rorSuggestions', 'pendingSuggestedRorsCount'] });
-                } else if (status.status === 'failed') {
-                    rorPollingRef.current = null;
-                    setIsCheckingRors(false);
-                    toast.error(`ROR discovery failed: ${status.error ?? 'Unknown error'}`);
+                const { data } = await axios.post<{ jobId: string }>(`/assistance/check/${id}`);
+                startPolling(manifest, data.jobId);
+            } catch (error) {
+                patch(id, { isChecking: false, progress: '' });
+                if (axios.isAxiosError(error) && error.response?.status === 409) {
+                    toast.warning(
+                        error.response.data?.error ?? manifest.statusLabels.already_running ?? 'Already running.',
+                    );
                 } else {
-                    rorPollingRef.current = setTimeout(pollStatus, 3000);
+                    toast.error(`Failed to start ${manifest.name}.`);
                 }
-            } catch {
-                rorPollingRef.current = null;
-                setIsCheckingRors(false);
-                toast.error('Failed to check ROR discovery status.');
             }
-        };
+        },
+        [patch, stopPolling, startPolling],
+    );
 
-        rorPollingRef.current = setTimeout(pollStatus, 3000);
-    }, []);
+    // ── Check all ────────────────────────────────────────────────────
 
-    const handleCheckRors = useCallback(async () => {
-        setIsCheckingRors(true);
-        setRorCheckProgress('Starting ROR discovery...');
-        stopRorPolling();
-
-        try {
-            const { data } = await axios.post<{ jobId: string }>('/assistance/check-rors');
-            startRorPolling(data.jobId);
-        } catch (error) {
-            setIsCheckingRors(false);
-            if (axios.isAxiosError(error) && error.response?.status === 409) {
-                toast.warning(error.response.data?.error ?? 'A ROR discovery job is already running.');
-            } else {
-                toast.error('Failed to start ROR discovery.');
-            }
-        }
-    }, [stopRorPolling, startRorPolling]);
-
-    // --- Check All ---
     const handleCheckAll = useCallback(async () => {
-        setIsCheckingRelations(true);
-        setIsCheckingOrcids(true);
-        setIsCheckingRors(true);
-        setRelationCheckProgress('Starting relation discovery...');
-        setOrcidCheckProgress('Starting ORCID discovery...');
-        setRorCheckProgress('Starting ROR discovery...');
-        stopRelationPolling();
-        stopOrcidPolling();
-        stopRorPolling();
+        for (const m of manifests) {
+            patch(m.id, { isChecking: true, progress: m.statusLabels.checking ?? 'Starting...' });
+            stopPolling(m.id);
+        }
 
         try {
-            const { data } = await axios.post<{ relationJobId?: string; orcidJobId?: string; rorJobId?: string; relationError?: string; orcidError?: string; rorError?: string }>('/assistance/check-all');
+            const { data } = await axios.post<Record<string, string>>('/assistance/check-all');
 
-            if (data.relationJobId) {
-                startRelationPolling(data.relationJobId);
-            } else {
-                setIsCheckingRelations(false);
-                setRelationCheckProgress('');
-                toast.warning(data.relationError ?? 'Relation discovery is already running.');
-            }
+            for (const m of manifests) {
+                const jobIdKey = `${m.id}JobId`;
+                const errorKey = `${m.id}Error`;
 
-            if (data.orcidJobId) {
-                startOrcidPolling(data.orcidJobId);
-            } else {
-                setIsCheckingOrcids(false);
-                setOrcidCheckProgress('');
-                toast.warning(data.orcidError ?? 'ORCID discovery is already running.');
-            }
-
-            if (data.rorJobId) {
-                startRorPolling(data.rorJobId);
-            } else {
-                setIsCheckingRors(false);
-                setRorCheckProgress('');
-                toast.warning(data.rorError ?? 'ROR discovery is already running.');
+                if (data[jobIdKey]) {
+                    startPolling(m, data[jobIdKey]);
+                } else {
+                    patch(m.id, { isChecking: false, progress: '' });
+                    if (data[errorKey]) {
+                        toast.warning(data[errorKey]);
+                    }
+                }
             }
         } catch (error) {
-            setIsCheckingRelations(false);
-            setIsCheckingOrcids(false);
-            setIsCheckingRors(false);
+            for (const m of manifests) {
+                patch(m.id, { isChecking: false, progress: '' });
+            }
             if (axios.isAxiosError(error) && error.response?.status === 409) {
-                toast.warning(error.response.data?.error ?? 'Discovery jobs are already running.');
+                const responseData = error.response.data as Record<string, string> | undefined;
+                // Show per-assistant error messages if available
+                let shownPerAssistant = false;
+                if (responseData) {
+                    for (const m of manifests) {
+                        const perError = responseData[`${m.id}Error`];
+                        if (perError) {
+                            toast.warning(`${m.name}: ${perError}`);
+                            shownPerAssistant = true;
+                        }
+                    }
+                }
+                if (!shownPerAssistant) {
+                    toast.warning(responseData?.error ?? 'All discovery jobs are already running.');
+                }
             } else {
                 toast.error('Failed to start discovery.');
             }
         }
-    }, [stopRelationPolling, stopOrcidPolling, stopRorPolling, startRelationPolling, startOrcidPolling, startRorPolling]);
+    }, [manifests, patch, stopPolling, startPolling]);
 
-    // --- Relation accept/decline ---
-    const handleAcceptRelation = useCallback(async (id: number) => {
-        setProcessingIds((prev) => new Set(prev).add(id));
+    // ── Accept / Decline ─────────────────────────────────────────────
 
-        try {
-            const { data } = await axios.post<AcceptResponse>(`/assistance/relations/${id}/accept`);
-            setSuggestions((prev) => prev.filter((s) => s.id !== id));
+    const handleAccept = useCallback(
+        async (manifest: AssistantManifest, suggestionId: number) => {
+            addProcessingId(manifest.id, suggestionId);
 
-            if (data.datacite_synced) {
-                toast.success(data.message);
-            } else {
-                toast.warning(data.message);
+            try {
+                const { data } = await axios.post<AcceptResponse>(
+                    `/assistance/${manifest.routePrefix}/${suggestionId}/accept`,
+                );
+
+                if (data.success) {
+                    toast.success(data.message);
+                } else {
+                    toast.warning(data.message);
+                }
+                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            } catch {
+                toast.error('Failed to accept suggestion.');
+            } finally {
+                removeProcessingId(manifest.id, suggestionId);
             }
-
-            router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
-        } catch {
-            toast.error('Failed to accept relation.');
-        } finally {
-            setProcessingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
-        }
-    }, []);
-
-    const handleDeclineRelation = useCallback(async (id: number) => {
-        setProcessingIds((prev) => new Set(prev).add(id));
-
-        try {
-            await axios.post(`/assistance/relations/${id}/decline`);
-            setSuggestions((prev) => prev.filter((s) => s.id !== id));
-            toast.info('Relation declined.');
-            router.reload({ only: ['suggestions', 'pendingSuggestedRelationsCount'] });
-        } catch {
-            toast.error('Failed to decline relation.');
-        } finally {
-            setProcessingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
-        }
-    }, []);
-
-    // --- ORCID accept/decline ---
-    const handleAcceptOrcid = useCallback(async (id: number) => {
-        setOrcidProcessingIds((prev) => new Set(prev).add(id));
-
-        try {
-            const { data } = await axios.post<OrcidAcceptResponse>(`/assistance/orcids/${id}/accept`);
-            setOrcidSuggestions((prev) => prev.filter((s) => s.id !== id));
-
-            if (data.success) {
-                toast.success(data.message);
-            } else {
-                toast.warning(data.message);
-            }
-            router.reload({ only: ['orcidSuggestions', 'pendingSuggestedOrcidsCount'] });
-        } catch {
-            toast.error('Failed to accept ORCID.');
-        } finally {
-            setOrcidProcessingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
-        }
-    }, []);
-
-    const handleDeclineOrcid = useCallback(async (id: number) => {
-        setOrcidProcessingIds((prev) => new Set(prev).add(id));
-
-        try {
-            await axios.post(`/assistance/orcids/${id}/decline`);
-            setOrcidSuggestions((prev) => prev.filter((s) => s.id !== id));
-            toast.info('ORCID suggestion declined.');
-            router.reload({ only: ['orcidSuggestions', 'pendingSuggestedOrcidsCount'] });
-        } catch {
-            toast.error('Failed to decline ORCID.');
-        } finally {
-            setOrcidProcessingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
-        }
-    }, []);
-
-    // --- ROR accept/decline ---
-    const handleAcceptRor = useCallback(async (id: number) => {
-        setRorProcessingIds((prev) => new Set(prev).add(id));
-
-        try {
-            const { data } = await axios.post<RorAcceptResponse>(`/assistance/rors/${id}/accept`);
-            setRorSuggestions((prev) => prev.filter((s) => s.id !== id));
-
-            if (data.success) {
-                toast.success(data.message);
-            } else {
-                toast.warning(data.message);
-            }
-            router.reload({ only: ['rorSuggestions', 'pendingSuggestedRorsCount'] });
-        } catch {
-            toast.error('Failed to accept ROR suggestion.');
-        } finally {
-            setRorProcessingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
-        }
-    }, []);
-
-    const handleDeclineRor = useCallback(async (id: number) => {
-        setRorProcessingIds((prev) => new Set(prev).add(id));
-
-        try {
-            await axios.post(`/assistance/rors/${id}/decline`);
-            setRorSuggestions((prev) => prev.filter((s) => s.id !== id));
-            toast.info('ROR suggestion declined.');
-            router.reload({ only: ['rorSuggestions', 'pendingSuggestedRorsCount'] });
-        } catch {
-            toast.error('Failed to decline ROR suggestion.');
-        } finally {
-            setRorProcessingIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
-        }
-    }, []);
-
-    // Group relation suggestions by resource
-    const groupedSuggestions = suggestions.reduce<Record<number, { doi: string; title: string; items: SuggestedRelationItem[] }>>(
-        (groups, suggestion) => {
-            if (!groups[suggestion.resource_id]) {
-                groups[suggestion.resource_id] = {
-                    doi: suggestion.resource_doi,
-                    title: suggestion.resource_title,
-                    items: [],
-                };
-            }
-            groups[suggestion.resource_id].items.push(suggestion);
-            return groups;
         },
-        {},
+        [addProcessingId, removeProcessingId],
     );
 
-    // Group ORCID suggestions by resource
-    const groupedOrcidSuggestions = orcidSuggestions.reduce<Record<number, { doi: string; title: string; items: SuggestedOrcidItem[] }>>(
-        (groups, suggestion) => {
-            if (!groups[suggestion.resource_id]) {
-                groups[suggestion.resource_id] = {
-                    doi: suggestion.resource_doi,
-                    title: suggestion.resource_title,
-                    items: [],
-                };
+    const handleDecline = useCallback(
+        async (manifest: AssistantManifest, suggestionId: number) => {
+            addProcessingId(manifest.id, suggestionId);
+
+            try {
+                await axios.post(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
+                toast.info('Suggestion declined.');
+                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            } catch {
+                toast.error('Failed to decline suggestion.');
+            } finally {
+                removeProcessingId(manifest.id, suggestionId);
             }
-            groups[suggestion.resource_id].items.push(suggestion);
-            return groups;
         },
-        {},
+        [addProcessingId, removeProcessingId],
     );
 
-    // Group ROR suggestions by resource
-    const groupedRorSuggestions = rorSuggestions.reduce<Record<number, { doi: string; title: string; items: SuggestedRorItem[] }>>(
-        (groups, suggestion) => {
-            if (!groups[suggestion.resource_id]) {
-                groups[suggestion.resource_id] = {
-                    doi: suggestion.resource_doi,
-                    title: suggestion.resource_title,
-                    items: [],
-                };
-            }
-            groups[suggestion.resource_id].items.push(suggestion);
-            return groups;
-        },
-        {},
-    );
+    // ── Render helpers ───────────────────────────────────────────────
+
+    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
+        const onAccept = (id: number) => handleAccept(manifest, id);
+        const onDecline = (id: number) => handleDecline(manifest, id);
+
+        switch (manifest.id) {
+            case 'relation-suggestion':
+                return (
+                    <SuggestionCard
+                        suggestion={item as unknown as SuggestedRelationItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'orcid-suggestion':
+                return (
+                    <OrcidSuggestionCard
+                        suggestion={item as unknown as SuggestedOrcidItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'ror-suggestion':
+                return (
+                    <RorSuggestionCard
+                        suggestion={item as unknown as SuggestedRorItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            default:
+                // Generic card for future student modules
+                return (
+                    <div className="rounded-lg border bg-card p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
+                                </p>
+                            </div>
+                            <div className="flex shrink-0 gap-2">
+                                <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
+                                    <X className="mr-1 h-4 w-4" />
+                                    Decline
+                                </Button>
+                                <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
+                                    <Check className="mr-1 h-4 w-4" />
+                                    Accept
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                );
+        }
+    }
+
+    // ── Render ────────────────────────────────────────────────────────
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -731,8 +594,8 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold tracking-tight">Assistance</h1>
 
-                    <Button onClick={handleCheckAll} disabled={isChecking}>
-                        {isChecking ? (
+                    <Button onClick={handleCheckAll} disabled={isAnyChecking}>
+                        {isAnyChecking ? (
                             <>
                                 <Spinner size="sm" className="mr-2" />
                                 Checking...
@@ -747,270 +610,124 @@ export default function AssistancePage({ suggestions: paginatedSuggestions, orci
                 </div>
 
                 {/* Progress indicators */}
-                {isCheckingRelations && relationCheckProgress && (
-                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-                        <Spinner size="sm" />
-                        <span>{relationCheckProgress}</span>
-                    </div>
-                )}
-                {isCheckingOrcids && orcidCheckProgress && (
-                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-                        <Spinner size="sm" />
-                        <span>{orcidCheckProgress}</span>
-                    </div>
-                )}
-                {isCheckingRors && rorCheckProgress && (
-                    <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
-                        <Spinner size="sm" />
-                        <span>{rorCheckProgress}</span>
-                    </div>
-                )}
-
-                {/* Suggested ORCIDs Card */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div className="space-y-1.5">
-                            <CardTitle>Suggested ORCIDs</CardTitle>
-                            <CardDescription>
-                                {orcidPagination.total > 0
-                                    ? `${orcidPagination.total} pending ORCID suggestion(s) for creators and contributors.`
-                                    : 'No pending ORCID suggestions.'}
-                            </CardDescription>
+                {manifests.map((manifest) => {
+                    const state = states[manifest.id];
+                    if (!state?.isChecking || !state.progress) return null;
+                    return (
+                        <div key={`progress-${manifest.id}`} className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                            <Spinner size="sm" />
+                            <span>{state.progress}</span>
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleCheckOrcids} disabled={isCheckingOrcids}>
-                            {isCheckingOrcids ? (
-                                <>
-                                    <Spinner size="sm" className="mr-2" />
-                                    Checking...
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Check
-                                </>
-                            )}
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        {Object.keys(groupedOrcidSuggestions).length > 0 ? (
-                            <div className="space-y-6">
-                                {Object.entries(groupedOrcidSuggestions).map(([resourceId, group]) => (
-                                    <div key={resourceId} className="space-y-3">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                            <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                            <Badge variant="secondary" className="ml-auto text-xs">
-                                                {group.items.length} suggestion(s)
-                                            </Badge>
-                                        </div>
-                                        <div className="space-y-2 pl-4">
-                                            {group.items.map((suggestion) => (
-                                                <OrcidSuggestionCard
-                                                    key={suggestion.id}
-                                                    suggestion={suggestion}
-                                                    onAccept={handleAcceptOrcid}
-                                                    onDecline={handleDeclineOrcid}
-                                                    isProcessing={orcidProcessingIds.has(suggestion.id)}
+                    );
+                })}
+
+                {/* Section cards — one per assistant, ordered by sortOrder */}
+                {manifests.map((manifest) => {
+                    const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
+                    const state = states[manifest.id];
+
+                    if (!sectionData) return null;
+
+                    // Group items by resource
+                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
+                        (groups, item) => {
+                            const resourceId = item.resource_id;
+                            if (!groups[resourceId]) {
+                                groups[resourceId] = {
+                                    doi: item.resource_doi ?? '',
+                                    title: item.resource_title ?? 'Untitled',
+                                    items: [],
+                                };
+                            }
+                            groups[resourceId].items.push(item);
+                            return groups;
+                        },
+                        {},
+                    );
+
+                    return (
+                        <Card key={manifest.id}>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                                <div className="space-y-1.5">
+                                    <CardTitle>{manifest.name}</CardTitle>
+                                    <CardDescription>
+                                        {sectionData.total > 0
+                                            ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
+                                            : manifest.emptyState.description}
+                                    </CardDescription>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleCheck(manifest)}
+                                    disabled={state?.isChecking ?? false}
+                                >
+                                    {state?.isChecking ? (
+                                        <>
+                                            <Spinner size="sm" className="mr-2" />
+                                            Checking...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Check
+                                        </>
+                                    )}
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                {Object.keys(grouped).length > 0 ? (
+                                    <div className="space-y-6">
+                                        {Object.entries(grouped).map(([resourceId, group]) => (
+                                            <div key={resourceId} className="space-y-3">
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
+                                                    <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                                    <Badge variant="secondary" className="ml-auto text-xs">
+                                                        {group.items.length} suggestion(s)
+                                                    </Badge>
+                                                </div>
+                                                <div className="space-y-2 pl-4">
+                                                    {group.items.map((item) => (
+                                                        <div key={item.id as number}>
+                                                            {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="text-4xl">&#10003;</div>
+                                        <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
+                                        <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
+                                    </div>
+                                )}
+
+                                {sectionData.last_page > 1 && (
+                                    <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                        <p className="text-sm text-muted-foreground">
+                                            Showing {sectionData.from ?? 0}–{sectionData.to ?? 0} of {sectionData.total}
+                                        </p>
+                                        <div className="flex gap-1">
+                                            {sectionData.links.map((link, index) => (
+                                                <Button
+                                                    key={link.url ?? `${manifest.id}-${link.label}-${index}`}
+                                                    variant={link.active ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    disabled={!link.url}
+                                                    onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                                    dangerouslySetInnerHTML={{ __html: link.label }}
                                                 />
                                             ))}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="text-4xl">&#10003;</div>
-                                <p className="mt-2 text-lg font-medium">All ORCIDs are up to date!</p>
-                                <p className="text-sm text-muted-foreground">
-                                    No missing ORCIDs found. Click &quot;Check&quot; to search for new ones.
-                                </p>
-                            </div>
-                        )}
-
-                        {orcidPagination.last_page > 1 && (
-                            <div className="mt-6 flex items-center justify-between border-t pt-4">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {orcidPagination.from ?? 0}–{orcidPagination.to ?? 0} of {orcidPagination.total}
-                                </p>
-                                <div className="flex gap-1">
-                                    {orcidPagination.links.map((link, index) => (
-                                        <Button
-                                            key={link.url ?? `orcid-${link.label}-${index}`}
-                                            variant={link.active ? 'default' : 'outline'}
-                                            size="sm"
-                                            disabled={!link.url}
-                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Suggested ROR-IDs Card */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div className="space-y-1.5">
-                            <CardTitle>Suggested ROR-IDs</CardTitle>
-                            <CardDescription>
-                                {rorPagination.total > 0
-                                    ? `${rorPagination.total} pending ROR suggestion(s) for affiliations, institutions, and funders.`
-                                    : 'No pending ROR suggestions.'}
-                            </CardDescription>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={handleCheckRors} disabled={isCheckingRors}>
-                            {isCheckingRors ? (
-                                <>
-                                    <Spinner size="sm" className="mr-2" />
-                                    Checking...
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Check
-                                </>
-                            )}
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        {Object.keys(groupedRorSuggestions).length > 0 ? (
-                            <div className="space-y-6">
-                                {Object.entries(groupedRorSuggestions).map(([resourceId, group]) => (
-                                    <div key={resourceId} className="space-y-3">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                            <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                            <Badge variant="secondary" className="ml-auto text-xs">
-                                                {group.items.length} suggestion(s)
-                                            </Badge>
-                                        </div>
-                                        <div className="space-y-2 pl-4">
-                                            {group.items.map((suggestion) => (
-                                                <RorSuggestionCard
-                                                    key={suggestion.id}
-                                                    suggestion={suggestion}
-                                                    onAccept={handleAcceptRor}
-                                                    onDecline={handleDeclineRor}
-                                                    isProcessing={rorProcessingIds.has(suggestion.id)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="text-4xl">&#10003;</div>
-                                <p className="mt-2 text-lg font-medium">All ROR-IDs are up to date!</p>
-                                <p className="text-sm text-muted-foreground">
-                                    No missing ROR-IDs found. Click &quot;Check&quot; to search for new ones.
-                                </p>
-                            </div>
-                        )}
-
-                        {rorPagination.last_page > 1 && (
-                            <div className="mt-6 flex items-center justify-between border-t pt-4">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {rorPagination.from ?? 0}–{rorPagination.to ?? 0} of {rorPagination.total}
-                                </p>
-                                <div className="flex gap-1">
-                                    {rorPagination.links.map((link, index) => (
-                                        <Button
-                                            key={link.url ?? `ror-${link.label}-${index}`}
-                                            variant={link.active ? 'default' : 'outline'}
-                                            size="sm"
-                                            disabled={!link.url}
-                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Suggested Relations Card */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div className="space-y-1.5">
-                            <CardTitle>Suggested Relations</CardTitle>
-                            <CardDescription>
-                                {pagination.total > 0
-                                    ? `${pagination.total} pending suggestion(s) from ScholExplorer and DataCite Event Data.`
-                                    : 'No pending suggestions. Discover new related works for your registered DOIs.'}
-                            </CardDescription>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={handleCheckRelations} disabled={isCheckingRelations}>
-                            {isCheckingRelations ? (
-                                <>
-                                    <Spinner size="sm" className="mr-2" />
-                                    Checking...
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Check
-                                </>
-                            )}
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        {Object.keys(groupedSuggestions).length > 0 ? (
-                            <div className="space-y-6">
-                                {Object.entries(groupedSuggestions).map(([resourceId, group]) => (
-                                    <div key={resourceId} className="space-y-3">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                            <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                        </div>
-                                        <div className="space-y-2 pl-4">
-                                            {group.items.map((suggestion) => (
-                                                <SuggestionCard
-                                                    key={suggestion.id}
-                                                    suggestion={suggestion}
-                                                    onAccept={handleAcceptRelation}
-                                                    onDecline={handleDeclineRelation}
-                                                    isProcessing={processingIds.has(suggestion.id)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="text-4xl">&#10003;</div>
-                                <p className="mt-2 text-lg font-medium">You&apos;re all caught up!</p>
-                                <p className="text-sm text-muted-foreground">
-                                    No new suggested relations. Click &quot;Check&quot; to search for new ones.
-                                </p>
-                            </div>
-                        )}
-
-                        {pagination.last_page > 1 && (
-                            <div className="mt-6 flex items-center justify-between border-t pt-4">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {pagination.from ?? 0}–{pagination.to ?? 0} of {pagination.total}
-                                </p>
-                                <div className="flex gap-1">
-                                    {pagination.links.map((link, index) => (
-                                        <Button
-                                            key={link.url ?? `${link.label}-${index}`}
-                                            variant={link.active ? 'default' : 'outline'}
-                                            size="sm"
-                                            disabled={!link.url}
-                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                )}
+                            </CardContent>
+                        </Card>
+                    );
+                })}
             </div>
         </AppLayout>
     );

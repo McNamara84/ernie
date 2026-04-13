@@ -36,6 +36,7 @@ export default defineConfig(({ command }) => {
                 '@data': '/resources/data',
                 '@tests': '/tests',
                 '@test-helpers': '/tests/vitest/test-helpers',
+                '@assistants': '/modules/assistants',
             },
         },
         optimizeDeps: {

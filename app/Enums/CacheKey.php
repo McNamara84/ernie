@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use Illuminate\Support\Facades\Cache;
+
 /**
  * Centralized cache key management for the application.
  *
@@ -52,9 +54,7 @@ enum CacheKey: string
     case CACHE_STATS = 'system:cache_stats';
 
     // Assistance suggestion counts
-    case SUGGESTED_RELATIONS_COUNT = 'assistance:suggested_relations_count';
-    case SUGGESTED_ORCIDS_COUNT = 'assistance:suggested_orcids_count';
-    case SUGGESTED_RORS_COUNT = 'assistance:suggested_rors_count';
+    case ASSISTANCE_TOTAL_PENDING_COUNT = 'assistance:total_pending_count';
 
     // Landing page Schema.org JSON-LD
     case SCHEMA_ORG_JSONLD = 'landing_pages:schema_org_jsonld';
@@ -125,10 +125,8 @@ enum CacheKey: string
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
 
-            // Suggested relations/orcids/rors count - 2 minutes (changes after discovery jobs)
-            self::SUGGESTED_RELATIONS_COUNT,
-            self::SUGGESTED_ORCIDS_COUNT,
-            self::SUGGESTED_RORS_COUNT => 120,
+            // Assistance total pending count - 2 minutes (changes after discovery jobs)
+            self::ASSISTANCE_TOTAL_PENDING_COUNT => 120,
 
             // Schema.org JSON-LD - 1 hour (invalidated by ResourceObserver on update)
             self::SCHEMA_ORG_JSONLD => 3600,
@@ -176,12 +174,31 @@ enum CacheKey: string
 
             self::CACHE_STATS => ['system'],
 
-            self::SUGGESTED_RELATIONS_COUNT,
-            self::SUGGESTED_ORCIDS_COUNT,
-            self::SUGGESTED_RORS_COUNT => ['assistance'],
+            self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],
         };
+    }
+
+    /**
+     * Forget this cache key, using tag-aware invalidation when the store supports tagging.
+     *
+     * This ensures that entries written via a tagged cache repository
+     * (e.g. Cache::tags([...])->remember(...)) are properly cleared on
+     * Redis/Memcached where Cache::forget() alone would not work.
+     *
+     * @param  string|int|null  $suffix  Optional key suffix (same as key())
+     */
+    public function forget(string|int|null $suffix = null): bool
+    {
+        $fullKey = $this->key($suffix);
+        $tags = $this->tags();
+
+        if ($tags !== [] && method_exists(Cache::getStore(), 'tags')) {
+            return Cache::tags($tags)->forget($fullKey);
+        }
+
+        return Cache::forget($fullKey);
     }
 
     /**

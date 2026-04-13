@@ -67,6 +67,11 @@ describe('Services', function () {
             'App\Services\DataCiteSyncResult',
             'App\Services\OaiPmh\OaiPmhXmlResponseBuilder',
             'App\Services\OaiPmh\DublinCoreMapper',
+            'App\Services\Assistance\AssistantManifest',
+            'App\Services\Assistance\AssistantContract',
+            'App\Services\Assistance\AbstractAssistant',
+            'App\Services\Assistance\GenericTableAssistant',
+            'App\Services\Assistance\AssistantRegistrar',
         ]);
 
     arch('services are not extending controllers')

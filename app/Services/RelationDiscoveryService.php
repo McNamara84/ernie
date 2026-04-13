@@ -12,8 +12,6 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
-use App\Support\Traits\ChecksCacheTagging;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -26,7 +24,6 @@ use Illuminate\Support\Facades\Log;
  */
 class RelationDiscoveryService
 {
-    use ChecksCacheTagging;
     public function __construct(
         private readonly ScholExplorerService $scholExplorerService,
         private readonly DataCiteEventDataService $dataCiteEventDataService,
@@ -117,7 +114,7 @@ class RelationDiscoveryService
         ]);
 
         if ($newCount > 0) {
-            $this->forgetCacheKey(CacheKey::SUGGESTED_RELATIONS_COUNT);
+            $this->invalidateAssistanceCache();
         }
 
         return $newCount;
@@ -269,7 +266,7 @@ class RelationDiscoveryService
         });
 
         // Invalidate sidebar badge cache
-        $this->forgetCacheKey(CacheKey::SUGGESTED_RELATIONS_COUNT);
+        $this->invalidateAssistanceCache();
 
         // Sync to DataCite
         $syncResult = $this->dataCiteSyncService->syncIfRegistered($resource);
@@ -320,18 +317,14 @@ class RelationDiscoveryService
             $suggestion->delete();
         });
 
-        $this->forgetCacheKey(CacheKey::SUGGESTED_RELATIONS_COUNT);
+        $this->invalidateAssistanceCache();
     }
 
     /**
-     * Forget a cache key using tags when supported, falling back to direct forget.
+     * Invalidate the total pending count so the sidebar badge updates.
      */
-    private function forgetCacheKey(CacheKey $cacheKey): void
+    private function invalidateAssistanceCache(): void
     {
-        if ($this->supportsTagging()) {
-            Cache::tags($cacheKey->tags())->forget($cacheKey->key());
-        } else {
-            Cache::forget($cacheKey->key());
-        }
+        CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
     }
 }

@@ -1,0 +1,24 @@
+{
+    "id": "ror-suggestion",
+    "name": "ROR Suggestions",
+    "description": "Discovers ROR identifiers for affiliations, institutions, and funders.",
+    "icon": "Building2",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\RorSuggestion\\Assistant",
+    "route_prefix": "rors",
+    "lock_key": "ror_discovery_running",
+    "cache_key_prefix": "ror_discovery",
+    "sort_order": 30,
+    "status_labels": {
+        "checking": "Starting ROR discovery...",
+        "completed_with_results": "ROR discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "ROR discovery completed: No new suggestions found.",
+        "failed": "ROR discovery failed: {error}",
+        "already_running": "A ROR discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending ROR suggestions",
+        "description": "No new ROR matches found. Click \"Check\" to search again."
+    },
+    "card_component": null
+}

@@ -170,44 +170,8 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 }
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Assistance routes (Admin, Group Leader)
-    Route::middleware(['can:access-assistance'])->prefix('assistance')->group(function () {
-        Route::get('/', [\App\Http\Controllers\AssistanceController::class, 'index'])
-            ->name('assistance');
-        Route::post('/check', [\App\Http\Controllers\AssistanceController::class, 'check'])
-            ->name('assistance.check');
-        Route::get('/check/{jobId}/status', [\App\Http\Controllers\AssistanceController::class, 'status'])
-            ->where('jobId', '[a-f0-9-]{36}')
-            ->name('assistance.check.status');
-        Route::post('/relations/{suggestion}/accept', [\App\Http\Controllers\AssistanceController::class, 'accept'])
-            ->name('assistance.relations.accept');
-        Route::post('/relations/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'decline'])
-            ->name('assistance.relations.decline');
-
-        // ORCID discovery routes
-        Route::post('/check-all', [\App\Http\Controllers\AssistanceController::class, 'checkAll'])
-            ->name('assistance.check-all');
-        Route::post('/check-orcids', [\App\Http\Controllers\AssistanceController::class, 'checkOrcids'])
-            ->name('assistance.check-orcids');
-        Route::get('/check-orcids/{jobId}/status', [\App\Http\Controllers\AssistanceController::class, 'orcidStatus'])
-            ->where('jobId', '[a-f0-9-]{36}')
-            ->name('assistance.check-orcids.status');
-        Route::post('/orcids/{suggestion}/accept', [\App\Http\Controllers\AssistanceController::class, 'acceptOrcid'])
-            ->name('assistance.orcids.accept');
-        Route::post('/orcids/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'declineOrcid'])
-            ->name('assistance.orcids.decline');
-
-        // ROR discovery routes
-        Route::post('/check-rors', [\App\Http\Controllers\AssistanceController::class, 'checkRors'])
-            ->name('assistance.check-rors');
-        Route::get('/check-rors/{jobId}/status', [\App\Http\Controllers\AssistanceController::class, 'rorStatus'])
-            ->where('jobId', '[a-f0-9-]{36}')
-            ->name('assistance.check-rors.status');
-        Route::post('/rors/{suggestion}/accept', [\App\Http\Controllers\AssistanceController::class, 'acceptRor'])
-            ->name('assistance.rors.accept');
-        Route::post('/rors/{suggestion}/decline', [\App\Http\Controllers\AssistanceController::class, 'declineRor'])
-            ->name('assistance.rors.decline');
-    });
+    // Assistance routes are registered dynamically by AssistantServiceProvider.
+    // @see \App\Providers\AssistantServiceProvider::registerRoutes()
 
     // Old Datasets routes (Admin only - Issue #379)
     Route::middleware(['can:access-old-datasets'])->group(function () {
