@@ -54,14 +54,15 @@ describe('TagInputField — edit mode rorId preservation', () => {
         expect(editedTagData.rorId).toBe(rorId);
     });
 
-    it('suspends comma delimiter during edit and restores it after', () => {
+    it('suspends delimiter during edit of tag with rorId and restores it after', () => {
         const onChange = vi.fn();
+        const rorId = 'https://ror.org/04z8jg394';
 
         render(
             <TagInputField
                 id="affiliations"
                 label="Affiliations"
-                value={[{ value: 'Some Institution', rorId: null }]}
+                value={[{ value: 'GFZ Helmholtz Centre for Geosciences', rorId }]}
                 onChange={onChange}
             />,
         );
@@ -71,32 +72,54 @@ describe('TagInputField — edit mode rorId preservation', () => {
         // Initially delimiter should be comma
         expect(tagify.settings.delimiters).toBe(',');
 
-        // Simulate edit:start — delimiter should be suspended (regex that never matches)
-        tagify.emit('edit:start', { data: { value: 'Some Institution' } });
+        // Simulate edit:start on tag with rorId — delimiter should be suspended
+        tagify.emit('edit:start', { data: { value: 'GFZ Helmholtz Centre for Geosciences', rorId } });
         expect(tagify.settings.delimiters).toBeInstanceOf(RegExp);
         expect(','.match(tagify.settings.delimiters as RegExp)).toBeNull();
 
         // Simulate edit:updated — delimiter should be restored
-        tagify.emit('edit:updated', { data: { value: 'Some Institution, City' } });
+        tagify.emit('edit:updated', { data: { value: 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany' } });
+        expect(tagify.settings.delimiters).toBe(',');
+    });
+
+    it('does not suspend delimiter when editing a tag without rorId', () => {
+        const onChange = vi.fn();
+
+        render(
+            <TagInputField
+                id="keywords"
+                label="Keywords"
+                value={[{ value: 'Geology', rorId: null }]}
+                onChange={onChange}
+            />,
+        );
+
+        const tagify = getTagifyInstance('keywords');
+
+        expect(tagify.settings.delimiters).toBe(',');
+
+        // Edit a tag without rorId — delimiter should remain unchanged
+        tagify.emit('edit:start', { data: { value: 'Geology', rorId: null } });
         expect(tagify.settings.delimiters).toBe(',');
     });
 
     it('restores delimiter when edit is cancelled via Escape key', () => {
         const onChange = vi.fn();
+        const rorId = 'https://ror.org/04z8jg394';
 
         render(
             <TagInputField
                 id="affiliations"
                 label="Affiliations"
-                value={[{ value: 'Some Institution', rorId: null }]}
+                value={[{ value: 'GFZ Helmholtz Centre for Geosciences', rorId }]}
                 onChange={onChange}
             />,
         );
 
         const tagify = getTagifyInstance('affiliations');
 
-        // Start edit — delimiter suspended
-        tagify.emit('edit:start', { data: { value: 'Some Institution' } });
+        // Start edit on tag with rorId — delimiter suspended
+        tagify.emit('edit:start', { data: { value: 'GFZ Helmholtz Centre for Geosciences', rorId } });
         expect(tagify.settings.delimiters).toBeInstanceOf(RegExp);
 
         // Cancel edit (Escape) — edit:keydown fires with Escape key

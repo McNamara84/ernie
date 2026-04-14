@@ -47,6 +47,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
     const tagifyRef = useRef<Tagify<TagData> | null>(null);
     const changeHandlerRef = useRef(onChange);
     const editingRorIdRef = useRef<string | null>(null);
+    const originalDelimitersRef = useRef<string | RegExp | null>(null);
 
     useEffect(() => {
         changeHandlerRef.current = onChange;
@@ -129,12 +130,24 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             changeHandlerRef.current({ raw: rawValue, tags });
         };
 
+        const restoreDelimiters = () => {
+            if (originalDelimitersRef.current !== null) {
+                tagify.settings.delimiters = originalDelimitersRef.current;
+                originalDelimitersRef.current = null;
+            }
+            editingRorIdRef.current = null;
+        };
+
         const handleEditStart = (event: CustomEvent) => {
             const tagData = event.detail?.data as Record<string, unknown> | undefined;
-            editingRorIdRef.current = typeof tagData?.rorId === 'string' ? tagData.rorId : null;
-            // Suspend comma delimiter during edit to allow commas in affiliation names
-            // Use a regex that never matches instead of null (type: string | RegExp)
-            tagify.settings.delimiters = /(?!)/;
+            const rorId = typeof tagData?.rorId === 'string' ? tagData.rorId : null;
+            editingRorIdRef.current = rorId;
+            // Only suspend delimiters for tags with a ROR ID (affiliation tags)
+            // to avoid changing comma-separator behavior in other fields (e.g. Free Keywords)
+            if (rorId) {
+                originalDelimitersRef.current = tagify.settings.delimiters;
+                tagify.settings.delimiters = /(?!)/;
+            }
         };
 
         const handleEditUpdated = (event: CustomEvent) => {
@@ -142,15 +155,13 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             if (tagData && editingRorIdRef.current) {
                 tagData.rorId = editingRorIdRef.current;
             }
-            tagify.settings.delimiters = ',';
-            editingRorIdRef.current = null;
+            restoreDelimiters();
         };
 
         const handleEditKeydown = (event: CustomEvent) => {
             const keyboardEvent = (event.detail as { event?: KeyboardEvent })?.event;
             if (keyboardEvent?.key === 'Escape') {
-                tagify.settings.delimiters = ',';
-                editingRorIdRef.current = null;
+                restoreDelimiters();
             }
         };
 
