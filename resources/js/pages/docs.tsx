@@ -269,7 +269,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Date Types:</strong> Enable/disable date type options
                             </li>
                             <li>
-                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS Chronostratigraphy, and GEMET
+                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS Chronostratigraphy, GEMET,
+                                and Analytical Methods for Geochemistry and Cosmochemistry
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
@@ -306,8 +307,9 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <p>The Thesauri card allows you to:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Enable/disable individual thesauri for ERNIE and/or ELMO</li>
-                            <li>Check for updates by comparing local vs. NASA remote counts</li>
+                            <li>Check for updates by comparing local vs. remote counts</li>
                             <li>Trigger vocabulary updates with one click</li>
+                            <li>Configure the vocabulary version for versioned thesauri (e.g. Analytical Methods)</li>
                         </ul>
 
                         <h4>Persistent Identifiers Management</h4>
@@ -365,6 +367,14 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <p className="text-sm text-muted-foreground">
                             Downloads the GEMET vocabulary from the EIONET REST API.
                             Can also be triggered from Editor Settings.
+                        </p>
+
+                        <h4>Update Analytical Methods (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-analytical-methods" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads the Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the
+                            ARDC Linked Data API (EarthChem/GEOROC). The vocabulary version can be configured in
+                            Editor Settings. Can also be triggered from Editor Settings.
                         </p>
 
                         <h4>Update PID4INST Instruments (CLI)</h4>
@@ -580,7 +590,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Verify author information, add ORCID iDs, and confirm ROR affiliations.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Add Keywords">
-                                <p>Add controlled keywords (GCMD, MSL, GEMET) and free-form keywords as needed.</p>
+                                <p>Add controlled keywords (GCMD, MSL, GEMET, Analytical Methods) and free-form keywords as needed.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Complete Coverage">
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
@@ -789,7 +799,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 title: 'Controlled Keywords',
                 icon: Tags,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat || settings.features.hasActiveGemet,
+                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat || settings.features.hasActiveGemet || settings.features.hasActiveAnalyticalMethods,
                 content: (
                     <>
                         <h3>Controlled Vocabularies</h3>
@@ -833,6 +843,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     environmental terminology. Concepts are organized in a three-level hierarchy:
                                     Super Groups, Groups, and Concepts (~5,500 terms). Sourced from the
                                     European Environment Information and Observation Network (EIONET).
+                                </p>
+                            </>
+                        )}
+
+                        {editorSettings.features.hasActiveAnalyticalMethods && (
+                            <>
+                                <h4>Analytical Methods</h4>
+                                <p>
+                                    The Analytical Methods for Geochemistry and Cosmochemistry vocabulary provides
+                                    standardized terms for analytical techniques used in geochemical and cosmochemical
+                                    research (e.g. mass spectrometry, X-ray diffraction). Concepts include optional
+                                    notation codes. Sourced from the ARDC Linked Data API (EarthChem/GEOROC).
+                                    The vocabulary version is configurable by administrators.
                                 </p>
                             </>
                         )}

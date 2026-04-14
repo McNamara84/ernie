@@ -17,6 +17,8 @@ export interface EditorSettings {
         chronostratigraphy: boolean;
         /** Is GEMET thesaurus active? */
         gemet: boolean;
+        /** Is Analytical Methods thesaurus active? */
+        analyticalMethods: boolean;
     };
     /**
      * Feature availability flags
@@ -30,6 +32,8 @@ export interface EditorSettings {
         hasActiveChronostrat: boolean;
         /** Is GEMET thesaurus active? */
         hasActiveGemet: boolean;
+        /** Is Analytical Methods thesaurus active? */
+        hasActiveAnalyticalMethods: boolean;
         /** Is at least one license active? */
         hasActiveLicenses: boolean;
         /** Is at least one resource type active? */
