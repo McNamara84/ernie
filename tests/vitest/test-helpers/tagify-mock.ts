@@ -36,11 +36,14 @@ interface MockTagifyValue {
 export class MockTagify {
     public DOM: { scope: HTMLElement; input: HTMLInputElement };
     public value: MockTagifyValue[] = [];
+    public settings: Record<string, unknown> = {};
+    public whitelist: Array<Record<string, unknown>> = [];
     private inputElement: HTMLInputElement;
     private handlers = new Map<string, Set<ChangeHandler>>();
 
-    constructor(inputElement: HTMLInputElement) {
+    constructor(inputElement: HTMLInputElement, settings?: Record<string, unknown>) {
         this.inputElement = inputElement;
+        this.settings = { delimiters: ',', editTags: 1, ...settings };
 
         const scope = document.createElement('div');
         scope.className = 'tagify';
@@ -55,6 +58,19 @@ export class MockTagify {
             parent.appendChild(scope);
         }
         scope.appendChild(input);
+    }
+
+    /**
+     * Emit an arbitrary event to registered handlers.
+     * Useful for testing edit:start, edit:updated, edit:end flows.
+     */
+    emit(event: string, detail?: Record<string, unknown>) {
+        const handlers = this.handlers.get(event);
+        if (!handlers || handlers.size === 0) {
+            return;
+        }
+        const customEvent = new CustomEvent(event, { detail }) as CustomEvent;
+        handlers.forEach((handler) => handler(customEvent));
     }
 
     on(event: string, handler: ChangeHandler) {

@@ -50,6 +50,10 @@
         ],
         "improvements": [
             {
+                "title": "Editable Affiliation Names with ROR-ID Preservation",
+                "description": "Affiliation names in the Authors and Contributors sections can now be edited after selecting an entry from the ROR autocomplete. For example, after selecting 'GFZ Helmholtz Centre for Geosciences', the name can be changed to 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany' while the linked ROR identifier is preserved. Commas can be used freely during editing without splitting the tag."
+            },
+            {
                 "title": "Modular Assistance Framework",
                 "description": "The Assistance page has been refactored into a modular, auto-discoverable architecture. Each assistant (Suggested Relations, Suggested ORCIDs, Suggested ROR-IDs) is now a self-contained module with its own manifest, routes, controller, service, and frontend component under modules/assistants/. New assistants can be added by dropping a folder with a manifest.json — no registration code required. The unified 'Check all' button runs all assistants in parallel and the sidebar badge shows a single aggregated pending count."
             },

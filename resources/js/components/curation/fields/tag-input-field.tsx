@@ -46,6 +46,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
     const inputRef = useRef<HTMLInputElement | null>(null);
     const tagifyRef = useRef<Tagify<TagData> | null>(null);
     const changeHandlerRef = useRef(onChange);
+    const editingRorIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         changeHandlerRef.current = onChange;
@@ -128,10 +129,37 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             changeHandlerRef.current({ raw: rawValue, tags });
         };
 
+        const handleEditStart = (event: CustomEvent) => {
+            const tagData = event.detail?.data as Record<string, unknown> | undefined;
+            editingRorIdRef.current = typeof tagData?.rorId === 'string' ? tagData.rorId : null;
+            // Suspend comma delimiter during edit to allow commas in affiliation names
+            tagify.settings.delimiters = null;
+        };
+
+        const handleEditUpdated = (event: CustomEvent) => {
+            const tagData = event.detail?.data as Record<string, unknown> | undefined;
+            if (tagData && editingRorIdRef.current) {
+                tagData.rorId = editingRorIdRef.current;
+            }
+            tagify.settings.delimiters = ',';
+            editingRorIdRef.current = null;
+        };
+
+        const handleEditEnd = () => {
+            tagify.settings.delimiters = ',';
+            editingRorIdRef.current = null;
+        };
+
         tagify.on('change', handleChange);
+        tagify.on('edit:start', handleEditStart);
+        tagify.on('edit:updated', handleEditUpdated);
+        tagify.on('edit:end', handleEditEnd);
 
         return () => {
             tagify.off('change', handleChange);
+            tagify.off('edit:start', handleEditStart);
+            tagify.off('edit:updated', handleEditUpdated);
+            tagify.off('edit:end', handleEditEnd);
             tagify.destroy();
             tagifyRef.current = null;
         };
