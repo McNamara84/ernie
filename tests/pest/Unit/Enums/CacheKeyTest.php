@@ -84,7 +84,7 @@ it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 
     expect($vocabularyKeys)->toBeArray()
-        ->toHaveCount(8)
+        ->toHaveCount(9)
         ->each->toBeInstanceOf(CacheKey::class);
 
     $expectedKeys = [
@@ -96,6 +96,7 @@ it('returns all vocabulary keys', function () {
         CacheKey::PID4INST_INSTRUMENTS,
         CacheKey::CHRONOSTRAT_TIMESCALE,
         CacheKey::GEMET_THESAURUS,
+        CacheKey::ANALYTICAL_METHODS,
     ];
 
     expect($vocabularyKeys)->toEqual($expectedKeys);

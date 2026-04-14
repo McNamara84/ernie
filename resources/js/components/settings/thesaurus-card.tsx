@@ -26,7 +26,7 @@ export interface ThesaurusData {
     displayName: string;
     isActive: boolean;
     isElmoActive: boolean;
-    version: string | null;
+    version?: string | null;
     exists: boolean;
     conceptCount: number;
     lastUpdated: string | null;

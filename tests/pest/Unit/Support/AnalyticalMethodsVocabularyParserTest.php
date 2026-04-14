@@ -204,6 +204,34 @@ describe('extractConcepts', function () {
 
         expect($concepts[0]['broaderId'])->toBeNull();
     });
+
+    it('handles non-array prefLabel gracefully', function () {
+        $items = [
+            [
+                '_about' => 'https://w3id.org/geochem/1.0/analyticalmethod/test',
+                'prefLabel' => 'Just a string',
+                'broader' => [],
+            ],
+        ];
+
+        $concepts = $this->parser->extractConcepts($items);
+
+        expect($concepts)->toBeEmpty();
+    });
+
+    it('handles non-string non-array broader gracefully', function () {
+        $items = [
+            [
+                '_about' => 'https://w3id.org/geochem/1.0/analyticalmethod/test',
+                'prefLabel' => ['_value' => 'Test', '_lang' => 'en'],
+                'broader' => 42,
+            ],
+        ];
+
+        $concepts = $this->parser->extractConcepts($items);
+
+        expect($concepts[0]['broaderId'])->toBeNull();
+    });
 });
 
 describe('buildHierarchy', function () {

@@ -2791,7 +2791,7 @@ describe('DataCiteForm', () => {
         await user.type(abstractTextarea, 'This is a test abstract');
 
         // Fill Methods (optional)
-        const methodsTab = screen.getByRole('tab', { name: /Methods/i });
+        const methodsTab = screen.getByRole('tab', { name: /^Methods$/i });
         await user.click(methodsTab);
         const methodsTextarea = screen.getByRole('textbox', { name: /Methods/i });
         await user.type(methodsTextarea, 'Test methodology');

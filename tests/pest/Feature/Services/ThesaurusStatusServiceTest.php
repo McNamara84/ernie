@@ -280,6 +280,77 @@ describe('getRemoteConceptCount', function () {
         expect(fn () => $service->getRemoteConceptCount($thesaurus))
             ->toThrow(RuntimeException::class, 'Unexpected ARDC API response format: missing result.items array');
     });
+
+    test('returns concept count for analytical methods via ARDC API', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS],
+            [
+                'display_name' => 'Analytical Methods for Geochemistry',
+                'is_active' => true,
+                'is_elmo_active' => true,
+                'version' => '1-4',
+            ]
+        );
+
+        Http::fake([
+            'vocabs.ardc.edu.au/*' => Http::response([
+                'result' => [
+                    'items' => [
+                        [
+                            '_about' => 'https://w3id.org/geochem/1.0/analyticalmethod/ms',
+                            'prefLabel' => ['_value' => 'Mass spectrometry', '_lang' => 'en'],
+                            'broader' => [],
+                            'notation' => 'MS',
+                        ],
+                        [
+                            '_about' => 'https://w3id.org/geochem/1.0/analyticalmethod/xrf',
+                            'prefLabel' => ['_value' => 'XRF', '_lang' => 'en'],
+                            'broader' => [],
+                            'notation' => 'XRF',
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $service = new ThesaurusStatusService;
+        $count = $service->getRemoteConceptCount($thesaurus);
+
+        expect($count)->toBe(2);
+    });
+
+    test('uses version from thesaurus setting for analytical methods URL', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS],
+            [
+                'display_name' => 'Analytical Methods for Geochemistry',
+                'is_active' => true,
+                'is_elmo_active' => true,
+                'version' => '2-0',
+            ]
+        );
+
+        Http::fake([
+            'vocabs.ardc.edu.au/*' => Http::response([
+                'result' => [
+                    'items' => [
+                        [
+                            '_about' => 'https://w3id.org/geochem/1.0/analyticalmethod/ms',
+                            'prefLabel' => ['_value' => 'Mass spectrometry', '_lang' => 'en'],
+                            'broader' => [],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $service = new ThesaurusStatusService;
+        $service->getRemoteConceptCount($thesaurus);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/2-0/concept.json');
+        });
+    });
 });
 
 describe('compareWithRemote', function () {

@@ -268,9 +268,10 @@ describe('Vocabulary Type Grouping', () => {
             science: [],
             platforms: [],
             instruments: [],
-            msl: [], // Added MSL
+            msl: [],
             chronostratigraphy: [],
             gemet: [],
+            analytical_methods: [],
         };
 
         keywords.forEach((keyword) => {

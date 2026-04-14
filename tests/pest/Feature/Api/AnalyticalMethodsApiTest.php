@@ -160,4 +160,15 @@ describe('ThesaurusSettingsController - Analytical Methods', function () {
             ])
             ->assertForbidden();
     });
+
+    it('returns 404 for unknown thesaurus type', function () {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->patchJson('/thesauri/nonexistent_type/version', [
+                'version' => '1-0',
+            ])
+            ->assertNotFound()
+            ->assertJsonFragment(['error' => "Thesaurus type 'nonexistent_type' not found"]);
+    });
 });
