@@ -1344,8 +1344,8 @@
                         "example": "https://vocabs.ardc.edu.au/repository/api/lda/ga-analytical-methods-geochemistry-and-cosmochemistry"
                     },
                     "notation": {
-                        "type": ["string", "null"],
-                        "description": "Notation code for the concept (e.g. a short identifier). Null if not available.",
+                        "type": "string",
+                        "description": "Notation code for the concept (e.g. a short identifier). Empty string when not available.",
                         "example": "AAS"
                     },
                     "description": {
