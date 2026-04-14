@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, render, screen } from '@tests/vitest/utils/render';
+import { cleanup, render } from '@tests/vitest/utils/render';
 import { createTagifyMock, MockTagify } from '@test-helpers/tagify-mock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
