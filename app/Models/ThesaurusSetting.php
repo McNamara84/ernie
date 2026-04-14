@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CacheKey;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
@@ -90,6 +91,22 @@ class ThesaurusSetting extends Model
             self::TYPE_PLATFORMS => 'platforms',
             self::TYPE_INSTRUMENTS => 'instruments',
             default => throw new \InvalidArgumentException("getVocabularyType() is only supported for GCMD thesauri, got: {$this->type}"),
+        };
+    }
+
+    /**
+     * Get the cache key enum for this thesaurus.
+     */
+    public function getCacheKey(): CacheKey
+    {
+        return match ($this->type) {
+            self::TYPE_SCIENCE_KEYWORDS => CacheKey::GCMD_SCIENCE_KEYWORDS,
+            self::TYPE_PLATFORMS => CacheKey::GCMD_PLATFORMS,
+            self::TYPE_INSTRUMENTS => CacheKey::GCMD_INSTRUMENTS,
+            self::TYPE_CHRONOSTRAT => CacheKey::CHRONOSTRAT_TIMESCALE,
+            self::TYPE_GEMET => CacheKey::GEMET_THESAURUS,
+            self::TYPE_ANALYTICAL_METHODS => CacheKey::ANALYTICAL_METHODS,
+            default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
 

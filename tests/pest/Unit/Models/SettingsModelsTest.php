@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 
@@ -257,4 +258,29 @@ describe('ThesaurusSetting model', function () {
             expect($model->supportsVersioning())->toBeFalse();
         }
     });
+
+    it('returns correct cache key for each type', function () {
+        $expectations = [
+            ThesaurusSetting::TYPE_SCIENCE_KEYWORDS => CacheKey::GCMD_SCIENCE_KEYWORDS,
+            ThesaurusSetting::TYPE_PLATFORMS => CacheKey::GCMD_PLATFORMS,
+            ThesaurusSetting::TYPE_INSTRUMENTS => CacheKey::GCMD_INSTRUMENTS,
+            ThesaurusSetting::TYPE_CHRONOSTRAT => CacheKey::CHRONOSTRAT_TIMESCALE,
+            ThesaurusSetting::TYPE_GEMET => CacheKey::GEMET_THESAURUS,
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => CacheKey::ANALYTICAL_METHODS,
+        ];
+
+        foreach ($expectations as $type => $cacheKey) {
+            $model = new ThesaurusSetting;
+            $model->type = $type;
+
+            expect($model->getCacheKey())->toBe($cacheKey);
+        }
+    });
+
+    it('throws for unknown type in getCacheKey', function () {
+        $model = new ThesaurusSetting;
+        $model->type = 'unknown';
+
+        $model->getCacheKey();
+    })->throws(\InvalidArgumentException::class);
 });

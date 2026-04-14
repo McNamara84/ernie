@@ -8,10 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Jobs\UpdateThesaurusJob;
 use App\Models\ThesaurusSetting;
 use App\Services\ThesaurusStatusService;
+use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -212,10 +214,15 @@ class ThesaurusSettingsController extends Controller
 
         $thesaurus->update(['version' => $validated['version']]);
 
+        // Invalidate cache and remove local vocabulary file to prevent
+        // serving stale data that belongs to the previous version.
+        app(VocabularyCacheService::class)->invalidateVocabularyCache($thesaurus->getCacheKey());
+        Storage::delete($thesaurus->getFilePath());
+
         return response()->json([
             'type' => $type,
             'version' => $thesaurus->version,
-            'message' => 'Version updated successfully',
+            'message' => 'Version updated successfully. Please trigger a vocabulary update to fetch the new version.',
         ]);
     }
 }

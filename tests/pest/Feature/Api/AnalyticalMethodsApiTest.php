@@ -114,11 +114,26 @@ describe('ThesaurusSettingsController - Analytical Methods', function () {
             ->assertOk()
             ->assertJsonFragment([
                 'version' => '2-0',
-                'message' => 'Version updated successfully',
+                'message' => 'Version updated successfully. Please trigger a vocabulary update to fetch the new version.',
             ]);
 
         expect(ThesaurusSetting::where('type', 'analytical_methods')->first()->version)
             ->toBe('2-0');
+    });
+
+    it('invalidates cache and deletes vocabulary file on version change', function () {
+        Storage::fake('local');
+        Storage::put('analytical-methods.json', json_encode(['data' => []]));
+
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->patchJson('/thesauri/analytical_methods/version', [
+                'version' => '2-0',
+            ])
+            ->assertOk();
+
+        Storage::assertMissing('analytical-methods.json');
     });
 
     it('rejects version update for non-versioned thesauri', function () {
