@@ -133,7 +133,8 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             const tagData = event.detail?.data as Record<string, unknown> | undefined;
             editingRorIdRef.current = typeof tagData?.rorId === 'string' ? tagData.rorId : null;
             // Suspend comma delimiter during edit to allow commas in affiliation names
-            tagify.settings.delimiters = null;
+            // Use a regex that never matches instead of null (type: string | RegExp)
+            tagify.settings.delimiters = /(?!)/;
         };
 
         const handleEditUpdated = (event: CustomEvent) => {
@@ -145,21 +146,24 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             editingRorIdRef.current = null;
         };
 
-        const handleEditEnd = () => {
-            tagify.settings.delimiters = ',';
-            editingRorIdRef.current = null;
+        const handleEditKeydown = (event: CustomEvent) => {
+            const keyboardEvent = (event.detail as { event?: KeyboardEvent })?.event;
+            if (keyboardEvent?.key === 'Escape') {
+                tagify.settings.delimiters = ',';
+                editingRorIdRef.current = null;
+            }
         };
 
         tagify.on('change', handleChange);
         tagify.on('edit:start', handleEditStart);
         tagify.on('edit:updated', handleEditUpdated);
-        tagify.on('edit:end', handleEditEnd);
+        tagify.on('edit:keydown', handleEditKeydown);
 
         return () => {
             tagify.off('change', handleChange);
             tagify.off('edit:start', handleEditStart);
             tagify.off('edit:updated', handleEditUpdated);
-            tagify.off('edit:end', handleEditEnd);
+            tagify.off('edit:keydown', handleEditKeydown);
             tagify.destroy();
             tagifyRef.current = null;
         };

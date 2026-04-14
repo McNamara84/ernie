@@ -71,16 +71,17 @@ describe('TagInputField — edit mode rorId preservation', () => {
         // Initially delimiter should be comma
         expect(tagify.settings.delimiters).toBe(',');
 
-        // Simulate edit:start — delimiter should be suspended
+        // Simulate edit:start — delimiter should be suspended (regex that never matches)
         tagify.emit('edit:start', { data: { value: 'Some Institution' } });
-        expect(tagify.settings.delimiters).toBeNull();
+        expect(tagify.settings.delimiters).toBeInstanceOf(RegExp);
+        expect(','.match(tagify.settings.delimiters as RegExp)).toBeNull();
 
         // Simulate edit:updated — delimiter should be restored
         tagify.emit('edit:updated', { data: { value: 'Some Institution, City' } });
         expect(tagify.settings.delimiters).toBe(',');
     });
 
-    it('restores delimiter when edit is cancelled (edit:end without edit:updated)', () => {
+    it('restores delimiter when edit is cancelled via Escape key', () => {
         const onChange = vi.fn();
 
         render(
@@ -96,10 +97,10 @@ describe('TagInputField — edit mode rorId preservation', () => {
 
         // Start edit — delimiter suspended
         tagify.emit('edit:start', { data: { value: 'Some Institution' } });
-        expect(tagify.settings.delimiters).toBeNull();
+        expect(tagify.settings.delimiters).toBeInstanceOf(RegExp);
 
-        // Cancel edit (Escape) — only edit:end fires, not edit:updated
-        tagify.emit('edit:end');
+        // Cancel edit (Escape) — edit:keydown fires with Escape key
+        tagify.emit('edit:keydown', { event: new KeyboardEvent('keydown', { key: 'Escape' }) });
         expect(tagify.settings.delimiters).toBe(',');
     });
 
