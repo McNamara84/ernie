@@ -207,7 +207,7 @@ class ThesaurusSettingsController extends Controller
         }
 
         $validated = $request->validate([
-            'version' => ['required', 'string', 'max:20', 'regex:/^[\w\-\.]+$/'],
+            'version' => ['required', 'string', 'max:20', 'regex:/^\d+(-\d+)*$/'],
         ]);
 
         $thesaurus->update(['version' => $validated['version']]);
