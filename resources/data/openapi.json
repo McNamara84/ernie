@@ -1307,10 +1307,61 @@
                         "type": "array",
                         "description": "Hierarchical array of analytical method concepts with notation codes",
                         "items": {
-                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                            "$ref": "#/components/schemas/AnalyticalMethodsConcept"
                         }
                     }
                 }
+            },
+            "AnalyticalMethodsConcept": {
+                "type": "object",
+                "description": "A concept from the Analytical Methods for Geochemistry and Cosmochemistry vocabulary, extending the base keyword concept with an optional notation code",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "Unique identifier (URI) for the concept",
+                        "example": "https://vocabs.ardc.edu.au/repository/api/lda/anzsrc-2020-for/concept/_370101"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Preferred label for the concept",
+                        "example": "Atomic Absorption Spectroscopy"
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "Language code of the concept label",
+                        "example": "en"
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "description": "Name of the vocabulary scheme",
+                        "example": "Analytical Methods for Geochemistry and Cosmochemistry"
+                    },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URI of the vocabulary scheme",
+                        "example": "https://vocabs.ardc.edu.au/repository/api/lda/ga-analytical-methods-geochemistry-and-cosmochemistry"
+                    },
+                    "notation": {
+                        "type": ["string", "null"],
+                        "description": "Notation code for the concept (e.g. a short identifier). Null if not available.",
+                        "example": "AAS"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Definition or description of the concept",
+                        "example": "A technique used to determine the concentration of a specific metal element in a sample."
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "Child concepts in the hierarchy",
+                        "items": {
+                            "$ref": "#/components/schemas/AnalyticalMethodsConcept"
+                        }
+                    }
+                },
+                "required": ["id", "text", "language", "scheme", "schemeURI", "description", "children"]
             },
             "GcmdKeywordConcept": {
                 "type": "object",

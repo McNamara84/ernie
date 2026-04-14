@@ -200,7 +200,7 @@ class ThesaurusSettingsController extends Controller
             ], 404);
         }
 
-        if ($thesaurus->version === null) {
+        if (! $thesaurus->isArdc()) {
             return response()->json([
                 'error' => 'This thesaurus does not support versioning.',
             ], 400);
