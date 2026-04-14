@@ -164,7 +164,7 @@ class UpdateThesaurusJob implements ShouldQueue
     private function getProgressMessage(): string
     {
         return match ($this->thesaurusType) {
-            ThesaurusSetting::TYPE_CHRONOSTRAT => 'Fetching data from ARDC Linked Data API...',
+            ThesaurusSetting::TYPE_CHRONOSTRAT, ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'Fetching data from ARDC Linked Data API...',
             ThesaurusSetting::TYPE_GEMET => 'Fetching data from GEMET REST API...',
             default => 'Fetching data from NASA KMS API...',
         };
@@ -181,6 +181,7 @@ class UpdateThesaurusJob implements ShouldQueue
             ThesaurusSetting::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
             ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             ThesaurusSetting::TYPE_GEMET => 'get-gemet-thesaurus',
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->thesaurusType}"),
         };
     }

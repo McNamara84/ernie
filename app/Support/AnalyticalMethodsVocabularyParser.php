@@ -142,12 +142,16 @@ class AnalyticalMethodsVocabularyParser
 
         // Single label object: {"_value": "...", "_lang": "en"}
         if (isset($prefLabel['_value'], $prefLabel['_lang'])) {
-            return $prefLabel['_lang'] === 'en' ? $prefLabel['_value'] : null;
+            return is_string($prefLabel['_lang']) && $prefLabel['_lang'] === 'en' && is_string($prefLabel['_value'])
+                ? $prefLabel['_value']
+                : null;
         }
 
         // Array of label objects
         foreach ($prefLabel as $label) {
-            if (is_array($label) && isset($label['_value'], $label['_lang']) && $label['_lang'] === 'en') {
+            if (is_array($label) && isset($label['_value'], $label['_lang'])
+                && is_string($label['_lang']) && $label['_lang'] === 'en'
+                && is_string($label['_value'])) {
                 return $label['_value'];
             }
         }
