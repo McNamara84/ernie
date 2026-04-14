@@ -325,8 +325,9 @@ function useSectionState(manifests: AssistantManifest[]) {
 
     // Cleanup all polling on unmount
     useEffect(() => {
+        const refs = pollingRefs.current;
         return () => {
-            for (const timer of Object.values(pollingRefs.current)) {
+            for (const timer of Object.values(refs)) {
                 if (timer !== null) clearTimeout(timer);
             }
         };
