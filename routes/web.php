@@ -251,6 +251,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('thesauri.update');
         Route::get('/update-status/{jobId}', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'updateStatus'])
             ->name('thesauri.update-status');
+        Route::patch('/{type}/version', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'updateVersion'])
+            ->name('thesauri.update-version');
     });
 
     // PID settings routes (Admin and Group Leader) - PID4INST instrument registry
@@ -509,6 +511,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.chronostrat-timescale');
     Route::get('vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus'])
         ->name('vocabularies.gemet');
+    Route::get('vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods'])
+        ->name('vocabularies.analytical-methods');
     Route::get('vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])
         ->name('vocabularies.pid-availability');
     Route::get('vocabularies/msl-vocabulary-url', function () {

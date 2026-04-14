@@ -201,6 +201,22 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return Analytical Methods for Geochemistry vocabulary.
+     */
+    public function analyticalMethods(): JsonResponse
+    {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_ANALYTICAL_METHODS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::ANALYTICAL_METHODS,
+            'analytical-methods.json',
+            'php artisan get-analytical-methods'
+        );
+    }
+
+    /**
      * Return ROR affiliations vocabulary for ELMO.
      *
      * Returns the complete ROR data with metadata wrapper

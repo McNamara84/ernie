@@ -26,6 +26,7 @@ export interface ThesaurusData {
     displayName: string;
     isActive: boolean;
     isElmoActive: boolean;
+    version: string | null;
     exists: boolean;
     conceptCount: number;
     lastUpdated: string | null;
@@ -225,6 +226,14 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                     <Calendar className="h-3.5 w-3.5" />
                                     {formatDate(thesaurus.lastUpdated)}
                                 </span>
+                                {thesaurus.version && (
+                                    <>
+                                        <span className="text-muted-foreground/50">•</span>
+                                        <Badge variant="outline" className="text-xs">
+                                            v{thesaurus.version}
+                                        </Badge>
+                                    </>
+                                )}
                             </>
                         ) : (
                             <Badge variant="outline" className="text-amber-600">

@@ -15,10 +15,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $display_name
  * @property bool $is_active
  * @property bool $is_elmo_active
+ * @property string|null $version
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
-#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active'])]
+#[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active', 'version'])]
 class ThesaurusSetting extends Model
 {
     public const TYPE_SCIENCE_KEYWORDS = 'science_keywords';
@@ -30,6 +31,8 @@ class ThesaurusSetting extends Model
     public const TYPE_CHRONOSTRAT = 'chronostratigraphy';
 
     public const TYPE_GEMET = 'gemet';
+
+    public const TYPE_ANALYTICAL_METHODS = 'analytical_methods';
 
     /**
      * @return array<string, string>
@@ -53,6 +56,7 @@ class ThesaurusSetting extends Model
             self::TYPE_INSTRUMENTS => 'gcmd-instruments.json',
             self::TYPE_CHRONOSTRAT => 'chronostrat-timescale.json',
             self::TYPE_GEMET => 'gemet-thesaurus.json',
+            self::TYPE_ANALYTICAL_METHODS => 'analytical-methods.json',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -68,6 +72,7 @@ class ThesaurusSetting extends Model
             self::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
             self::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             self::TYPE_GEMET => 'get-gemet-thesaurus',
+            self::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -113,6 +118,18 @@ class ThesaurusSetting extends Model
             self::TYPE_INSTRUMENTS,
             self::TYPE_CHRONOSTRAT,
             self::TYPE_GEMET,
+            self::TYPE_ANALYTICAL_METHODS,
         ];
+    }
+
+    /**
+     * Check if this thesaurus uses the ARDC Linked Data API.
+     */
+    public function isArdc(): bool
+    {
+        return in_array($this->type, [
+            self::TYPE_CHRONOSTRAT,
+            self::TYPE_ANALYTICAL_METHODS,
+        ], true);
     }
 }

@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 
 covers(ArdcApiService::class);
 
+const TEST_ARDC_URL = 'https://vocabs.ardc.edu.au/repository/api/lda/test/vocabulary/1-0/concept.json';
+
 describe('fetchAllItems', function (): void {
     test('fetches items from single page', function (): void {
         Http::fake([
@@ -21,7 +23,7 @@ describe('fetchAllItems', function (): void {
             ]),
         ]);
 
-        $service = new ArdcApiService;
+        $service = new ArdcApiService(TEST_ARDC_URL);
         $result = $service->fetchAllItems();
 
         expect($result)->toHaveCount(2);
@@ -46,7 +48,7 @@ describe('fetchAllItems', function (): void {
                 ],
             ]);
 
-        $service = new ArdcApiService;
+        $service = new ArdcApiService(TEST_ARDC_URL);
         $result = $service->fetchAllItems();
 
         expect($result)->toHaveCount(2);
@@ -57,7 +59,7 @@ describe('fetchAllItems', function (): void {
             'vocabs.ardc.edu.au/*' => Http::response(null, 500),
         ]);
 
-        $service = new ArdcApiService;
+        $service = new ArdcApiService(TEST_ARDC_URL);
         $service->fetchAllItems();
     })->throws(RuntimeException::class);
 
@@ -66,7 +68,7 @@ describe('fetchAllItems', function (): void {
             'vocabs.ardc.edu.au/*' => Http::response(['result' => ['no_items_key' => true]]),
         ]);
 
-        $service = new ArdcApiService;
+        $service = new ArdcApiService(TEST_ARDC_URL);
         $service->fetchAllItems();
     })->throws(RuntimeException::class);
 });

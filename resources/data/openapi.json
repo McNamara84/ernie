@@ -784,6 +784,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/geochem-analytical-methods": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get Analytical Methods for Geochemistry vocabulary",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analytical Methods vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticalMethodsVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-analytical-methods"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -1244,6 +1287,25 @@
                     "data": {
                         "type": "array",
                         "description": "Hierarchical array of GEMET concepts (SuperGroups → Groups → Concepts)",
+                        "items": {
+                            "$ref": "#/components/schemas/GcmdKeywordConcept"
+                        }
+                    }
+                }
+            },
+            "AnalyticalMethodsVocabulary": {
+                "type": "object",
+                "description": "Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the ARDC Linked Data API (EarthChem/GEOROC)",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the vocabulary was last updated",
+                        "example": "2026-04-15 12:00:00"
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Hierarchical array of analytical method concepts with notation codes",
                         "items": {
                             "$ref": "#/components/schemas/GcmdKeywordConcept"
                         }

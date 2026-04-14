@@ -97,6 +97,9 @@ const GCMDTreeNodeComponent = ({ node, selectedIds, onToggle, level = 0, pathPre
                 {/* Label */}
                 <label htmlFor={`gcmd-node-${node.id}`} className="flex-1 cursor-pointer text-sm leading-tight" title={node.description || node.text}>
                     {highlightText(node.text, searchQuery)}
+                    {node.notation && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">({highlightText(node.notation, searchQuery)})</span>
+                    )}
                 </label>
             </div>
 

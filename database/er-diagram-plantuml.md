@@ -516,6 +516,7 @@ entity "thesaurus_settings" as thesaurus_settings {
     * display_name : VARCHAR
     * is_active : BOOLEAN = true
     * is_elmo_active : BOOLEAN = true
+    version : VARCHAR
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

@@ -10,14 +10,19 @@ use RuntimeException;
 /**
  * Service for fetching data from the ARDC Linked Data API.
  *
- * Handles paginated retrieval and response validation for the
- * ICS Chronostratigraphic Timescale vocabulary.
+ * Handles paginated retrieval and response validation for
+ * ARDC-hosted SKOS vocabularies (e.g., Chronostratigraphy, Analytical Methods).
  */
 class ArdcApiService
 {
-    private const BASE_URL = 'https://vocabs.ardc.edu.au/repository/api/lda/csiro/international-chronostratigraphic-chart/geologic-time-scale-2020/concept.json';
-
     private const PAGE_SIZE = 200;
+
+    /**
+     * @param  string  $baseUrl  The full URL to the concept.json endpoint (without query parameters)
+     */
+    public function __construct(
+        private readonly string $baseUrl
+    ) {}
 
     /**
      * Fetch all items from the ARDC API across all pages.
@@ -33,7 +38,7 @@ class ArdcApiService
         $page = 0;
 
         do {
-            $url = self::BASE_URL.'?_pageSize='.self::PAGE_SIZE.'&_page='.$page;
+            $url = $this->baseUrl.'?_pageSize='.self::PAGE_SIZE.'&_page='.$page;
 
             $response = Http::timeout($timeout)
                 ->accept('application/json')

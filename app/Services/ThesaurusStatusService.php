@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\ThesaurusSetting;
+use App\Support\AnalyticalMethodsVocabularyParser;
 use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
 use App\Support\Traits\ChecksCacheTagging;
@@ -93,6 +94,10 @@ class ThesaurusStatusService
             return $this->getGemetRemoteCount();
         }
 
+        if ($thesaurus->type === ThesaurusSetting::TYPE_ANALYTICAL_METHODS) {
+            return $this->getAnalyticalMethodsRemoteCount($thesaurus);
+        }
+
         throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
     }
 
@@ -132,10 +137,34 @@ class ThesaurusStatusService
      */
     private function getChronostratRemoteCount(): int
     {
-        $ardcApi = new ArdcApiService;
+        $ardcApi = new ArdcApiService(
+            'https://vocabs.ardc.edu.au/repository/api/lda/csiro/international-chronostratigraphic-chart/geologic-time-scale-2020/concept.json'
+        );
         $allItems = $ardcApi->fetchAllItems(timeout: 30);
 
         $parser = new ChronostratVocabularyParser;
+
+        return count($parser->extractConcepts($allItems));
+    }
+
+    /**
+     * Get concept count from ARDC Linked Data API for Analytical Methods.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getAnalyticalMethodsRemoteCount(ThesaurusSetting $thesaurus): int
+    {
+        $version = $thesaurus->version ?? '1-4';
+        $baseUrl = str_replace(
+            '{version}',
+            $version,
+            'https://vocabs.ardc.edu.au/repository/api/lda/earthchem-georoc/analytical-methods-for-geochemistry-and-cosmochemi/{version}/concept.json'
+        );
+
+        $ardcApi = new ArdcApiService($baseUrl);
+        $allItems = $ardcApi->fetchAllItems(timeout: 30);
+
+        $parser = new AnalyticalMethodsVocabularyParser;
 
         return count($parser->extractConcepts($allItems));
     }

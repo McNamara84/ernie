@@ -32,6 +32,10 @@ class ThesaurusSettingSeeder extends Seeder
                 'type' => ThesaurusSetting::TYPE_GEMET,
                 'display_name' => 'GEMET Thesaurus',
             ],
+            [
+                'type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
+                'display_name' => 'Analytical Methods for Geochemistry',
+            ],
         ];
 
         foreach ($thesauri as $thesaurus) {

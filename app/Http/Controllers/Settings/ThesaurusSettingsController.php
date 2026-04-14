@@ -9,6 +9,7 @@ use App\Jobs\UpdateThesaurusJob;
 use App\Models\ThesaurusSetting;
 use App\Services\ThesaurusStatusService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -42,6 +43,7 @@ class ThesaurusSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
+                'version' => $thesaurus->version,
                 'exists' => $localStatus['exists'],
                 'conceptCount' => $localStatus['conceptCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
@@ -173,5 +175,47 @@ class ThesaurusSettingsController extends Controller
         }
 
         return response()->json($status);
+    }
+
+    /**
+     * Update the vocabulary version for a thesaurus.
+     *
+     * PATCH /thesauri/{type}/version
+     *
+     * Only applicable for thesauri that support versioning (e.g., ARDC vocabularies).
+     */
+    public function updateVersion(Request $request, string $type): JsonResponse
+    {
+        if (Gate::denies('manage-thesauri')) {
+            return response()->json([
+                'error' => 'Unauthorized. Only administrators can update thesaurus versions.',
+            ], 403);
+        }
+
+        $thesaurus = ThesaurusSetting::where('type', $type)->first();
+
+        if ($thesaurus === null) {
+            return response()->json([
+                'error' => "Thesaurus type '{$type}' not found",
+            ], 404);
+        }
+
+        if ($thesaurus->version === null) {
+            return response()->json([
+                'error' => 'This thesaurus does not support versioning.',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'version' => ['required', 'string', 'max:20', 'regex:/^[\w\-\.]+$/'],
+        ]);
+
+        $thesaurus->update(['version' => $validated['version']]);
+
+        return response()->json([
+            'type' => $type,
+            'version' => $thesaurus->version,
+            'message' => 'Version updated successfully',
+        ]);
     }
 }
