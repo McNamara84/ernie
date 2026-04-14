@@ -42,7 +42,8 @@ export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     if (normalized.includes('msl') || normalized.includes('epos')) return 'msl';
     if (normalized.includes('chronostratigraphic') || normalized.includes('chronostrat')) return 'chronostratigraphy';
     if (normalized.includes('gemet')) return 'gemet';
-    if (normalized.includes('analytical') || normalized.includes('geochem')) return 'analytical_methods';
+    if (normalized.includes('analytical') && normalized.includes('method')) return 'analytical_methods';
+    if (normalized.includes('geochem') && normalized.includes('method')) return 'analytical_methods';
 
     return 'science'; // Default fallback
 }

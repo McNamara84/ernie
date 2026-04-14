@@ -1320,7 +1320,7 @@
                         "type": "string",
                         "format": "uri",
                         "description": "Unique identifier (URI) for the concept",
-                        "example": "https://vocabs.ardc.edu.au/repository/api/lda/anzsrc-2020-for/concept/_370101"
+                        "example": "https://w3id.org/geochem/1.0/analyticalmethod/massspectrometry"
                     },
                     "text": {
                         "type": "string",
@@ -1341,7 +1341,7 @@
                         "type": "string",
                         "format": "uri",
                         "description": "URI of the vocabulary scheme",
-                        "example": "https://vocabs.ardc.edu.au/repository/api/lda/ga-analytical-methods-geochemistry-and-cosmochemistry"
+                        "example": "https://w3id.org/geochem/1.0/analyticalmethod/method"
                     },
                     "notation": {
                         "type": "string",
@@ -1361,7 +1361,7 @@
                         }
                     }
                 },
-                "required": ["id", "text", "language", "scheme", "schemeURI", "description", "children"]
+                "required": ["id", "text", "notation", "language", "scheme", "schemeURI", "description", "children"]
             },
             "GcmdKeywordConcept": {
                 "type": "object",

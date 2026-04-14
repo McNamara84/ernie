@@ -215,7 +215,7 @@ describe('ThesaurusSetting model', function () {
             $model = new ThesaurusSetting;
             $model->type = $type;
 
-            expect($model->isArdc())->toBeTrue();
+            expect($model->usesArdcApi())->toBeTrue();
         }
     });
 
@@ -231,7 +231,30 @@ describe('ThesaurusSetting model', function () {
             $model = new ThesaurusSetting;
             $model->type = $type;
 
-            expect($model->isArdc())->toBeFalse();
+            expect($model->usesArdcApi())->toBeFalse();
+        }
+    });
+
+    it('correctly identifies versioned thesauri', function () {
+        $model = new ThesaurusSetting;
+        $model->type = ThesaurusSetting::TYPE_ANALYTICAL_METHODS;
+        expect($model->supportsVersioning())->toBeTrue();
+    });
+
+    it('correctly identifies non-versioned thesauri', function () {
+        $nonVersionedTypes = [
+            ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+            ThesaurusSetting::TYPE_PLATFORMS,
+            ThesaurusSetting::TYPE_INSTRUMENTS,
+            ThesaurusSetting::TYPE_CHRONOSTRAT,
+            ThesaurusSetting::TYPE_GEMET,
+        ];
+
+        foreach ($nonVersionedTypes as $type) {
+            $model = new ThesaurusSetting;
+            $model->type = $type;
+
+            expect($model->supportsVersioning())->toBeFalse();
         }
     });
 });

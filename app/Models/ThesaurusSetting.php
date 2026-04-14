@@ -125,10 +125,21 @@ class ThesaurusSetting extends Model
     /**
      * Check if this thesaurus uses the ARDC Linked Data API.
      */
-    public function isArdc(): bool
+    public function usesArdcApi(): bool
     {
         return in_array($this->type, [
             self::TYPE_CHRONOSTRAT,
+            self::TYPE_ANALYTICAL_METHODS,
+        ], true);
+    }
+
+    /**
+     * Check if this thesaurus supports user-configurable versioning.
+     * Only thesauri whose fetch command actually uses the version column.
+     */
+    public function supportsVersioning(): bool
+    {
+        return in_array($this->type, [
             self::TYPE_ANALYTICAL_METHODS,
         ], true);
     }
