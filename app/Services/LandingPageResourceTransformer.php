@@ -274,8 +274,8 @@ final class LandingPageResourceTransformer
                 'type' => class_basename($morphType),
                 'source' => $source,
                 'affiliations' => $affiliations,
-                'orcid' => $nameIdentifierScheme === 'ORCID'
-                    ? $entity?->name_identifier
+                'orcid' => ($nameIdentifierScheme === 'ORCID' && $entity !== null)
+                    ? $entity->name_identifier
                     : null,
                 'website' => $website,
                 'has_email' => true,
