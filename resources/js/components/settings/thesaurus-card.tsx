@@ -198,7 +198,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
         }
     }, [thesaurus.type, pollJobStatus]);
 
-    const saveVersion = useCallback(async () => {
+    const saveVersion = async () => {
         const trimmed = versionInput.trim();
         if (!trimmed) {
             setVersionError('Version is required');
@@ -216,6 +216,8 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                     'X-XSRF-TOKEN': getCsrfToken(),
                 },
                 credentials: 'include',
@@ -224,7 +226,11 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP ${response.status}`);
+                // Laravel validation errors return { message, errors } with 422
+                if (errorData.errors?.version) {
+                    throw new Error(errorData.errors.version[0]);
+                }
+                throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
             }
 
             setIsEditingVersion(false);
@@ -235,7 +241,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
         } finally {
             setIsSavingVersion(false);
         }
-    }, [versionInput, thesaurus.type]);
+    };
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'Never';

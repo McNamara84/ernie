@@ -185,12 +185,13 @@ class ThesaurusSettingsController extends Controller
      * PATCH /thesauri/{type}/version
      *
      * Only applicable for thesauri that support versioning (e.g., ARDC vocabularies).
+     * Requires 'manage-thesauri' gate (Admin and Group Leader).
      */
     public function updateVersion(Request $request, string $type): JsonResponse
     {
         if (Gate::denies('manage-thesauri')) {
             return response()->json([
-                'error' => 'Unauthorized. Only administrators can update thesaurus versions.',
+                'error' => 'Unauthorized. Only administrators and group leaders can update thesaurus versions.',
             ], 403);
         }
 

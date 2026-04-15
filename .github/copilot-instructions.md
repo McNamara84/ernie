@@ -109,7 +109,7 @@ docker exec ernie-app-dev php artisan tinker
   - `manage-users` – Admin, Group Leader
   - `register-production-doi` – All except Beginner
   - `delete-logs` – Admin only
-  - `manage-thesauri` – Admin only
+  - `manage-thesauri` – Admin, Group Leader
   - `delete-all-resources` – Admin only
   - `manage-landing-pages` – Admin, Group Leader, Curator
 
