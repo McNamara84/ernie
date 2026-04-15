@@ -106,7 +106,7 @@ class AnalyticalMethodsVocabularyParser
         }
 
         return [
-            'lastUpdated' => now()->format('Y-m-d H:i:s'),
+            'lastUpdated' => now()->toIso8601String(),
             'data' => $rootConcepts,
         ];
     }

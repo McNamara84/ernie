@@ -855,7 +855,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     standardized terms for analytical techniques used in geochemical and cosmochemical
                                     research (e.g. mass spectrometry, X-ray diffraction). Concepts include optional
                                     notation codes. Sourced from the ARDC Linked Data API (EarthChem/GEOROC).
-                                    The vocabulary version is configurable by administrators.
+                                    The vocabulary version is configurable by administrators and group leaders.
                                 </p>
                             </>
                         )}

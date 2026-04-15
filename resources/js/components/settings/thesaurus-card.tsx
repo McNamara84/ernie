@@ -225,12 +225,19 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                // Laravel validation errors return { message, errors } with 422
-                if (errorData.errors?.version) {
-                    throw new Error(errorData.errors.version[0]);
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    // Laravel validation errors return { message, errors } with 422
+                    if (errorData.errors?.version) {
+                        errorMessage = errorData.errors.version[0];
+                    } else {
+                        errorMessage = errorData.error || errorData.message || errorMessage;
+                    }
+                } catch {
+                    // Response is not JSON (e.g. HTML error page) – use HTTP status
                 }
-                throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
+                throw new Error(errorMessage);
             }
 
             setIsEditingVersion(false);

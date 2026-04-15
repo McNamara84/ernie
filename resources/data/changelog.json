@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Analytical Methods for Geochemistry Thesaurus",
-                "description": "A new controlled vocabulary 'Analytical Methods for Geochemistry and Cosmochemistry' has been integrated from the ARDC (Australian Research Data Commons) Linked Data API. The vocabulary provides a hierarchical tree of analytical methods (e.g., Mass Spectrometry > ICP-MS) with notation codes and definitions. It appears as a new tab in the keyword editor alongside existing vocabularies. Administrators can configure the vocabulary version in the thesaurus settings page."
+                "description": "A new controlled vocabulary 'Analytical Methods for Geochemistry and Cosmochemistry' has been integrated from the ARDC (Australian Research Data Commons) Linked Data API. The vocabulary provides a hierarchical tree of analytical methods (e.g., Mass Spectrometry > ICP-MS) with notation codes and definitions. It appears as a new tab in the keyword editor alongside existing vocabularies. Administrators and group leaders can configure the vocabulary version in the thesaurus settings page."
             },
             {
                 "title": "Unified Feedback & Animation System",
