@@ -209,6 +209,114 @@ XML;
     $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
 });
 
+test('extracts single-date coverage without range separator', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <dates>
+    <date dateType="Coverage">2026-05-01T14:30:00+05:00</date>
+  </dates>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>52.3</pointLatitude>
+        <pointLongitude>13.0</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('coverage-single.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.startDate', '2026-05-01');
+    $response->assertSessionDataPath('coverages.0.startTime', '14:30');
+    $response->assertSessionDataPath('coverages.0.endDate', '');
+    $response->assertSessionDataPath('coverages.0.endTime', '');
+
+    $timezone = $response->sessionData('coverages.0.timezone');
+    expect($timezone)->not->toBe('UTC');
+});
+
+test('temporal-only coverage without geoLocations preserves time', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <dates>
+    <date dateType="Coverage">2026-06-01T08:00:00+02:00/2026-06-01T18:00:00+02:00</date>
+  </dates>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('temporal-only.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.startDate', '2026-06-01');
+    $response->assertSessionDataPath('coverages.0.endDate', '2026-06-01');
+    $response->assertSessionDataPath('coverages.0.startTime', '08:00');
+    $response->assertSessionDataPath('coverages.0.endTime', '18:00');
+    $response->assertSessionDataPath('coverages.0.latMin', '');
+    $response->assertSessionDataPath('coverages.0.lonMin', '');
+});
+
+test('geoLocation without coverage date has empty time fields', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>52.3</pointLatitude>
+        <pointLongitude>13.0</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('geo-no-coverage.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.startDate', '');
+    $response->assertSessionDataPath('coverages.0.endDate', '');
+    $response->assertSessionDataPath('coverages.0.startTime', '');
+    $response->assertSessionDataPath('coverages.0.endTime', '');
+    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+});
+
 // ──────────────────────────────────────────────────────────────────
 // Fix 4: Coverage dates are removed from the dates array
 // ──────────────────────────────────────────────────────────────────
