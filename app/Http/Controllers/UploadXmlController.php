@@ -2370,7 +2370,7 @@ class UploadXmlController extends Controller
             try {
                 $dt = new \DateTimeImmutable($value);
                 $date = $dt->format('Y-m-d');
-                $time = $dt->format('H:i');
+                $time = (int) $dt->format('s') !== 0 ? $dt->format('H:i:s') : $dt->format('H:i');
                 $timezone = $this->resolveTimezone($dt);
 
                 return ['date' => $date, 'time' => $time, 'timezone' => $timezone];
