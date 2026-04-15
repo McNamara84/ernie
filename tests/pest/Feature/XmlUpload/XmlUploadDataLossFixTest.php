@@ -306,6 +306,43 @@ XML;
     $response->assertSessionDataPath('coverages.0.startTime', '14:30');
 });
 
+test('datetime without explicit timezone returns empty timezone', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <dates>
+    <date dateType="Coverage">2026-06-15T20:00:30/2026-06-15T22:15:45</date>
+  </dates>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>51.5</pointLatitude>
+        <pointLongitude>-0.1</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('coverage-no-tz.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.startDate', '2026-06-15');
+    $response->assertSessionDataPath('coverages.0.startTime', '20:00:30');
+    $response->assertSessionDataPath('coverages.0.endTime', '22:15:45');
+    $response->assertSessionDataPath('coverages.0.timezone', '');
+});
+
 test('extracts coverage date without time as date-only', function () {
     $this->actingAs(User::factory()->create());
 

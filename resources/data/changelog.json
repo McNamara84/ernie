@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-14",
+        "date": "2026-04-16",
         "features": [
             {
                 "title": "Analytical Methods for Geochemistry Thesaurus",
@@ -111,6 +111,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "XML Import Data Loss Prevention",
+                "description": "Fixed multiple data loss issues during XML/JSON/JSON-LD upload via the Dashboard. Per-title and per-description xml:lang attributes are now extracted and preserved through the full import-edit-save cycle. Coverage datetime values retain seconds precision and timezone offsets (e.g. +02:00) instead of silently dropping them. Datetimes without an explicit timezone designator are no longer interpreted using the server default timezone. The draft save path now also preserves language metadata. The editor load/transform layer includes language fields so subsequent saves round-trip the values correctly."
+            },
             {
                 "title": "Used Instruments Section Now Expanded by Default",
                 "description": "The 'Used Instruments' section in the Data Editor is now expanded by default when loading the editor, consistent with all other form sections."

@@ -2343,12 +2343,21 @@ class UploadXmlController extends Controller
             $endParts = ['date' => '', 'time' => '', 'timezone' => ''];
         }
 
+        // Determine timezone: use explicit timezone from start or end, otherwise
+        // only default to 'UTC' if no time component exists (pure date values)
+        $hasTimeComponent = $startParts['time'] !== '' || $endParts['time'] !== '';
+        $resolvedTimezone = $startParts['timezone'] ?: $endParts['timezone'];
+
+        if ($resolvedTimezone === '' && ! $hasTimeComponent) {
+            $resolvedTimezone = 'UTC';
+        }
+
         return [
             'startDate' => $startParts['date'],
             'endDate' => $endParts['date'],
             'startTime' => $startParts['time'],
             'endTime' => $endParts['time'],
-            'timezone' => $startParts['timezone'] ?: ($endParts['timezone'] ?: 'UTC'),
+            'timezone' => $resolvedTimezone,
         ];
     }
 
@@ -2368,10 +2377,18 @@ class UploadXmlController extends Controller
         // Only attempt full datetime parsing if the value contains a time separator
         if (str_contains($value, 'T')) {
             try {
-                $dt = new \DateTimeImmutable($value);
+                // Detect whether the original string contains an explicit timezone designator
+                // (Z, +HH:MM, -HH:MM) to avoid environment-dependent parsing via php.ini date.timezone
+                $timePart = substr($value, (int) strpos($value, 'T') + 1);
+                $hasExplicitTimezone = (bool) preg_match('/[Zz]$|[+-]\d{2}:\d{2}$/', $timePart);
+
+                $dt = $hasExplicitTimezone
+                    ? new \DateTimeImmutable($value)
+                    : new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+
                 $date = $dt->format('Y-m-d');
                 $time = (int) $dt->format('s') !== 0 ? $dt->format('H:i:s') : $dt->format('H:i');
-                $timezone = $this->resolveTimezone($dt);
+                $timezone = $hasExplicitTimezone ? $this->resolveTimezone($dt) : '';
 
                 return ['date' => $date, 'time' => $time, 'timezone' => $timezone];
             } catch (\Exception) {
