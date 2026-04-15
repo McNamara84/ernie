@@ -96,7 +96,7 @@ class EditorDataTransformer
     /**
      * Transform resource titles to frontend format.
      *
-     * @return array<int, array{title: string, titleType: string}>
+     * @return array<int, array{title: string, titleType: string, language: string|null}>
      */
     public function transformTitles(Resource $resource): array
     {
@@ -111,6 +111,7 @@ class EditorDataTransformer
             return [
                 'title' => $title->value,
                 'titleType' => $titleType,
+                'language' => $title->language,
             ];
         })->toArray();
     }
@@ -270,7 +271,7 @@ class EditorDataTransformer
      * conventions. A future migration could normalize database slugs to kebab-case to simplify
      * this logic.
      *
-     * @return array<int, array{type: string, description: string}>
+    @return array<int, array{type: string, description: string, language: string|null}>
      */
     public function transformDescriptions(Resource $resource): array
     {
@@ -284,6 +285,7 @@ class EditorDataTransformer
             return [
                 'type' => $frontendType,
                 'description' => $description->value,
+                'language' => $description->language,
             ];
         })->toArray();
     }
