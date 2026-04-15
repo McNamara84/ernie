@@ -190,10 +190,11 @@ class UploadXmlController extends Controller
 
             foreach ($titleElements as $element) {
                 $titleType = $element->getAttribute('titleType');
+                $xmlLang = $element->getAttribute('xml:lang');
                 $titles[] = [
                     'title' => $element->getContent(),
                     'titleType' => $titleType ? Str::kebab($titleType) : 'main-title',
-                    'language' => $element->getAttribute('xml:lang') ?? null,
+                    'language' => is_string($xmlLang) && trim($xmlLang) !== '' ? trim($xmlLang) : null,
                 ];
             }
 
@@ -612,7 +613,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, string|null>>
      */
     private function extractDescriptions(XmlReader $reader): array
     {
@@ -630,10 +631,12 @@ class UploadXmlController extends Controller
                 continue;
             }
 
+            $descLang = $element->getAttribute('xml:lang');
+
             $descriptions[] = [
                 'type' => $descriptionType ?? 'Other',
                 'description' => $description,
-                'language' => $element->getAttribute('xml:lang') ?? null,
+                'language' => is_string($descLang) && trim($descLang) !== '' ? trim($descLang) : null,
             ];
         }
 
@@ -2381,35 +2384,19 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * Resolve a DateTimeImmutable timezone to an IANA timezone name.
+     * Extract the timezone identifier from a DateTimeImmutable.
      *
-     * Falls back to 'UTC' if no matching IANA timezone can be found.
-     * Note: timezone resolution from offsets is inherently ambiguous
-     * (+02:00 could be Europe/Berlin, Africa/Cairo, etc.).
+     * Returns the timezone name as-is (IANA name or UTC offset string like "+02:00").
+     * Numeric offsets are kept verbatim because mapping them to IANA zones is
+     * inherently ambiguous and non-deterministic across PHP versions.
      */
     private function resolveTimezone(\DateTimeImmutable $dt): string
     {
         $tz = $dt->getTimezone();
         $tzName = $tz->getName();
 
-        // If already an IANA name (not a numeric offset like "+02:00"), return as-is
-        if (! preg_match('/^[+-]\d{2}:\d{2}$/', $tzName)) {
-            return $tzName;
-        }
-
-        // Try to find a matching IANA timezone for this offset
-        $offset = $dt->getOffset();
-        $abbreviations = \DateTimeZone::listAbbreviations();
-
-        foreach ($abbreviations as $zones) {
-            foreach ($zones as $zone) {
-                if ($zone['offset'] === $offset && is_string($zone['timezone_id']) && $zone['timezone_id'] !== '') {
-                    return $zone['timezone_id'];
-                }
-            }
-        }
-
-        return 'UTC';
+        // Return whatever PHP resolved: IANA name, offset like "+02:00", or "Z"
+        return $tzName !== '' ? $tzName : 'UTC';
     }
 
     /**

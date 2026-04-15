@@ -224,9 +224,12 @@ class StoreResourceRequest extends FormRequest
                 }
             }
 
+            $language = isset($title['language']) ? trim((string) $title['language']) : '';
+
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
                 'titleType' => $titleType,
+                'language' => $language !== '' ? $language : null,
             ];
         }
 
@@ -487,9 +490,12 @@ class StoreResourceRequest extends FormRequest
             // Convert to kebab-case for database storage
             $normalizedType = \Illuminate\Support\Str::kebab($descriptionType);
 
+            $descriptionLanguage = isset($description['language']) ? trim((string) $description['language']) : '';
+
             $descriptions[] = [
                 'descriptionType' => $normalizedType,
                 'description' => $descriptionText,
+                'language' => $descriptionLanguage !== '' ? $descriptionLanguage : null,
             ];
         }
 

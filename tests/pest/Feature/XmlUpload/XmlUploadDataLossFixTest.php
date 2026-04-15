@@ -165,10 +165,8 @@ XML;
     $response->assertSessionDataPath('coverages.0.startTime', '20:00');
     $response->assertSessionDataPath('coverages.0.endTime', '21:00');
 
-    // Timezone should be resolved (could be an IANA name matching +02:00)
-    $timezone = $response->sessionData('coverages.0.timezone');
-    expect($timezone)->not->toBe('UTC')
-        ->and($timezone)->not->toBeEmpty();
+    // Timezone should be the original offset string from the XML
+    $response->assertSessionDataPath('coverages.0.timezone', '+02:00');
 });
 
 test('extracts coverage date without time as date-only', function () {
@@ -245,8 +243,7 @@ XML;
     $response->assertSessionDataPath('coverages.0.endDate', '');
     $response->assertSessionDataPath('coverages.0.endTime', '');
 
-    $timezone = $response->sessionData('coverages.0.timezone');
-    expect($timezone)->not->toBe('UTC');
+    $response->assertSessionDataPath('coverages.0.timezone', '+05:00');
 });
 
 test('temporal-only coverage without geoLocations preserves time', function () {
