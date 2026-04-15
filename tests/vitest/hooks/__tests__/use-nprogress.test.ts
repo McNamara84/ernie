@@ -35,8 +35,8 @@ import { useNProgress } from '@/hooks/use-nprogress';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 describe('useNProgress', () => {
-    let startCallback: (event?: unknown) => void;
-    let finishCallback: (event?: unknown) => void;
+    let startCallback: (event: CustomEvent) => void;
+    let finishCallback: (event: CustomEvent) => void;
     const removeStart = vi.fn();
     const removeFinish = vi.fn();
 
@@ -45,13 +45,13 @@ describe('useNProgress', () => {
         vi.clearAllMocks();
         vi.mocked(useReducedMotion).mockReturnValue(false);
 
-        vi.mocked(router.on).mockImplementation(((event: string, cb: (...args: unknown[]) => unknown) => {
+        vi.mocked(router.on).mockImplementation(((event: string, cb: (event: CustomEvent) => void) => {
             if (event === 'start') {
-                startCallback = cb as () => void;
+                startCallback = cb;
                 return removeStart;
             }
             if (event === 'finish') {
-                finishCallback = cb as () => void;
+                finishCallback = cb;
                 return removeFinish;
             }
             return vi.fn();
@@ -77,7 +77,7 @@ describe('useNProgress', () => {
     it('starts NProgress after 250 ms delay on Inertia start event', () => {
         renderHook(() => useNProgress());
 
-        startCallback({ detail: { visit: { showProgress: true } } });
+        startCallback(new CustomEvent('inertia:start', { detail: { visit: { showProgress: true } } }));
         expect(NProgress.start).not.toHaveBeenCalled();
 
         vi.advanceTimersByTime(250);
@@ -87,9 +87,9 @@ describe('useNProgress', () => {
     it('does not start NProgress if finish arrives before delay', () => {
         renderHook(() => useNProgress());
 
-        startCallback({ detail: { visit: { showProgress: true } } });
+        startCallback(new CustomEvent('inertia:start', { detail: { visit: { showProgress: true } } }));
         vi.advanceTimersByTime(100);
-        finishCallback({ detail: { visit: { showProgress: true } } });
+        finishCallback(new CustomEvent('inertia:finish', { detail: { visit: { showProgress: true } } }));
 
         vi.advanceTimersByTime(200);
         expect(NProgress.start).not.toHaveBeenCalled();
@@ -99,9 +99,9 @@ describe('useNProgress', () => {
     it('finishes NProgress on Inertia finish event', () => {
         renderHook(() => useNProgress());
 
-        startCallback({ detail: { visit: { showProgress: true } } });
+        startCallback(new CustomEvent('inertia:start', { detail: { visit: { showProgress: true } } }));
         vi.advanceTimersByTime(250);
-        finishCallback({ detail: { visit: { showProgress: true } } });
+        finishCallback(new CustomEvent('inertia:finish', { detail: { visit: { showProgress: true } } }));
         expect(NProgress.done).toHaveBeenCalled();
     });
 

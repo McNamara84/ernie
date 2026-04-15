@@ -345,6 +345,7 @@ describe('TemporalInputs', () => {
             render(<TemporalInputs {...props} />);
 
             expect(screen.getByText(/Europe\/Berlin \(CET\/CEST\)/)).toBeInTheDocument();
+            expect(screen.queryByText(/\(imported\)/)).not.toBeInTheDocument();
         });
     });
 });
