@@ -59,7 +59,9 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
             return TIMEZONE_OPTIONS;
         }
 
-        const importedOption = { value: timezone, label: `UTC${timezone} (imported)` };
+        const isOffset = /^[+-]\d{2}:\d{2}$/.test(timezone);
+        const label = isOffset ? `UTC${timezone} (imported)` : `${timezone} (imported)`;
+        const importedOption = { value: timezone, label };
         return [importedOption, ...TIMEZONE_OPTIONS];
     }, [timezone]);
 

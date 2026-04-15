@@ -56,8 +56,8 @@ beforeEach(function () {
     $this->language = Language::create([
         'code' => 'en',
         'name' => 'English',
-        'is_active' => true,
-        'is_elmo_active' => true,
+        'active' => true,
+        'elmo_active' => true,
     ]);
     $this->right = Right::create([
         'identifier' => 'cc-by-4',

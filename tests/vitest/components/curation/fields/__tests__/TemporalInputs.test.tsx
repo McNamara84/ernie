@@ -314,7 +314,7 @@ describe('TemporalInputs', () => {
     });
 
     describe('Imported Timezone Offset', () => {
-        test('shows imported offset timezone as selected value', () => {
+        test('shows imported offset timezone with UTC prefix', () => {
             const props = {
                 ...defaultProps,
                 timezone: '+02:00',
@@ -323,6 +323,17 @@ describe('TemporalInputs', () => {
             render(<TemporalInputs {...props} />);
 
             expect(screen.getByText(/UTC\+02:00 \(imported\)/)).toBeInTheDocument();
+        });
+
+        test('shows imported IANA timezone without UTC prefix', () => {
+            const props = {
+                ...defaultProps,
+                timezone: 'Africa/Cairo',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.getByText(/Africa\/Cairo \(imported\)/)).toBeInTheDocument();
         });
 
         test('does not add duplicate option for known IANA timezone', () => {
