@@ -27,8 +27,10 @@ export function useNProgress(): void {
     }, [prefersReducedMotion]);
 
     // Subscribe to router events once; stable across reduced-motion changes.
-    // A 250 ms delay prevents the progress bar from flashing during Inertia
-    // prefetch requests (triggered on hover) and fast cached navigations.
+    // Only show progress for visits where showProgress is true. Prefetch
+    // requests (triggered on hover) set showProgress to false, so they are
+    // ignored and no longer cause the progress bar to appear unexpectedly.
+    // A 250 ms delay still prevents the bar from flashing on fast navigations.
     useEffect(() => {
         NProgress.configure({
             showSpinner: false,
@@ -39,7 +41,10 @@ export function useNProgress(): void {
 
         let timeout: ReturnType<typeof setTimeout> | null = null;
 
-        const removeStart = router.on('start', () => {
+        const removeStart = router.on('start', (event) => {
+            if (!event.detail.visit.showProgress) {
+                return;
+            }
             if (timeout) {
                 clearTimeout(timeout);
             }
@@ -48,7 +53,10 @@ export function useNProgress(): void {
             }, 250);
         });
 
-        const removeFinish = router.on('finish', () => {
+        const removeFinish = router.on('finish', (event) => {
+            if (!event.detail.visit.showProgress) {
+                return;
+            }
             if (timeout) {
                 clearTimeout(timeout);
                 timeout = null;
