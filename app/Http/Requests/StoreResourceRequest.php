@@ -50,6 +50,7 @@ class StoreResourceRequest extends FormRequest
             'titles.*.title' => ['required', 'string', 'max:255'],
             // Title types are validated in after(): allow 'main-title' even if there is no DB TitleType row.
             'titles.*.titleType' => ['required', 'string', 'max:255'],
+            'titles.*.language' => ['nullable', 'string', 'max:10'],
             'licenses' => ['required', 'array', 'min:1'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
             'authors' => ['required', 'array', 'min:1'],
@@ -89,6 +90,7 @@ class StoreResourceRequest extends FormRequest
                 Rule::in(['abstract', 'methods', 'series-information', 'table-of-contents', 'technical-info', 'other']),
             ],
             'descriptions.*.description' => ['required', 'string'],
+            'descriptions.*.language' => ['nullable', 'string', 'max:10'],
             'dates' => ['nullable', 'array'],
             'dates.*.dateType' => [
                 'required',

@@ -34,6 +34,7 @@ export interface TitleEntry {
     id: string;
     title: string;
     titleType: string;
+    language?: string | null;
 }
 
 export interface LicenseEntry {
@@ -173,12 +174,12 @@ export interface DataCiteFormProps {
     initialVersion?: string;
     initialLanguage?: string;
     initialResourceType?: string;
-    initialTitles?: { title: string; titleType: string }[];
+    initialTitles?: { title: string; titleType: string; language?: string | null }[];
     initialLicenses?: string[];
     initialResourceId?: string;
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
-    initialDescriptions?: { type: string; description: string }[];
+    initialDescriptions?: { type: string; description: string; language?: string | null }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
     initialGcmdKeywords?: {
         id: string;

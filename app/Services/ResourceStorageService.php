@@ -198,6 +198,7 @@ class ResourceStorageService
             $resourceTitles[] = [
                 'value' => $title['title'],
                 'title_type_id' => $titleTypeId,
+                'language' => $title['language'] ?? null,
             ];
         }
 
@@ -585,11 +586,7 @@ class ResourceStorageService
             $resource->descriptions()->create([
                 'description_type_id' => $descTypeId,
                 'value' => $description['description'],
-                // Language is always null because per-description language selection
-                // is not part of the current API contract. The resource-level language
-                // field (DataCite #9) serves this purpose. Any 'language' key in the
-                // request payload is intentionally ignored.
-                'language' => null,
+                'language' => $description['language'] ?? null,
             ]);
         }
     }
