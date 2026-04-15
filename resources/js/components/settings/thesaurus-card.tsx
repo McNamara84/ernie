@@ -1,10 +1,11 @@
 import { router, usePage } from '@inertiajs/react';
-import { AlertCircle, Calendar, CheckCircle2, Database, RefreshCw, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle2, Database, Pencil, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { getSelectAllState } from '@/lib/select-all';
@@ -27,6 +28,7 @@ export interface ThesaurusData {
     isActive: boolean;
     isElmoActive: boolean;
     version?: string | null;
+    supportsVersioning?: boolean;
     exists: boolean;
     conceptCount: number;
     lastUpdated: string | null;
@@ -63,6 +65,11 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
     const [updateJobId, setUpdateJobId] = useState<string | null>(null);
     const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const [isEditingVersion, setIsEditingVersion] = useState(false);
+    const [versionInput, setVersionInput] = useState(thesaurus.version ?? '');
+    const [versionError, setVersionError] = useState<string | null>(null);
+    const [isSavingVersion, setIsSavingVersion] = useState(false);
 
     const { auth } = usePage<SharedData>().props;
     const canManageThesauri = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
@@ -191,6 +198,45 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
         }
     }, [thesaurus.type, pollJobStatus]);
 
+    const saveVersion = useCallback(async () => {
+        const trimmed = versionInput.trim();
+        if (!trimmed) {
+            setVersionError('Version is required');
+            return;
+        }
+        if (!/^\d+(-\d+)*$/.test(trimmed)) {
+            setVersionError('Version must be digits separated by dashes (e.g. 1-4)');
+            return;
+        }
+        setVersionError(null);
+        setIsSavingVersion(true);
+
+        try {
+            const response = await fetch(`/thesauri/${thesaurus.type}/version`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                },
+                credentials: 'include',
+                body: JSON.stringify({ version: trimmed }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            setIsEditingVersion(false);
+            // Reload to reflect updated version & cleared vocabulary state
+            router.reload({ only: ['thesauri'] });
+        } catch (error) {
+            setVersionError(error instanceof Error ? error.message : 'Failed to save version');
+        } finally {
+            setIsSavingVersion(false);
+        }
+    }, [versionInput, thesaurus.type]);
+
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'Never';
         try {
@@ -226,20 +272,20 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                     <Calendar className="h-3.5 w-3.5" />
                                     {formatDate(thesaurus.lastUpdated)}
                                 </span>
-                                {thesaurus.version && (
-                                    <>
-                                        <span className="text-muted-foreground/50">•</span>
-                                        <Badge variant="outline" className="text-xs">
-                                            v{thesaurus.version}
-                                        </Badge>
-                                    </>
-                                )}
                             </>
                         ) : (
                             <Badge variant="outline" className="text-amber-600">
                                 <AlertCircle className="mr-1 h-3 w-3" />
                                 Not yet downloaded
                             </Badge>
+                        )}
+                        {thesaurus.version && (
+                            <>
+                                {thesaurus.exists && <span className="text-muted-foreground/50">•</span>}
+                                <Badge variant="outline" className="text-xs">
+                                    v{thesaurus.version}
+                                </Badge>
+                            </>
                         )}
                     </div>
                 </div>
@@ -293,7 +339,55 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                 Update Now
                             </Button>
                         )}
+
+                        {thesaurus.supportsVersioning && !isEditingVersion && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setVersionInput(thesaurus.version ?? '');
+                                    setVersionError(null);
+                                    setIsEditingVersion(true);
+                                }}
+                                disabled={isUpdating}
+                            >
+                                <Pencil className="mr-1 h-3.5 w-3.5" />
+                                Change Version
+                            </Button>
+                        )}
                     </div>
+
+                    {/* Version editor */}
+                    {thesaurus.supportsVersioning && isEditingVersion && (
+                        <div className="mt-3 flex flex-wrap items-start gap-2">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        value={versionInput}
+                                        onChange={(e) => {
+                                            setVersionInput(e.target.value);
+                                            setVersionError(null);
+                                        }}
+                                        placeholder="e.g. 1-4"
+                                        className="h-8 w-32"
+                                        disabled={isSavingVersion}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') saveVersion();
+                                            if (e.key === 'Escape') setIsEditingVersion(false);
+                                        }}
+                                    />
+                                    <Button size="sm" onClick={saveVersion} disabled={isSavingVersion}>
+                                        {isSavingVersion ? <Spinner size="xs" className="mr-1" /> : null}
+                                        Save
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setIsEditingVersion(false)} disabled={isSavingVersion}>
+                                        Cancel
+                                    </Button>
+                                </div>
+                                {versionError && <p className="text-xs text-destructive">{versionError}</p>}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Check error message */}
                     {checkStatus === 'error' && checkError && (

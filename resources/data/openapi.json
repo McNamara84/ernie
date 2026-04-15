@@ -1314,7 +1314,7 @@
             },
             "AnalyticalMethodsConcept": {
                 "type": "object",
-                "description": "A concept from the Analytical Methods for Geochemistry and Cosmochemistry vocabulary, extending the base keyword concept with an optional notation code",
+                "description": "A concept from the Analytical Methods for Geochemistry and Cosmochemistry vocabulary, extending the base keyword concept with a notation code",
                 "properties": {
                     "id": {
                         "type": "string",
@@ -1345,7 +1345,7 @@
                     },
                     "notation": {
                         "type": "string",
-                        "description": "Notation code for the concept (e.g. a short identifier). Empty string when not available.",
+                        "description": "Notation code for the concept (e.g. a short identifier). Always present; empty string when no notation is defined in the vocabulary.",
                         "example": "AAS"
                     },
                     "description": {
