@@ -76,7 +76,8 @@ class ThesaurusStatusService
      * Get the concept count from the remote API.
      *
      * For GCMD thesauri, queries NASA KMS API.
-     * For Chronostratigraphy, queries ARDC Linked Data API.
+     * For Chronostratigraphy and Analytical Methods, queries ARDC Linked Data API.
+     * For GEMET, queries the EIONET REST API.
      *
      * @throws \RuntimeException If the API request fails
      */
