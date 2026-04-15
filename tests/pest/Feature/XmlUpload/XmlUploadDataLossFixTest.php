@@ -169,6 +169,74 @@ XML;
     $response->assertSessionDataPath('coverages.0.timezone', '+02:00');
 });
 
+test('normalizes +00:00 timezone offset to UTC', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <dates>
+    <date dateType="Coverage">2026-06-15T12:00:00+00:00/2026-06-15T14:00:00+00:00</date>
+  </dates>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>51.5</pointLatitude>
+        <pointLongitude>-0.1</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('coverage-utc-offset.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+});
+
+test('normalizes Z timezone designator to UTC', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <dates>
+    <date dateType="Coverage">2026-06-15T12:00:00Z/2026-06-15T14:00:00Z</date>
+  </dates>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>51.5</pointLatitude>
+        <pointLongitude>-0.1</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('coverage-z-timezone.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
+});
+
 test('extracts coverage date without time as date-only', function () {
     $this->actingAs(User::factory()->create());
 

@@ -312,4 +312,28 @@ describe('TemporalInputs', () => {
             expect(screen.queryByText(/start date must be before/i)).not.toBeInTheDocument();
         });
     });
+
+    describe('Imported Timezone Offset', () => {
+        test('shows imported offset timezone as selected value', () => {
+            const props = {
+                ...defaultProps,
+                timezone: '+02:00',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.getByText(/UTC\+02:00 \(imported\)/)).toBeInTheDocument();
+        });
+
+        test('does not add duplicate option for known IANA timezone', () => {
+            const props = {
+                ...defaultProps,
+                timezone: 'Europe/Berlin',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.getByText(/Europe\/Berlin \(CET\/CEST\)/)).toBeInTheDocument();
+        });
+    });
 });

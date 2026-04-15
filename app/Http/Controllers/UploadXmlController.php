@@ -2389,14 +2389,18 @@ class UploadXmlController extends Controller
      * Returns the timezone name as-is (IANA name or UTC offset string like "+02:00").
      * Numeric offsets are kept verbatim because mapping them to IANA zones is
      * inherently ambiguous and non-deterministic across PHP versions.
+     * "+00:00" is normalized to "UTC" since they are semantically identical.
      */
     private function resolveTimezone(\DateTimeImmutable $dt): string
     {
         $tz = $dt->getTimezone();
         $tzName = $tz->getName();
 
-        // Return whatever PHP resolved: IANA name, offset like "+02:00", or "Z"
-        return $tzName !== '' ? $tzName : 'UTC';
+        if ($tzName === '' || $tzName === '+00:00' || $tzName === 'Z') {
+            return 'UTC';
+        }
+
+        return $tzName;
     }
 
     /**
