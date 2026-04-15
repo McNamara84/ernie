@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\ThesaurusSetting;
+use App\Support\AnalyticalMethodsVocabularyParser;
 use App\Support\ChronostratVocabularyParser;
 use App\Support\GcmdVocabularyParser;
 use App\Support\Traits\ChecksCacheTagging;
@@ -75,7 +76,8 @@ class ThesaurusStatusService
      * Get the concept count from the remote API.
      *
      * For GCMD thesauri, queries NASA KMS API.
-     * For Chronostratigraphy, queries ARDC Linked Data API.
+     * For Chronostratigraphy and Analytical Methods, queries ARDC Linked Data API.
+     * For GEMET, queries the EIONET REST API.
      *
      * @throws \RuntimeException If the API request fails
      */
@@ -91,6 +93,10 @@ class ThesaurusStatusService
 
         if ($thesaurus->type === ThesaurusSetting::TYPE_GEMET) {
             return $this->getGemetRemoteCount();
+        }
+
+        if ($thesaurus->type === ThesaurusSetting::TYPE_ANALYTICAL_METHODS) {
+            return $this->getAnalyticalMethodsRemoteCount($thesaurus);
         }
 
         throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
@@ -132,10 +138,31 @@ class ThesaurusStatusService
      */
     private function getChronostratRemoteCount(): int
     {
-        $ardcApi = new ArdcApiService;
+        $ardcApi = new ArdcApiService(
+            (string) config('ardc.chronostratigraphy.url')
+        );
         $allItems = $ardcApi->fetchAllItems(timeout: 30);
 
         $parser = new ChronostratVocabularyParser;
+
+        return count($parser->extractConcepts($allItems));
+    }
+
+    /**
+     * Get concept count from ARDC Linked Data API for Analytical Methods.
+     *
+     * @throws \RuntimeException If the API request fails
+     */
+    private function getAnalyticalMethodsRemoteCount(ThesaurusSetting $thesaurus): int
+    {
+        $version = $thesaurus->version ?? (string) config('ardc.analytical_methods.default_version');
+        $urlTemplate = (string) config('ardc.analytical_methods.url_template');
+        $baseUrl = str_replace('{version}', $version, $urlTemplate);
+
+        $ardcApi = new ArdcApiService($baseUrl);
+        $allItems = $ardcApi->fetchAllItems(timeout: 30);
+
+        $parser = new AnalyticalMethodsVocabularyParser;
 
         return count($parser->extractConcepts($allItems));
     }

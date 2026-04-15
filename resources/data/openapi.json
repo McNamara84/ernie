@@ -784,6 +784,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/analytical-methods": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get Analytical Methods for Geochemistry vocabulary",
+                "description": "Returns the 'Analytical Methods for Geochemistry and Cosmochemistry' vocabulary as a hierarchical JSON structure. The vocabulary is loaded from the ARDC (Australian Research Data Commons) Linked Data API and contains analytical methods (e.g., Mass Spectrometry, ICP-MS) with notation codes and definitions. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analytical Methods vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticalMethodsVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-analytical-methods"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -1163,7 +1206,7 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the vocabulary was last updated",
-                        "example": "2025-10-08 11:54:31"
+                        "example": "2025-10-08T11:54:31Z"
                     },
                     "data": {
                         "type": "array",
@@ -1182,7 +1225,7 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the vocabulary was last updated",
-                        "example": "2025-10-08 12:13:45"
+                        "example": "2025-10-08T12:13:45Z"
                     },
                     "data": {
                         "type": "array",
@@ -1201,7 +1244,7 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the vocabulary was last updated",
-                        "example": "2025-10-08 12:22:38"
+                        "example": "2025-10-08T12:22:38Z"
                     },
                     "data": {
                         "type": "array",
@@ -1220,7 +1263,7 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the vocabulary was last updated",
-                        "example": "2025-12-15 09:30:00"
+                        "example": "2025-12-15T09:30:00Z"
                     },
                     "data": {
                         "type": "array",
@@ -1239,7 +1282,7 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the vocabulary was last updated",
-                        "example": "2026-03-12 10:00:00"
+                        "example": "2026-03-12T10:00:00Z"
                     },
                     "data": {
                         "type": "array",
@@ -1249,6 +1292,76 @@
                         }
                     }
                 }
+            },
+            "AnalyticalMethodsVocabulary": {
+                "type": "object",
+                "description": "Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the ARDC Linked Data API (EarthChem/GEOROC)",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the vocabulary was last updated",
+                        "example": "2026-04-15T12:00:00Z"
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Hierarchical array of analytical method concepts with notation codes",
+                        "items": {
+                            "$ref": "#/components/schemas/AnalyticalMethodsConcept"
+                        }
+                    }
+                }
+            },
+            "AnalyticalMethodsConcept": {
+                "type": "object",
+                "description": "A concept from the Analytical Methods for Geochemistry and Cosmochemistry vocabulary, extending the base keyword concept with a notation code",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "Unique identifier (URI) for the concept",
+                        "example": "https://w3id.org/geochem/1.0/analyticalmethod/massspectrometry"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Preferred label for the concept",
+                        "example": "Atomic Absorption Spectroscopy"
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "Language code of the concept label",
+                        "example": "en"
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "description": "Name of the vocabulary scheme",
+                        "example": "Analytical Methods for Geochemistry and Cosmochemistry"
+                    },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URI of the vocabulary scheme",
+                        "example": "https://w3id.org/geochem/1.0/analyticalmethod/method"
+                    },
+                    "notation": {
+                        "type": "string",
+                        "description": "Notation code for the concept (e.g. a short identifier). Always present; empty string when no notation is defined in the vocabulary.",
+                        "example": "AAS"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Definition or description of the concept",
+                        "example": "A technique used to determine the concentration of a specific metal element in a sample."
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "Child concepts in the hierarchy",
+                        "items": {
+                            "$ref": "#/components/schemas/AnalyticalMethodsConcept"
+                        }
+                    }
+                },
+                "required": ["id", "text", "notation", "language", "scheme", "schemeURI", "description", "children"]
             },
             "GcmdKeywordConcept": {
                 "type": "object",

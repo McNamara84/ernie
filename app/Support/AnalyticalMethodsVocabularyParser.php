@@ -5,22 +5,23 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * Parser for the ARDC Linked Data API response of the International Chronostratigraphic Chart.
+ * Parser for the ARDC Linked Data API response of the "Analytical Methods
+ * for Geochemistry and Cosmochemistry" vocabulary (EarthChem/GEOROC).
  *
- * Transforms the ARDC JSON format into a hierarchical tree structure compatible
- * with the existing GCMD vocabulary format used in ERNIE.
+ * Transforms ARDC JSON format into a hierarchical tree structure compatible
+ * with the existing vocabulary format used in ERNIE.
  */
-class ChronostratVocabularyParser
+class AnalyticalMethodsVocabularyParser
 {
-    private const SCHEME_TITLE = 'International Chronostratigraphic Chart';
+    private const SCHEME_TITLE = 'Analytical Methods for Geochemistry and Cosmochemistry';
 
-    private const SCHEME_URI = 'http://resource.geosciml.org/vocabulary/timescale/gts2020';
+    private const SCHEME_URI = 'https://w3id.org/geochem/1.0/analyticalmethod/method';
 
     /**
      * Parse ARDC Linked Data API response items into flat concept array.
      *
      * @param  array<int, array<string, mixed>>  $items  Raw items from ARDC API response
-     * @return array<int, array{id: string, text: string, language: string, broaderId: string|null}>
+     * @return array<int, array{id: string, text: string, notation: string, language: string, broaderId: string|null, definition: string}>
      */
     public function extractConcepts(array $items): array
     {
@@ -35,24 +36,21 @@ class ChronostratVocabularyParser
 
             $englishLabel = $this->extractEnglishLabel($item['prefLabel'] ?? []);
 
-            // Skip items without an English label
             if ($englishLabel === null) {
                 continue;
             }
 
-            // Filter out boundary/GSSP concepts (e.g., "Base of Bajocian")
-            if ($this->isBoundaryConcept($englishLabel)) {
-                continue;
-            }
-
-            // Extract broader (parent) URI
             $broaderId = $this->extractBroaderUri($item['broader'] ?? []);
+            $notation = is_string($item['notation'] ?? null) ? $item['notation'] : '';
+            $definition = is_string($item['definition'] ?? null) ? $item['definition'] : '';
 
             $concepts[] = [
                 'id' => $uri,
                 'text' => $englishLabel,
+                'notation' => $notation,
                 'language' => 'en',
                 'broaderId' => $broaderId,
+                'definition' => $definition,
             ];
         }
 
@@ -62,7 +60,7 @@ class ChronostratVocabularyParser
     /**
      * Build hierarchical structure from flat concept array.
      *
-     * @param  array<int, array{id: string, text: string, language: string, broaderId: string|null}>  $concepts
+     * @param  array<int, array{id: string, text: string, notation: string, language: string, broaderId: string|null, definition: string}>  $concepts
      * @return array{lastUpdated: string, data: array<int, array<string, mixed>>}
      */
     public function buildHierarchy(array $concepts): array
@@ -72,17 +70,17 @@ class ChronostratVocabularyParser
         /** @var array<string, list<string>> $childrenByParentId */
         $childrenByParentId = [];
 
-        // First pass: index all concepts and group children by parent ID
         foreach ($concepts as $concept) {
             $id = $concept['id'];
 
             $conceptsById[$id] = [
                 'id' => $id,
                 'text' => $concept['text'],
+                'notation' => $concept['notation'],
                 'language' => $concept['language'],
                 'scheme' => self::SCHEME_TITLE,
                 'schemeURI' => self::SCHEME_URI,
-                'description' => '',
+                'description' => $concept['definition'],
                 'children' => [],
             ];
 
@@ -91,7 +89,6 @@ class ChronostratVocabularyParser
             }
         }
 
-        // Find root concept IDs (concepts with no parent or parent not in dataset)
         $rootIds = [];
         foreach ($concepts as $concept) {
             $id = $concept['id'];
@@ -100,7 +97,6 @@ class ChronostratVocabularyParser
             }
         }
 
-        // Build tree from root concepts
         $rootConcepts = [];
         foreach ($rootIds as $rootId) {
             $rootNode = $this->buildTreeNode($rootId, $conceptsById, $childrenByParentId);
@@ -134,10 +130,7 @@ class ChronostratVocabularyParser
     }
 
     /**
-     * Extract the English label from a prefLabel array.
-     *
-     * The ARDC API returns prefLabel as either an array of language-tagged values
-     * or a single object with _value and _lang.
+     * Extract the English label from a prefLabel array or object.
      *
      * @param  mixed  $prefLabel
      */
@@ -147,14 +140,18 @@ class ChronostratVocabularyParser
             return null;
         }
 
-        // Single label object: {"_value": "Aalenian", "_lang": "en"}
+        // Single label object: {"_value": "...", "_lang": "en"}
         if (isset($prefLabel['_value'], $prefLabel['_lang'])) {
-            return $prefLabel['_lang'] === 'en' ? $prefLabel['_value'] : null;
+            return is_string($prefLabel['_lang']) && $prefLabel['_lang'] === 'en' && is_string($prefLabel['_value'])
+                ? $prefLabel['_value']
+                : null;
         }
 
         // Array of label objects
         foreach ($prefLabel as $label) {
-            if (is_array($label) && isset($label['_value'], $label['_lang']) && $label['_lang'] === 'en') {
+            if (is_array($label) && isset($label['_value'], $label['_lang'])
+                && is_string($label['_lang']) && $label['_lang'] === 'en'
+                && is_string($label['_value'])) {
                 return $label['_value'];
             }
         }
@@ -163,20 +160,10 @@ class ChronostratVocabularyParser
     }
 
     /**
-     * Check if a concept is a boundary/GSSP concept that should be filtered out.
-     */
-    private function isBoundaryConcept(string $label): bool
-    {
-        return str_starts_with($label, 'Base of ')
-            || str_starts_with($label, 'GSSP ')
-            || str_starts_with($label, 'Stratotype Point');
-    }
-
-    /**
      * Extract the broader (parent) URI from the broader field.
      *
-     * The broader field can be a single string, an array of strings,
-     * or an array of objects with an _about key.
+     * Takes the first broader URI as the canonical parent.
+     * Multi-parent concepts are placed under their first listed parent.
      *
      * @param  mixed  $broader
      */
@@ -190,12 +177,12 @@ class ChronostratVocabularyParser
             return null;
         }
 
-        // Single object with _about key: {"_about": "http://..."}
+        // Single object with _about key
         if (isset($broader['_about']) && is_string($broader['_about']) && $broader['_about'] !== '') {
             return $broader['_about'];
         }
 
-        // Array of strings or objects
+        // Array of strings or objects — take the first
         foreach ($broader as $item) {
             if (is_string($item) && $item !== '') {
                 return $item;
@@ -212,7 +199,6 @@ class ChronostratVocabularyParser
     /**
      * Recursively build a tree node and all its descendants.
      *
-     * @param  string  $nodeId
      * @param  array<string, array<string, mixed>>  $conceptsById
      * @param  array<string, list<string>>  $childrenByParentId
      * @return array<string, mixed>|null

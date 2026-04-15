@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
 
@@ -97,6 +98,7 @@ describe('ThesaurusSetting model', function () {
             ThesaurusSetting::TYPE_INSTRUMENTS => 'gcmd-instruments.json',
             ThesaurusSetting::TYPE_CHRONOSTRAT => 'chronostrat-timescale.json',
             ThesaurusSetting::TYPE_GEMET => 'gemet-thesaurus.json',
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'analytical-methods.json',
         ];
 
         foreach ($expectations as $type => $path) {
@@ -121,6 +123,7 @@ describe('ThesaurusSetting model', function () {
             ThesaurusSetting::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
             ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             ThesaurusSetting::TYPE_GEMET => 'get-gemet-thesaurus',
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
         ];
 
         foreach ($expectations as $type => $command) {
@@ -172,6 +175,7 @@ describe('ThesaurusSetting model', function () {
         $nonGcmdTypes = [
             ThesaurusSetting::TYPE_CHRONOSTRAT,
             ThesaurusSetting::TYPE_GEMET,
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
         ];
 
         foreach ($nonGcmdTypes as $type) {
@@ -189,7 +193,8 @@ describe('ThesaurusSetting model', function () {
             ->toContain(ThesaurusSetting::TYPE_PLATFORMS)
             ->toContain(ThesaurusSetting::TYPE_INSTRUMENTS)
             ->toContain(ThesaurusSetting::TYPE_CHRONOSTRAT)
-            ->toContain(ThesaurusSetting::TYPE_GEMET);
+            ->toContain(ThesaurusSetting::TYPE_GEMET)
+            ->toContain(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
     });
 
     it('has correct type constants', function () {
@@ -198,5 +203,84 @@ describe('ThesaurusSetting model', function () {
         expect(ThesaurusSetting::TYPE_INSTRUMENTS)->toBe('instruments');
         expect(ThesaurusSetting::TYPE_CHRONOSTRAT)->toBe('chronostratigraphy');
         expect(ThesaurusSetting::TYPE_GEMET)->toBe('gemet');
+        expect(ThesaurusSetting::TYPE_ANALYTICAL_METHODS)->toBe('analytical_methods');
     });
+
+    it('correctly identifies ARDC thesauri', function () {
+        $ardcTypes = [
+            ThesaurusSetting::TYPE_CHRONOSTRAT,
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
+        ];
+
+        foreach ($ardcTypes as $type) {
+            $model = new ThesaurusSetting;
+            $model->type = $type;
+
+            expect($model->usesArdcApi())->toBeTrue();
+        }
+    });
+
+    it('correctly identifies non-ARDC thesauri', function () {
+        $nonArdcTypes = [
+            ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+            ThesaurusSetting::TYPE_PLATFORMS,
+            ThesaurusSetting::TYPE_INSTRUMENTS,
+            ThesaurusSetting::TYPE_GEMET,
+        ];
+
+        foreach ($nonArdcTypes as $type) {
+            $model = new ThesaurusSetting;
+            $model->type = $type;
+
+            expect($model->usesArdcApi())->toBeFalse();
+        }
+    });
+
+    it('correctly identifies versioned thesauri', function () {
+        $model = new ThesaurusSetting;
+        $model->type = ThesaurusSetting::TYPE_ANALYTICAL_METHODS;
+        expect($model->supportsVersioning())->toBeTrue();
+    });
+
+    it('correctly identifies non-versioned thesauri', function () {
+        $nonVersionedTypes = [
+            ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+            ThesaurusSetting::TYPE_PLATFORMS,
+            ThesaurusSetting::TYPE_INSTRUMENTS,
+            ThesaurusSetting::TYPE_CHRONOSTRAT,
+            ThesaurusSetting::TYPE_GEMET,
+        ];
+
+        foreach ($nonVersionedTypes as $type) {
+            $model = new ThesaurusSetting;
+            $model->type = $type;
+
+            expect($model->supportsVersioning())->toBeFalse();
+        }
+    });
+
+    it('returns correct cache key for each type', function () {
+        $expectations = [
+            ThesaurusSetting::TYPE_SCIENCE_KEYWORDS => CacheKey::GCMD_SCIENCE_KEYWORDS,
+            ThesaurusSetting::TYPE_PLATFORMS => CacheKey::GCMD_PLATFORMS,
+            ThesaurusSetting::TYPE_INSTRUMENTS => CacheKey::GCMD_INSTRUMENTS,
+            ThesaurusSetting::TYPE_CHRONOSTRAT => CacheKey::CHRONOSTRAT_TIMESCALE,
+            ThesaurusSetting::TYPE_GEMET => CacheKey::GEMET_THESAURUS,
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => CacheKey::ANALYTICAL_METHODS,
+        ];
+
+        foreach ($expectations as $type => $cacheKey) {
+            $model = new ThesaurusSetting;
+            $model->type = $type;
+
+            expect($model->getCacheKey())->toBe($cacheKey);
+        }
+    });
+
+    it('throws for unknown type in getCacheKey', function () {
+        $model = new ThesaurusSetting;
+        $model->type = 'unknown';
+
+        $model->getCacheKey();
+    })->throws(\InvalidArgumentException::class);
 });

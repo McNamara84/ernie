@@ -463,4 +463,128 @@ describe('ThesaurusCard', () => {
             expect(screen.queryByTestId('thesaurus-row-science_keywords')).not.toBeInTheDocument();
         });
     });
+
+    describe('Version display and editing', () => {
+        const versionedThesauri: ThesaurusData[] = [
+            {
+                type: 'analytical_methods',
+                displayName: 'Analytical Methods',
+                isActive: true,
+                isElmoActive: true,
+                version: '1-4',
+                supportsVersioning: true,
+                exists: true,
+                conceptCount: 500,
+                lastUpdated: '2024-06-01T12:00:00Z',
+            },
+        ];
+
+        it('should display version badge when thesaurus has version and exists', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={versionedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.getByText('v1-4')).toBeInTheDocument();
+        });
+
+        it('should display version badge even when thesaurus does not exist yet', () => {
+            const notDownloaded: ThesaurusData[] = [
+                { ...versionedThesauri[0], exists: false, conceptCount: 0, lastUpdated: null },
+            ];
+
+            render(
+                <ThesaurusCard
+                    thesauri={notDownloaded}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.getByText('Not yet downloaded')).toBeInTheDocument();
+            expect(screen.getByText('v1-4')).toBeInTheDocument();
+        });
+
+        it('should show Change Version button for versioned thesauri', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={versionedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.getByRole('button', { name: /change version/i })).toBeInTheDocument();
+        });
+
+        it('should not show Change Version button for non-versioned thesauri', () => {
+            render(
+                <ThesaurusCard
+                    thesauri={mockThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            expect(screen.queryByRole('button', { name: /change version/i })).not.toBeInTheDocument();
+        });
+
+        it('should show version editor when Change Version is clicked', async () => {
+            const user = userEvent.setup();
+
+            render(
+                <ThesaurusCard
+                    thesauri={versionedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('button', { name: /change version/i }));
+
+            expect(screen.getByPlaceholderText('e.g. 1-4')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+        });
+
+        it('should hide version editor when Cancel is clicked', async () => {
+            const user = userEvent.setup();
+
+            render(
+                <ThesaurusCard
+                    thesauri={versionedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('button', { name: /change version/i }));
+            await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+            expect(screen.queryByPlaceholderText('e.g. 1-4')).not.toBeInTheDocument();
+        });
+
+        it('should show validation error for invalid version format', async () => {
+            const user = userEvent.setup();
+
+            render(
+                <ThesaurusCard
+                    thesauri={versionedThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('button', { name: /change version/i }));
+            const input = screen.getByPlaceholderText('e.g. 1-4');
+            await user.clear(input);
+            await user.type(input, 'invalid!');
+            await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+            expect(screen.getByText(/version must be digits/i)).toBeInTheDocument();
+        });
+    });
 });

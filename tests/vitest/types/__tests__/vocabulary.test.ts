@@ -30,6 +30,10 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('GEMET - GEneral Multilingual Environmental Thesaurus')).toBe('gemet');
     });
 
+    it('returns "analytical_methods" for Analytical Methods scheme', () => {
+        expect(getVocabularyTypeFromScheme('Analytical Methods for Geochemistry and Cosmochemistry')).toBe('analytical_methods');
+    });
+
     it('is case-insensitive', () => {
         expect(getVocabularyTypeFromScheme('SCIENCE KEYWORDS')).toBe('science');
         expect(getVocabularyTypeFromScheme('PLATFORMS')).toBe('platforms');
@@ -37,6 +41,7 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('epos msl')).toBe('msl');
         expect(getVocabularyTypeFromScheme('INTERNATIONAL CHRONOSTRATIGRAPHIC CHART')).toBe('chronostratigraphy');
         expect(getVocabularyTypeFromScheme('GEMET - GENERAL MULTILINGUAL ENVIRONMENTAL THESAURUS')).toBe('gemet');
+        expect(getVocabularyTypeFromScheme('ANALYTICAL METHODS FOR GEOCHEMISTRY')).toBe('analytical_methods');
     });
 
     it('handles partial matches', () => {
@@ -46,6 +51,7 @@ describe('getVocabularyTypeFromScheme', () => {
         expect(getVocabularyTypeFromScheme('MSL Vocabularies')).toBe('msl');
         expect(getVocabularyTypeFromScheme('ICS Chronostratigraphic Chart 2020')).toBe('chronostratigraphy');
         expect(getVocabularyTypeFromScheme('GEMET Thesaurus')).toBe('gemet');
+        expect(getVocabularyTypeFromScheme('Geochem Methods v2')).toBe('analytical_methods');
     });
 
     it('returns "science" as default for unknown schemes', () => {
@@ -78,6 +84,10 @@ describe('getSchemeFromVocabularyType', () => {
 
     it('returns "GEMET - GEneral Multilingual Environmental Thesaurus" for gemet type', () => {
         expect(getSchemeFromVocabularyType('gemet')).toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
+    });
+
+    it('returns "Analytical Methods for Geochemistry and Cosmochemistry" for analytical_methods type', () => {
+        expect(getSchemeFromVocabularyType('analytical_methods')).toBe('Analytical Methods for Geochemistry and Cosmochemistry');
     });
 
     it('returns "Science Keywords" as default for unknown types', () => {

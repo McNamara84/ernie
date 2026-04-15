@@ -30,6 +30,7 @@ interface ThesauriAvailability {
     instruments: boolean;
     chronostratigraphy: boolean;
     gemet: boolean;
+    analytical_methods: boolean;
 }
 
 interface ControlledVocabulariesFieldProps {
@@ -39,11 +40,13 @@ interface ControlledVocabulariesFieldProps {
     mslVocabulary?: VocabularyKeyword[]; // Optional MSL vocabulary
     chronostratVocabulary?: VocabularyKeyword[]; // Optional ICS Chronostratigraphy vocabulary
     gemetVocabulary?: VocabularyKeyword[]; // Optional GEMET vocabulary
+    analyticalMethodsVocabulary?: VocabularyKeyword[]; // Optional Analytical Methods vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
     showChronostratTab?: boolean; // Control Chronostratigraphy tab visibility
     showGemetTab?: boolean; // Control GEMET tab visibility
+    showAnalyticalMethodsTab?: boolean; // Control Analytical Methods tab visibility
     autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
     enabledThesauri?: ThesauriAvailability; // Which thesauri are enabled in settings
 }
@@ -61,8 +64,9 @@ function searchKeywords(keywords: VocabularyKeyword[], query: string): Vocabular
     function searchNode(keyword: VocabularyKeyword): void {
         const textMatch = keyword.text.toLowerCase().includes(lowerQuery);
         const descMatch = keyword.description?.toLowerCase().includes(lowerQuery) ?? false;
+        const notationMatch = keyword.notation?.toLowerCase().includes(lowerQuery) ?? false;
 
-        if (textMatch || descMatch) {
+        if (textMatch || descMatch || notationMatch) {
             results.push(keyword);
         }
 
@@ -87,13 +91,15 @@ export default function ControlledVocabulariesField({
     mslVocabulary = [],
     chronostratVocabulary = [],
     gemetVocabulary = [],
+    analyticalMethodsVocabulary = [],
     selectedKeywords,
     onChange,
     showMslTab = false,
     showChronostratTab = false,
     showGemetTab = false,
+    showAnalyticalMethodsTab = false,
     autoSwitchToMsl = false,
-    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true },
+    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true },
 }: ControlledVocabulariesFieldProps) {
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
@@ -101,6 +107,7 @@ export default function ControlledVocabulariesField({
     const showInstrumentsTab = enabledThesauri.instruments;
     const showChronostrat = showChronostratTab && enabledThesauri.chronostratigraphy;
     const showGemet = showGemetTab && enabledThesauri.gemet;
+    const showAnalyticalMethods = showAnalyticalMethodsTab && enabledThesauri.analytical_methods;
 
     // Determine default active tab based on what's available
     const getDefaultTab = (): VocabularyType => {
@@ -110,6 +117,7 @@ export default function ControlledVocabulariesField({
         if (showMslTab) return 'msl';
         if (showChronostrat) return 'chronostratigraphy';
         if (showGemet) return 'gemet';
+        if (showAnalyticalMethods) return 'analytical_methods';
         return 'science'; // Fallback
     };
 
@@ -140,7 +148,8 @@ export default function ControlledVocabulariesField({
             (activeTab === 'instruments' && showInstrumentsTab) ||
             (activeTab === 'msl' && showMslTab) ||
             (activeTab === 'chronostratigraphy' && showChronostrat) ||
-            (activeTab === 'gemet' && showGemet);
+            (activeTab === 'gemet' && showGemet) ||
+            (activeTab === 'analytical_methods' && showAnalyticalMethods);
 
         if (!isCurrentTabAvailable) {
             if (showScienceTab) setActiveTab('science');
@@ -149,8 +158,9 @@ export default function ControlledVocabulariesField({
             else if (showMslTab) setActiveTab('msl');
             else if (showChronostrat) setActiveTab('chronostratigraphy');
             else if (showGemet) setActiveTab('gemet');
+            else if (showAnalyticalMethods) setActiveTab('analytical_methods');
         }
-    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet]);
+    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods]);
 
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
@@ -177,10 +187,12 @@ export default function ControlledVocabulariesField({
                 return chronostratVocabulary;
             case 'gemet':
                 return gemetVocabulary;
+            case 'analytical_methods':
+                return analyticalMethodsVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary, gemetVocabulary]);
+    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary, gemetVocabulary, analyticalMethodsVocabulary]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -237,6 +249,7 @@ export default function ControlledVocabulariesField({
             msl: [],
             chronostratigraphy: [],
             gemet: [],
+            analytical_methods: [],
         };
 
         for (const keyword of selectedKeywords) {
@@ -256,7 +269,7 @@ export default function ControlledVocabulariesField({
     );
 
     // Check if any thesauri are available
-    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat || showGemet;
+    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat || showGemet || showAnalyticalMethods;
 
     return (
         <div className="space-y-4">
@@ -278,6 +291,7 @@ export default function ControlledVocabulariesField({
                             ...(showMslTab ? ['msl' as const] : []),
                             ...(showChronostrat ? ['chronostratigraphy' as const] : []),
                             ...(showGemet ? ['gemet' as const] : []),
+                            ...(showAnalyticalMethods ? ['analytical_methods' as const] : []),
                         ] as VocabularyType[]
                     ).map((type) => {
                         const keywords = keywordsByVocabulary[type];
@@ -290,6 +304,7 @@ export default function ControlledVocabulariesField({
                             msl: 'MSL Vocabulary',
                             chronostratigraphy: 'Chronostratigraphy',
                             gemet: 'GEMET',
+                            analytical_methods: 'Analytical Methods',
                         };
 
                         // Check if there are any legacy keywords
@@ -385,7 +400,7 @@ export default function ControlledVocabulariesField({
                                 'grid w-full',
                                 // Dynamically calculate grid columns based on visible tabs
                                 (() => {
-                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet].filter(Boolean).length;
+                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods].filter(Boolean).length;
                                     switch (visibleCount) {
                                         case 1:
                                             return 'grid-cols-1';
@@ -399,6 +414,8 @@ export default function ControlledVocabulariesField({
                                             return 'grid-cols-5';
                                         case 6:
                                             return 'grid-cols-6';
+                                        case 7:
+                                            return 'grid-cols-7';
                                         default:
                                             return 'grid-cols-3';
                                     }
@@ -469,6 +486,18 @@ export default function ControlledVocabulariesField({
                                 <TabsTrigger value="gemet" className="relative">
                                     GEMET
                                     {hasKeywords('gemet') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
+                            )}
+                            {showAnalyticalMethods && (
+                                <TabsTrigger value="analytical_methods" className="relative">
+                                    Analytical Methods
+                                    {hasKeywords('analytical_methods') && (
                                         <span
                                             className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                             aria-label="Has keywords"

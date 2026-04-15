@@ -75,7 +75,7 @@ class PidSettingsController extends Controller
      *
      * POST /pid-settings/{type}/update
      *
-     * Requires 'manage-thesauri' gate (admin only).
+     * Requires 'manage-thesauri' gate (Admin and Group Leader).
      *
      * @param  string  $type  The PID type (pid4inst, ror)
      */
@@ -83,7 +83,7 @@ class PidSettingsController extends Controller
     {
         if (Gate::denies('manage-thesauri')) {
             return response()->json([
-                'error' => 'Unauthorized. Only administrators can trigger PID updates.',
+                'error' => 'Unauthorized. Only administrators and group leaders can trigger PID updates.',
             ], 403);
         }
 

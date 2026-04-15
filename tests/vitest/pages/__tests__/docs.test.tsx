@@ -37,12 +37,14 @@ const defaultEditorSettings: EditorSettings = {
         instruments: true,
         chronostratigraphy: true,
         gemet: true,
+        analyticalMethods: true,
     },
     features: {
         hasActiveGcmd: true,
         hasActiveMsl: true,
         hasActiveChronostrat: true,
         hasActiveGemet: true,
+        hasActiveAnalyticalMethods: true,
         hasActiveLicenses: true,
         hasActiveResourceTypes: true,
         hasActiveTitleTypes: true,
@@ -112,6 +114,9 @@ describe('Docs page', () => {
                 ...defaultEditorSettings.features,
                 hasActiveGcmd: false,
                 hasActiveMsl: false,
+                hasActiveChronostrat: false,
+                hasActiveGemet: false,
+                hasActiveAnalyticalMethods: false,
             },
         };
         render(<Docs userRole="beginner" editorSettings={settingsWithoutGcmd} />);
@@ -188,14 +193,14 @@ describe('Docs page', () => {
 
     it('shows thesaurus update actions for admin in editor settings', () => {
         render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
-        expect(screen.getByText('Check for updates by comparing local vs. NASA remote counts')).toBeInTheDocument();
+        expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();
         expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
         expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
     });
 
     it('shows thesaurus update actions for group_leader in editor settings', () => {
         render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
-        expect(screen.getByText('Check for updates by comparing local vs. NASA remote counts')).toBeInTheDocument();
+        expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();
         expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
         expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
     });

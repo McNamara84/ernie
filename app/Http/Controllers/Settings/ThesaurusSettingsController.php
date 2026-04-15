@@ -8,9 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Jobs\UpdateThesaurusJob;
 use App\Models\ThesaurusSetting;
 use App\Services\ThesaurusStatusService;
+use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -42,6 +45,7 @@ class ThesaurusSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
+                'version' => $thesaurus->version,
                 'exists' => $localStatus['exists'],
                 'conceptCount' => $localStatus['conceptCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
@@ -92,7 +96,7 @@ class ThesaurusSettingsController extends Controller
      *
      * POST /api/v1/thesauri/{type}/update
      *
-     * Requires 'manage-thesauri' gate (admin only).
+     * Requires 'manage-thesauri' gate (Admin and Group Leader).
      *
      * @param  string  $type  The thesaurus type (science_keywords, platforms, instruments)
      * @return JsonResponse
@@ -102,7 +106,7 @@ class ThesaurusSettingsController extends Controller
         // Authorization check
         if (Gate::denies('manage-thesauri')) {
             return response()->json([
-                'error' => 'Unauthorized. Only administrators can trigger thesaurus updates.',
+                'error' => 'Unauthorized. Only administrators and group leaders can trigger thesaurus updates.',
             ], 403);
         }
 
@@ -173,5 +177,53 @@ class ThesaurusSettingsController extends Controller
         }
 
         return response()->json($status);
+    }
+
+    /**
+     * Update the vocabulary version for a thesaurus.
+     *
+     * PATCH /thesauri/{type}/version
+     *
+     * Only applicable for thesauri that support versioning (e.g., ARDC vocabularies).
+     * Requires 'manage-thesauri' gate (Admin and Group Leader).
+     */
+    public function updateVersion(Request $request, string $type): JsonResponse
+    {
+        if (Gate::denies('manage-thesauri')) {
+            return response()->json([
+                'error' => 'Unauthorized. Only administrators and group leaders can update thesaurus versions.',
+            ], 403);
+        }
+
+        $thesaurus = ThesaurusSetting::where('type', $type)->first();
+
+        if ($thesaurus === null) {
+            return response()->json([
+                'error' => "Thesaurus type '{$type}' not found",
+            ], 404);
+        }
+
+        if (! $thesaurus->supportsVersioning()) {
+            return response()->json([
+                'error' => 'This thesaurus does not support versioning.',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'version' => ['required', 'string', 'max:20', 'regex:/^\d+(-\d+)*$/'],
+        ]);
+
+        $thesaurus->update(['version' => $validated['version']]);
+
+        // Invalidate cache and remove local vocabulary file to prevent
+        // serving stale data that belongs to the previous version.
+        app(VocabularyCacheService::class)->invalidateVocabularyCache($thesaurus->getCacheKey());
+        Storage::delete($thesaurus->getFilePath());
+
+        return response()->json([
+            'type' => $type,
+            'version' => $thesaurus->version,
+            'message' => 'Version updated successfully. Please trigger a vocabulary update to fetch the new version.',
+        ]);
     }
 }

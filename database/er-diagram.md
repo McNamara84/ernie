@@ -448,6 +448,7 @@ erDiagram
         varchar display_name
         boolean is_active
         boolean is_elmo_active
+        varchar version "nullable"
         timestamp created_at
         timestamp updated_at
     }

@@ -96,6 +96,8 @@ class EditorSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
+                'version' => $thesaurus->version,
+                'supportsVersioning' => $thesaurus->supportsVersioning(),
                 'exists' => $localStatus['exists'],
                 'conceptCount' => $localStatus['conceptCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],

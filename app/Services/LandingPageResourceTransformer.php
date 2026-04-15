@@ -265,6 +265,7 @@ final class LandingPageResourceTransformer
             $givenName = $isPerson ? $entity->given_name : null;
             $familyName = $isPerson ? $entity->family_name : null;
             $nameIdentifierScheme = $entity?->name_identifier_scheme;
+            $nameIdentifier = $entity?->name_identifier;
 
             return [
                 'id' => $id,
@@ -275,7 +276,7 @@ final class LandingPageResourceTransformer
                 'source' => $source,
                 'affiliations' => $affiliations,
                 'orcid' => $nameIdentifierScheme === 'ORCID'
-                    ? $entity?->name_identifier
+                    ? $nameIdentifier
                     : null,
                 'website' => $website,
                 'has_email' => true,

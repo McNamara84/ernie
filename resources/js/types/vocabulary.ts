@@ -5,6 +5,7 @@
 export interface VocabularyKeyword {
     id: string;
     text: string;
+    notation?: string;
     language: string;
     scheme: string;
     schemeURI: string;
@@ -17,7 +18,7 @@ export interface VocabularyData {
     data: VocabularyKeyword[];
 }
 
-export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy' | 'gemet';
+export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy' | 'gemet' | 'analytical_methods';
 
 export interface SelectedKeyword {
     id: string;
@@ -41,6 +42,8 @@ export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     if (normalized.includes('msl') || normalized.includes('epos')) return 'msl';
     if (normalized.includes('chronostratigraphic') || normalized.includes('chronostrat')) return 'chronostratigraphy';
     if (normalized.includes('gemet')) return 'gemet';
+    if (normalized.includes('analytical') && normalized.includes('method')) return 'analytical_methods';
+    if (normalized.includes('geochem') && normalized.includes('method')) return 'analytical_methods';
 
     return 'science'; // Default fallback
 }
@@ -60,6 +63,8 @@ export function getSchemeFromVocabularyType(type: VocabularyType): string {
             return 'International Chronostratigraphic Chart';
         case 'gemet':
             return 'GEMET - GEneral Multilingual Environmental Thesaurus';
+        case 'analytical_methods':
+            return 'Analytical Methods for Geochemistry and Cosmochemistry';
         default:
             return 'Science Keywords';
     }
@@ -72,4 +77,5 @@ export interface VocabularyCollection {
     msl: VocabularyData;
     chronostratigraphy: VocabularyData;
     gemet: VocabularyData;
+    analytical_methods: VocabularyData;
 }

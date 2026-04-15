@@ -91,12 +91,14 @@ class DocsController extends Controller
                 $instrumentsSetting = $thesauri->get(ThesaurusSetting::TYPE_INSTRUMENTS);
                 $chronostratSetting = $thesauri->get(ThesaurusSetting::TYPE_CHRONOSTRAT);
                 $gemetSetting = $thesauri->get(ThesaurusSetting::TYPE_GEMET);
+                $analyticalMethodsSetting = $thesauri->get(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
 
                 $scienceKeywordsActive = $scienceKeywordsSetting !== null ? $scienceKeywordsSetting->is_active : false;
                 $platformsActive = $platformsSetting !== null ? $platformsSetting->is_active : false;
                 $instrumentsActive = $instrumentsSetting !== null ? $instrumentsSetting->is_active : false;
                 $chronostratActive = $chronostratSetting !== null ? $chronostratSetting->is_active : false;
                 $gemetActive = $gemetSetting !== null ? $gemetSetting->is_active : false;
+                $analyticalMethodsActive = $analyticalMethodsSetting !== null ? $analyticalMethodsSetting->is_active : false;
 
                 // Check if MSL vocabulary file exists (indicates MSL is available)
                 $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
@@ -108,12 +110,14 @@ class DocsController extends Controller
                         'instruments' => $instrumentsActive,
                         'chronostratigraphy' => $chronostratActive,
                         'gemet' => $gemetActive,
+                        'analyticalMethods' => $analyticalMethodsActive,
                     ],
                     'features' => [
                         'hasActiveGcmd' => $scienceKeywordsActive || $platformsActive || $instrumentsActive,
                         'hasActiveMsl' => $hasMslVocabulary,
                         'hasActiveChronostrat' => $chronostratActive,
                         'hasActiveGemet' => $gemetActive,
+                        'hasActiveAnalyticalMethods' => $analyticalMethodsActive,
                         'hasActiveLicenses' => Right::where('is_active', true)->exists(),
                         'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
                         'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),

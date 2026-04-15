@@ -629,6 +629,7 @@ export default function DataCiteForm({
         msl: VocabularyKeyword[];
         chronostratigraphy: VocabularyKeyword[];
         gemet: VocabularyKeyword[];
+        analytical_methods: VocabularyKeyword[];
     }>({
         science: [],
         platforms: [],
@@ -636,6 +637,7 @@ export default function DataCiteForm({
         msl: [],
         chronostratigraphy: [],
         gemet: [],
+        analytical_methods: [],
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
@@ -646,12 +648,14 @@ export default function DataCiteForm({
         instruments: boolean;
         chronostratigraphy: boolean;
         gemet: boolean;
+        analytical_methods: boolean;
     }>({
         science_keywords: true,
         platforms: true,
         instruments: true,
         chronostratigraphy: true,
         gemet: true,
+        analytical_methods: true,
     });
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
@@ -659,7 +663,7 @@ export default function DataCiteForm({
         const loadVocabularies = async () => {
             try {
                 // First, check which thesauri are available
-                let availability = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true };
+                let availability = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true };
                 try {
                     const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
                     if (availabilityRes.ok) {
@@ -670,6 +674,7 @@ export default function DataCiteForm({
                             instruments: availabilityData.instruments?.available ?? true,
                             chronostratigraphy: availabilityData.chronostratigraphy?.available ?? true,
                             gemet: availabilityData.gemet?.available ?? true,
+                            analytical_methods: availabilityData.analytical_methods?.available ?? true,
                         };
                         setThesauriAvailability(availability);
                     }
@@ -680,7 +685,7 @@ export default function DataCiteForm({
 
                 // Only fetch vocabularies that are enabled
                 const fetchPromises: Promise<Response>[] = [];
-                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet')[] = [];
+                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet' | 'analytical_methods')[] = [];
 
                 if (availability.science_keywords) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
@@ -702,6 +707,10 @@ export default function DataCiteForm({
                     fetchPromises.push(fetch('/vocabularies/gemet'));
                     fetchOrder.push('gemet');
                 }
+                if (availability.analytical_methods) {
+                    fetchPromises.push(fetch('/vocabularies/analytical-methods'));
+                    fetchOrder.push('analytical_methods');
+                }
 
                 if (fetchPromises.length === 0) {
                     // No thesauri enabled
@@ -719,6 +728,7 @@ export default function DataCiteForm({
                     msl: [],
                     chronostratigraphy: [],
                     gemet: [],
+                    analytical_methods: [],
                 };
 
                 // Process each response with its corresponding key
@@ -744,6 +754,7 @@ export default function DataCiteForm({
                         instruments: vocabularies.instruments.length,
                         chronostratigraphy: vocabularies.chronostratigraphy.length,
                         gemet: vocabularies.gemet.length,
+                        analytical_methods: vocabularies.analytical_methods.length,
                         availability,
                     });
                 }
@@ -2397,11 +2408,13 @@ export default function DataCiteForm({
                                 mslVocabulary={gcmdVocabularies.msl}
                                 chronostratVocabulary={gcmdVocabularies.chronostratigraphy}
                                 gemetVocabulary={gcmdVocabularies.gemet}
+                                analyticalMethodsVocabulary={gcmdVocabularies.analytical_methods}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
                                 showMslTab={shouldShowMSLSection}
                                 showChronostratTab={thesauriAvailability.chronostratigraphy}
                                 showGemetTab={thesauriAvailability.gemet}
+                                showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
                                 autoSwitchToMsl={shouldAutoSwitchToMsl}
                                 enabledThesauri={thesauriAvailability}
                             />
