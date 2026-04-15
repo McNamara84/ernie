@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\Storage;
 #[Signature('get-chronostrat-timescale')]
 class GetChronostratTimescale extends Command
 {
-    private const ARDC_BASE_URL = 'https://vocabs.ardc.edu.au/repository/api/lda/csiro/international-chronostratigraphic-chart/geologic-time-scale-2020/concept.json';
-
     private const OUTPUT_FILE = 'chronostrat-timescale.json';
 
     public function handle(): int
@@ -29,7 +27,7 @@ class GetChronostratTimescale extends Command
 
         try {
             $parser = new ChronostratVocabularyParser;
-            $ardcApi = new ArdcApiService(self::ARDC_BASE_URL);
+            $ardcApi = new ArdcApiService((string) config('ardc.chronostratigraphy.url'));
 
             $allItems = $ardcApi->fetchAllItems();
             $this->info('Fetched '.count($allItems).' items from ARDC API');

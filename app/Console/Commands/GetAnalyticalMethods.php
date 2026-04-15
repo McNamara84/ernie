@@ -20,16 +20,13 @@ use Illuminate\Support\Facades\Storage;
 #[Signature('get-analytical-methods')]
 class GetAnalyticalMethods extends Command
 {
-    private const ARDC_BASE_URL_TEMPLATE = 'https://vocabs.ardc.edu.au/repository/api/lda/earthchem-georoc/analytical-methods-for-geochemistry-and-cosmochemi/{version}/concept.json';
-
-    private const DEFAULT_VERSION = '1-4';
-
     private const OUTPUT_FILE = 'analytical-methods.json';
 
     public function handle(): int
     {
         $version = $this->resolveVersion();
-        $baseUrl = str_replace('{version}', $version, self::ARDC_BASE_URL_TEMPLATE);
+        $urlTemplate = (string) config('ardc.analytical_methods.url_template');
+        $baseUrl = str_replace('{version}', $version, $urlTemplate);
 
         $this->info("Fetching Analytical Methods vocabulary (version {$version}) from ARDC API...");
 
@@ -98,6 +95,6 @@ class GetAnalyticalMethods extends Command
             return $setting->version;
         }
 
-        return self::DEFAULT_VERSION;
+        return (string) config('ardc.analytical_methods.default_version');
     }
 }

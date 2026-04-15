@@ -784,7 +784,7 @@
                 }
             }
         },
-        "/api/v1/vocabularies/geochem-analytical-methods": {
+        "/api/v1/vocabularies/analytical-methods": {
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Get Analytical Methods for Geochemistry vocabulary",

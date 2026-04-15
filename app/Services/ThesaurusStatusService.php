@@ -138,7 +138,7 @@ class ThesaurusStatusService
     private function getChronostratRemoteCount(): int
     {
         $ardcApi = new ArdcApiService(
-            'https://vocabs.ardc.edu.au/repository/api/lda/csiro/international-chronostratigraphic-chart/geologic-time-scale-2020/concept.json'
+            (string) config('ardc.chronostratigraphy.url')
         );
         $allItems = $ardcApi->fetchAllItems(timeout: 30);
 
@@ -154,12 +154,9 @@ class ThesaurusStatusService
      */
     private function getAnalyticalMethodsRemoteCount(ThesaurusSetting $thesaurus): int
     {
-        $version = $thesaurus->version ?? '1-4';
-        $baseUrl = str_replace(
-            '{version}',
-            $version,
-            'https://vocabs.ardc.edu.au/repository/api/lda/earthchem-georoc/analytical-methods-for-geochemistry-and-cosmochemi/{version}/concept.json'
-        );
+        $version = $thesaurus->version ?? (string) config('ardc.analytical_methods.default_version');
+        $urlTemplate = (string) config('ardc.analytical_methods.url_template');
+        $baseUrl = str_replace('{version}', $version, $urlTemplate);
 
         $ardcApi = new ArdcApiService($baseUrl);
         $allItems = $ardcApi->fetchAllItems(timeout: 30);
