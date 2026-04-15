@@ -157,3 +157,57 @@ describe('Title and description language preservation', function () {
             ->and($resource->descriptions->first()->language)->toBeNull();
     });
 });
+
+describe('Draft save language preservation', function () {
+    it('stores title language through draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title', 'language' => 'fr'],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertSuccessful();
+
+        $resource = Resource::latest()->first();
+        expect($resource->titles->first()->language)->toBe('fr');
+    });
+
+    it('stores description language through draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'French abstract.', 'language' => 'fr'],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertSuccessful();
+
+        $resource = Resource::latest()->first();
+        expect($resource->descriptions->first()->language)->toBe('fr');
+    });
+
+    it('normalizes empty language to null in draft save', function () {
+        $payload = validPayloadWithLanguage([
+            'titles' => [
+                ['title' => 'Draft No Lang', 'titleType' => 'main-title', 'language' => ''],
+            ],
+            'descriptions' => [
+                ['descriptionType' => 'abstract', 'description' => 'No lang.', 'language' => ''],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertSuccessful();
+
+        $resource = Resource::latest()->first();
+        expect($resource->titles->first()->language)->toBeNull()
+            ->and($resource->descriptions->first()->language)->toBeNull();
+    });
+});

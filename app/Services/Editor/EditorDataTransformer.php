@@ -271,7 +271,7 @@ class EditorDataTransformer
      * conventions. A future migration could normalize database slugs to kebab-case to simplify
      * this logic.
      *
-    @return array<int, array{type: string, description: string, language: string|null}>
+     * @return array<int, array{type: string, description: string, language: string|null}>
      */
     public function transformDescriptions(Resource $resource): array
     {

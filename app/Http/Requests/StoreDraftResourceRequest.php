@@ -57,6 +57,7 @@ class StoreDraftResourceRequest extends FormRequest
             'titles' => ['required', 'array', 'min:1'],
             'titles.*.title' => ['required', 'string', 'max:255'],
             'titles.*.titleType' => ['required', 'string', 'max:255'],
+            'titles.*.language' => ['nullable', 'string', 'max:10'],
             // Licenses are optional for drafts
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
@@ -99,6 +100,7 @@ class StoreDraftResourceRequest extends FormRequest
                 Rule::in(['abstract', 'methods', 'series-information', 'table-of-contents', 'technical-info', 'other']),
             ],
             'descriptions.*.description' => ['required', 'string'],
+            'descriptions.*.language' => ['nullable', 'string', 'max:10'],
             'dates' => ['nullable', 'array'],
             'dates.*.dateType' => [
                 'required',
@@ -230,9 +232,12 @@ class StoreDraftResourceRequest extends FormRequest
                 }
             }
 
+            $language = isset($title['language']) ? trim((string) $title['language']) : '';
+
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
                 'titleType' => $titleType,
+                'language' => $language !== '' ? $language : null,
             ];
         }
 
@@ -492,9 +497,12 @@ class StoreDraftResourceRequest extends FormRequest
 
             $normalizedType = Str::kebab($descriptionType);
 
+            $descriptionLanguage = isset($description['language']) ? trim((string) $description['language']) : '';
+
             $descriptions[] = [
                 'descriptionType' => $normalizedType,
                 'description' => $descriptionText,
+                'language' => $descriptionLanguage !== '' ? $descriptionLanguage : null,
             ];
         }
 
