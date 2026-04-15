@@ -166,7 +166,7 @@ describe('ThesaurusSettingsController - Analytical Methods', function () {
             ->assertUnprocessable();
     });
 
-    it('prevents non-admins from updating version', function () {
+    it('prevents curators from updating version', function () {
         $curator = User::factory()->create(['role' => \App\Enums\UserRole::CURATOR]);
 
         $this->actingAs($curator)
@@ -174,6 +174,22 @@ describe('ThesaurusSettingsController - Analytical Methods', function () {
                 'version' => '2-0',
             ])
             ->assertForbidden();
+    });
+
+    it('allows group leaders to update version', function () {
+        \App\Models\ThesaurusSetting::updateOrCreate(
+            ['type' => 'analytical_methods'],
+            ['version' => '1-4', 'display_name' => 'Analytical Methods', 'is_active' => true, 'is_elmo_active' => true],
+        );
+
+        $groupLeader = User::factory()->create(['role' => \App\Enums\UserRole::GROUP_LEADER]);
+
+        $this->actingAs($groupLeader)
+            ->patchJson('/thesauri/analytical_methods/version', [
+                'version' => '2-0',
+            ])
+            ->assertOk()
+            ->assertJsonFragment(['version' => '2-0']);
     });
 
     it('returns 404 for unknown thesaurus type', function () {
