@@ -96,7 +96,7 @@ class ThesaurusSettingsController extends Controller
      *
      * POST /api/v1/thesauri/{type}/update
      *
-     * Requires 'manage-thesauri' gate (admin only).
+     * Requires 'manage-thesauri' gate (Admin and Group Leader).
      *
      * @param  string  $type  The thesaurus type (science_keywords, platforms, instruments)
      * @return JsonResponse
@@ -106,7 +106,7 @@ class ThesaurusSettingsController extends Controller
         // Authorization check
         if (Gate::denies('manage-thesauri')) {
             return response()->json([
-                'error' => 'Unauthorized. Only administrators can trigger thesaurus updates.',
+                'error' => 'Unauthorized. Only administrators and group leaders can trigger thesaurus updates.',
             ], 403);
         }
 

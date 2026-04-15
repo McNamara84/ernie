@@ -80,7 +80,7 @@ class GemetVocabularyParser
         usort($rootNodes, fn (array $a, array $b): int => strcasecmp($a['text'], $b['text']));
 
         return [
-            'lastUpdated' => now()->format('Y-m-d H:i:s'),
+            'lastUpdated' => now()->toIso8601String(),
             'data' => $rootNodes,
         ];
     }
