@@ -81,6 +81,7 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments',
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/euroscivoc', [VocabularyController::class, 'euroSciVoc']);
 Route::middleware('ernie.api-key')->get('/v1/ror-affiliations/elmo', [VocabularyController::class, 'rorAffiliations']);
 
 // Thesauri/PID availability - dual routes: without auth for ERNIE frontend, with API key for ELMO

@@ -92,6 +92,7 @@ class DocsController extends Controller
                 $chronostratSetting = $thesauri->get(ThesaurusSetting::TYPE_CHRONOSTRAT);
                 $gemetSetting = $thesauri->get(ThesaurusSetting::TYPE_GEMET);
                 $analyticalMethodsSetting = $thesauri->get(ThesaurusSetting::TYPE_ANALYTICAL_METHODS);
+                $euroSciVocSetting = $thesauri->get(ThesaurusSetting::TYPE_EUROSCIVOC);
 
                 $scienceKeywordsActive = $scienceKeywordsSetting !== null ? $scienceKeywordsSetting->is_active : false;
                 $platformsActive = $platformsSetting !== null ? $platformsSetting->is_active : false;
@@ -99,6 +100,7 @@ class DocsController extends Controller
                 $chronostratActive = $chronostratSetting !== null ? $chronostratSetting->is_active : false;
                 $gemetActive = $gemetSetting !== null ? $gemetSetting->is_active : false;
                 $analyticalMethodsActive = $analyticalMethodsSetting !== null ? $analyticalMethodsSetting->is_active : false;
+                $euroSciVocActive = $euroSciVocSetting !== null ? $euroSciVocSetting->is_active : false;
 
                 // Check if MSL vocabulary file exists (indicates MSL is available)
                 $hasMslVocabulary = Storage::exists('msl-vocabulary.json');
@@ -111,6 +113,7 @@ class DocsController extends Controller
                         'chronostratigraphy' => $chronostratActive,
                         'gemet' => $gemetActive,
                         'analyticalMethods' => $analyticalMethodsActive,
+                        'euroSciVoc' => $euroSciVocActive,
                     ],
                     'features' => [
                         'hasActiveGcmd' => $scienceKeywordsActive || $platformsActive || $instrumentsActive,
@@ -118,6 +121,7 @@ class DocsController extends Controller
                         'hasActiveChronostrat' => $chronostratActive,
                         'hasActiveGemet' => $gemetActive,
                         'hasActiveAnalyticalMethods' => $analyticalMethodsActive,
+                        'hasActiveEuroSciVoc' => $euroSciVocActive,
                         'hasActiveLicenses' => Right::where('is_active', true)->exists(),
                         'hasActiveResourceTypes' => ResourceType::where('is_active', true)->exists(),
                         'hasActiveTitleTypes' => TitleType::where('is_active', true)->exists(),

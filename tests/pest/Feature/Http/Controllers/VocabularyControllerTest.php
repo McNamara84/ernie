@@ -217,6 +217,30 @@ describe('gemet thesaurus', function () {
     });
 });
 
+describe('euroscivoc', function () {
+    it('returns vocabulary when thesaurus is active', function () {
+        ThesaurusSetting::firstOrCreate(
+            ['type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+            [
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        );
+
+        Storage::put('euroscivoc.json', json_encode([
+            'lastUpdated' => '2026-04-16T10:00:00+00:00',
+            'data' => [['id' => 'http://example.org/1', 'text' => 'natural sciences', 'language' => 'en', 'scheme' => 'European Science Vocabulary (EuroSciVoc)', 'schemeURI' => 'http://data.europa.eu/8mn/euroscivoc/test', 'description' => '', 'children' => []]],
+        ]));
+
+        $response = $this->getJson('/api/v1/vocabularies/euroscivoc', [
+            'X-API-Key' => config('services.ernie.api_key'),
+        ]);
+
+        $response->assertOk();
+    });
+});
+
 describe('ror affiliations', function () {
     it('returns 404 when ROR is disabled', function () {
         PidSetting::create([

@@ -35,6 +35,8 @@ class ThesaurusSetting extends Model
 
     public const TYPE_ANALYTICAL_METHODS = 'analytical_methods';
 
+    public const TYPE_EUROSCIVOC = 'euroscivoc';
+
     /**
      * @return array<string, string>
      */
@@ -58,6 +60,7 @@ class ThesaurusSetting extends Model
             self::TYPE_CHRONOSTRAT => 'chronostrat-timescale.json',
             self::TYPE_GEMET => 'gemet-thesaurus.json',
             self::TYPE_ANALYTICAL_METHODS => 'analytical-methods.json',
+            self::TYPE_EUROSCIVOC => 'euroscivoc.json',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -74,6 +77,7 @@ class ThesaurusSetting extends Model
             self::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             self::TYPE_GEMET => 'get-gemet-thesaurus',
             self::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
+            self::TYPE_EUROSCIVOC => 'get-euroscivoc',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -106,6 +110,7 @@ class ThesaurusSetting extends Model
             self::TYPE_CHRONOSTRAT => CacheKey::CHRONOSTRAT_TIMESCALE,
             self::TYPE_GEMET => CacheKey::GEMET_THESAURUS,
             self::TYPE_ANALYTICAL_METHODS => CacheKey::ANALYTICAL_METHODS,
+            self::TYPE_EUROSCIVOC => CacheKey::EUROSCIVOC,
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -136,6 +141,7 @@ class ThesaurusSetting extends Model
             self::TYPE_CHRONOSTRAT,
             self::TYPE_GEMET,
             self::TYPE_ANALYTICAL_METHODS,
+            self::TYPE_EUROSCIVOC,
         ];
     }
 

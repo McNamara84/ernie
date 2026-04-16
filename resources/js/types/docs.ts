@@ -19,6 +19,8 @@ export interface EditorSettings {
         gemet: boolean;
         /** Is Analytical Methods thesaurus active? */
         analyticalMethods: boolean;
+        /** Is European Science Vocabulary (EuroSciVoc) thesaurus active? */
+        euroSciVoc: boolean;
     };
     /**
      * Feature availability flags
@@ -34,6 +36,8 @@ export interface EditorSettings {
         hasActiveGemet: boolean;
         /** Is Analytical Methods thesaurus active? */
         hasActiveAnalyticalMethods: boolean;
+        /** Is European Science Vocabulary (EuroSciVoc) thesaurus active? */
+        hasActiveEuroSciVoc: boolean;
         /** Is at least one license active? */
         hasActiveLicenses: boolean;
         /** Is at least one resource type active? */

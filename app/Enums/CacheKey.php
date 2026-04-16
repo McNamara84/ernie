@@ -29,6 +29,7 @@ enum CacheKey: string
     case CHRONOSTRAT_TIMESCALE = 'vocabularies:chronostrat:timescale';
     case GEMET_THESAURUS = 'vocabularies:gemet:thesaurus';
     case ANALYTICAL_METHODS = 'vocabularies:analytical_methods';
+    case EUROSCIVOC = 'vocabularies:euroscivoc';
 
     // ROR affiliation cache keys
     case ROR_AFFILIATION = 'ror:affiliation';
@@ -100,7 +101,8 @@ enum CacheKey: string
             self::PID4INST_INSTRUMENTS,
             self::CHRONOSTRAT_TIMESCALE,
             self::GEMET_THESAURUS,
-            self::ANALYTICAL_METHODS => 86400,
+            self::ANALYTICAL_METHODS,
+            self::EUROSCIVOC => 86400,
 
             // ROR affiliations are relatively stable - 7 days
             self::ROR_AFFILIATION => 604800,
@@ -155,7 +157,8 @@ enum CacheKey: string
             self::PID4INST_INSTRUMENTS,
             self::CHRONOSTRAT_TIMESCALE,
             self::GEMET_THESAURUS,
-            self::ANALYTICAL_METHODS => ['vocabularies'],
+            self::ANALYTICAL_METHODS,
+            self::EUROSCIVOC => ['vocabularies'],
 
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 
@@ -221,6 +224,7 @@ enum CacheKey: string
             self::CHRONOSTRAT_TIMESCALE,
             self::GEMET_THESAURUS,
             self::ANALYTICAL_METHODS,
+            self::EUROSCIVOC,
         ];
     }
 }
