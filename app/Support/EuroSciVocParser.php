@@ -141,8 +141,7 @@ class EuroSciVocParser
         }
 
         // If no explicit top concepts found, derive them:
-        // - concepts that are never referenced as a child of another concept, OR
-        // - concepts whose broaderId points to a parent not in the concept set
+        // - concepts that are never referenced as a child of another concept
         if ($topConceptIds === []) {
             $allChildIds = [];
             foreach ($childrenByParentId as $childIds) {
