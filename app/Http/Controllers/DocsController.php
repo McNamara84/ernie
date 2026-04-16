@@ -57,13 +57,17 @@ class DocsController extends Controller
      *         platforms: bool,
      *         instruments: bool,
      *         chronostratigraphy: bool,
-     *         gemet: bool
+     *         gemet: bool,
+     *         analyticalMethods: bool,
+     *         euroSciVoc: bool
      *     },
      *     features: array{
      *         hasActiveGcmd: bool,
      *         hasActiveMsl: bool,
      *         hasActiveChronostrat: bool,
      *         hasActiveGemet: bool,
+     *         hasActiveAnalyticalMethods: bool,
+     *         hasActiveEuroSciVoc: bool,
      *         hasActiveLicenses: bool,
      *         hasActiveResourceTypes: bool,
      *         hasActiveTitleTypes: bool,
