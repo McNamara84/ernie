@@ -145,6 +145,32 @@ describe('transformTitles', function (): void {
 
         expect($result[0]['titleType'])->toBe('subtitle');
     });
+
+    it('includes language field for titles', function (): void {
+        Title::factory()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'German Title',
+            'language' => 'de',
+        ]);
+        Title::factory()->alternativeTitle()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'English Alt',
+            'language' => 'en',
+        ]);
+        Title::factory()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'No Language Title',
+            'language' => null,
+        ]);
+        $this->resource->load('titles.titleType');
+
+        $result = $this->transformer->transformTitles($this->resource);
+
+        $languages = array_column($result, 'language');
+        expect($languages)->toContain('de')
+            ->and($languages)->toContain('en')
+            ->and($languages)->toContain(null);
+    });
 });
 
 // =========================================================================
@@ -638,6 +664,28 @@ describe('transformDescriptions', function (): void {
         $result = $this->transformer->transformDescriptions($this->resource);
 
         expect($result[0]['type'])->toBe('Other');
+    });
+
+    it('includes language field for descriptions', function (): void {
+        $abstractType = DescriptionType::where('slug', 'Abstract')->first();
+        Description::create([
+            'resource_id' => $this->resource->id,
+            'description_type_id' => $abstractType->id,
+            'value' => 'French abstract',
+            'language' => 'fr',
+        ]);
+        Description::create([
+            'resource_id' => $this->resource->id,
+            'description_type_id' => $abstractType->id,
+            'value' => 'No language abstract',
+            'language' => null,
+        ]);
+        $this->resource->load('descriptions.descriptionType');
+
+        $result = $this->transformer->transformDescriptions($this->resource);
+
+        expect($result[0]['language'])->toBe('fr')
+            ->and($result[1]['language'])->toBeNull();
     });
 });
 

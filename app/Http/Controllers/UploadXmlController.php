@@ -151,6 +151,18 @@ class UploadXmlController extends Controller
             $descriptions = $this->extractDescriptions($reader);
             $dates = $this->extractDates($reader);
             $coverages = $this->extractCoverages($reader, $dates);
+
+            // Remove Coverage dates from dates array (they are now in coverages)
+            // and strip the rawValue key used only for coverage time extraction
+            $dates = array_filter(
+                $dates,
+                fn (array $date) => ($date['dateType'] ?? '') !== 'coverage',
+            );
+            $dates = array_values(array_map(
+                fn (array $date) => array_diff_key($date, ['rawValue' => true]),
+                $dates,
+            ));
+
             $gcmdKeywords = $this->extractGcmdKeywords($reader);
 
             // Use dedicated service for keyword extraction
@@ -178,9 +190,11 @@ class UploadXmlController extends Controller
 
             foreach ($titleElements as $element) {
                 $titleType = $element->getAttribute('titleType');
+                $xmlLang = $element->getAttribute('xml:lang');
                 $titles[] = [
                     'title' => $element->getContent(),
                     'titleType' => $titleType ? Str::kebab($titleType) : 'main-title',
+                    'language' => is_string($xmlLang) && trim($xmlLang) !== '' ? trim($xmlLang) : null,
                 ];
             }
 
@@ -599,7 +613,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, string|null>>
      */
     private function extractDescriptions(XmlReader $reader): array
     {
@@ -617,9 +631,12 @@ class UploadXmlController extends Controller
                 continue;
             }
 
+            $descLang = $element->getAttribute('xml:lang');
+
             $descriptions[] = [
                 'type' => $descriptionType ?? 'Other',
                 'description' => $description,
+                'language' => is_string($descLang) && trim($descLang) !== '' ? trim($descLang) : null,
             ];
         }
 
@@ -734,6 +751,7 @@ class UploadXmlController extends Controller
                 'dateType' => Str::kebab($dateType ?? 'other'),
                 'startDate' => $startDate,
                 'endDate' => $endDate,
+                'rawValue' => $dateValue,
             ];
         }
 
@@ -763,6 +781,9 @@ class UploadXmlController extends Controller
             }
         }
 
+        // Parse temporal coverage with full datetime components (time + timezone)
+        $temporalComponents = $this->parseTemporalCoverageComponents($temporalCoverage);
+
         // Extract geoLocations
         $geoLocationElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
@@ -778,11 +799,11 @@ class UploadXmlController extends Controller
                 'lonMin' => '',
                 'lonMax' => '',
                 'polygonPoints' => [],
-                'startDate' => $temporalCoverage['startDate'] ?? '',
-                'endDate' => $temporalCoverage['endDate'] ?? '',
-                'startTime' => '',
-                'endTime' => '',
-                'timezone' => 'UTC',
+                'startDate' => $temporalComponents['startDate'],
+                'endDate' => $temporalComponents['endDate'],
+                'startTime' => $temporalComponents['startTime'],
+                'endTime' => $temporalComponents['endTime'],
+                'timezone' => $temporalComponents['timezone'],
                 'description' => '',
             ];
 
@@ -799,11 +820,11 @@ class UploadXmlController extends Controller
                 'lonMin' => '',
                 'lonMax' => '',
                 'polygonPoints' => [],
-                'startDate' => $temporalCoverage['startDate'] ?? '',
-                'endDate' => $temporalCoverage['endDate'] ?? '',
-                'startTime' => '',
-                'endTime' => '',
-                'timezone' => 'UTC',
+                'startDate' => $temporalComponents['startDate'],
+                'endDate' => $temporalComponents['endDate'],
+                'startTime' => $temporalComponents['startTime'],
+                'endTime' => $temporalComponents['endTime'],
+                'timezone' => $temporalComponents['timezone'],
                 'description' => '',
             ];
 
@@ -1773,15 +1794,21 @@ class UploadXmlController extends Controller
                             stripos($scheme, 'Instruments') !== false;
 
             if (! $isGcmdKeyword) {
-                // Handle unknown schemes that have a classificationCode or valueURI
+                // Handle non-GCMD schemes that have a classificationCode or valueURI
+                // (e.g., International Chronostratigraphic Chart, custom vocabularies)
                 if ($valueUri !== '' || $classificationCode !== '') {
                     $schemeUri = trim((string) $element->getAttribute('schemeURI'));
+
+                    // Parse leaf text from hierarchical path (e.g., "Phanerozoic > Mesozoic > Jurassic" → "Jurassic")
+                    $fullPath = trim($content);
+                    $pathParts = array_map('trim', explode('>', $fullPath));
+                    $leafText = end($pathParts) ?: $fullPath;
 
                     $keyword = [
                         'uuid' => '',
                         'id' => $valueUri !== '' ? $valueUri : $classificationCode,
-                        'text' => trim($content),
-                        'path' => trim($content),
+                        'text' => $leafText,
+                        'path' => $fullPath,
                         'scheme' => $scheme,
                     ];
 
@@ -2270,6 +2297,127 @@ class UploadXmlController extends Controller
             $author['email'] = $author['email'] ?? '';
             $author['website'] = $author['website'] ?? '';
         }
+    }
+
+    /**
+     * Parse temporal coverage components from a Coverage-type date entry.
+     *
+     * Extracts full datetime components (date, time, timezone) from the raw
+     * date value to preserve time information that normalizeDateString() strips.
+     *
+     * @param  array<string, string>|null  $temporalCoverage  Coverage date entry with rawValue
+     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
+     */
+    private function parseTemporalCoverageComponents(?array $temporalCoverage): array
+    {
+        $default = [
+            'startDate' => '',
+            'endDate' => '',
+            'startTime' => '',
+            'endTime' => '',
+            'timezone' => 'UTC',
+        ];
+
+        if ($temporalCoverage === null) {
+            return $default;
+        }
+
+        $rawValue = $temporalCoverage['rawValue'] ?? '';
+
+        if ($rawValue === '') {
+            return [
+                'startDate' => $temporalCoverage['startDate'] ?? '',
+                'endDate' => $temporalCoverage['endDate'] ?? '',
+                'startTime' => '',
+                'endTime' => '',
+                'timezone' => 'UTC',
+            ];
+        }
+
+        if (str_contains($rawValue, '/')) {
+            [$startRaw, $endRaw] = explode('/', $rawValue, 2);
+            $startParts = $this->parseDateTimeComponents(trim($startRaw));
+            $endParts = $this->parseDateTimeComponents(trim($endRaw));
+        } else {
+            $startParts = $this->parseDateTimeComponents($rawValue);
+            $endParts = ['date' => '', 'time' => '', 'timezone' => ''];
+        }
+
+        // Determine timezone: use explicit timezone from start or end, otherwise
+        // only default to 'UTC' if no time component exists (pure date values)
+        $hasTimeComponent = $startParts['time'] !== '' || $endParts['time'] !== '';
+        $resolvedTimezone = $startParts['timezone'] ?: $endParts['timezone'];
+
+        if ($resolvedTimezone === '' && ! $hasTimeComponent) {
+            $resolvedTimezone = 'UTC';
+        }
+
+        return [
+            'startDate' => $startParts['date'],
+            'endDate' => $endParts['date'],
+            'startTime' => $startParts['time'],
+            'endTime' => $endParts['time'],
+            'timezone' => $resolvedTimezone,
+        ];
+    }
+
+    /**
+     * Parse a date/datetime string into separate date, time, and timezone components.
+     *
+     * @return array{date: string, time: string, timezone: string}
+     */
+    private function parseDateTimeComponents(string $value): array
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return ['date' => '', 'time' => '', 'timezone' => ''];
+        }
+
+        // Only attempt full datetime parsing if the value contains a time separator
+        if (str_contains($value, 'T')) {
+            try {
+                // Detect whether the original string contains an explicit timezone designator
+                // (Z, +HH:MM, -HH:MM) to avoid environment-dependent parsing via php.ini date.timezone
+                $timePart = substr($value, (int) strpos($value, 'T') + 1);
+                $hasExplicitTimezone = (bool) preg_match('/[Zz]$|[+-]\d{2}:\d{2}$/', $timePart);
+
+                $dt = $hasExplicitTimezone
+                    ? new \DateTimeImmutable($value)
+                    : new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+
+                $date = $dt->format('Y-m-d');
+                $time = (int) $dt->format('s') !== 0 ? $dt->format('H:i:s') : $dt->format('H:i');
+                $timezone = $hasExplicitTimezone ? $this->resolveTimezone($dt) : '';
+
+                return ['date' => $date, 'time' => $time, 'timezone' => $timezone];
+            } catch (\Exception) {
+                // Fall through to simple date normalization
+            }
+        }
+
+        // For plain dates without time, use existing normalization
+        return ['date' => $this->normalizeDateString($value), 'time' => '', 'timezone' => ''];
+    }
+
+    /**
+     * Extract the timezone identifier from a DateTimeImmutable.
+     *
+     * Returns the timezone name as-is (IANA name or UTC offset string like "+02:00").
+     * Numeric offsets are kept verbatim because mapping them to IANA zones is
+     * inherently ambiguous and non-deterministic across PHP versions.
+     * "+00:00" is normalized to "UTC" since they are semantically identical.
+     */
+    private function resolveTimezone(\DateTimeImmutable $dt): string
+    {
+        $tz = $dt->getTimezone();
+        $tzName = $tz->getName();
+
+        if ($tzName === '' || $tzName === '+00:00' || $tzName === 'Z') {
+            return 'UTC';
+        }
+
+        return $tzName;
     }
 
     /**

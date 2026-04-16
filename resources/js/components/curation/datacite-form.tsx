@@ -188,6 +188,7 @@ export default function DataCiteForm({
                     id: crypto.randomUUID(),
                     title: t.title,
                     titleType: MAIN_TITLE_SLUG,
+                    language: t.language ?? null,
                 };
             }
 
@@ -197,6 +198,7 @@ export default function DataCiteForm({
                 // If the first entry had an empty type but a main title is already assigned elsewhere,
                 // fall back to a non-main type instead of keeping it empty.
                 titleType: normalized || defaultSecondaryType,
+                language: t.language ?? null,
             };
         });
     });
@@ -241,6 +243,7 @@ export default function DataCiteForm({
             return initialDescriptions.map((desc) => ({
                 type: desc.type as DescriptionEntry['type'],
                 value: desc.description,
+                language: desc.language ?? null,
             }));
         }
         return [];
@@ -1657,7 +1660,7 @@ export default function DataCiteForm({
             resourceType: number | null;
             version: string | null;
             language: string;
-            titles: { title: string; titleType: string }[];
+            titles: { title: string; titleType: string; language?: string | null }[];
             licenses: string[];
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
@@ -1667,7 +1670,7 @@ export default function DataCiteForm({
                 affiliation_name: string;
                 affiliation_ror: string | null;
             }[];
-            descriptions: { descriptionType: string; description: string }[];
+            descriptions: { descriptionType: string; description: string; language?: string | null }[];
             dates: { dateType: string; startDate: string | null; endDate: string | null }[];
             freeKeywords: string[];
             gcmdKeywords: {
@@ -1723,6 +1726,7 @@ export default function DataCiteForm({
             titles: titles.map((entry) => ({
                 title: entry.title,
                 titleType: entry.titleType,
+                language: entry.language ?? null,
             })),
             licenses: licenseEntries.map((entry) => entry.license).filter((license): license is string => Boolean(license)),
             authors: serializedAuthors,
@@ -1738,6 +1742,7 @@ export default function DataCiteForm({
                 .map((desc) => ({
                     descriptionType: desc.type,
                     description: desc.value.trim(),
+                    language: desc.language ?? null,
                 })),
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,

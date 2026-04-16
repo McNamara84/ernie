@@ -312,4 +312,40 @@ describe('TemporalInputs', () => {
             expect(screen.queryByText(/start date must be before/i)).not.toBeInTheDocument();
         });
     });
+
+    describe('Imported Timezone Offset', () => {
+        test('shows imported offset timezone with UTC prefix', () => {
+            const props = {
+                ...defaultProps,
+                timezone: '+02:00',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.getByText(/UTC\+02:00 \(imported\)/)).toBeInTheDocument();
+        });
+
+        test('shows imported IANA timezone without UTC prefix', () => {
+            const props = {
+                ...defaultProps,
+                timezone: 'Africa/Cairo',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.getByText(/Africa\/Cairo \(imported\)/)).toBeInTheDocument();
+        });
+
+        test('does not add duplicate option for known IANA timezone', () => {
+            const props = {
+                ...defaultProps,
+                timezone: 'Europe/Berlin',
+            };
+
+            render(<TemporalInputs {...props} />);
+
+            expect(screen.getByText(/Europe\/Berlin \(CET\/CEST\)/)).toBeInTheDocument();
+            expect(screen.queryByText(/\(imported\)/)).not.toBeInTheDocument();
+        });
+    });
 });

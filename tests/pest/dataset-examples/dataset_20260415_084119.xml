@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope>
+    
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.7/metadata.xsd">
+  <identifier identifierType="DOI">10.5880/GFZ1243</identifier>
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Garcia, Sofia</creatorName>
+      <givenName>Sofia</givenName>
+      <familyName>Garcia</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0001-5727-2427</nameIdentifier>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+    </creator>
+    <creator>
+      <creatorName nameType="Personal">Ehrmann, Holger</creatorName>
+      <givenName>Holger</givenName>
+      <familyName>Ehrmann</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0000-1235-6950</nameIdentifier>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/012m9bp23">University of Applied Sciences Potsdam</affiliation>
+    </creator>
+    <creator>
+      <creatorName nameType="Organizational">TESTAUHROINSTITUTION Sec 5.1</creatorName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/03e8s1d88">Potsdam Institute for Climate Impact Research</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org/" affiliationIdentifier="https://ror.org/0433rew55">Haut- und Lasercentrum Potsdam</affiliation>
+    </creator>
+  </creators>
+  <titles>
+    <title xml:lang="en">TESTTITLE1</title>
+    <title titleType="AlternativeTitle">TESTTITLE2</title>
+  </titles>
+  <publisher xml:lang="en">GFZ Data Services</publisher>
+  <publicationYear>2009</publicationYear>
+  <resourceType resourceTypeGeneral="Event">Event</resourceType>
+  <subjects>
+    <subject subjectScheme="NASA/GCMD Earth Science Keywords" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/40d4ba89-0e3d-4c6c-adef-87e08737d4db" xml:lang="en">Science Keywords &gt; EARTH SCIENCE SERVICES &gt; DATA MANAGEMENT/DATA HANDLING &gt; DATA CUSTOMIZATION &gt; REPROJECTION</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/1cc11f32-9643-4fa4-9384-18cab2852604" xml:lang="en">Platforms &gt; Space-based Platforms &gt; Interplanetary Spacecraft &gt; FLYBY &gt; VOYAGER 1</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/2351e160-5a9c-4d1c-81f0-775bbae1848e" xml:lang="en">Platforms &gt; Space-based Platforms &gt; Interplanetary Spacecraft &gt; FLYBY &gt; MARINER 2</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/91923fed-61c3-4125-b69d-1eeccafce52c" xml:lang="en">Instruments &gt; Earth Remote Sensing Instruments &gt; Passive Remote Sensing &gt; Spectrometers/Radiometers &gt; Spectrometers &gt; OMPS-N</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/a0b0fd02-9952-4110-bac9-940a1b6e996f" xml:lang="en">Instruments &gt; Earth Remote Sensing Instruments &gt; Passive Remote Sensing &gt; Spectrometers/Radiometers &gt; Spectrometers &gt; GOME</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/2d17f6d1-6a60-48e7-aa37-d3942286e6a1" xml:lang="en">Instruments &gt; Earth Remote Sensing Instruments &gt; Passive Remote Sensing &gt; Spectrometers/Radiometers &gt; Spectrometers &gt; UV OZONE DETECTORS</subject>
+    <subject subjectScheme="International Chronostratigraphic Chart" schemeURI="http://resource.geosciml.org/vocabulary/timescale/gts2020" valueURI="http://resource.geosciml.org/classifier/ics/ischart/Jurassic" xml:lang="en">Phanerozoic &gt; Mesozoic &gt; Jurassic</subject>
+    <subject subjectScheme="International Chronostratigraphic Chart" schemeURI="http://resource.geosciml.org/vocabulary/timescale/gts2020" valueURI="http://resource.geosciml.org/classifier/ics/ischart/Cretaceous" xml:lang="en">Phanerozoic &gt; Mesozoic &gt; Cretaceous</subject>
+    <subject subjectScheme="International Chronostratigraphic Chart" schemeURI="http://resource.geosciml.org/vocabulary/timescale/gts2020" valueURI="http://resource.geosciml.org/classifier/ics/ischart/Triassic" xml:lang="en">Phanerozoic &gt; Mesozoic &gt; Triassic</subject>
+    <subject subjectScheme="International Chronostratigraphic Chart" schemeURI="http://resource.geosciml.org/vocabulary/timescale/gts2020" valueURI="http://resource.geosciml.org/classifier/ics/ischart/Paleozoic" xml:lang="en">Phanerozoic &gt; Paleozoic</subject>
+    <subject>testkeyword1</subject>
+    <subject>testkeyword2</subject>
+    <subject>testkeyword3</subject>
+  </subjects>
+  <contributors>
+    <contributor contributorType="ContactPerson">
+      <contributorName>Garcia, Sofia</contributorName>
+      <givenName>Sofia</givenName>
+      <familyName>Garcia</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0001-5727-2427</nameIdentifier>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+    </contributor>
+    <contributor contributorType="DataCollector">
+      <contributorName nameType="Personal">Mohammed, Ali</contributorName>
+      <givenName>Ali</givenName>
+      <familyName>Mohammed</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0007-2910-0469</nameIdentifier>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/012m9bp23">University of Applied Sciences Potsdam</affiliation>
+    </contributor>
+    <contributor contributorType="DataManager">
+      <contributorName nameType="Personal">Mohammed, Ali</contributorName>
+      <givenName>Ali</givenName>
+      <familyName>Mohammed</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0009-0007-2910-0469</nameIdentifier>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/012m9bp23">University of Applied Sciences Potsdam</affiliation>
+    </contributor>
+    <contributor contributorType="Distributor">
+      <contributorName nameType="Organizational">Bib</contributorName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/02xx9xx26">Dresdner Grundwasserforschungszentrum</affiliation>
+    </contributor>
+    <contributor contributorType="RegistrationAgency">
+      <contributorName nameType="Organizational">Bib</contributorName>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04z8jg394">GFZ Helmholtz Centre for Geosciences</affiliation>
+      <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/02xx9xx26">Dresdner Grundwasserforschungszentrum</affiliation>
+    </contributor>
+  </contributors>
+  <dates>
+    <date dateType="Available">2026-04-26</date>
+    <date dateType="Coverage">2026-03-31T20:00:00+02:00/2026-03-31T21:00:00+02:00</date>
+    <date dateType="Created">2026-04-15</date>
+  </dates>
+  <language>en</language>
+  <relatedIdentifiers>
+    <relatedIdentifier relatedIdentifierType="DOI" relationType="Is Cited By">10.1371/journal.pbio.0020449</relatedIdentifier>
+    <relatedIdentifier relatedIdentifierType="ARK" relationType="Cites">ark:/13030/tqb3kh97gh8w</relatedIdentifier>
+  </relatedIdentifiers>
+  <version>1.1</version>
+  <rightsList>
+    <rights rightsURI="https://joinup.ec.europa.eu/sites/default/files/custom-page/attachment/2020-03/EUPL-1.2%20EN.txt" rightsIdentifier="EUPL-1.2" rightsIdentifierScheme="SPDX" schemeURI="https://spdx.org/licenses/" xml:lang="en">European Union Public License 1.2</rights>
+  </rightsList>
+  <descriptions>
+    <description descriptionType="Abstract" xml:lang="en">TESTABSTRACT</description>
+    <description descriptionType="Methods" xml:lang="en">TESTMETHOD</description>
+    <description descriptionType="Other" xml:lang="en">TESTOTHER</description>
+    <description descriptionType="TechnicalInfo" xml:lang="en">TESTTECHNICALINFORMATION</description>
+  </descriptions>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLongitude>13.7691</pointLongitude>
+        <pointLatitude>63.7074</pointLatitude>
+      </geoLocationPoint>
+    </geoLocation>
+    <geoLocation>
+      <geoLocationPlace>TESTDESCRIPTION</geoLocationPlace>
+      <geoLocationBox>
+        <westBoundLongitude>12.7404</westBoundLongitude>
+        <eastBoundLongitude>18.0578</eastBoundLongitude>
+        <southBoundLatitude>62.5594</southBoundLatitude>
+        <northBoundLatitude>63.5158</northBoundLatitude>
+      </geoLocationBox>
+    </geoLocation>
+  </geoLocations>
+  <fundingReferences>
+    <fundingReference>
+      <funderName>GFZ Helmholtz-Zentrum für Geoforschung</funderName>
+      <funderIdentifier schemeURI="https://www.crossref.org/services/funder-registry/" funderIdentifierType="Crossref Funder ID">https://doi.org/10.13039/1100010956</funderIdentifier>
+      <awardNumber awardURI="https://testawarduri1.de">12345</awardNumber>
+      <awardTitle>TESTGRANTNAME1</awardTitle>
+    </fundingReference>
+    <fundingReference>
+      <funderName>RIFS Forschungsinstitut für Nachhaltigkeit, GFZ Helmholtz-Zentrum für Geoforschung</funderName>
+      <funderIdentifier schemeURI="https://www.crossref.org/services/funder-registry/" funderIdentifierType="Crossref Funder ID">https://doi.org/10.13039/1100024777</funderIdentifier>
+      <awardNumber awardURI="https://testawarduri2.de">54321</awardNumber>
+      <awardTitle>TESTGRANTNAME2</awardTitle>
+    </fundingReference>
+  </fundingReferences>
+</resource>
+
+
+    
+<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd file:///C:/xampp/htdocs/msl-mde/schemas/ISO/gmd.xsd">
+  <fileIdentifier>
+    <gco:CharacterString>doi:10.5880/GFZ1243</gco:CharacterString>
+  </fileIdentifier>
+  <language>
+    <LanguageCode codeList="http://www.loc.gov/standards/iso639-1/" codeListValue="en">en</LanguageCode>
+  </language>
+  <characterSet>
+    <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode" codeListValue="utf8"/>
+  </characterSet>
+  <hierarchyLevel>
+    <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset">dataset</MD_ScopeCode>
+  </hierarchyLevel>
+  <contact>
+    <CI_ResponsibleParty>
+      <organisationName>
+        <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+      </organisationName>
+      <contactInfo>
+        <CI_Contact>
+          <address>
+            <CI_Address>
+              <electronicMailAddress>
+                <gco:CharacterString>lis-it@gfz.de</gco:CharacterString>
+              </electronicMailAddress>
+            </CI_Address>
+          </address>
+          <onlineResource>
+            <CI_OnlineResource>
+              <linkage>
+                <URL>https://www.gfz.de/</URL>
+              </linkage>
+              <name>
+                <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+              </name>
+              <description>
+                <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+              </description>
+              <function>
+                <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">information</CI_OnLineFunctionCode>
+              </function>
+            </CI_OnlineResource>
+          </onlineResource>
+        </CI_Contact>
+      </contactInfo>
+      <role>
+        <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+      </role>
+    </CI_ResponsibleParty>
+  </contact>
+  <dateStamp>
+    <gco:Date>2026-04-15</gco:Date>
+  </dateStamp>
+  <referenceSystemInfo>
+    <MD_ReferenceSystem>
+      <referenceSystemIdentifier>
+        <RS_Identifier>
+          <code>
+            <gco:CharacterString>urn:ogc:def:crs:EPSG:4326</gco:CharacterString>
+          </code>
+        </RS_Identifier>
+      </referenceSystemIdentifier>
+    </MD_ReferenceSystem>
+  </referenceSystemInfo>
+  <identificationInfo>
+    <MD_DataIdentification>
+      <citation>
+        <CI_Citation>
+          <title>
+            <gco:CharacterString>TESTTITLE1</gco:CharacterString>
+          </title>
+          <alternateTitle>
+            <gco:CharacterString>TESTTITLE2</gco:CharacterString>
+          </alternateTitle>
+          <date>
+            <CI_Date>
+              <date>
+                <gco:Date>2026-04-15</gco:Date>
+              </date>
+              <dateType>
+                <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation">creation</CI_DateTypeCode>
+              </dateType>
+            </CI_Date>
+          </date>
+        </CI_Citation>
+      </citation>
+      <abstract>
+        <gco:CharacterString>TESTABSTRACT</gco:CharacterString>
+      </abstract>
+      <pointOfContact>
+        <CI_ResponsibleParty>
+          <individualName>
+            <gco:CharacterString>Garcia, Sofia</gco:CharacterString>
+          </individualName>
+          <organisationName>
+            <gco:CharacterString>GFZ Helmholtz Centre for Geosciences</gco:CharacterString>
+          </organisationName>
+          <contactInfo>
+            <CI_Contact>
+              <address>
+                <CI_Address>
+                  <electronicMailAddress>
+                    <gco:CharacterString>test@test.de</gco:CharacterString>
+                  </electronicMailAddress>
+                </CI_Address>
+              </address>
+              <onlineResource>
+                <CI_OnlineResource>
+                  <linkage>
+                    <URL>test.de</URL>
+                  </linkage>
+                  <function>
+                    <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">information</CI_OnLineFunctionCode>
+                  </function>
+                </CI_OnlineResource>
+              </onlineResource>
+            </CI_Contact>
+          </contactInfo>
+          <role>
+            <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+          </role>
+        </CI_ResponsibleParty>
+      </pointOfContact>
+      <descriptiveKeywords/>
+      <descriptiveKeywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Science Keywords &gt; EARTH SCIENCE SERVICES &gt; DATA MANAGEMENT/DATA HANDLING &gt; DATA CUSTOMIZATION &gt; REPROJECTION</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Earth Science Keywords</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2026-04-15</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Platforms &gt; Space-based Platforms &gt; Interplanetary Spacecraft &gt; FLYBY &gt; VOYAGER 1</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Earth Platforms Keywords</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2026-04-15</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Platforms &gt; Space-based Platforms &gt; Interplanetary Spacecraft &gt; FLYBY &gt; MARINER 2</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Earth Platforms Keywords</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2026-04-15</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Instruments &gt; Earth Remote Sensing Instruments &gt; Passive Remote Sensing &gt; Spectrometers/Radiometers &gt; Spectrometers &gt; OMPS-N</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Instruments</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2026-04-15</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Instruments &gt; Earth Remote Sensing Instruments &gt; Passive Remote Sensing &gt; Spectrometers/Radiometers &gt; Spectrometers &gt; GOME</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Instruments</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2026-04-15</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>Instruments &gt; Earth Remote Sensing Instruments &gt; Passive Remote Sensing &gt; Spectrometers/Radiometers &gt; Spectrometers &gt; UV OZONE DETECTORS</gco:CharacterString>
+          </keyword>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Instruments</gco:CharacterString>
+              </title>
+              <date>
+                <CI_Date>
+                  <date>
+                    <gco:Date>2026-04-15</gco:Date>
+                  </date>
+                  <dateType>
+                    <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="lastUpdate">lastUpdate</CI_DateTypeCode>
+                  </dateType>
+                </CI_Date>
+              </date>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+      </descriptiveKeywords>
+      <descriptiveKeywords>
+        <MD_Keywords>
+          <keyword>
+            <gco:CharacterString>testkeyword1</gco:CharacterString>
+          </keyword>
+          <keyword>
+            <gco:CharacterString>testkeyword2</gco:CharacterString>
+          </keyword>
+          <keyword>
+            <gco:CharacterString>testkeyword3</gco:CharacterString>
+          </keyword>
+        </MD_Keywords>
+      </descriptiveKeywords>
+      <resourceConstraints xlink:href="https://joinup.ec.europa.eu/sites/default/files/custom-page/attachment/2020-03/EUPL-1.2%20EN.txt">
+        <MD_Constraints>
+          <useLimitation>
+            <gco:CharacterString>European Union Public License 1.2</gco:CharacterString>
+          </useLimitation>
+        </MD_Constraints>
+      </resourceConstraints>
+      <resourceConstraints>
+        <MD_LegalConstraints>
+          <accessConstraints>
+            <MD_RestrictionCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_RestrictionCode" codeListValue="otherRestrictions"/>
+          </accessConstraints>
+          <otherConstraints>
+            <gco:CharacterString>European Union Public License 1.2</gco:CharacterString>
+          </otherConstraints>
+        </MD_LegalConstraints>
+      </resourceConstraints>
+      <resourceConstraints>
+        <MD_SecurityConstraints>
+          <classification>
+            <MD_ClassificationCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_ClassificationCode" codeListValue="unclassified"/>
+          </classification>
+        </MD_SecurityConstraints>
+      </resourceConstraints>
+      <aggregationInfo>
+        <MD_AggregateInformation>
+          <aggregateDataSetIdentifier>
+            <RS_Identifier>
+              <code>
+                <gco:CharacterString>10.1371/journal.pbio.0020449</gco:CharacterString>
+              </code>
+              <codeSpace>
+                <gco:CharacterString>DOI</gco:CharacterString>
+              </codeSpace>
+            </RS_Identifier>
+          </aggregateDataSetIdentifier>
+          <associationType>
+            <DS_AssociationTypeCode codeList="http://datacite.org/schema/kernel-4" codeListValue="Is Cited By">Is Cited By</DS_AssociationTypeCode>
+          </associationType>
+        </MD_AggregateInformation>
+      </aggregationInfo>
+      <aggregationInfo>
+        <MD_AggregateInformation>
+          <aggregateDataSetIdentifier>
+            <RS_Identifier>
+              <code>
+                <gco:CharacterString>ark:/13030/tqb3kh97gh8w</gco:CharacterString>
+              </code>
+              <codeSpace>
+                <gco:CharacterString>ARK</gco:CharacterString>
+              </codeSpace>
+            </RS_Identifier>
+          </aggregateDataSetIdentifier>
+          <associationType>
+            <DS_AssociationTypeCode codeList="http://datacite.org/schema/kernel-4" codeListValue="Cites">Cites</DS_AssociationTypeCode>
+          </associationType>
+        </MD_AggregateInformation>
+      </aggregationInfo>
+      <language>
+        <gco:CharacterString>en</gco:CharacterString>
+      </language>
+      <characterSet>
+        <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode" codeListValue="utf8"/>
+      </characterSet>
+      <topicCategory>
+        <MD_TopicCategoryCode>geoscientificInformation</MD_TopicCategoryCode>
+      </topicCategory>
+      <extent>
+        <EX_Extent>
+          <description/>
+          <geographicElement>
+            <EX_GeographicBoundingBox>
+              <westBoundLongitude>
+                <gco:Decimal>13.7691</gco:Decimal>
+              </westBoundLongitude>
+              <eastBoundLongitude>
+                <gco:Decimal>13.7691</gco:Decimal>
+              </eastBoundLongitude>
+              <southBoundLatitude>
+                <gco:Decimal>63.7074</gco:Decimal>
+              </southBoundLatitude>
+              <northBoundLatitude>
+                <gco:Decimal>63.7074</gco:Decimal>
+              </northBoundLatitude>
+            </EX_GeographicBoundingBox>
+          </geographicElement>
+          <temporalElement>
+            <EX_TemporalExtent>
+              <extent>
+                <gml:TimePeriod gml:id="timePeriod-1">
+                  <gml:beginPosition>2026-03-31T20:00:00+02:00</gml:beginPosition>
+                  <gml:endPosition>2026-03-31T21:00:00+02:00</gml:endPosition>
+                </gml:TimePeriod>
+              </extent>
+            </EX_TemporalExtent>
+          </temporalElement>
+        </EX_Extent>
+      </extent>
+      <extent>
+        <EX_Extent>
+          <description>
+            <gco:CharacterString>TESTDESCRIPTION</gco:CharacterString>
+          </description>
+          <geographicElement>
+            <EX_GeographicBoundingBox>
+              <westBoundLongitude>
+                <gco:Decimal>12.7404</gco:Decimal>
+              </westBoundLongitude>
+              <eastBoundLongitude>
+                <gco:Decimal>18.0578</gco:Decimal>
+              </eastBoundLongitude>
+              <southBoundLatitude>
+                <gco:Decimal>62.5594</gco:Decimal>
+              </southBoundLatitude>
+              <northBoundLatitude>
+                <gco:Decimal>63.5158</gco:Decimal>
+              </northBoundLatitude>
+            </EX_GeographicBoundingBox>
+          </geographicElement>
+          <temporalElement>
+            <EX_TemporalExtent>
+              <extent>
+                <gml:TimePeriod gml:id="timePeriod-2">
+                  <gml:beginPosition>2026-04-01</gml:beginPosition>
+                  <gml:endPosition>2026-04-16</gml:endPosition>
+                </gml:TimePeriod>
+              </extent>
+            </EX_TemporalExtent>
+          </temporalElement>
+        </EX_Extent>
+      </extent>
+    </MD_DataIdentification>
+  </identificationInfo>
+  <distributionInfo>
+    <MD_Distribution>
+      <transferOptions>
+        <MD_DigitalTransferOptions>
+          <onLine>
+            <CI_OnlineResource>
+              <linkage>
+                <URL>http://doi.org/10.5880/GFZ1243</URL>
+              </linkage>
+              <protocol>
+                <gco:CharacterString>WWW:LINK-1.0-http--link</gco:CharacterString>
+              </protocol>
+              <name>
+                <gco:CharacterString>Download</gco:CharacterString>
+              </name>
+              <description>
+                <gco:CharacterString>Download</gco:CharacterString>
+              </description>
+              <function>
+                <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">information</CI_OnLineFunctionCode>
+              </function>
+            </CI_OnlineResource>
+          </onLine>
+        </MD_DigitalTransferOptions>
+      </transferOptions>
+    </MD_Distribution>
+  </distributionInfo>
+  <dataQualityInfo>
+    <DQ_DataQuality>
+      <scope>
+        <DQ_Scope>
+          <level>
+            <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset"/>
+          </level>
+        </DQ_Scope>
+      </scope>
+    </DQ_DataQuality>
+  </dataQualityInfo>
+</MD_Metadata>
+
+
+</envelope>

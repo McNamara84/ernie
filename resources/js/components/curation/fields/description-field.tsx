@@ -12,6 +12,7 @@ export type DescriptionType = 'Abstract' | 'Methods' | 'SeriesInformation' | 'Ta
 export interface DescriptionEntry {
     type: DescriptionType;
     value: string;
+    language?: string | null;
 }
 
 interface DescriptionFieldProps {

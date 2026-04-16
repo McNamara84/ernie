@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { Label } from '@/components/ui/label';
 
 import InputField from '../input-field';
@@ -52,6 +54,17 @@ const isValidTime = (value: string): boolean => {
 };
 
 export default function TemporalInputs({ startDate, endDate, startTime, endTime, timezone, onChange, showLabels = true }: TemporalInputsProps) {
+    const timezoneOptions = useMemo(() => {
+        if (!timezone || TIMEZONE_OPTIONS.some((opt) => opt.value === timezone)) {
+            return TIMEZONE_OPTIONS;
+        }
+
+        const isOffset = /^[+-]\d{2}:\d{2}$/.test(timezone);
+        const label = isOffset ? `UTC${timezone} (imported)` : `${timezone} (imported)`;
+        const importedOption = { value: timezone, label };
+        return [importedOption, ...TIMEZONE_OPTIONS];
+    }, [timezone]);
+
     return (
         <div className="space-y-4">
             {showLabels && <Label className="text-sm font-medium">Temporal Information</Label>}
@@ -113,7 +126,7 @@ export default function TemporalInputs({ startDate, endDate, startTime, endTime,
                     label="Timezone (optional)"
                     value={timezone}
                     onValueChange={(value) => onChange('timezone', value)}
-                    options={TIMEZONE_OPTIONS}
+                    options={timezoneOptions}
                 />
             </div>
 

@@ -2879,6 +2879,7 @@ describe('DataCiteForm', () => {
         expect(requestBody.descriptions[0]).toEqual({
             descriptionType: 'Abstract',
             description: 'This is a test abstract',
+            language: null,
         });
     });
 
@@ -3677,7 +3678,7 @@ describe('DataCiteForm', () => {
             const [url, data] = mockedAxios.post.mock.calls[0];
             expect(url).toBe('/editor/resources/draft');
             expect(data.titles).toEqual([
-                { title: 'Draft Dataset', titleType: 'main-title' },
+                { title: 'Draft Dataset', titleType: 'main-title', language: null },
             ]);
         });
 
