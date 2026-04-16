@@ -40,4 +40,13 @@ describe('add_euroscivoc_thesaurus migration', function () {
 
         expect(DB::table('thesaurus_settings')->where('type', 'euroscivoc')->exists())->toBeTrue();
     });
+
+    it('is idempotent and does not fail when row already exists', function () {
+        $migration = getEuroSciVocThesaurusMigration();
+
+        // Row already exists from RefreshDatabase; running up() again should not throw
+        $migration->up();
+
+        expect(DB::table('thesaurus_settings')->where('type', 'euroscivoc')->count())->toBe(1);
+    });
 });
