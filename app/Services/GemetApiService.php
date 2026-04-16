@@ -128,6 +128,11 @@ class GemetApiService
                 $firstParent = array_is_list($data) ? $data[0] : $data;
                 $parentUri = $firstParent['uri'] ?? null;
                 if (is_string($parentUri) && $parentUri !== '') {
+                    // The GEMET API returns broader relations with the group/
+                    // URI prefix even when the target is a SuperGroup.
+                    // Normalize to the supergroup/ namespace so the hierarchy
+                    // builder can match Groups to their parent SuperGroups.
+                    $parentUri = $this->normalizeSuperGroupUri($parentUri);
                     $mapping[$group['uri']] = $parentUri;
                 }
             }
@@ -345,5 +350,22 @@ class GemetApiService
         }
 
         return $entities;
+    }
+
+    /**
+     * Normalize a group/ URI to a supergroup/ URI.
+     *
+     * The GEMET REST API returns broader relations with the group/ namespace
+     * even when the referenced entity is actually a SuperGroup. This method
+     * replaces the group/ prefix with supergroup/ so the URIs can be matched
+     * against the SuperGroup URIs returned by getTopmostConcepts.
+     */
+    private function normalizeSuperGroupUri(string $uri): string
+    {
+        if (str_starts_with($uri, self::GROUP_URI)) {
+            return self::SUPERGROUP_URI.substr($uri, strlen(self::GROUP_URI));
+        }
+
+        return $uri;
     }
 }

@@ -29,7 +29,10 @@ function fakeGemetApiResponses(): void
     ];
 
     $broaderConcept = [
-            'uri' => 'http://www.eionet.europa.eu/gemet/supergroup/1234',
+            // The real GEMET API returns broader relations with the group/ prefix
+            // even when referencing a SuperGroup. The GemetApiService normalizes
+            // this to supergroup/ automatically.
+            'uri' => 'http://www.eionet.europa.eu/gemet/group/1234',
             'preferredLabel' => ['string' => 'THE ENVIRONMENT, MAN AND NATURE', 'language' => 'en'],
         ];
 

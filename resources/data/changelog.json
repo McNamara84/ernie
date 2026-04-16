@@ -116,6 +116,14 @@
         ],
         "fixes": [
             {
+                "title": "GEMET Thesaurus Loading Only 4 Concepts",
+                "description": "Fixed a bug where the GEMET thesaurus import loaded only 4 top-level concepts instead of the full ~5,669 entries. The root cause was a URI prefix mismatch: the GEMET API returns broader relations with a 'group/' prefix, but SuperGroups use a 'supergroup/' prefix with the same numeric IDs. The hierarchy builder could not match groups to their parent supergroups, resulting in empty child arrays. A URI normalization step now converts 'group/' prefixes to 'supergroup/' in the group-to-supergroup mapping."
+            },
+            {
+                "title": "Thesaurus Update Message Showing Wrong Name",
+                "description": "Fixed a bug where the thesaurus settings page displayed 'NASA/GCMD' as the vocabulary name in update check messages for all thesauri, including GEMET. The message now dynamically uses each thesaurus's actual display name."
+            },
+            {
                 "title": "XML Import Data Loss Prevention",
                 "description": "Fixed multiple data loss issues during XML/JSON/JSON-LD upload via the Dashboard. Per-title and per-description xml:lang attributes are now extracted and preserved through the full import-edit-save cycle. Coverage datetime values retain seconds precision and timezone offsets (e.g. +02:00) instead of silently dropping them. Datetimes without an explicit timezone designator are no longer interpreted using the server default timezone. The draft save path now also preserves language metadata. The editor load/transform layer includes language fields so subsequent saves round-trip the values correctly."
             },
