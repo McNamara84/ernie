@@ -130,7 +130,7 @@ describe('VocabularyCacheService', function () {
             $results = $this->service->touchAllVocabularyCaches();
 
             expect($results)->toBeArray()
-                ->toHaveCount(9);
+                ->toHaveCount(10);
 
             foreach (CacheKey::vocabularyKeys() as $key) {
                 expect($results)->toHaveKey($key->value);

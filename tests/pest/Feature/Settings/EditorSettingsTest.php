@@ -170,8 +170,8 @@ test('thesaurus settings are auto-created when missing', function () {
     Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
     Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
 
-    // Verify only the migration-seeded chronostrat, gemet, and analytical_methods settings exist initially
-    expect(ThesaurusSetting::count())->toBe(3);
+    // Verify only the migration-seeded chronostrat, gemet, analytical_methods, and euroscivoc settings exist initially
+    expect(ThesaurusSetting::count())->toBe(4);
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_GEMET)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)->exists())->toBeTrue();
@@ -182,8 +182,8 @@ test('thesaurus settings are auto-created when missing', function () {
     // Access the settings page - this should auto-create missing thesaurus settings
     $response = $this->get(route('settings'))->assertOk();
 
-    // Verify all six thesaurus settings now exist (3 GCMD auto-created + 1 chronostrat + 1 gemet + 1 analytical_methods from migration)
-    expect(ThesaurusSetting::count())->toBe(6);
+    // Verify all seven thesaurus settings now exist (3 GCMD auto-created + 1 chronostrat + 1 gemet + 1 analytical_methods + 1 euroscivoc from migration)
+    expect(ThesaurusSetting::count())->toBe(7);
 
     $this->assertDatabaseHas('thesaurus_settings', [
         'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
@@ -204,16 +204,17 @@ test('thesaurus settings are auto-created when missing', function () {
         'is_elmo_active' => true,
     ]);
 
-    // Verify thesauri are returned in the response (6 total: 3 GCMD + GEMET + Chronostrat + Analytical Methods)
+    // Verify thesauri are returned in the response (7 total: 3 GCMD + GEMET + Chronostrat + Analytical Methods + EuroSciVoc)
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
-        ->has('thesauri', 6)
+        ->has('thesauri', 7)
         ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_PLATFORMS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_INSTRUMENTS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_CHRONOSTRAT)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_GEMET)
-            && $thesauri->contains('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS))
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_EUROSCIVOC))
     );
 });
 
