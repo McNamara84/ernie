@@ -16,7 +16,7 @@ vi.mock('@/hooks/use-reduced-motion', () => ({
 describe('BackToTopButton', () => {
     beforeEach(() => {
         mockUseReducedMotion.mockReturnValue(false);
-        Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
+        Object.defineProperty(window, 'scrollY', { value: 0, writable: true, configurable: true });
     });
 
     afterEach(() => {
@@ -39,7 +39,7 @@ describe('BackToTopButton', () => {
     it('becomes visible after scrolling past 300px', () => {
         render(<BackToTopButton />);
 
-        Object.defineProperty(window, 'scrollY', { value: 350, writable: true });
+        window.scrollY = 350;
         act(() => {
             window.dispatchEvent(new Event('scroll'));
         });
@@ -53,13 +53,13 @@ describe('BackToTopButton', () => {
         render(<BackToTopButton />);
 
         // Scroll down
-        Object.defineProperty(window, 'scrollY', { value: 400, writable: true });
+        window.scrollY = 400;
         act(() => {
             window.dispatchEvent(new Event('scroll'));
         });
 
         // Scroll back up
-        Object.defineProperty(window, 'scrollY', { value: 100, writable: true });
+        window.scrollY = 100;
         act(() => {
             window.dispatchEvent(new Event('scroll'));
         });
@@ -74,7 +74,7 @@ describe('BackToTopButton', () => {
         render(<BackToTopButton />);
 
         // Make visible
-        Object.defineProperty(window, 'scrollY', { value: 500, writable: true });
+        window.scrollY = 500;
         act(() => {
             window.dispatchEvent(new Event('scroll'));
         });
@@ -89,7 +89,7 @@ describe('BackToTopButton', () => {
         render(<BackToTopButton />);
 
         // Make visible
-        Object.defineProperty(window, 'scrollY', { value: 500, writable: true });
+        window.scrollY = 500;
         act(() => {
             window.dispatchEvent(new Event('scroll'));
         });
@@ -112,7 +112,7 @@ describe('BackToTopButton', () => {
     });
 
     it('is visible on mount when page is already scrolled', () => {
-        Object.defineProperty(window, 'scrollY', { value: 500, writable: true });
+        window.scrollY = 500;
         render(<BackToTopButton />);
         const button = screen.getByRole('button', { name: 'Scroll to top' });
         expect(button).toHaveClass('pointer-events-auto');

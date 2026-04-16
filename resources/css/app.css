@@ -293,7 +293,7 @@
 [data-slot='landing-page-card'] :is(a, button, [role='button'], input, textarea, select):focus-visible {
     outline: 2px solid var(--gfz-primary);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: inherit;
 }
 
 /* Landing page: scroll-triggered fade-in animation.
