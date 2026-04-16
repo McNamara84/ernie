@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { type ReactNode, useId, useState } from 'react';
+import { type ReactNode, cloneElement, isValidElement, useId, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -39,39 +39,24 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
         return <div className={className}>{wrapper ? wrapper(rendered) : rendered}</div>;
     }
 
-    const visibleItems = items.slice(0, threshold);
-    const overflowItems = items.slice(threshold);
-    const visibleRendered = visibleItems.map((item, i) => renderItem(item, i));
-    const overflowRendered = overflowItems.map((item, i) => renderItem(item, i + threshold));
+    const rendered = items.map((item, i) => {
+        const element = renderItem(item, i);
+        if (i >= threshold && !isExpanded && isValidElement(element)) {
+            return cloneElement(element as React.ReactElement<Record<string, unknown>>, {
+                className: cn(
+                    (element.props as { className?: string }).className,
+                    'collapsible-print-only hidden',
+                ),
+                'aria-hidden': true,
+            });
+        }
+        return element;
+    });
 
     return (
         <div className={className}>
             <div id={regionId} role="region" aria-label={`${itemLabel} list`}>
-                {wrapper
-                    ? wrapper([
-                          ...visibleRendered,
-                          ...overflowRendered.map((element, i) => (
-                              <span
-                                  key={`overflow-${threshold + i}`}
-                                  className={isExpanded ? undefined : 'collapsible-print-only hidden'}
-                                  aria-hidden={!isExpanded || undefined}
-                              >
-                                  {element}
-                              </span>
-                          )),
-                      ])
-                    : [
-                          ...visibleRendered,
-                          ...overflowRendered.map((element, i) => (
-                              <span
-                                  key={`overflow-${threshold + i}`}
-                                  className={isExpanded ? undefined : 'collapsible-print-only hidden'}
-                                  aria-hidden={!isExpanded || undefined}
-                              >
-                                  {element}
-                              </span>
-                          )),
-                      ]}
+                {wrapper ? wrapper(rendered) : rendered}
             </div>
 
             <Button

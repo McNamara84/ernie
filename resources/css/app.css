@@ -461,7 +461,7 @@
 
     /* Expand all collapsed lists: show overflow items, hide toggle buttons */
     [data-landing-page] .collapsible-print-only {
-        display: contents !important;
+        display: revert !important;
     }
 
     [data-landing-page] .collapsible-toggle {
