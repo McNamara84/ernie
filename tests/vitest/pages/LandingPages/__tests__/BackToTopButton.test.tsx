@@ -83,7 +83,7 @@ describe('BackToTopButton', () => {
         expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
     });
 
-    it('uses instant scroll when prefers-reduced-motion is active', () => {
+    it('uses auto scroll when prefers-reduced-motion is active', () => {
         mockUseReducedMotion.mockReturnValue(true);
         const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
         render(<BackToTopButton />);
@@ -95,7 +95,7 @@ describe('BackToTopButton', () => {
         });
 
         screen.getByRole('button', { name: 'Scroll to top' }).click();
-        expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
     it('has minimum 44x44px touch target', () => {
@@ -109,6 +109,14 @@ describe('BackToTopButton', () => {
         render(<BackToTopButton />);
         const button = screen.getByRole('button', { name: 'Scroll to top' });
         expect(button).toHaveClass('back-to-top-button');
+    });
+
+    it('is visible on mount when page is already scrolled', () => {
+        Object.defineProperty(window, 'scrollY', { value: 500, writable: true });
+        render(<BackToTopButton />);
+        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        expect(button).toHaveClass('pointer-events-auto');
+        expect(button).toHaveClass('opacity-100');
     });
 
     it('removes scroll listener on unmount', () => {

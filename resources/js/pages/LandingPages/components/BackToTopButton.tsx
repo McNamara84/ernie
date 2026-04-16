@@ -10,9 +10,10 @@ const SCROLL_THRESHOLD = 300;
  * Floating back-to-top button that appears after scrolling down.
  *
  * - Appears with fade + slide-up animation after 300px of scroll
- * - Respects `prefers-reduced-motion` (instant scroll, no animation)
+ * - Respects `prefers-reduced-motion` (`auto` scroll, no animation)
  * - Minimum 44×44px touch target (WCAG 2.5.5)
  * - Uses `pointer-events-none` when hidden to prevent invisible click captures
+ * - Syncs initial visibility on mount (handles scroll restoration / anchor nav)
  */
 export function BackToTopButton() {
     const [isVisible, setIsVisible] = useState(false);
@@ -24,13 +25,14 @@ export function BackToTopButton() {
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     const scrollToTop = () => {
         window.scrollTo({
             top: 0,
-            behavior: prefersReducedMotion ? 'instant' : 'smooth',
+            behavior: prefersReducedMotion ? 'auto' : 'smooth',
         });
     };
 

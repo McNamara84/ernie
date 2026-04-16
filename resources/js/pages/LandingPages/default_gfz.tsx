@@ -51,7 +51,7 @@ export default function DefaultGfzTemplate() {
                     <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
                 </Head>
             )}
-            <div className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
+            <div data-landing-page className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
                 {/* Skip Navigation Link */}
                 <a
                     href="#main-content"

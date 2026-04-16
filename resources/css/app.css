@@ -349,35 +349,36 @@
 }
 
 /* ── Print Styles for Landing Pages ──
+ * Scoped to [data-landing-page] to avoid affecting other app pages.
  * Optimized for paper output: removes interactive elements, shadows, and
  * dark-mode styling. Shows external URLs as text and ensures clean page breaks.
  */
 @media print {
-    body {
+    [data-landing-page] {
         background: white !important;
         color: black !important;
     }
 
     /* Remove shadows, keep subtle borders, avoid page-break mid-section */
-    [data-slot='landing-page-card'] {
+    [data-landing-page] [data-slot='landing-page-card'] {
         box-shadow: none !important;
         border: 1px solid #e5e7eb !important;
         break-inside: avoid;
     }
 
     /* Hide interactive-only / non-printable elements */
-    .back-to-top-button,
-    [data-testid='relation-browser-button'],
-    .leaflet-control-zoom,
-    .leaflet-control .leaflet-bar,
-    [aria-label='Copy citation to clipboard'],
-    [data-slot='landing-page-toaster'],
-    [aria-label='Scroll to top'] {
+    [data-landing-page] .back-to-top-button,
+    [data-landing-page] [data-testid='relation-browser-button'],
+    [data-landing-page] .leaflet-control-zoom,
+    [data-landing-page] .leaflet-control .leaflet-bar,
+    [data-landing-page] [aria-label='Copy citation to clipboard'],
+    [data-landing-page] [data-slot='landing-page-toaster'],
+    [data-landing-page] [aria-label='Scroll to top'] {
         display: none !important;
     }
 
     /* Show URLs after external links inside landing-page cards */
-    [data-slot='landing-page-card'] a[href^='http']::after {
+    [data-landing-page] [data-slot='landing-page-card'] a[href^='http']::after {
         content: ' (' attr(href) ')';
         font-size: 0.75rem;
         color: #6b7280;
@@ -385,53 +386,54 @@
     }
 
     /* Skip navigation link */
-    .sr-only {
+    [data-landing-page] .sr-only {
         display: none !important;
     }
 
     /* Disable all animations and transitions */
-    * {
+    [data-landing-page] * {
         animation: none !important;
         transition: none !important;
     }
 
     /* Prevent page breaks inside sections */
-    section {
+    [data-landing-page] section {
         break-inside: avoid;
     }
 
     /* Preview banner: remove background, keep text readable */
-    [role='status'] {
+    [data-landing-page] [role='status'] {
         background: none !important;
         border-bottom: 2px solid #000 !important;
         color: black !important;
     }
 
     /* Remove the GFZ blue page background */
-    .bg-gfz-primary {
+    [data-landing-page].bg-gfz-primary {
         background: white !important;
     }
 
     /* Force light color scheme for print */
-    .dark {
+    [data-landing-page].dark,
+    [data-landing-page] .dark {
         color-scheme: light !important;
     }
 
     /* Footer images: remove dark-mode filters */
-    footer img {
+    [data-landing-page] footer img {
         filter: none !important;
     }
 
     /* GFZ action buttons: make readable on white paper */
-    .gfz-action-button {
+    [data-landing-page] .gfz-action-button {
         background: white !important;
         color: black !important;
         border: 1px solid #000 !important;
     }
 
     /* Keyword badges: print-friendly on white background */
-    [data-testid='thesauri-keywords-list'] a,
-    [data-testid='keywords-list'] a {
+    [data-landing-page] [data-testid='thesauri-keywords-list'] a,
+    [data-landing-page] [data-testid='keywords-list'] a {
         background: #f3f4f6 !important;
         color: black !important;
         border: 1px solid #d1d5db !important;
