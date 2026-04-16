@@ -279,7 +279,7 @@ function FullscreenControl() {
                     variant="ghost"
                     size="icon"
                     onClick={toggleFullscreen}
-                    className="h-[30px] w-[30px] rounded-none bg-white hover:bg-gray-100"
+                    className="min-h-11 min-w-11 rounded-none bg-white hover:bg-gray-100"
                     title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                     aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                 >

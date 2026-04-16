@@ -286,6 +286,22 @@
     }
 }
 
+/* ── Landing Page: GFZ-branded focus ring ──
+ * Overrides the shadcn/ui ring color variable so interactive components
+ * (Button, Dialog, etc.) use GFZ blue for their built-in focus ring.
+ * Plain <a> elements get a dedicated outline since they lack shadcn's ring.
+ */
+[data-slot='landing-page-card'] {
+    --ring: var(--gfz-primary);
+    --color-ring: var(--gfz-primary);
+}
+
+[data-slot='landing-page-card'] a:focus-visible {
+    outline: 2px solid var(--gfz-primary);
+    outline-offset: 2px;
+    border-radius: inherit;
+}
+
 /* Landing page: scroll-triggered fade-in animation.
  * Only applies when JS has set `.js-fade-ready` on <html>, so SSR/no-JS
  * content stays fully visible (opacity: 1) by default. */
@@ -336,6 +352,133 @@
 /* Hide default NProgress spinner — we use our own loading states */
 #nprogress .spinner {
     display: none;
+}
+
+/* ── Print Styles for Landing Pages ──
+ * Scoped to [data-landing-page] to avoid affecting other app pages.
+ * Optimized for paper output: removes interactive elements, shadows, and
+ * dark-mode styling. Shows external URLs as text and ensures clean page breaks.
+ */
+@media print {
+    [data-landing-page] {
+        background: white !important;
+        color: black !important;
+        color-scheme: light !important;
+    }
+
+    /* Remove shadows, keep subtle borders, avoid page-break mid-section */
+    [data-landing-page] [data-slot='landing-page-card'] {
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+        break-inside: avoid;
+    }
+
+    /* Hide interactive-only / non-printable elements */
+    [data-landing-page] .back-to-top-button,
+    [data-landing-page] [data-print='hide'],
+    [data-landing-page] .leaflet-control-zoom,
+    [data-landing-page] .leaflet-control .leaflet-bar,
+    [data-landing-page] [data-slot='landing-page-toaster'] {
+        display: none !important;
+    }
+
+    /* Show URLs after external links inside landing-page cards */
+    [data-landing-page] [data-slot='landing-page-card'] a[href^='http']::after {
+        content: ' (' attr(href) ')';
+        font-size: 0.75rem;
+        color: #6b7280;
+        word-break: break-all;
+    }
+
+    /* Skip navigation link */
+    [data-landing-page] .sr-only {
+        display: none !important;
+    }
+
+    /* Disable all animations and transitions */
+    [data-landing-page] * {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* Prevent page breaks inside sections */
+    [data-landing-page] section {
+        break-inside: avoid;
+    }
+
+    /* Preview banner: remove background, keep text readable */
+    [data-landing-page] [role='status'] {
+        background: none !important;
+        border-bottom: 2px solid #000 !important;
+        color: black !important;
+    }
+
+    /* Remove the GFZ blue page background */
+    [data-landing-page].bg-gfz-primary {
+        background: white !important;
+    }
+
+    /* Override dark-mode backgrounds that Tailwind dark: utilities apply */
+    [data-landing-page] .dark\:bg-gray-950 {
+        background: white !important;
+    }
+
+    [data-landing-page] .dark\:bg-gray-900 {
+        background: white !important;
+    }
+
+    [data-landing-page] .dark\:bg-gray-800 {
+        background: white !important;
+    }
+
+    /* Override dark-mode text colors for legibility on white paper */
+    [data-landing-page] .dark\:text-gray-100,
+    [data-landing-page] .dark\:text-gray-200,
+    [data-landing-page] .dark\:text-gray-300,
+    [data-landing-page] .dark\:text-gray-400 {
+        color: black !important;
+    }
+
+    /* Override dark-mode borders */
+    [data-landing-page] .dark\:border-gray-600,
+    [data-landing-page] .dark\:border-gray-700 {
+        border-color: #e5e7eb !important;
+    }
+
+    /* Override dark prose-invert */
+    [data-landing-page] .dark\:prose-invert {
+        --tw-prose-body: #374151 !important;
+        --tw-prose-headings: #111827 !important;
+        --tw-prose-links: #111827 !important;
+    }
+
+    /* Remove dark-mode image filters (header & footer logos use dark:invert) */
+    [data-landing-page] img {
+        filter: none !important;
+    }
+
+    /* Expand all collapsed lists: show overflow items, hide toggle buttons */
+    [data-landing-page] .collapsible-print-only {
+        display: revert !important;
+    }
+
+    [data-landing-page] .collapsible-toggle {
+        display: none !important;
+    }
+
+    /* GFZ action buttons: make readable on white paper */
+    [data-landing-page] .gfz-action-button {
+        background: white !important;
+        color: black !important;
+        border: 1px solid #000 !important;
+    }
+
+    /* Keyword badges: print-friendly on white background */
+    [data-landing-page] [data-slot='keyword-badge-list'] a {
+        background: #f3f4f6 !important;
+        color: black !important;
+        border: 1px solid #d1d5db !important;
+    }
 }
 
 /* WCAG: Disable all animations when user prefers reduced motion */

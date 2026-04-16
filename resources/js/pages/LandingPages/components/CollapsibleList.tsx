@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { type ReactNode, useId, useState } from 'react';
+import { type ReactNode, cloneElement, isValidElement, useId, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -22,12 +22,12 @@ interface CollapsibleListProps<T> {
 }
 
 /**
- * Data-driven collapsible list that renders only the first `threshold` items
- * when collapsed. Avoids CSS height measurement — works reliably with any
- * layout (flex-wrap, grid, variable-height items, multiple containers).
+ * Data-driven collapsible list that renders all items into the DOM but
+ * hides overflow entries (beyond `threshold`) with CSS (`hidden` class)
+ * when collapsed. This ensures print stylesheets can reveal all items
+ * via the `collapsible-print-only` class without relying on React state.
  *
- * SSR-safe: no client-side measurement needed, and the collapsed set of items
- * is rendered identically on server and client.
+ * SSR-safe: no client-side measurement needed.
  */
 export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRESHOLD, itemLabel, wrapper, className }: CollapsibleListProps<T>) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -39,8 +39,18 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
         return <div className={className}>{wrapper ? wrapper(rendered) : rendered}</div>;
     }
 
-    const visibleItems = isExpanded ? items : items.slice(0, threshold);
-    const rendered = visibleItems.map((item, i) => renderItem(item, i));
+    const rendered = items.map((item, i) => {
+        const element = renderItem(item, i);
+        if (i >= threshold && !isExpanded && isValidElement(element)) {
+            return cloneElement(element as React.ReactElement<Record<string, unknown>>, {
+                className: cn(
+                    (element.props as { className?: string }).className,
+                    'collapsible-print-only hidden',
+                ),
+            });
+        }
+        return element;
+    });
 
     return (
         <div className={className}>
@@ -55,7 +65,7 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
                 aria-expanded={isExpanded}
                 aria-controls={regionId}
                 className={cn(
-                    'mt-2 gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300',
+                    'collapsible-toggle mt-2 gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300',
                     !reducedMotion && 'transition-colors duration-200',
                 )}
             >

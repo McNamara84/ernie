@@ -16,8 +16,8 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
     }
 
     return (
-        <div className="mt-6" data-testid="creators-section">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Creators</h3>
+        <section className="mt-6" data-testid="creators-section" aria-labelledby="heading-creators">
+            <h3 id="heading-creators" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Creators</h3>
             <ul className="space-y-2" data-testid="creators-list">
                 {creators.map((creator) => {
                     const creatorable = creator.creatorable;
@@ -65,6 +65,6 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
                     );
                 })}
             </ul>
-        </div>
+        </section>
     );
 }

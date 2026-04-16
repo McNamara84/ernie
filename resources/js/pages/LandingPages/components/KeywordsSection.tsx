@@ -93,8 +93,8 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
     }
 
     return (
-        <div className="mt-6" data-testid="subjects-section">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
+        <section className="mt-6" data-testid="subjects-section" aria-labelledby="heading-keywords">
+            <h3 id="heading-keywords" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
             <CollapsibleList
                 items={allKeywords}
                 itemLabel="keywords"
@@ -114,13 +114,13 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                     return (
                         <>
                             {thesauriItems.length > 0 && (
-                                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list" data-slot="keyword-badge-list">
                                     {thesauriItems}
                                 </ul>
                             )}
                             {thesauriItems.length > 0 && freeItems.length > 0 && <hr className="my-3 border-gray-200 dark:border-gray-700" />}
                             {freeItems.length > 0 && (
-                                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
+                                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list" data-slot="keyword-badge-list">
                                     {freeItems}
                                 </ul>
                             )}
@@ -128,6 +128,6 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                     );
                 }}
             />
-        </div>
+        </section>
     );
 }

@@ -199,6 +199,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                     aria-label="Open Relation Browser"
                     title="Open Relation Browser"
                     data-testid="relation-browser-button"
+                    data-print="hide"
                 >
                     <Network className="h-4 w-4 text-gray-500 transition-colors group-hover:text-gfz-primary dark:text-gray-400 dark:group-hover:text-blue-400" />
                 </Button>
@@ -244,7 +245,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                                         const isLoading = !citationData || citationData.loading;
 
                                         return (
-                                            <li key={rel.id} className={isHiddenOnMobile ? 'hidden md:list-item' : ''}>
+                                            <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
                                                 {isLoading && (
                                                     <div className="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700" aria-busy="true">
                                                         <Skeleton className="h-4 w-3/4" />
@@ -281,7 +282,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
 
                                     // Non-DOI: show identifier as link directly
                                     return (
-                                        <li key={rel.id} className={isHiddenOnMobile ? 'hidden md:list-item' : ''}>
+                                        <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
                                             <a
                                                 href={url}
                                                 target="_blank"
@@ -302,7 +303,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
 
             {/* Collapse/Expand toggle for mobile when >9 entries */}
             {shouldCollapse && (
-                <div className="mt-4 md:hidden">
+                <div className="collapsible-toggle mt-4 md:hidden">
                     <Button
                         variant="outline"
                         size="sm"

@@ -10,8 +10,8 @@ interface DownloadMetadataSectionProps {
  */
 export function DownloadMetadataSection({ resourceId, jsonLdExportUrl }: DownloadMetadataSectionProps) {
     return (
-        <div className="mt-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Download Metadata</h3>
+        <section className="mt-6" aria-labelledby="heading-download-metadata">
+            <h3 id="heading-download-metadata" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Download Metadata</h3>
             <div className="flex flex-wrap items-center gap-4">
                 <img src="/images/datacite-logo.png" alt="DataCite" className="h-8 dark:brightness-200 dark:invert" />
 
@@ -42,6 +42,6 @@ export function DownloadMetadataSection({ resourceId, jsonLdExportUrl }: Downloa
                     JSON-LD
                 </a>
             </div>
-        </div>
+        </section>
     );
 }

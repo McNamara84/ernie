@@ -3,6 +3,7 @@ import { Head, usePage } from '@inertiajs/react';
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
+import { BackToTopButton } from './components/BackToTopButton';
 import { ContactSection } from './components/ContactSection';
 import { DarkModeImage } from './components/DarkModeImage';
 import { FilesSection } from './components/FilesSection';
@@ -50,7 +51,7 @@ export default function DefaultGfzTemplate() {
                     <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
                 </Head>
             )}
-            <div className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
+            <div data-landing-page className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
                 {/* Skip Navigation Link */}
                 <a
                     href="#main-content"
@@ -66,7 +67,7 @@ export default function DefaultGfzTemplate() {
                 )}
 
                 <div className="mx-auto max-w-7xl rounded-xl bg-white dark:bg-gray-900">
-                    <header className="px-4 py-2">
+                    <header aria-label="GFZ Data Services" className="px-4 py-2">
                         <div className="mb-1 flex items-center justify-end gap-3">
                             <a
                                 href="/legal-notice"
@@ -91,7 +92,7 @@ export default function DefaultGfzTemplate() {
                         </div>
                     </header>
 
-                    <main id="main-content" tabIndex={-1}>
+                    <main id="main-content" aria-label="Dataset details" tabIndex={-1}>
                         {/* Hero Section - Full Width */}
                         <ResourceHero resourceType={resourceType} status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} />
 
@@ -128,7 +129,7 @@ export default function DefaultGfzTemplate() {
                         </div>
                     </main>
 
-                    <footer className="border-t border-gray-300 px-4 py-6 dark:border-gray-700">
+                    <footer aria-label="Institutional links" className="border-t border-gray-300 px-4 py-6 dark:border-gray-700">
                         <div className="flex items-center justify-between">
                             <a href="https://www.gfz.de" target="_blank" rel="noopener noreferrer">
                                 <DarkModeImage lightSrc="/images/gfz-logo-en.gif" darkSrc="/images/gfz-logo_en.svg" alt="GFZ" className="h-12" />
@@ -140,6 +141,7 @@ export default function DefaultGfzTemplate() {
                     </footer>
                 </div>
 
+                <BackToTopButton />
                 <LandingPageToaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
             </div>
         </>

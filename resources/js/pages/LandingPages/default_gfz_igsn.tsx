@@ -2,6 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
+import { BackToTopButton } from './components/BackToTopButton';
 import { LandingPageToaster } from './components/LandingPageToaster';
 import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
@@ -46,7 +47,7 @@ export default function DefaultGfzIgsnTemplate() {
                     <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
                 </Head>
             )}
-            <div className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
+            <div data-landing-page className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">
                 {/* Skip Navigation Link */}
                 <a
                     href="#main-content"
@@ -59,7 +60,7 @@ export default function DefaultGfzIgsnTemplate() {
 
                 <div className="mx-auto max-w-7xl rounded bg-white dark:bg-gray-900">
                     {/* Header */}
-                    <header className="px-4 py-2">
+                    <header aria-label="GFZ Data Services" className="px-4 py-2">
                         {/* Legal Notice & Data Protection - top right */}
                         <div className="mb-1 flex items-center justify-end gap-3">
                             <a href="/legal-notice" className="text-xs text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-200">
@@ -82,7 +83,7 @@ export default function DefaultGfzIgsnTemplate() {
                     </header>
 
                     {/* Content - Only ResourceHero for IGSN */}
-                    <main id="main-content" tabIndex={-1} className="pb-6">
+                    <main id="main-content" aria-label="Sample details" tabIndex={-1} className="pb-6">
                         <ResourceHero
                             resourceType="IGSN"
                             status={status}
@@ -94,7 +95,7 @@ export default function DefaultGfzIgsnTemplate() {
                     </main>
 
                     {/* Footer */}
-                    <footer className="border-t border-gray-300 px-4 py-6 dark:border-gray-700">
+                    <footer aria-label="Institutional links" className="border-t border-gray-300 px-4 py-6 dark:border-gray-700">
                         <div className="flex items-center justify-between">
                             <a href="https://www.gfz.de" target="_blank" rel="noopener noreferrer">
                                 <img src="/images/gfz-logo-en.gif" alt="GFZ" className="h-12 dark:brightness-200 dark:invert" />
@@ -106,6 +107,7 @@ export default function DefaultGfzIgsnTemplate() {
                     </footer>
                 </div>
 
+                <BackToTopButton />
                 <LandingPageToaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
             </div>
         </>

@@ -29,8 +29,8 @@ export function FundersSection({ fundingReferences }: FundersSectionProps) {
     }
 
     return (
-        <div className="mt-6" data-testid="funding-section">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Funders</h3>
+        <section className="mt-6" data-testid="funding-section" aria-labelledby="heading-funders">
+            <h3 id="heading-funders" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Funders</h3>
             <CollapsibleList
                 items={fundingReferences}
                 itemLabel="funders"
@@ -69,6 +69,6 @@ export function FundersSection({ fundingReferences }: FundersSectionProps) {
                     </li>
                 )}
             />
-        </div>
+        </section>
     );
 }

@@ -112,6 +112,14 @@
             {
                 "title": "Scroll-Triggered Fade-In Animations on Landing Pages",
                 "description": "Landing page sections now fade in smoothly as the user scrolls down the page. The effect uses a lightweight IntersectionObserver-based hook and CSS opacity transitions. Animations are automatically disabled when the visitor's OS has 'prefers-reduced-motion' enabled."
+            },
+            {
+                "title": "Back-to-Top Button on Landing Pages",
+                "description": "A floating back-to-top button now appears on both dataset and IGSN landing pages after scrolling past 300px. The button smoothly scrolls the page back to the top, respects the visitor's 'prefers-reduced-motion' setting, meets WCAG 44×44px touch target requirements, and is properly excluded from tab order and assistive technology when hidden."
+            },
+            {
+                "title": "Print-Optimized Landing Pages",
+                "description": "Landing pages now produce clean, ink-friendly printouts. A dedicated print stylesheet forces white backgrounds with black text, hides interactive elements (back-to-top button, copy buttons, toaster), expands all collapsible sections, and overrides dark-mode styles. The layout is optimized for A4 paper with proper page break handling."
             }
         ],
         "fixes": [
