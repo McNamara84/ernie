@@ -286,6 +286,16 @@
     }
 }
 
+/* ── Landing Page: GFZ-branded focus ring ──
+ * Scoped to elements inside landing-page-card so it doesn't affect the rest of the app.
+ * Uses the GFZ corporate blue (#0C2A63) for brand consistency.
+ */
+[data-slot='landing-page-card'] :is(a, button, [role='button'], input, textarea, select):focus-visible {
+    outline: 2px solid var(--gfz-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
 /* Landing page: scroll-triggered fade-in animation.
  * Only applies when JS has set `.js-fade-ready` on <html>, so SSR/no-JS
  * content stays fully visible (opacity: 1) by default. */
@@ -336,6 +346,96 @@
 /* Hide default NProgress spinner — we use our own loading states */
 #nprogress .spinner {
     display: none;
+}
+
+/* ── Print Styles for Landing Pages ──
+ * Optimized for paper output: removes interactive elements, shadows, and
+ * dark-mode styling. Shows external URLs as text and ensures clean page breaks.
+ */
+@media print {
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Remove shadows, keep subtle borders, avoid page-break mid-section */
+    [data-slot='landing-page-card'] {
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+        break-inside: avoid;
+    }
+
+    /* Hide interactive-only / non-printable elements */
+    .back-to-top-button,
+    [data-testid='relation-browser-button'],
+    .leaflet-control-zoom,
+    .leaflet-control .leaflet-bar,
+    [aria-label='Copy citation to clipboard'],
+    [data-slot='landing-page-toaster'],
+    [aria-label='Scroll to top'] {
+        display: none !important;
+    }
+
+    /* Show URLs after external links inside landing-page cards */
+    [data-slot='landing-page-card'] a[href^='http']::after {
+        content: ' (' attr(href) ')';
+        font-size: 0.75rem;
+        color: #6b7280;
+        word-break: break-all;
+    }
+
+    /* Skip navigation link */
+    .sr-only {
+        display: none !important;
+    }
+
+    /* Disable all animations and transitions */
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* Prevent page breaks inside sections */
+    section {
+        break-inside: avoid;
+    }
+
+    /* Preview banner: remove background, keep text readable */
+    [role='status'] {
+        background: none !important;
+        border-bottom: 2px solid #000 !important;
+        color: black !important;
+    }
+
+    /* Remove the GFZ blue page background */
+    .bg-gfz-primary {
+        background: white !important;
+    }
+
+    /* Force light color scheme for print */
+    .dark {
+        color-scheme: light !important;
+    }
+
+    /* Footer images: remove dark-mode filters */
+    footer img {
+        filter: none !important;
+    }
+
+    /* GFZ action buttons: make readable on white paper */
+    .gfz-action-button {
+        background: white !important;
+        color: black !important;
+        border: 1px solid #000 !important;
+    }
+
+    /* Keyword badges: print-friendly on white background */
+    [data-testid='thesauri-keywords-list'] a,
+    [data-testid='keywords-list'] a {
+        background: #f3f4f6 !important;
+        color: black !important;
+        border: 1px solid #d1d5db !important;
+    }
 }
 
 /* WCAG: Disable all animations when user prefers reduced motion */

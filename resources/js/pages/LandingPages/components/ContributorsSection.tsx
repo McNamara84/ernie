@@ -18,8 +18,8 @@ export function ContributorsSection({ contributors }: ContributorsSectionProps) 
     }
 
     return (
-        <div className="mt-6" data-testid="contributors-section">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contributors</h3>
+        <section className="mt-6" data-testid="contributors-section" aria-labelledby="heading-contributors">
+            <h2 id="heading-contributors" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contributors</h2>
             <CollapsibleList
                 items={contributors}
                 itemLabel="contributors"
@@ -78,6 +78,6 @@ export function ContributorsSection({ contributors }: ContributorsSectionProps) 
                     );
                 }}
             />
-        </div>
+        </section>
     );
 }

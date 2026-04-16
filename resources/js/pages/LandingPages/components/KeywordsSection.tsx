@@ -93,8 +93,8 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
     }
 
     return (
-        <div className="mt-6" data-testid="subjects-section">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
+        <section className="mt-6" data-testid="subjects-section" aria-labelledby="heading-keywords">
+            <h2 id="heading-keywords" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h2>
             <CollapsibleList
                 items={allKeywords}
                 itemLabel="keywords"
@@ -128,6 +128,6 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                     );
                 }}
             />
-        </div>
+        </section>
     );
 }

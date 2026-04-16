@@ -16,10 +16,12 @@ import { toastClassNames } from '@/components/ui/sonner';
  */
 export function LandingPageToaster(props: ToasterProps) {
     return (
-        <Sonner
-            className="toaster group"
-            toastOptions={{ classNames: toastClassNames }}
-            {...props}
-        />
+        <div data-slot="landing-page-toaster">
+            <Sonner
+                className="toaster group"
+                toastOptions={{ classNames: toastClassNames }}
+                {...props}
+            />
+        </div>
     );
 }

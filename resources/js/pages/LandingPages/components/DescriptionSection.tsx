@@ -29,7 +29,7 @@ export function DescriptionSection({ descriptions }: DescriptionSectionProps) {
 
             {methods && (
                 <div className="mt-6" data-testid="methods-section">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Methods</h3>
+                    <h3 id="heading-methods" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Methods</h3>
                     <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
                         <p className="mt-0 whitespace-pre-wrap" data-testid="methods-text">
                             {methods.value}
