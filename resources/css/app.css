@@ -363,6 +363,7 @@
     [data-landing-page] {
         background: white !important;
         color: black !important;
+        color-scheme: light !important;
     }
 
     /* Remove shadows, keep subtle borders, avoid page-break mid-section */
@@ -419,12 +420,6 @@
         background: white !important;
     }
 
-    /* Force light color scheme for print */
-    [data-landing-page].dark,
-    [data-landing-page] .dark {
-        color-scheme: light !important;
-    }
-
     /* Override dark-mode backgrounds that Tailwind dark: utilities apply */
     [data-landing-page] .dark\:bg-gray-950 {
         background: white !important;
@@ -459,9 +454,18 @@
         --tw-prose-links: #111827 !important;
     }
 
-    /* Footer images: remove dark-mode filters */
-    [data-landing-page] footer img {
+    /* Remove dark-mode image filters (header & footer logos use dark:invert) */
+    [data-landing-page] img {
         filter: none !important;
+    }
+
+    /* Expand all collapsed lists: show overflow items, hide toggle buttons */
+    [data-landing-page] .collapsible-print-only {
+        display: contents !important;
+    }
+
+    [data-landing-page] .collapsible-toggle {
+        display: none !important;
     }
 
     /* GFZ action buttons: make readable on white paper */

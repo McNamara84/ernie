@@ -39,13 +39,39 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
         return <div className={className}>{wrapper ? wrapper(rendered) : rendered}</div>;
     }
 
-    const visibleItems = isExpanded ? items : items.slice(0, threshold);
-    const rendered = visibleItems.map((item, i) => renderItem(item, i));
+    const visibleItems = items.slice(0, threshold);
+    const overflowItems = items.slice(threshold);
+    const visibleRendered = visibleItems.map((item, i) => renderItem(item, i));
+    const overflowRendered = overflowItems.map((item, i) => renderItem(item, i + threshold));
 
     return (
         <div className={className}>
             <div id={regionId} role="region" aria-label={`${itemLabel} list`}>
-                {wrapper ? wrapper(rendered) : rendered}
+                {wrapper
+                    ? wrapper([
+                          ...visibleRendered,
+                          ...overflowRendered.map((element, i) => (
+                              <span
+                                  key={`overflow-${threshold + i}`}
+                                  className={isExpanded ? undefined : 'collapsible-print-only hidden'}
+                                  aria-hidden={!isExpanded || undefined}
+                              >
+                                  {element}
+                              </span>
+                          )),
+                      ])
+                    : [
+                          ...visibleRendered,
+                          ...overflowRendered.map((element, i) => (
+                              <span
+                                  key={`overflow-${threshold + i}`}
+                                  className={isExpanded ? undefined : 'collapsible-print-only hidden'}
+                                  aria-hidden={!isExpanded || undefined}
+                              >
+                                  {element}
+                              </span>
+                          )),
+                      ]}
             </div>
 
             <Button
@@ -55,7 +81,7 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
                 aria-expanded={isExpanded}
                 aria-controls={regionId}
                 className={cn(
-                    'mt-2 gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300',
+                    'collapsible-toggle mt-2 gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300',
                     !reducedMotion && 'transition-colors duration-200',
                 )}
             >
