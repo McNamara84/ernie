@@ -199,6 +199,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                     aria-label="Open Relation Browser"
                     title="Open Relation Browser"
                     data-testid="relation-browser-button"
+                    data-print="hide"
                 >
                     <Network className="h-4 w-4 text-gray-500 transition-colors group-hover:text-gfz-primary dark:text-gray-400 dark:group-hover:text-blue-400" />
                 </Button>

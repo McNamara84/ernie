@@ -375,12 +375,10 @@
 
     /* Hide interactive-only / non-printable elements */
     [data-landing-page] .back-to-top-button,
-    [data-landing-page] [data-testid='relation-browser-button'],
+    [data-landing-page] [data-print='hide'],
     [data-landing-page] .leaflet-control-zoom,
     [data-landing-page] .leaflet-control .leaflet-bar,
-    [data-landing-page] [aria-label='Copy citation to clipboard'],
-    [data-landing-page] [data-slot='landing-page-toaster'],
-    [data-landing-page] [aria-label='Scroll to top'] {
+    [data-landing-page] [data-slot='landing-page-toaster'] {
         display: none !important;
     }
 
@@ -476,8 +474,7 @@
     }
 
     /* Keyword badges: print-friendly on white background */
-    [data-landing-page] [data-testid='thesauri-keywords-list'] a,
-    [data-landing-page] [data-testid='keywords-list'] a {
+    [data-landing-page] [data-slot='keyword-badge-list'] a {
         background: #f3f4f6 !important;
         color: black !important;
         border: 1px solid #d1d5db !important;

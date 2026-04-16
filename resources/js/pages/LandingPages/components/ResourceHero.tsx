@@ -97,6 +97,7 @@ export function ResourceHero({ resourceType, status, mainTitle, subtitle, citati
                         className="min-h-11 min-w-11 shrink-0"
                         title={copied ? 'Copied!' : 'Copy citation'}
                         aria-label="Copy citation to clipboard"
+                        data-print="hide"
                     >
                         {copied ? (
                             <Check className="h-4 w-4 text-green-600 dark:text-green-400" />

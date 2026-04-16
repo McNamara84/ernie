@@ -114,13 +114,13 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                     return (
                         <>
                             {thesauriItems.length > 0 && (
-                                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list">
+                                <ul role="list" className="flex flex-wrap gap-2" data-testid="thesauri-keywords-list" data-slot="keyword-badge-list">
                                     {thesauriItems}
                                 </ul>
                             )}
                             {thesauriItems.length > 0 && freeItems.length > 0 && <hr className="my-3 border-gray-200 dark:border-gray-700" />}
                             {freeItems.length > 0 && (
-                                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list">
+                                <ul role="list" className="flex flex-wrap gap-2" data-testid="keywords-list" data-slot="keyword-badge-list">
                                     {freeItems}
                                 </ul>
                             )}
