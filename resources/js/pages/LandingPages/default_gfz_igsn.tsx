@@ -2,6 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 
 import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
+import { BackToTopButton } from './components/BackToTopButton';
 import { LandingPageToaster } from './components/LandingPageToaster';
 import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
@@ -106,6 +107,7 @@ export default function DefaultGfzIgsnTemplate() {
                     </footer>
                 </div>
 
+                <BackToTopButton />
                 <LandingPageToaster position="bottom-right" richColors theme={isDark ? 'dark' : 'light'} />
             </div>
         </>
