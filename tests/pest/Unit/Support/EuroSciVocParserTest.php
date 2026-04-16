@@ -209,6 +209,88 @@ XML;
         expect($concepts)->toHaveCount(1)
             ->and($concepts[0]['text'])->toBe('SKOS-XL label');
     });
+
+    it('falls back to untagged plain SKOS label when no language attribute exists', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:skos="http://www.w3.org/2004/02/skos/core#">
+    <skos:Concept rdf:about="http://example.org/concept/1">
+        <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skos:prefLabel>untagged label</skos:prefLabel>
+    </skos:Concept>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(1)
+            ->and($concepts[0]['text'])->toBe('untagged label');
+    });
+
+    it('skips SKOS-XL labels without rdf:about attribute', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+         xmlns:skosxl="http://www.w3.org/2008/05/skos-xl#">
+    <skosxl:Label>
+        <skosxl:literalForm xml:lang="en">orphan label</skosxl:literalForm>
+    </skosxl:Label>
+    <skos:Concept rdf:about="http://example.org/concept/1">
+        <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skos:prefLabel xml:lang="en">direct label</skos:prefLabel>
+    </skos:Concept>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(1)
+            ->and($concepts[0]['text'])->toBe('direct label');
+    });
+
+    it('skips SKOS-XL labels without literalForm element', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+         xmlns:skosxl="http://www.w3.org/2008/05/skos-xl#">
+    <skosxl:Label rdf:about="http://example.org/label/empty">
+    </skosxl:Label>
+    <skos:Concept rdf:about="http://example.org/concept/1">
+        <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skosxl:prefLabel rdf:resource="http://example.org/label/empty"/>
+        <skos:prefLabel xml:lang="en">fallback label</skos:prefLabel>
+    </skos:Concept>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(1)
+            ->and($concepts[0]['text'])->toBe('fallback label');
+    });
+
+    it('falls back to plain SKOS when SKOS-XL reference is not in label map', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+         xmlns:skosxl="http://www.w3.org/2008/05/skos-xl#">
+    <skos:Concept rdf:about="http://example.org/concept/1">
+        <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skosxl:prefLabel rdf:resource="http://example.org/label/nonexistent"/>
+        <skos:prefLabel xml:lang="en">plain fallback</skos:prefLabel>
+    </skos:Concept>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(1)
+            ->and($concepts[0]['text'])->toBe('plain fallback');
+    });
 });
 
 // =========================================================================
@@ -318,6 +400,23 @@ describe('buildHierarchy', function (): void {
 
         expect($result['data'])->toBeArray()->toBeEmpty()
             ->and($result['lastUpdated'])->toBeString();
+    });
+
+    it('handles orphan children whose parent is outside the scheme', function (): void {
+        // Child references a broaderId that is not in the concepts array.
+        // Since the child is not a top concept and its parent is missing,
+        // it is silently omitted from the hierarchy.
+        $concepts = [
+            ['id' => 'http://example.org/root', 'text' => 'root', 'language' => 'en', 'broaderId' => null, 'isTopConcept' => true],
+            ['id' => 'http://example.org/child', 'text' => 'child', 'language' => 'en', 'broaderId' => 'http://example.org/missing-parent', 'isTopConcept' => false],
+        ];
+
+        $result = $this->parser->buildHierarchy($concepts, 'EuroSciVoc', 'http://example.org/scheme');
+
+        // Only the explicit top concept is included; the orphan child is dropped
+        expect($result['data'])->toHaveCount(1)
+            ->and($result['data'][0]['text'])->toBe('root')
+            ->and($result['data'][0]['children'])->toBeEmpty();
     });
 });
 

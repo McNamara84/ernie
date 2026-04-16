@@ -78,6 +78,30 @@ describe('VocabularyCacheService', function () {
         });
     });
 
+    describe('cacheEuroSciVoc', function () {
+        it('caches and returns EuroSciVoc vocabulary', function () {
+            $vocabulary = [['text' => 'natural sciences', 'children' => []]];
+
+            $result = $this->service->cacheEuroSciVoc(fn () => $vocabulary);
+
+            expect($result)->toBe($vocabulary);
+        });
+
+        it('returns cached value on subsequent calls', function () {
+            $callCount = 0;
+            $callback = function () use (&$callCount) {
+                $callCount++;
+
+                return ['euroscivoc_data'];
+            };
+
+            $this->service->cacheEuroSciVoc($callback);
+            $this->service->cacheEuroSciVoc($callback);
+
+            expect($callCount)->toBe(1);
+        });
+    });
+
     describe('cacheVocabulary', function () {
         it('caches arbitrary vocabulary using CacheKey enum', function () {
             $data = ['test' => 'data'];
