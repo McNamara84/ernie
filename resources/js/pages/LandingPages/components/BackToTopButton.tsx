@@ -1,5 +1,5 @@
 import { ArrowUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
@@ -14,20 +14,26 @@ const SCROLL_THRESHOLD = 300;
  * - Minimum 44×44px touch target (WCAG 2.5.5)
  * - Uses `pointer-events-none` when hidden to prevent invisible click captures
  * - Syncs initial visibility on mount (handles scroll restoration / anchor nav)
+ * - Guards state updates to avoid unnecessary re-renders during continuous scrolling
  */
 export function BackToTopButton() {
     const [isVisible, setIsVisible] = useState(false);
+    const wasVisibleRef = useRef(false);
     const prefersReducedMotion = useReducedMotion();
 
-    useEffect(() => {
-        const handleScroll = () => {
-            setIsVisible(window.scrollY > SCROLL_THRESHOLD);
-        };
+    const handleScroll = useCallback(() => {
+        const shouldBeVisible = window.scrollY > SCROLL_THRESHOLD;
+        if (shouldBeVisible !== wasVisibleRef.current) {
+            wasVisibleRef.current = shouldBeVisible;
+            setIsVisible(shouldBeVisible);
+        }
+    }, []);
 
+    useEffect(() => {
         window.addEventListener('scroll', handleScroll, { passive: true });
         handleScroll();
         return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    }, [handleScroll]);
 
     const scrollToTop = () => {
         window.scrollTo({
