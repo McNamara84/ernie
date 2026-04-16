@@ -46,6 +46,7 @@ export function BackToTopButton() {
         <Button
             variant="outline"
             size="icon"
+            type="button"
             onClick={scrollToTop}
             aria-label="Scroll to top"
             aria-hidden={!isVisible}

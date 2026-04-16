@@ -22,12 +22,12 @@ interface CollapsibleListProps<T> {
 }
 
 /**
- * Data-driven collapsible list that renders only the first `threshold` items
- * when collapsed. Avoids CSS height measurement — works reliably with any
- * layout (flex-wrap, grid, variable-height items, multiple containers).
+ * Data-driven collapsible list that renders all items into the DOM but
+ * hides overflow entries (beyond `threshold`) with CSS (`hidden` class)
+ * when collapsed. This ensures print stylesheets can reveal all items
+ * via the `collapsible-print-only` class without relying on React state.
  *
- * SSR-safe: no client-side measurement needed, and the collapsed set of items
- * is rendered identically on server and client.
+ * SSR-safe: no client-side measurement needed.
  */
 export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRESHOLD, itemLabel, wrapper, className }: CollapsibleListProps<T>) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -47,7 +47,6 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
                     (element.props as { className?: string }).className,
                     'collapsible-print-only hidden',
                 ),
-                'aria-hidden': true,
             });
         }
         return element;

@@ -29,7 +29,7 @@ describe('CollapsibleList', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('renders only threshold items when above threshold and collapsed', () => {
+    it('hides overflow items with CSS when above threshold and collapsed', () => {
         render(
             <CollapsibleList
                 items={makeItems(15)}
@@ -39,7 +39,10 @@ describe('CollapsibleList', () => {
             />,
         );
         expect(screen.getByRole('button')).toHaveTextContent('Show all 15 contributors');
-        expect(screen.getAllByRole('listitem')).toHaveLength(10);
+        const allItems = screen.getAllByRole('listitem');
+        expect(allItems).toHaveLength(15);
+        const visibleItems = allItems.filter((el) => !el.classList.contains('hidden'));
+        expect(visibleItems).toHaveLength(10);
     });
 
     it('toggles expanded state on button click', () => {
@@ -54,17 +57,20 @@ describe('CollapsibleList', () => {
         const button = screen.getByRole('button');
         expect(button).toHaveTextContent('Show all 15 items');
         expect(button).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.getAllByRole('listitem')).toHaveLength(10);
+        const allItems = screen.getAllByRole('listitem');
+        expect(allItems).toHaveLength(15);
+        expect(allItems.filter((el) => !el.classList.contains('hidden'))).toHaveLength(10);
 
         fireEvent.click(button);
         expect(button).toHaveTextContent('Show fewer items');
         expect(button).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getAllByRole('listitem')).toHaveLength(15);
+        expect(screen.getAllByRole('listitem').filter((el) => el.classList.contains('hidden'))).toHaveLength(0);
 
         fireEvent.click(button);
         expect(button).toHaveTextContent('Show all 15 items');
         expect(button).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.getAllByRole('listitem')).toHaveLength(10);
+        expect(screen.getAllByRole('listitem').filter((el) => !el.classList.contains('hidden'))).toHaveLength(10);
     });
 
     it('uses aria-controls to reference the region', () => {
@@ -93,7 +99,9 @@ describe('CollapsibleList', () => {
             />,
         );
         expect(screen.getByRole('button')).toHaveTextContent('Show all 8 items');
-        expect(screen.getAllByRole('listitem')).toHaveLength(5);
+        const allItems = screen.getAllByRole('listitem');
+        expect(allItems).toHaveLength(8);
+        expect(allItems.filter((el) => !el.classList.contains('hidden'))).toHaveLength(5);
     });
 
     it('does not show button when itemCount equals threshold', () => {
