@@ -228,6 +228,24 @@ XML;
             ->and($concepts[0]['text'])->toBe('untagged label');
     });
 
+    it('does not return non-English tagged labels as fallback', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:skos="http://www.w3.org/2004/02/skos/core#">
+    <skos:Concept rdf:about="http://example.org/concept/1">
+        <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skos:prefLabel xml:lang="de">nur Deutsch</skos:prefLabel>
+        <skos:prefLabel xml:lang="fr">seulement français</skos:prefLabel>
+    </skos:Concept>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(0);
+    });
+
     it('skips SKOS-XL labels without rdf:about attribute', function (): void {
         $rdf = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>

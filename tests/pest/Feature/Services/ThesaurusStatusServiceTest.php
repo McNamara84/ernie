@@ -432,6 +432,26 @@ describe('getRemoteConceptCount', function () {
         expect(fn () => $service->getRemoteConceptCount($thesaurus))
             ->toThrow(RuntimeException::class, 'Failed to query EuroSciVoc SPARQL endpoint');
     });
+
+    test('throws on unexpected EuroSciVoc SPARQL response format', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+            [
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        Http::fake([
+            'publications.europa.eu/*' => Http::response(['unexpected' => 'format'], 200),
+        ]);
+
+        $service = new ThesaurusStatusService;
+
+        expect(fn () => $service->getRemoteConceptCount($thesaurus))
+            ->toThrow(RuntimeException::class, 'Unexpected EuroSciVoc SPARQL response format');
+    });
 });
 
 describe('compareWithRemote', function () {

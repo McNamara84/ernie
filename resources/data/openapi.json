@@ -1409,6 +1409,7 @@
             "EuroSciVocVocabulary": {
                 "type": "object",
                 "description": "European Science Vocabulary (EuroSciVoc) from the Publications Office of the European Union",
+                "required": ["lastUpdated", "data"],
                 "properties": {
                     "lastUpdated": {
                         "type": "string",

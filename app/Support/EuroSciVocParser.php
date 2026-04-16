@@ -316,10 +316,15 @@ class EuroSciVocParser
                 }
             }
 
-            // If no language-tagged English label, try the first untagged one
-            $firstLabel = (string) $skosNs->prefLabel;
-            if ($firstLabel !== '') {
-                return $firstLabel;
+            // If no language-tagged English label, try the first label without xml:lang attribute
+            foreach ($skosNs->prefLabel as $candidate) {
+                $candidateLang = $candidate->attributes(self::XML_NS);
+                if (! isset($candidateLang['lang']) || (string) $candidateLang['lang'] === '') {
+                    $text = (string) $candidate;
+                    if ($text !== '') {
+                        return $text;
+                    }
+                }
             }
         }
 

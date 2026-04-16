@@ -272,8 +272,15 @@ class ThesaurusStatusService
             }
 
             $data = $response->json();
+            $countValue = $data['results']['bindings'][0]['count']['value'] ?? null;
 
-            return (int) ($data['results']['bindings'][0]['count']['value'] ?? 0);
+            if ($countValue === null) {
+                throw new \RuntimeException(
+                    'Unexpected EuroSciVoc SPARQL response format: missing results.bindings[0].count.value'
+                );
+            }
+
+            return (int) $countValue;
         });
     }
 
