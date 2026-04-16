@@ -42,6 +42,9 @@ export function BackToTopButton() {
             size="icon"
             onClick={scrollToTop}
             aria-label="Scroll to top"
+            aria-hidden={!isVisible}
+            tabIndex={isVisible ? 0 : -1}
+            data-testid="back-to-top-button"
             className={`back-to-top-button fixed right-4 bottom-4 z-40 min-h-11 min-w-11 rounded-full border-gray-300 bg-white/90 shadow-lg backdrop-blur-sm hover:bg-gray-100 md:right-6 md:bottom-6 dark:border-gray-600 dark:bg-gray-800/90 dark:hover:bg-gray-700 ${
                 isVisible ? 'pointer-events-auto' : 'pointer-events-none'
             } ${

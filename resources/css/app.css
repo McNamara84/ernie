@@ -287,10 +287,16 @@
 }
 
 /* ── Landing Page: GFZ-branded focus ring ──
- * Scoped to elements inside landing-page-card so it doesn't affect the rest of the app.
- * Uses the GFZ corporate blue (#0C2A63) for brand consistency.
+ * Overrides the shadcn/ui ring color variable so interactive components
+ * (Button, Dialog, etc.) use GFZ blue for their built-in focus ring.
+ * Plain <a> elements get a dedicated outline since they lack shadcn's ring.
  */
-[data-slot='landing-page-card'] :is(a, button, [role='button'], input, textarea, select):focus-visible {
+[data-slot='landing-page-card'] {
+    --ring: var(--gfz-primary);
+    --color-ring: var(--gfz-primary);
+}
+
+[data-slot='landing-page-card'] a:focus-visible {
     outline: 2px solid var(--gfz-primary);
     outline-offset: 2px;
     border-radius: inherit;
@@ -417,6 +423,40 @@
     [data-landing-page].dark,
     [data-landing-page] .dark {
         color-scheme: light !important;
+    }
+
+    /* Override dark-mode backgrounds that Tailwind dark: utilities apply */
+    [data-landing-page] .dark\:bg-gray-950 {
+        background: white !important;
+    }
+
+    [data-landing-page] .dark\:bg-gray-900 {
+        background: white !important;
+    }
+
+    [data-landing-page] .dark\:bg-gray-800 {
+        background: white !important;
+    }
+
+    /* Override dark-mode text colors for legibility on white paper */
+    [data-landing-page] .dark\:text-gray-100,
+    [data-landing-page] .dark\:text-gray-200,
+    [data-landing-page] .dark\:text-gray-300,
+    [data-landing-page] .dark\:text-gray-400 {
+        color: black !important;
+    }
+
+    /* Override dark-mode borders */
+    [data-landing-page] .dark\:border-gray-600,
+    [data-landing-page] .dark\:border-gray-700 {
+        border-color: #e5e7eb !important;
+    }
+
+    /* Override dark prose-invert */
+    [data-landing-page] .dark\:prose-invert {
+        --tw-prose-body: #374151 !important;
+        --tw-prose-headings: #111827 !important;
+        --tw-prose-links: #111827 !important;
     }
 
     /* Footer images: remove dark-mode filters */

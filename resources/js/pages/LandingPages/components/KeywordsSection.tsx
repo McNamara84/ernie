@@ -94,7 +94,7 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
 
     return (
         <section className="mt-6" data-testid="subjects-section" aria-labelledby="heading-keywords">
-            <h2 id="heading-keywords" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h2>
+            <h3 id="heading-keywords" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keywords</h3>
             <CollapsibleList
                 items={allKeywords}
                 itemLabel="keywords"

@@ -17,7 +17,7 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
 
     return (
         <section className="mt-6" data-testid="creators-section" aria-labelledby="heading-creators">
-            <h2 id="heading-creators" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Creators</h2>
+            <h3 id="heading-creators" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Creators</h3>
             <ul className="space-y-2" data-testid="creators-list">
                 {creators.map((creator) => {
                     const creatorable = creator.creatorable;

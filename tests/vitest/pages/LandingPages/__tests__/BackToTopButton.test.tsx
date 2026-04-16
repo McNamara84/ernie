@@ -26,17 +26,20 @@ describe('BackToTopButton', () => {
 
     it('renders with correct aria-label', () => {
         render(<BackToTopButton />);
-        expect(screen.getByRole('button', { name: 'Scroll to top' })).toBeInTheDocument();
+        const button = screen.getByTestId('back-to-top-button');
+        expect(button).toHaveAttribute('aria-label', 'Scroll to top');
     });
 
-    it('is hidden when scrollY is below threshold', () => {
+    it('is hidden from tab order and assistive tech when scrollY is below threshold', () => {
         render(<BackToTopButton />);
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button).toHaveClass('pointer-events-none');
         expect(button).toHaveClass('opacity-0');
+        expect(button).toHaveAttribute('aria-hidden', 'true');
+        expect(button).toHaveAttribute('tabindex', '-1');
     });
 
-    it('becomes visible after scrolling past 300px', () => {
+    it('becomes visible and focusable after scrolling past 300px', () => {
         render(<BackToTopButton />);
 
         window.scrollY = 350;
@@ -44,9 +47,11 @@ describe('BackToTopButton', () => {
             window.dispatchEvent(new Event('scroll'));
         });
 
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button).toHaveClass('pointer-events-auto');
         expect(button).toHaveClass('opacity-100');
+        expect(button).toHaveAttribute('aria-hidden', 'false');
+        expect(button).toHaveAttribute('tabindex', '0');
     });
 
     it('hides again when scrolling back up', () => {
@@ -64,9 +69,11 @@ describe('BackToTopButton', () => {
             window.dispatchEvent(new Event('scroll'));
         });
 
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button).toHaveClass('pointer-events-none');
         expect(button).toHaveClass('opacity-0');
+        expect(button).toHaveAttribute('aria-hidden', 'true');
+        expect(button).toHaveAttribute('tabindex', '-1');
     });
 
     it('scrolls to top with smooth behavior when clicked', () => {
@@ -79,7 +86,7 @@ describe('BackToTopButton', () => {
             window.dispatchEvent(new Event('scroll'));
         });
 
-        screen.getByRole('button', { name: 'Scroll to top' }).click();
+        screen.getByTestId('back-to-top-button').click();
         expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
     });
 
@@ -94,27 +101,27 @@ describe('BackToTopButton', () => {
             window.dispatchEvent(new Event('scroll'));
         });
 
-        screen.getByRole('button', { name: 'Scroll to top' }).click();
+        screen.getByTestId('back-to-top-button').click();
         expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
     it('has minimum 44x44px touch target', () => {
         render(<BackToTopButton />);
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button).toHaveClass('min-h-11');
         expect(button).toHaveClass('min-w-11');
     });
 
     it('has back-to-top-button class for print CSS targeting', () => {
         render(<BackToTopButton />);
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button).toHaveClass('back-to-top-button');
     });
 
     it('is visible on mount when page is already scrolled', () => {
         window.scrollY = 500;
         render(<BackToTopButton />);
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button).toHaveClass('pointer-events-auto');
         expect(button).toHaveClass('opacity-100');
     });
@@ -129,7 +136,7 @@ describe('BackToTopButton', () => {
     it('does not apply custom transition classes when reduced motion is preferred', () => {
         mockUseReducedMotion.mockReturnValue(true);
         render(<BackToTopButton />);
-        const button = screen.getByRole('button', { name: 'Scroll to top' });
+        const button = screen.getByTestId('back-to-top-button');
         expect(button.className).not.toContain('duration-200');
         expect(button.className).not.toContain('ease-out');
     });

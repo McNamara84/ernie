@@ -19,7 +19,7 @@ export function ContributorsSection({ contributors }: ContributorsSectionProps) 
 
     return (
         <section className="mt-6" data-testid="contributors-section" aria-labelledby="heading-contributors">
-            <h2 id="heading-contributors" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contributors</h2>
+            <h3 id="heading-contributors" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contributors</h3>
             <CollapsibleList
                 items={contributors}
                 itemLabel="contributors"
