@@ -35,11 +35,19 @@ class EuroSciVocParser
      */
     public function extractConcepts(string $rdfContent, string $conceptSchemeUri): array
     {
+        $previousUseErrors = libxml_use_internal_errors(true);
+
         try {
-            $xml = new \SimpleXMLElement($rdfContent);
+            $xml = new \SimpleXMLElement($rdfContent, LIBXML_NONET | LIBXML_NOENT);
         } catch (\Exception $e) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousUseErrors);
+
             throw new RuntimeException('Failed to parse EuroSciVoc RDF/XML: '.$e->getMessage());
         }
+
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousUseErrors);
 
         $xml->registerXPathNamespace('rdf', self::RDF_NS);
         $xml->registerXPathNamespace('skos', self::SKOS_NS);
