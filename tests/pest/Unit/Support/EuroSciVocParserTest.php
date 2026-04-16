@@ -402,10 +402,9 @@ describe('buildHierarchy', function (): void {
             ->and($result['lastUpdated'])->toBeString();
     });
 
-    it('handles orphan children whose parent is outside the scheme', function (): void {
+    it('promotes orphan children whose parent is outside the scheme to roots', function (): void {
         // Child references a broaderId that is not in the concepts array.
-        // Since the child is not a top concept and its parent is missing,
-        // it is silently omitted from the hierarchy.
+        // The orphan rescue logic promotes it to a root concept.
         $concepts = [
             ['id' => 'http://example.org/root', 'text' => 'root', 'language' => 'en', 'broaderId' => null, 'isTopConcept' => true],
             ['id' => 'http://example.org/child', 'text' => 'child', 'language' => 'en', 'broaderId' => 'http://example.org/missing-parent', 'isTopConcept' => false],
@@ -413,10 +412,10 @@ describe('buildHierarchy', function (): void {
 
         $result = $this->parser->buildHierarchy($concepts, 'EuroSciVoc', 'http://example.org/scheme');
 
-        // Only the explicit top concept is included; the orphan child is dropped
-        expect($result['data'])->toHaveCount(1)
-            ->and($result['data'][0]['text'])->toBe('root')
-            ->and($result['data'][0]['children'])->toBeEmpty();
+        expect($result['data'])->toHaveCount(2);
+        $texts = array_column($result['data'], 'text');
+        expect($texts)->toContain('root')
+            ->and($texts)->toContain('child');
     });
 });
 

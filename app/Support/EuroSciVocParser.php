@@ -140,7 +140,9 @@ class EuroSciVocParser
             }
         }
 
-        // If no explicit top concepts found, derive them (concepts with no broader or missing broader)
+        // If no explicit top concepts found, derive them:
+        // - concepts that are never referenced as a child of another concept, OR
+        // - concepts whose broaderId points to a parent not in the concept set
         if ($topConceptIds === []) {
             $allChildIds = [];
             foreach ($childrenByParentId as $childIds) {
@@ -151,6 +153,20 @@ class EuroSciVocParser
             foreach ($conceptsById as $id => $concept) {
                 if (! in_array($id, $allChildIds, true)) {
                     $topConceptIds[] = $id;
+                }
+            }
+        }
+
+        // Rescue orphans: concepts whose broaderId points to a parent outside
+        // the concept set would otherwise be silently dropped. Promote them to roots.
+        $topConceptIdSet = array_flip($topConceptIds);
+        foreach ($childrenByParentId as $parentId => $childIds) {
+            if (! isset($conceptsById[$parentId])) {
+                foreach ($childIds as $childId) {
+                    if (! isset($topConceptIdSet[$childId])) {
+                        $topConceptIds[] = $childId;
+                        $topConceptIdSet[$childId] = true;
+                    }
                 }
             }
         }
