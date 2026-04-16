@@ -447,6 +447,88 @@ describe('ThesaurusCard', () => {
             // Wait for the error
             expect(await screen.findByText(/Connection failed/i)).toBeInTheDocument();
         });
+
+        it('should display thesaurus display name instead of hardcoded NASA/GCMD in update message', async () => {
+            const user = userEvent.setup();
+            const gemetThesauri: ThesaurusData[] = [
+                {
+                    type: 'gemet',
+                    displayName: 'GEMET',
+                    isActive: true,
+                    isElmoActive: false,
+                    exists: true,
+                    conceptCount: 4,
+                    lastUpdated: '2026-04-16T00:00:00Z',
+                },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () =>
+                    Promise.resolve({
+                        localCount: 4,
+                        remoteCount: 5669,
+                        updateAvailable: true,
+                        lastUpdated: '2026-04-16T00:00:00Z',
+                    }),
+            });
+
+            render(
+                <ThesaurusCard
+                    thesauri={gemetThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const checkButton = screen.getByRole('button', { name: /check for updates/i });
+            await user.click(checkButton);
+
+            const updateMessage = await screen.findByText(/GEMET contains/);
+            expect(updateMessage).toBeInTheDocument();
+            expect(updateMessage.textContent).toContain('GEMET contains');
+            expect(updateMessage.textContent).not.toContain('NASA/GCMD');
+        });
+
+        it('should display correct display name for each thesaurus type in update message', async () => {
+            const user = userEvent.setup();
+            const scienceThesauri: ThesaurusData[] = [
+                {
+                    type: 'science_keywords',
+                    displayName: 'Science Keywords',
+                    isActive: true,
+                    isElmoActive: true,
+                    exists: true,
+                    conceptCount: 2500,
+                    lastUpdated: '2024-01-15T10:30:00Z',
+                },
+            ];
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () =>
+                    Promise.resolve({
+                        localCount: 2500,
+                        remoteCount: 2600,
+                        updateAvailable: true,
+                        lastUpdated: '2024-01-15T10:30:00Z',
+                    }),
+            });
+
+            render(
+                <ThesaurusCard
+                    thesauri={scienceThesauri}
+                    onActiveChange={mockOnActiveChange}
+                    onElmoActiveChange={mockOnElmoActiveChange}
+                />,
+            );
+
+            const checkButton = screen.getByRole('button', { name: /check for updates/i });
+            await user.click(checkButton);
+
+            const updateMessage = await screen.findByText(/Science Keywords contains/);
+            expect(updateMessage).toBeInTheDocument();
+        });
     });
 
     describe('Empty state', () => {

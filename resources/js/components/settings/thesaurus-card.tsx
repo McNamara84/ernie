@@ -423,7 +423,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                 <>
                                     <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                                     <span>
-                                        ERNIE contains {updateInfo.localCount.toLocaleString()} concepts, but NASA/GCMD contains{' '}
+                                        ERNIE contains {updateInfo.localCount.toLocaleString()} concepts, but {thesaurus.displayName} contains{' '}
                                         {updateInfo.remoteCount.toLocaleString()} concepts. Would you like to update the thesaurus?
                                     </span>
                                 </>

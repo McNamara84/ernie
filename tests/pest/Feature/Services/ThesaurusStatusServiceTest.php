@@ -611,3 +611,150 @@ describe('compareWithRemote', function () {
         expect($result['lastUpdated'])->toBeNull();
     });
 });
+
+describe('GEMET thesaurus', function () {
+    test('getLocalStatus returns correct count for GEMET hierarchy', function () {
+        $gemetData = [
+            'lastUpdated' => '2026-04-16T00:00:00+00:00',
+            'data' => [
+                [
+                    'text' => 'SuperGroup1',
+                    'children' => [
+                        [
+                            'text' => 'Group1',
+                            'children' => [
+                                ['text' => 'Concept1', 'children' => []],
+                                ['text' => 'Concept2', 'children' => []],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        Storage::put('gemet-thesaurus.json', json_encode($gemetData));
+
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_GEMET],
+            [
+                'display_name' => 'GEMET',
+                'is_active' => true,
+                'is_elmo_active' => false,
+            ],
+        );
+
+        $service = new ThesaurusStatusService;
+        $status = $service->getLocalStatus($thesaurus);
+
+        // 1 supergroup + 1 group + 2 concepts = 4
+        expect($status['exists'])->toBeTrue()
+            ->and($status['conceptCount'])->toBe(4)
+            ->and($status['lastUpdated'])->toBe('2026-04-16T00:00:00+00:00');
+    });
+
+    test('getRemoteConceptCount returns count from GEMET API', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_GEMET],
+            [
+                'display_name' => 'GEMET',
+                'is_active' => true,
+                'is_elmo_active' => false,
+            ],
+        );
+
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $url = $request->url();
+            $params = $request->data();
+            $thesaurusUri = $params['thesaurus_uri'] ?? '';
+
+            // SuperGroups
+            if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'supergroup')) {
+                return Http::response([
+                    ['uri' => 'http://gemet/supergroup/1', 'preferredLabel' => ['string' => 'SG1', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                    ['uri' => 'http://gemet/supergroup/2', 'preferredLabel' => ['string' => 'SG2', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                ], 200);
+            }
+
+            // Groups
+            if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'group')) {
+                return Http::response([
+                    ['uri' => 'http://gemet/group/10', 'preferredLabel' => ['string' => 'G1', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                    ['uri' => 'http://gemet/group/20', 'preferredLabel' => ['string' => 'G2', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                    ['uri' => 'http://gemet/group/30', 'preferredLabel' => ['string' => 'G3', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                ], 200);
+            }
+
+            // Concept counts per group (via pool)
+            if (str_contains($url, 'getRelatedConcepts')) {
+                return Http::response([
+                    ['uri' => 'http://gemet/concept/1', 'preferredLabel' => ['string' => 'C1', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                    ['uri' => 'http://gemet/concept/2', 'preferredLabel' => ['string' => 'C2', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                ], 200);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $service = new ThesaurusStatusService;
+        $count = $service->getRemoteConceptCount($thesaurus);
+
+        // 2 supergroups + 3 groups + (3 groups × 2 concepts each) = 11
+        expect($count)->toBe(11);
+    });
+
+    test('compareWithRemote detects GEMET update available', function () {
+        $gemetData = [
+            'lastUpdated' => '2026-01-01T00:00:00+00:00',
+            'data' => [
+                ['text' => 'SG1', 'children' => []],
+            ],
+        ];
+
+        Storage::put('gemet-thesaurus.json', json_encode($gemetData));
+
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_GEMET],
+            [
+                'display_name' => 'GEMET',
+                'is_active' => true,
+                'is_elmo_active' => false,
+            ],
+        );
+
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $url = $request->url();
+            $params = $request->data();
+            $thesaurusUri = $params['thesaurus_uri'] ?? '';
+
+            if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'supergroup')) {
+                return Http::response([
+                    ['uri' => 'http://gemet/supergroup/1', 'preferredLabel' => ['string' => 'SG1', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                ], 200);
+            }
+
+            if (str_contains($url, 'getTopmostConcepts') && str_contains($thesaurusUri, 'group')) {
+                return Http::response([
+                    ['uri' => 'http://gemet/group/10', 'preferredLabel' => ['string' => 'G1', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                ], 200);
+            }
+
+            if (str_contains($url, 'getRelatedConcepts')) {
+                return Http::response([
+                    ['uri' => 'http://gemet/concept/1', 'preferredLabel' => ['string' => 'C1', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                    ['uri' => 'http://gemet/concept/2', 'preferredLabel' => ['string' => 'C2', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                    ['uri' => 'http://gemet/concept/3', 'preferredLabel' => ['string' => 'C3', 'language' => 'en'], 'definition' => ['string' => '', 'language' => 'en']],
+                ], 200);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $service = new ThesaurusStatusService;
+        $result = $service->compareWithRemote($thesaurus);
+
+        // Local: 1 node. Remote: 1 supergroup + 1 group + 3 concepts = 5
+        expect($result['updateAvailable'])->toBeTrue()
+            ->and($result['localCount'])->toBe(1)
+            ->and($result['remoteCount'])->toBe(5);
+    });
+});
