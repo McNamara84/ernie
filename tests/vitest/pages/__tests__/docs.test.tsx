@@ -38,6 +38,7 @@ const defaultEditorSettings: EditorSettings = {
         chronostratigraphy: true,
         gemet: true,
         analyticalMethods: true,
+        euroSciVoc: true,
     },
     features: {
         hasActiveGcmd: true,
@@ -45,6 +46,7 @@ const defaultEditorSettings: EditorSettings = {
         hasActiveChronostrat: true,
         hasActiveGemet: true,
         hasActiveAnalyticalMethods: true,
+        hasActiveEuroSciVoc: true,
         hasActiveLicenses: true,
         hasActiveResourceTypes: true,
         hasActiveTitleTypes: true,
@@ -117,6 +119,7 @@ describe('Docs page', () => {
                 hasActiveChronostrat: false,
                 hasActiveGemet: false,
                 hasActiveAnalyticalMethods: false,
+                hasActiveEuroSciVoc: false,
             },
         };
         render(<Docs userRole="beginner" editorSettings={settingsWithoutGcmd} />);

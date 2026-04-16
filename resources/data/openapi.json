@@ -827,6 +827,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/euroscivoc": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get European Science Vocabulary (EuroSciVoc)",
+                "description": "Returns the European Science Vocabulary (EuroSciVoc) as a hierarchical JSON structure. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories from CORDIS content. The vocabulary is published by the Publications Office of the European Union. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "EuroSciVoc vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EuroSciVocVocabulary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or vocabulary file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-euroscivoc"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/pid4inst-instruments": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -1362,6 +1405,72 @@
                     }
                 },
                 "required": ["id", "text", "notation", "language", "scheme", "schemeURI", "description", "children"]
+            },
+            "EuroSciVocVocabulary": {
+                "type": "object",
+                "description": "European Science Vocabulary (EuroSciVoc) from the Publications Office of the European Union",
+                "required": ["lastUpdated", "data"],
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the vocabulary was last updated",
+                        "example": "2026-04-16T12:00:00Z"
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Hierarchical array of EuroSciVoc concepts organized by fields of science",
+                        "items": {
+                            "$ref": "#/components/schemas/EuroSciVocConcept"
+                        }
+                    }
+                }
+            },
+            "EuroSciVocConcept": {
+                "type": "object",
+                "description": "A concept from the European Science Vocabulary (EuroSciVoc), representing a field of science or research topic",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "Unique identifier (URI) for the concept",
+                        "example": "http://data.europa.eu/8mn/euroscivoc/3d76a7f4-5a16-411e-ae44-7b712d5222ee"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Preferred label for the concept in English",
+                        "example": "natural sciences"
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "Language code of the concept label",
+                        "example": "en"
+                    },
+                    "scheme": {
+                        "type": "string",
+                        "description": "Name of the vocabulary scheme",
+                        "example": "European Science Vocabulary (EuroSciVoc)"
+                    },
+                    "schemeURI": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URI of the EuroSciVoc concept scheme",
+                        "example": "http://data.europa.eu/8mn/euroscivoc/40c0f173-baa3-48a3-9fe6-d6e8fb366a00"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Description of the concept (empty string if not available)",
+                        "example": ""
+                    },
+                    "children": {
+                        "type": "array",
+                        "description": "Child concepts in the hierarchy",
+                        "items": {
+                            "$ref": "#/components/schemas/EuroSciVocConcept"
+                        }
+                    }
+                },
+                "required": ["id", "text", "language", "scheme", "schemeURI", "description", "children"]
             },
             "GcmdKeywordConcept": {
                 "type": "object",

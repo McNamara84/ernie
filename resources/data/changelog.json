@@ -4,6 +4,10 @@
         "date": "2026-04-16",
         "features": [
             {
+                "title": "European Science Vocabulary (EuroSciVoc) Thesaurus",
+                "description": "A new controlled vocabulary 'European Science Vocabulary (EuroSciVoc)' has been integrated from the Publications Office of the European Union. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories extracted from CORDIS content. The vocabulary provides a hierarchical tree of scientific disciplines (e.g., Natural Sciences > Physical Sciences > Astronomy). It appears in the keyword editor alongside existing vocabularies and is available via the API. Administrators and group leaders can activate/deactivate and update the vocabulary in Editor Settings."
+            },
+            {
                 "title": "Analytical Methods for Geochemistry Thesaurus",
                 "description": "A new controlled vocabulary 'Analytical Methods for Geochemistry and Cosmochemistry' has been integrated from the ARDC (Australian Research Data Commons) Linked Data API. The vocabulary provides a hierarchical tree of analytical methods (e.g., Mass Spectrometry > ICP-MS) with notation codes and definitions. It appears as a new tab in the keyword editor alongside existing vocabularies. Administrators and group leaders can configure the vocabulary version in the thesaurus settings page."
             },

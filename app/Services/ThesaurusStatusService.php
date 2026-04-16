@@ -99,6 +99,10 @@ class ThesaurusStatusService
             return $this->getAnalyticalMethodsRemoteCount($thesaurus);
         }
 
+        if ($thesaurus->type === ThesaurusSetting::TYPE_EUROSCIVOC) {
+            return $this->getEuroSciVocRemoteCount();
+        }
+
         throw new \RuntimeException("Unsupported thesaurus type for remote check: {$thesaurus->type}");
     }
 
@@ -222,6 +226,61 @@ class ThesaurusStatusService
             $conceptCount = array_sum($conceptCounts);
 
             return count($superGroups) + count($groups) + $conceptCount;
+        });
+    }
+
+    /**
+     * Get concept count from the EU Publications Office SPARQL endpoint for EuroSciVoc.
+     *
+     * Uses a SPARQL COUNT query against the public endpoint to determine the
+     * current number of concepts. Uses caching (1 hour TTL) to avoid repeated
+     * SPARQL queries per status check.
+     *
+     * @throws \RuntimeException If the SPARQL request fails
+     */
+    private function getEuroSciVocRemoteCount(): int
+    {
+        $cacheKey = CacheKey::EUROSCIVOC->key('remote_count');
+        $cache = $this->supportsTagging()
+            ? Cache::tags(CacheKey::EUROSCIVOC->tags())
+            : Cache::store();
+
+        /** @var int */
+        return $cache->remember($cacheKey, 3600, function (): int {
+            $conceptSchemeUri = (string) config('euroscivoc.concept_scheme_uri');
+            $sparqlEndpoint = 'https://publications.europa.eu/webapi/rdf/sparql';
+
+            $query = <<<SPARQL
+                PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+                SELECT (COUNT(DISTINCT ?concept) AS ?count) WHERE {
+                    ?concept a skos:Concept .
+                    ?concept skos:inScheme <{$conceptSchemeUri}> .
+                }
+                SPARQL;
+
+            $response = Http::timeout(30)
+                ->accept('application/sparql-results+json')
+                ->get($sparqlEndpoint, [
+                    'query' => $query,
+                    'format' => 'application/sparql-results+json',
+                ]);
+
+            if (! $response->successful()) {
+                throw new \RuntimeException(
+                    "Failed to query EuroSciVoc SPARQL endpoint: HTTP {$response->status()}"
+                );
+            }
+
+            $data = $response->json();
+            $countValue = $data['results']['bindings'][0]['count']['value'] ?? null;
+
+            if ($countValue === null) {
+                throw new \RuntimeException(
+                    'Unexpected EuroSciVoc SPARQL response format: missing results.bindings[0].count.value'
+                );
+            }
+
+            return (int) $countValue;
         });
     }
 

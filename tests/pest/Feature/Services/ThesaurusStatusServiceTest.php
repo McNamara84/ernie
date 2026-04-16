@@ -6,6 +6,7 @@ use App\Models\ThesaurusSetting;
 use App\Services\ThesaurusStatusService;
 use App\Support\GcmdVocabularyParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Storage::fake();
+    Cache::flush();
 });
 
 describe('getLocalStatus', function () {
@@ -186,6 +188,39 @@ describe('getLocalStatus', function () {
             'lastUpdated' => null,
         ]);
     });
+
+    test('returns local status for EuroSciVoc vocabulary', function () {
+        Storage::put('euroscivoc.json', json_encode([
+            'lastUpdated' => '2026-04-16T10:00:00+00:00',
+            'data' => [
+                [
+                    'id' => 'http://example.org/1',
+                    'text' => 'natural sciences',
+                    'children' => [
+                        ['id' => 'http://example.org/2', 'text' => 'physics', 'children' => []],
+                    ],
+                ],
+            ],
+        ]));
+
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+            [
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        $service = new ThesaurusStatusService;
+        $status = $service->getLocalStatus($thesaurus);
+
+        expect($status)->toBe([
+            'exists' => true,
+            'conceptCount' => 2,
+            'lastUpdated' => '2026-04-16T10:00:00+00:00',
+        ]);
+    });
 });
 
 describe('getRemoteConceptCount', function () {
@@ -350,6 +385,72 @@ describe('getRemoteConceptCount', function () {
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/2-0/concept.json');
         });
+    });
+
+    test('fetches EuroSciVoc remote count via SPARQL endpoint', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+            [
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        Http::fake([
+            'publications.europa.eu/*' => Http::response([
+                'results' => [
+                    'bindings' => [
+                        ['count' => ['value' => '1064']],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $service = new ThesaurusStatusService;
+        $count = $service->getRemoteConceptCount($thesaurus);
+
+        expect($count)->toBe(1064);
+    });
+
+    test('throws on EuroSciVoc SPARQL endpoint failure', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+            [
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        Http::fake([
+            'publications.europa.eu/*' => Http::response('Server Error', 500),
+        ]);
+
+        $service = new ThesaurusStatusService;
+
+        expect(fn () => $service->getRemoteConceptCount($thesaurus))
+            ->toThrow(RuntimeException::class, 'Failed to query EuroSciVoc SPARQL endpoint');
+    });
+
+    test('throws on unexpected EuroSciVoc SPARQL response format', function () {
+        $thesaurus = ThesaurusSetting::updateOrCreate(
+            ['type' => ThesaurusSetting::TYPE_EUROSCIVOC],
+            [
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        Http::fake([
+            'publications.europa.eu/*' => Http::response(['unexpected' => 'format'], 200),
+        ]);
+
+        $service = new ThesaurusStatusService;
+
+        expect(fn () => $service->getRemoteConceptCount($thesaurus))
+            ->toThrow(RuntimeException::class, 'Unexpected EuroSciVoc SPARQL response format');
     });
 });
 

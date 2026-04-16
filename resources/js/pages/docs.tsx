@@ -270,7 +270,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </li>
                             <li>
                                 <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS Chronostratigraphy, GEMET,
-                                and Analytical Methods for Geochemistry and Cosmochemistry
+                                Analytical Methods for Geochemistry and Cosmochemistry, and European Science Vocabulary (EuroSciVoc)
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
@@ -375,6 +375,14 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             Downloads the Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the
                             ARDC Linked Data API (EarthChem/GEOROC). The vocabulary version can be configured in
                             Editor Settings. Can also be triggered from Editor Settings.
+                        </p>
+
+                        <h4>Update European Science Vocabulary (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-euroscivoc" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads the European Science Vocabulary (EuroSciVoc) from the Publications Office of the
+                            European Union. EuroSciVoc is a taxonomy of fields of science based on the OECD Frascati
+                            Manual. Can also be triggered from Editor Settings.
                         </p>
 
                         <h4>Update PID4INST Instruments (CLI)</h4>
@@ -590,7 +598,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Verify author information, add ORCID iDs, and confirm ROR affiliations.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Add Keywords">
-                                <p>Add controlled keywords (GCMD, MSL, GEMET, Analytical Methods) and free-form keywords as needed.</p>
+                                <p>Add controlled keywords (GCMD, MSL, GEMET, Analytical Methods, EuroSciVoc) and free-form keywords as needed.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Complete Coverage">
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
@@ -799,7 +807,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 title: 'Controlled Keywords',
                 icon: Tags,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat || settings.features.hasActiveGemet || settings.features.hasActiveAnalyticalMethods,
+                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat || settings.features.hasActiveGemet || settings.features.hasActiveAnalyticalMethods || settings.features.hasActiveEuroSciVoc,
                 content: (
                     <>
                         <h3>Controlled Vocabularies</h3>
@@ -856,6 +864,21 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     research (e.g. mass spectrometry, X-ray diffraction). Concepts include optional
                                     notation codes. Sourced from the ARDC Linked Data API (EarthChem/GEOROC).
                                     The vocabulary version is configurable by administrators and group leaders.
+                                </p>
+                            </>
+                        )}
+
+                        {editorSettings.features.hasActiveEuroSciVoc && (
+                            <>
+                                <h4>European Science Vocabulary (EuroSciVoc)</h4>
+                                <p>
+                                    The European Science Vocabulary (EuroSciVoc) is a taxonomy of fields of science
+                                    published by the Publications Office of the European Union. It is based on the
+                                    OECD&apos;s 2015 Frascati Manual taxonomy and extended with categories extracted
+                                    from CORDIS content. The vocabulary covers six top-level domains: Natural Sciences,
+                                    Engineering and Technology, Medical and Health Sciences, Agricultural Sciences,
+                                    Social Sciences, and Humanities. Keywords are mapped to DataCite with
+                                    subjectScheme &quot;European Science Vocabulary (EuroSciVoc)&quot;.
                                 </p>
                             </>
                         )}

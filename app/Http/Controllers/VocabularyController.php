@@ -217,6 +217,22 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return European Science Vocabulary (EuroSciVoc).
+     */
+    public function euroSciVoc(): JsonResponse
+    {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_EUROSCIVOC)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::EUROSCIVOC,
+            'euroscivoc.json',
+            'php artisan get-euroscivoc'
+        );
+    }
+
+    /**
      * Return ROR affiliations vocabulary for ELMO.
      *
      * Returns the complete ROR data with metadata wrapper

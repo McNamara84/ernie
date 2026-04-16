@@ -85,6 +85,19 @@ class VocabularyCacheService
     }
 
     /**
+     * Cache EuroSciVoc vocabulary.
+     *
+     * @template TValue
+     *
+     * @param  \Closure(): TValue  $callback  Callback to load vocabulary
+     * @return TValue
+     */
+    public function cacheEuroSciVoc(\Closure $callback): mixed
+    {
+        return $this->cacheVocabulary(CacheKey::EUROSCIVOC, $callback);
+    }
+
+    /**
      * Generic method to cache any vocabulary.
      *
      * @template TValue
