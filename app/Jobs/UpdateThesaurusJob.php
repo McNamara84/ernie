@@ -166,6 +166,7 @@ class UpdateThesaurusJob implements ShouldQueue
         return match ($this->thesaurusType) {
             ThesaurusSetting::TYPE_CHRONOSTRAT, ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'Fetching data from ARDC Linked Data API...',
             ThesaurusSetting::TYPE_GEMET => 'Fetching data from GEMET REST API...',
+            ThesaurusSetting::TYPE_EUROSCIVOC => 'Fetching data from EU Publications Office SPARQL endpoint...',
             default => 'Fetching data from NASA KMS API...',
         };
     }
@@ -182,6 +183,7 @@ class UpdateThesaurusJob implements ShouldQueue
             ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
             ThesaurusSetting::TYPE_GEMET => 'get-gemet-thesaurus',
             ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
+            ThesaurusSetting::TYPE_EUROSCIVOC => 'get-euroscivoc',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->thesaurusType}"),
         };
     }

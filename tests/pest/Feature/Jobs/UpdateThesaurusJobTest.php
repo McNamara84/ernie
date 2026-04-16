@@ -22,6 +22,8 @@ describe('constructor validation', function () {
             ThesaurusSetting::TYPE_INSTRUMENTS,
             ThesaurusSetting::TYPE_CHRONOSTRAT,
             ThesaurusSetting::TYPE_GEMET,
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
+            ThesaurusSetting::TYPE_EUROSCIVOC,
         ];
 
         foreach ($validTypes as $type) {
@@ -183,6 +185,9 @@ describe('handle', function () {
             ThesaurusSetting::TYPE_PLATFORMS => 'get-gcmd-platforms',
             ThesaurusSetting::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
             ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
+            ThesaurusSetting::TYPE_GEMET => 'get-gemet-thesaurus',
+            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
+            ThesaurusSetting::TYPE_EUROSCIVOC => 'get-euroscivoc',
         ];
 
         foreach ($mapping as $type => $expectedCommand) {
@@ -197,6 +202,49 @@ describe('handle', function () {
             $job->handle();
         }
     });
+    it('maps EuroSciVoc type to correct artisan command', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-euroscivoc')
+            ->once()
+            ->andReturn(0);
+
+        Artisan::shouldReceive('output')->never();
+
+        $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_EUROSCIVOC, $uuid);
+        $job->handle();
+
+        $cached = Cache::get($cacheKey);
+
+        expect($cached)
+            ->toBeArray()
+            ->and($cached['status'])->toBe('completed')
+            ->and($cached['thesaurusType'])->toBe(ThesaurusSetting::TYPE_EUROSCIVOC);
+    });
+
+    it('uses EU Publications Office progress message for EuroSciVoc type', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-euroscivoc')
+            ->once()
+            ->andReturnUsing(function () use ($cacheKey) {
+                $cached = Cache::get($cacheKey);
+                expect($cached)
+                    ->toBeArray()
+                    ->and($cached['status'])->toBe('running')
+                    ->and($cached['progress'])->toBe('Fetching data from EU Publications Office SPARQL endpoint...');
+
+                return 0;
+            });
+
+        $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_EUROSCIVOC, $uuid);
+        $job->handle();
+    });
+
     it('uses ARDC progress message for chronostrat type', function () {
         $uuid = (string) Str::uuid();
         $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
