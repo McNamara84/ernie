@@ -14,7 +14,6 @@ use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Mockery;
 
 covers(
     LandingPageTemplateController::class,
