@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
 
@@ -552,17 +552,20 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     ))}
                                     {customTemplates.filter((ct) => !ct.is_default).length > 0 && (
                                         <>
-                                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Custom Templates</div>
-                                            {customTemplates
-                                                .filter((ct) => !ct.is_default)
-                                                .map((ct) => (
-                                                    <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
-                                                        <div className="flex flex-col">
-                                                            <span>{ct.name}</span>
-                                                            <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
+                                            <SelectSeparator />
+                                            <SelectGroup>
+                                                <SelectLabel>Custom Templates</SelectLabel>
+                                                {customTemplates
+                                                    .filter((ct) => !ct.is_default)
+                                                    .map((ct) => (
+                                                        <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
+                                                            <div className="flex flex-col">
+                                                                <span>{ct.name}</span>
+                                                                <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                            </SelectGroup>
                                         </>
                                     )}
                                 </SelectContent>

@@ -541,7 +541,7 @@ describe('LandingPageTemplatesPage', () => {
             // The hidden file input should exist
             const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
             expect(fileInput).toBeInTheDocument();
-            expect(fileInput).toHaveAttribute('accept', 'image/png,image/jpeg,image/svg+xml,image/webp');
+            expect(fileInput).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp');
         });
 
         it('uploads logo file on selection', async () => {
