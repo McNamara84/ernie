@@ -44,10 +44,9 @@ class UpdateLandingPageTemplateRequest extends FormRequest
     {
         $validator->after(function (\Illuminate\Validation\Validator $validator): void {
             // Validate right column order contains exactly all valid sections
-            if ($this->has('right_column_order')) {
-                /** @var array<int, string> $rightOrder */
+            if ($this->has('right_column_order') && ! $validator->errors()->has('right_column_order')) {
                 $rightOrder = $this->input('right_column_order', []);
-                if (! LandingPageTemplate::isValidSectionOrder($rightOrder, LandingPageTemplate::RIGHT_COLUMN_SECTIONS)) {
+                if (is_array($rightOrder) && ! LandingPageTemplate::isValidSectionOrder($rightOrder, LandingPageTemplate::RIGHT_COLUMN_SECTIONS)) {
                     $validator->errors()->add(
                         'right_column_order',
                         'Right column order must contain exactly all valid section keys without duplicates.'
@@ -56,10 +55,9 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             }
 
             // Validate left column order contains exactly all valid sections
-            if ($this->has('left_column_order')) {
-                /** @var array<int, string> $leftOrder */
+            if ($this->has('left_column_order') && ! $validator->errors()->has('left_column_order')) {
                 $leftOrder = $this->input('left_column_order', []);
-                if (! LandingPageTemplate::isValidSectionOrder($leftOrder, LandingPageTemplate::LEFT_COLUMN_SECTIONS)) {
+                if (is_array($leftOrder) && ! LandingPageTemplate::isValidSectionOrder($leftOrder, LandingPageTemplate::LEFT_COLUMN_SECTIONS)) {
                     $validator->errors()->add(
                         'left_column_order',
                         'Left column order must contain exactly all valid section keys without duplicates.'

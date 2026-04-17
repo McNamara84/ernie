@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             ThesaurusSettingSeeder::class,
             PidSettingSeeder::class,
             DatacenterSeeder::class,
+            LandingPageTemplateSeeder::class,
         ]);
 
         // Only create test data in testing environment (for automated tests)

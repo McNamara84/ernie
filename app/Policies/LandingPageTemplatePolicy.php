@@ -57,7 +57,8 @@ class LandingPageTemplatePolicy
 
     /**
      * Determine whether the user can delete the template.
-     * Default templates and templates in use cannot be deleted.
+     * Default templates cannot be deleted.
+     * In-use check is enforced in the controller's destroy() method.
      */
     public function delete(User $user, LandingPageTemplate $template): bool
     {

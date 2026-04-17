@@ -39,6 +39,7 @@ class LandingPageTemplateController extends Controller
         $this->authorize('viewAny', LandingPageTemplate::class);
 
         $templates = LandingPageTemplate::query()
+            ->with('creator:id,name')
             ->withCount('landingPages')
             ->orderByDesc('is_default')
             ->orderBy('name')

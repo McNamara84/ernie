@@ -64,15 +64,17 @@ function SortableSectionItem({ id, label }: { id: string; label: string }) {
             style={style}
             className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm"
         >
-            <button
+            <Button
+                variant="ghost"
+                size="icon"
                 type="button"
                 aria-label={`Reorder ${label}`}
-                className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
+                className="size-6 cursor-grab touch-none text-muted-foreground hover:text-foreground"
                 {...attributes}
                 {...listeners}
             >
                 <GripVertical className="size-4" />
-            </button>
+            </Button>
             <span className="flex-1">{label}</span>
         </div>
     );
@@ -506,8 +508,8 @@ export default function LandingPageTemplatesPage() {
                             Are you sure you want to delete &ldquo;{deleteTemplate?.name}&rdquo;?
                             {(deleteTemplate?.landing_pages_count ?? 0) > 0 && (
                                 <span className="mt-2 block font-medium text-destructive">
-                                    This template is currently used by {deleteTemplate?.landing_pages_count} landing page(s).
-                                    Those pages will revert to the default template.
+                                    This template is currently used by {deleteTemplate?.landing_pages_count} landing page(s) and cannot be deleted.
+                                    Please reassign those pages to a different template first.
                                 </span>
                             )}
                         </AlertDialogDescription>

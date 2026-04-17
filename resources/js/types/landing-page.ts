@@ -65,6 +65,22 @@ export interface LandingPageTemplateConfig {
 }
 
 /**
+ * Lightweight template summary returned by `/api/landing-page-templates`.
+ *
+ * Only the fields the API actually returns – used in the SetupLandingPageModal dropdown.
+ */
+export interface LandingPageTemplateSummary {
+    id: number;
+    name: string;
+    slug: string;
+    is_default: boolean;
+    logo_path: string | null;
+    logo_url: string | null;
+    right_column_order: RightColumnSection[];
+    left_column_order: LeftColumnSection[];
+}
+
+/**
  * Landing Page Domain
  *
  * Represents a domain entry for external landing page URLs.

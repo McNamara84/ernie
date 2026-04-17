@@ -194,7 +194,9 @@ class LandingPageController extends Controller
                 // We don't set them here to avoid redundancy and ensure single source of truth.
                 $createData = [
                     'template' => $validated['template'],
-                    'landing_page_template_id' => $validated['landing_page_template_id'] ?? null,
+                    'landing_page_template_id' => $validated['template'] === 'default_gfz'
+                        ? ($validated['landing_page_template_id'] ?? null)
+                        : null,
                     'ftp_url' => $validated['ftp_url'] ?? null,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
@@ -414,7 +416,9 @@ class LandingPageController extends Controller
                 $landingPage->template = $validated['template'];
             }
             if (array_key_exists('landing_page_template_id', $validated)) {
-                $landingPage->landing_page_template_id = $validated['landing_page_template_id'];
+                $landingPage->landing_page_template_id = $effectiveTemplate === 'default_gfz'
+                    ? $validated['landing_page_template_id']
+                    : null;
             }
             if (array_key_exists('ftp_url', $validated)) {
                 $landingPage->ftp_url = $validated['ftp_url'];

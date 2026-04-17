@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateConfig } from '@/types/landing-page';
+import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -98,7 +98,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
 
     // Custom templates state
-    const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateConfig[]>([]);
+    const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
 
     // Landing page template ID (for custom templates)
     const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(existingConfig?.landing_page_template_id ?? null);
@@ -160,7 +160,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const loadCustomTemplates = async () => {
         try {
-            const response = await axios.get<{ templates: LandingPageTemplateConfig[] }>('/api/landing-page-templates');
+            const response = await axios.get<{ templates: LandingPageTemplateSummary[] }>('/api/landing-page-templates');
             setCustomTemplates(response.data.templates ?? []);
         } catch (error) {
             console.error('Failed to load custom templates:', error);
