@@ -58,6 +58,10 @@
         ],
         "improvements": [
             {
+                "title": "Clickable ORCID and ROR Links in Assistance Suggestions",
+                "description": "Suggested ORCIDs and ROR-IDs on the Assistance page are now clickable links that open the corresponding profile on orcid.org or ror.org in a new browser tab. This allows curators to quickly verify a suggested identifier without manually navigating to the external service."
+            },
+            {
                 "title": "Editable Affiliation Names with ROR-ID Preservation",
                 "description": "Affiliation names in the Authors and Contributors sections can now be edited after selecting an entry from the ROR autocomplete. For example, after selecting 'GFZ Helmholtz Centre for Geosciences', the name can be changed to 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany' while the linked ROR identifier is preserved. Commas can be used freely during editing without splitting the tag."
             },

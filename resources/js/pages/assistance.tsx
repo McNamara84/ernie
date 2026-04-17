@@ -4,6 +4,8 @@ import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-reac
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { validateORCID } from '@/utils/validation-rules';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +39,21 @@ function similarityColor(score: number): string {
     if (score >= 0.8) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
     if (score >= 0.5) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
     return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+}
+
+const ROR_ID_PATTERN = /^\/0[a-z0-9]{6}\d{2}$/;
+
+function isValidOrcidId(id: string): boolean {
+    return validateORCID(id).isValid;
+}
+
+function isValidRorUrl(url: string): boolean {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:' && parsed.hostname === 'ror.org' && ROR_ID_PATTERN.test(parsed.pathname);
+    } catch {
+        return false;
+    }
 }
 
 function SuggestionCard({
@@ -124,7 +141,19 @@ function OrcidSuggestionCard({
 
                     <div className="space-y-1">
                         <p className="font-mono text-sm">
-                            ORCID: {suggestion.suggested_orcid}
+                            ORCID:{' '}
+                            {isValidOrcidId(suggestion.suggested_orcid) ? (
+                                <a
+                                    href={`https://orcid.org/${suggestion.suggested_orcid}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary underline hover:text-primary/80"
+                                >
+                                    {suggestion.suggested_orcid}
+                                </a>
+                            ) : (
+                                suggestion.suggested_orcid
+                            )}
                         </p>
                         {candidateName && (
                             <p className="text-sm text-muted-foreground">
@@ -221,7 +250,19 @@ function RorSuggestionCard({
                             &rarr; {suggestion.suggested_name}
                         </p>
                         <p className="font-mono text-xs text-muted-foreground">
-                            ROR: {suggestion.suggested_ror_id}
+                            ROR:{' '}
+                            {isValidRorUrl(suggestion.suggested_ror_id) ? (
+                                <a
+                                    href={suggestion.suggested_ror_id}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary underline hover:text-primary/80"
+                                >
+                                    {suggestion.suggested_ror_id}
+                                </a>
+                            ) : (
+                                suggestion.suggested_ror_id
+                            )}
                         </p>
                         {suggestion.ror_aliases.length > 0 && (
                             <p className="text-xs text-muted-foreground">
