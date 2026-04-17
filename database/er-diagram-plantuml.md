@@ -437,6 +437,21 @@ entity "alternate_identifiers" as alternate_identifiers {
 ' APPLICATION-SPECIFIC TABLES
 ' ==========================================================================
 
+entity "landing_page_templates" as landing_page_templates {
+    * **id** : BIGINT <<PK>>
+    --
+    * name : VARCHAR <<UK>>
+    * slug : VARCHAR <<UK>>
+    * is_default : BOOLEAN = false
+    logo_path : VARCHAR
+    logo_filename : VARCHAR
+    * right_column_order : JSON
+    * left_column_order : JSON
+    created_by : BIGINT <<FK>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "landing_pages" as landing_pages {
     * **id** : BIGINT <<PK>>
     --
@@ -444,6 +459,7 @@ entity "landing_pages" as landing_pages {
     doi_prefix : VARCHAR
     * slug : VARCHAR
     * template : VARCHAR(50) = 'default_gfz'
+    landing_page_template_id : BIGINT <<FK>>
     ftp_url : VARCHAR(2048)
     external_domain_id : BIGINT <<FK>>
     external_path : VARCHAR(2048)
@@ -924,10 +940,12 @@ right_resource_type_exclusions }o--|| resource_types
 ' User self-reference
 users }o--o| users : "deactivated_by"
 
-' Landing page domains
+' Landing page relationships
 landing_pages }o--o| landing_page_domains
 landing_pages ||--o{ landing_page_files
 landing_pages ||--o{ landing_page_links
+landing_pages }o--o| landing_page_templates
+landing_page_templates }o--o| users
 
 ' IGSN relationships
 igsn_metadata ||--|| resources

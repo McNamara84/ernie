@@ -519,7 +519,7 @@ export default function LandingPageTemplatesPage() {
                         <AlertDialogAction
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={handleDelete}
-                            disabled={deleting}
+                            disabled={deleting || (deleteTemplate?.landing_pages_count ?? 0) > 0}
                         >
                             {deleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>

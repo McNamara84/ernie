@@ -29,7 +29,7 @@ class UpdateLandingPageTemplateRequest extends FormRequest
         $template = $this->route('landingPageTemplate');
 
         return [
-            'name' => ['sometimes', 'string', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
+            'name' => ['sometimes', 'string', 'min:1', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
             'right_column_order' => ['sometimes', 'array'],
             'right_column_order.*' => ['required', 'string', Rule::in(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)],
             'left_column_order' => ['sometimes', 'array'],

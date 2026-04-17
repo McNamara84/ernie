@@ -176,15 +176,14 @@ class LandingPageTemplateController extends Controller
             return response()->json(['message' => 'No file provided'], 422);
         }
 
-        // Delete old logo if exists
-        if ($landingPageTemplate->logo_path !== null) {
-            Storage::disk('public')->delete($landingPageTemplate->logo_path);
-        }
+        $oldLogoPath = $landingPageTemplate->logo_path;
 
+        // Store new file first to avoid losing the old logo on failure
         $directory = 'landing-page-logos/' . $landingPageTemplate->slug;
-        $path = $file->store($directory, 'public');
 
-        if ($path === false) {
+        try {
+            $path = $file->store($directory, 'public');
+        } catch (\Throwable) {
             return response()->json(['message' => 'Failed to store logo file'], 500);
         }
 
@@ -192,6 +191,11 @@ class LandingPageTemplateController extends Controller
             'logo_path' => $path,
             'logo_filename' => $file->getClientOriginalName(),
         ]);
+
+        // Delete old logo only after new one is persisted
+        if ($oldLogoPath !== null) {
+            Storage::disk('public')->delete($oldLogoPath);
+        }
 
         return response()->json([
             'message' => 'Logo uploaded successfully',

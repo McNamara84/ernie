@@ -750,12 +750,15 @@ describe('Delete with Logo Cleanup', function (): void {
 
         $file = UploadedFile::fake()->image('logo.png', 200, 100);
 
-        // Mock Storage facade - putFileAs returns false to simulate storage failure
-        $fakeDisk = Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
-        $fakeDisk->shouldReceive('delete')->andReturn(true);
-        $fakeDisk->shouldReceive('putFileAs')->once()->andReturn(false);
+        // Mock Storage facade to throw exception simulating disk failure
+        Storage::shouldReceive('disk')
+            ->with('public')
+            ->andReturnUsing(function () {
+                $mock = \Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
+                $mock->shouldReceive('putFileAs')->andThrow(new \RuntimeException('Disk full'));
 
-        Storage::shouldReceive('disk')->with('public')->andReturn($fakeDisk);
+                return $mock;
+            });
 
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", [

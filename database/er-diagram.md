@@ -383,12 +383,27 @@ erDiagram
     %% APPLICATION-SPECIFIC TABLES
     %% =========================================================================
 
+    landing_page_templates {
+        bigint id PK
+        varchar name UK
+        varchar slug UK
+        boolean is_default "default false"
+        varchar logo_path "nullable"
+        varchar logo_filename "nullable"
+        json right_column_order
+        json left_column_order
+        bigint created_by FK "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     landing_pages {
         bigint id PK
         bigint resource_id FK "UK, 1:1 with resources"
         varchar doi_prefix
         varchar slug "unique with doi_prefix"
         varchar template
+        bigint landing_page_template_id FK "nullable"
         varchar ftp_url
         bigint external_domain_id FK "nullable"
         varchar external_path "2048, nullable"
@@ -856,10 +871,12 @@ erDiagram
     resource_datacenter }o--|| resources : "resource"
     resource_datacenter }o--|| datacenters : "datacenter"
 
-    %% Landing page domains
+    %% Landing page relationships
     landing_pages }o--o| landing_page_domains : "external domain"
     landing_pages ||--o{ landing_page_files : "has files"
     landing_pages ||--o{ landing_page_links : "has links"
+    landing_pages }o--o| landing_page_templates : "uses template"
+    landing_page_templates }o--o| users : "created by"
 
     %% IGSN relationships
     igsn_metadata ||--|| resources : "extends"
