@@ -25,7 +25,7 @@ describe('extractConcepts', function (): void {
          xml:lang="en">
     <skosxl:Label rdf:about="http://example.org/label/1">
         <skosxl:literalForm xml:lang="en">natural sciences</skosxl:literalForm>
-        <skosxl:literalForm xml:lang="de">Naturwissenschaften</skosxl:literalForm>
+        <skosxl:literalForm xml:lang="de">German label</skosxl:literalForm>
     </skosxl:Label>
     <skosxl:Label rdf:about="http://example.org/label/2">
         <skosxl:literalForm xml:lang="en">physics</skosxl:literalForm>
@@ -71,7 +71,7 @@ XML;
         <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
         <skos:topConceptOf rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
         <skos:prefLabel xml:lang="en">engineering and technology</skos:prefLabel>
-        <skos:prefLabel xml:lang="de">Ingenieurwissenschaften und Technologie</skos:prefLabel>
+        <skos:prefLabel xml:lang="de">German label</skos:prefLabel>
     </skos:Concept>
 </rdf:RDF>
 XML;
@@ -308,6 +308,180 @@ XML;
 
         expect($concepts)->toHaveCount(1)
             ->and($concepts[0]['text'])->toBe('plain fallback');
+    });
+
+    it('extracts concepts from rdf:Description format with rdf:type', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="http://example.org/label/1">
+        <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">natural sciences</literalForm>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="de">German label</literalForm>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/label/2">
+        <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">physics</literalForm>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/concept/1">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <topConceptOf xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <prefLabel xmlns="http://www.w3.org/2008/05/skos-xl#" rdf:resource="http://example.org/label/1"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/concept/2">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <broader xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://example.org/concept/1"/>
+        <prefLabel xmlns="http://www.w3.org/2008/05/skos-xl#" rdf:resource="http://example.org/label/2"/>
+    </rdf:Description>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(2)
+            ->and($concepts[0])->toMatchArray([
+                'id' => 'http://example.org/concept/1',
+                'text' => 'natural sciences',
+                'language' => 'en',
+                'isTopConcept' => true,
+                'broaderId' => null,
+            ])
+            ->and($concepts[1])->toMatchArray([
+                'id' => 'http://example.org/concept/2',
+                'text' => 'physics',
+                'language' => 'en',
+                'isTopConcept' => false,
+                'broaderId' => 'http://example.org/concept/1',
+            ]);
+    });
+
+    it('extracts concepts from rdf:Description format with plain SKOS labels', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="http://example.org/concept/1">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <topConceptOf xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="en">engineering and technology</prefLabel>
+        <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="de">German label</prefLabel>
+    </rdf:Description>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(1)
+            ->and($concepts[0]['text'])->toBe('engineering and technology')
+            ->and($concepts[0]['isTopConcept'])->toBeTrue();
+    });
+
+    it('skips rdf:Description concepts not belonging to the target scheme', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="http://example.org/concept/1">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="en">natural sciences</prefLabel>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/concept/other">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://example.org/other-scheme"/>
+        <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="en">should be skipped</prefLabel>
+    </rdf:Description>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(1)
+            ->and($concepts[0]['text'])->toBe('natural sciences');
+    });
+
+    it('handles mixed abbreviated and rdf:Description formats', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+         xmlns:skosxl="http://www.w3.org/2008/05/skos-xl#">
+    <skosxl:Label rdf:about="http://example.org/label/1">
+        <skosxl:literalForm xml:lang="en">abbreviated concept</skosxl:literalForm>
+    </skosxl:Label>
+    <rdf:Description rdf:about="http://example.org/label/2">
+        <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">description concept</literalForm>
+    </rdf:Description>
+    <skos:Concept rdf:about="http://example.org/concept/1">
+        <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skos:topConceptOf rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <skosxl:prefLabel rdf:resource="http://example.org/label/1"/>
+    </skos:Concept>
+    <rdf:Description rdf:about="http://example.org/concept/2">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <broader xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://example.org/concept/1"/>
+        <prefLabel xmlns="http://www.w3.org/2008/05/skos-xl#" rdf:resource="http://example.org/label/2"/>
+    </rdf:Description>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(2);
+
+        $texts = array_column($concepts, 'text');
+        expect($texts)->toContain('abbreviated concept')
+            ->and($texts)->toContain('description concept');
+    });
+
+    it('builds full hierarchy from rdf:Description format', function (): void {
+        $rdf = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="http://example.org/label/root">
+        <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">natural sciences</literalForm>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/label/child1">
+        <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">physics</literalForm>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/label/child2">
+        <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">chemistry</literalForm>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/concept/root">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <topConceptOf xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <prefLabel xmlns="http://www.w3.org/2008/05/skos-xl#" rdf:resource="http://example.org/label/root"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/concept/child1">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <broader xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://example.org/concept/root"/>
+        <prefLabel xmlns="http://www.w3.org/2008/05/skos-xl#" rdf:resource="http://example.org/label/child1"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/concept/child2">
+        <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+        <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
+        <broader xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://example.org/concept/root"/>
+        <prefLabel xmlns="http://www.w3.org/2008/05/skos-xl#" rdf:resource="http://example.org/label/child2"/>
+    </rdf:Description>
+</rdf:RDF>
+XML;
+
+        $concepts = $this->parser->extractConcepts($rdf, $this->conceptSchemeUri);
+        $result = $this->parser->buildHierarchy($concepts, 'EuroSciVoc', $this->conceptSchemeUri);
+
+        expect($concepts)->toHaveCount(3)
+            ->and($result['data'])->toHaveCount(1)
+            ->and($result['data'][0]['text'])->toBe('natural sciences')
+            ->and($result['data'][0]['children'])->toHaveCount(2)
+            ->and($result['data'][0]['children'][0]['text'])->toBe('chemistry')
+            ->and($result['data'][0]['children'][1]['text'])->toBe('physics');
     });
 });
 
