@@ -56,9 +56,10 @@ class EuroSciVocParser
         // First, build a map of SKOS-XL label URIs → literal forms (English only)
         $xlLabelMap = $this->buildXlLabelMap($xml);
 
-        $conceptElements = $xml->xpath('//skos:Concept');
+        // Support both abbreviated (<skos:Concept>) and full (<rdf:Description> + rdf:type) RDF/XML
+        $conceptElements = $this->findElementsByType($xml, self::SKOS_NS.'Concept');
 
-        if ($conceptElements === false || $conceptElements === null) {
+        if ($conceptElements === []) {
             return [];
         }
 
@@ -207,6 +208,49 @@ class EuroSciVocParser
     }
 
     /**
+     * Find XML elements by their RDF type URI.
+     *
+     * Supports both abbreviated RDF/XML (e.g. `<skos:Concept>`) and
+     * full RDF/XML (`<rdf:Description>` with `<rdf:type>` child).
+     *
+     * @return list<\SimpleXMLElement>
+     */
+    private function findElementsByType(\SimpleXMLElement $xml, string $typeUri): array
+    {
+        // Determine the namespace prefix registered for the type's namespace
+        $lastHash = strrpos($typeUri, '#');
+        $namespace = $lastHash !== false ? substr($typeUri, 0, $lastHash + 1) : '';
+        $localName = $lastHash !== false ? substr($typeUri, $lastHash + 1) : $typeUri;
+
+        // Map namespace URIs to the XPath prefixes registered on $xml
+        $prefixMap = [
+            self::SKOS_NS => 'skos',
+            self::SKOSXL_NS => 'skosxl',
+        ];
+
+        $elements = [];
+
+        // Strategy 1: Abbreviated RDF/XML – typed element name (e.g. <skos:Concept>)
+        if (isset($prefixMap[$namespace])) {
+            $prefix = $prefixMap[$namespace];
+            $abbreviated = $xml->xpath("//{$prefix}:{$localName}");
+            if ($abbreviated !== false && $abbreviated !== null) {
+                $elements = $abbreviated;
+            }
+        }
+
+        // Strategy 2: Full RDF/XML – <rdf:Description> with <rdf:type rdf:resource="...">
+        $descriptions = $xml->xpath(
+            "//rdf:Description[rdf:type[@rdf:resource='{$typeUri}']]"
+        );
+        if ($descriptions !== false && $descriptions !== null) {
+            $elements = array_merge($elements, $descriptions);
+        }
+
+        return array_values($elements);
+    }
+
+    /**
      * Build a map of SKOS-XL label URIs to their English literal forms.
      *
      * @return array<string, string> Map of label URI → English literal form
@@ -215,9 +259,10 @@ class EuroSciVocParser
     {
         $map = [];
 
-        $labelElements = $xml->xpath('//skosxl:Label');
+        // Support both abbreviated (<skosxl:Label>) and full (<rdf:Description> + rdf:type) RDF/XML
+        $labelElements = $this->findElementsByType($xml, self::SKOSXL_NS.'Label');
 
-        if ($labelElements === false || $labelElements === null) {
+        if ($labelElements === []) {
             return $map;
         }
 
