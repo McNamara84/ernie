@@ -452,3 +452,57 @@ describe('External Landing Page Redirect', function () {
         $response->assertRedirect('https://example.org/leading/slash/path');
     });
 });
+
+describe('Landing Page with Custom Template', function () {
+    test('renders landing page with custom template section order and logo', function () {
+        $template = \App\Models\LandingPageTemplate::factory()->create([
+            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'right_column_order' => ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/custom-logo.png',
+        ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'template-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->has('sectionOrder', fn ($order) => $order
+                    ->has('rightColumn')
+                    ->has('leftColumn')
+                )
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-logo.png'))
+            );
+    });
+
+    test('renders landing page without custom template (default)', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'no-template-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => null,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('sectionOrder', null)
+                ->where('customLogoUrl', null)
+            );
+    });
+});

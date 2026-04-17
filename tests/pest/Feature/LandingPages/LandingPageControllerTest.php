@@ -412,3 +412,80 @@ describe('External Landing Page Update', function () {
             ->external_path->toBeNull();
     });
 });
+
+describe('Landing Page Template Assignment', function () {
+    test('can create landing page with custom template', function () {
+        $template = \App\Models\LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(201);
+
+        $landingPage = $this->resource->fresh()->landingPage;
+        expect($landingPage->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('can update landing page template assignment', function () {
+        $template = \App\Models\LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'landing_page_template_id' => null,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertOk();
+
+        $landingPage = $this->resource->fresh()->landingPage;
+        expect($landingPage->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('can clear template assignment by setting null', function () {
+        $template = \App\Models\LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => null,
+        ]);
+
+        $response->assertOk();
+
+        $landingPage = $this->resource->fresh()->landingPage;
+        expect($landingPage->landing_page_template_id)->toBeNull();
+    });
+
+    test('rejects invalid template id', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => 99999,
+        ]);
+
+        $response->assertJsonValidationErrors(['landing_page_template_id']);
+    });
+});

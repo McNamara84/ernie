@@ -36,7 +36,9 @@ use Illuminate\Support\Str;
  * @property-read string $contact_url Internal contact form URL (computed from internal path)
  * @property-read string $status 'published' or 'draft'
  * @property-read string|null $external_url Composed external URL (domain + path), null for internal pages
+ * @property int|null $landing_page_template_id FK to landing_page_templates table
  * @property-read LandingPageDomain|null $externalDomain The domain used for external landing pages
+ * @property-read LandingPageTemplate|null $landingPageTemplate The custom template configuration
  *
  * ## Slug Immutability
  *
@@ -82,7 +84,7 @@ use Illuminate\Support\Str;
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
  */
-#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'ftp_url', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
+#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
 class LandingPage extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageFactory> */
@@ -312,6 +314,22 @@ class LandingPage extends Model
     {
         /** @var BelongsTo<\App\Models\LandingPageDomain, static> $relation */
         $relation = $this->belongsTo(LandingPageDomain::class, 'external_domain_id');
+
+        return $relation;
+    }
+
+    /**
+     * Get the custom template configuration for this landing page.
+     *
+     * When set, this provides custom section ordering and logo overrides.
+     * When null, the built-in default layout is used.
+     *
+     * @return BelongsTo<\App\Models\LandingPageTemplate, static>
+     */
+    public function landingPageTemplate(): BelongsTo
+    {
+        /** @var BelongsTo<\App\Models\LandingPageTemplate, static> $relation */
+        $relation = $this->belongsTo(LandingPageTemplate::class);
 
         return $relation;
     }

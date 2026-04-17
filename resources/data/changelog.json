@@ -4,6 +4,10 @@
         "date": "2026-04-17",
         "features": [
             {
+                "title": "Landing Page Template Management",
+                "description": "Admins and Group Leaders can now create custom landing page templates by cloning the immutable Default GFZ template. Custom templates allow renaming, replacing the header logo with a custom image, and reordering all content sections via drag-and-drop with a live preview. Templates created this way appear in the template dropdown when setting up a landing page for a resource. Templates that are currently in use by landing pages are protected from deletion."
+            },
+            {
                 "title": "European Science Vocabulary (EuroSciVoc) Thesaurus",
                 "description": "A new controlled vocabulary 'European Science Vocabulary (EuroSciVoc)' has been integrated from the Publications Office of the European Union. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories extracted from CORDIS content. The vocabulary provides a hierarchical tree of scientific disciplines (e.g., Natural Sciences > Physical Sciences > Astronomy). It appears in the keyword editor alongside existing vocabularies and is available via the API. Administrators and group leaders can activate/deactivate and update the vocabulary in Editor Settings."
             },

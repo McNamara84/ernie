@@ -166,6 +166,13 @@ class AppServiceProvider extends ServiceProvider
                 || $user->role === UserRole::CURATOR;
         });
 
+        // Manage landing page templates (create, clone, update, delete)
+        // Only Admin and Group Leader can manage templates
+        Gate::define('manage-landing-page-templates', function (User $user): bool {
+            return $user->role === UserRole::ADMIN
+                || $user->role === UserRole::GROUP_LEADER;
+        });
+
         // Access to Assistance page (Admin, Group Leader)
         Gate::define('access-assistance', function (User $user): bool {
             return $user->role === UserRole::ADMIN
