@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AssistancePageProps, PaginatedData, BaseSuggestionItem, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
+import type { PaginatedData, BaseSuggestionItem, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
