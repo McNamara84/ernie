@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-16",
+        "date": "2026-04-17",
         "features": [
             {
                 "title": "European Science Vocabulary (EuroSciVoc) Thesaurus",
@@ -57,6 +57,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Official PID Icons on Landing Pages",
+                "description": "Replaced placeholder icons for ORCID, ROR, and Crossref Funder ID on landing pages with the official brand-compliant icons. ORCID and ROR icons now properly switch between light and dark mode variants according to the system color scheme preference. The ORCID icon shows the green circle in light mode and a white filled mark in dark mode, while the ROR icon displays the full official wordmark with appropriate color adaptation."
+            },
             {
                 "title": "Clickable ORCID and ROR Links in Assistance Suggestions",
                 "description": "Suggested ORCIDs and ROR-IDs on the Assistance page are now clickable links that open the corresponding profile on orcid.org or ror.org in a new browser tab. This allows curators to quickly verify a suggested identifier without manually navigating to the external service."
