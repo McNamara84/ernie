@@ -18,6 +18,8 @@ let mockUser = {
     can_access_statistics: true,
     can_access_users: true,
     can_access_editor_settings: true,
+    can_manage_landing_page_templates: false,
+    can_manage_landing_page_templates: false,
 };
 
 // Helper to set mock user for each test
@@ -29,7 +31,7 @@ const setMockUser = (
         can_access_old_datasets: boolean;
         can_access_statistics: boolean;
         can_access_users: boolean;
-        can_access_editor_settings: boolean;
+        can_manage_landing_page_templates: boolean;
     }> = {}
 ) => {
     mockUser = {
@@ -44,6 +46,7 @@ const setMockUser = (
         can_access_statistics: true,
         can_access_users: true,
         can_access_editor_settings: true,
+        can_manage_landing_page_templates: false,
         ...overrides,
     };
 };
@@ -306,5 +309,37 @@ describe('AppSidebar', () => {
         const footerArgs = NavFooterMock.mock.calls[0][0];
         const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
         expect(footerTitles).toContain('Editor Settings');
+    });
+
+    it('shows Landing Page Templates in Data Curation when user has permission', () => {
+        setMockUser({
+            role: 'admin',
+            can_manage_landing_page_templates: true,
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const dataCurationSection = sectionCalls.find((call) => call[0].label === 'Data Curation');
+        expect(dataCurationSection).toBeDefined();
+
+        const items = dataCurationSection![0].items.map((i: NavItem) => i.title);
+        expect(items).toContain('Landing Page Templates');
+    });
+
+    it('does not show Landing Page Templates when user lacks permission', () => {
+        setMockUser({
+            role: 'curator',
+            can_manage_landing_page_templates: false,
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const dataCurationSection = sectionCalls.find((call) => call[0].label === 'Data Curation');
+        expect(dataCurationSection).toBeDefined();
+
+        const items = dataCurationSection![0].items.map((i: NavItem) => i.title);
+        expect(items).not.toContain('Landing Page Templates');
     });
 });
