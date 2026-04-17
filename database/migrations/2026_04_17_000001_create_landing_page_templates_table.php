@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('landing_page_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->unique();
             $table->string('slug')->unique();
             $table->boolean('is_default')->default(false);
             $table->string('logo_path')->nullable();

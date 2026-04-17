@@ -29,7 +29,7 @@ class LandingPageTemplateController extends Controller
      *
      * @var list<string>
      */
-    private const ALLOWED_LOGO_MIMES = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
+    private const ALLOWED_LOGO_MIMES = ['png', 'jpg', 'jpeg', 'webp'];
 
     /**
      * Display the template management page.

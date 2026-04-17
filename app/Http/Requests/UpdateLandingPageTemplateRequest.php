@@ -29,7 +29,7 @@ class UpdateLandingPageTemplateRequest extends FormRequest
         $template = $this->route('landingPageTemplate');
 
         return [
-            'name' => ['sometimes', 'string', 'min:1', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
+            'name' => ['sometimes', 'filled', 'string', 'min:1', 'max:255', Rule::unique('landing_page_templates', 'name')->ignore($template->id)],
             'right_column_order' => ['sometimes', 'array'],
             'right_column_order.*' => ['required', 'string', Rule::in(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)],
             'left_column_order' => ['sometimes', 'array'],
@@ -65,5 +65,15 @@ class UpdateLandingPageTemplateRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('name')) {
+            $this->merge(['name' => trim($this->input('name'))]);
+        }
     }
 }

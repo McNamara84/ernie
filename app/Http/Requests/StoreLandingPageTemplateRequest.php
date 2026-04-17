@@ -24,7 +24,17 @@ class StoreLandingPageTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:landing_page_templates,name'],
+            'name' => ['required', 'filled', 'string', 'max:255', 'unique:landing_page_templates,name'],
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('name')) {
+            $this->merge(['name' => trim($this->input('name'))]);
+        }
     }
 }
