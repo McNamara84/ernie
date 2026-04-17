@@ -109,7 +109,7 @@ export function CrossrefFunderIcon({ className }: PidIconProps) {
             src="/images/pid-icons/crossref-funder.png"
             alt=""
             aria-hidden="true"
-            className={cn('h-4 w-auto', className)}
+            className={cn('h-4', className, 'w-auto')}
         />
     );
 }

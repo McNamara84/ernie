@@ -205,6 +205,13 @@ describe('PidIcons', () => {
             expect(img).toHaveClass('w-auto');
         });
 
+        it('preserves w-auto even when className contains a width override', () => {
+            const { container } = render(<CrossrefFunderIcon className="w-6" />);
+            const img = container.querySelector('img');
+            expect(img).toHaveClass('w-auto');
+            expect(img).not.toHaveClass('w-6');
+        });
+
         it('accepts custom className', () => {
             const { container } = render(<CrossrefFunderIcon className="h-6" />);
             const img = container.querySelector('img');
