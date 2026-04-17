@@ -11,6 +11,7 @@ import {
     Globe,
     HelpCircle,
     Layers,
+    LayoutTemplate,
     Link2,
     MapPin,
     Palette,
@@ -1213,6 +1214,62 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Note:</strong> Available domains are managed by administrators in Editor Settings. If you need a domain that
                                 is not listed, contact your administrator.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'landing-page-templates',
+                title: 'Landing Page Templates',
+                icon: LayoutTemplate,
+                minRole: 'group_leader',
+                content: (
+                    <>
+                        <h3>Custom Landing Page Templates</h3>
+                        <p>
+                            Admins and Group Leaders can create custom landing page templates to control the layout and branding of landing pages.
+                            Custom templates are cloned from the immutable <strong>Default GFZ</strong> template and allow customization of section
+                            order and header logo.
+                        </p>
+
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Open Template Management">
+                                <p>
+                                    Navigate to <strong>Landing Page Templates</strong> in the sidebar under Data Curation.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Clone Default Template">
+                                <p>
+                                    Click <strong>"New Template"</strong> and enter a unique name. The new template starts as an
+                                    exact copy of the Default GFZ template.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Reorder Sections">
+                                <p>
+                                    Click the edit icon on a template card. Use <strong>drag &amp; drop</strong> to rearrange the
+                                    right column sections (e.g., Descriptions, Creators, Dates) and left column sections (e.g.,
+                                    Files, Details, Map) independently.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">
+                                <p>
+                                    Click the image icon on a template card to upload a custom header logo (PNG, JPG, SVG, or
+                                    WebP, max 2 MB). The logo replaces the default GFZ logo on landing pages using this template.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={5} title="Use in Landing Pages">
+                                <p>
+                                    When setting up a landing page for a resource, custom templates appear in the template dropdown
+                                    alongside the built-in templates. Select a custom template to apply its layout and branding.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Note:</strong> The Default GFZ template cannot be modified or deleted. Custom templates that
+                                are currently in use by published landing pages are also protected from deletion.
                             </p>
                         </div>
                     </>
