@@ -33,7 +33,7 @@ class StoreLandingPageTemplateRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        if ($this->has('name')) {
+        if ($this->has('name') && is_string($this->input('name'))) {
             $this->merge(['name' => trim($this->input('name'))]);
         }
     }
