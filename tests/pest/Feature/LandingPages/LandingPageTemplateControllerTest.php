@@ -14,6 +14,7 @@ use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 
 covers(
     LandingPageTemplateController::class,
@@ -746,16 +747,16 @@ describe('Delete with Logo Cleanup', function (): void {
     });
 
     it('returns 500 when logo storage fails', function (): void {
-        Storage::fake('public');
-
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Make the store method return false to simulate storage failure
-        Storage::disk('public')->shouldReceive('putFileAs')->andReturn(false);
-        Storage::disk('public')->shouldReceive('putFile')->andReturn(false);
-        Storage::disk('public')->shouldReceive('put')->andReturn(false);
-
         $file = UploadedFile::fake()->image('logo.png', 200, 100);
+
+        // Mock Storage facade - putFileAs returns false to simulate storage failure
+        $fakeDisk = Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
+        $fakeDisk->shouldReceive('delete')->andReturn(true);
+        $fakeDisk->shouldReceive('putFileAs')->once()->andReturn(false);
+
+        Storage::shouldReceive('disk')->with('public')->andReturn($fakeDisk);
 
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", [

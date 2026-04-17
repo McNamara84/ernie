@@ -1134,8 +1134,6 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('prevents removal of published landing page with error toast', async () => {
-            const { toast } = await import('sonner');
-
             // Published config cannot be removed
             mockedAxiosGet.mockImplementation((url: string) => {
                 if (url.includes('/api/landing-page-templates')) {
