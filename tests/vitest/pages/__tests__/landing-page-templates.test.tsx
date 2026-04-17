@@ -495,25 +495,18 @@ describe('LandingPageTemplatesPage', () => {
             });
         });
 
-        it('shows error on delete failure', async () => {
-            const { toast } = await import('sonner');
-            mockedAxiosDelete.mockRejectedValue({
-                isAxiosError: true,
-                response: { data: { message: 'Template is in use by 2 landing page(s)' } },
-            });
+        it('disables delete button when template is in use', async () => {
             const user = userEvent.setup();
             render(<LandingPageTemplatesPage />);
 
+            // Open delete dialog for template with landing_pages_count > 0
             const deleteButtons = screen.getAllByRole('button', { name: /Delete/i });
             await user.click(deleteButtons[0]);
 
+            // The confirm button inside the AlertDialog should be disabled
             const confirmButtons = screen.getAllByRole('button', { name: /Delete/i });
             const alertDialogDelete = confirmButtons.find((btn) => btn.closest('[role="alertdialog"]'));
-            if (alertDialogDelete) await user.click(alertDialogDelete);
-
-            await waitFor(() => {
-                expect(toast.error).toHaveBeenCalledWith('Template is in use by 2 landing page(s)');
-            });
+            expect(alertDialogDelete).toBeDisabled();
         });
 
         it('shows generic error on delete failure', async () => {
