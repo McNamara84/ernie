@@ -202,28 +202,6 @@ describe('handle', function () {
             $job->handle();
         }
     });
-    it('maps EuroSciVoc type to correct artisan command', function () {
-        $uuid = (string) Str::uuid();
-        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
-
-        Artisan::shouldReceive('call')
-            ->with('get-euroscivoc')
-            ->once()
-            ->andReturn(0);
-
-        Artisan::shouldReceive('output')->never();
-
-        $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_EUROSCIVOC, $uuid);
-        $job->handle();
-
-        $cached = Cache::get($cacheKey);
-
-        expect($cached)
-            ->toBeArray()
-            ->and($cached['status'])->toBe('completed')
-            ->and($cached['thesaurusType'])->toBe(ThesaurusSetting::TYPE_EUROSCIVOC);
-    });
-
     it('uses EU Publications Office progress message for EuroSciVoc type', function () {
         $uuid = (string) Str::uuid();
         $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);

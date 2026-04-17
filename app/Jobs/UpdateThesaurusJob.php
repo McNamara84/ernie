@@ -173,19 +173,13 @@ class UpdateThesaurusJob implements ShouldQueue
 
     /**
      * Get the artisan command for this thesaurus type.
+     *
+     * Delegates to {@see ThesaurusSetting::getArtisanCommand()} to maintain
+     * a single source of truth for the type→command mapping.
      */
     private function getArtisanCommand(): string
     {
-        return match ($this->thesaurusType) {
-            ThesaurusSetting::TYPE_SCIENCE_KEYWORDS => 'get-gcmd-science-keywords',
-            ThesaurusSetting::TYPE_PLATFORMS => 'get-gcmd-platforms',
-            ThesaurusSetting::TYPE_INSTRUMENTS => 'get-gcmd-instruments',
-            ThesaurusSetting::TYPE_CHRONOSTRAT => 'get-chronostrat-timescale',
-            ThesaurusSetting::TYPE_GEMET => 'get-gemet-thesaurus',
-            ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
-            ThesaurusSetting::TYPE_EUROSCIVOC => 'get-euroscivoc',
-            default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->thesaurusType}"),
-        };
+        return (new ThesaurusSetting(['type' => $this->thesaurusType]))->getArtisanCommand();
     }
 
     /**
