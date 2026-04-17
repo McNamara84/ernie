@@ -9,6 +9,7 @@ import {
     History,
     Layers,
     LayoutGrid,
+    LayoutTemplate,
     MapPin,
     ScrollText,
     Settings,
@@ -50,6 +51,14 @@ export function AppSidebar() {
             icon: Layers,
         },
     ];
+
+    if (auth.user?.can_manage_landing_page_templates) {
+        dataCurationItems.push({
+            title: 'Landing Page Templates',
+            href: '/landing-pages',
+            icon: LayoutTemplate,
+        });
+    }
 
     // IGSN CURATION section
     const igsnCurationItems: NavItem[] = [

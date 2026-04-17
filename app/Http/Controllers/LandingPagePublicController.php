@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
@@ -276,9 +277,22 @@ class LandingPagePublicController extends Controller
             ->findOrFail($landingPage->resource_id);
 
         // Eager-load file and link entries for download URL display
-        $landingPage->loadMissing(['files', 'links']);
+        $landingPage->loadMissing(['files', 'links', 'landingPageTemplate']);
 
         $resourceData = $transformer->transform($resource);
+
+        // Build section order and logo from custom template (if set)
+        $sectionOrder = null;
+        $customLogoUrl = null;
+
+        if ($landingPage->landing_page_template_id !== null && $landingPage->landingPageTemplate !== null) {
+            $tmpl = $landingPage->landingPageTemplate;
+            $sectionOrder = [
+                'rightColumn' => $tmpl->right_column_order,
+                'leftColumn' => $tmpl->left_column_order,
+            ];
+            $customLogoUrl = $tmpl->logo_url;
+        }
 
         // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
         $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
@@ -294,6 +308,8 @@ class LandingPagePublicController extends Controller
             'landingPage' => $landingPage->toArray(),
             'isPreview' => (bool) $previewToken,
             'schemaOrgJsonLd' => $schemaOrgJsonLd,
+            'sectionOrder' => $sectionOrder,
+            'customLogoUrl' => $customLogoUrl,
         ];
 
         // Use the template specified in landing page configuration

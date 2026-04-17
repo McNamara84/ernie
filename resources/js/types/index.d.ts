@@ -63,6 +63,7 @@ export interface User {
     can_access_editor_settings?: boolean;
     // Landing page management permission (Issue #375)
     can_manage_landing_pages?: boolean;
+    can_manage_landing_page_templates?: boolean;
     // Assistance page permission
     can_access_assistance?: boolean;
     deactivated_at?: string | null;

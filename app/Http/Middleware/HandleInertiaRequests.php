@@ -72,6 +72,7 @@ class HandleInertiaRequests extends Middleware
                     'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
                     // Landing page management permission (Issue #375)
                     'can_manage_landing_pages' => $request->user()->can('manage-landing-pages'),
+                    'can_manage_landing_page_templates' => $request->user()->can('manage-landing-page-templates'),
                     // Assistance page permission
                     'can_access_assistance' => $request->user()->can('access-assistance'),
                 ] : null,

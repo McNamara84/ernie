@@ -7,6 +7,7 @@ use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
+use App\Http\Controllers\LandingPageTemplateController;
 use App\Http\Controllers\OaiPmh\OaiPmhController;
 use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
@@ -321,6 +322,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Landing Page Management (Admin)
     Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
         ->name('landing-page.store');
+
+    // Landing Page Template Management (Admin, Group Leader)
+    Route::middleware(['can:manage-landing-page-templates'])->group(function () {
+        Route::get('landing-pages', [LandingPageTemplateController::class, 'index'])
+            ->name('landing-page-templates.index');
+        Route::post('landing-pages', [LandingPageTemplateController::class, 'store'])
+            ->name('landing-page-templates.store');
+        Route::put('landing-pages/{landingPageTemplate}', [LandingPageTemplateController::class, 'update'])
+            ->name('landing-page-templates.update');
+        Route::delete('landing-pages/{landingPageTemplate}', [LandingPageTemplateController::class, 'destroy'])
+            ->name('landing-page-templates.destroy');
+        Route::post('landing-pages/{landingPageTemplate}/logo', [LandingPageTemplateController::class, 'uploadLogo'])
+            ->name('landing-page-templates.upload-logo');
+        Route::delete('landing-pages/{landingPageTemplate}/logo', [LandingPageTemplateController::class, 'deleteLogo'])
+            ->name('landing-page-templates.delete-logo');
+    });
+
+    // Landing Page Templates API - accessible to all authenticated users (for template dropdown)
+    Route::get('api/landing-page-templates', [LandingPageTemplateController::class, 'list'])
+        ->name('landing-page-templates.list');
 
     Route::put('resources/{resource}/landing-page', [LandingPageController::class, 'update'])
         ->name('landing-page.update');

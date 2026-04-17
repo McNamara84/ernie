@@ -1,6 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
+import { type ReactNode, useMemo } from 'react';
 
-import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
+import type { LandingPageConfig, LandingPageResource, LeftColumnSection, RightColumnSection, SectionOrder } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
 import { BackToTopButton } from './components/BackToTopButton';
@@ -29,12 +30,18 @@ interface DefaultGfzTemplatePageProps {
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
     schemaOrgJsonLd?: Record<string, unknown>;
+    sectionOrder?: SectionOrder | null;
+    customLogoUrl?: string | null;
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
 
+/** Default section orders matching the original layout */
+const DEFAULT_RIGHT_ORDER: RightColumnSection[] = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'];
+const DEFAULT_LEFT_ORDER: LeftColumnSection[] = ['files', 'contact', 'model_description', 'related_work'];
+
 export default function DefaultGfzTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd } = usePage<DefaultGfzTemplatePageProps>().props;
+    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl } = usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
 
     // Extract data for ResourceHero
@@ -43,6 +50,57 @@ export default function DefaultGfzTemplate() {
     const mainTitle = resource.titles?.find((t) => !t.title_type || t.title_type === 'MainTitle')?.title || 'Untitled';
     const subtitle = resource.titles?.find((t) => t.title_type === 'Subtitle')?.title;
     const citation = buildCitation(resource);
+
+    // Resolve section orders (custom template overrides or defaults)
+    const rightOrder = sectionOrder?.rightColumn ?? DEFAULT_RIGHT_ORDER;
+    const leftOrder = sectionOrder?.leftColumn ?? DEFAULT_LEFT_ORDER;
+
+    // Logo: custom template logo or default GFZ logo
+    const logoSrc = customLogoUrl ?? '/images/gfz-ds-logo.png';
+
+    // Section registry: map section keys to React elements
+    const rightSectionRegistry = useMemo((): Record<RightColumnSection, ReactNode> => {
+        const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
+        return {
+            descriptions: (
+                <AbstractSection
+                    key="descriptions"
+                    descriptions={resource.descriptions || []}
+                    creators={resource.creators || []}
+                    contributors={resource.contributors || []}
+                    fundingReferences={resource.funding_references || []}
+                    subjects={resource.subjects || []}
+                    resourceId={resource.id}
+                    jsonLdExportUrl={jsonLdExportUrl}
+                />
+            ),
+            creators: null, // Rendered inside AbstractSection
+            contributors: null, // Rendered inside AbstractSection
+            funders: null, // Rendered inside AbstractSection
+            keywords: null, // Rendered inside AbstractSection
+            metadata_download: null, // Rendered inside AbstractSection
+            location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
+        };
+    }, [resource, landingPage, isDark]);
+
+    const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
+        return {
+            files: (
+                <FilesSection
+                    key="files"
+                    downloadUrl={landingPage?.ftp_url}
+                    downloadFiles={landingPage?.files}
+                    licenses={resource.licenses || []}
+                    contactPersons={resource.contact_persons || []}
+                    datasetTitle={mainTitle}
+                    additionalLinks={landingPage?.links}
+                />
+            ),
+            contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
+            model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
+            related_work: <RelatedWorkSection key="related_work" relatedIdentifiers={resource.related_identifiers || []} resource={resource} />,
+        };
+    }, [resource, landingPage, mainTitle]);
 
     return (
         <>
@@ -88,7 +146,7 @@ export default function DefaultGfzTemplate() {
                             </a>
                         </div>
                         <div className="flex justify-center">
-                            <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className="h-24 dark:brightness-200 dark:invert" />
+                            <img src={logoSrc} alt="GFZ Data Services" className="h-24 dark:brightness-200 dark:invert" />
                         </div>
                     </header>
 
@@ -100,31 +158,12 @@ export default function DefaultGfzTemplate() {
                         <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                             {/* Right Column (Abstract, Location) — show first on mobile */}
                             <div className="order-1 space-y-6 lg:order-2 lg:col-span-2">
-                                <AbstractSection
-                                    descriptions={resource.descriptions || []}
-                                    creators={resource.creators || []}
-                                    contributors={resource.contributors || []}
-                                    fundingReferences={resource.funding_references || []}
-                                    subjects={resource.subjects || []}
-                                    resourceId={resource.id}
-                                    jsonLdExportUrl={landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined}
-                                />
-                                <LocationSection geoLocations={resource.geo_locations || []} isDark={isDark} />
+                                {rightOrder.map((key) => rightSectionRegistry[key]).filter(Boolean)}
                             </div>
 
                             {/* Left Column (Files, Contact, Related) — show second on mobile */}
                             <div className="order-2 space-y-6 lg:order-1 lg:col-span-1">
-                                <FilesSection
-                                    downloadUrl={landingPage?.ftp_url}
-                                    downloadFiles={landingPage?.files}
-                                    licenses={resource.licenses || []}
-                                    contactPersons={resource.contact_persons || []}
-                                    datasetTitle={mainTitle}
-                                    additionalLinks={landingPage?.links}
-                                />
-                                <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
-                                <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />
-                                <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} resource={resource} />
+                                {leftOrder.map((key) => leftSectionRegistry[key]).filter(Boolean)}
                             </div>
                         </div>
                     </main>

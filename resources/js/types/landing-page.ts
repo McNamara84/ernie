@@ -1,4 +1,70 @@
 /**
+ * Right column section identifiers for landing page templates.
+ */
+export type RightColumnSection = 'descriptions' | 'creators' | 'contributors' | 'funders' | 'keywords' | 'metadata_download' | 'location';
+
+/**
+ * Left column section identifiers for landing page templates.
+ */
+export type LeftColumnSection = 'files' | 'contact' | 'model_description' | 'related_work';
+
+/**
+ * Section order configuration for landing page templates.
+ */
+export interface SectionOrder {
+    rightColumn: RightColumnSection[];
+    leftColumn: LeftColumnSection[];
+}
+
+/**
+ * Custom Landing Page Template
+ *
+ * Represents a user-created template configuration (cloned from default).
+ * Templates define section order and optional custom logo.
+ */
+export interface LandingPageTemplateConfig {
+    /** Primary key */
+    id: number;
+
+    /** Template display name */
+    name: string;
+
+    /** URL-safe slug (unique) */
+    slug: string;
+
+    /** Whether this is the immutable default template */
+    is_default: boolean;
+
+    /** Storage path for custom logo */
+    logo_path: string | null;
+
+    /** Original filename of uploaded logo */
+    logo_filename: string | null;
+
+    /** Computed URL to logo image */
+    logo_url: string | null;
+
+    /** Ordered right column sections */
+    right_column_order: RightColumnSection[];
+
+    /** Ordered left column sections */
+    left_column_order: LeftColumnSection[];
+
+    /** ID of user who created this template */
+    created_by: number | null;
+
+    /** Creator user object (when loaded) */
+    creator?: { id: number; name: string } | null;
+
+    /** Number of landing pages using this template */
+    landing_pages_count?: number;
+
+    /** Timestamps */
+    created_at: string;
+    updated_at: string;
+}
+
+/**
  * Landing Page Domain
  *
  * Represents a domain entry for external landing page URLs.
@@ -66,6 +132,9 @@ export interface LandingPageConfig {
 
     /** Template identifier (e.g., 'default_gfz') */
     template: string;
+
+    /** FK to landing_page_templates table (null = use built-in default) */
+    landing_page_template_id?: number | null;
 
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
@@ -377,6 +446,10 @@ export interface LandingPageTemplateProps {
     landingPage: LandingPageConfig;
     /** Whether this is a preview (draft mode) */
     isPreview: boolean;
+    /** Custom section order from template (null = use default) */
+    sectionOrder?: SectionOrder | null;
+    /** Custom logo URL from template (null = use default GFZ logo) */
+    customLogoUrl?: string | null;
 }
 
 /**

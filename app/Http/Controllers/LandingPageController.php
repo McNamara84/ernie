@@ -107,6 +107,7 @@ class LandingPageController extends Controller
 
         $rules = [
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
+            'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
@@ -193,6 +194,7 @@ class LandingPageController extends Controller
                 // We don't set them here to avoid redundancy and ensure single source of truth.
                 $createData = [
                     'template' => $validated['template'],
+                    'landing_page_template_id' => $validated['landing_page_template_id'] ?? null,
                     'ftp_url' => $validated['ftp_url'] ?? null,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
@@ -296,7 +298,7 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load(['externalDomain', 'links']);
+        $landingPage->load(['externalDomain', 'links', 'landingPageTemplate']);
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
@@ -314,6 +316,7 @@ class LandingPageController extends Controller
                 'doi_prefix' => $landingPage->doi_prefix,
                 'slug' => $landingPage->slug,
                 'template' => $landingPage->template,
+                'landing_page_template_id' => $landingPage->landing_page_template_id,
                 'ftp_url' => $landingPage->ftp_url,
                 'external_domain_id' => $landingPage->external_domain_id,
                 'external_path' => $landingPage->external_path,
@@ -345,6 +348,7 @@ class LandingPageController extends Controller
 
         $rules = [
             'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
+            'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
@@ -409,6 +413,9 @@ class LandingPageController extends Controller
             if (isset($validated['template'])) {
                 $landingPage->template = $validated['template'];
             }
+            if (array_key_exists('landing_page_template_id', $validated)) {
+                $landingPage->landing_page_template_id = $validated['landing_page_template_id'];
+            }
             if (array_key_exists('ftp_url', $validated)) {
                 $landingPage->ftp_url = $validated['ftp_url'];
             }
@@ -458,7 +465,7 @@ class LandingPageController extends Controller
         $this->invalidateCache($resource->id);
 
         $freshLandingPage = $landingPage->fresh();
-        $freshLandingPage?->load(['externalDomain', 'files', 'links']);
+        $freshLandingPage?->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         return response()->json([
             'message' => 'Landing page updated successfully',
@@ -516,7 +523,7 @@ class LandingPageController extends Controller
             ], 404);
         }
 
-        $landingPage->load(['externalDomain', 'files', 'links']);
+        $landingPage->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         return response()->json([
             'landing_page' => $landingPage,

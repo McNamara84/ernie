@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink } from '@/types/landing-page';
+import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateConfig } from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -97,6 +97,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [externalPath, setExternalPath] = useState<string>(existingConfig?.external_path ?? '');
     const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
 
+    // Custom templates state
+    const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateConfig[]>([]);
+
+    // Landing page template ID (for custom templates)
+    const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(existingConfig?.landing_page_template_id ?? null);
+
     // Additional links state
     const [links, setLinks] = useState<LandingPageLink[]>(existingConfig?.links ?? []);
 
@@ -118,12 +124,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setExternalDomainId(String(existingConfig.external_domain_id ?? ''));
                 setExternalPath(existingConfig.external_path ?? '');
                 setLinks(existingConfig.links ?? []);
+                setLandingPageTemplateId(existingConfig.landing_page_template_id ?? null);
             } else {
                 // Load from server
                 loadLandingPageConfig();
             }
             // Load available domains for external landing pages
             loadAvailableDomains();
+            // Load custom templates for the dropdown
+            loadCustomTemplates();
         } else if (!isOpen) {
             // Reset state when modal closes
             setCurrentConfig(null);
@@ -134,6 +143,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setExternalDomainId('');
             setExternalPath('');
             setLinks([]);
+            setLandingPageTemplateId(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, resource.id]);
@@ -145,6 +155,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         } catch (error) {
             console.error('Failed to load landing page domains:', error);
             // Non-critical: domains will be empty, select will show placeholder
+        }
+    };
+
+    const loadCustomTemplates = async () => {
+        try {
+            const response = await axios.get<{ templates: LandingPageTemplateConfig[] }>('/api/landing-page-templates');
+            setCustomTemplates(response.data.templates);
+        } catch (error) {
+            console.error('Failed to load custom templates:', error);
         }
     };
 
@@ -194,6 +213,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 template,
                 ftp_url: isExternal ? null : ftpUrl || null,
                 status: isPublished ? 'published' : 'draft',
+                landing_page_template_id: landingPageTemplateId,
             };
 
             // Add external fields when template is 'external'
@@ -242,6 +262,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setExternalDomainId(String(updatedConfig.external_domain_id ?? ''));
                 setExternalPath(updatedConfig.external_path ?? '');
                 setLinks(updatedConfig.links ?? []);
+                setLandingPageTemplateId(updatedConfig.landing_page_template_id ?? null);
             }
 
             // Clear session-based preview if it exists
@@ -317,7 +338,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             template !== currentConfig.template ||
             // ftpUrl is irrelevant for external templates (backend forces it to null)
             (!isExternalTemplate && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
-            isPublished !== (currentConfig.status === 'published');
+            isPublished !== (currentConfig.status === 'published') ||
+            landingPageTemplateId !== (currentConfig.landing_page_template_id ?? null);
 
         // Check if links have changed
         const currentLinks = currentConfig.links ?? [];
@@ -336,7 +358,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             );
         }
         return baseChanges || linksChanged;
-    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links]);
+    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links, landingPageTemplateId]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -503,7 +525,19 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                         {/* Template Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="template">Landing Page Template</Label>
-                            <Select value={template} onValueChange={setTemplate}>
+                            <Select
+                                value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
+                                onValueChange={(val) => {
+                                    if (val.startsWith('custom:')) {
+                                        const id = Number(val.replace('custom:', ''));
+                                        setLandingPageTemplateId(id);
+                                        setTemplate('default_gfz'); // Custom templates use default_gfz renderer
+                                    } else {
+                                        setLandingPageTemplateId(null);
+                                        setTemplate(val);
+                                    }
+                                }}
+                            >
                                 <SelectTrigger id="template">
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
@@ -516,6 +550,21 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                             </div>
                                         </SelectItem>
                                     ))}
+                                    {customTemplates.filter((ct) => !ct.is_default).length > 0 && (
+                                        <>
+                                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Custom Templates</div>
+                                            {customTemplates
+                                                .filter((ct) => !ct.is_default)
+                                                .map((ct) => (
+                                                    <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
+                                                        <div className="flex flex-col">
+                                                            <span>{ct.name}</span>
+                                                            <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                        </>
+                                    )}
                                 </SelectContent>
                             </Select>
                             <p className="text-sm text-muted-foreground">Choose the design template for your landing page</p>
