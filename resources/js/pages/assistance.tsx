@@ -124,7 +124,15 @@ function OrcidSuggestionCard({
 
                     <div className="space-y-1">
                         <p className="font-mono text-sm">
-                            ORCID: {suggestion.suggested_orcid}
+                            ORCID:{' '}
+                            <a
+                                href={`https://orcid.org/${suggestion.suggested_orcid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary underline hover:text-primary/80"
+                            >
+                                {suggestion.suggested_orcid}
+                            </a>
                         </p>
                         {candidateName && (
                             <p className="text-sm text-muted-foreground">
@@ -221,7 +229,15 @@ function RorSuggestionCard({
                             &rarr; {suggestion.suggested_name}
                         </p>
                         <p className="font-mono text-xs text-muted-foreground">
-                            ROR: {suggestion.suggested_ror_id}
+                            ROR:{' '}
+                            <a
+                                href={suggestion.suggested_ror_id}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary underline hover:text-primary/80"
+                            >
+                                {suggestion.suggested_ror_id}
+                            </a>
                         </p>
                         {suggestion.ror_aliases.length > 0 && (
                             <p className="text-xs text-muted-foreground">
