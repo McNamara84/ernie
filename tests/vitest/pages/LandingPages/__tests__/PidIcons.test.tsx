@@ -6,128 +6,166 @@ import { describe, expect, it } from 'vitest';
 
 import { CrossrefFunderIcon, OrcidIcon, RorIcon } from '@/pages/LandingPages/components/PidIcons';
 
+/**
+ * Helper to select the light-mode variant (visible by default, hidden in dark mode).
+ */
+function getLightVariant(container: HTMLElement, slot: string): Element {
+    const candidates = container.querySelectorAll(`[data-slot="${slot}"]`);
+    const light = Array.from(candidates).find((el) => {
+        const cls = el.getAttribute('class') ?? '';
+        return cls.includes('dark:hidden') && !cls.split(' ').includes('hidden');
+    });
+    if (!light) throw new Error(`No light-mode variant found for data-slot="${slot}"`);
+    return light;
+}
+
+/**
+ * Helper to select the dark-mode variant (hidden by default, shown in dark mode).
+ */
+function getDarkVariant(container: HTMLElement, slot: string): Element {
+    const candidates = container.querySelectorAll(`[data-slot="${slot}"]`);
+    const dark = Array.from(candidates).find((el) => {
+        const cls = el.getAttribute('class') ?? '';
+        return cls.split(' ').includes('hidden') && cls.includes('dark:block');
+    });
+    if (!dark) throw new Error(`No dark-mode variant found for data-slot="${slot}"`);
+    return dark;
+}
+
 describe('PidIcons', () => {
     describe('OrcidIcon', () => {
         it('renders two SVG elements for light and dark mode', () => {
-            const { container } = render(<OrcidIcon />);
-            const svgs = container.querySelectorAll('svg');
-            expect(svgs).toHaveLength(2);
-        });
-
-        it('has correct data-slot on both SVGs', () => {
             const { container } = render(<OrcidIcon />);
             const icons = container.querySelectorAll('[data-slot="orcid-icon"]');
             expect(icons).toHaveLength(2);
         });
 
+        it('has correct data-slot on both SVGs', () => {
+            const { container } = render(<OrcidIcon />);
+            const icons = container.querySelectorAll('[data-slot="orcid-icon"]');
+            icons.forEach((icon) => {
+                expect(icon.tagName.toLowerCase()).toBe('svg');
+            });
+        });
+
         it('both SVGs are aria-hidden', () => {
             const { container } = render(<OrcidIcon />);
-            const svgs = container.querySelectorAll('svg');
-            svgs.forEach((svg) => {
-                expect(svg).toHaveAttribute('aria-hidden', 'true');
-            });
+            const light = getLightVariant(container, 'orcid-icon');
+            const dark = getDarkVariant(container, 'orcid-icon');
+            expect(light).toHaveAttribute('aria-hidden', 'true');
+            expect(dark).toHaveAttribute('aria-hidden', 'true');
         });
 
         it('light mode SVG is visible by default, dark mode SVG is hidden', () => {
             const { container } = render(<OrcidIcon />);
-            const svgs = container.querySelectorAll('svg');
-            expect(svgs[0]).toHaveClass('dark:hidden');
-            expect(svgs[0]).not.toHaveClass('hidden');
-            expect(svgs[1]).toHaveClass('hidden', 'dark:block');
+            const light = getLightVariant(container, 'orcid-icon');
+            const dark = getDarkVariant(container, 'orcid-icon');
+            expect(light).toHaveClass('dark:hidden');
+            expect(light).not.toHaveClass('hidden');
+            expect(dark).toHaveClass('hidden', 'dark:block');
         });
 
         it('light mode SVG contains green circle (#A6CE39)', () => {
             const { container } = render(<OrcidIcon />);
-            const lightSvg = container.querySelectorAll('svg')[0];
-            const greenPath = lightSvg.querySelector('path[fill="#A6CE39"]');
-            expect(greenPath).toBeInTheDocument();
+            const light = getLightVariant(container, 'orcid-icon');
+            expect(light.querySelector('path[fill="#A6CE39"]')).toBeInTheDocument();
         });
 
         it('dark mode SVG contains white fill only (#fff)', () => {
             const { container } = render(<OrcidIcon />);
-            const darkSvg = container.querySelectorAll('svg')[1];
-            const whitePaths = darkSvg.querySelectorAll('path[fill="#fff"]');
+            const dark = getDarkVariant(container, 'orcid-icon');
+            const whitePaths = dark.querySelectorAll('path[fill="#fff"]');
             expect(whitePaths.length).toBeGreaterThan(0);
-            const greenPath = darkSvg.querySelector('path[fill="#A6CE39"]');
-            expect(greenPath).not.toBeInTheDocument();
+            expect(dark.querySelector('path[fill="#A6CE39"]')).not.toBeInTheDocument();
         });
 
         it('accepts custom className on both SVGs', () => {
             const { container } = render(<OrcidIcon className="h-6 w-6" />);
-            const svgs = container.querySelectorAll('svg');
-            svgs.forEach((svg) => {
-                expect(svg).toHaveClass('h-6', 'w-6');
-            });
+            const light = getLightVariant(container, 'orcid-icon');
+            const dark = getDarkVariant(container, 'orcid-icon');
+            expect(light).toHaveClass('h-6', 'w-6');
+            expect(dark).toHaveClass('h-6', 'w-6');
         });
 
         it('uses viewBox 0 0 32 32 for official icon dimensions', () => {
             const { container } = render(<OrcidIcon />);
-            const svgs = container.querySelectorAll('svg');
-            svgs.forEach((svg) => {
-                expect(svg).toHaveAttribute('viewBox', '0 0 32 32');
-            });
+            const light = getLightVariant(container, 'orcid-icon');
+            const dark = getDarkVariant(container, 'orcid-icon');
+            expect(light).toHaveAttribute('viewBox', '0 0 32 32');
+            expect(dark).toHaveAttribute('viewBox', '0 0 32 32');
         });
     });
 
     describe('RorIcon', () => {
         it('renders two SVG elements for light and dark mode', () => {
             const { container } = render(<RorIcon />);
-            const svgs = container.querySelectorAll('svg');
-            expect(svgs).toHaveLength(2);
+            const icons = container.querySelectorAll('[data-slot="ror-icon"]');
+            expect(icons).toHaveLength(2);
         });
 
         it('has correct data-slot on both SVGs', () => {
             const { container } = render(<RorIcon />);
             const icons = container.querySelectorAll('[data-slot="ror-icon"]');
-            expect(icons).toHaveLength(2);
+            icons.forEach((icon) => {
+                expect(icon.tagName.toLowerCase()).toBe('svg');
+            });
         });
 
         it('both SVGs are aria-hidden', () => {
             const { container } = render(<RorIcon />);
-            const svgs = container.querySelectorAll('svg');
-            svgs.forEach((svg) => {
-                expect(svg).toHaveAttribute('aria-hidden', 'true');
-            });
+            const light = getLightVariant(container, 'ror-icon');
+            const dark = getDarkVariant(container, 'ror-icon');
+            expect(light).toHaveAttribute('aria-hidden', 'true');
+            expect(dark).toHaveAttribute('aria-hidden', 'true');
         });
 
         it('light mode SVG is visible by default, dark mode SVG is hidden', () => {
             const { container } = render(<RorIcon />);
-            const svgs = container.querySelectorAll('svg');
-            expect(svgs[0]).toHaveClass('dark:hidden');
-            expect(svgs[0]).not.toHaveClass('hidden');
-            expect(svgs[1]).toHaveClass('hidden', 'dark:block');
+            const light = getLightVariant(container, 'ror-icon');
+            const dark = getDarkVariant(container, 'ror-icon');
+            expect(light).toHaveClass('dark:hidden');
+            expect(light).not.toHaveClass('hidden');
+            expect(dark).toHaveClass('hidden', 'dark:block');
         });
 
-        it('uses w-auto for wordmark aspect ratio', () => {
+        it('enforces w-auto for wordmark aspect ratio', () => {
             const { container } = render(<RorIcon />);
-            const svgs = container.querySelectorAll('svg');
-            svgs.forEach((svg) => {
-                expect(svg).toHaveClass('w-auto');
-            });
+            const light = getLightVariant(container, 'ror-icon');
+            const dark = getDarkVariant(container, 'ror-icon');
+            expect(light).toHaveClass('w-auto');
+            expect(dark).toHaveClass('w-auto');
+        });
+
+        it('preserves w-auto even when className contains a width override', () => {
+            const { container } = render(<RorIcon className="w-6" />);
+            const light = getLightVariant(container, 'ror-icon');
+            const dark = getDarkVariant(container, 'ror-icon');
+            expect(light).toHaveClass('w-auto');
+            expect(dark).toHaveClass('w-auto');
         });
 
         it('light mode SVG contains teal (#53BAA1) and dark (#202826) fills', () => {
             const { container } = render(<RorIcon />);
-            const lightSvg = container.querySelectorAll('svg')[0];
-            expect(lightSvg.querySelector('path[fill="#53BAA1"]')).toBeInTheDocument();
-            expect(lightSvg.querySelector('path[fill="#202826"]')).toBeInTheDocument();
+            const light = getLightVariant(container, 'ror-icon');
+            expect(light.querySelector('path[fill="#53BAA1"]')).toBeInTheDocument();
+            expect(light.querySelector('path[fill="#202826"]')).toBeInTheDocument();
         });
 
         it('dark mode SVG contains only white (#fff) fills', () => {
             const { container } = render(<RorIcon />);
-            const darkSvg = container.querySelectorAll('svg')[1];
-            const whitePaths = darkSvg.querySelectorAll('path[fill="#fff"]');
+            const dark = getDarkVariant(container, 'ror-icon');
+            const whitePaths = dark.querySelectorAll('path[fill="#fff"]');
             expect(whitePaths.length).toBeGreaterThan(0);
-            expect(darkSvg.querySelector('path[fill="#53BAA1"]')).not.toBeInTheDocument();
-            expect(darkSvg.querySelector('path[fill="#202826"]')).not.toBeInTheDocument();
+            expect(dark.querySelector('path[fill="#53BAA1"]')).not.toBeInTheDocument();
+            expect(dark.querySelector('path[fill="#202826"]')).not.toBeInTheDocument();
         });
 
         it('accepts custom className on both SVGs', () => {
             const { container } = render(<RorIcon className="h-8" />);
-            const svgs = container.querySelectorAll('svg');
-            svgs.forEach((svg) => {
-                expect(svg).toHaveClass('h-8');
-            });
+            const light = getLightVariant(container, 'ror-icon');
+            const dark = getDarkVariant(container, 'ror-icon');
+            expect(light).toHaveClass('h-8');
+            expect(dark).toHaveClass('h-8');
         });
     });
 

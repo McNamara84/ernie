@@ -60,7 +60,7 @@ export function RorIcon({ className }: PidIconProps) {
         <>
             <svg
                 data-slot="ror-icon"
-                className={cn('h-4 w-auto dark:hidden', className)}
+                className={cn('h-4 dark:hidden', className, 'w-auto')}
                 viewBox="0 0 164 118"
                 aria-hidden="true"
             >
@@ -77,7 +77,7 @@ export function RorIcon({ className }: PidIconProps) {
             </svg>
             <svg
                 data-slot="ror-icon"
-                className={cn('hidden h-4 w-auto dark:block', className)}
+                className={cn('hidden h-4 dark:block', className, 'w-auto')}
                 viewBox="0 0 164 118"
                 aria-hidden="true"
             >
