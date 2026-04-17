@@ -71,7 +71,7 @@ describe('PidIcons', () => {
             expect(light.querySelector('path[fill="#A6CE39"]')).toBeInTheDocument();
         });
 
-        it('dark mode SVG contains white fill only (#fff)', () => {
+        it('dark mode SVG uses white circle with transparent iD cutout', () => {
             const { container } = render(<OrcidIcon />);
             const dark = getDarkVariant(container, 'orcid-icon');
             const whitePaths = dark.querySelectorAll('path[fill="#fff"]');

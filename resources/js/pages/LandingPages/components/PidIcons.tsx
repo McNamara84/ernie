@@ -7,7 +7,7 @@ interface PidIconProps {
 /**
  * Official ORCID iD logo with light/dark mode support.
  * Light mode: green circle (#A6CE39) with white "iD" text.
- * Dark mode: white filled "iD" mark on transparent background.
+ * Dark mode: white circle with transparent "iD" cutout (even-odd fill rule).
  * Source: https://info.orcid.org/brand-guidelines/
  */
 export function OrcidIcon({ className }: PidIconProps) {
