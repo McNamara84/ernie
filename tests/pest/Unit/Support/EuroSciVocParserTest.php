@@ -25,7 +25,7 @@ describe('extractConcepts', function (): void {
          xml:lang="en">
     <skosxl:Label rdf:about="http://example.org/label/1">
         <skosxl:literalForm xml:lang="en">natural sciences</skosxl:literalForm>
-        <skosxl:literalForm xml:lang="de">Naturwissenschaften</skosxl:literalForm>
+        <skosxl:literalForm xml:lang="de">German label</skosxl:literalForm>
     </skosxl:Label>
     <skosxl:Label rdf:about="http://example.org/label/2">
         <skosxl:literalForm xml:lang="en">physics</skosxl:literalForm>
@@ -71,7 +71,7 @@ XML;
         <skos:inScheme rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
         <skos:topConceptOf rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
         <skos:prefLabel xml:lang="en">engineering and technology</skos:prefLabel>
-        <skos:prefLabel xml:lang="de">Ingenieurwissenschaften und Technologie</skos:prefLabel>
+        <skos:prefLabel xml:lang="de">German label</skos:prefLabel>
     </skos:Concept>
 </rdf:RDF>
 XML;
@@ -317,7 +317,7 @@ XML;
     <rdf:Description rdf:about="http://example.org/label/1">
         <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
         <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="en">natural sciences</literalForm>
-        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="de">Naturwissenschaften</literalForm>
+        <literalForm xmlns="http://www.w3.org/2008/05/skos-xl#" xml:lang="de">German label</literalForm>
     </rdf:Description>
     <rdf:Description rdf:about="http://example.org/label/2">
         <rdf:type rdf:resource="http://www.w3.org/2008/05/skos-xl#Label"/>
@@ -366,7 +366,7 @@ XML;
         <inScheme xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
         <topConceptOf xmlns="http://www.w3.org/2004/02/skos/core#" rdf:resource="http://data.europa.eu/8mn/euroscivoc/test-scheme"/>
         <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="en">engineering and technology</prefLabel>
-        <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="de">Ingenieurwissenschaften und Technologie</prefLabel>
+        <prefLabel xmlns="http://www.w3.org/2004/02/skos/core#" xml:lang="de">German label</prefLabel>
     </rdf:Description>
 </rdf:RDF>
 XML;
