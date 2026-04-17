@@ -36,6 +36,10 @@ class ThesaurusSettingSeeder extends Seeder
                 'type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
                 'display_name' => 'Analytical Methods for Geochemistry',
             ],
+            [
+                'type' => ThesaurusSetting::TYPE_EUROSCIVOC,
+                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
+            ],
         ];
 
         foreach ($thesauri as $thesaurus) {
