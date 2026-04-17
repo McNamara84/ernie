@@ -59,7 +59,7 @@
         "improvements": [
             {
                 "title": "Official PID Icons on Landing Pages",
-                "description": "Replaced placeholder icons for ORCID, ROR, and CrossRef Funder ID on landing pages with the official brand-compliant icons. ORCID and ROR icons now properly switch between light and dark mode variants according to the system color scheme preference. The ORCID icon shows the green circle in light mode and a white outline in dark mode, while the ROR icon displays the full official wordmark with appropriate color adaptation."
+                "description": "Replaced placeholder icons for ORCID, ROR, and Crossref Funder ID on landing pages with the official brand-compliant icons. ORCID and ROR icons now properly switch between light and dark mode variants according to the system color scheme preference. The ORCID icon shows the green circle in light mode and a white filled mark in dark mode, while the ROR icon displays the full official wordmark with appropriate color adaptation."
             },
             {
                 "title": "Clickable ORCID and ROR Links in Assistance Suggestions",

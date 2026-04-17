@@ -7,7 +7,7 @@ interface PidIconProps {
 /**
  * Official ORCID iD logo with light/dark mode support.
  * Light mode: green circle (#A6CE39) with white "iD" text.
- * Dark mode: white "iD" outline on transparent background.
+ * Dark mode: white filled "iD" mark on transparent background.
  * Source: https://info.orcid.org/brand-guidelines/
  */
 export function OrcidIcon({ className }: PidIconProps) {
@@ -61,10 +61,10 @@ export function RorIcon({ className }: PidIconProps) {
             <svg
                 data-slot="ror-icon"
                 className={cn('h-4 w-auto dark:hidden', className)}
-                viewBox="0 0 156 111"
+                viewBox="0 0 164 118"
                 aria-hidden="true"
             >
-                <g transform="matrix(1,0,0,1,-4.945,-4.16)">
+                <g transform="matrix(1,0,0,1,-0.945,-0.815)">
                     <path d="M68.65,4.16L56.52,22.74L44.38,4.16L68.65,4.16Z" fill="#53BAA1" />
                     <path d="M119.41,4.16L107.28,22.74L95.14,4.16L119.41,4.16Z" fill="#53BAA1" />
                     <path d="M44.38,115.47L56.52,96.88L68.65,115.47L44.38,115.47Z" fill="#53BAA1" />
