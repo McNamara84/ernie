@@ -200,6 +200,33 @@ describe('OrcidSuggestionCard – ORCID link', () => {
         expect(link1).toHaveAttribute('href', 'https://orcid.org/0000-0001-0000-0001');
         expect(link2).toHaveAttribute('href', 'https://orcid.org/0000-0001-0000-0002');
     });
+
+    it('renders plain text instead of a link for a malformed ORCID ID', () => {
+        const suggestion = makeOrcidSuggestion({ suggested_orcid: 'not-a-valid-orcid' });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'not-a-valid-orcid' })).not.toBeInTheDocument();
+        expect(screen.getByText(/not-a-valid-orcid/)).toBeInTheDocument();
+    });
+
+    it('renders plain text instead of a link for an ORCID containing script injection', () => {
+        const suggestion = makeOrcidSuggestion({ suggested_orcid: '"><script>alert(1)</script>' });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: /script/ })).not.toBeInTheDocument();
+    });
 });
 
 describe('RorSuggestionCard – ROR link', () => {
@@ -280,5 +307,47 @@ describe('RorSuggestionCard – ROR link', () => {
 
         expect(link1).toHaveAttribute('href', 'https://ror.org/04t3en479');
         expect(link2).toHaveAttribute('href', 'https://ror.org/02nr0ka47');
+    });
+
+    it('renders plain text instead of a link for a javascript: URL', () => {
+        const suggestion = makeRorSuggestion({ suggested_ror_id: 'javascript:alert(1)' });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'javascript:alert(1)' })).not.toBeInTheDocument();
+        expect(screen.getByText(/javascript:alert/)).toBeInTheDocument();
+    });
+
+    it('renders plain text instead of a link for a non-ror.org host', () => {
+        const suggestion = makeRorSuggestion({ suggested_ror_id: 'https://evil.com/04t3en479' });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'https://evil.com/04t3en479' })).not.toBeInTheDocument();
+        expect(screen.getByText(/evil\.com/)).toBeInTheDocument();
+    });
+
+    it('renders plain text instead of a link for an http (non-https) ROR URL', () => {
+        const suggestion = makeRorSuggestion({ suggested_ror_id: 'http://ror.org/04t3en479' });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'http://ror.org/04t3en479' })).not.toBeInTheDocument();
+        expect(screen.getByText(/ror\.org/)).toBeInTheDocument();
     });
 });
