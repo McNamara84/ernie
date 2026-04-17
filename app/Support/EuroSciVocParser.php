@@ -223,8 +223,13 @@ class EuroSciVocParser
     {
         // Extract namespace and local name from fragment URI (e.g. "...skos/core#Concept")
         $lastHash = strrpos($typeUri, '#');
-        $namespace = $lastHash !== false ? substr($typeUri, 0, $lastHash + 1) : '';
-        $localName = $lastHash !== false ? substr($typeUri, $lastHash + 1) : $typeUri;
+
+        if ($lastHash === false) {
+            return [];
+        }
+
+        $namespace = substr($typeUri, 0, $lastHash + 1);
+        $localName = substr($typeUri, $lastHash + 1);
 
         // XPath prefixes registered on $xml for abbreviated element matching
         $prefixMap = [
