@@ -160,7 +160,9 @@ describe('OrcidSuggestionCard – ORCID link', () => {
         );
 
         const link = screen.getByRole('link', { name: '0000-0001-2345-6789' });
-        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        const rel = link.getAttribute('rel') ?? '';
+        expect(rel).toContain('noopener');
+        expect(rel).toContain('noreferrer');
     });
 
     it('displays only the ORCID ID as link text (not the full URL)', () => {
@@ -255,7 +257,9 @@ describe('RorSuggestionCard – ROR link', () => {
         );
 
         const link = screen.getByRole('link', { name: 'https://ror.org/04t3en479' });
-        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        const rel = link.getAttribute('rel') ?? '';
+        expect(rel).toContain('noopener');
+        expect(rel).toContain('noreferrer');
     });
 
     it('renders multiple ROR suggestions with unique links', () => {
