@@ -10,6 +10,8 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
 use App\Policies\LandingPageTemplatePolicy;
+use Database\Factories\LandingPageTemplateFactory;
+use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -19,6 +21,8 @@ covers(
     LandingPageTemplatePolicy::class,
     StoreLandingPageTemplateRequest::class,
     UpdateLandingPageTemplateRequest::class,
+    LandingPageTemplateFactory::class,
+    LandingPageTemplateSeeder::class,
 );
 
 uses()->group('landing-page-templates');
@@ -739,5 +743,33 @@ describe('Delete with Logo Cleanup', function (): void {
         $this->actingAs($this->admin)
             ->deleteJson("/landing-pages/{$this->defaultTemplate->id}/logo")
             ->assertForbidden();
+    });
+
+    it('returns 500 when logo storage fails', function (): void {
+        Storage::fake('public');
+
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        // Make the store method return false to simulate storage failure
+        Storage::disk('public')->shouldReceive('putFileAs')->andReturn(false);
+        Storage::disk('public')->shouldReceive('putFile')->andReturn(false);
+        Storage::disk('public')->shouldReceive('put')->andReturn(false);
+
+        $file = UploadedFile::fake()->image('logo.png', 200, 100);
+
+        $this->actingAs($this->admin)
+            ->postJson("/landing-pages/{$template->id}/logo", [
+                'logo' => $file,
+            ])
+            ->assertStatus(500)
+            ->assertJson(['message' => 'Failed to store logo file']);
+    });
+
+    it('handles logo upload without file gracefully', function (): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->postJson("/landing-pages/{$template->id}/logo", [])
+            ->assertJsonValidationErrors(['logo']);
     });
 });

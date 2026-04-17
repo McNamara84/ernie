@@ -791,5 +791,376 @@ describe('SetupLandingPageModal', () => {
                 );
             });
         });
+
+        it('renders custom templates in dropdown when loaded', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 1,
+                                    name: 'Default GFZ Data Services',
+                                    slug: 'default_gfz',
+                                    is_default: true,
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                                {
+                                    id: 2,
+                                    name: 'Custom Geophysics',
+                                    slug: 'custom-geophysics',
+                                    is_default: false,
+                                    logo_url: 'http://localhost/storage/logos/geo.png',
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // Open the template select dropdown
+            const templateSelect = screen.getByLabelText(/Landing Page Template/i);
+            await user.click(templateSelect);
+
+            // Custom templates section should be visible
+            await waitFor(() => {
+                expect(screen.getByText('Custom Templates')).toBeInTheDocument();
+                expect(screen.getByText('Custom Geophysics')).toBeInTheDocument();
+            });
+        });
+
+        it('selects a custom template and sets landing_page_template_id', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 1,
+                                    name: 'Default GFZ Data Services',
+                                    slug: 'default_gfz',
+                                    is_default: true,
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                                {
+                                    id: 3,
+                                    name: 'Custom Hydrology',
+                                    slug: 'custom-hydrology',
+                                    is_default: false,
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: { ...mockExistingConfig, status: 'draft', landing_page_template_id: 3 },
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // Open dropdown and select a custom template
+            const templateSelect = screen.getByLabelText(/Landing Page Template/i);
+            await user.click(templateSelect);
+
+            await waitFor(() => {
+                expect(screen.getByText('Custom Hydrology')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Custom Hydrology'));
+
+            // Save - should include the custom template ID
+            const saveButton = screen.getByRole('button', { name: /Create Preview/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        landing_page_template_id: 3,
+                    }),
+                );
+            });
+        });
+
+        it('resets landing_page_template_id when switching to built-in template', async () => {
+            const configWithCustomTemplate: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                landing_page_template_id: 2,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 1,
+                                    name: 'Default GFZ Data Services',
+                                    slug: 'default_gfz',
+                                    is_default: true,
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                                {
+                                    id: 2,
+                                    name: 'Custom Geophysics',
+                                    slug: 'custom-geophysics',
+                                    is_default: false,
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: configWithCustomTemplate } });
+            });
+            mockedAxiosPut.mockResolvedValue({ data: { landing_page: configWithCustomTemplate } });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    existingConfig={configWithCustomTemplate}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // Open the template select and choose "External Landing Page" (a built-in template)
+            const templateSelect = screen.getByLabelText(/Landing Page Template/i);
+            await user.click(templateSelect);
+
+            await waitFor(() => {
+                const externalOption = screen.getByText('External Landing Page');
+                expect(externalOption).toBeInTheDocument();
+                return externalOption;
+            });
+
+            await user.click(screen.getByText('External Landing Page'));
+
+            // Save and verify landing_page_template_id is null (not custom)
+            const updateButton = screen.getByRole('button', { name: /Update/i });
+            await user.click(updateButton);
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+
+        it('calls onSuccess callback after successful save', async () => {
+            const onSuccess = vi.fn();
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: { ...mockExistingConfig, status: 'draft' },
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    onSuccess={onSuccess}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            const saveButton = screen.getByRole('button', { name: /Create Preview/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(onSuccess).toHaveBeenCalled();
+            });
+        });
+
+        it('shows validation errors from server on save failure', async () => {
+            const { toast } = await import('sonner');
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockRejectedValue({
+                isAxiosError: true,
+                response: {
+                    data: {
+                        errors: {
+                            template: ['Invalid template'],
+                            ftp_url: ['Invalid URL format'],
+                        },
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            const saveButton = screen.getByRole('button', { name: /Create Preview/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Invalid template, Invalid URL format');
+            });
+        });
+
+        it('handles non-404 fetch error with toast', async () => {
+            const { toast } = await import('sonner');
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                // Non-404 error - should show toast
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 500, data: { message: 'Server error' } },
+                });
+            });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
+            });
+        });
+
+        it('prevents removal of published landing page with error toast', async () => {
+            const { toast } = await import('sonner');
+
+            // Published config cannot be removed
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: mockExistingConfig } });
+            });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // Published landing pages should not have a Remove Preview button
+            expect(screen.queryByRole('button', { name: /Remove Preview/i })).not.toBeInTheDocument();
+        });
     });
 });
