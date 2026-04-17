@@ -161,7 +161,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const loadCustomTemplates = async () => {
         try {
             const response = await axios.get<{ templates: LandingPageTemplateConfig[] }>('/api/landing-page-templates');
-            setCustomTemplates(response.data.templates);
+            setCustomTemplates(response.data.templates ?? []);
         } catch (error) {
             console.error('Failed to load custom templates:', error);
         }
