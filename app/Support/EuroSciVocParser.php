@@ -57,7 +57,7 @@ class EuroSciVocParser
         $xlLabelMap = $this->buildXlLabelMap($xml);
 
         // Support both abbreviated (<skos:Concept>) and full (<rdf:Description> + rdf:type) RDF/XML
-        $conceptElements = $this->findElementsByType($xml, self::SKOS_NS.'Concept');
+        $conceptElements = $this->findSkosElementsByType($xml, self::SKOS_NS.'Concept');
 
         if ($conceptElements === []) {
             return [];
@@ -208,21 +208,25 @@ class EuroSciVocParser
     }
 
     /**
-     * Find XML elements by their RDF type URI.
+     * Find SKOS or SKOS-XL elements by their RDF type URI.
      *
      * Supports both abbreviated RDF/XML (e.g. `<skos:Concept>`) and
      * full RDF/XML (`<rdf:Description>` with `<rdf:type>` child).
      *
+     * Only supports type URIs with a `#` fragment separator from the
+     * SKOS and SKOS-XL namespaces (the only namespaces used by this parser).
+     *
+     * @param  string  $typeUri  A SKOS or SKOS-XL type URI (e.g. `http://www.w3.org/2004/02/skos/core#Concept`)
      * @return list<\SimpleXMLElement>
      */
-    private function findElementsByType(\SimpleXMLElement $xml, string $typeUri): array
+    private function findSkosElementsByType(\SimpleXMLElement $xml, string $typeUri): array
     {
-        // Determine the namespace prefix registered for the type's namespace
+        // Extract namespace and local name from fragment URI (e.g. "...skos/core#Concept")
         $lastHash = strrpos($typeUri, '#');
         $namespace = $lastHash !== false ? substr($typeUri, 0, $lastHash + 1) : '';
         $localName = $lastHash !== false ? substr($typeUri, $lastHash + 1) : $typeUri;
 
-        // Map namespace URIs to the XPath prefixes registered on $xml
+        // XPath prefixes registered on $xml for abbreviated element matching
         $prefixMap = [
             self::SKOS_NS => 'skos',
             self::SKOSXL_NS => 'skosxl',
@@ -260,7 +264,7 @@ class EuroSciVocParser
         $map = [];
 
         // Support both abbreviated (<skosxl:Label>) and full (<rdf:Description> + rdf:type) RDF/XML
-        $labelElements = $this->findElementsByType($xml, self::SKOSXL_NS.'Label');
+        $labelElements = $this->findSkosElementsByType($xml, self::SKOSXL_NS.'Label');
 
         if ($labelElements === []) {
             return $map;
