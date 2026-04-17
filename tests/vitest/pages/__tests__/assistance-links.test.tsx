@@ -1,5 +1,3 @@
-import '@testing-library/jest-dom/vitest';
-
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -122,7 +120,7 @@ describe('OrcidSuggestionCard – ORCID link', () => {
     });
 
     it('links to the correct orcid.org profile URL', () => {
-        const suggestion = makeOrcidSuggestion({ suggested_orcid: '0000-0002-9999-0001' });
+        const suggestion = makeOrcidSuggestion({ suggested_orcid: '0000-0002-9999-0002' });
 
         render(
             <AssistancePage
@@ -131,8 +129,8 @@ describe('OrcidSuggestionCard – ORCID link', () => {
             />,
         );
 
-        const link = screen.getByRole('link', { name: '0000-0002-9999-0001' });
-        expect(link).toHaveAttribute('href', 'https://orcid.org/0000-0002-9999-0001');
+        const link = screen.getByRole('link', { name: '0000-0002-9999-0002' });
+        expect(link).toHaveAttribute('href', 'https://orcid.org/0000-0002-9999-0002');
     });
 
     it('opens the ORCID profile in a new tab', () => {
@@ -166,7 +164,7 @@ describe('OrcidSuggestionCard – ORCID link', () => {
     });
 
     it('displays only the ORCID ID as link text (not the full URL)', () => {
-        const orcid = '0000-0003-1111-2222';
+        const orcid = '0000-0003-1111-222X';
         const suggestion = makeOrcidSuggestion({ suggested_orcid: orcid });
 
         render(
@@ -183,8 +181,8 @@ describe('OrcidSuggestionCard – ORCID link', () => {
 
     it('renders multiple ORCID suggestions with unique links', () => {
         const suggestions = [
-            makeOrcidSuggestion({ id: 1, suggested_orcid: '0000-0001-0000-0001' }),
-            makeOrcidSuggestion({ id: 2, suggested_orcid: '0000-0001-0000-0002', person_name: 'John Smith' }),
+            makeOrcidSuggestion({ id: 1, suggested_orcid: '0000-0001-0000-0009' }),
+            makeOrcidSuggestion({ id: 2, suggested_orcid: '0000-0002-0000-0006', person_name: 'John Smith' }),
         ];
 
         render(
@@ -194,11 +192,11 @@ describe('OrcidSuggestionCard – ORCID link', () => {
             />,
         );
 
-        const link1 = screen.getByRole('link', { name: '0000-0001-0000-0001' });
-        const link2 = screen.getByRole('link', { name: '0000-0001-0000-0002' });
+        const link1 = screen.getByRole('link', { name: '0000-0001-0000-0009' });
+        const link2 = screen.getByRole('link', { name: '0000-0002-0000-0006' });
 
-        expect(link1).toHaveAttribute('href', 'https://orcid.org/0000-0001-0000-0001');
-        expect(link2).toHaveAttribute('href', 'https://orcid.org/0000-0001-0000-0002');
+        expect(link1).toHaveAttribute('href', 'https://orcid.org/0000-0001-0000-0009');
+        expect(link2).toHaveAttribute('href', 'https://orcid.org/0000-0002-0000-0006');
     });
 
     it('renders plain text instead of a link for a malformed ORCID ID', () => {
@@ -226,6 +224,21 @@ describe('OrcidSuggestionCard – ORCID link', () => {
         );
 
         expect(screen.queryByRole('link', { name: /script/ })).not.toBeInTheDocument();
+    });
+
+    it('renders plain text for an ORCID that matches the format but fails the checksum', () => {
+        // 0000-0001-2345-6780 has valid format but invalid checksum (correct would be 6789)
+        const suggestion = makeOrcidSuggestion({ suggested_orcid: '0000-0001-2345-6780' });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: '0000-0001-2345-6780' })).not.toBeInTheDocument();
+        expect(screen.getByText(/0000-0001-2345-6780/)).toBeInTheDocument();
     });
 });
 
@@ -349,5 +362,19 @@ describe('RorSuggestionCard – ROR link', () => {
 
         expect(screen.queryByRole('link', { name: 'http://ror.org/04t3en479' })).not.toBeInTheDocument();
         expect(screen.getByText(/ror\.org/)).toBeInTheDocument();
+    });
+
+    it('renders plain text for a ror.org URL with a non-identifier path', () => {
+        const suggestion = makeRorSuggestion({ suggested_ror_id: 'https://ror.org/search' });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByRole('link', { name: 'https://ror.org/search' })).not.toBeInTheDocument();
+        expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
     });
 });

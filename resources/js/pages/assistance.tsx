@@ -4,6 +4,8 @@ import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-reac
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { validateORCID } from '@/utils/validation-rules';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,16 +41,16 @@ function similarityColor(score: number): string {
     return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
 }
 
-const ORCID_ID_PATTERN = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+const ROR_ID_PATTERN = /^\/0[a-z0-9]{6}\d{2}$/;
 
 function isValidOrcidId(id: string): boolean {
-    return ORCID_ID_PATTERN.test(id);
+    return validateORCID(id).isValid;
 }
 
 function isValidRorUrl(url: string): boolean {
     try {
         const parsed = new URL(url);
-        return parsed.protocol === 'https:' && parsed.hostname === 'ror.org';
+        return parsed.protocol === 'https:' && parsed.hostname === 'ror.org' && ROR_ID_PATTERN.test(parsed.pathname);
     } catch {
         return false;
     }
