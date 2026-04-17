@@ -19,7 +19,6 @@ let mockUser = {
     can_access_users: true,
     can_access_editor_settings: true,
     can_manage_landing_page_templates: false,
-    can_manage_landing_page_templates: false,
 };
 
 // Helper to set mock user for each test
@@ -31,6 +30,7 @@ const setMockUser = (
         can_access_old_datasets: boolean;
         can_access_statistics: boolean;
         can_access_users: boolean;
+        can_access_editor_settings: boolean;
         can_manage_landing_page_templates: boolean;
     }> = {}
 ) => {
