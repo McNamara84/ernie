@@ -331,10 +331,12 @@ describe('AppSidebar', () => {
         setMockUser({
             role: 'curator',
             can_manage_landing_page_templates: false,
+            can_manage_users: false,
             can_access_logs: false,
             can_access_old_datasets: false,
             can_access_statistics: false,
             can_access_users: false,
+            can_access_editor_settings: false,
         });
 
         render(<AppSidebar />);
