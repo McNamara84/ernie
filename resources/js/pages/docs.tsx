@@ -1236,7 +1236,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Open Template Management">
                                 <p>
-                                    Navigate to <strong>Landing Page Templates</strong> in the sidebar under Data Curation.
+                                    Navigate to <strong>Landing Pages</strong> in the sidebar under Administration.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Clone Default Template">

@@ -52,14 +52,6 @@ export function AppSidebar() {
         },
     ];
 
-    if (auth.user?.can_manage_landing_page_templates) {
-        dataCurationItems.push({
-            title: 'Landing Page Templates',
-            href: '/landing-pages',
-            icon: LayoutTemplate,
-        });
-    }
-
     // IGSN CURATION section
     const igsnCurationItems: NavItem[] = [
         {
@@ -124,6 +116,14 @@ export function AppSidebar() {
             title: 'Logs',
             href: '/logs',
             icon: ScrollText,
+        });
+    }
+
+    if (auth.user?.can_manage_landing_page_templates) {
+        administrationItems.push({
+            title: 'Landing Pages',
+            href: '/landing-pages',
+            icon: LayoutTemplate,
         });
     }
 

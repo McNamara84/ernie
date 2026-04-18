@@ -149,7 +149,7 @@ describe('LandingPageTemplatesPage', () => {
     describe('Rendering', () => {
         it('renders page title and description', () => {
             render(<LandingPageTemplatesPage />);
-            expect(screen.getByText('Landing Page Templates')).toBeInTheDocument();
+            expect(screen.getByText('Landing Pages')).toBeInTheDocument();
             expect(screen.getByText(/Manage custom templates/i)).toBeInTheDocument();
         });
 

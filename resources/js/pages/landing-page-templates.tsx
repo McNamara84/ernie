@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Separator } from '@/components/ui/separator';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Page Templates', href: '/landing-pages' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
 
 /** Display labels for right column sections */
 const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
@@ -273,7 +273,7 @@ export default function LandingPageTemplatesPage() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Landing Page Templates" />
+            <Head title="Landing Pages" />
 
             {/* Hidden file input for logo upload */}
             <input
@@ -288,7 +288,7 @@ export default function LandingPageTemplatesPage() {
                 {/* Page Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Landing Page Templates</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">Landing Pages</h1>
                         <p className="text-muted-foreground">
                             Manage custom templates for resource landing pages. Clone the default template and customize section order and logo.
                         </p>
