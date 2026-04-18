@@ -31,6 +31,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (! Schema::hasColumn('landing_pages', 'landing_page_template_id')) {
+            return;
+        }
+
         Schema::table('landing_pages', function (Blueprint $table) {
             $table->dropForeign(['landing_page_template_id']);
             $table->dropColumn('landing_page_template_id');
