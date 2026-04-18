@@ -564,21 +564,6 @@ return new class extends Migration
         // APPLICATION-SPECIFIC TABLES
         // =====================================================================
 
-        // Landing Page Templates (custom layouts for landing pages)
-        // Must be created before landing_pages (FK dependency)
-        Schema::create('landing_page_templates', function (Blueprint $table): void {
-            $table->id();
-            $table->string('name')->unique();
-            $table->string('slug')->unique();
-            $table->boolean('is_default')->default(false);
-            $table->string('logo_path')->nullable();
-            $table->string('logo_filename')->nullable();
-            $table->json('right_column_order');
-            $table->json('left_column_order');
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-        });
-
         // Landing Page Domains (allowed external domains)
         // Must be created before landing_pages (FK dependency)
         Schema::create('landing_page_domains', function (Blueprint $table): void {
@@ -597,10 +582,6 @@ return new class extends Migration
             $table->string('doi_prefix', 255)->nullable(); // DOI for semantic URLs
             $table->string('slug');                    // NOT globally unique - see composite constraints below
             $table->string('template', 50)->default('default_gfz');
-            $table->foreignId('landing_page_template_id')
-                ->nullable()
-                ->constrained('landing_page_templates')
-                ->nullOnDelete();
             $table->string('ftp_url', 2048)->nullable();
             $table->foreignId('external_domain_id')        // External landing page domain
                 ->nullable()
@@ -826,7 +807,6 @@ return new class extends Migration
         Schema::dropIfExists('settings');
         Schema::dropIfExists('landing_pages');
         Schema::dropIfExists('landing_page_domains');
-        Schema::dropIfExists('landing_page_templates');
 
         // Resource relationship tables
         Schema::dropIfExists('alternate_identifiers');
