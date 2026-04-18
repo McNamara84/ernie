@@ -121,7 +121,7 @@ export function AppSidebar() {
 
     if (auth.user?.can_manage_landing_page_templates) {
         administrationItems.push({
-            title: 'Landing Page Templates',
+            title: 'Landing Pages',
             href: '/landing-pages',
             icon: LayoutTemplate,
         });

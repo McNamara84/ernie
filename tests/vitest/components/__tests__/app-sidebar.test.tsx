@@ -311,7 +311,7 @@ describe('AppSidebar', () => {
         expect(footerTitles).toContain('Editor Settings');
     });
 
-    it('shows Landing Page Templates in Administration when user has permission', () => {
+    it('shows Landing Pages in Administration when user has permission', () => {
         setMockUser({
             role: 'admin',
             can_manage_landing_page_templates: true,
@@ -324,10 +324,10 @@ describe('AppSidebar', () => {
         expect(adminSection).toBeDefined();
 
         const items = adminSection![0].items.map((i: NavItem) => i.title);
-        expect(items).toContain('Landing Page Templates');
+        expect(items).toContain('Landing Pages');
     });
 
-    it('does not show Landing Page Templates when user lacks permission', () => {
+    it('does not show Landing Pages when user lacks permission', () => {
         setMockUser({
             role: 'curator',
             can_manage_landing_page_templates: false,
@@ -344,7 +344,7 @@ describe('AppSidebar', () => {
         expect(dataCurationSection).toBeDefined();
 
         const dataCurationItems = dataCurationSection![0].items.map((i: NavItem) => i.title);
-        expect(dataCurationItems).not.toContain('Landing Page Templates');
+        expect(dataCurationItems).not.toContain('Landing Pages');
 
         // Also should not appear in Administration (since curator has no admin items)
         const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
