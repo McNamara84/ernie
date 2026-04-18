@@ -48,8 +48,9 @@ return new class extends Migration
             return;
         }
 
-        $fkName = collect(Schema::getForeignKeys('landing_pages'))
-            ->first(fn (array $fk): bool => in_array('landing_page_template_id', $fk['columns']))['name'] ?? null;
+        $fk = collect(Schema::getForeignKeys('landing_pages'))
+            ->first(fn (array $fk): bool => in_array('landing_page_template_id', $fk['columns']));
+        $fkName = $fk['name'] ?? null;
 
         Schema::table('landing_pages', function (Blueprint $table) use ($fkName) {
             if ($fkName !== null) {
