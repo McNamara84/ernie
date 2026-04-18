@@ -1221,7 +1221,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'landing-page-templates',
-                title: 'Landing Pages',
+                title: 'Landing Page Templates',
                 icon: LayoutTemplate,
                 minRole: 'group_leader',
                 content: (
