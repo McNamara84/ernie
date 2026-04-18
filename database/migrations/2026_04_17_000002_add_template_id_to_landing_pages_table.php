@@ -13,6 +13,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('landing_pages', 'landing_page_template_id')) {
+            return;
+        }
+
         Schema::table('landing_pages', function (Blueprint $table) {
             $table->foreignId('landing_page_template_id')
                 ->nullable()

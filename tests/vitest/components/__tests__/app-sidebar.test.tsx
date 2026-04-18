@@ -311,7 +311,7 @@ describe('AppSidebar', () => {
         expect(footerTitles).toContain('Editor Settings');
     });
 
-    it('shows Landing Page Templates in Data Curation when user has permission', () => {
+    it('shows Landing Page Templates in Administration when user has permission', () => {
         setMockUser({
             role: 'admin',
             can_manage_landing_page_templates: true,
@@ -320,10 +320,10 @@ describe('AppSidebar', () => {
         render(<AppSidebar />);
 
         const sectionCalls = NavSectionMock.mock.calls;
-        const dataCurationSection = sectionCalls.find((call) => call[0].label === 'Data Curation');
-        expect(dataCurationSection).toBeDefined();
+        const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
+        expect(adminSection).toBeDefined();
 
-        const items = dataCurationSection![0].items.map((i: NavItem) => i.title);
+        const items = adminSection![0].items.map((i: NavItem) => i.title);
         expect(items).toContain('Landing Page Templates');
     });
 
@@ -331,6 +331,10 @@ describe('AppSidebar', () => {
         setMockUser({
             role: 'curator',
             can_manage_landing_page_templates: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
         });
 
         render(<AppSidebar />);
@@ -339,7 +343,11 @@ describe('AppSidebar', () => {
         const dataCurationSection = sectionCalls.find((call) => call[0].label === 'Data Curation');
         expect(dataCurationSection).toBeDefined();
 
-        const items = dataCurationSection![0].items.map((i: NavItem) => i.title);
-        expect(items).not.toContain('Landing Page Templates');
+        const dataCurationItems = dataCurationSection![0].items.map((i: NavItem) => i.title);
+        expect(dataCurationItems).not.toContain('Landing Page Templates');
+
+        // Also should not appear in Administration (since curator has no admin items)
+        const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
+        expect(adminSection).toBeUndefined();
     });
 });
