@@ -48,12 +48,12 @@ return new class extends Migration
             return;
         }
 
-        $hasFk = collect(Schema::getForeignKeys('landing_pages'))
-            ->contains(fn (array $fk): bool => in_array('landing_page_template_id', $fk['columns']));
+        $fkName = collect(Schema::getForeignKeys('landing_pages'))
+            ->first(fn (array $fk): bool => in_array('landing_page_template_id', $fk['columns']))['name'] ?? null;
 
-        Schema::table('landing_pages', function (Blueprint $table) use ($hasFk) {
-            if ($hasFk) {
-                $table->dropForeign(['landing_page_template_id']);
+        Schema::table('landing_pages', function (Blueprint $table) use ($fkName) {
+            if ($fkName !== null) {
+                $table->dropForeign($fkName);
             }
 
             $table->dropColumn('landing_page_template_id');
