@@ -82,6 +82,56 @@ describe('getCitation', function () {
             ->assertJson(['error' => 'Missing or invalid doi query parameter']);
     });
 
+    it('normalizes DOI resolver URLs by stripping https://doi.org/ prefix', function () {
+        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService->shouldReceive('getMetadata')
+            ->with('10.5880/GFZ.TEST.2024')
+            ->once()
+            ->andReturn([
+                'author' => [['family' => 'Smith', 'given' => 'John']],
+                'issued' => ['date-parts' => [[2024]]],
+                'title' => 'Test Dataset',
+                'publisher' => 'GFZ',
+                'DOI' => '10.5880/GFZ.TEST.2024',
+            ]);
+
+        $mockService->shouldReceive('buildCitationFromMetadata')
+            ->once()
+            ->andReturn('Smith, J. (2024)');
+
+        $this->app->instance(DataCiteApiService::class, $mockService);
+
+        $response = $this->getJson('/api/datacite/citation?doi=' . urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
+
+        $response->assertOk()
+            ->assertJsonPath('doi', '10.5880/GFZ.TEST.2024');
+    });
+
+    it('normalizes DOI resolver URLs by stripping http://dx.doi.org/ prefix', function () {
+        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService->shouldReceive('getMetadata')
+            ->with('10.1111/bij.12893')
+            ->once()
+            ->andReturn([
+                'author' => [['family' => 'Doe', 'given' => 'Jane']],
+                'issued' => ['date-parts' => [[2023]]],
+                'title' => 'Test',
+                'publisher' => 'Wiley',
+                'DOI' => '10.1111/bij.12893',
+            ]);
+
+        $mockService->shouldReceive('buildCitationFromMetadata')
+            ->once()
+            ->andReturn('Doe, J. (2023)');
+
+        $this->app->instance(DataCiteApiService::class, $mockService);
+
+        $response = $this->getJson('/api/datacite/citation?doi=' . urlencode('http://dx.doi.org/10.1111/bij.12893'));
+
+        $response->assertOk()
+            ->assertJsonPath('doi', '10.1111/bij.12893');
+    });
+
     it('handles DOIs with encoded slashes in query parameter correctly', function () {
         $mockService = Mockery::mock(DataCiteApiService::class);
         $mockService->shouldReceive('getMetadata')
@@ -489,6 +539,31 @@ describe('getAuthors', function () {
 
         $response->assertStatus(422)
             ->assertJson(['error' => 'Missing or invalid doi query parameter']);
+    });
+
+    it('normalizes DOI resolver URLs by stripping https://doi.org/ prefix', function () {
+        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService->shouldReceive('getDataCiteMetadata')
+            ->with('10.5880/GFZ.TEST.2024')
+            ->once()
+            ->andReturn([
+                'creators' => [
+                    [
+                        'nameType' => 'Personal',
+                        'givenName' => 'John',
+                        'familyName' => 'Smith',
+                        'nameIdentifiers' => [],
+                        'affiliation' => [],
+                    ],
+                ],
+            ]);
+
+        $this->app->instance(DataCiteApiService::class, $mockService);
+
+        $response = $this->getJson('/api/datacite/authors?doi=' . urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
+
+        $response->assertOk()
+            ->assertJsonPath('doi', '10.5880/GFZ.TEST.2024');
     });
 
     it('handles DOIs with encoded slashes in query parameter correctly', function () {

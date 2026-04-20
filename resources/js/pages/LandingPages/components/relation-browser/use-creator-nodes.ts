@@ -205,7 +205,7 @@ function fromApiAuthor(author: ApiAuthor): {
  * Hook that fetches and deduplicates creator data for the Relation Browser graph.
  *
  * Central resource creators come from Inertia props (immediate).
- * Related DOI creators are fetched asynchronously via /api/datacite/authors/{doi}.
+ * Related DOI creators are fetched asynchronously via /api/datacite/authors?doi=...
  * Creators are deduplicated by ORCID first, then by normalized name.
  */
 export function useCreatorNodes(

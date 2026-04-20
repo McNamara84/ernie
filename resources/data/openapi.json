@@ -34,6 +34,10 @@
         {
             "name": "Vocabularies",
             "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst), and ROR (Research Organization Registry)"
+        },
+        {
+            "name": "DataCite",
+            "description": "Endpoints for retrieving citation metadata and author information for DOIs via the DataCite API and doi.org Content Negotiation"
         }
     ],
     "paths": {
@@ -1044,6 +1048,208 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/datacite/citation": {
+            "get": {
+                "tags": ["DataCite"],
+                "summary": "Get formatted citation for a DOI",
+                "description": "Returns a formatted citation string for the given DOI. Uses doi.org Content Negotiation API to retrieve CSL JSON metadata and builds a human-readable citation. The DOI can be provided as a bare DOI (10.5880/...) or as a resolver URL (https://doi.org/10.5880/...); resolver prefixes are stripped automatically.",
+                "parameters": [
+                    {
+                        "name": "doi",
+                        "in": "query",
+                        "required": true,
+                        "description": "The DOI to look up. Accepts bare DOIs (10.5880/GFZ.TEST.2024) or resolver URLs (https://doi.org/10.5880/GFZ.TEST.2024).",
+                        "schema": {
+                            "type": "string",
+                            "example": "10.5880/GFZ.TEST.2024"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Citation retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "citation": {
+                                            "type": "string",
+                                            "example": "Smith, John (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2024"
+                                        },
+                                        "doi": {
+                                            "type": "string",
+                                            "example": "10.5880/gfz.test.2024"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Metadata not found for the given DOI",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Metadata not found for DOI"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Missing or invalid DOI query parameter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Missing or invalid doi query parameter"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/datacite/authors": {
+            "get": {
+                "tags": ["DataCite"],
+                "summary": "Get structured author data for a DOI",
+                "description": "Returns structured author information for the given DOI, including affiliations, ORCID identifiers, and author type (Person/Institution). First tries the DataCite REST API (which includes affiliations and nameType), then falls back to CSL JSON via doi.org Content Negotiation for non-DataCite DOIs. The DOI can be provided as a bare DOI or resolver URL.",
+                "parameters": [
+                    {
+                        "name": "doi",
+                        "in": "query",
+                        "required": true,
+                        "description": "The DOI to look up. Accepts bare DOIs (10.5880/GFZ.TEST.2024) or resolver URLs (https://doi.org/10.5880/GFZ.TEST.2024).",
+                        "schema": {
+                            "type": "string",
+                            "example": "10.5880/GFZ.TEST.2024"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Author data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "doi": {
+                                            "type": "string",
+                                            "example": "10.5880/gfz.test.2024"
+                                        },
+                                        "authors": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "given_name": {
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "example": "John"
+                                                    },
+                                                    "family_name": {
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "example": "Smith"
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "description": "Full name for organizational authors"
+                                                    },
+                                                    "orcid": {
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "example": "0000-0002-1234-5678"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "enum": ["Person", "Institution"],
+                                                        "example": "Person"
+                                                    },
+                                                    "ror_id": {
+                                                        "type": "string",
+                                                        "nullable": true,
+                                                        "example": "https://ror.org/04z8jg394"
+                                                    },
+                                                    "affiliations": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "example": "GFZ Helmholtz Centre"
+                                                                },
+                                                                "identifier": {
+                                                                    "type": "string",
+                                                                    "nullable": true,
+                                                                    "example": "https://ror.org/04z8jg394"
+                                                                },
+                                                                "identifier_scheme": {
+                                                                    "type": "string",
+                                                                    "nullable": true,
+                                                                    "example": "ROR"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Metadata not found for the given DOI",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Metadata not found for DOI"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Missing or invalid DOI query parameter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Missing or invalid doi query parameter"
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
