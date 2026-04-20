@@ -272,6 +272,7 @@ describe('Vocabulary Type Grouping', () => {
             chronostratigraphy: [],
             gemet: [],
             analytical_methods: [],
+            euroscivoc: [],
         };
 
         keywords.forEach((keyword) => {

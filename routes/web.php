@@ -534,6 +534,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.gemet');
     Route::get('vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods'])
         ->name('vocabularies.analytical-methods');
+    Route::get('vocabularies/euroscivoc', [VocabularyController::class, 'euroSciVoc'])
+        ->name('vocabularies.euroscivoc');
     Route::get('vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])
         ->name('vocabularies.pid-availability');
     Route::get('vocabularies/msl-vocabulary-url', function () {

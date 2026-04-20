@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-18",
+        "date": "2026-04-20",
         "features": [
             {
                 "title": "Landing Page Template Management",
@@ -9,7 +9,7 @@
             },
             {
                 "title": "European Science Vocabulary (EuroSciVoc) Thesaurus",
-                "description": "A new controlled vocabulary 'European Science Vocabulary (EuroSciVoc)' has been integrated from the Publications Office of the European Union. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories extracted from CORDIS content. The vocabulary provides a hierarchical tree of scientific disciplines (e.g., Natural Sciences > Physical Sciences > Astronomy). It appears in the keyword editor alongside existing vocabularies and is available via the API. Administrators and group leaders can activate/deactivate and update the vocabulary in Editor Settings."
+                "description": "A new controlled vocabulary 'European Science Vocabulary (EuroSciVoc)' has been integrated from the Publications Office of the European Union. EuroSciVoc is a taxonomy of fields of science based on OECD's 2015 Frascati Manual, extended with categories extracted from CORDIS content. The vocabulary provides a hierarchical tree of scientific disciplines (e.g., Natural Sciences > Physical Sciences > Astronomy). It appears as a new 'EuroSciVoc' tab in the keyword editor alongside existing vocabularies and is available via the API. Administrators and group leaders can activate/deactivate and update the vocabulary in Editor Settings."
             },
             {
                 "title": "Analytical Methods for Geochemistry Thesaurus",

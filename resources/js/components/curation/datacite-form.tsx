@@ -4,10 +4,10 @@ import { AlertCircle, Calendar, CheckCircle, Circle, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { SectionHeader } from '@/components/curation/section-header';
-import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
-import { type MappedError, mapBackendErrors } from '@/components/curation/utils/error-field-mapper';
+import { mapBackendErrors,type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import {
 import AuthorField, { type AuthorEntry } from './fields/author';
 import ContributorField, { type ContributorEntry } from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
+import { DatacenterField } from './fields/datacenter-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import FreeKeywordsField from './fields/free-keywords-field';
@@ -51,7 +52,6 @@ import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-cov
 import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import UsedInstrumentsField from './fields/used-instruments-field';
-import { DatacenterField } from './fields/datacenter-field';
 import {
     type DataCiteFormData,
     type DataCiteFormProps,
@@ -633,6 +633,7 @@ export default function DataCiteForm({
         chronostratigraphy: VocabularyKeyword[];
         gemet: VocabularyKeyword[];
         analytical_methods: VocabularyKeyword[];
+        euroscivoc: VocabularyKeyword[];
     }>({
         science: [],
         platforms: [],
@@ -641,6 +642,7 @@ export default function DataCiteForm({
         chronostratigraphy: [],
         gemet: [],
         analytical_methods: [],
+        euroscivoc: [],
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
@@ -652,6 +654,7 @@ export default function DataCiteForm({
         chronostratigraphy: boolean;
         gemet: boolean;
         analytical_methods: boolean;
+        euroscivoc: boolean;
     }>({
         science_keywords: true,
         platforms: true,
@@ -659,6 +662,7 @@ export default function DataCiteForm({
         chronostratigraphy: true,
         gemet: true,
         analytical_methods: true,
+        euroscivoc: true,
     });
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
@@ -666,7 +670,7 @@ export default function DataCiteForm({
         const loadVocabularies = async () => {
             try {
                 // First, check which thesauri are available
-                let availability = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true };
+                let availability = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true };
                 try {
                     const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
                     if (availabilityRes.ok) {
@@ -678,6 +682,7 @@ export default function DataCiteForm({
                             chronostratigraphy: availabilityData.chronostratigraphy?.available ?? true,
                             gemet: availabilityData.gemet?.available ?? true,
                             analytical_methods: availabilityData.analytical_methods?.available ?? true,
+                            euroscivoc: availabilityData.euroscivoc?.available ?? true,
                         };
                         setThesauriAvailability(availability);
                     }
@@ -688,7 +693,7 @@ export default function DataCiteForm({
 
                 // Only fetch vocabularies that are enabled
                 const fetchPromises: Promise<Response>[] = [];
-                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet' | 'analytical_methods')[] = [];
+                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet' | 'analytical_methods' | 'euroscivoc')[] = [];
 
                 if (availability.science_keywords) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
@@ -714,6 +719,10 @@ export default function DataCiteForm({
                     fetchPromises.push(fetch('/vocabularies/analytical-methods'));
                     fetchOrder.push('analytical_methods');
                 }
+                if (availability.euroscivoc) {
+                    fetchPromises.push(fetch('/vocabularies/euroscivoc'));
+                    fetchOrder.push('euroscivoc');
+                }
 
                 if (fetchPromises.length === 0) {
                     // No thesauri enabled
@@ -732,6 +741,7 @@ export default function DataCiteForm({
                     chronostratigraphy: [],
                     gemet: [],
                     analytical_methods: [],
+                    euroscivoc: [],
                 };
 
                 // Process each response with its corresponding key
@@ -758,6 +768,7 @@ export default function DataCiteForm({
                         chronostratigraphy: vocabularies.chronostratigraphy.length,
                         gemet: vocabularies.gemet.length,
                         analytical_methods: vocabularies.analytical_methods.length,
+                        euroscivoc: vocabularies.euroscivoc.length,
                         availability,
                     });
                 }
@@ -2414,12 +2425,14 @@ export default function DataCiteForm({
                                 chronostratVocabulary={gcmdVocabularies.chronostratigraphy}
                                 gemetVocabulary={gcmdVocabularies.gemet}
                                 analyticalMethodsVocabulary={gcmdVocabularies.analytical_methods}
+                                euroscivocVocabulary={gcmdVocabularies.euroscivoc}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
                                 showMslTab={shouldShowMSLSection}
                                 showChronostratTab={thesauriAvailability.chronostratigraphy}
                                 showGemetTab={thesauriAvailability.gemet}
                                 showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
+                                showEuroSciVocTab={thesauriAvailability.euroscivoc}
                                 autoSwitchToMsl={shouldAutoSwitchToMsl}
                                 enabledThesauri={thesauriAvailability}
                             />

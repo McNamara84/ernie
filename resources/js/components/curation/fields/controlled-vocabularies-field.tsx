@@ -31,6 +31,7 @@ interface ThesauriAvailability {
     chronostratigraphy: boolean;
     gemet: boolean;
     analytical_methods: boolean;
+    euroscivoc: boolean;
 }
 
 interface ControlledVocabulariesFieldProps {
@@ -41,12 +42,14 @@ interface ControlledVocabulariesFieldProps {
     chronostratVocabulary?: VocabularyKeyword[]; // Optional ICS Chronostratigraphy vocabulary
     gemetVocabulary?: VocabularyKeyword[]; // Optional GEMET vocabulary
     analyticalMethodsVocabulary?: VocabularyKeyword[]; // Optional Analytical Methods vocabulary
+    euroscivocVocabulary?: VocabularyKeyword[]; // Optional EuroSciVoc vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
     showChronostratTab?: boolean; // Control Chronostratigraphy tab visibility
     showGemetTab?: boolean; // Control GEMET tab visibility
     showAnalyticalMethodsTab?: boolean; // Control Analytical Methods tab visibility
+    showEuroSciVocTab?: boolean; // Control EuroSciVoc tab visibility
     autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
     enabledThesauri?: ThesauriAvailability; // Which thesauri are enabled in settings
 }
@@ -92,14 +95,16 @@ export default function ControlledVocabulariesField({
     chronostratVocabulary = [],
     gemetVocabulary = [],
     analyticalMethodsVocabulary = [],
+    euroscivocVocabulary = [],
     selectedKeywords,
     onChange,
     showMslTab = false,
     showChronostratTab = false,
     showGemetTab = false,
     showAnalyticalMethodsTab = false,
+    showEuroSciVocTab = false,
     autoSwitchToMsl = false,
-    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true },
+    enabledThesauri = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true },
 }: ControlledVocabulariesFieldProps) {
     // Determine which tabs are available based on enabled thesauri
     const showScienceTab = enabledThesauri.science_keywords;
@@ -108,6 +113,7 @@ export default function ControlledVocabulariesField({
     const showChronostrat = showChronostratTab && enabledThesauri.chronostratigraphy;
     const showGemet = showGemetTab && enabledThesauri.gemet;
     const showAnalyticalMethods = showAnalyticalMethodsTab && enabledThesauri.analytical_methods;
+    const showEuroSciVoc = showEuroSciVocTab && enabledThesauri.euroscivoc;
 
     // Determine default active tab based on what's available
     const getDefaultTab = (): VocabularyType => {
@@ -118,6 +124,7 @@ export default function ControlledVocabulariesField({
         if (showChronostrat) return 'chronostratigraphy';
         if (showGemet) return 'gemet';
         if (showAnalyticalMethods) return 'analytical_methods';
+        if (showEuroSciVoc) return 'euroscivoc';
         return 'science'; // Fallback
     };
 
@@ -149,7 +156,8 @@ export default function ControlledVocabulariesField({
             (activeTab === 'msl' && showMslTab) ||
             (activeTab === 'chronostratigraphy' && showChronostrat) ||
             (activeTab === 'gemet' && showGemet) ||
-            (activeTab === 'analytical_methods' && showAnalyticalMethods);
+            (activeTab === 'analytical_methods' && showAnalyticalMethods) ||
+            (activeTab === 'euroscivoc' && showEuroSciVoc);
 
         if (!isCurrentTabAvailable) {
             if (showScienceTab) setActiveTab('science');
@@ -159,8 +167,9 @@ export default function ControlledVocabulariesField({
             else if (showChronostrat) setActiveTab('chronostratigraphy');
             else if (showGemet) setActiveTab('gemet');
             else if (showAnalyticalMethods) setActiveTab('analytical_methods');
+            else if (showEuroSciVoc) setActiveTab('euroscivoc');
         }
-    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods]);
+    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods, showEuroSciVoc]);
 
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
@@ -189,10 +198,12 @@ export default function ControlledVocabulariesField({
                 return gemetVocabulary;
             case 'analytical_methods':
                 return analyticalMethodsVocabulary;
+            case 'euroscivoc':
+                return euroscivocVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary, gemetVocabulary, analyticalMethodsVocabulary]);
+    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary, chronostratVocabulary, gemetVocabulary, analyticalMethodsVocabulary, euroscivocVocabulary]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -250,6 +261,7 @@ export default function ControlledVocabulariesField({
             chronostratigraphy: [],
             gemet: [],
             analytical_methods: [],
+            euroscivoc: [],
         };
 
         for (const keyword of selectedKeywords) {
@@ -269,7 +281,7 @@ export default function ControlledVocabulariesField({
     );
 
     // Check if any thesauri are available
-    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat || showGemet || showAnalyticalMethods;
+    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat || showGemet || showAnalyticalMethods || showEuroSciVoc;
 
     return (
         <div className="space-y-4">
@@ -292,6 +304,7 @@ export default function ControlledVocabulariesField({
                             ...(showChronostrat ? ['chronostratigraphy' as const] : []),
                             ...(showGemet ? ['gemet' as const] : []),
                             ...(showAnalyticalMethods ? ['analytical_methods' as const] : []),
+                            ...(showEuroSciVoc ? ['euroscivoc' as const] : []),
                         ] as VocabularyType[]
                     ).map((type) => {
                         const keywords = keywordsByVocabulary[type];
@@ -305,6 +318,7 @@ export default function ControlledVocabulariesField({
                             chronostratigraphy: 'Chronostratigraphy',
                             gemet: 'GEMET',
                             analytical_methods: 'Analytical Methods',
+                            euroscivoc: 'EuroSciVoc',
                         };
 
                         // Check if there are any legacy keywords
@@ -400,7 +414,7 @@ export default function ControlledVocabulariesField({
                                 'grid w-full',
                                 // Dynamically calculate grid columns based on visible tabs
                                 (() => {
-                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods].filter(Boolean).length;
+                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods, showEuroSciVoc].filter(Boolean).length;
                                     switch (visibleCount) {
                                         case 1:
                                             return 'grid-cols-1';
@@ -416,6 +430,8 @@ export default function ControlledVocabulariesField({
                                             return 'grid-cols-6';
                                         case 7:
                                             return 'grid-cols-7';
+                                        case 8:
+                                            return 'grid-cols-8';
                                         default:
                                             return 'grid-cols-3';
                                     }
@@ -498,6 +514,18 @@ export default function ControlledVocabulariesField({
                                 <TabsTrigger value="analytical_methods" className="relative">
                                     Analytical Methods
                                     {hasKeywords('analytical_methods') && (
+                                        <span
+                                            className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                            aria-label="Has keywords"
+                                            title="This vocabulary has selected keywords"
+                                        />
+                                    )}
+                                </TabsTrigger>
+                            )}
+                            {showEuroSciVoc && (
+                                <TabsTrigger value="euroscivoc" className="relative">
+                                    EuroSciVoc
+                                    {hasKeywords('euroscivoc') && (
                                         <span
                                             className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                             aria-label="Has keywords"
