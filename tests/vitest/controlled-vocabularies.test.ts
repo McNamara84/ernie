@@ -121,13 +121,13 @@ describe('SelectedKeyword Type', () => {
 
 describe('VocabularyType', () => {
     it('should only allow valid vocabulary types', () => {
-        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet'];
+        const validTypes: VocabularyType[] = ['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet', 'analytical_methods', 'euroscivoc'];
 
         validTypes.forEach((type) => {
-            expect(['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet']).toContain(type);
+            expect(['science', 'platforms', 'instruments', 'msl', 'chronostratigraphy', 'gemet', 'analytical_methods', 'euroscivoc']).toContain(type);
         });
 
-        expect(validTypes).toHaveLength(6);
+        expect(validTypes).toHaveLength(8);
     });
 
     it('should convert scheme to vocabulary type', () => {
@@ -137,6 +137,8 @@ describe('VocabularyType', () => {
         expect(getVocabularyTypeFromScheme('EPOS MSL vocabulary')).toBe('msl');
         expect(getVocabularyTypeFromScheme('International Chronostratigraphic Chart')).toBe('chronostratigraphy');
         expect(getVocabularyTypeFromScheme('GEMET - GEneral Multilingual Environmental Thesaurus')).toBe('gemet');
+        expect(getVocabularyTypeFromScheme('Analytical Methods for Geochemistry and Cosmochemistry')).toBe('analytical_methods');
+        expect(getVocabularyTypeFromScheme('European Science Vocabulary (EuroSciVoc)')).toBe('euroscivoc');
     });
 
     it('should convert vocabulary type to scheme', () => {
@@ -146,6 +148,8 @@ describe('VocabularyType', () => {
         expect(getSchemeFromVocabularyType('msl')).toBe('EPOS MSL vocabulary');
         expect(getSchemeFromVocabularyType('chronostratigraphy')).toBe('International Chronostratigraphic Chart');
         expect(getSchemeFromVocabularyType('gemet')).toBe('GEMET - GEneral Multilingual Environmental Thesaurus');
+        expect(getSchemeFromVocabularyType('analytical_methods')).toBe('Analytical Methods for Geochemistry and Cosmochemistry');
+        expect(getSchemeFromVocabularyType('euroscivoc')).toBe('European Science Vocabulary (EuroSciVoc)');
     });
 });
 

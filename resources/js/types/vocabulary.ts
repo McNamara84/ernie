@@ -36,6 +36,8 @@ export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     // Normalize scheme for comparison
     const normalized = scheme.toLowerCase();
 
+    // EuroSciVoc must be checked before 'science' because the scheme name contains 'Science'
+    if (normalized.includes('euroscivoc') || normalized.includes('european science vocabulary')) return 'euroscivoc';
     if (normalized.includes('science')) return 'science';
     if (normalized.includes('platform')) return 'platforms';
     if (normalized.includes('instrument')) return 'instruments';
@@ -44,7 +46,6 @@ export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     if (normalized.includes('gemet')) return 'gemet';
     if (normalized.includes('analytical') && normalized.includes('method')) return 'analytical_methods';
     if (normalized.includes('geochem') && normalized.includes('method')) return 'analytical_methods';
-    if (normalized.includes('euroscivoc') || normalized.includes('european science vocabulary')) return 'euroscivoc';
 
     return 'science'; // Default fallback
 }
