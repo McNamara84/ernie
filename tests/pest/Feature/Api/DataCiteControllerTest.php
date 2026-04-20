@@ -7,7 +7,7 @@ use App\Services\DataCiteApiService;
 
 covers(DataCiteController::class);
 
-describe('GET /api/v1/datacite/citation/{doi}', function (): void {
+describe('GET /api/datacite/citation', function (): void {
     test('returns citation for valid DOI', function (): void {
         $mockService = Mockery::mock(DataCiteApiService::class);
         $mockService->shouldReceive('getMetadata')
@@ -27,7 +27,7 @@ describe('GET /api/v1/datacite/citation/{doi}', function (): void {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/datacite/citation/10.5880/test.2024.001');
+        $response = $this->getJson('/api/datacite/citation?doi=10.5880/test.2024.001');
 
         $response->assertOk()
             ->assertJsonPath('doi', '10.5880/test.2024.001')
@@ -42,9 +42,16 @@ describe('GET /api/v1/datacite/citation/{doi}', function (): void {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        $response = $this->getJson('/api/datacite/citation/10.5880/nonexistent');
+        $response = $this->getJson('/api/datacite/citation?doi=10.5880/nonexistent');
 
         $response->assertNotFound()
             ->assertJsonPath('error', 'Metadata not found for DOI');
+    });
+
+    test('returns 422 when doi query parameter is missing', function (): void {
+        $response = $this->getJson('/api/datacite/citation');
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error', 'Missing or invalid doi query parameter');
     });
 });

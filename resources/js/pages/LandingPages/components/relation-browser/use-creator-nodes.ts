@@ -254,7 +254,7 @@ export function useCreatorNodes(
 
         // Batch all fetches with Promise.allSettled → single state update
         const fetchPromises = uniqueDois.map((doi) =>
-            fetch(`/api/datacite/authors/${encodeURIComponent(doi)}`, {
+            fetch(`/api/datacite/authors?doi=${encodeURIComponent(doi)}`, {
                 signal: controller.signal,
             })
                 .then((response) => {

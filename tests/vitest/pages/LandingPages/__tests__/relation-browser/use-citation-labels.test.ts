@@ -141,7 +141,7 @@ describe('useCitationLabels', () => {
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
-                '/api/datacite/citation/10.5880%2Ftest',
+                '/api/datacite/citation?doi=10.5880%2Ftest',
                 expect.any(Object),
             );
         });
@@ -193,7 +193,7 @@ describe('useCitationLabels', () => {
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledTimes(1);
             expect(global.fetch).toHaveBeenCalledWith(
-                '/api/datacite/citation/10.5880%2Fmissing',
+                '/api/datacite/citation?doi=10.5880%2Fmissing',
                 expect.any(Object),
             );
         });

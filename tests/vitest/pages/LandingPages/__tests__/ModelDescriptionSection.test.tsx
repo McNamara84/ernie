@@ -210,7 +210,7 @@ describe('ModelDescriptionSection', () => {
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith(
-                '/api/datacite/citation/10.5880%2Fspecial%2Fchars',
+                '/api/datacite/citation?doi=10.5880%2Fspecial%2Fchars',
                 expect.objectContaining({ signal: expect.any(AbortSignal) }),
             );
         });

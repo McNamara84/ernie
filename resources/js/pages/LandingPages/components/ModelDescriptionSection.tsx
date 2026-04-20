@@ -38,7 +38,7 @@ export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescription
         const fetchCitation = async () => {
             setLoading(true);
             try {
-                const url = `/api/datacite/citation/${encodeURIComponent(supplementTo.identifier)}`;
+                const url = `/api/datacite/citation?doi=${encodeURIComponent(supplementTo.identifier)}`;
                 const response = await fetch(url, { signal: controller.signal });
 
                 if (response.ok) {

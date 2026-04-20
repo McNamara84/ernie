@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Services\DataCiteApiService;
 use App\Support\OrcidNormalizer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controller für DOI-Zitations-Abruf.
@@ -23,11 +24,22 @@ class DataCiteController extends Controller
     /**
      * Ruft eine formatierte Zitation für eine DOI ab.
      *
-     * @param  string  $doi  Die DOI (kann von jedem Registrar sein)
+     * The DOI is passed as a query parameter (?doi=10.5880/...) to avoid
+     * URL encoding issues with forward slashes in DOIs (%2F) which some
+     * web servers (Nginx, Traefik) reject with 400 Bad Request.
+     *
      * @return JsonResponse JSON mit citation und doi
      */
-    public function getCitation(string $doi): JsonResponse
+    public function getCitation(Request $request): JsonResponse
     {
+        $doi = $request->query('doi');
+
+        if (empty($doi) || ! is_string($doi)) {
+            return response()->json([
+                'error' => 'Missing or invalid doi query parameter',
+            ], 422);
+        }
+
         $metadata = $this->dataCiteService->getMetadata($doi);
 
         if (! $metadata) {
@@ -50,11 +62,20 @@ class DataCiteController extends Controller
      * First tries the DataCite REST API (which includes affiliations and nameType).
      * Falls back to CSL JSON via doi.org Content Negotiation for non-DataCite DOIs.
      *
-     * @param  string  $doi  The DOI (any registrar)
+     * The DOI is passed as a query parameter (?doi=10.5880/...) to avoid
+     * URL encoding issues with forward slashes in DOIs.
+     *
      * @return JsonResponse JSON with doi and authors array
      */
-    public function getAuthors(string $doi): JsonResponse
+    public function getAuthors(Request $request): JsonResponse
     {
+        $doi = $request->query('doi');
+
+        if (empty($doi) || ! is_string($doi)) {
+            return response()->json([
+                'error' => 'Missing or invalid doi query parameter',
+            ], 422);
+        }
         // Try DataCite REST API first (includes affiliations)
         $dataCiteMetadata = $this->dataCiteService->getDataCiteMetadata($doi);
 

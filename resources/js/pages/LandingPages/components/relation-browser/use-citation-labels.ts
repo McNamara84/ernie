@@ -97,7 +97,7 @@ export function useCitationLabels(
         }
 
         for (const doi of doisToFetch) {
-            fetch(`/api/datacite/citation/${encodeURIComponent(doi)}`, {
+            fetch(`/api/datacite/citation?doi=${encodeURIComponent(doi)}`, {
                 signal: controller.signal,
             })
                 .then((response) => {

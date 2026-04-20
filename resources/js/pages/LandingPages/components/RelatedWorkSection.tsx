@@ -112,7 +112,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
 
         // Fetch each new DOI citation, updating individually on resolve
         newDois.forEach((doi) => {
-            fetch(`/api/datacite/citation/${encodeURIComponent(doi)}`, { signal: controller.signal })
+            fetch(`/api/datacite/citation?doi=${encodeURIComponent(doi)}`, { signal: controller.signal })
                 .then((response) => {
                     if (response.ok) {
                         return response.json();
