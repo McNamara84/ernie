@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { SectionHeader } from '@/components/curation/section-header';
-import { mapBackendErrors,type MappedError } from '@/components/curation/utils/error-field-mapper';
+import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
