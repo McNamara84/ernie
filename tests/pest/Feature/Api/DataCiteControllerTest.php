@@ -54,4 +54,18 @@ describe('GET /api/datacite/citation', function (): void {
         $response->assertStatus(422)
             ->assertJsonPath('error', 'Missing or invalid doi query parameter');
     });
+
+    test('returns 422 when doi is whitespace only', function (): void {
+        $response = $this->getJson('/api/datacite/citation?doi=%20%20%20');
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error', 'Missing or invalid doi query parameter');
+    });
+
+    test('returns 422 when doi has invalid format', function (): void {
+        $response = $this->getJson('/api/datacite/citation?doi=not-a-doi');
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error', 'Missing or invalid doi query parameter');
+    });
 });

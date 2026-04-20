@@ -68,6 +68,20 @@ describe('getCitation', function () {
             ->assertJson(['error' => 'Missing or invalid doi query parameter']);
     });
 
+    it('returns 422 when doi query parameter is whitespace only', function () {
+        $response = $this->getJson('/api/datacite/citation?doi=%20%20%20');
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => 'Missing or invalid doi query parameter']);
+    });
+
+    it('returns 422 when doi query parameter has invalid format', function () {
+        $response = $this->getJson('/api/datacite/citation?doi=not-a-doi');
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => 'Missing or invalid doi query parameter']);
+    });
+
     it('handles DOIs with encoded slashes in query parameter correctly', function () {
         $mockService = Mockery::mock(DataCiteApiService::class);
         $mockService->shouldReceive('getMetadata')
@@ -458,6 +472,20 @@ describe('getAuthors', function () {
 
     it('returns 422 when doi query parameter is empty', function () {
         $response = $this->getJson('/api/datacite/authors?doi=');
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => 'Missing or invalid doi query parameter']);
+    });
+
+    it('returns 422 when doi query parameter is whitespace only', function () {
+        $response = $this->getJson('/api/datacite/authors?doi=%20%20%20');
+
+        $response->assertStatus(422)
+            ->assertJson(['error' => 'Missing or invalid doi query parameter']);
+    });
+
+    it('returns 422 when doi query parameter has invalid format', function () {
+        $response = $this->getJson('/api/datacite/authors?doi=not-a-doi');
 
         $response->assertStatus(422)
             ->assertJson(['error' => 'Missing or invalid doi query parameter']);

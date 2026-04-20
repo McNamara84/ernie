@@ -11,9 +11,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Controller für DOI-Zitations-Abruf.
+ * Controller for DOI citation retrieval.
  *
- * Verwendet die doi.org Content Negotiation API über den DataCiteApiService.
+ * Uses the doi.org Content Negotiation API via DataCiteApiService.
  */
 class DataCiteController extends Controller
 {
@@ -22,19 +22,19 @@ class DataCiteController extends Controller
     ) {}
 
     /**
-     * Ruft eine formatierte Zitation für eine DOI ab.
+     * Retrieve a formatted citation for a DOI.
      *
      * The DOI is passed as a query parameter (?doi=10.5880/...) to avoid
      * URL encoding issues with forward slashes in DOIs (%2F) which some
      * web servers (Nginx, Traefik) reject with 400 Bad Request.
      *
-     * @return JsonResponse JSON mit citation und doi
+     * @return JsonResponse JSON with citation and doi
      */
     public function getCitation(Request $request): JsonResponse
     {
-        $doi = $request->query('doi');
+        $doi = $this->extractValidDoi($request);
 
-        if (empty($doi) || ! is_string($doi)) {
+        if ($doi === null) {
             return response()->json([
                 'error' => 'Missing or invalid doi query parameter',
             ], 422);
@@ -69,9 +69,9 @@ class DataCiteController extends Controller
      */
     public function getAuthors(Request $request): JsonResponse
     {
-        $doi = $request->query('doi');
+        $doi = $this->extractValidDoi($request);
 
-        if (empty($doi) || ! is_string($doi)) {
+        if ($doi === null) {
             return response()->json([
                 'error' => 'Missing or invalid doi query parameter',
             ], 422);
@@ -103,6 +103,29 @@ class DataCiteController extends Controller
             'doi' => $doi,
             'authors' => $authors,
         ]);
+    }
+
+    /**
+     * Extract and validate the DOI query parameter.
+     *
+     * Trims whitespace and validates the DOI format (must start with "10." followed
+     * by a registrant code and a suffix separated by a slash).
+     */
+    private function extractValidDoi(Request $request): ?string
+    {
+        $doi = $request->query('doi');
+
+        if (! is_string($doi)) {
+            return null;
+        }
+
+        $doi = trim($doi);
+
+        if ($doi === '' || ! preg_match('#^10\.\d{4,9}/.+$#', $doi)) {
+            return null;
+        }
+
+        return $doi;
     }
 
     /**
