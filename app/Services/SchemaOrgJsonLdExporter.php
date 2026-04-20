@@ -31,6 +31,8 @@ class SchemaOrgJsonLdExporter
         'EPOS MSL vocabulary',
         'GEMET - GEneral Multilingual Environmental Thesaurus',
         'International Chronostratigraphic Chart',
+        'Analytical Methods for Geochemistry and Cosmochemistry',
+        'European Science Vocabulary (EuroSciVoc)',
     ];
 
     /**
