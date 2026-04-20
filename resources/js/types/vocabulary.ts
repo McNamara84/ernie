@@ -18,7 +18,7 @@ export interface VocabularyData {
     data: VocabularyKeyword[];
 }
 
-export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy' | 'gemet' | 'analytical_methods';
+export type VocabularyType = 'science' | 'platforms' | 'instruments' | 'msl' | 'chronostratigraphy' | 'gemet' | 'analytical_methods' | 'euroscivoc';
 
 export interface SelectedKeyword {
     id: string;
@@ -36,6 +36,8 @@ export function getVocabularyTypeFromScheme(scheme: string): VocabularyType {
     // Normalize scheme for comparison
     const normalized = scheme.toLowerCase();
 
+    // EuroSciVoc must be checked before 'science' because the scheme name contains 'Science'
+    if (normalized.includes('euroscivoc') || normalized.includes('european science vocabulary')) return 'euroscivoc';
     if (normalized.includes('science')) return 'science';
     if (normalized.includes('platform')) return 'platforms';
     if (normalized.includes('instrument')) return 'instruments';
@@ -65,6 +67,8 @@ export function getSchemeFromVocabularyType(type: VocabularyType): string {
             return 'GEMET - GEneral Multilingual Environmental Thesaurus';
         case 'analytical_methods':
             return 'Analytical Methods for Geochemistry and Cosmochemistry';
+        case 'euroscivoc':
+            return 'European Science Vocabulary (EuroSciVoc)';
         default:
             return 'Science Keywords';
     }
@@ -78,4 +82,5 @@ export interface VocabularyCollection {
     chronostratigraphy: VocabularyData;
     gemet: VocabularyData;
     analytical_methods: VocabularyData;
+    euroscivoc: VocabularyData;
 }

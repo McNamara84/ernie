@@ -247,3 +247,159 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
         expect(screen.getByText('Geochemistry')).toBeInTheDocument();
     });
 });
+
+describe('ControlledVocabulariesField - EuroSciVoc Tab', () => {
+    const mockScienceKeywords: VocabularyKeyword[] = [
+        {
+            id: 'sci-1',
+            text: 'Earth Science',
+            language: 'en',
+            scheme: 'GCMD Science Keywords',
+            schemeURI: 'https://gcmd.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+            description: 'Science keyword',
+            children: [],
+        },
+    ];
+
+    const mockPlatforms: VocabularyKeyword[] = [];
+    const mockInstruments: VocabularyKeyword[] = [];
+
+    const mockEuroSciVocVocabulary: VocabularyKeyword[] = [
+        {
+            id: 'http://data.europa.eu/8mn/euroscivoc/concept/c_123',
+            text: 'Physical Sciences',
+            language: 'en',
+            scheme: 'European Science Vocabulary (EuroSciVoc)',
+            schemeURI: 'http://data.europa.eu/8mn/euroscivoc/40c0f173-baa3-48a3-9fe6-d6e8fb366a00',
+            description: '',
+            children: [
+                {
+                    id: 'http://data.europa.eu/8mn/euroscivoc/concept/c_456',
+                    text: 'Astronomy',
+                    language: 'en',
+                    scheme: 'European Science Vocabulary (EuroSciVoc)',
+                    schemeURI: 'http://data.europa.eu/8mn/euroscivoc/40c0f173-baa3-48a3-9fe6-d6e8fb366a00',
+                    description: '',
+                    children: [],
+                },
+            ],
+        },
+    ];
+
+    const mockOnChange = vi.fn();
+
+    it('should not show EuroSciVoc tab when showEuroSciVocTab is false', () => {
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={mockScienceKeywords}
+                platforms={mockPlatforms}
+                instruments={mockInstruments}
+                euroscivocVocabulary={mockEuroSciVocVocabulary}
+                selectedKeywords={[]}
+                onChange={mockOnChange}
+                showEuroSciVocTab={false}
+            />,
+        );
+
+        expect(screen.queryByRole('tab', { name: /EuroSciVoc/i })).not.toBeInTheDocument();
+    });
+
+    it('should show EuroSciVoc tab when showEuroSciVocTab is true', () => {
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={mockScienceKeywords}
+                platforms={mockPlatforms}
+                instruments={mockInstruments}
+                euroscivocVocabulary={mockEuroSciVocVocabulary}
+                selectedKeywords={[]}
+                onChange={mockOnChange}
+                showEuroSciVocTab={true}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+            />,
+        );
+
+        expect(screen.getByRole('tab', { name: /EuroSciVoc/i })).toBeInTheDocument();
+    });
+
+    it('should display green indicator on EuroSciVoc tab when it has selected keywords', () => {
+        const selectedEuroSciVocKeywords: SelectedKeyword[] = [
+            {
+                id: 'http://data.europa.eu/8mn/euroscivoc/concept/c_123',
+                text: 'Physical Sciences',
+                path: 'Physical Sciences',
+                language: 'en',
+                scheme: 'European Science Vocabulary (EuroSciVoc)',
+                schemeURI: 'http://data.europa.eu/8mn/euroscivoc/40c0f173-baa3-48a3-9fe6-d6e8fb366a00',
+            },
+        ];
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={mockScienceKeywords}
+                platforms={mockPlatforms}
+                instruments={mockInstruments}
+                euroscivocVocabulary={mockEuroSciVocVocabulary}
+                selectedKeywords={selectedEuroSciVocKeywords}
+                onChange={mockOnChange}
+                showEuroSciVocTab={true}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+            />,
+        );
+
+        const euroSciVocTab = screen.getByRole('tab', { name: /EuroSciVoc/i });
+        const indicator = euroSciVocTab.querySelector('[aria-label="Has keywords"]');
+        expect(indicator).toBeInTheDocument();
+    });
+    it('should show selected EuroSciVoc keywords in the display area', () => {
+        const selectedEuroSciVocKeywords: SelectedKeyword[] = [
+            {
+                id: 'http://data.europa.eu/8mn/euroscivoc/concept/c_123',
+                text: 'Physical Sciences',
+                path: 'Natural Sciences > Physical Sciences',
+                language: 'en',
+                scheme: 'European Science Vocabulary (EuroSciVoc)',
+                schemeURI: 'http://data.europa.eu/8mn/euroscivoc/40c0f173-baa3-48a3-9fe6-d6e8fb366a00',
+            },
+        ];
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={mockScienceKeywords}
+                platforms={mockPlatforms}
+                instruments={mockInstruments}
+                euroscivocVocabulary={mockEuroSciVocVocabulary}
+                selectedKeywords={selectedEuroSciVocKeywords}
+                onChange={mockOnChange}
+                showEuroSciVocTab={true}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+            />,
+        );
+
+        expect(screen.getByText('Natural Sciences > Physical Sciences')).toBeInTheDocument();
+        // Label "EuroSciVoc:" appears in both the keyword group label and the tab
+        const euroSciVocLabels = screen.getAllByText(/EuroSciVoc/);
+        expect(euroSciVocLabels.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should switch to EuroSciVoc tab on click', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={mockScienceKeywords}
+                platforms={mockPlatforms}
+                instruments={mockInstruments}
+                euroscivocVocabulary={mockEuroSciVocVocabulary}
+                selectedKeywords={[]}
+                onChange={mockOnChange}
+                showEuroSciVocTab={true}
+                enabledThesauri={{ science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true }}
+            />,
+        );
+
+        const euroSciVocTab = screen.getByRole('tab', { name: /EuroSciVoc/i });
+        await user.click(euroSciVocTab);
+
+        expect(euroSciVocTab).toHaveAttribute('aria-selected', 'true');
+    });
+});
