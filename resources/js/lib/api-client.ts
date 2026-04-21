@@ -70,6 +70,12 @@ const isPlainJsonPayload = (body: RequestBody): body is Record<string, unknown> 
     if (body instanceof FormData || body instanceof Blob || body instanceof ArrayBuffer || body instanceof URLSearchParams) {
         return false;
     }
+    // Typed arrays (`Uint8Array`, `Int16Array`, …) and `DataView` are valid
+    // `BodyInit` values that represent binary payloads. They must be passed
+    // through untouched instead of being JSON-stringified.
+    if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(body as ArrayBufferView)) {
+        return false;
+    }
     if (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream) {
         return false;
     }

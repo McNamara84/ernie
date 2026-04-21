@@ -5,11 +5,13 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { server } from './tests/vitest/helpers/msw-server';
 
 // Start MSW before any test runs so that fetch calls inside hooks/components
-// are intercepted deterministically. `onUnhandledRequest: 'bypass'` keeps
-// backwards compatibility with older tests that stub `global.fetch` directly
-// — their stubs win because MSW never sees the request.
+// are intercepted deterministically. `onUnhandledRequest: 'error'` prevents
+// the suite from silently hitting the real network when a handler is missing
+// — this is important for CI determinism as more hooks move to TanStack Query.
+// Tests that still stub `global.fetch` directly are unaffected because those
+// stubs are invoked before the request reaches MSW.
 beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'bypass' });
+    server.listen({ onUnhandledRequest: 'error' });
 });
 
 afterEach(() => {

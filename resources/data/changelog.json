@@ -62,6 +62,10 @@
         ],
         "improvements": [
             {
+                "title": "Binary Request Bodies & Strict MSW Mode",
+                "description": "The shared `apiRequest` client no longer JSON-stringifies typed arrays or `DataView` payloads — `ArrayBuffer.isView` is now checked alongside `FormData`/`Blob`/`URLSearchParams`/`ReadableStream` so binary uploads reach the server untouched with the correct content type. The Vitest MSW server now runs with `onUnhandledRequest: 'error'` instead of `'bypass'`, which surfaces missing handlers as explicit test failures rather than silently hitting the real network. Tests that stub `global.fetch` directly are unaffected because their stubs are invoked before the request reaches MSW."
+            },
+            {
                 "title": "DOI Pre-Save Check Reliability",
                 "description": "The synchronous DOI check that runs before saving a resource (`checkDoiBeforeSave`) now always hits the backend instead of reusing a cached 'available' response from the debounced `validateDoi` hook, so conflicts that appear between typing and saving are no longer hidden by cache freshness. In the invalid-format branch the hook now falls back to the default/override error message (instead of leaving `error` empty) and invokes the `onError` callback, matching the behaviour of `validateDoi`. When the pre-save request fails, `isValid` is now reset to `null` so consumers never observe a stale `true`/`false` combined with a `null` return value."
             },

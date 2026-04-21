@@ -126,6 +126,44 @@ describe('apiRequest', () => {
         expect(rawText).toContain('a=1');
     });
 
+    it('does not JSON-serialise typed arrays (ArrayBufferView)', async () => {
+        let contentType: string | null = null;
+        let rawBytes: ArrayBuffer | null = null;
+        server.use(
+            http.post(ENDPOINT, async ({ request }) => {
+                contentType = request.headers.get('content-type');
+                rawBytes = await request.arrayBuffer();
+                return HttpResponse.json({});
+            }),
+        );
+
+        const payload = new Uint8Array([1, 2, 3, 4]);
+        await apiRequest(ENDPOINT, { method: 'POST', body: payload });
+
+        // Body must be passed through untouched — no JSON content-type and
+        // the exact 4 bytes should reach the server.
+        expect(contentType ?? '').not.toContain('application/json');
+        expect(rawBytes).not.toBeNull();
+        expect(new Uint8Array(rawBytes!)).toEqual(payload);
+    });
+
+    it('does not JSON-serialise DataView bodies', async () => {
+        let contentType: string | null = null;
+        server.use(
+            http.post(ENDPOINT, ({ request }) => {
+                contentType = request.headers.get('content-type');
+                return HttpResponse.json({});
+            }),
+        );
+
+        const buffer = new ArrayBuffer(8);
+        const view = new DataView(buffer);
+        view.setInt32(0, 42);
+        await apiRequest(ENDPOINT, { method: 'POST', body: view });
+
+        expect(contentType ?? '').not.toContain('application/json');
+    });
+
     it('returns null for 204 No Content responses', async () => {
         server.use(http.delete(ENDPOINT, () => new HttpResponse(null, { status: 204 })));
 
