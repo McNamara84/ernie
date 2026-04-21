@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { groupErrorsBySection,type MappedError } from './utils/error-field-mapper';
+import { groupErrorsBySection, type MappedError } from './utils/error-field-mapper';
 
 interface ClickableValidationAlertProps {
     errors: MappedError[];

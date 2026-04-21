@@ -1,4 +1,4 @@
-﻿import { waitFor } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { fetchRorAffiliations, useRorAffiliations } from '@/hooks/use-ror-affiliations';

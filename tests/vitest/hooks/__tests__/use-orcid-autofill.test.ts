@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type PersonEntry,useOrcidAutofill } from '@/hooks/use-orcid-autofill';
+import { type PersonEntry, useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { apiEndpoints } from '@/lib/query-keys';
 import { OrcidService } from '@/services/orcid';
 

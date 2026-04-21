@@ -16,6 +16,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render as rtlRender, type RenderOptions } from '@testing-library/react';
 import type { ReactElement } from 'react';
+import { useState } from 'react';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -29,7 +30,11 @@ function createTestQueryClient() {
 }
 
 function AllProviders({ children }: { children: React.ReactNode }) {
-    const client = createTestQueryClient();
+    // Create the QueryClient exactly once per mount. Without the lazy
+    // initialiser a re-render (e.g. triggered by state changes in the
+    // component under test) would replace the client and wipe its cache,
+    // which can cause flaky assertions and unnecessary refetches.
+    const [client] = useState(createTestQueryClient);
     return (
         <QueryClientProvider client={client}>
             <TooltipProvider>{children}</TooltipProvider>

@@ -359,5 +359,5 @@ export function useCreatorNodes(
 }
 
 // Export helpers for testing
-export { buildCreatorId, buildCreatorLabel, fromApiAuthor,fromLandingPageCreator, mergeCreator, normalizeNameKey };
-export type { ApiAffiliation,ApiAuthor, CreatorInfo };
+export { buildCreatorId, buildCreatorLabel, fromApiAuthor, fromLandingPageCreator, mergeCreator, normalizeNameKey };
+export type { ApiAffiliation, ApiAuthor, CreatorInfo };

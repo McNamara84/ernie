@@ -4,6 +4,14 @@ import { setupServer } from 'msw/node';
 import { apiEndpoints } from '@/lib/query-keys';
 
 /**
+ * External URL returned by the default handler for `mslVocabularyUrl`.
+ *
+ * Exposed so tests can reference it when overriding the handler (e.g. to
+ * assert that `useMSLLaboratories` requests this URL exactly once).
+ */
+export const DEFAULT_MSL_VOCABULARY_URL = 'https://vocab.example.test/msl';
+
+/**
  * Default MSW request handlers used by the Vitest setup.
  *
  * Individual tests can override these via `server.use(...)` to simulate
@@ -17,8 +25,12 @@ export const defaultHandlers = [
     ),
     http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ data: [] })),
     http.get(apiEndpoints.mslVocabularyUrl, () =>
-        HttpResponse.json({ url: 'https://vocab.example.test/msl' }),
+        HttpResponse.json({ url: DEFAULT_MSL_VOCABULARY_URL }),
     ),
+    // The MSL vocabulary URL above points to an external host. Provide a
+    // deterministic default so that `useMSLLaboratories` tests never accidentally
+    // attempt real network requests when running with `onUnhandledRequest: 'bypass'`.
+    http.get(DEFAULT_MSL_VOCABULARY_URL, () => HttpResponse.json([])),
 ];
 
 /**

@@ -15,6 +15,38 @@ const DEFAULT_ERROR_MESSAGES = {
 } as const;
 
 /**
+ * Combine an upstream {@link AbortSignal} (provided by TanStack Query's
+ * `fetchQuery` queryFn) with the local debounce/lifecycle controller so that
+ * aborting either source cancels the in-flight request.
+ *
+ * Prefers the native `AbortSignal.any` when available and falls back to a
+ * manual listener chain for environments that do not support it yet.
+ */
+function combineSignals(upstream: AbortSignal | undefined, local: AbortSignal): AbortSignal {
+    if (!upstream) {
+        return local;
+    }
+
+    if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { any?: unknown }).any === 'function') {
+        return (AbortSignal as unknown as { any: (signals: AbortSignal[]) => AbortSignal }).any([upstream, local]);
+    }
+
+    const controller = new AbortController();
+    const abort = (reason?: unknown) => controller.abort(reason);
+    if (upstream.aborted) {
+        abort((upstream as AbortSignal & { reason?: unknown }).reason);
+    } else {
+        upstream.addEventListener('abort', () => abort((upstream as AbortSignal & { reason?: unknown }).reason), { once: true });
+    }
+    if (local.aborted) {
+        abort((local as AbortSignal & { reason?: unknown }).reason);
+    } else {
+        local.addEventListener('abort', () => abort((local as AbortSignal & { reason?: unknown }).reason), { once: true });
+    }
+    return controller.signal;
+}
+
+/**
  * Response from the DOI validation API endpoint
  */
 export interface DoiValidationResponse {
@@ -141,6 +173,10 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
     const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Ref for abort controller to cancel pending requests
     const abortControllerRef = useRef<AbortController | null>(null);
+    // Track the query key of the in-flight validation so we can cancel the
+    // underlying TanStack Query fetch (which owns its own AbortSignal) when a
+    // newer validation request arrives.
+    const activeQueryKeyRef = useRef<readonly unknown[] | null>(null);
 
     // Cleanup on unmount: clear timeout and abort any pending requests
     useEffect(() => {
@@ -151,8 +187,12 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
+            if (activeQueryKeyRef.current) {
+                void queryClient.cancelQueries({ queryKey: activeQueryKeyRef.current, exact: true });
+                activeQueryKeyRef.current = null;
+            }
         };
-    }, []);
+    }, [queryClient]);
 
     const resetValidation = useCallback(() => {
         setIsValid(null);
@@ -169,9 +209,17 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 clearTimeout(debounceTimeoutRef.current);
             }
 
-            // Abort any pending request
+            // Abort any pending request:
+            // - The local controller cancels the debounced fetch (and is mirrored
+            //   into the TanStack signal below for full coverage).
+            // - `cancelQueries` aborts the underlying TanStack Query fetch which
+            //   owns its own AbortSignal that is *not* linked to our local one.
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
+            }
+            if (activeQueryKeyRef.current) {
+                void queryClient.cancelQueries({ queryKey: activeQueryKeyRef.current, exact: true });
+                activeQueryKeyRef.current = null;
             }
 
             // If DOI is empty, reset state
@@ -192,9 +240,12 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 const abortController = new AbortController();
                 abortControllerRef.current = abortController;
 
+                const queryKey = queryKeys.doi.validate(trimmedDoi, excludeResourceId);
+                activeQueryKeyRef.current = queryKey;
+
                 try {
                     const data = await queryClient.fetchQuery<DoiValidationResponse>({
-                        queryKey: queryKeys.doi.validate(trimmedDoi, excludeResourceId),
+                        queryKey,
                         queryFn: ({ signal }) =>
                             apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
                                 method: 'POST',
@@ -202,7 +253,10 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                                     doi: trimmedDoi,
                                     exclude_resource_id: excludeResourceId,
                                 },
-                                signal: signal ?? abortController.signal,
+                                // Combine TanStack's signal (aborted by cancelQueries)
+                                // with the local controller so either source can
+                                // cancel the in-flight request.
+                                signal: combineSignals(signal, abortController.signal),
                             }),
                         staleTime: 5 * 60_000,
                     });
@@ -267,6 +321,9 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     onError?.(errorMessage);
                 } finally {
                     setIsValidating(false);
+                    if (activeQueryKeyRef.current === queryKey) {
+                        activeQueryKeyRef.current = null;
+                    }
                 }
             }, debounceMs);
         },

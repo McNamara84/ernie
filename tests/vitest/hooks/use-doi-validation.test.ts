@@ -1,4 +1,4 @@
-﻿import { act, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type DoiValidationResponse, useDoiValidation } from '@/hooks/use-doi-validation';

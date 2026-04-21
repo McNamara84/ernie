@@ -1,4 +1,4 @@
-﻿import { act, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { fetchMslLaboratories, useMSLLaboratories } from '@/hooks/use-msl-laboratories';
