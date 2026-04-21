@@ -108,9 +108,9 @@ class DataCiteController extends Controller
     /**
      * Extract, normalize, and validate the DOI query parameter.
      *
-     * Strips resolver URL prefixes (https://doi.org/, http://dx.doi.org/),
-     * trims whitespace, and validates the DOI format (must start with "10."
-     * followed by a registrant code and a suffix separated by a slash).
+     * Reuses {@see DataCiteApiService::normalizeDoi()} for consistent canonical
+     * form (trim, strip resolver URL prefixes, lowercase). Then validates the
+     * DOI format (must start with "10." followed by a registrant code and suffix).
      */
     private function extractValidDoi(Request $request): ?string
     {
@@ -120,14 +120,9 @@ class DataCiteController extends Controller
             return null;
         }
 
-        $doi = trim($doi);
+        $doi = $this->dataCiteService->normalizeDoi($doi);
 
-        // Strip resolver URL prefixes (https://doi.org/, http://dx.doi.org/)
-        if (preg_match('/^https?:\/\/(?:dx\.)?doi\.org\/?(.*)$/i', $doi, $matches)) {
-            $doi = trim($matches[1]);
-        }
-
-        if ($doi === '' || ! preg_match('#^10\.\d{4,9}/.+$#', $doi)) {
+        if ($doi === null || ! preg_match('#^10\.\d{4,9}/.+$#', $doi)) {
             return null;
         }
 

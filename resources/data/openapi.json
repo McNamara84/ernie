@@ -1083,6 +1083,7 @@
                                         },
                                         "doi": {
                                             "type": "string",
+                                            "description": "The normalized DOI in lowercase canonical form",
                                             "example": "10.5880/gfz.test.2024"
                                         }
                                     }
@@ -1152,6 +1153,7 @@
                                     "properties": {
                                         "doi": {
                                             "type": "string",
+                                            "description": "The normalized DOI in lowercase canonical form",
                                             "example": "10.5880/gfz.test.2024"
                                         },
                                         "authors": {

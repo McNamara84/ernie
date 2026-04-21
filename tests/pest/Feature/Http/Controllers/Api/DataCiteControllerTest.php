@@ -9,9 +9,9 @@ covers(DataCiteController::class);
 
 describe('getCitation', function () {
     it('returns citation for a valid DOI', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'author' => [
@@ -34,13 +34,13 @@ describe('getCitation', function () {
         $response->assertOk()
             ->assertJsonStructure(['citation', 'doi'])
             ->assertJson([
-                'doi' => '10.5880/GFZ.TEST.2024',
+                'doi' => '10.5880/gfz.test.2024',
                 'citation' => 'Smith, John (2024): Test Dataset. GFZ. https://doi.org/10.5880/GFZ.TEST.2024',
             ]);
     });
 
     it('returns 404 when DOI metadata not found', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
             ->with('10.5880/nonexistent')
             ->once()
@@ -83,9 +83,9 @@ describe('getCitation', function () {
     });
 
     it('normalizes DOI resolver URLs by stripping https://doi.org/ prefix', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'author' => [['family' => 'Smith', 'given' => 'John']],
@@ -104,11 +104,11 @@ describe('getCitation', function () {
         $response = $this->getJson('/api/datacite/citation?doi=' . urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
 
         $response->assertOk()
-            ->assertJsonPath('doi', '10.5880/GFZ.TEST.2024');
+            ->assertJsonPath('doi', '10.5880/gfz.test.2024');
     });
 
     it('normalizes DOI resolver URLs by stripping http://dx.doi.org/ prefix', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
             ->with('10.1111/bij.12893')
             ->once()
@@ -133,9 +133,9 @@ describe('getCitation', function () {
     });
 
     it('handles DOIs with encoded slashes in query parameter correctly', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'author' => [['family' => 'Smith', 'given' => 'John']],
@@ -151,19 +151,43 @@ describe('getCitation', function () {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        // URL-encoded slash in query parameter (as browser sends it)
         $response = $this->getJson('/api/datacite/citation?doi=10.5880%2FGFZ.TEST.2024');
 
         $response->assertOk()
-            ->assertJsonPath('doi', '10.5880/GFZ.TEST.2024');
+            ->assertJsonPath('doi', '10.5880/gfz.test.2024');
+    });
+
+    it('returns DOIs in lowercase canonical form', function () {
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
+        $mockService->shouldReceive('getMetadata')
+            ->with('10.5880/gfz.mixed.case')
+            ->once()
+            ->andReturn([
+                'author' => [['family' => 'Smith', 'given' => 'John']],
+                'issued' => ['date-parts' => [[2024]]],
+                'title' => 'Test',
+                'publisher' => 'GFZ',
+                'DOI' => '10.5880/GFZ.MIXED.CASE',
+            ]);
+
+        $mockService->shouldReceive('buildCitationFromMetadata')
+            ->once()
+            ->andReturn('Smith, J. (2024)');
+
+        $this->app->instance(DataCiteApiService::class, $mockService);
+
+        $response = $this->getJson('/api/datacite/citation?doi=10.5880/GFZ.MIXED.CASE');
+
+        $response->assertOk()
+            ->assertJsonPath('doi', '10.5880/gfz.mixed.case');
     });
 });
 
 describe('getAuthors', function () {
     it('returns structured author data from DataCite REST API', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -201,7 +225,7 @@ describe('getAuthors', function () {
                 ],
             ])
             ->assertJson([
-                'doi' => '10.5880/GFZ.TEST.2024',
+                'doi' => '10.5880/gfz.test.2024',
                 'authors' => [
                     [
                         'given_name' => 'John',
@@ -228,13 +252,13 @@ describe('getAuthors', function () {
     });
 
     it('falls back to CSL JSON when DataCite REST API returns null', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturnNull();
         $mockService->shouldReceive('getMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'author' => [
@@ -251,7 +275,7 @@ describe('getAuthors', function () {
 
         $response->assertOk()
             ->assertJson([
-                'doi' => '10.5880/GFZ.TEST.2024',
+                'doi' => '10.5880/gfz.test.2024',
                 'authors' => [
                     [
                         'given_name' => 'John',
@@ -285,7 +309,7 @@ describe('getAuthors', function () {
     });
 
     it('returns 404 when both DataCite REST API and CSL JSON fail', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
             ->with('10.5880/nonexistent')
             ->once()
@@ -304,9 +328,9 @@ describe('getAuthors', function () {
     });
 
     it('returns empty authors array when DataCite metadata has no creators', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.NOAUTHORS')
+            ->with('10.5880/gfz.noauthors')
             ->once()
             ->andReturn([
                 'titles' => [['title' => 'Dataset Without Authors']],
@@ -318,15 +342,15 @@ describe('getAuthors', function () {
 
         $response->assertOk()
             ->assertJson([
-                'doi' => '10.5880/GFZ.NOAUTHORS',
+                'doi' => '10.5880/gfz.noauthors',
                 'authors' => [],
             ]);
     });
 
     it('extracts ORCID from DataCite nameIdentifiers', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.ORCID')
+            ->with('10.5880/gfz.orcid')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -365,9 +389,9 @@ describe('getAuthors', function () {
     });
 
     it('extracts ROR ID from organizational creators', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.ROR')
+            ->with('10.5880/gfz.ror')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -399,9 +423,9 @@ describe('getAuthors', function () {
     });
 
     it('extracts affiliations with ROR identifiers from personal creators', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.AFFIL')
+            ->with('10.5880/gfz.affil')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -444,9 +468,9 @@ describe('getAuthors', function () {
     });
 
     it('handles string-only affiliations from older DataCite records', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.OLDAFFIL')
+            ->with('10.5880/gfz.oldaffil')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -479,9 +503,9 @@ describe('getAuthors', function () {
     });
 
     it('handles bare ROR IDs without URL prefix', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.BAREROR')
+            ->with('10.5880/gfz.bareror')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -500,7 +524,6 @@ describe('getAuthors', function () {
 
         $response = $this->getJson('/api/datacite/authors?doi=10.5880/GFZ.BAREROR');
 
-        // Bare ROR ID is normalized to full URL
         $response->assertOk()
             ->assertJson([
                 'authors' => [
@@ -542,9 +565,9 @@ describe('getAuthors', function () {
     });
 
     it('normalizes DOI resolver URLs by stripping https://doi.org/ prefix', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -563,13 +586,13 @@ describe('getAuthors', function () {
         $response = $this->getJson('/api/datacite/authors?doi=' . urlencode('https://doi.org/10.5880/GFZ.TEST.2024'));
 
         $response->assertOk()
-            ->assertJsonPath('doi', '10.5880/GFZ.TEST.2024');
+            ->assertJsonPath('doi', '10.5880/gfz.test.2024');
     });
 
     it('handles DOIs with encoded slashes in query parameter correctly', function () {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getDataCiteMetadata')
-            ->with('10.5880/GFZ.TEST.2024')
+            ->with('10.5880/gfz.test.2024')
             ->once()
             ->andReturn([
                 'creators' => [
@@ -585,10 +608,34 @@ describe('getAuthors', function () {
 
         $this->app->instance(DataCiteApiService::class, $mockService);
 
-        // URL-encoded slash in query parameter (as browser sends it)
         $response = $this->getJson('/api/datacite/authors?doi=10.5880%2FGFZ.TEST.2024');
 
         $response->assertOk()
-            ->assertJsonPath('doi', '10.5880/GFZ.TEST.2024');
+            ->assertJsonPath('doi', '10.5880/gfz.test.2024');
+    });
+
+    it('returns DOIs in lowercase canonical form', function () {
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
+        $mockService->shouldReceive('getDataCiteMetadata')
+            ->with('10.5880/gfz.mixed.case')
+            ->once()
+            ->andReturn([
+                'creators' => [
+                    [
+                        'nameType' => 'Personal',
+                        'givenName' => 'A',
+                        'familyName' => 'B',
+                        'nameIdentifiers' => [],
+                        'affiliation' => [],
+                    ],
+                ],
+            ]);
+
+        $this->app->instance(DataCiteApiService::class, $mockService);
+
+        $response = $this->getJson('/api/datacite/authors?doi=10.5880/GFZ.MIXED.CASE');
+
+        $response->assertOk()
+            ->assertJsonPath('doi', '10.5880/gfz.mixed.case');
     });
 });

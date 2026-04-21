@@ -9,7 +9,7 @@ covers(DataCiteController::class);
 
 describe('GET /api/datacite/citation', function (): void {
     test('returns citation for valid DOI', function (): void {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
             ->with('10.5880/test.2024.001')
             ->andReturn([
@@ -35,7 +35,7 @@ describe('GET /api/datacite/citation', function (): void {
     });
 
     test('returns 404 when DOI not found', function (): void {
-        $mockService = Mockery::mock(DataCiteApiService::class);
+        $mockService = Mockery::mock(DataCiteApiService::class)->makePartial();
         $mockService->shouldReceive('getMetadata')
             ->with('10.5880/nonexistent')
             ->andReturnNull();
