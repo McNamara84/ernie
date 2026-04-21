@@ -59,7 +59,7 @@ class LandingPageTemplateController extends Controller
 
         $validated = $request->validated();
 
-        $defaultTemplate = LandingPageTemplate::where('is_default', true)->firstOrFail();
+        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
 
         $template = LandingPageTemplate::create([
             'name' => $validated['name'],

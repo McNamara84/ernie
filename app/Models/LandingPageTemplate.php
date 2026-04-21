@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Landing page template configuration for custom landing page layouts.
@@ -38,6 +41,10 @@ class LandingPageTemplate extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageTemplateFactory> */
     use HasFactory;
+
+    public const DEFAULT_TEMPLATE_SLUG = 'default_gfz';
+
+    public const DEFAULT_TEMPLATE_NAME = 'Default GFZ Data Services';
 
     /**
      * Valid section keys for the right column.
@@ -190,5 +197,102 @@ class LandingPageTemplate extends Model
         sort($validSorted);
 
         return $sorted === $validSorted;
+    }
+
+    /**
+     * Ensure the immutable default template exists and has required defaults.
+     */
+    public static function ensureDefaultTemplateExists(): self
+    {
+        $template = static::query()->where('slug', self::DEFAULT_TEMPLATE_SLUG)->first();
+
+        if ($template === null) {
+            for ($attempt = 0; $attempt < 5; $attempt++) {
+                try {
+                    $template = static::query()->firstOrCreate(
+                        ['slug' => self::DEFAULT_TEMPLATE_SLUG],
+                        [
+                            'name' => self::resolveUniqueDefaultTemplateName(),
+                            'is_default' => true,
+                            'logo_path' => null,
+                            'logo_filename' => null,
+                            'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                            'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                            'created_by' => null,
+                        ]
+                    );
+
+                    break;
+                } catch (QueryException $exception) {
+                    $template = static::query()->where('slug', self::DEFAULT_TEMPLATE_SLUG)->first();
+
+                    if ($template !== null) {
+                        break;
+                    }
+
+                    if (! self::isUniqueConstraintViolation($exception)) {
+                        throw $exception;
+                    }
+                }
+            }
+        }
+
+        if ($template === null) {
+            throw new \RuntimeException('Failed to restore the default landing page template.');
+        }
+
+        DB::transaction(function () use (&$template): void {
+            // Keep exactly one immutable default template marker to avoid accidental locks.
+            static::query()
+                ->where('is_default', true)
+                ->whereKeyNot($template->id)
+                ->update(['is_default' => false]);
+
+            // Force-fill all canonical fields to ensure the default template is immutable/system-owned.
+            // If the canonical row is "corrupted" (has creator, logo, etc.), restore it to clean state.
+            $template->forceFill([
+                'is_default' => true,
+                'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                'created_by' => null,           // System-owned, not created by a user
+                'logo_path' => null,            // No custom logo
+                'logo_filename' => null,        // No custom logo
+            ]);
+
+            if ($template->isDirty(['is_default', 'right_column_order', 'left_column_order', 'created_by', 'logo_path', 'logo_filename'])) {
+                $template->save();
+            }
+
+            $template = $template->fresh() ?? $template;
+        });
+
+        return $template;
+    }
+
+    /**
+     * Resolve a unique template name for restoring the default template.
+     */
+    private static function resolveUniqueDefaultTemplateName(): string
+    {
+        if (! static::query()->where('name', self::DEFAULT_TEMPLATE_NAME)->exists()) {
+            return self::DEFAULT_TEMPLATE_NAME;
+        }
+
+        for ($index = 2; $index <= 1000; $index++) {
+            $candidate = self::DEFAULT_TEMPLATE_NAME . ' ' . $index;
+            if (! static::query()->where('name', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        return self::DEFAULT_TEMPLATE_NAME . ' ' . Str::upper(Str::random(6));
+    }
+
+    private static function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+        $driverCode = (string) ($exception->errorInfo[1] ?? '');
+
+        return $sqlState === '23000' || $sqlState === '23505' || $driverCode === '1062' || $driverCode === '19';
     }
 }

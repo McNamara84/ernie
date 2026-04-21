@@ -13,6 +13,7 @@ use App\Policies\LandingPageTemplatePolicy;
 use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 covers(
@@ -33,8 +34,8 @@ beforeEach(function (): void {
     $this->curator = User::factory()->curator()->create();
     $this->beginner = User::factory()->beginner()->create();
 
-    // Seed default template
-    $this->defaultTemplate = LandingPageTemplate::factory()->default()->create();
+    // Ensure default template exists using production self-heal logic.
+    $this->defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
 });
 
 // ─── Authorization ───────────────────────────────────────────────────────────
@@ -145,6 +146,87 @@ describe('Clone', function (): void {
         $template = LandingPageTemplate::where('name', 'My Template')->first();
 
         expect($template->slug)->toStartWith('my-template');
+    });
+
+    it('self-heals when the default template is missing and still clones successfully', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        $response = $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Template Without Default']);
+
+        $response->assertCreated();
+
+        $clonedTemplate = LandingPageTemplate::where('name', 'Template Without Default')->first();
+        $restoredDefaultTemplate = LandingPageTemplate::where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)->first();
+
+        expect($clonedTemplate)->not->toBeNull()
+            ->and($clonedTemplate?->is_default)->toBeFalse()
+            ->and($restoredDefaultTemplate)->not->toBeNull()
+            ->and($restoredDefaultTemplate?->is_default)->toBeTrue();
+    });
+
+    it('restores is_default=true when default template slug row exists but is not marked as default', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        $staleDefault = LandingPageTemplate::factory()->create([
+            'slug' => LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+            'name' => 'Stale Default Template',
+            'is_default' => false,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Recovered Clone'])
+            ->assertCreated();
+
+        expect($staleDefault->fresh()->is_default)->toBeTrue();
+    });
+
+    it('restores default template even when preferred default name is already taken', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        LandingPageTemplate::factory()->create([
+            'slug' => 'custom-template-slug',
+            'name' => LandingPageTemplate::DEFAULT_TEMPLATE_NAME,
+            'is_default' => false,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Clone With Name Collision'])
+            ->assertCreated();
+
+        $restoredDefault = LandingPageTemplate::query()
+            ->where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)
+            ->first();
+
+        expect($restoredDefault)->not->toBeNull()
+            ->and($restoredDefault?->is_default)->toBeTrue()
+            ->and($restoredDefault?->name)->not->toBe(LandingPageTemplate::DEFAULT_TEMPLATE_NAME)
+            ->and($restoredDefault?->name)->toStartWith(LandingPageTemplate::DEFAULT_TEMPLATE_NAME);
+    });
+
+    it('creates canonical default slug and demotes other default rows', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        $wrongDefault = LandingPageTemplate::factory()->create([
+            'slug' => 'custom-default-candidate',
+            'name' => 'Wrong Default Candidate',
+            'is_default' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Clone After Wrong Default'])
+            ->assertCreated();
+
+        $canonicalDefault = LandingPageTemplate::query()
+            ->where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)
+            ->first();
+
+        expect($canonicalDefault)->not->toBeNull()
+            ->and($canonicalDefault?->is_default)->toBeTrue()
+            ->and($wrongDefault->fresh()->is_default)->toBeFalse();
     });
 });
 
@@ -366,6 +448,38 @@ describe('API List', function (): void {
 // ─── Model ───────────────────────────────────────────────────────────────────
 
 describe('Model', function (): void {
+    it('does not update updated_at when default template is already normalized', function (): void {
+        $originalTimestamp = now()->subHour()->startOfSecond();
+
+        LandingPageTemplate::query()
+            ->whereKey($this->defaultTemplate->id)
+            ->update(['updated_at' => $originalTimestamp]);
+
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        expect(Carbon::parse((string) $template->fresh()?->updated_at)->equalTo($originalTimestamp))->toBeTrue();
+    });
+
+    it('restores canonical fields when default template is corrupted', function (): void {
+        // Corrupt the default template with creator and logo.
+        LandingPageTemplate::query()
+            ->whereKey($this->defaultTemplate->id)
+            ->update([
+                'created_by' => $this->admin->id,
+                'logo_path' => 'landing-page-logos/test/logo.png',
+                'logo_filename' => 'logo.png',
+            ]);
+
+        // Ensure the default template, which should restore canonical fields.
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+        $fresh = $template->fresh();
+
+        expect($fresh->created_by)->toBeNull()
+            ->and($fresh->logo_path)->toBeNull()
+            ->and($fresh->logo_filename)->toBeNull()
+            ->and($fresh->is_default)->toBeTrue();
+    });
+
     it('returns null logo_url when no logo is set', function (): void {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->admin->id,
@@ -534,7 +648,7 @@ describe('Factory', function (): void {
         $template = LandingPageTemplate::factory()->default()->make();
 
         expect($template->name)->toBe('Default GFZ Data Services')
-            ->and($template->slug)->toBe('default_gfz')
+            ->and($template->slug)->toBe(LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)
             ->and($template->is_default)->toBeTrue()
             ->and($template->created_by)->toBeNull();
     });
@@ -567,7 +681,7 @@ describe('Factory', function (): void {
 describe('Seeder', function (): void {
     it('seeds the default template', function (): void {
         // Default template already seeded in beforeEach, verify it exists
-        $default = LandingPageTemplate::where('slug', 'default_gfz')->first();
+        $default = LandingPageTemplate::where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)->first();
 
         expect($default)->not->toBeNull()
             ->and($default->name)->toBe('Default GFZ Data Services')
@@ -580,7 +694,7 @@ describe('Seeder', function (): void {
         // Run the seeder a second time
         $this->seed(\Database\Seeders\LandingPageTemplateSeeder::class);
 
-        $count = LandingPageTemplate::where('slug', 'default_gfz')->count();
+        $count = LandingPageTemplate::where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)->count();
 
         expect($count)->toBe(1);
     });

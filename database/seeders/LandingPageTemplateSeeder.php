@@ -17,17 +17,6 @@ class LandingPageTemplateSeeder extends Seeder
      */
     public function run(): void
     {
-        LandingPageTemplate::firstOrCreate(
-            ['slug' => 'default_gfz'],
-            [
-                'name' => 'Default GFZ Data Services',
-                'is_default' => true,
-                'logo_path' => null,
-                'logo_filename' => null,
-                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
-                'left_column_order' => LandingPageTemplate::LEFT_COLUMN_SECTIONS,
-                'created_by' => null,
-            ]
-        );
+        LandingPageTemplate::ensureDefaultTemplateExists();
     }
 }
