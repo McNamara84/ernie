@@ -1,11 +1,13 @@
-import { act, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type DoiValidationResponse, useDoiValidation } from '@/hooks/use-doi-validation';
 import { apiEndpoints } from '@/lib/query-keys';
 
 import { http, HttpResponse, server } from '../helpers/msw-server';
-import { renderHookWithQueryClient } from '../helpers/render-with-query-client';
+import { createTestQueryClient, renderHookWithQueryClient } from '../helpers/render-with-query-client';
 
 type Captured = { body: unknown; count: number };
 
@@ -747,6 +749,49 @@ describe('useDoiValidation', () => {
             expect(result.current.isValidating).toBe(true);
 
             // Cleanup: silence the dangling save promise.
+            void savePromise;
+        });
+
+        it('aborts the in-flight fetch when cancelQueries is invoked (e.g. on unmount)', async () => {
+            let receivedSignal: AbortSignal | null = null;
+            let aborted = false;
+            server.use(
+                http.post(apiEndpoints.doiValidate, async ({ request }) => {
+                    receivedSignal = request.signal;
+                    request.signal.addEventListener('abort', () => {
+                        aborted = true;
+                    });
+                    // Never resolve — caller must abort.
+                    await new Promise(() => {});
+                    return HttpResponse.json({ is_valid_format: true, exists: false });
+                }),
+            );
+
+            const queryClient = createTestQueryClient();
+            const { result, unmount } = renderHook(
+                () => useDoiValidation({ debounceMs: 0 }),
+                {
+                    wrapper: ({ children }: { children: ReactNode }) =>
+                        createElement(QueryClientProvider, { client: queryClient }, children),
+                },
+            );
+
+            let savePromise: Promise<unknown> | null = null;
+            await act(async () => {
+                savePromise = result.current.checkDoiBeforeSave('10.5880/unmount');
+                await Promise.resolve();
+            });
+
+            await waitFor(() => expect(receivedSignal).not.toBeNull());
+            expect(aborted).toBe(false);
+
+            // Simulate the unmount path: cancel all queries, then unmount.
+            await act(async () => {
+                await queryClient.cancelQueries();
+                unmount();
+            });
+
+            expect(aborted).toBe(true);
             void savePromise;
         });
     });

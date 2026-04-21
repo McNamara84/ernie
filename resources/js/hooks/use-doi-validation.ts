@@ -380,6 +380,12 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             const queryKey = queryKeys.doi.validate(trimmedDoi, excludeResourceId);
             activeQueryKeyRef.current = queryKey;
 
+            // Create a local abort controller so a subsequent call (another
+            // `checkDoiBeforeSave` or a new `validateDoi`) can abort this
+            // request via `abortControllerRef.current.abort()`.
+            const abortController = new AbortController();
+            abortControllerRef.current = abortController;
+
             // Pre-save uniqueness checks must always hit the backend: a cached
             // "available" response from a previous `validateDoi` call could
             // otherwise mask a freshly-created conflicting resource. Drop any
@@ -389,13 +395,19 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             try {
                 const data = await queryClient.fetchQuery<DoiValidationResponse>({
                     queryKey,
-                    queryFn: () =>
+                    queryFn: ({ signal }) =>
                         apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
                             method: 'POST',
                             body: {
                                 doi: trimmedDoi,
                                 exclude_resource_id: excludeResourceId,
                             },
+                            // Combine TanStack's signal (aborted by
+                            // `cancelQueries`, e.g. on unmount) with the local
+                            // controller so either source can cancel the
+                            // in-flight request and prevent post-unmount state
+                            // updates from the `finally` block.
+                            signal: combineSignals(signal, abortController.signal),
                         }),
                     // `staleTime: 0` ensures the data is considered stale the
                     // moment it is written to the cache, so any subsequent
@@ -439,14 +451,28 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setShowConflictModal(false);
                 onSuccess?.();
                 return null;
-            } catch {
+            } catch (err) {
+                // Swallow aborts silently — the caller that triggered the
+                // cancellation (unmount, newer save-check) is responsible for
+                // any follow-up state management.
+                if (err instanceof DOMException && err.name === 'AbortError') {
+                    return null;
+                }
                 // If validation request fails (network error etc.), don't block save
                 // Let the backend unique constraint handle it
                 return null;
             } finally {
-                setIsValidating(false);
+                // Only apply state updates when this invocation is still the
+                // active one. If the request was aborted (e.g. by unmount or a
+                // newer call that took ownership of `activeQueryKeyRef`), the
+                // ref no longer matches and we skip the updates entirely to
+                // avoid post-unmount or cross-request state writes.
                 if (activeQueryKeyRef.current === queryKey) {
+                    setIsValidating(false);
                     activeQueryKeyRef.current = null;
+                }
+                if (abortControllerRef.current === abortController) {
+                    abortControllerRef.current = null;
                 }
             }
         },
