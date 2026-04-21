@@ -59,7 +59,7 @@ class LandingPageTemplateController extends Controller
 
         $validated = $request->validated();
 
-        $defaultTemplate = LandingPageTemplate::where('is_default', true)->firstOrFail();
+        $defaultTemplate = $this->resolveDefaultTemplate();
 
         $template = LandingPageTemplate::create([
             'name' => $validated['name'],
@@ -78,6 +78,37 @@ class LandingPageTemplateController extends Controller
             'message' => 'Template created successfully',
             'template' => $template,
         ], 201);
+    }
+
+    /**
+     * Resolve the immutable default template and self-heal if missing.
+     */
+    private function resolveDefaultTemplate(): LandingPageTemplate
+    {
+        $defaultTemplate = LandingPageTemplate::query()->where('is_default', true)->first();
+
+        if ($defaultTemplate !== null) {
+            return $defaultTemplate;
+        }
+
+        $template = LandingPageTemplate::query()->firstOrCreate(
+            ['slug' => 'default_gfz'],
+            [
+                'name' => 'Default GFZ Data Services',
+                'is_default' => true,
+                'logo_path' => null,
+                'logo_filename' => null,
+                'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+                'left_column_order' => LandingPageTemplate::LEFT_COLUMN_SECTIONS,
+                'created_by' => null,
+            ]
+        );
+
+        if (! $template->is_default) {
+            $template->forceFill(['is_default' => true])->save();
+        }
+
+        return $template;
     }
 
     /**

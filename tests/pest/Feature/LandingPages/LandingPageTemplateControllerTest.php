@@ -33,8 +33,19 @@ beforeEach(function (): void {
     $this->curator = User::factory()->curator()->create();
     $this->beginner = User::factory()->beginner()->create();
 
-    // Seed default template
-    $this->defaultTemplate = LandingPageTemplate::factory()->default()->create();
+    // Ensure default template exists (idempotent with backfill migration).
+    $this->defaultTemplate = LandingPageTemplate::query()->firstOrCreate(
+        ['slug' => 'default_gfz'],
+        [
+            'name' => 'Default GFZ Data Services',
+            'is_default' => true,
+            'logo_path' => null,
+            'logo_filename' => null,
+            'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            'left_column_order' => LandingPageTemplate::LEFT_COLUMN_SECTIONS,
+            'created_by' => null,
+        ]
+    );
 });
 
 // ─── Authorization ───────────────────────────────────────────────────────────
@@ -145,6 +156,23 @@ describe('Clone', function (): void {
         $template = LandingPageTemplate::where('name', 'My Template')->first();
 
         expect($template->slug)->toStartWith('my-template');
+    });
+
+    it('self-heals when the default template is missing and still clones successfully', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        $response = $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Template Without Default']);
+
+        $response->assertCreated();
+
+        $clonedTemplate = LandingPageTemplate::where('name', 'Template Without Default')->first();
+        $restoredDefaultTemplate = LandingPageTemplate::where('slug', 'default_gfz')->first();
+
+        expect($clonedTemplate)->not->toBeNull()
+            ->and($clonedTemplate?->is_default)->toBeFalse()
+            ->and($restoredDefaultTemplate)->not->toBeNull()
+            ->and($restoredDefaultTemplate?->is_default)->toBeTrue();
     });
 });
 
