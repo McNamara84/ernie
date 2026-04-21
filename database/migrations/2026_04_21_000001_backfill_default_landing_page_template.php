@@ -51,7 +51,11 @@ return new class extends Migration
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-            } catch (QueryException) {
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+
                 // If another process created the same slug in between, continue idempotently.
             }
 
@@ -106,5 +110,13 @@ return new class extends Migration
         }
 
         return $preferredName . ' ' . strtoupper(bin2hex(random_bytes(3)));
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+        $driverCode = (string) ($exception->errorInfo[1] ?? '');
+
+        return $sqlState === '23000' || $sqlState === '23505' || $driverCode === '1062' || $driverCode === '19';
     }
 };

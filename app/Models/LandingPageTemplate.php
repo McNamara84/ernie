@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -240,17 +241,25 @@ class LandingPageTemplate extends Model
             throw new \RuntimeException('Failed to restore the default landing page template.');
         }
 
-        // Keep exactly one immutable default template marker to avoid accidental locks.
-        static::query()
-            ->where('is_default', true)
-            ->whereKeyNot($template->id)
-            ->update(['is_default' => false]);
+        DB::transaction(function () use (&$template): void {
+            // Keep exactly one immutable default template marker to avoid accidental locks.
+            static::query()
+                ->where('is_default', true)
+                ->whereKeyNot($template->id)
+                ->update(['is_default' => false]);
 
-        $template->forceFill([
-            'is_default' => true,
-            'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
-            'left_column_order' => self::LEFT_COLUMN_SECTIONS,
-        ])->save();
+            $template->forceFill([
+                'is_default' => true,
+                'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+            ]);
+
+            if ($template->isDirty(['is_default', 'right_column_order', 'left_column_order'])) {
+                $template->save();
+            }
+
+            $template = $template->fresh() ?? $template;
+        });
 
         return $template;
     }

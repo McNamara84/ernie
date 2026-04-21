@@ -13,6 +13,7 @@ use App\Policies\LandingPageTemplatePolicy;
 use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 covers(
@@ -447,6 +448,18 @@ describe('API List', function (): void {
 // ─── Model ───────────────────────────────────────────────────────────────────
 
 describe('Model', function (): void {
+    it('does not update updated_at when default template is already normalized', function (): void {
+        $originalTimestamp = now()->subHour()->startOfSecond();
+
+        LandingPageTemplate::query()
+            ->whereKey($this->defaultTemplate->id)
+            ->update(['updated_at' => $originalTimestamp]);
+
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        expect(Carbon::parse((string) $template->fresh()?->updated_at)->equalTo($originalTimestamp))->toBeTrue();
+    });
+
     it('returns null logo_url when no logo is set', function (): void {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->admin->id,
