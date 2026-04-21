@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * Landing page template configuration for custom landing page layouts.
@@ -38,6 +39,10 @@ class LandingPageTemplate extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageTemplateFactory> */
     use HasFactory;
+
+    public const DEFAULT_TEMPLATE_SLUG = 'default_gfz';
+
+    public const DEFAULT_TEMPLATE_NAME = 'Default GFZ Data Services';
 
     /**
      * Valid section keys for the right column.
@@ -190,5 +195,63 @@ class LandingPageTemplate extends Model
         sort($validSorted);
 
         return $sorted === $validSorted;
+    }
+
+    /**
+     * Ensure the immutable default template exists and has required defaults.
+     */
+    public static function ensureDefaultTemplateExists(): self
+    {
+        $template = static::query()
+            ->where('slug', self::DEFAULT_TEMPLATE_SLUG)
+            ->first();
+
+        if ($template === null) {
+            $template = static::query()
+                ->where('is_default', true)
+                ->first();
+        }
+
+        if ($template === null) {
+            $template = static::query()->create([
+                'name' => self::resolveUniqueDefaultTemplateName(),
+                'slug' => self::DEFAULT_TEMPLATE_SLUG,
+                'is_default' => true,
+                'logo_path' => null,
+                'logo_filename' => null,
+                'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                'created_by' => null,
+            ]);
+
+            return $template;
+        }
+
+        $template->forceFill([
+            'is_default' => true,
+            'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+            'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+        ])->save();
+
+        return $template;
+    }
+
+    /**
+     * Resolve a unique template name for restoring the default template.
+     */
+    private static function resolveUniqueDefaultTemplateName(): string
+    {
+        if (! static::query()->where('name', self::DEFAULT_TEMPLATE_NAME)->exists()) {
+            return self::DEFAULT_TEMPLATE_NAME;
+        }
+
+        for ($index = 2; $index <= 1000; $index++) {
+            $candidate = self::DEFAULT_TEMPLATE_NAME . ' ' . $index;
+            if (! static::query()->where('name', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        return self::DEFAULT_TEMPLATE_NAME . ' ' . Str::upper(Str::random(6));
     }
 }

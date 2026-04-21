@@ -33,19 +33,8 @@ beforeEach(function (): void {
     $this->curator = User::factory()->curator()->create();
     $this->beginner = User::factory()->beginner()->create();
 
-    // Ensure default template exists (idempotent with backfill migration).
-    $this->defaultTemplate = LandingPageTemplate::query()->firstOrCreate(
-        ['slug' => 'default_gfz'],
-        [
-            'name' => 'Default GFZ Data Services',
-            'is_default' => true,
-            'logo_path' => null,
-            'logo_filename' => null,
-            'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
-            'left_column_order' => LandingPageTemplate::LEFT_COLUMN_SECTIONS,
-            'created_by' => null,
-        ]
-    );
+    // Ensure default template exists using production self-heal logic.
+    $this->defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
 });
 
 // ─── Authorization ───────────────────────────────────────────────────────────
@@ -173,6 +162,47 @@ describe('Clone', function (): void {
             ->and($clonedTemplate?->is_default)->toBeFalse()
             ->and($restoredDefaultTemplate)->not->toBeNull()
             ->and($restoredDefaultTemplate?->is_default)->toBeTrue();
+    });
+
+    it('restores is_default=true when default_gfz row exists but is not marked as default', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        $staleDefault = LandingPageTemplate::factory()->create([
+            'slug' => LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+            'name' => 'Stale Default Template',
+            'is_default' => false,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Recovered Clone'])
+            ->assertCreated();
+
+        expect($staleDefault->fresh()->is_default)->toBeTrue();
+    });
+
+    it('restores default template even when preferred default name is already taken', function (): void {
+        LandingPageTemplate::query()->delete();
+
+        LandingPageTemplate::factory()->create([
+            'slug' => 'custom-template-slug',
+            'name' => LandingPageTemplate::DEFAULT_TEMPLATE_NAME,
+            'is_default' => false,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Clone With Name Collision'])
+            ->assertCreated();
+
+        $restoredDefault = LandingPageTemplate::query()
+            ->where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)
+            ->first();
+
+        expect($restoredDefault)->not->toBeNull()
+            ->and($restoredDefault?->is_default)->toBeTrue()
+            ->and($restoredDefault?->name)->not->toBe(LandingPageTemplate::DEFAULT_TEMPLATE_NAME)
+            ->and($restoredDefault?->name)->toStartWith(LandingPageTemplate::DEFAULT_TEMPLATE_NAME);
     });
 });
 
