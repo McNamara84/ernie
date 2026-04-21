@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { CreatorInfo } from '@/pages/LandingPages/components/relation-browser/use-creator-nodes';
 import {
     buildCreatorId,
     buildCreatorLabel,
@@ -8,8 +9,6 @@ import {
     mergeCreator,
     normalizeNameKey,
 } from '@/pages/LandingPages/components/relation-browser/use-creator-nodes';
-
-import type { CreatorInfo } from '@/pages/LandingPages/components/relation-browser/use-creator-nodes';
 
 describe('use-creator-nodes utilities', () => {
     describe('normalizeNameKey', () => {

@@ -5,17 +5,36 @@
  * TooltipProvider – it is expected at the layout level. This wrapper
  * supplies that context so every test behaves like the real app.
  *
+ * The wrapper also provides a fresh `QueryClientProvider` so that
+ * components using TanStack Query hooks (e.g. `useDoiValidation`,
+ * `useRorAffiliations`) work out of the box in component tests.
+ *
  * Usage: import { render } from '@tests/vitest/utils/render';
  *         (all other exports from @testing-library/react are re-exported)
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render as rtlRender, type RenderOptions } from '@testing-library/react';
 import type { ReactElement } from 'react';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
+function createTestQueryClient() {
+    return new QueryClient({
+        defaultOptions: {
+            queries: { retry: false, gcTime: 0, staleTime: 0 },
+            mutations: { retry: false },
+        },
+    });
+}
+
 function AllProviders({ children }: { children: React.ReactNode }) {
-    return <TooltipProvider>{children}</TooltipProvider>;
+    const client = createTestQueryClient();
+    return (
+        <QueryClientProvider client={client}>
+            <TooltipProvider>{children}</TooltipProvider>
+        </QueryClientProvider>
+    );
 }
 
 function render(ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>) {

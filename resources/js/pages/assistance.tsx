@@ -4,8 +4,6 @@ import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-reac
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { validateORCID } from '@/utils/validation-rules';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +21,7 @@ import {
     type SuggestedRelationItem,
     type SuggestedRorItem,
 } from '@/types/assistance';
+import { validateORCID } from '@/utils/validation-rules';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

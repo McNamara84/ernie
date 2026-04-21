@@ -38,7 +38,7 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                     isActive={page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?')}
                                     tooltip={{ children: item.title }}
                                 >
-                                    <Link href={href} prefetch>
+                                    <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch}>
                                         {item.icon && <item.icon />}
                                         <span>{item.title}</span>
                                     </Link>

@@ -8,7 +8,9 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
 import { buildCsrfHeaders, syncXsrfTokenToAxios } from './lib/csrf-token';
+import { createQueryClient } from './lib/query-client';
 import { normalizeUrlLike } from './lib/url-normalizer';
+import { QueryProvider } from './providers/query-provider';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -328,6 +330,10 @@ try {
     // display, not the core session refresh functionality.
 }
 
+// Single QueryClient instance shared across the entire client-side session.
+// Created once at bootstrap to preserve cache across Inertia page visits.
+const queryClient = createQueryClient();
+
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
@@ -337,7 +343,11 @@ createInertiaApp({
         initializeFontSize(fontSizePreference);
 
         const root = createRoot(el);
-        root.render(<App {...props} />);
+        root.render(
+            <QueryProvider client={queryClient}>
+                <App {...props} />
+            </QueryProvider>,
+        );
     },
     progress: false,
 });

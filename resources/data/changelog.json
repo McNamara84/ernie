@@ -62,6 +62,10 @@
         ],
         "improvements": [
             {
+                "title": "TanStack Query Data Layer for External API Integrations",
+                "description": "Introduced a unified client-side data layer based on TanStack Query v5 for all external API integrations (ROR, DOI validation, ORCID, B2INST PID instruments, MSL laboratories). A centralized `apiClient` with typed `ApiError`, structured `queryKeys`, shared `QueryClient` configuration, and top-level `QueryProvider` replace ad-hoc fetch logic in hooks. The migrated hooks (`useRorAffiliations`, `useMslLaboratories`, `usePid4instInstruments`, `useDoiValidation`, `useOrcidAutofill`) now benefit from request deduplication, automatic caching (60s stale time, 5min gc time), and consistent error handling. A new `useEditorPrefetch` hook warms ROR and MSL caches when users navigate towards the editor, eliminating perceptible latency on first lookup. Introduced Mock Service Worker (MSW) for deterministic network mocking in tests and added extensive foundation coverage (api-client, query-client, query-keys, QueryProvider, prefetch hook) alongside migrated hook tests."
+            },
+            {
                 "title": "Official PID Icons on Landing Pages",
                 "description": "Replaced placeholder icons for ORCID, ROR, and Crossref Funder ID on landing pages with the official brand-compliant icons. ORCID and ROR icons now properly switch between light and dark mode variants according to the system color scheme preference. The ORCID icon shows the green circle in light mode and a white filled mark in dark mode, while the ROR icon displays the full official wordmark with appropriate color adaptation."
             },

@@ -27,6 +27,12 @@ export interface NavItem {
     disabled?: boolean;
     separator?: boolean;
     badge?: number;
+    /**
+     * Optional callback invoked on hover/focus of the navigation item.
+     * Used to prefetch query data (e.g. vocabularies for the editor) before
+     * the user actually clicks the link.
+     */
+    onPrefetch?: () => void;
 }
 
 export interface SharedData {

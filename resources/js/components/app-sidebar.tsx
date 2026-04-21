@@ -21,6 +21,7 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavSection } from '@/components/nav-section';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { useEditorPrefetch } from '@/hooks/use-editor-prefetch';
 import { dashboard, settings } from '@/routes';
 import { type NavItem, type SharedData, type User as AuthUser } from '@/types';
 
@@ -28,6 +29,7 @@ import AppLogo from './app-logo';
 
 export function AppSidebar() {
     const { auth, pendingAssistanceTotalCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
+    const prefetchEditor = useEditorPrefetch();
 
     // Dashboard - always visible
     const dashboardItems: NavItem[] = [
@@ -44,6 +46,7 @@ export function AppSidebar() {
             title: 'Data Editor',
             href: '/editor',
             icon: FileText,
+            onPrefetch: prefetchEditor,
         },
         {
             title: 'Resources',

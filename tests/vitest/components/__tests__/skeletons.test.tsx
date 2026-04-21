@@ -3,11 +3,11 @@ import '@testing-library/jest-dom/vitest';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { TableSkeleton } from '@/components/ui/skeletons/table-skeleton';
 import { CardSkeleton } from '@/components/ui/skeletons/card-skeleton';
+import { FilterSkeleton } from '@/components/ui/skeletons/filter-skeleton';
 import { FormSkeleton } from '@/components/ui/skeletons/form-skeleton';
 import { StatSkeleton } from '@/components/ui/skeletons/stat-skeleton';
-import { FilterSkeleton } from '@/components/ui/skeletons/filter-skeleton';
+import { TableSkeleton } from '@/components/ui/skeletons/table-skeleton';
 
 describe('TableSkeleton', () => {
     it('renders the default 5 rows and 4 columns', () => {

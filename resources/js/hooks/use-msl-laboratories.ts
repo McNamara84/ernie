@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
+import { apiRequest } from '@/lib/api-client';
+import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 import type { MSLLaboratory } from '@/types';
 
 interface UseMSLLaboratoriesReturn {
@@ -10,66 +12,51 @@ interface UseMSLLaboratoriesReturn {
 }
 
 /**
+ * Fetch the MSL vocabulary URL and then the laboratories payload.
+ *
+ * Exported for prefetching and unit testing.
+ */
+export async function fetchMslLaboratories(signal?: AbortSignal): Promise<MSLLaboratory[]> {
+    const { url } = await apiRequest<{ url: string }>(apiEndpoints.mslVocabularyUrl, { signal });
+
+    if (typeof url !== 'string' || url.length === 0) {
+        throw new Error('Invalid vocabulary URL received from backend');
+    }
+
+    // The vocabulary URL points to an external resource (Utrecht University).
+    // We go through `apiRequest` to get the shared error/retry semantics even
+    // though the request is cross-origin.
+    const data = await apiRequest<unknown>(url, { signal });
+
+    if (!Array.isArray(data)) {
+        throw new Error('Invalid data format: expected an array');
+    }
+
+    return data as MSLLaboratory[];
+}
+
+/**
  * Custom hook to fetch and manage MSL (Multi-Scale Laboratories) data
  * from the Utrecht University MSL Vocabularies repository.
- * The vocabulary URL is fetched from the backend to ensure consistency.
  *
- * @returns {UseMSLLaboratoriesReturn} Object containing laboratories data, loading state, error, and refetch function
+ * The vocabulary URL is fetched from the backend to ensure consistency and
+ * to avoid hardcoding the external URL in the frontend bundle.
  */
 export function useMSLLaboratories(): UseMSLLaboratoriesReturn {
-    const [laboratories, setLaboratories] = useState<MSLLaboratory[] | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
-    const [fetchTrigger, setFetchTrigger] = useState<number>(0);
-
-    useEffect(() => {
-        const fetchLaboratories = async () => {
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                // First, get the vocabulary URL from the backend to ensure consistency
-                const urlResponse = await fetch('/vocabularies/msl-vocabulary-url');
-                if (!urlResponse.ok) {
-                    throw new Error(`Failed to fetch vocabulary URL: ${urlResponse.status}`);
-                }
-                const { url: vocabularyUrl } = (await urlResponse.json()) as { url: string };
-
-                // Then fetch the laboratories from the vocabulary URL
-                const response = await fetch(vocabularyUrl);
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch laboratories: ${response.status} ${response.statusText}`);
-                }
-
-                const data = (await response.json()) as MSLLaboratory[];
-
-                // Validate data structure
-                if (!Array.isArray(data)) {
-                    throw new Error('Invalid data format: expected an array');
-                }
-
-                setLaboratories(data);
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-                setError(errorMessage);
-                console.error('Error fetching MSL laboratories:', err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        void fetchLaboratories();
-    }, [fetchTrigger]);
-
-    const refetch = () => {
-        setFetchTrigger((prev) => prev + 1);
-    };
+    const { data, isLoading, error, refetch } = useQuery({
+        queryKey: queryKeys.msl.laboratories(),
+        queryFn: ({ signal }) => fetchMslLaboratories(signal),
+        // Laboratories change rarely; cache aggressively to avoid cross-origin
+        // requests on every Editor visit.
+        staleTime: 30 * 60_000,
+    });
 
     return {
-        laboratories,
+        laboratories: data ?? null,
         isLoading,
-        error,
-        refetch,
+        error: error instanceof Error ? error.message : error ? String(error) : null,
+        refetch: () => {
+            void refetch();
+        },
     };
 }

@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+import { ApiError, apiRequest } from '@/lib/api-client';
+import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 
 /**
  * Instrument record from the PID4INST / b2inst registry.
@@ -24,71 +27,57 @@ interface UsePid4instInstrumentsReturn {
     refetch: () => void;
 }
 
+const DEFAULT_404_MESSAGE = 'Instrument registry not yet downloaded. An administrator must first download it in Settings.';
+
+/**
+ * Fetch PID4INST instruments from the backend vocabulary endpoint.
+ *
+ * Translates the 404 "registry not downloaded" case into a user-friendly
+ * message; all other errors bubble up with the original status code so that
+ * the caller can render appropriate feedback.
+ *
+ * Exported for prefetching and unit testing.
+ */
+export async function fetchPid4instInstruments(signal?: AbortSignal): Promise<Pid4instInstrument[]> {
+    try {
+        const json = await apiRequest<{ data?: Pid4instInstrument[] }>(apiEndpoints.pid4instInstruments, { signal });
+
+        if (!json || !Array.isArray(json.data)) {
+            throw new Error('Invalid data format: expected { data: [...] }');
+        }
+
+        return json.data;
+    } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+            const backendMessage =
+                err.body && typeof err.body === 'object' && 'error' in err.body && typeof (err.body as { error?: unknown }).error === 'string'
+                    ? ((err.body as { error: string }).error)
+                    : null;
+            throw new Error(backendMessage ?? DEFAULT_404_MESSAGE, { cause: err });
+        }
+        throw err;
+    }
+}
+
 /**
  * Custom hook to fetch PID4INST instruments from the locally cached b2inst data.
+ *
  * The data is fetched from the backend vocabulary endpoint which reads from a
  * local JSON file (downloaded via `php artisan get-pid4inst-instruments`).
- *
- * @returns Object containing instruments data, loading state, error, and refetch function
  */
 export function usePid4instInstruments(): UsePid4instInstrumentsReturn {
-    const [instruments, setInstruments] = useState<Pid4instInstrument[] | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
-    const [fetchTrigger, setFetchTrigger] = useState<number>(0);
-
-    useEffect(() => {
-        const fetchInstruments = async () => {
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                const response = await fetch('/vocabularies/pid4inst-instruments');
-
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        // Try to read the specific error message from the backend
-                        let backendMessage: string | null = null;
-                        try {
-                            const errorBody = (await response.json()) as { error?: string };
-                            if (errorBody.error) {
-                                backendMessage = errorBody.error;
-                            }
-                        } catch {
-                            // JSON parsing failed — use default message below
-                        }
-                        throw new Error(backendMessage ?? 'Instrument registry not yet downloaded. An administrator must first download it in Settings.');
-                    }
-                    throw new Error(`Failed to fetch instruments: ${response.status} ${response.statusText}`);
-                }
-
-                const json = (await response.json()) as { data: Pid4instInstrument[] };
-
-                if (!json.data || !Array.isArray(json.data)) {
-                    throw new Error('Invalid data format: expected { data: [...] }');
-                }
-
-                setInstruments(json.data);
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-                setError(errorMessage);
-                console.error('Error fetching PID4INST instruments:', err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        void fetchInstruments();
-    }, [fetchTrigger]);
-
-    const refetch = () => {
-        setFetchTrigger((prev) => prev + 1);
-    };
+    const { data, isLoading, error, refetch } = useQuery({
+        queryKey: queryKeys.pid4inst.instruments(),
+        queryFn: ({ signal }) => fetchPid4instInstruments(signal),
+        staleTime: 30 * 60_000,
+    });
 
     return {
-        instruments,
+        instruments: data ?? null,
         isLoading,
-        error,
-        refetch,
+        error: error instanceof Error ? error.message : error ? String(error) : null,
+        refetch: () => {
+            void refetch();
+        },
     };
 }

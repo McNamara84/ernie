@@ -13,6 +13,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { apiRequest } from '@/lib/api-client';
+import { apiEndpoints } from '@/lib/query-keys';
 import { type OrcidAffiliation, type OrcidSearchResult, OrcidService } from '@/services/orcid';
 import type { AffiliationTag } from '@/types/affiliations';
 
@@ -185,20 +187,16 @@ async function resolveNamesToRor(names: string[]): Promise<Map<string, { rorId: 
 
     for (const batch of batches) {
         try {
-            const response = await fetch('/api/v1/ror-resolve', {
+            const data = await apiRequest<{ results: RorResolveResult[] }>(apiEndpoints.rorResolve, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({ names: batch }),
+                body: { names: batch },
             });
 
-            if (response.ok) {
-                const data: { results: RorResolveResult[] } = await response.json();
-                for (const result of data.results) {
-                    map.set(result.name.toLowerCase().trim(), {
-                        rorId: result.rorId,
-                        matchedName: result.matchedName,
-                    });
-                }
+            for (const result of data.results ?? []) {
+                map.set(result.name.toLowerCase().trim(), {
+                    rorId: result.rorId,
+                    matchedName: result.matchedName,
+                });
             }
         } catch {
             // Silently fail — we'll proceed without ROR resolution for this batch

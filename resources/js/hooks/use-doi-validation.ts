@@ -1,5 +1,8 @@
-import axios, { isAxiosError } from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { ApiError, apiRequest } from '@/lib/api-client';
+import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 
 /**
  * Default error messages for DOI validation.
@@ -117,6 +120,7 @@ export interface UseDoiValidationResult {
  */
 export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiValidationResult {
     const { excludeResourceId, debounceMs = 300, onSuccess, onConflict, onError, errorMessages } = options;
+    const queryClient = useQueryClient();
 
     // Memoize error messages to prevent unnecessary callback recreations
     const messages = useMemo(
@@ -189,18 +193,19 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 abortControllerRef.current = abortController;
 
                 try {
-                    const response = await axios.post<DoiValidationResponse>(
-                        '/api/v1/doi/validate',
-                        {
-                            doi: trimmedDoi,
-                            exclude_resource_id: excludeResourceId,
-                        },
-                        {
-                            signal: abortController.signal,
-                        },
-                    );
-
-                    const data = response.data;
+                    const data = await queryClient.fetchQuery<DoiValidationResponse>({
+                        queryKey: queryKeys.doi.validate(trimmedDoi, excludeResourceId),
+                        queryFn: ({ signal }) =>
+                            apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
+                                method: 'POST',
+                                body: {
+                                    doi: trimmedDoi,
+                                    exclude_resource_id: excludeResourceId,
+                                },
+                                signal: signal ?? abortController.signal,
+                            }),
+                        staleTime: 5 * 60_000,
+                    });
 
                     // Check if format is valid
                     if (!data.is_valid_format) {
@@ -239,14 +244,14 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     onSuccess?.();
                 } catch (err) {
                     // Don't report aborted requests as errors
-                    if (axios.isCancel(err)) {
+                    if (err instanceof DOMException && err.name === 'AbortError') {
                         return;
                     }
 
-                    // Handle validation errors (422)
-                    if (isAxiosError(err) && err.response?.status === 422) {
-                        const responseData = err.response.data as DoiValidationResponse;
-                        if (!responseData.is_valid_format) {
+                    // Handle validation errors (422) with structured body
+                    if (err instanceof ApiError && err.status === 422) {
+                        const responseData = err.body as DoiValidationResponse | null;
+                        if (responseData && !responseData.is_valid_format) {
                             setIsValid(false);
                             setError(responseData.error || messages.invalidFormat);
                             onError?.(responseData.error || messages.invalidFormat);
@@ -255,7 +260,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     }
 
                     // Handle other errors
-                    const errorMessage = isAxiosError(err) ? err.response?.data?.message || messages.validationFailed : messages.validationFailed;
+                    const errorMessage = err instanceof ApiError && err.message ? err.message : messages.validationFailed;
 
                     setError(errorMessage);
                     setIsValid(false);
@@ -265,7 +270,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 }
             }, debounceMs);
         },
-        [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation],
+        [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation, queryClient],
     );
 
     /**
@@ -300,15 +305,18 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             setError(null);
             setConflictData(null);
             try {
-                const response = await axios.post<DoiValidationResponse>(
-                    '/api/v1/doi/validate',
-                    {
-                        doi: trimmedDoi,
-                        exclude_resource_id: excludeResourceId,
-                    },
-                );
-
-                const data = response.data;
+                const data = await queryClient.fetchQuery<DoiValidationResponse>({
+                    queryKey: queryKeys.doi.validate(trimmedDoi, excludeResourceId),
+                    queryFn: () =>
+                        apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
+                            method: 'POST',
+                            body: {
+                                doi: trimmedDoi,
+                                exclude_resource_id: excludeResourceId,
+                            },
+                        }),
+                    staleTime: 5 * 60_000,
+                });
 
                 if (!data.is_valid_format) {
                     // Mirror validateDoi: set error state for invalid format
@@ -349,7 +357,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setIsValidating(false);
             }
         },
-        [excludeResourceId, onConflict, onSuccess, resetValidation],
+        [excludeResourceId, onConflict, onSuccess, resetValidation, queryClient],
     );
 
     return {

@@ -1,147 +1,137 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-import { usePid4instInstruments } from '@/hooks/use-pid4inst-instruments';
+import { fetchPid4instInstruments, usePid4instInstruments } from '@/hooks/use-pid4inst-instruments';
+import { apiEndpoints } from '@/lib/query-keys';
+
+import { http, HttpResponse, server } from '../helpers/msw-server';
+import { renderHookWithQueryClient } from '../helpers/render-with-query-client';
+
+const mockInstruments = [
+    {
+        id: '1',
+        pid: '10.12345/inst-001',
+        pidType: 'DOI',
+        name: 'Seismometer',
+        description: 'A seismic sensor',
+        landingPage: 'https://example.com/inst/1',
+        owners: ['GFZ'],
+        manufacturers: ['Streckeisen'],
+        model: 'STS-2',
+        instrumentTypes: ['Seismometer'],
+        measuredVariables: ['Ground Motion'],
+    },
+];
 
 describe('usePid4instInstruments', () => {
-    const mockInstruments = [
-        {
-            id: '1',
-            pid: '10.12345/inst-001',
-            pidType: 'DOI',
-            name: 'Seismometer',
-            description: 'A seismic sensor',
-            landingPage: 'https://example.com/inst/1',
-            owners: ['GFZ'],
-            manufacturers: ['Streckeisen'],
-            model: 'STS-2',
-            instrumentTypes: ['Seismometer'],
-            measuredVariables: ['Ground Motion'],
-        },
-    ];
-
-    beforeEach(() => {
-        vi.stubGlobal('fetch', vi.fn());
-    });
-
-    afterEach(() => {
-        vi.restoreAllMocks();
-        vi.unstubAllGlobals();
-    });
-
     it('fetches instruments on mount', async () => {
-        vi.mocked(fetch).mockResolvedValueOnce({
-            ok: true,
-            json: async () => ({ data: mockInstruments }),
-        } as Response);
+        server.use(
+            http.get(apiEndpoints.pid4instInstruments, () =>
+                HttpResponse.json({ data: mockInstruments }),
+            ),
+        );
 
-        const { result } = renderHook(() => usePid4instInstruments());
+        const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
         expect(result.current.isLoading).toBe(true);
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.instruments).toEqual(mockInstruments);
         expect(result.current.error).toBeNull();
     });
 
     it('handles 404 with backend error message', async () => {
-        vi.mocked(fetch).mockResolvedValueOnce({
-            ok: false,
-            status: 404,
-            statusText: 'Not Found',
-            json: async () => ({ error: 'Registry not downloaded' }),
-        } as unknown as Response);
+        server.use(
+            http.get(apiEndpoints.pid4instInstruments, () =>
+                HttpResponse.json({ error: 'Registry not downloaded' }, { status: 404 }),
+            ),
+        );
 
-        const { result } = renderHook(() => usePid4instInstruments());
+        const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.error).toBe('Registry not downloaded');
         expect(result.current.instruments).toBeNull();
     });
 
-    it('handles 404 with default message when JSON parse fails', async () => {
-        vi.mocked(fetch).mockResolvedValueOnce({
-            ok: false,
-            status: 404,
-            statusText: 'Not Found',
-            json: async () => {
-                throw new Error('invalid json');
-            },
-        } as unknown as Response);
+    it('handles 404 with default message when body is absent', async () => {
+        server.use(
+            http.get(apiEndpoints.pid4instInstruments, () => new HttpResponse(null, { status: 404 })),
+        );
 
-        const { result } = renderHook(() => usePid4instInstruments());
+        const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        expect(result.current.error).toContain('administrator must first download');
+        expect(result.current.error).toMatch(/not yet downloaded/i);
     });
 
-    it('handles non-404 errors', async () => {
-        vi.mocked(fetch).mockResolvedValueOnce({
-            ok: false,
-            status: 500,
-            statusText: 'Internal Server Error',
-        } as Response);
+    it('handles generic HTTP errors', async () => {
+        server.use(
+            http.get(apiEndpoints.pid4instInstruments, () => new HttpResponse(null, { status: 500 })),
+        );
 
-        const { result } = renderHook(() => usePid4instInstruments());
+        const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        expect(result.current.error).toContain('500');
+        expect(result.current.error).toMatch(/status 500/i);
     });
 
-    it('handles invalid data format', async () => {
-        vi.mocked(fetch).mockResolvedValueOnce({
-            ok: true,
-            json: async () => ({ notData: 'wrong' }),
-        } as Response);
+    it('validates the payload shape', async () => {
+        server.use(
+            http.get(apiEndpoints.pid4instInstruments, () => HttpResponse.json({ unexpected: true })),
+        );
 
-        const { result } = renderHook(() => usePid4instInstruments());
+        const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        expect(result.current.error).toContain('Invalid data format');
+        expect(result.current.error).toBe('Invalid data format: expected { data: [...] }');
     });
 
-    it('refetch triggers new fetch', async () => {
-        vi.mocked(fetch)
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ data: [] }),
-            } as Response)
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ data: mockInstruments }),
-            } as Response);
+    it('refetch triggers a new request', async () => {
+        let callCount = 0;
+        server.use(
+            http.get(apiEndpoints.pid4instInstruments, () => {
+                callCount += 1;
+                return HttpResponse.json({ data: callCount === 1 ? [] : mockInstruments });
+            }),
+        );
 
-        const { result } = renderHook(() => usePid4instInstruments());
+        const { result } = renderHookWithQueryClient(() => usePid4instInstruments());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.instruments).toEqual([]));
 
-        expect(result.current.instruments).toEqual([]);
-
-        act(() => {
+        await act(async () => {
             result.current.refetch();
         });
 
-        await waitFor(() => {
-            expect(result.current.instruments).toEqual(mockInstruments);
+        await waitFor(() => expect(result.current.instruments).toEqual(mockInstruments));
+        expect(callCount).toBe(2);
+    });
+
+    describe('fetchPid4instInstruments', () => {
+        it('extracts the data array on success', async () => {
+            server.use(
+                http.get(apiEndpoints.pid4instInstruments, () =>
+                    HttpResponse.json({ data: mockInstruments }),
+                ),
+            );
+
+            await expect(fetchPid4instInstruments()).resolves.toEqual(mockInstruments);
         });
 
-        expect(fetch).toHaveBeenCalledTimes(2);
+        it('throws user-friendly message on 404', async () => {
+            server.use(
+                http.get(apiEndpoints.pid4instInstruments, () =>
+                    HttpResponse.json({ error: 'Custom msg' }, { status: 404 }),
+                ),
+            );
+
+            await expect(fetchPid4instInstruments()).rejects.toThrow('Custom msg');
+        });
     });
 });

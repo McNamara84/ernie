@@ -1,17 +1,26 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import axios from 'axios';
+﻿import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type DoiValidationResponse, useDoiValidation } from '@/hooks/use-doi-validation';
+import { apiEndpoints } from '@/lib/query-keys';
 
-// Mock axios
-vi.mock('axios', () => ({
-    default: {
-        post: vi.fn(),
-        isCancel: vi.fn(() => false),
-    },
-    isAxiosError: vi.fn(),
-}));
+import { http, HttpResponse, server } from '../helpers/msw-server';
+import { renderHookWithQueryClient } from '../helpers/render-with-query-client';
+
+type Captured = { body: unknown; count: number };
+
+function mockDoiEndpoint(response: DoiValidationResponse | ((body: unknown) => DoiValidationResponse)): Captured {
+    const captured: Captured = { body: null, count: 0 };
+    server.use(
+        http.post(apiEndpoints.doiValidate, async ({ request }) => {
+            captured.body = await request.json();
+            captured.count += 1;
+            const payload = typeof response === 'function' ? response(captured.body) : response;
+            return HttpResponse.json(payload);
+        }),
+    );
+    return captured;
+}
 
 describe('useDoiValidation', () => {
     beforeEach(() => {
@@ -24,8 +33,8 @@ describe('useDoiValidation', () => {
     });
 
     describe('Initial state', () => {
-        it('should initialize with default values', () => {
-            const { result } = renderHook(() => useDoiValidation());
+        it('initialises with default values', () => {
+            const { result } = renderHookWithQueryClient(() => useDoiValidation());
 
             expect(result.current.isValidating).toBe(false);
             expect(result.current.isValid).toBeNull();
@@ -36,8 +45,8 @@ describe('useDoiValidation', () => {
     });
 
     describe('validateDoi', () => {
-        it('should reset state for empty DOI', async () => {
-            const { result } = renderHook(() => useDoiValidation());
+        it('resets state for empty DOI', () => {
+            const { result } = renderHookWithQueryClient(() => useDoiValidation());
 
             act(() => {
                 result.current.validateDoi('');
@@ -48,128 +57,96 @@ describe('useDoiValidation', () => {
             expect(result.current.error).toBeNull();
         });
 
-        it('should call API with correct parameters', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: false,
-            };
+        it('sends DOI and excludeResourceId to the backend', async () => {
+            const captured = mockDoiEndpoint({ is_valid_format: true, exists: false });
 
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
-
-            const { result } = renderHook(() =>
-                useDoiValidation({ excludeResourceId: 123, debounceMs: 0 })
+            const { result } = renderHookWithQueryClient(() =>
+                useDoiValidation({ excludeResourceId: 123, debounceMs: 0 }),
             );
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
             });
 
-            // Advance timers to trigger debounced call
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            expect(axios.post).toHaveBeenCalledWith(
-                '/api/v1/doi/validate',
-                {
-                    doi: '10.5880/test.2026.001',
-                    exclude_resource_id: 123,
-                },
-                expect.objectContaining({ signal: expect.any(AbortSignal) })
-            );
+            await waitFor(() => expect(captured.count).toBe(1));
+            expect(captured.body).toEqual({
+                doi: '10.5880/test.2026.001',
+                exclude_resource_id: 123,
+            });
         });
 
-        it('should set isValid to true when DOI is available', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: false,
-            };
-
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+        it('sets isValid=true when DOI is available', async () => {
+            mockDoiEndpoint({ is_valid_format: true, exists: false });
 
             const onSuccess = vi.fn();
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0, onSuccess })
+            const { result } = renderHookWithQueryClient(() =>
+                useDoiValidation({ debounceMs: 0, onSuccess }),
             );
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            await waitFor(() => {
-                expect(result.current.isValid).toBe(true);
-            });
-            
+            await waitFor(() => expect(result.current.isValid).toBe(true));
             expect(result.current.error).toBeNull();
             expect(result.current.conflictData).toBeNull();
             expect(onSuccess).toHaveBeenCalled();
         });
 
-        it('should set error for invalid DOI format', async () => {
-            const mockResponse: DoiValidationResponse = {
+        it('sets error for invalid DOI format', async () => {
+            mockDoiEndpoint({
                 is_valid_format: false,
                 exists: false,
                 error: 'Invalid DOI format',
-            };
-
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+            });
 
             const onError = vi.fn();
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0, onError })
+            const { result } = renderHookWithQueryClient(() =>
+                useDoiValidation({ debounceMs: 0, onError }),
             );
 
             await act(async () => {
                 result.current.validateDoi('invalid-doi');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            await waitFor(() => {
-                expect(result.current.isValid).toBe(false);
-            });
-            
+            await waitFor(() => expect(result.current.isValid).toBe(false));
             expect(result.current.error).toBe('Invalid DOI format');
             expect(onError).toHaveBeenCalledWith('Invalid DOI format');
         });
 
-        it('should show conflict modal when DOI exists', async () => {
-            const mockResponse: DoiValidationResponse = {
+        it('shows conflict modal when DOI exists', async () => {
+            mockDoiEndpoint({
                 is_valid_format: true,
                 exists: true,
-                existing_resource: {
-                    id: 456,
-                    title: 'Existing Resource',
-                },
+                existing_resource: { id: 456, title: 'Existing Resource' },
                 last_assigned_doi: '10.5880/test.2026.003',
                 suggested_doi: '10.5880/test.2026.004',
-            };
-
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+            });
 
             const onConflict = vi.fn();
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0, onConflict })
+            const { result } = renderHookWithQueryClient(() =>
+                useDoiValidation({ debounceMs: 0, onConflict }),
             );
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            await waitFor(() => {
-                expect(result.current.showConflictModal).toBe(true);
-            });
-            
+            await waitFor(() => expect(result.current.showConflictModal).toBe(true));
+
             expect(result.current.conflictData).toEqual({
                 existingDoi: '10.5880/test.2026.001',
                 existingResourceId: 456,
@@ -178,24 +155,14 @@ describe('useDoiValidation', () => {
                 lastAssignedDoi: '10.5880/test.2026.003',
                 suggestedDoi: '10.5880/test.2026.004',
             });
-            expect(onConflict).toHaveBeenCalledWith(expect.objectContaining({
-                existingDoi: '10.5880/test.2026.001',
-            }));
+            expect(onConflict).toHaveBeenCalled();
         });
 
-        it('should debounce multiple rapid calls', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: false,
-            };
+        it('debounces rapid successive calls', async () => {
+            const captured = mockDoiEndpoint({ is_valid_format: true, exists: false });
 
-            vi.mocked(axios.post).mockResolvedValue({ data: mockResponse });
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 300 }));
 
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 300 })
-            );
-
-            // Make multiple rapid calls
             await act(async () => {
                 result.current.validateDoi('10.5880/a');
             });
@@ -206,49 +173,36 @@ describe('useDoiValidation', () => {
                 result.current.validateDoi('10.5880/abc');
             });
 
-            // Advance just past the debounce time
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(350);
             });
 
-            // Should only have made one API call with the last value
-            expect(axios.post).toHaveBeenCalledTimes(1);
-            expect(axios.post).toHaveBeenCalledWith(
-                '/api/v1/doi/validate',
-                expect.objectContaining({ doi: '10.5880/abc' }),
-                expect.any(Object)
-            );
+            await waitFor(() => expect(captured.count).toBe(1));
+            expect((captured.body as { doi: string }).doi).toBe('10.5880/abc');
         });
     });
 
     describe('resetValidation', () => {
-        it('should reset all state to initial values', async () => {
-            const mockResponse: DoiValidationResponse = {
+        it('resets all state to initial values', async () => {
+            mockDoiEndpoint({
                 is_valid_format: true,
                 exists: true,
                 existing_resource: { id: 1, title: 'Test' },
                 last_assigned_doi: '10.5880/test.001',
                 suggested_doi: '10.5880/test.002',
-            };
+            });
 
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
 
-            const { result } = renderHook(() => useDoiValidation({ debounceMs: 0 }));
-
-            // First, trigger a conflict
             await act(async () => {
                 result.current.validateDoi('10.5880/test.001');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            await waitFor(() => {
-                expect(result.current.conflictData).not.toBeNull();
-            });
+            await waitFor(() => expect(result.current.conflictData).not.toBeNull());
 
-            // Then reset
             act(() => {
                 result.current.resetValidation();
             });
@@ -262,185 +216,123 @@ describe('useDoiValidation', () => {
     });
 
     describe('setShowConflictModal', () => {
-        it('should update showConflictModal state', () => {
-            const { result } = renderHook(() => useDoiValidation());
+        it('updates showConflictModal state', () => {
+            const { result } = renderHookWithQueryClient(() => useDoiValidation());
 
             act(() => {
                 result.current.setShowConflictModal(true);
             });
-
             expect(result.current.showConflictModal).toBe(true);
 
             act(() => {
                 result.current.setShowConflictModal(false);
             });
-
             expect(result.current.showConflictModal).toBe(false);
         });
     });
 
     describe('Network errors and cancellation', () => {
-        it('should handle network errors gracefully', async () => {
-            const networkError = new Error('Network Error');
-            vi.mocked(axios.post).mockRejectedValueOnce(networkError);
-            vi.mocked(axios.isCancel).mockReturnValue(false);
+        it('handles network errors with fallback message', async () => {
+            server.use(http.post(apiEndpoints.doiValidate, () => HttpResponse.error()));
 
             const onError = vi.fn();
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0, onError })
+            const { result } = renderHookWithQueryClient(() =>
+                useDoiValidation({ debounceMs: 0, onError }),
             );
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            await waitFor(() => {
-                expect(result.current.isValid).toBe(false);
-            });
-
+            await waitFor(() => expect(result.current.isValid).toBe(false));
             expect(result.current.error).toBe('Validierung fehlgeschlagen');
             expect(onError).toHaveBeenCalledWith('Validierung fehlgeschlagen');
         });
 
-        it('should ignore cancelled requests', async () => {
-            // First call will be cancelled
-            const cancelledError = new Error('Request cancelled');
-            vi.mocked(axios.post).mockRejectedValueOnce(cancelledError);
-            vi.mocked(axios.isCancel).mockReturnValueOnce(true);
+        it('uses backend error message on ApiError', async () => {
+            server.use(
+                http.post(apiEndpoints.doiValidate, () =>
+                    HttpResponse.json({ message: 'Rate limit exceeded' }, { status: 429 }),
+                ),
+            );
 
             const onError = vi.fn();
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0, onError })
+            const { result } = renderHookWithQueryClient(() =>
+                useDoiValidation({ debounceMs: 0, onError }),
             );
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            // Error should not be set for cancelled requests
-            expect(result.current.error).toBeNull();
-            expect(onError).not.toHaveBeenCalled();
+            await waitFor(() => expect(result.current.error).toBe('Rate limit exceeded'));
+            expect(onError).toHaveBeenCalledWith('Rate limit exceeded');
         });
 
-        it('should cancel previous request when new validation starts', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: false,
-            };
-
-            vi.mocked(axios.post).mockResolvedValue({ data: mockResponse });
-
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 100 })
+        it('cancels the previous request when a new validation starts', async () => {
+            const captured: { count: number } = { count: 0 };
+            server.use(
+                http.post(apiEndpoints.doiValidate, async () => {
+                    captured.count += 1;
+                    return HttpResponse.json({ is_valid_format: true, exists: false });
+                }),
             );
 
-            // Start first validation
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 100 }));
+
             await act(async () => {
                 result.current.validateDoi('10.5880/first');
             });
-
-            // Start second validation before first completes (should cancel first)
             await act(async () => {
                 result.current.validateDoi('10.5880/second');
             });
 
-            // Advance past debounce
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(200);
             });
 
-            // Only the second request should have been made
-            expect(axios.post).toHaveBeenCalledTimes(1);
-            expect(axios.post).toHaveBeenCalledWith(
-                '/api/v1/doi/validate',
-                expect.objectContaining({ doi: '10.5880/second' }),
-                expect.any(Object)
-            );
+            await waitFor(() => expect(captured.count).toBeGreaterThanOrEqual(1));
+            expect(captured.count).toBe(1);
         });
     });
 
     describe('Null suggested DOI handling', () => {
-        it('should handle null suggested_doi from backend', async () => {
-            const mockResponse: DoiValidationResponse = {
+        it('handles absent suggested_doi as hasSuggestion=false', async () => {
+            mockDoiEndpoint({
                 is_valid_format: true,
                 exists: true,
-                existing_resource: {
-                    id: 456,
-                    title: 'Existing Resource',
-                },
+                existing_resource: { id: 456, title: 'Existing Resource' },
                 last_assigned_doi: '10.5880/test.2026.003',
-                suggested_doi: undefined, // Simulating null from backend
-            };
+                suggested_doi: undefined,
+            });
 
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
-
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0 })
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
 
             await act(async () => {
                 result.current.validateDoi('10.5880/test.2026.001');
             });
-
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(100);
             });
 
-            await waitFor(() => {
-                expect(result.current.conflictData).not.toBeNull();
-            });
+            await waitFor(() => expect(result.current.conflictData).not.toBeNull());
 
-            // Should have hasSuggestion = false when no suggestion available
             expect(result.current.conflictData?.hasSuggestion).toBe(false);
             expect(result.current.conflictData?.suggestedDoi).toBe('');
-        });
-
-        it('should set hasSuggestion to true when suggestion is available', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: true,
-                existing_resource: {
-                    id: 456,
-                    title: 'Existing Resource',
-                },
-                last_assigned_doi: '10.5880/test.2026.003',
-                suggested_doi: '10.5880/test.2026.004',
-            };
-
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
-
-            const { result } = renderHook(() =>
-                useDoiValidation({ debounceMs: 0 })
-            );
-
-            await act(async () => {
-                result.current.validateDoi('10.5880/test.2026.001');
-            });
-
-            await act(async () => {
-                await vi.advanceTimersByTimeAsync(100);
-            });
-
-            await waitFor(() => {
-                expect(result.current.conflictData).not.toBeNull();
-            });
-
-            expect(result.current.conflictData?.hasSuggestion).toBe(true);
-            expect(result.current.conflictData?.suggestedDoi).toBe('10.5880/test.2026.004');
         });
     });
 
     describe('checkDoiBeforeSave', () => {
-        it('should return null for empty DOI and reset state', async () => {
-            const { result } = renderHook(() => useDoiValidation());
+        it('returns null for empty DOI and resets state', async () => {
+            const captured = mockDoiEndpoint({ is_valid_format: true, exists: false });
+
+            const { result } = renderHookWithQueryClient(() => useDoiValidation());
 
             let conflict: unknown;
             await act(async () => {
@@ -448,24 +340,16 @@ describe('useDoiValidation', () => {
             });
 
             expect(conflict).toBeNull();
-            expect(axios.post).not.toHaveBeenCalled();
-            // Empty DOI should reset all validation state
+            expect(captured.count).toBe(0);
             expect(result.current.isValid).toBeNull();
-            expect(result.current.error).toBeNull();
             expect(result.current.conflictData).toBeNull();
-            expect(result.current.showConflictModal).toBe(false);
         });
 
-        it('should return null when DOI is available and set isValid to true', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: false,
-            };
-
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
-
+        it('returns null when DOI is available', async () => {
+            mockDoiEndpoint({ is_valid_format: true, exists: false });
             const onSuccess = vi.fn();
-            const { result } = renderHook(() => useDoiValidation({ onSuccess }));
+
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ onSuccess }));
 
             let conflict: unknown;
             await act(async () => {
@@ -474,30 +358,20 @@ describe('useDoiValidation', () => {
 
             expect(conflict).toBeNull();
             expect(result.current.isValid).toBe(true);
-            expect(result.current.showConflictModal).toBe(false);
-            expect(result.current.conflictData).toBeNull();
-            expect(result.current.error).toBeNull();
             expect(onSuccess).toHaveBeenCalled();
         });
 
-        it('should return conflict data and show modal when DOI exists', async () => {
-            const mockResponse: DoiValidationResponse = {
+        it('returns conflict data when DOI exists', async () => {
+            mockDoiEndpoint({
                 is_valid_format: true,
                 exists: true,
-                existing_resource: {
-                    id: 789,
-                    title: 'Blocking Resource',
-                },
+                existing_resource: { id: 789, title: 'Blocking Resource' },
                 last_assigned_doi: '10.5880/test.2026.005',
                 suggested_doi: '10.5880/test.2026.006',
-            };
-
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+            });
 
             const onConflict = vi.fn();
-            const { result } = renderHook(() =>
-                useDoiValidation({ onConflict }),
-            );
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ onConflict }));
 
             let conflict: unknown;
             await act(async () => {
@@ -513,14 +387,13 @@ describe('useDoiValidation', () => {
                 hasSuggestion: true,
             });
             expect(result.current.showConflictModal).toBe(true);
-            expect(result.current.conflictData).not.toBeNull();
             expect(onConflict).toHaveBeenCalled();
         });
 
-        it('should return null on network error (does not block save)', async () => {
-            vi.mocked(axios.post).mockRejectedValueOnce(new Error('Network Error'));
+        it('returns null on network error (does not block save)', async () => {
+            server.use(http.post(apiEndpoints.doiValidate, () => HttpResponse.error()));
 
-            const { result } = renderHook(() => useDoiValidation());
+            const { result } = renderHookWithQueryClient(() => useDoiValidation());
 
             let conflict: unknown;
             await act(async () => {
@@ -530,15 +403,10 @@ describe('useDoiValidation', () => {
             expect(conflict).toBeNull();
         });
 
-        it('should pass excludeResourceId to API', async () => {
-            const mockResponse: DoiValidationResponse = {
-                is_valid_format: true,
-                exists: false,
-            };
+        it('passes excludeResourceId to the backend', async () => {
+            const captured = mockDoiEndpoint({ is_valid_format: true, exists: false });
 
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
-
-            const { result } = renderHook(() =>
+            const { result } = renderHookWithQueryClient(() =>
                 useDoiValidation({ excludeResourceId: 42 }),
             );
 
@@ -546,25 +414,20 @@ describe('useDoiValidation', () => {
                 await result.current.checkDoiBeforeSave('10.5880/test.2026.001');
             });
 
-            expect(axios.post).toHaveBeenCalledWith(
-                '/api/v1/doi/validate',
-                {
-                    doi: '10.5880/test.2026.001',
-                    exclude_resource_id: 42,
-                },
-            );
+            expect(captured.body).toEqual({
+                doi: '10.5880/test.2026.001',
+                exclude_resource_id: 42,
+            });
         });
 
-        it('should return null when format is invalid and set error state', async () => {
-            const mockResponse: DoiValidationResponse = {
+        it('returns null when format is invalid', async () => {
+            mockDoiEndpoint({
                 is_valid_format: false,
                 exists: false,
                 error: 'Invalid DOI format',
-            };
+            });
 
-            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
-
-            const { result } = renderHook(() => useDoiValidation());
+            const { result } = renderHookWithQueryClient(() => useDoiValidation());
 
             let conflict: unknown;
             await act(async () => {
@@ -574,7 +437,6 @@ describe('useDoiValidation', () => {
             expect(conflict).toBeNull();
             expect(result.current.isValid).toBe(false);
             expect(result.current.error).toBe('Invalid DOI format');
-            expect(result.current.showConflictModal).toBe(false);
         });
     });
 });

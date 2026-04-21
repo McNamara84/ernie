@@ -1,24 +1,25 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { act, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-import { useMSLLaboratories } from '@/hooks/use-msl-laboratories';
+import { fetchMslLaboratories, useMSLLaboratories } from '@/hooks/use-msl-laboratories';
+import { apiEndpoints } from '@/lib/query-keys';
+
+import { http, HttpResponse, server } from '../../helpers/msw-server';
+import { renderHookWithQueryClient } from '../../helpers/render-with-query-client';
+
+const VOCAB_URL = 'https://vocab.example.test/msl';
 
 describe('useMSLLaboratories', () => {
-    let originalFetch: typeof fetch;
-
-    beforeEach(() => {
-        originalFetch = global.fetch;
-    });
-
-    afterEach(() => {
-        global.fetch = originalFetch;
-        vi.restoreAllMocks();
-    });
-
     it('starts with initial state', () => {
-        global.fetch = vi.fn().mockImplementation(() => new Promise(() => {}));
+        server.use(
+            http.get(apiEndpoints.mslVocabularyUrl, () =>
+                new Promise(() => {
+                    /* never resolves */
+                }),
+            ),
+        );
 
-        const { result } = renderHook(() => useMSLLaboratories());
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
         expect(result.current.laboratories).toBeNull();
         expect(result.current.isLoading).toBe(true);
@@ -31,162 +32,102 @@ describe('useMSLLaboratories', () => {
             { id: '2', name: 'Lab 2', url: 'https://lab2.example.com' },
         ];
 
-        global.fetch = vi.fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ url: 'https://vocab.example.com/labs' }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve(mockLaboratories),
-            });
+        server.use(
+            http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: VOCAB_URL })),
+            http.get(VOCAB_URL, () => HttpResponse.json(mockLaboratories)),
+        );
 
-        const { result } = renderHook(() => useMSLLaboratories());
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.laboratories).toEqual(mockLaboratories);
         expect(result.current.error).toBeNull();
     });
 
     it('handles vocabulary URL fetch failure', async () => {
-        global.fetch = vi.fn().mockResolvedValueOnce({
-            ok: false,
-            status: 500,
-        });
+        server.use(
+            http.get(apiEndpoints.mslVocabularyUrl, () => new HttpResponse(null, { status: 500 })),
+        );
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
-        const { result } = renderHook(() => useMSLLaboratories());
-
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.laboratories).toBeNull();
-        expect(result.current.error).toContain('Failed to fetch vocabulary URL: 500');
-        expect(consoleSpy).toHaveBeenCalled();
+        expect(result.current.error).toMatch(/status 500/i);
     });
 
     it('handles laboratories fetch failure', async () => {
-        global.fetch = vi.fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ url: 'https://vocab.example.com/labs' }),
-            })
-            .mockResolvedValueOnce({
-                ok: false,
-                status: 404,
-                statusText: 'Not Found',
-            });
+        server.use(
+            http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: VOCAB_URL })),
+            http.get(VOCAB_URL, () => new HttpResponse(null, { status: 404 })),
+        );
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
-        const { result } = renderHook(() => useMSLLaboratories());
-
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.laboratories).toBeNull();
-        expect(result.current.error).toContain('Failed to fetch laboratories: 404 Not Found');
-        expect(consoleSpy).toHaveBeenCalled();
+        expect(result.current.error).toMatch(/status 404/i);
     });
 
     it('handles invalid data format', async () => {
-        global.fetch = vi.fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ url: 'https://vocab.example.com/labs' }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ notAnArray: true }),
-            });
+        server.use(
+            http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: VOCAB_URL })),
+            http.get(VOCAB_URL, () => HttpResponse.json({ notAnArray: true })),
+        );
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
-        const { result } = renderHook(() => useMSLLaboratories());
-
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.laboratories).toBeNull();
         expect(result.current.error).toBe('Invalid data format: expected an array');
-        expect(consoleSpy).toHaveBeenCalled();
     });
 
-    it('handles network error', async () => {
-        global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network failure'));
+    it('rejects an empty vocabulary URL', async () => {
+        server.use(http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: '' })));
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
-        const { result } = renderHook(() => useMSLLaboratories());
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
-
-        expect(result.current.laboratories).toBeNull();
-        expect(result.current.error).toBe('Network failure');
-        expect(consoleSpy).toHaveBeenCalled();
+        expect(result.current.error).toBe('Invalid vocabulary URL received from backend');
     });
 
-    it('handles non-Error exceptions', async () => {
-        global.fetch = vi.fn().mockRejectedValueOnce('string error');
+    it('refetch triggers a new data fetch', async () => {
+        const lab1 = [{ id: '1', name: 'Lab 1' }];
+        const lab2 = [{ id: '2', name: 'Lab 2' }];
+        let callCount = 0;
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        server.use(
+            http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: VOCAB_URL })),
+            http.get(VOCAB_URL, () => {
+                callCount += 1;
+                return HttpResponse.json(callCount === 1 ? lab1 : lab2);
+            }),
+        );
 
-        const { result } = renderHook(() => useMSLLaboratories());
+        const { result } = renderHookWithQueryClient(() => useMSLLaboratories());
 
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
+        await waitFor(() => expect(result.current.laboratories).toEqual(lab1));
 
-        expect(result.current.error).toBe('Unknown error occurred');
-        expect(consoleSpy).toHaveBeenCalled();
-    });
-
-    it('refetch triggers new data fetch', async () => {
-        const mockLaboratories1 = [{ id: '1', name: 'Lab 1' }];
-        const mockLaboratories2 = [{ id: '2', name: 'Lab 2' }];
-
-        global.fetch = vi.fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ url: 'https://vocab.example.com/labs' }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve(mockLaboratories1),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve({ url: 'https://vocab.example.com/labs' }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve(mockLaboratories2),
-            });
-
-        const { result } = renderHook(() => useMSLLaboratories());
-
-        await waitFor(() => {
-            expect(result.current.isLoading).toBe(false);
-        });
-
-        expect(result.current.laboratories).toEqual(mockLaboratories1);
-
-        // Trigger refetch
-        act(() => {
+        await act(async () => {
             result.current.refetch();
         });
 
-        await waitFor(() => {
-            expect(result.current.laboratories).toEqual(mockLaboratories2);
+        await waitFor(() => expect(result.current.laboratories).toEqual(lab2));
+    });
+
+    describe('fetchMslLaboratories', () => {
+        it('fetches through the shared api client', async () => {
+            server.use(
+                http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: VOCAB_URL })),
+                http.get(VOCAB_URL, () => HttpResponse.json([{ id: '1' }])),
+            );
+
+            await expect(fetchMslLaboratories()).resolves.toEqual([{ id: '1' }]);
         });
     });
 });

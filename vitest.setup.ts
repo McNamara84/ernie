@@ -1,6 +1,24 @@
 import '@testing-library/jest-dom/vitest';
 
-import { afterEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
+
+import { server } from './tests/vitest/helpers/msw-server';
+
+// Start MSW before any test runs so that fetch calls inside hooks/components
+// are intercepted deterministically. `onUnhandledRequest: 'bypass'` keeps
+// backwards compatibility with older tests that stub `global.fetch` directly
+// — their stubs win because MSW never sees the request.
+beforeAll(() => {
+    server.listen({ onUnhandledRequest: 'bypass' });
+});
+
+afterEach(() => {
+    server.resetHandlers();
+});
+
+afterAll(() => {
+    server.close();
+});
 
 // Global cleanup after each test to prevent Tagify timer errors
 // Tagify uses internal setTimeout that can fire after test teardown

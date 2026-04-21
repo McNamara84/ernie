@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { PaginatedData, BaseSuggestionItem, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
+import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
