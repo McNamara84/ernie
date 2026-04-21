@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 /**
@@ -202,30 +203,48 @@ class LandingPageTemplate extends Model
      */
     public static function ensureDefaultTemplateExists(): self
     {
-        $template = static::query()
-            ->where('slug', self::DEFAULT_TEMPLATE_SLUG)
-            ->first();
+        $template = static::query()->where('slug', self::DEFAULT_TEMPLATE_SLUG)->first();
 
         if ($template === null) {
-            $template = static::query()
-                ->where('is_default', true)
-                ->first();
+            for ($attempt = 0; $attempt < 5; $attempt++) {
+                try {
+                    $template = static::query()->firstOrCreate(
+                        ['slug' => self::DEFAULT_TEMPLATE_SLUG],
+                        [
+                            'name' => self::resolveUniqueDefaultTemplateName(),
+                            'is_default' => true,
+                            'logo_path' => null,
+                            'logo_filename' => null,
+                            'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
+                            'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                            'created_by' => null,
+                        ]
+                    );
+
+                    break;
+                } catch (QueryException $exception) {
+                    $template = static::query()->where('slug', self::DEFAULT_TEMPLATE_SLUG)->first();
+
+                    if ($template !== null) {
+                        break;
+                    }
+
+                    if (! self::isUniqueConstraintViolation($exception)) {
+                        throw $exception;
+                    }
+                }
+            }
         }
 
         if ($template === null) {
-            $template = static::query()->create([
-                'name' => self::resolveUniqueDefaultTemplateName(),
-                'slug' => self::DEFAULT_TEMPLATE_SLUG,
-                'is_default' => true,
-                'logo_path' => null,
-                'logo_filename' => null,
-                'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
-                'left_column_order' => self::LEFT_COLUMN_SECTIONS,
-                'created_by' => null,
-            ]);
-
-            return $template;
+            throw new \RuntimeException('Failed to restore the default landing page template.');
         }
+
+        // Keep exactly one immutable default template marker to avoid accidental locks.
+        static::query()
+            ->where('is_default', true)
+            ->whereKeyNot($template->id)
+            ->update(['is_default' => false]);
 
         $template->forceFill([
             'is_default' => true,
@@ -253,5 +272,13 @@ class LandingPageTemplate extends Model
         }
 
         return self::DEFAULT_TEMPLATE_NAME . ' ' . Str::upper(Str::random(6));
+    }
+
+    private static function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+        $driverCode = (string) ($exception->errorInfo[1] ?? '');
+
+        return $sqlState === '23000' || $sqlState === '23505' || $driverCode === '1062' || $driverCode === '19';
     }
 }
