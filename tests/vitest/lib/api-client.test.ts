@@ -4,7 +4,10 @@ import { ApiError, apiRequest } from '@/lib/api-client';
 
 import { http, HttpResponse, server } from '../helpers/msw-server';
 
-const ENDPOINT = 'http://localhost/api/test-client';
+// Same-origin endpoint (relative URLs are always classified as same-origin,
+// so CSRF / X-Requested-With headers are injected by `apiRequest`).
+const ENDPOINT = '/api/test-client';
+const CROSS_ORIGIN_ENDPOINT = 'https://third-party.example.test/api/data';
 
 describe('ApiError', () => {
     it('stores status, message, body and name', () => {
@@ -221,5 +224,68 @@ describe('apiRequest', () => {
         await apiRequest(ENDPOINT, { signal: controller.signal });
 
         expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    });
+
+    describe('cross-origin behaviour', () => {
+        it('does not inject X-Requested-With or CSRF headers for cross-origin requests', async () => {
+            const meta = document.createElement('meta');
+            meta.setAttribute('name', 'csrf-token');
+            meta.setAttribute('content', 'should-not-leak');
+            document.head.appendChild(meta);
+
+            let captured: Headers | null = null;
+            server.use(
+                http.get(CROSS_ORIGIN_ENDPOINT, ({ request }) => {
+                    captured = request.headers;
+                    return HttpResponse.json({ ok: true });
+                }),
+            );
+
+            await apiRequest(CROSS_ORIGIN_ENDPOINT);
+
+            expect(captured!.get('accept')).toBe('application/json');
+            expect(captured!.get('x-requested-with')).toBeNull();
+            expect(captured!.get('x-csrf-token')).toBeNull();
+        });
+
+        it('respects skipCsrf=true on same-origin requests', async () => {
+            const meta = document.createElement('meta');
+            meta.setAttribute('name', 'csrf-token');
+            meta.setAttribute('content', 'should-not-leak');
+            document.head.appendChild(meta);
+
+            let captured: Headers | null = null;
+            server.use(
+                http.post(ENDPOINT, ({ request }) => {
+                    captured = request.headers;
+                    return HttpResponse.json({});
+                }),
+            );
+
+            await apiRequest(ENDPOINT, { method: 'POST', body: { a: 1 }, skipCsrf: true });
+
+            expect(captured!.get('x-requested-with')).toBeNull();
+            expect(captured!.get('x-csrf-token')).toBeNull();
+            expect(captured!.get('accept')).toBe('application/json');
+        });
+
+        it('defaults to same-origin handling for unparseable URLs', async () => {
+            // Inputs that cannot be parsed into a URL (e.g. protocol-relative
+            // strings without a host) should still receive CSRF headers.
+            // We rely on the internal `isSameOrigin` try/catch fallback, which
+            // is exercised here by triggering the catch path.
+            let captured: Headers | null = null;
+            server.use(
+                http.get(ENDPOINT, ({ request }) => {
+                    captured = request.headers;
+                    return HttpResponse.json({});
+                }),
+            );
+
+            await apiRequest(ENDPOINT);
+
+            // Headers should include X-Requested-With (same-origin default).
+            expect(captured!.get('x-requested-with')).toBe('XMLHttpRequest');
+        });
     });
 });

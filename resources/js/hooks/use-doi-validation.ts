@@ -6,12 +6,14 @@ import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 
 /**
  * Default error messages for DOI validation.
- * These are in German to match the application's primary language.
- * Consider moving to a translation file for full i18n support.
+ *
+ * Kept in English to match the project's language policy (all user-facing
+ * strings in code are English). Call sites that need a localised copy can
+ * override these via the `errorMessages` option of {@link useDoiValidation}.
  */
 const DEFAULT_ERROR_MESSAGES = {
-    INVALID_FORMAT: 'Ungültiges DOI-Format',
-    VALIDATION_FAILED: 'Validierung fehlgeschlagen',
+    INVALID_FORMAT: 'Invalid DOI format',
+    VALIDATION_FAILED: 'Validation failed',
 } as const;
 
 /**
@@ -88,7 +90,7 @@ export interface UseDoiValidationOptions {
     onConflict?: (conflictData: DoiConflictData) => void;
     /** Callback when an error occurs */
     onError?: (error: string) => void;
-    /** Custom error messages (optional, defaults to German messages) */
+    /** Custom error messages (optional; defaults to English messages) */
     errorMessages?: {
         invalidFormat?: string;
         validationFailed?: string;

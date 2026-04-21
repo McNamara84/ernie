@@ -24,9 +24,19 @@ export async function fetchMslLaboratories(signal?: AbortSignal): Promise<MSLLab
     }
 
     // The vocabulary URL points to an external resource (Utrecht University).
-    // We go through `apiRequest` to get the shared error/retry semantics even
-    // though the request is cross-origin.
-    const data = await apiRequest<unknown>(url, { signal });
+    // Use a plain `fetch` here with only simple headers so the request is
+    // treated as a CORS-simple GET and does not trigger a preflight that the
+    // third-party host would reject.
+    const response = await fetch(url, {
+        signal,
+        headers: { Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch laboratories: ${response.status} ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as unknown;
 
     if (!Array.isArray(data)) {
         throw new Error('Invalid data format: expected an array');

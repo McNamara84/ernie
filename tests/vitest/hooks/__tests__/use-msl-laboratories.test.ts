@@ -69,7 +69,7 @@ describe('useMSLLaboratories', () => {
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.laboratories).toBeNull();
-        expect(result.current.error).toMatch(/status 404/i);
+        expect(result.current.error).toMatch(/404/);
     });
 
     it('handles invalid data format', async () => {
@@ -121,7 +121,7 @@ describe('useMSLLaboratories', () => {
     });
 
     describe('fetchMslLaboratories', () => {
-        it('fetches through the shared api client', async () => {
+        it('fetches laboratories via a plain cross-origin GET', async () => {
             server.use(
                 http.get(apiEndpoints.mslVocabularyUrl, () => HttpResponse.json({ url: VOCAB_URL })),
                 http.get(VOCAB_URL, () => HttpResponse.json([{ id: '1' }])),

@@ -13,27 +13,22 @@
  *         (all other exports from @testing-library/react are re-exported)
  */
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render as rtlRender, type RenderOptions } from '@testing-library/react';
+import { createTestQueryClient } from '@tests/vitest/helpers/render-with-query-client';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
-
-function createTestQueryClient() {
-    return new QueryClient({
-        defaultOptions: {
-            queries: { retry: false, gcTime: 0, staleTime: 0 },
-            mutations: { retry: false },
-        },
-    });
-}
 
 function AllProviders({ children }: { children: React.ReactNode }) {
     // Create the QueryClient exactly once per mount. Without the lazy
     // initialiser a re-render (e.g. triggered by state changes in the
     // component under test) would replace the client and wipe its cache,
     // which can cause flaky assertions and unnecessary refetches.
+    //
+    // The factory is shared with `renderWithQueryClient` / `renderHookWithQueryClient`
+    // so that all component and hook tests use identical QueryClient defaults.
     const [client] = useState(createTestQueryClient);
     return (
         <QueryClientProvider client={client}>

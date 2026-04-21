@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, renderHook, type RenderHookOptions, type RenderOptions } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
+import { useState } from 'react';
 
 /**
  * Build a {@link QueryClient} configured for unit tests.
@@ -9,6 +10,10 @@ import type { ReactElement, ReactNode } from 'react';
  *   by retry backoffs.
  * - `gcTime: 0` avoids cross-test pollution by discarding unused queries
  *   immediately.
+ *
+ * This is the single source of truth for test `QueryClient` defaults; other
+ * test helpers (e.g. the component `render` helper in `tests/vitest/utils`)
+ * re-use this factory so defaults cannot drift over time.
  */
 export function createTestQueryClient(): QueryClient {
     return new QueryClient({
@@ -25,7 +30,13 @@ interface TestProvidersProps {
 }
 
 function TestProviders({ children, client }: TestProvidersProps) {
-    return <QueryClientProvider client={client ?? createTestQueryClient()}>{children}</QueryClientProvider>;
+    // Create the fallback client exactly once per mount. Without the lazy
+    // initialiser, a re-render of this provider (e.g. triggered by state
+    // changes in the component under test) would replace the client and
+    // wipe its cache, producing flaky assertions.
+    const [fallbackClient] = useState(createTestQueryClient);
+    const activeClient = client ?? fallbackClient;
+    return <QueryClientProvider client={activeClient}>{children}</QueryClientProvider>;
 }
 
 /**
