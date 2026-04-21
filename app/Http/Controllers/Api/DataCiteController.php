@@ -8,11 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Services\DataCiteApiService;
 use App\Support\OrcidNormalizer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
- * Controller für DOI-Zitations-Abruf.
+ * Controller for DOI citation retrieval.
  *
- * Verwendet die doi.org Content Negotiation API über den DataCiteApiService.
+ * Uses the doi.org Content Negotiation API via DataCiteApiService.
  */
 class DataCiteController extends Controller
 {
@@ -21,13 +22,24 @@ class DataCiteController extends Controller
     ) {}
 
     /**
-     * Ruft eine formatierte Zitation für eine DOI ab.
+     * Retrieve a formatted citation for a DOI.
      *
-     * @param  string  $doi  Die DOI (kann von jedem Registrar sein)
-     * @return JsonResponse JSON mit citation und doi
+     * The DOI is passed as a query parameter (?doi=10.5880/...) to avoid
+     * URL encoding issues with forward slashes in DOIs (%2F) which some
+     * web servers (Nginx, Traefik) reject with 400 Bad Request.
+     *
+     * @return JsonResponse JSON with citation and doi
      */
-    public function getCitation(string $doi): JsonResponse
+    public function getCitation(Request $request): JsonResponse
     {
+        $doi = $this->extractValidDoi($request);
+
+        if ($doi === null) {
+            return response()->json([
+                'error' => 'Missing or invalid doi query parameter',
+            ], 422);
+        }
+
         $metadata = $this->dataCiteService->getMetadata($doi);
 
         if (! $metadata) {
@@ -50,11 +62,20 @@ class DataCiteController extends Controller
      * First tries the DataCite REST API (which includes affiliations and nameType).
      * Falls back to CSL JSON via doi.org Content Negotiation for non-DataCite DOIs.
      *
-     * @param  string  $doi  The DOI (any registrar)
+     * The DOI is passed as a query parameter (?doi=10.5880/...) to avoid
+     * URL encoding issues with forward slashes in DOIs.
+     *
      * @return JsonResponse JSON with doi and authors array
      */
-    public function getAuthors(string $doi): JsonResponse
+    public function getAuthors(Request $request): JsonResponse
     {
+        $doi = $this->extractValidDoi($request);
+
+        if ($doi === null) {
+            return response()->json([
+                'error' => 'Missing or invalid doi query parameter',
+            ], 422);
+        }
         // Try DataCite REST API first (includes affiliations)
         $dataCiteMetadata = $this->dataCiteService->getDataCiteMetadata($doi);
 
@@ -82,6 +103,30 @@ class DataCiteController extends Controller
             'doi' => $doi,
             'authors' => $authors,
         ]);
+    }
+
+    /**
+     * Extract, normalize, and validate the DOI query parameter.
+     *
+     * Reuses {@see DataCiteApiService::normalizeDoi()} for consistent canonical
+     * form (trim, strip resolver URL prefixes, lowercase). Then validates the
+     * DOI format (must start with "10." followed by a registrant code and suffix).
+     */
+    private function extractValidDoi(Request $request): ?string
+    {
+        $doi = $request->query('doi');
+
+        if (! is_string($doi)) {
+            return null;
+        }
+
+        $doi = $this->dataCiteService->normalizeDoi($doi);
+
+        if ($doi === null || ! preg_match('#^10\.\d{4,9}/.+$#', $doi)) {
+            return null;
+        }
+
+        return $doi;
     }
 
     /**

@@ -136,6 +136,10 @@
         ],
         "fixes": [
             {
+                "title": "Citation Display on Landing Pages",
+                "description": "Fixed an issue where the Related Work and Model Description sections on landing pages showed raw DOIs (e.g. 'DOI: 10.5880/...') instead of formatted citation strings. The root cause was URL encoding of forward slashes (%2F) in DOI path parameters, which some web servers reject with 400 Bad Request. The DOI citation and author API endpoints now use query parameters instead of URL path segments."
+            },
+            {
                 "title": "GEMET Thesaurus Loading Only 4 Concepts",
                 "description": "Fixed a bug where the GEMET thesaurus import loaded only 4 top-level concepts instead of the full ~5,669 entries. The root cause was a URI prefix mismatch: the GEMET API returns broader relations with a 'group/' prefix, but SuperGroups use a 'supergroup/' prefix with the same numeric IDs. The hierarchy builder could not match groups to their parent supergroups, resulting in empty child arrays. A URI normalization step now converts 'group/' prefixes to 'supergroup/' in the group-to-supergroup mapping."
             },
