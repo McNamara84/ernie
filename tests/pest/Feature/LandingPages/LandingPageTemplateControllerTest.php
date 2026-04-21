@@ -460,6 +460,26 @@ describe('Model', function (): void {
         expect(Carbon::parse((string) $template->fresh()?->updated_at)->equalTo($originalTimestamp))->toBeTrue();
     });
 
+    it('restores canonical fields when default template is corrupted', function (): void {
+        // Corrupt the default template with creator and logo.
+        LandingPageTemplate::query()
+            ->whereKey($this->defaultTemplate->id)
+            ->update([
+                'created_by' => $this->admin->id,
+                'logo_path' => 'landing-page-logos/test/logo.png',
+                'logo_filename' => 'logo.png',
+            ]);
+
+        // Ensure the default template, which should restore canonical fields.
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+        $fresh = $template->fresh();
+
+        expect($fresh->created_by)->toBeNull()
+            ->and($fresh->logo_path)->toBeNull()
+            ->and($fresh->logo_filename)->toBeNull()
+            ->and($fresh->is_default)->toBeTrue();
+    });
+
     it('returns null logo_url when no logo is set', function (): void {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->admin->id,

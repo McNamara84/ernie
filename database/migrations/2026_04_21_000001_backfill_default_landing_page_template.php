@@ -91,15 +91,21 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Best-effort rollback: delete the canonical default template
-        // if it was created by this migration.
-        // Note: We cannot reliably determine if it was created by this migration
-        // or existed before, so we use the canonical slug as a heuristic.
-        // Any Landing Pages referencing this template will have their
-        // landing_page_template_id set to NULL (via nullOnDelete FK constraint).
-        DB::table('landing_page_templates')
-            ->where('slug', 'default_gfz')
-            ->delete();
+        // Intentionally left empty: this data backfill migration cannot safely be reversed.
+        //
+        // The up() method runs regardless of whether the default template already existed
+        // in production (it may have been created manually, seeded, or by a previous
+        // installation). There is no reliable way to determine if the canonical row with
+        // slug 'default_gfz' was created by this migration or existed before, so we cannot
+        // safely delete it without risking loss of pre-existing production data.
+        //
+        // If you need to remove the template for testing/development, delete it manually:
+        //   DB::table('landing_page_templates')
+        //     ->where('slug', 'default_gfz')
+        //     ->delete();
+        //
+        // Note: Landing Pages will have their landing_page_template_id set to NULL
+        // via the foreign key's nullOnDelete constraint.
     }
 
     private function resolveUniqueDefaultTemplateName(string $preferredName): string

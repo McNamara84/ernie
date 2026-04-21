@@ -248,13 +248,18 @@ class LandingPageTemplate extends Model
                 ->whereKeyNot($template->id)
                 ->update(['is_default' => false]);
 
+            // Force-fill all canonical fields to ensure the default template is immutable/system-owned.
+            // If the canonical row is "corrupted" (has creator, logo, etc.), restore it to clean state.
             $template->forceFill([
                 'is_default' => true,
                 'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
                 'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                'created_by' => null,           // System-owned, not created by a user
+                'logo_path' => null,            // No custom logo
+                'logo_filename' => null,        // No custom logo
             ]);
 
-            if ($template->isDirty(['is_default', 'right_column_order', 'left_column_order'])) {
+            if ($template->isDirty(['is_default', 'right_column_order', 'left_column_order', 'created_by', 'logo_path', 'logo_filename'])) {
                 $template->save();
             }
 
