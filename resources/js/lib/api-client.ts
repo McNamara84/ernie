@@ -29,14 +29,13 @@ export interface ApiRequestInit extends Omit<RequestInit, 'body'> {
 
     /**
      * When `true`, suppresses the automatic `X-Requested-With` header and CSRF
-     * token injection.
+     * token injection on same-origin requests.
      *
-     * Required for cross-origin requests (e.g. fetching external vocabularies)
-     * because these non-simple headers would otherwise trigger a CORS preflight
-     * that most third-party hosts do not permit.
-     *
-     * Defaults to `false`; set to `true` only when calling endpoints outside
+     * Cross-origin requests already skip these headers unconditionally to
+     * avoid CORS preflights, so this option only has an effect when calling
      * the application's own origin.
+     *
+     * Defaults to `false`.
      */
     skipCsrf?: boolean;
 }
@@ -89,11 +88,12 @@ const isPlainJsonPayload = (body: RequestBody): body is Record<string, unknown> 
  * - Adds `Accept: application/json`.
  * - For same-origin requests, also adds `X-Requested-With: XMLHttpRequest`
  *   and the current CSRF token (mirroring the axios interceptor used
- *   elsewhere in the app).
- * - For cross-origin requests, CSRF / `X-Requested-With` are **not** injected
- *   by default to avoid triggering a CORS preflight against third-party
- *   hosts. Callers can force this behaviour per request via the `skipCsrf`
- *   option.
+ *   elsewhere in the app). Callers can opt out on same-origin requests by
+ *   passing `skipCsrf: true`.
+ * - For cross-origin requests, CSRF / `X-Requested-With` are **never**
+ *   injected — these non-simple headers would otherwise trigger a CORS
+ *   preflight against third-party hosts. The `skipCsrf` option is therefore
+ *   only meaningful for same-origin URLs.
  * - Serialises plain objects/arrays as JSON and sets `Content-Type` accordingly.
  * - Throws an {@link ApiError} for non-2xx responses.
  * - Returns `null` for `204 No Content` responses.

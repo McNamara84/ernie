@@ -691,5 +691,63 @@ describe('useDoiValidation', () => {
             expect(conflict).toBeNull();
             expect(result.current.isValid).toBe(true);
         });
+
+        it('keeps isValidating=true while the save-check runs even after a stale validateDoi resolves', async () => {
+            // First: a slow validateDoi POST that has not yet resolved when
+            // checkDoiBeforeSave overtakes it. Second: the synchronous save
+            // check, which resolves quickly.
+            let resolveFirst: (() => void) | null = null;
+            let call = 0;
+            server.use(
+                http.post(apiEndpoints.doiValidate, async () => {
+                    call += 1;
+                    if (call === 1) {
+                        await new Promise<void>((resolve) => {
+                            resolveFirst = resolve as () => void;
+                        });
+                        return HttpResponse.json({ is_valid_format: true, exists: false });
+                    }
+                    // Block the second request indefinitely so we can observe
+                    // `isValidating` while the save-check is still in flight.
+                    await new Promise(() => {
+                        /* never resolves */
+                    });
+                    return HttpResponse.json({ is_valid_format: true, exists: false });
+                }),
+            );
+
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
+
+            // Kick off the debounced validateDoi and let its request reach the server.
+            await act(async () => {
+                result.current.validateDoi('10.5880/race');
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(50);
+            });
+            await waitFor(() => expect(call).toBe(1));
+
+            // Start the save-check. It will move `activeQueryKeyRef` to its own key
+            // and set `isValidating=true`. It then awaits a never-resolving fetch.
+            let savePromise: Promise<unknown> | null = null;
+            await act(async () => {
+                savePromise = result.current.checkDoiBeforeSave('10.5880/race-save');
+                await Promise.resolve();
+            });
+
+            expect(result.current.isValidating).toBe(true);
+
+            // Now release the stale validateDoi request. Its `finally` must NOT
+            // flip `isValidating` to false because the save-check is the active run.
+            await act(async () => {
+                resolveFirst?.();
+                await vi.advanceTimersByTimeAsync(0);
+            });
+
+            expect(result.current.isValidating).toBe(true);
+
+            // Cleanup: silence the dangling save promise.
+            void savePromise;
+        });
     });
 });

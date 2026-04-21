@@ -28,8 +28,8 @@ export const defaultHandlers = [
         HttpResponse.json({ url: DEFAULT_MSL_VOCABULARY_URL }),
     ),
     // The MSL vocabulary URL above points to an external host. Provide a
-    // deterministic default so that `useMSLLaboratories` tests never accidentally
-    // attempt real network requests when running with `onUnhandledRequest: 'bypass'`.
+    // deterministic default so the suite — which runs MSW with
+    // `onUnhandledRequest: 'error'` — never trips on this cross-origin GET.
     http.get(DEFAULT_MSL_VOCABULARY_URL, () => HttpResponse.json([])),
 ];
 

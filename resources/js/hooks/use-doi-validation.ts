@@ -322,8 +322,14 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     setIsValid(false);
                     onError?.(errorMessage);
                 } finally {
-                    setIsValidating(false);
+                    // Only clear `isValidating` if this invocation is still the
+                    // active one. A newer call (e.g. `checkDoiBeforeSave` or a
+                    // subsequent `validateDoi`) has already taken over the ref
+                    // and may have its own request in flight — flipping the
+                    // flag here would briefly show the UI as idle while the
+                    // newer request is still pending.
                     if (activeQueryKeyRef.current === queryKey) {
+                        setIsValidating(false);
                         activeQueryKeyRef.current = null;
                     }
                 }
@@ -349,6 +355,10 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
+            // Take ownership of the active-query ref so the now-stale
+            // `validateDoi` finally block cannot mistake itself for the active
+            // run and clear `isValidating` mid-save-check.
+            activeQueryKeyRef.current = null;
 
             // Reset isValidating that may have been set by a cancelled validateDoi call
             setIsValidating(false);
@@ -368,6 +378,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             setConflictData(null);
 
             const queryKey = queryKeys.doi.validate(trimmedDoi, excludeResourceId);
+            activeQueryKeyRef.current = queryKey;
 
             // Pre-save uniqueness checks must always hit the backend: a cached
             // "available" response from a previous `validateDoi` call could
@@ -434,6 +445,9 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 return null;
             } finally {
                 setIsValidating(false);
+                if (activeQueryKeyRef.current === queryKey) {
+                    activeQueryKeyRef.current = null;
+                }
             }
         },
         [excludeResourceId, onConflict, onError, onSuccess, messages, resetValidation, queryClient],
