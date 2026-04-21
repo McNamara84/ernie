@@ -427,7 +427,8 @@ describe('useDoiValidation', () => {
                 error: 'Invalid DOI format',
             });
 
-            const { result } = renderHookWithQueryClient(() => useDoiValidation());
+            const onError = vi.fn();
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ onError }));
 
             let conflict: unknown;
             await act(async () => {
@@ -437,6 +438,99 @@ describe('useDoiValidation', () => {
             expect(conflict).toBeNull();
             expect(result.current.isValid).toBe(false);
             expect(result.current.error).toBe('Invalid DOI format');
+            expect(onError).toHaveBeenCalledWith('Invalid DOI format');
+        });
+
+        it('falls back to the default invalidFormat message when backend omits error field', async () => {
+            mockDoiEndpoint({ is_valid_format: false, exists: false });
+
+            const onError = vi.fn();
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ onError }));
+
+            await act(async () => {
+                await result.current.checkDoiBeforeSave('invalid-doi');
+            });
+
+            expect(result.current.isValid).toBe(false);
+            expect(result.current.error).toBe('Invalid DOI format');
+            expect(onError).toHaveBeenCalledWith('Invalid DOI format');
+        });
+
+        it('always hits the backend to bypass stale cache from prior validateDoi', async () => {
+            // First response: DOI appears available.
+            // Second response (during checkDoiBeforeSave): DOI is now taken.
+            let call = 0;
+            server.use(
+                http.post(apiEndpoints.doiValidate, () => {
+                    call += 1;
+                    if (call === 1) {
+                        return HttpResponse.json({ is_valid_format: true, exists: false });
+                    }
+                    return HttpResponse.json({
+                        is_valid_format: true,
+                        exists: true,
+                        existing_resource: { id: 77, title: 'Race Winner' },
+                        last_assigned_doi: '10.5880/cache.001',
+                        suggested_doi: '10.5880/cache.002',
+                    });
+                }),
+            );
+
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
+
+            // Prime cache with an "available" response via debounced validateDoi.
+            await act(async () => {
+                result.current.validateDoi('10.5880/cache.001');
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+            await waitFor(() => expect(result.current.isValid).toBe(true));
+
+            // Pre-save check must refetch and surface the new conflict.
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('10.5880/cache.001');
+            });
+
+            expect(call).toBe(2);
+            expect(conflict).not.toBeNull();
+            expect((conflict as { existingResourceId: number }).existingResourceId).toBe(77);
+        });
+
+        it('resets isValid when a network failure occurs during save check', async () => {
+            // First response: DOI appears available (primes isValid=true).
+            // Second request (during checkDoiBeforeSave): network error.
+            let call = 0;
+            server.use(
+                http.post(apiEndpoints.doiValidate, () => {
+                    call += 1;
+                    if (call === 1) {
+                        return HttpResponse.json({ is_valid_format: true, exists: false });
+                    }
+                    return HttpResponse.error();
+                }),
+            );
+
+            const { result } = renderHookWithQueryClient(() => useDoiValidation({ debounceMs: 0 }));
+
+            await act(async () => {
+                result.current.validateDoi('10.5880/flaky');
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+            await waitFor(() => expect(result.current.isValid).toBe(true));
+
+            let conflict: unknown;
+            await act(async () => {
+                conflict = await result.current.checkDoiBeforeSave('10.5880/flaky');
+            });
+
+            // Returns null (don't block save) but must not leave isValid=true,
+            // otherwise consumers would see an inconsistent "valid + null" state.
+            expect(conflict).toBeNull();
+            expect(result.current.isValid).toBeNull();
         });
     });
 

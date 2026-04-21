@@ -62,6 +62,10 @@
         ],
         "improvements": [
             {
+                "title": "DOI Pre-Save Check Reliability",
+                "description": "The synchronous DOI check that runs before saving a resource (`checkDoiBeforeSave`) now always hits the backend instead of reusing a cached 'available' response from the debounced `validateDoi` hook, so conflicts that appear between typing and saving are no longer hidden by cache freshness. In the invalid-format branch the hook now falls back to the default/override error message (instead of leaving `error` empty) and invokes the `onError` callback, matching the behaviour of `validateDoi`. When the pre-save request fails, `isValid` is now reset to `null` so consumers never observe a stale `true`/`false` combined with a `null` return value."
+            },
+            {
                 "title": "Stable CORS & Test-Provider Hardening for TanStack Query Layer",
                 "description": "The shared `apiClient` no longer injects `X-Requested-With` and CSRF headers on cross-origin requests by default and exposes an opt-out `skipCsrf` flag, preventing unnecessary CORS preflights when calling third-party hosts. The MSL laboratories loader now fetches the external Utrecht vocabulary via a plain `fetch` with only simple headers so the request stays CORS-simple. DOI validation default error messages were translated to English to match the project language policy. The Vitest render helpers (`render` and `TestProviders`) now use a lazy `useState` initialiser so the test QueryClient is created once per mount and no longer wipes the cache on re-renders, and both helpers share a single `createTestQueryClient` implementation. Coverage for the query layer was increased substantially (DOI validation: 32% → 85%+, api-client: 86% → 92%)."
             },

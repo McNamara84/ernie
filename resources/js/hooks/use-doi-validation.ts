@@ -360,12 +360,24 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             }
 
             setIsValidating(true);
-            // Clear previous conflict/error state before check
+            // Clear previous validation state before the check so consumers
+            // never observe stale `isValid` / `error` / `conflictData` values
+            // if this request ends up being cancelled or failing.
+            setIsValid(null);
             setError(null);
             setConflictData(null);
+
+            const queryKey = queryKeys.doi.validate(trimmedDoi, excludeResourceId);
+
+            // Pre-save uniqueness checks must always hit the backend: a cached
+            // "available" response from a previous `validateDoi` call could
+            // otherwise mask a freshly-created conflicting resource. Drop any
+            // cached entry for this key and force a network roundtrip.
+            queryClient.removeQueries({ queryKey, exact: true });
+
             try {
                 const data = await queryClient.fetchQuery<DoiValidationResponse>({
-                    queryKey: queryKeys.doi.validate(trimmedDoi, excludeResourceId),
+                    queryKey,
                     queryFn: () =>
                         apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
                             method: 'POST',
@@ -374,13 +386,21 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                                 exclude_resource_id: excludeResourceId,
                             },
                         }),
-                    staleTime: 5 * 60_000,
+                    // `staleTime: 0` ensures the data is considered stale the
+                    // moment it is written to the cache, so any subsequent
+                    // pre-save check will refetch rather than reuse it.
+                    staleTime: 0,
                 });
 
                 if (!data.is_valid_format) {
-                    // Mirror validateDoi: set error state for invalid format
+                    // Mirror validateDoi: set error state for invalid format and
+                    // fire the onError callback so call sites can react (e.g.
+                    // show a toast). Fall back to the default message when the
+                    // backend did not provide one.
+                    const errorMessage = data.error || messages.invalidFormat;
                     setIsValid(false);
-                    setError(data.error || null);
+                    setError(errorMessage);
+                    onError?.(errorMessage);
                     return null;
                 }
 
@@ -416,7 +436,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setIsValidating(false);
             }
         },
-        [excludeResourceId, onConflict, onSuccess, resetValidation, queryClient],
+        [excludeResourceId, onConflict, onError, onSuccess, messages, resetValidation, queryClient],
     );
 
     return {
