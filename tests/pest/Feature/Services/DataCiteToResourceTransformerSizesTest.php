@@ -58,6 +58,11 @@ describe('DataCiteToResourceTransformer::transformSizes()', function (): void {
         // aborted the DataCite import job when a DOI reported file sizes beyond
         // ~99 MB (the decimal(12, 4) ceiling). With decimal(20, 4) these values
         // must persist cleanly.
+        //
+        // We assert the exact string produced by Eloquent's `decimal:4` cast
+        // (rather than casting to float) so that BOTH the numeric value AND
+        // the 4-decimal scale are verified. A float-based comparison would not
+        // notice accidental scale regressions (e.g. a future `decimal:2` cast).
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
 
@@ -68,7 +73,7 @@ describe('DataCiteToResourceTransformer::transformSizes()', function (): void {
 
         $size = Size::where('resource_id', $resource->id)->sole();
 
-        expect((float) $size->numeric_value)->toBe(2_675_059_373.0)
+        expect($size->numeric_value)->toBe('2675059373.0000')
             ->and($size->unit)->toBe('Bytes')
             ->and($size->type)->toBeNull();
     });
@@ -87,13 +92,14 @@ describe('DataCiteToResourceTransformer::transformSizes()', function (): void {
 
         $size = Size::where('resource_id', $resource->id)->sole();
 
-        expect((float) $size->numeric_value)->toBe(1_099_511_627_776.0)
+        expect($size->numeric_value)->toBe('1099511627776.0000')
             ->and($size->unit)->toBe('Bytes');
     });
 
     it('still parses small decimal size strings like "1.5 GB" correctly', function (): void {
         // Guards against accidental precision regressions that could change
-        // how fractional values are persisted.
+        // how fractional values are persisted. Asserting the full scaled
+        // string ("1.5000") also confirms the `decimal:4` cast is intact.
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
 
@@ -104,7 +110,7 @@ describe('DataCiteToResourceTransformer::transformSizes()', function (): void {
 
         $size = Size::where('resource_id', $resource->id)->sole();
 
-        expect((float) $size->numeric_value)->toBe(1.5)
+        expect($size->numeric_value)->toBe('1.5000')
             ->and($size->unit)->toBe('GB');
     });
 
@@ -142,6 +148,6 @@ describe('sizes.numeric_value column precision', function (): void {
 
         $size->refresh();
 
-        expect((float) $size->numeric_value)->toBe(2_675_059_373.0);
+        expect($size->numeric_value)->toBe('2675059373.0000');
     });
 });

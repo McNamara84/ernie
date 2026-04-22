@@ -49,9 +49,12 @@ it('reverts sizes.numeric_value back to decimal(12, 4) when no row would overflo
     $migration->up();
 
     // The row must still be present and readable after the round-trip.
+    // Assert the exact string produced by the `decimal:4` cast so both the
+    // value and the 4-decimal scale are verified — a float cast would hide
+    // an accidental scale change.
     /** @var Size $reloaded */
     $reloaded = Size::query()->sole();
-    expect((float) $reloaded->numeric_value)->toBe(1.5)
+    expect($reloaded->numeric_value)->toBe('1.5000')
         ->and($reloaded->unit)->toBe('GB');
 });
 
@@ -152,6 +155,6 @@ it('can re-apply up() after it has already run without losing data', function ()
 
     /** @var Size $reloaded */
     $reloaded = Size::query()->sole();
-    expect((float) $reloaded->numeric_value)->toBe(2_675_059_373.0)
+    expect($reloaded->numeric_value)->toBe('2675059373.0000')
         ->and($reloaded->unit)->toBe('Bytes');
 });
