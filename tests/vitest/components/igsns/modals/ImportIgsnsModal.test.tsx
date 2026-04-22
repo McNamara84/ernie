@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 

@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { type ReactNode, cloneElement, isValidElement, useId, useState } from 'react';
+import { cloneElement, isValidElement, type ReactNode, useId, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';

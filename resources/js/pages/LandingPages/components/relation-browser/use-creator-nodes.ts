@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LandingPageCreator, LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey } from '../../lib/resolveIdentifierUrl';
-
 import type { GraphLink, GraphNode } from './graph-types';
 
 interface CreatorInfo {
@@ -360,5 +359,5 @@ export function useCreatorNodes(
 }
 
 // Export helpers for testing
-export { normalizeNameKey, buildCreatorLabel, buildCreatorId, mergeCreator, fromLandingPageCreator, fromApiAuthor };
-export type { CreatorInfo, ApiAuthor, ApiAffiliation };
+export { buildCreatorId, buildCreatorLabel, fromApiAuthor, fromLandingPageCreator, mergeCreator, normalizeNameKey };
+export type { ApiAffiliation, ApiAuthor, CreatorInfo };

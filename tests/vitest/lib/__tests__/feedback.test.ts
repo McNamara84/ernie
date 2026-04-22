@@ -9,6 +9,7 @@ vi.mock('sonner', () => ({
 }));
 
 import { toast } from 'sonner';
+
 import { feedback } from '@/lib/feedback';
 
 describe('feedback', () => {

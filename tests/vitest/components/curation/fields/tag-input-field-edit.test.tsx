@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 
-import { cleanup, render } from '@tests/vitest/utils/render';
 import { createTagifyMock, MockTagify } from '@test-helpers/tagify-mock';
+import { cleanup, render } from '@tests/vitest/utils/render';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TagInputField } from '@/components/curation/fields/tag-input-field';

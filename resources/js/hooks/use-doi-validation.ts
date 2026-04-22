@@ -1,15 +1,52 @@
-import axios, { isAxiosError } from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { ApiError, apiRequest } from '@/lib/api-client';
+import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 
 /**
  * Default error messages for DOI validation.
- * These are in German to match the application's primary language.
- * Consider moving to a translation file for full i18n support.
+ *
+ * Kept in English to match the project's language policy (all user-facing
+ * strings in code are English). Call sites that need a localised copy can
+ * override these via the `errorMessages` option of {@link useDoiValidation}.
  */
 const DEFAULT_ERROR_MESSAGES = {
-    INVALID_FORMAT: 'Ungültiges DOI-Format',
-    VALIDATION_FAILED: 'Validierung fehlgeschlagen',
+    INVALID_FORMAT: 'Invalid DOI format',
+    VALIDATION_FAILED: 'Validation failed',
 } as const;
+
+/**
+ * Combine an upstream {@link AbortSignal} (provided by TanStack Query's
+ * `fetchQuery` queryFn) with the local debounce/lifecycle controller so that
+ * aborting either source cancels the in-flight request.
+ *
+ * Prefers the native `AbortSignal.any` when available and falls back to a
+ * manual listener chain for environments that do not support it yet.
+ */
+function combineSignals(upstream: AbortSignal | undefined, local: AbortSignal): AbortSignal {
+    if (!upstream) {
+        return local;
+    }
+
+    if (typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { any?: unknown }).any === 'function') {
+        return (AbortSignal as unknown as { any: (signals: AbortSignal[]) => AbortSignal }).any([upstream, local]);
+    }
+
+    const controller = new AbortController();
+    const abort = (reason?: unknown) => controller.abort(reason);
+    if (upstream.aborted) {
+        abort((upstream as AbortSignal & { reason?: unknown }).reason);
+    } else {
+        upstream.addEventListener('abort', () => abort((upstream as AbortSignal & { reason?: unknown }).reason), { once: true });
+    }
+    if (local.aborted) {
+        abort((local as AbortSignal & { reason?: unknown }).reason);
+    } else {
+        local.addEventListener('abort', () => abort((local as AbortSignal & { reason?: unknown }).reason), { once: true });
+    }
+    return controller.signal;
+}
 
 /**
  * Response from the DOI validation API endpoint
@@ -53,7 +90,7 @@ export interface UseDoiValidationOptions {
     onConflict?: (conflictData: DoiConflictData) => void;
     /** Callback when an error occurs */
     onError?: (error: string) => void;
-    /** Custom error messages (optional, defaults to German messages) */
+    /** Custom error messages (optional; defaults to English messages) */
     errorMessages?: {
         invalidFormat?: string;
         validationFailed?: string;
@@ -117,6 +154,7 @@ export interface UseDoiValidationResult {
  */
 export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiValidationResult {
     const { excludeResourceId, debounceMs = 300, onSuccess, onConflict, onError, errorMessages } = options;
+    const queryClient = useQueryClient();
 
     // Memoize error messages to prevent unnecessary callback recreations
     const messages = useMemo(
@@ -137,6 +175,10 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
     const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Ref for abort controller to cancel pending requests
     const abortControllerRef = useRef<AbortController | null>(null);
+    // Track the query key of the in-flight validation so we can cancel the
+    // underlying TanStack Query fetch (which owns its own AbortSignal) when a
+    // newer validation request arrives.
+    const activeQueryKeyRef = useRef<readonly unknown[] | null>(null);
 
     // Cleanup on unmount: clear timeout and abort any pending requests
     useEffect(() => {
@@ -147,8 +189,12 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
             }
+            if (activeQueryKeyRef.current) {
+                void queryClient.cancelQueries({ queryKey: activeQueryKeyRef.current, exact: true });
+                activeQueryKeyRef.current = null;
+            }
         };
-    }, []);
+    }, [queryClient]);
 
     const resetValidation = useCallback(() => {
         setIsValid(null);
@@ -165,9 +211,17 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 clearTimeout(debounceTimeoutRef.current);
             }
 
-            // Abort any pending request
+            // Abort any pending request:
+            // - The local controller cancels the debounced fetch (and is mirrored
+            //   into the TanStack signal below for full coverage).
+            // - `cancelQueries` aborts the underlying TanStack Query fetch which
+            //   owns its own AbortSignal that is *not* linked to our local one.
             if (abortControllerRef.current) {
                 abortControllerRef.current.abort();
+            }
+            if (activeQueryKeyRef.current) {
+                void queryClient.cancelQueries({ queryKey: activeQueryKeyRef.current, exact: true });
+                activeQueryKeyRef.current = null;
             }
 
             // If DOI is empty, reset state
@@ -188,19 +242,26 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 const abortController = new AbortController();
                 abortControllerRef.current = abortController;
 
-                try {
-                    const response = await axios.post<DoiValidationResponse>(
-                        '/api/v1/doi/validate',
-                        {
-                            doi: trimmedDoi,
-                            exclude_resource_id: excludeResourceId,
-                        },
-                        {
-                            signal: abortController.signal,
-                        },
-                    );
+                const queryKey = queryKeys.doi.validate(trimmedDoi, excludeResourceId);
+                activeQueryKeyRef.current = queryKey;
 
-                    const data = response.data;
+                try {
+                    const data = await queryClient.fetchQuery<DoiValidationResponse>({
+                        queryKey,
+                        queryFn: ({ signal }) =>
+                            apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
+                                method: 'POST',
+                                body: {
+                                    doi: trimmedDoi,
+                                    exclude_resource_id: excludeResourceId,
+                                },
+                                // Combine TanStack's signal (aborted by cancelQueries)
+                                // with the local controller so either source can
+                                // cancel the in-flight request.
+                                signal: combineSignals(signal, abortController.signal),
+                            }),
+                        staleTime: 5 * 60_000,
+                    });
 
                     // Check if format is valid
                     if (!data.is_valid_format) {
@@ -239,14 +300,14 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     onSuccess?.();
                 } catch (err) {
                     // Don't report aborted requests as errors
-                    if (axios.isCancel(err)) {
+                    if (err instanceof DOMException && err.name === 'AbortError') {
                         return;
                     }
 
-                    // Handle validation errors (422)
-                    if (isAxiosError(err) && err.response?.status === 422) {
-                        const responseData = err.response.data as DoiValidationResponse;
-                        if (!responseData.is_valid_format) {
+                    // Handle validation errors (422) with structured body
+                    if (err instanceof ApiError && err.status === 422) {
+                        const responseData = err.body as DoiValidationResponse | null;
+                        if (responseData && !responseData.is_valid_format) {
                             setIsValid(false);
                             setError(responseData.error || messages.invalidFormat);
                             onError?.(responseData.error || messages.invalidFormat);
@@ -255,17 +316,26 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     }
 
                     // Handle other errors
-                    const errorMessage = isAxiosError(err) ? err.response?.data?.message || messages.validationFailed : messages.validationFailed;
+                    const errorMessage = err instanceof ApiError && err.message ? err.message : messages.validationFailed;
 
                     setError(errorMessage);
                     setIsValid(false);
                     onError?.(errorMessage);
                 } finally {
-                    setIsValidating(false);
+                    // Only clear `isValidating` if this invocation is still the
+                    // active one. A newer call (e.g. `checkDoiBeforeSave` or a
+                    // subsequent `validateDoi`) has already taken over the ref
+                    // and may have its own request in flight — flipping the
+                    // flag here would briefly show the UI as idle while the
+                    // newer request is still pending.
+                    if (activeQueryKeyRef.current === queryKey) {
+                        setIsValidating(false);
+                        activeQueryKeyRef.current = null;
+                    }
                 }
             }, debounceMs);
         },
-        [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation],
+        [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation, queryClient],
     );
 
     /**
@@ -285,6 +355,10 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 abortControllerRef.current.abort();
                 abortControllerRef.current = null;
             }
+            // Take ownership of the active-query ref so the now-stale
+            // `validateDoi` finally block cannot mistake itself for the active
+            // run and clear `isValidating` mid-save-check.
+            activeQueryKeyRef.current = null;
 
             // Reset isValidating that may have been set by a cancelled validateDoi call
             setIsValidating(false);
@@ -296,24 +370,60 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             }
 
             setIsValidating(true);
-            // Clear previous conflict/error state before check
+            // Clear previous validation state before the check so consumers
+            // never observe stale `isValid` / `error` / `conflictData` values
+            // if this request ends up being cancelled or failing.
+            setIsValid(null);
             setError(null);
             setConflictData(null);
-            try {
-                const response = await axios.post<DoiValidationResponse>(
-                    '/api/v1/doi/validate',
-                    {
-                        doi: trimmedDoi,
-                        exclude_resource_id: excludeResourceId,
-                    },
-                );
 
-                const data = response.data;
+            const queryKey = queryKeys.doi.validate(trimmedDoi, excludeResourceId);
+            activeQueryKeyRef.current = queryKey;
+
+            // Create a local abort controller so a subsequent call (another
+            // `checkDoiBeforeSave` or a new `validateDoi`) can abort this
+            // request via `abortControllerRef.current.abort()`.
+            const abortController = new AbortController();
+            abortControllerRef.current = abortController;
+
+            // Pre-save uniqueness checks must always hit the backend: a cached
+            // "available" response from a previous `validateDoi` call could
+            // otherwise mask a freshly-created conflicting resource. Drop any
+            // cached entry for this key and force a network roundtrip.
+            queryClient.removeQueries({ queryKey, exact: true });
+
+            try {
+                const data = await queryClient.fetchQuery<DoiValidationResponse>({
+                    queryKey,
+                    queryFn: ({ signal }) =>
+                        apiRequest<DoiValidationResponse>(apiEndpoints.doiValidate, {
+                            method: 'POST',
+                            body: {
+                                doi: trimmedDoi,
+                                exclude_resource_id: excludeResourceId,
+                            },
+                            // Combine TanStack's signal (aborted by
+                            // `cancelQueries`, e.g. on unmount) with the local
+                            // controller so either source can cancel the
+                            // in-flight request and prevent post-unmount state
+                            // updates from the `finally` block.
+                            signal: combineSignals(signal, abortController.signal),
+                        }),
+                    // `staleTime: 0` ensures the data is considered stale the
+                    // moment it is written to the cache, so any subsequent
+                    // pre-save check will refetch rather than reuse it.
+                    staleTime: 0,
+                });
 
                 if (!data.is_valid_format) {
-                    // Mirror validateDoi: set error state for invalid format
+                    // Mirror validateDoi: set error state for invalid format and
+                    // fire the onError callback so call sites can react (e.g.
+                    // show a toast). Fall back to the default message when the
+                    // backend did not provide one.
+                    const errorMessage = data.error || messages.invalidFormat;
                     setIsValid(false);
-                    setError(data.error || null);
+                    setError(errorMessage);
+                    onError?.(errorMessage);
                     return null;
                 }
 
@@ -341,15 +451,32 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setShowConflictModal(false);
                 onSuccess?.();
                 return null;
-            } catch {
+            } catch (err) {
+                // Swallow aborts silently — the caller that triggered the
+                // cancellation (unmount, newer save-check) is responsible for
+                // any follow-up state management.
+                if (err instanceof DOMException && err.name === 'AbortError') {
+                    return null;
+                }
                 // If validation request fails (network error etc.), don't block save
                 // Let the backend unique constraint handle it
                 return null;
             } finally {
-                setIsValidating(false);
+                // Only apply state updates when this invocation is still the
+                // active one. If the request was aborted (e.g. by unmount or a
+                // newer call that took ownership of `activeQueryKeyRef`), the
+                // ref no longer matches and we skip the updates entirely to
+                // avoid post-unmount or cross-request state writes.
+                if (activeQueryKeyRef.current === queryKey) {
+                    setIsValidating(false);
+                    activeQueryKeyRef.current = null;
+                }
+                if (abortControllerRef.current === abortController) {
+                    abortControllerRef.current = null;
+                }
             }
         },
-        [excludeResourceId, onConflict, onSuccess, resetValidation],
+        [excludeResourceId, onConflict, onError, onSuccess, messages, resetValidation, queryClient],
     );
 
     return {

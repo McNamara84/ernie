@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { normalizeDoiKey } from '../../lib/resolveIdentifierUrl';
-
 import type { CitationLabel } from './graph-types';
 
 interface IdentifierInput {

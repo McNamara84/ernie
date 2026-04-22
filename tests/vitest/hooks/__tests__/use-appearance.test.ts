@@ -15,7 +15,13 @@ beforeEach(() => {
         value: matchMediaMock,
         writable: true,
     });
-    document.cookie = '';
+    // Assigning '' does not delete cookies in jsdom — explicitly expire each entry.
+    for (const entry of document.cookie.split(';')) {
+        const name = entry.split('=')[0]?.trim();
+        if (name) {
+            document.cookie = `${name}=; Max-Age=0; path=/`;
+        }
+    }
     localStorage.clear();
     document.documentElement.className = '';
     document.documentElement.style.colorScheme = '';

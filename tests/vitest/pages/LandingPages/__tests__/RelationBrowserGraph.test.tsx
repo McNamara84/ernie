@@ -2,7 +2,6 @@ import { render, screen } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelationBrowserGraph } from '@/pages/LandingPages/components/relation-browser/RelationBrowserGraph';
-
 import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
 
 // Mock matchMedia for prefers-reduced-motion

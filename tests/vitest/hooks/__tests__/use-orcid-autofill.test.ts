@@ -1,8 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type PersonEntry,useOrcidAutofill } from '@/hooks/use-orcid-autofill';
+import { type PersonEntry, useOrcidAutofill } from '@/hooks/use-orcid-autofill';
+import { apiEndpoints } from '@/lib/query-keys';
 import { OrcidService } from '@/services/orcid';
+
+import { http, HttpResponse, server } from '../../helpers/msw-server';
 
 // Mock the OrcidService
 vi.mock('@/services/orcid', () => ({
@@ -1050,16 +1053,11 @@ describe('useOrcidAutofill', () => {
     });
 
     describe('computePendingAffiliations (via handleOrcidSelect)', () => {
-        beforeEach(() => {
-            // Mock fetch for ROR resolution using stubGlobal to avoid leaking
-            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve({ results: [] }),
-            }));
-        });
+        // MSW (see tests/vitest/helpers/msw-server.ts) intercepts `/api/v1/ror-resolve`
+        // for all tests in this suite. Individual tests override handlers via
+        // `server.use(...)` when they need a specific response.
 
         afterEach(() => {
-            vi.unstubAllGlobals();
             vi.restoreAllMocks();
         });
 
@@ -1180,10 +1178,11 @@ describe('useOrcidAutofill', () => {
         });
 
         it('resolves names to ROR via fetch and marks resolved matches as "different"', async () => {
-            vi.mocked(global.fetch).mockResolvedValue({
-                ok: true,
-                json: () =>
-                    Promise.resolve({
+            let rorResolveBody: unknown = null;
+            server.use(
+                http.post(apiEndpoints.rorResolve, async ({ request }) => {
+                    rorResolveBody = await request.json();
+                    return HttpResponse.json({
                         results: [
                             {
                                 name: 'Helmholtz Centre Potsdam',
@@ -1191,8 +1190,9 @@ describe('useOrcidAutofill', () => {
                                 matchedName: 'GFZ German Research Centre',
                             },
                         ],
-                    }),
-            } as Response);
+                    });
+                }),
+            );
 
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
@@ -1230,14 +1230,8 @@ describe('useOrcidAutofill', () => {
                 await result.current.handleOrcidSelect('0000-0001-2345-6789');
             });
 
-            // Should have called /api/v1/ror-resolve
-            expect(global.fetch).toHaveBeenCalledWith(
-                '/api/v1/ror-resolve',
-                expect.objectContaining({
-                    method: 'POST',
-                    body: JSON.stringify({ names: ['Helmholtz Centre Potsdam'] }),
-                }),
-            );
+            // Should have called /api/v1/ror-resolve with the expected payload
+            expect(rorResolveBody).toEqual({ names: ['Helmholtz Centre Potsdam'] });
 
             expect(result.current.pendingOrcidData?.affiliations).toEqual([
                 expect.objectContaining({
@@ -1249,7 +1243,9 @@ describe('useOrcidAutofill', () => {
         });
 
         it('handles fetch error for ROR resolution gracefully', async () => {
-            vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
+            server.use(
+                http.post(apiEndpoints.rorResolve, () => HttpResponse.error()),
+            );
 
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,

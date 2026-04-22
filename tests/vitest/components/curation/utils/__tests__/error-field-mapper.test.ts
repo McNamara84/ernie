@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    type MappedError,
     extractSectionFromMessage,
     groupErrorsBySection,
     mapBackendErrors,
+    type MappedError,
     stripSectionPrefix,
 } from '@/components/curation/utils/error-field-mapper';
 

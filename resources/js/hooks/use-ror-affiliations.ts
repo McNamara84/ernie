@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
+import { apiRequest } from '@/lib/api-client';
+import { apiEndpoints, queryKeys } from '@/lib/query-keys';
 import type { AffiliationSuggestion } from '@/types/affiliations';
 
 interface UseRorAffiliationsResult {
@@ -34,76 +37,63 @@ const normalizeSuggestion = (input: unknown): AffiliationSuggestion | null => {
     };
 };
 
+/**
+ * Fetch and normalise ROR affiliations from the backend.
+ *
+ * Exported so that it can be reused for prefetching (e.g. on sidebar hover)
+ * and inside unit tests.
+ */
+export async function fetchRorAffiliations(signal?: AbortSignal): Promise<AffiliationSuggestion[]> {
+    const payload = await apiRequest<unknown>(apiEndpoints.rorAffiliations, { signal });
+
+    if (!Array.isArray(payload)) {
+        return [];
+    }
+
+    return payload
+        .map((item) => normalizeSuggestion(item))
+        .filter((item): item is AffiliationSuggestion => item !== null);
+}
+
+/**
+ * Hook exposing the full ROR affiliation vocabulary.
+ *
+ * The underlying list changes rarely, so the cache entry is kept fresh for
+ * 30 minutes to avoid redundant requests while the curator navigates between
+ * pages within the same client session. `gcTime` is pinned to the same
+ * window so the cache is not evicted by the shorter global default before
+ * the data becomes stale.
+ */
 export function useRorAffiliations(): UseRorAffiliationsResult {
-    const [suggestions, setSuggestions] = useState<AffiliationSuggestion[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<Error | null>(null);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        let isMounted = true;
-
-        const fetchSuggestions = async () => {
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                const response = await fetch('/api/v1/ror-affiliations', {
-                    headers: {
-                        Accept: 'application/json',
-                    },
-                    signal: controller.signal,
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to load ROR affiliations (${response.status})`);
-                }
-
-                const payload = (await response.json()) as unknown;
-
-                const parsed = Array.isArray(payload)
-                    ? payload.map((item) => normalizeSuggestion(item)).filter((item): item is AffiliationSuggestion => Boolean(item))
-                    : [];
-
-                if (!isMounted) {
-                    return;
-                }
-
-                setSuggestions(parsed);
-            } catch (caught) {
-                if (controller.signal.aborted) {
-                    return;
-                }
-
-                const normalisedError = caught instanceof Error ? caught : new Error(String(caught));
-
-                if (isMounted) {
-                    setError(normalisedError);
-                    setSuggestions([]);
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        fetchSuggestions();
-
-        return () => {
-            isMounted = false;
-            controller.abort();
-        };
-    }, []);
+    const { data, isLoading, error } = useQuery({
+        queryKey: queryKeys.ror.all(),
+        queryFn: ({ signal }) => fetchRorAffiliations(signal),
+        staleTime: 30 * 60_000,
+        gcTime: 30 * 60_000,
+    });
 
     return useMemo(
         () => ({
-            suggestions,
+            suggestions: data ?? [],
             isLoading,
-            error,
+            // `useQuery` types `error` as `unknown`. Normalise rather than
+            // cast so a non-`Error` throwable (e.g. a string or a plain
+            // object thrown from `queryFn`) is still surfaced as a proper
+            // `Error` to consumers, honouring the `Error | null` contract.
+            error: normalizeQueryError(error),
         }),
-        [suggestions, isLoading, error],
+        [data, isLoading, error],
     );
+}
+
+function normalizeQueryError(error: unknown): Error | null {
+    if (error === null || error === undefined) {
+        return null;
+    }
+    if (error instanceof Error) {
+        return error;
+    }
+    return new Error(typeof error === 'string' ? error : String(error));
 }
 
 export type { AffiliationSuggestion };

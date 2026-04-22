@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ContactModal } from '@/pages/LandingPages/components/ContactModal';
 
-// Mock fetch globally
+// Mock fetch globally.
+// Reassigned in beforeEach so it wins over MSW's global fetch hook
+// (MSW is started in vitest.setup.ts beforeAll and would otherwise replace this stub).
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 describe('ContactModal', () => {
     const mockOnClose = vi.fn();
@@ -41,6 +42,8 @@ describe('ContactModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        // Reassign after MSW hook so the spy captures calls.
+        global.fetch = mockFetch;
         // Setup CSRF meta tag
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         // Mock window.location
