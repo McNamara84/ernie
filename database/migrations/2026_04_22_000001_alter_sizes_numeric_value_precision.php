@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,16 +29,30 @@ return new class extends Migration
     public function down(): void
     {
         // Guard against data loss: refuse to narrow the column if any existing
-        // row holds a value that would overflow decimal(12, 4).
-        $maxFor12_4 = 99_999_999.9999;
+        // row holds a value outside the signed decimal(12, 4) range
+        // [-99999999.9999, 99999999.9999].
+        //
+        // Use string bounds rather than PHP float literals: decimal(12, 4) can
+        // represent values that exceed PHP float precision (IEEE-754 double,
+        // ~15–17 significant digits), so a float-based comparison could
+        // misclassify boundary values after implicit float-to-string conversion.
+        // Query bindings are sent to the database as strings, which MySQL
+        // coerces using exact DECIMAL arithmetic.
+        $upperBound = '99999999.9999';
+        $lowerBound = '-99999999.9999';
+
         $overflowExists = DB::table('sizes')
-            ->where('numeric_value', '>', $maxFor12_4)
+            ->where(function (Builder $query) use ($upperBound, $lowerBound): void {
+                $query->where('numeric_value', '>', $upperBound)
+                    ->orWhere('numeric_value', '<', $lowerBound);
+            })
             ->exists();
 
         if ($overflowExists) {
             throw new RuntimeException(
                 'Cannot revert sizes.numeric_value to decimal(12, 4): '
-                .'existing rows contain values that would overflow the narrower precision.'
+                .'existing rows contain values outside the narrower precision '
+                ."range [{$lowerBound}, {$upperBound}]."
             );
         }
 

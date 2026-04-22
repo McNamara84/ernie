@@ -75,6 +75,62 @@ it('refuses to revert sizes.numeric_value when a row would overflow decimal(12, 
         ->toThrow(RuntimeException::class, 'Cannot revert sizes.numeric_value to decimal(12, 4)');
 });
 
+it('refuses to revert sizes.numeric_value when a row underflows decimal(12, 4)', function (): void {
+    // decimal(12, 4) is signed, so the guard must also reject values below
+    // -99,999,999.9999. decimal(20, 4) can hold much larger negative values.
+    /** @var Resource $resource */
+    $resource = Resource::factory()->create();
+    DB::table('sizes')->insert([
+        'resource_id' => $resource->id,
+        'numeric_value' => '-2675059373.0000',
+        'unit' => 'Bytes',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $migration = loadAlterSizesPrecisionMigration();
+
+    /** @phpstan-ignore method.notFound, argument.unresolvableType, function.unresolvableReturnType */
+    expect(fn () => $migration->down())
+        ->toThrow(RuntimeException::class, 'Cannot revert sizes.numeric_value to decimal(12, 4)');
+});
+
+it('permits revert when values sit exactly on the decimal(12, 4) boundary', function (): void {
+    // Boundary values 99,999,999.9999 and -99,999,999.9999 must be accepted:
+    // they are the last legal values for decimal(12, 4), so the guard must
+    // reject only STRICTLY out-of-range values. This also catches float-based
+    // guards that round the bound and incorrectly reject exact boundary rows.
+    /** @var Resource $resource */
+    $resource = Resource::factory()->create();
+    DB::table('sizes')->insert([
+        [
+            'resource_id' => $resource->id,
+            'numeric_value' => '99999999.9999',
+            'unit' => 'max',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'resource_id' => $resource->id,
+            'numeric_value' => '-99999999.9999',
+            'unit' => 'min',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $migration = loadAlterSizesPrecisionMigration();
+
+    /** @phpstan-ignore method.notFound */
+    $migration->down();
+
+    // Restore widened precision for subsequent tests.
+    /** @phpstan-ignore method.notFound */
+    $migration->up();
+
+    expect(Size::query()->count())->toBe(2);
+});
+
 it('can re-apply up() after it has already run without losing data', function (): void {
     // Exercises the up() path explicitly (RefreshDatabase triggers it once,
     // but Codecov attributes that run to the migration framework, not to the
