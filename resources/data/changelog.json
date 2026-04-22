@@ -62,6 +62,10 @@
         ],
         "improvements": [
             {
+                "title": "ROR Hook Error Normalisation",
+                "description": "`useRorAffiliations` no longer casts the `unknown` error returned by TanStack Query to `Error`. Non-`Error` throwables (e.g. strings or plain objects thrown from a `queryFn`, or DOMException `AbortError`s that slip past the abort-swallow path) are now wrapped in a real `Error` instance before being surfaced to consumers, so the hook's `Error | null` contract is honoured regardless of what the underlying fetch layer throws."
+            },
+            {
                 "title": "Vocabulary Cache Retention & QueryProvider Prop Contract",
                 "description": "The 30-minute `staleTime` on the ROR, MSL, and PID4INST vocabulary queries (and their editor prefetches) is now paired with a matching `gcTime`, so cached data survives the full freshness window even when all consumers unmount — the shorter 5-minute global `gcTime` default would otherwise evict entries prematurely and force refetches on return visits. The `QueryProvider` now always instantiates its own fallback `QueryClient` on mount and selects between the prop and the fallback each render, so callers that pass a `client` initially and later remove it no longer see the originally-provided instance linger for the lifetime of the component."
             },

@@ -76,10 +76,24 @@ export function useRorAffiliations(): UseRorAffiliationsResult {
         () => ({
             suggestions: data ?? [],
             isLoading,
-            error: (error as Error | null) ?? null,
+            // `useQuery` types `error` as `unknown`. Normalise rather than
+            // cast so a non-`Error` throwable (e.g. a string or a plain
+            // object thrown from `queryFn`) is still surfaced as a proper
+            // `Error` to consumers, honouring the `Error | null` contract.
+            error: normalizeQueryError(error),
         }),
         [data, isLoading, error],
     );
+}
+
+function normalizeQueryError(error: unknown): Error | null {
+    if (error === null || error === undefined) {
+        return null;
+    }
+    if (error instanceof Error) {
+        return error;
+    }
+    return new Error(typeof error === 'string' ? error : String(error));
 }
 
 export type { AffiliationSuggestion };
