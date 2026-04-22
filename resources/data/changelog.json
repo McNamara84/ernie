@@ -62,6 +62,10 @@
         ],
         "improvements": [
             {
+                "title": "Devtools SSR Safety",
+                "description": "The React Query Devtools import and render in `QueryProvider` are now additionally guarded by `typeof window !== 'undefined'`. `QueryProvider` is also mounted from the SSR entry point, where `renderToString` does not support Suspense boundaries — the previous `import.meta.env.DEV`-only gate would cause the devtools' `React.lazy`/`Suspense` wrapper to be evaluated on the SSR server and emit stray Suspense markers or warnings. The guard ensures devtools are only loaded in the browser during development."
+            },
+            {
                 "title": "ROR Hook Error Normalisation",
                 "description": "`useRorAffiliations` no longer casts the `unknown` error returned by TanStack Query to `Error`. Non-`Error` throwables (e.g. strings or plain objects thrown from a `queryFn`, or DOMException `AbortError`s that slip past the abort-swallow path) are now wrapped in a real `Error` instance before being surfaced to consumers, so the hook's `Error | null` contract is honoured regardless of what the underlying fetch layer throws."
             },
