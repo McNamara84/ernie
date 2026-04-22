@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef } from 'react';
 
 import { createQueryClient } from '@/lib/query-client';
 
@@ -38,13 +38,19 @@ export interface QueryProviderProps {
  * boundaries and would otherwise emit stray Suspense markers / warnings.
  */
 export function QueryProvider({ client, children }: QueryProviderProps) {
-    // Always maintain our own fallback client so we honour the prop contract
-    // even if `client` is unset after a previous render: lazily creating the
-    // internal client inside a `useState` initialiser off of `client` would
-    // freeze the originally-provided instance for the lifetime of the
-    // component and keep using it after the prop is removed.
-    const [internalClient] = useState(() => createQueryClient());
-    const activeClient = client ?? internalClient;
+    // Lazily allocate a fallback client only when the consumer does not pass
+    // one in. Callers such as `app.tsx` and the SSR entry point always supply
+    // a `client`, so eagerly creating an internal instance would waste an
+    // allocation per provider mount / SSR request.
+    //
+    // We keep the fallback in a ref (not `useState`) so the allocation is
+    // skipped entirely on renders where `client` is supplied. The ref is
+    // memoised for the lifetime of the component, which means that if a
+    // caller initially passes a client and later omits it we still get a
+    // stable fallback from that point on — honouring the prop contract
+    // without paying the cost up front.
+    const fallbackClientRef = useRef<QueryClient | null>(null);
+    const activeClient = client ?? (fallbackClientRef.current ??= createQueryClient());
 
     return (
         <QueryClientProvider client={activeClient}>
