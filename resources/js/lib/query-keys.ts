@@ -16,7 +16,7 @@ export const queryKeys = {
     },
     doi: {
         validate: (doi: string, excludeResourceId?: number) =>
-            [doiValidate.definition.url, doi, excludeResourceId ?? null] as const,
+            [doiValidate.url(), doi, excludeResourceId ?? null] as const,
     },
     pid4inst: {
         instruments: () => ['pid4inst', 'instruments'] as const,
@@ -35,7 +35,7 @@ export const queryKeys = {
 export const apiEndpoints = {
     rorAffiliations: '/api/v1/ror-affiliations',
     rorResolve: '/api/v1/ror-resolve',
-    doiValidate: doiValidate.definition.url,
+    doiValidate: doiValidate.url(),
     pid4instInstruments: '/vocabularies/pid4inst-instruments',
     mslVocabularyUrl: '/vocabularies/msl-vocabulary-url',
 } as const;

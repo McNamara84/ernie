@@ -9,6 +9,27 @@ import { http, HttpResponse, server } from '../helpers/msw-server';
 const ENDPOINT = '/api/test-client';
 const CROSS_ORIGIN_ENDPOINT = 'https://third-party.example.test/api/data';
 
+/**
+ * Reliably clear all cookies in the jsdom document.
+ *
+ * Assigning `document.cookie = ''` does not delete anything — the cookie jar
+ * only removes an entry when a cookie with the same name is set with an
+ * expired `Max-Age` / `expires`. We therefore iterate over the current jar
+ * and explicitly expire every entry, so CSRF/XSRF cookies from neighbouring
+ * tests cannot leak into our assertions.
+ */
+function clearAllCookies(): void {
+    if (!document.cookie) {
+        return;
+    }
+    for (const entry of document.cookie.split(';')) {
+        const name = entry.split('=')[0]?.trim();
+        if (name) {
+            document.cookie = `${name}=; Max-Age=0; path=/`;
+        }
+    }
+}
+
 describe('ApiError', () => {
     it('stores status, message, body and name', () => {
         const err = new ApiError('boom', 418, { hint: 'teapot' });
@@ -29,7 +50,7 @@ describe('apiRequest', () => {
     beforeEach(() => {
         // Ensure no meta tag / cookie leaks from other tests.
         document.head.innerHTML = '';
-        document.cookie = '';
+        clearAllCookies();
     });
 
     afterEach(() => {
