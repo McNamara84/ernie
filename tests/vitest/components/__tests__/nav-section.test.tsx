@@ -42,7 +42,7 @@ vi.mock('@/components/ui/sidebar', () => ({
         className?: string;
     }) => {
         if (asChild) {
-            return <>{children}</>;
+            return <span data-testid="sidebar-button-aschild" data-active={isActive}>{children}</span>;
         }
         return (
             <button
@@ -180,6 +180,28 @@ describe('NavSection', () => {
         render(<NavSection items={items} />);
 
         expect(screen.getByRole('link', { name: /resources/i })).toBeInTheDocument();
+    });
+
+    it('applies active state when current URL starts with href followed by hash', () => {
+        mockUsePage.mockReturnValue({ url: '/resources#section' });
+
+        const items: NavItem[] = [{ title: 'Resources', href: '/resources', icon: Database }];
+
+        render(<NavSection items={items} />);
+
+        const button = screen.getByRole('link', { name: /resources/i }).closest('[data-active]');
+        expect(button).toHaveAttribute('data-active', 'true');
+    });
+
+    it('does not apply active state for sibling paths with shared prefix', () => {
+        mockUsePage.mockReturnValue({ url: '/resources-archive' });
+
+        const items: NavItem[] = [{ title: 'Resources', href: '/resources', icon: Database }];
+
+        render(<NavSection items={items} />);
+
+        const button = screen.getByRole('link', { name: /resources/i }).closest('[data-active]');
+        expect(button).toHaveAttribute('data-active', 'false');
     });
 
     it('renders icons for navigation items', () => {

@@ -35,7 +35,12 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                 // This prevents '/user' from matching when on '/users' (path boundary check)
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?')}
+                                    isActive={
+                                        page.url === href ||
+                                        page.url.startsWith(href + '/') ||
+                                        page.url.startsWith(href + '?') ||
+                                        page.url.startsWith(href + '#')
+                                    }
                                     tooltip={{ children: item.title }}
                                 >
                                     <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch}>
