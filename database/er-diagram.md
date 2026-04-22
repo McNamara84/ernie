@@ -364,7 +364,7 @@ erDiagram
     sizes {
         bigint id PK
         bigint resource_id FK
-        decimal numeric_value "12,4 nullable e.g. 3"
+        decimal numeric_value "20,4 nullable e.g. 3"
         varchar unit "50 nullable e.g. m"
         varchar type "100 nullable e.g. Drilled Length"
         timestamp created_at

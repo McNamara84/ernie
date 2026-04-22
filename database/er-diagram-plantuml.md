@@ -406,7 +406,7 @@ entity "sizes" as sizes {
     * **id** : BIGINT <<PK>>
     --
     * resource_id : BIGINT <<FK>>
-    numeric_value : DECIMAL(12,4)
+    numeric_value : DECIMAL(20,4)
     unit : VARCHAR(50)
     type : VARCHAR(100)
     created_at : TIMESTAMP

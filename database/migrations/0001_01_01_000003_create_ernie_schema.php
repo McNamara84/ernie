@@ -527,7 +527,8 @@ return new class extends Migration
                 ->constrained('resources')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
-            $table->decimal('numeric_value', 12, 4)->nullable(); // Numeric part, e.g., 3
+            // decimal(20, 4) accommodates byte-sized values from DataCite (e.g. multi-GB file sizes).
+            $table->decimal('numeric_value', 20, 4)->nullable(); // Numeric part, e.g., 3
             $table->string('unit', 50)->nullable();              // Unit, e.g., "m"
             $table->string('type', 100)->nullable();             // Type/label, e.g., "Drilled Length"
             $table->timestamps();
