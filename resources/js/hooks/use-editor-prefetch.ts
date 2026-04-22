@@ -35,11 +35,13 @@ export function useEditorPrefetch(): () => void {
             queryKey: queryKeys.ror.all(),
             queryFn: ({ signal }) => fetchRorAffiliations(signal),
             staleTime: 30 * 60_000,
+            gcTime: 30 * 60_000,
         });
         void queryClient.prefetchQuery({
             queryKey: queryKeys.msl.laboratories(),
             queryFn: ({ signal }) => fetchMslLaboratories(signal),
             staleTime: 30 * 60_000,
+            gcTime: 30 * 60_000,
         });
     }, [queryClient]);
 }

@@ -60,13 +60,16 @@ export async function fetchRorAffiliations(signal?: AbortSignal): Promise<Affili
  *
  * The underlying list changes rarely, so the cache entry is kept fresh for
  * 30 minutes to avoid redundant requests while the curator navigates between
- * pages within the same client session.
+ * pages within the same client session. `gcTime` is pinned to the same
+ * window so the cache is not evicted by the shorter global default before
+ * the data becomes stale.
  */
 export function useRorAffiliations(): UseRorAffiliationsResult {
     const { data, isLoading, error } = useQuery({
         queryKey: queryKeys.ror.all(),
         queryFn: ({ signal }) => fetchRorAffiliations(signal),
         staleTime: 30 * 60_000,
+        gcTime: 30 * 60_000,
     });
 
     return useMemo(

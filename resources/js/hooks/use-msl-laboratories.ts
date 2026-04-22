@@ -57,8 +57,11 @@ export function useMSLLaboratories(): UseMSLLaboratoriesReturn {
         queryKey: queryKeys.msl.laboratories(),
         queryFn: ({ signal }) => fetchMslLaboratories(signal),
         // Laboratories change rarely; cache aggressively to avoid cross-origin
-        // requests on every Editor visit.
+        // requests on every Editor visit. `gcTime` matches `staleTime` so the
+        // cache survives for the full freshness window even when all consumers
+        // unmount (the shorter global default would otherwise evict it first).
         staleTime: 30 * 60_000,
+        gcTime: 30 * 60_000,
     });
 
     return {

@@ -30,7 +30,12 @@ export interface QueryProviderProps {
  * render with `import.meta.env.DEV`.
  */
 export function QueryProvider({ client, children }: QueryProviderProps) {
-    const [internalClient] = useState(() => client ?? createQueryClient());
+    // Always maintain our own fallback client so we honour the prop contract
+    // even if `client` is unset after a previous render: lazily creating the
+    // internal client inside a `useState` initialiser off of `client` would
+    // freeze the originally-provided instance for the lifetime of the
+    // component and keep using it after the prop is removed.
+    const [internalClient] = useState(() => createQueryClient());
     const activeClient = client ?? internalClient;
 
     return (

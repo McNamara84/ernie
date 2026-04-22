@@ -70,6 +70,10 @@ export function usePid4instInstruments(): UsePid4instInstrumentsReturn {
         queryKey: queryKeys.pid4inst.instruments(),
         queryFn: ({ signal }) => fetchPid4instInstruments(signal),
         staleTime: 30 * 60_000,
+        // Keep the cache alive for the full freshness window even when all
+        // consumers unmount; the shorter global `gcTime` default would
+        // otherwise evict it before `staleTime` elapses.
+        gcTime: 30 * 60_000,
     });
 
     return {
