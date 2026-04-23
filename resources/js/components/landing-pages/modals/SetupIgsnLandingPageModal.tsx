@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig } from '@/types/landing-page';
 
 interface IgsnResource {
@@ -280,13 +281,26 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                     </DialogTitle>
                     <DialogDescription>
                         Configure the public landing page for physical sample:
-                        <span
-                            data-testid="setup-igsn-lp-modal-resource-title"
-                            className="mt-1 block line-clamp-2 wrap-break-word font-medium text-foreground"
-                            title={displayTitle}
-                        >
-                            {displayTitle}
-                        </span>
+                        <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span
+                                        data-testid="setup-igsn-lp-modal-resource-title"
+                                        tabIndex={0}
+                                        className="mt-1 block line-clamp-2 wrap-break-word rounded-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                    >
+                                        {displayTitle}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                    data-testid="setup-igsn-lp-modal-resource-title-tooltip"
+                                    side="bottom"
+                                    className="max-w-[min(32rem,calc(100vw-2rem))] wrap-break-word whitespace-normal text-left"
+                                >
+                                    {displayTitle}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </DialogDescription>
                 </DialogHeader>
 

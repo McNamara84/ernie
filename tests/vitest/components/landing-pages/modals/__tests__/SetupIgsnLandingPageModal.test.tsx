@@ -105,7 +105,12 @@ describe('SetupIgsnLandingPageModal', () => {
             render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
-                expect(screen.getByText(/Rock Sample Core XYZ/i)).toBeInTheDocument();
+                // Scope the title match to the testid: Radix Tooltip adds a
+                // VisuallyHidden accessibility node that would otherwise
+                // cause `getByText` to match more than one element.
+                expect(screen.getByTestId('setup-igsn-lp-modal-resource-title')).toHaveTextContent(
+                    'Rock Sample Core XYZ',
+                );
                 expect(screen.getByText(/physical sample/i)).toBeInTheDocument();
             });
         });
@@ -413,22 +418,55 @@ describe('SetupIgsnLandingPageModal', () => {
     describe('Long Title Layout (Issue #670)', () => {
         // Regression tests for issue #670 applied to the IGSN modal variant.
         // Physical sample descriptions can also be long; the modal must not
-        // overflow horizontally, footer buttons must stay visible, and only
-        // the middle zone should scroll.
+        // overflow horizontally, footer buttons must stay visible, only the
+        // middle zone should scroll, and the full title must be exposed
+        // through an accessible shadcn Tooltip (keyboard + screen reader
+        // friendly) rather than the native `title` attribute.
 
         const longTitle = 'Rock sample core collected from borehole '.repeat(20).trim();
         const longTitleResource = { id: 888, doi: 'IEFGZ0999', title: longTitle };
 
         beforeEach(() => {
-            mockedAxiosGet.mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
+            // URL-based mock: only the primary landing-page GET returns 404.
+            // The IGSN modal currently issues no other GETs, but this pattern
+            // future-proofs the test and avoids any stray console.error noise.
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes(`/resources/${longTitleResource.id}/landing-page`)) {
+                    return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
         });
 
-        it('renders the full long title inside the title attribute for tooltips', async () => {
+        it('renders the full long title inside the element text content (accessible to screen readers)', async () => {
             render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
-            expect(titleEl).toHaveAttribute('title', longTitle);
             expect(titleEl).toHaveTextContent(longTitle);
+        });
+
+        it('exposes the title via an accessible, focusable shadcn Tooltip trigger (not the native title attribute)', async () => {
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
+
+            // Keyboard accessibility: focusable so keyboard users can trigger
+            // the tooltip (the native `title` attribute is not keyboard-
+            // accessible, which is the reason for this change).
+            expect(titleEl).toHaveAttribute('tabindex', '0');
+            expect(titleEl).toHaveAttribute('data-slot', 'tooltip-trigger');
+            expect(titleEl).not.toHaveAttribute('title');
+        });
+
+        it('shows the full long title in the shadcn tooltip content on hover', async () => {
+            const user = userEvent.setup();
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
+            await user.hover(titleEl);
+
+            const tooltip = await screen.findByTestId('setup-igsn-lp-modal-resource-title-tooltip');
+            expect(tooltip).toHaveTextContent(longTitle);
         });
 
         it('applies line-clamp and word-wrap classes to the long title', async () => {
@@ -442,12 +480,13 @@ describe('SetupIgsnLandingPageModal', () => {
             expect(titleEl.className).toContain('wrap-break-word');
         });
 
-        it('falls back to "IGSN #<id>" when title is missing and still exposes it via title attribute', async () => {
+        it('falls back to "IGSN #<id>" when title is missing and still exposes it via the accessible tooltip', async () => {
             render(<SetupIgsnLandingPageModal resource={{ id: 555 }} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
-            expect(titleEl).toHaveAttribute('title', 'IGSN #555');
             expect(titleEl).toHaveTextContent('IGSN #555');
+            expect(titleEl).toHaveAttribute('data-slot', 'tooltip-trigger');
+            expect(titleEl).toHaveAttribute('tabindex', '0');
         });
 
         it('moves overflow-y-auto from the dialog content onto the scroll body', async () => {
@@ -502,7 +541,7 @@ describe('SetupIgsnLandingPageModal', () => {
             expect(screen.getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
         });
 
-        it('still applies the layout classes when a short title is used', async () => {
+        it('applies the same accessible tooltip and layout classes for short titles', async () => {
             render(
                 <SetupIgsnLandingPageModal
                     resource={{ id: 1, title: 'Short sample' }}
@@ -512,8 +551,12 @@ describe('SetupIgsnLandingPageModal', () => {
             );
 
             const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
-            expect(titleEl).toHaveAttribute('title', 'Short sample');
+            expect(titleEl).toHaveTextContent('Short sample');
+            expect(titleEl).toHaveAttribute('data-slot', 'tooltip-trigger');
+            expect(titleEl).toHaveAttribute('tabindex', '0');
+            expect(titleEl).not.toHaveAttribute('title');
             expect(titleEl.className).toContain('line-clamp-2');
+            expect(titleEl.className).toContain('wrap-break-word');
         });
     });
 });

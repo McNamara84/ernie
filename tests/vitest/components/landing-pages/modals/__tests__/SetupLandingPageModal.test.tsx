@@ -130,8 +130,13 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                // Component shows title if available, otherwise "Resource #${id}"
-                expect(screen.getByText(/Test Resource Title/i)).toBeInTheDocument();
+                // Component shows title if available, otherwise "Resource #${id}".
+                // Scope to the title testid: Radix Tooltip adds a VisuallyHidden
+                // accessibility node that also contains the title text, so a
+                // plain `getByText` would match more than one element.
+                expect(screen.getByTestId('setup-lp-modal-resource-title')).toHaveTextContent(
+                    'Test Resource Title',
+                );
             });
         });
     });
@@ -1460,22 +1465,65 @@ describe('SetupLandingPageModal', () => {
         // Regression tests for issue #670: a very long resource title used to
         // break the modal layout (horizontal overflow, footer buttons cut off).
         // The fix introduces a three-zone flex layout (sticky header/footer,
-        // scrollable body) and truncates the title to two lines with a
-        // `title` attribute that exposes the full string on hover.
+        // scrollable body) and truncates the title to two lines. An accessible
+        // shadcn Tooltip (keyboard-focusable, visible on hover/focus) exposes
+        // the full string to sighted users; the full text is also present in
+        // the element's text content for screen readers.
 
         const longTitle = 'A'.repeat(500);
         const longTitleResource = { id: 999, doi: '10.5880/GFZ.TEST.LONG', title: longTitle };
 
         beforeEach(() => {
-            mockedAxiosGet.mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
+            // URL-based mock so only the primary landing-page GET returns 404.
+            // Returning empty lists for domain / template endpoints prevents
+            // noisy console.error output and mirrors real production behavior
+            // when a resource has no landing page yet.
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
         });
 
-        it('renders the full long title inside the title attribute for tooltips', async () => {
+        it('renders the full long title inside the element text content (accessible to screen readers)', async () => {
             render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
-            expect(titleEl).toHaveAttribute('title', longTitle);
             expect(titleEl).toHaveTextContent(longTitle);
+        });
+
+        it('exposes the title via an accessible, focusable shadcn Tooltip trigger (not the native title attribute)', async () => {
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+
+            // Keyboard accessibility: the element must be focusable so keyboard
+            // users can trigger the tooltip (the native `title` attribute is
+            // not keyboard-accessible — that is the whole point of this fix).
+            expect(titleEl).toHaveAttribute('tabindex', '0');
+
+            // It must be wired up as a Radix/shadcn tooltip trigger …
+            expect(titleEl).toHaveAttribute('data-slot', 'tooltip-trigger');
+
+            // … and must NOT fall back to the inaccessible native tooltip.
+            expect(titleEl).not.toHaveAttribute('title');
+        });
+
+        it('shows the full long title in the shadcn tooltip content on hover', async () => {
+            const user = userEvent.setup();
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+            await user.hover(titleEl);
+
+            // Tooltip content is rendered in a portal. Wait for the tooltip
+            // element to appear and verify it contains the full title.
+            const tooltip = await screen.findByTestId('setup-lp-modal-resource-title-tooltip');
+            expect(tooltip).toHaveTextContent(longTitle);
         });
 
         it('applies line-clamp and word-wrap classes to the long title', async () => {
@@ -1489,7 +1537,7 @@ describe('SetupLandingPageModal', () => {
             expect(titleEl.className).toContain('wrap-break-word');
         });
 
-        it('falls back to "Resource #<id>" when title is missing and still exposes it via title attribute', async () => {
+        it('falls back to "Resource #<id>" when title is missing and still exposes it via the accessible tooltip', async () => {
             render(
                 <SetupLandingPageModal
                     resource={{ id: 777 }}
@@ -1499,8 +1547,9 @@ describe('SetupLandingPageModal', () => {
             );
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
-            expect(titleEl).toHaveAttribute('title', 'Resource #777');
             expect(titleEl).toHaveTextContent('Resource #777');
+            expect(titleEl).toHaveAttribute('data-slot', 'tooltip-trigger');
+            expect(titleEl).toHaveAttribute('tabindex', '0');
         });
 
         it('moves overflow-y-auto from the dialog content onto the scroll body', async () => {
@@ -1547,7 +1596,15 @@ describe('SetupLandingPageModal', () => {
 
         it('shows the Loading state inside the scrollable zone (footer still rendered)', () => {
             // Keep the initial GET pending so the modal stays in its loading state.
-            mockedAxiosGet.mockImplementation(() => new Promise(() => {}));
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                return new Promise(() => {});
+            });
 
             render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
@@ -1559,7 +1616,7 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
         });
 
-        it('does not add a title attribute wrapper when title is short (still truncates via CSS only)', async () => {
+        it('applies the same accessible tooltip and layout classes for short titles', async () => {
             render(
                 <SetupLandingPageModal
                     resource={{ id: 1, title: 'Short title' }}
@@ -1569,10 +1626,15 @@ describe('SetupLandingPageModal', () => {
             );
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
-            // Short titles still carry the `title` attribute for consistency -
-            // they just happen to be identical to the visible text.
-            expect(titleEl).toHaveAttribute('title', 'Short title');
+            // Short titles use the same accessible tooltip pattern for consistency.
+            // They are not visually clamped (only two lines are ever clamped),
+            // but the tooltip wiring and layout classes are applied uniformly.
+            expect(titleEl).toHaveTextContent('Short title');
+            expect(titleEl).toHaveAttribute('data-slot', 'tooltip-trigger');
+            expect(titleEl).toHaveAttribute('tabindex', '0');
+            expect(titleEl).not.toHaveAttribute('title');
             expect(titleEl.className).toContain('line-clamp-2');
+            expect(titleEl.className).toContain('wrap-break-word');
         });
     });
 });
