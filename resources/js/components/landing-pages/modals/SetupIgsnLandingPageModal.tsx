@@ -265,24 +265,41 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
     // Get IGSN-specific template options
     const templateOptions = getIgsnTemplateOptions();
 
+    const displayTitle = resource.title ?? `IGSN #${resource.id}`;
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-                <DialogHeader>
+            <DialogContent
+                data-testid="setup-igsn-lp-modal-content"
+                className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+            >
+                <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
                     <DialogTitle className="flex items-center gap-2">
                         <FlaskConical className="size-5" />
                         Setup IGSN Landing Page
                     </DialogTitle>
                     <DialogDescription>
-                        Configure the public landing page for physical sample{' '}
-                        <span className="font-medium">{resource.title ?? `IGSN #${resource.id}`}</span>
+                        Configure the public landing page for physical sample:
+                        <span
+                            data-testid="setup-igsn-lp-modal-resource-title"
+                            className="mt-1 block line-clamp-2 wrap-break-word font-medium text-foreground"
+                            title={displayTitle}
+                        >
+                            {displayTitle}
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
 
                 {isLoading ? (
-                    <div className="py-8 text-center text-muted-foreground">Loading configuration...</div>
+                    <div
+                        data-testid="setup-igsn-lp-modal-scroll-area"
+                        className="flex-1 min-h-0 overflow-y-auto px-6 py-8 text-center text-muted-foreground"
+                    >
+                        Loading configuration...
+                    </div>
                 ) : (
-                    <div className="space-y-6 py-4">
+                    <div data-testid="setup-igsn-lp-modal-scroll-area" className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+                        <div className="space-y-6">
                         {/* Template Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="template">Landing Page Template</Label>
@@ -374,10 +391,14 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                                 <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
                             </div>
                         )}
+                        </div>
                     </div>
                 )}
 
-                <DialogFooter className="gap-2">
+                <DialogFooter
+                    data-testid="setup-igsn-lp-modal-footer"
+                    className="shrink-0 flex-wrap gap-2 border-t px-6 py-4"
+                >
                     {/* Only show Remove Preview for draft landing pages */}
                     {currentConfig && currentConfig.status === 'draft' && (
                         <Button type="button" variant="destructive" onClick={handleRemovePreview} disabled={isSaving} className="mr-auto">

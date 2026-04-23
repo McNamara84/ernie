@@ -1455,4 +1455,121 @@ describe('SetupLandingPageModal', () => {
             });
         });
     });
+
+    describe('Long Title Layout (Issue #670)', () => {
+        // Regression tests for issue #670: a very long resource title used to
+        // break the modal layout (horizontal overflow, footer buttons cut off).
+        // The fix introduces a three-zone flex layout (sticky header/footer,
+        // scrollable body) and truncates the title to two lines with a
+        // `title` attribute that exposes the full string on hover.
+
+        const longTitle = 'A'.repeat(500);
+        const longTitleResource = { id: 999, doi: '10.5880/GFZ.TEST.LONG', title: longTitle };
+
+        beforeEach(() => {
+            mockedAxiosGet.mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
+        });
+
+        it('renders the full long title inside the title attribute for tooltips', async () => {
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+            expect(titleEl).toHaveAttribute('title', longTitle);
+            expect(titleEl).toHaveTextContent(longTitle);
+        });
+
+        it('applies line-clamp and word-wrap classes to the long title', async () => {
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+            expect(titleEl.className).toContain('line-clamp-2');
+            expect(titleEl.className).toMatch(/wrap-break-word|break-words/);
+        });
+
+        it('falls back to "Resource #<id>" when title is missing and still exposes it via title attribute', async () => {
+            render(
+                <SetupLandingPageModal
+                    resource={{ id: 777 }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+            expect(titleEl).toHaveAttribute('title', 'Resource #777');
+            expect(titleEl).toHaveTextContent('Resource #777');
+        });
+
+        it('moves overflow-y-auto from the dialog content onto the scroll body', async () => {
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const content = await screen.findByTestId('setup-lp-modal-content');
+            const scrollArea = await screen.findByTestId('setup-lp-modal-scroll-area');
+
+            // Scrolling happens inside the middle zone, not on the dialog itself.
+            expect(content.className).not.toContain('overflow-y-auto');
+            expect(content.className).toContain('overflow-hidden');
+            expect(content.className).toContain('flex');
+            expect(content.className).toContain('flex-col');
+
+            expect(scrollArea.className).toContain('overflow-y-auto');
+            expect(scrollArea.className).toContain('flex-1');
+            expect(scrollArea.className).toContain('min-h-0');
+        });
+
+        it('renders a sticky footer with wrap + border that never shrinks', async () => {
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const footer = await screen.findByTestId('setup-lp-modal-footer');
+            expect(footer.className).toContain('shrink-0');
+            expect(footer.className).toContain('flex-wrap');
+            expect(footer.className).toContain('border-t');
+        });
+
+        it('keeps all primary footer buttons visible even with an extremely long title', async () => {
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            const footer = screen.getByTestId('setup-lp-modal-footer');
+            // The footer must always contain at least Preview, Cancel and the
+            // primary save/publish button. Issue #670 reported these being
+            // pushed off-screen on narrow viewports.
+            expect(footer).toContainElement(screen.getByRole('button', { name: /^Preview$/i }));
+            expect(footer).toContainElement(screen.getByRole('button', { name: /^Cancel$/i }));
+            expect(footer).toContainElement(screen.getByRole('button', { name: /^(Create Preview|Create & Publish|Update|Publish)$/i }));
+        });
+
+        it('shows the Loading state inside the scrollable zone (footer still rendered)', () => {
+            // Keep the initial GET pending so the modal stays in its loading state.
+            mockedAxiosGet.mockImplementation(() => new Promise(() => {}));
+
+            render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const scrollArea = screen.getByTestId('setup-lp-modal-scroll-area');
+            expect(scrollArea).toHaveTextContent(/Loading configuration/i);
+
+            // Footer (and its Cancel button) must stay reachable during loading.
+            expect(screen.getByTestId('setup-lp-modal-footer')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
+        });
+
+        it('does not add a title attribute wrapper when title is short (still truncates via CSS only)', async () => {
+            render(
+                <SetupLandingPageModal
+                    resource={{ id: 1, title: 'Short title' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+            // Short titles still carry the `title` attribute for consistency -
+            // they just happen to be identical to the visible text.
+            expect(titleEl).toHaveAttribute('title', 'Short title');
+            expect(titleEl.className).toContain('line-clamp-2');
+        });
+    });
 });

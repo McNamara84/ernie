@@ -409,4 +409,108 @@ describe('SetupIgsnLandingPageModal', () => {
             });
         });
     });
+
+    describe('Long Title Layout (Issue #670)', () => {
+        // Regression tests for issue #670 applied to the IGSN modal variant.
+        // Physical sample descriptions can also be long; the modal must not
+        // overflow horizontally, footer buttons must stay visible, and only
+        // the middle zone should scroll.
+
+        const longTitle = 'Rock sample core collected from borehole '.repeat(20).trim();
+        const longTitleResource = { id: 888, doi: 'IEFGZ0999', title: longTitle };
+
+        beforeEach(() => {
+            mockedAxiosGet.mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
+        });
+
+        it('renders the full long title inside the title attribute for tooltips', async () => {
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
+            expect(titleEl).toHaveAttribute('title', longTitle);
+            expect(titleEl).toHaveTextContent(longTitle);
+        });
+
+        it('applies line-clamp and word-wrap classes to the long title', async () => {
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
+            expect(titleEl.className).toContain('line-clamp-2');
+            expect(titleEl.className).toMatch(/wrap-break-word|break-words/);
+        });
+
+        it('falls back to "IGSN #<id>" when title is missing and still exposes it via title attribute', async () => {
+            render(<SetupIgsnLandingPageModal resource={{ id: 555 }} isOpen={true} onClose={mockOnClose} />);
+
+            const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
+            expect(titleEl).toHaveAttribute('title', 'IGSN #555');
+            expect(titleEl).toHaveTextContent('IGSN #555');
+        });
+
+        it('moves overflow-y-auto from the dialog content onto the scroll body', async () => {
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const content = await screen.findByTestId('setup-igsn-lp-modal-content');
+            const scrollArea = await screen.findByTestId('setup-igsn-lp-modal-scroll-area');
+
+            expect(content.className).not.toContain('overflow-y-auto');
+            expect(content.className).toContain('overflow-hidden');
+            expect(content.className).toContain('flex');
+            expect(content.className).toContain('flex-col');
+
+            expect(scrollArea.className).toContain('overflow-y-auto');
+            expect(scrollArea.className).toContain('flex-1');
+            expect(scrollArea.className).toContain('min-h-0');
+        });
+
+        it('renders a sticky footer with wrap + border that never shrinks', async () => {
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const footer = await screen.findByTestId('setup-igsn-lp-modal-footer');
+            expect(footer.className).toContain('shrink-0');
+            expect(footer.className).toContain('flex-wrap');
+            expect(footer.className).toContain('border-t');
+        });
+
+        it('keeps all primary footer buttons visible even with an extremely long title', async () => {
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            const footer = screen.getByTestId('setup-igsn-lp-modal-footer');
+            expect(footer).toContainElement(screen.getByRole('button', { name: /^Preview$/i }));
+            expect(footer).toContainElement(screen.getByRole('button', { name: /^Cancel$/i }));
+            expect(footer).toContainElement(
+                screen.getByRole('button', { name: /^(Create Preview|Create & Publish|Update|Publish)$/i }),
+            );
+        });
+
+        it('shows the Loading state inside the scrollable zone (footer still rendered)', () => {
+            mockedAxiosGet.mockImplementation(() => new Promise(() => {}));
+
+            render(<SetupIgsnLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
+
+            const scrollArea = screen.getByTestId('setup-igsn-lp-modal-scroll-area');
+            expect(scrollArea).toHaveTextContent(/Loading configuration/i);
+
+            expect(screen.getByTestId('setup-igsn-lp-modal-footer')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
+        });
+
+        it('still applies the layout classes when a short title is used', async () => {
+            render(
+                <SetupIgsnLandingPageModal
+                    resource={{ id: 1, title: 'Short sample' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
+            expect(titleEl).toHaveAttribute('title', 'Short sample');
+            expect(titleEl.className).toContain('line-clamp-2');
+        });
+    });
 });
