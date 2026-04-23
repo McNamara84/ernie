@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
 use Tests\TestCase;
@@ -20,7 +21,6 @@ use Tests\TestCase;
  * @see Issue #375 - Enable subsequent modification of the landing page template
  * @see https://pestphp.com/docs/browser-testing
  */
-
 uses()->group('landing-pages', 'browser');
 
 describe('Landing Page Button Visibility (Smoke)', function (): void {
@@ -85,5 +85,48 @@ describe('Landing Page Setup Modal (Smoke)', function (): void {
 
         visit("/resources/{$resource->id}")
             ->assertNoSmoke();
+    });
+});
+
+describe('Landing Page Template Persistence (Regression)', function (): void {
+    // Regression coverage for the Setup Landing Page dialog losing its custom
+    // template selection on reopen. Before the fix, the select fell back to
+    // "Default GFZ Data Services" even when the resource had a custom
+    // landing_page_template_id persisted, because the loadLandingPageConfig()
+    // path did not hydrate the state.
+
+    it('shows the previously assigned custom template in the Setup Landing Page dialog', function (): void {
+        /** @var TestCase $this */
+        $user = User::factory()->create([
+            'role' => UserRole::CURATOR,
+        ]);
+
+        $customTemplate = LandingPageTemplate::factory()->create([
+            'name' => 'Regression Custom Template',
+            'slug' => 'regression-custom-template',
+            'is_default' => false,
+            'created_by' => $user->id,
+        ]);
+
+        $resource = Resource::factory()->create();
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $customTemplate->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $page = visit('/resources')->assertNoSmoke();
+
+        // Open the Setup Landing Page dialog for this resource. The button is
+        // rendered with an aria-label containing "Setup landing page for
+        // resource" and a DOI/resource identifier.
+        $page->click('[aria-label^="Setup landing page for resource"]')
+            ->assertSee('Setup Landing Page')
+            // The Select trigger must display the custom template name, not
+            // the "Default GFZ Data Services" fallback value.
+            ->assertSee('Regression Custom Template')
+            ->assertDontSee('Default GFZ Data Services');
     });
 });

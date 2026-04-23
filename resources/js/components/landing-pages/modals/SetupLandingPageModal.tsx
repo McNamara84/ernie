@@ -180,6 +180,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setExternalDomainId(String(config.external_domain_id ?? ''));
             setExternalPath(config.external_path ?? '');
             setLinks(config.links ?? []);
+            setLandingPageTemplateId(config.landing_page_template_id ?? null);
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
@@ -191,6 +192,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 setExternalDomainId('');
                 setExternalPath('');
                 setLinks([]);
+                setLandingPageTemplateId(null);
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
