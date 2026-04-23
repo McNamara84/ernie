@@ -381,8 +381,12 @@ describe('RegisterDoiModal', () => {
         const submitButton = screen.getByRole('button', { name: /register doi/i });
         await user.click(submitButton);
 
-        // Buttons should be disabled while submitting
-        expect(screen.getByRole('button', { name: /processing/i })).toBeDisabled();
+        // Buttons should be disabled while submitting. With <LoadingButton> the
+        // accessible name stays "Register DOI" – only the spinner + aria-busy
+        // indicate progress. The Cancel button is gated by the same isSubmitting flag.
+        const loadingButton = screen.getByRole('button', { name: /register doi/i });
+        expect(loadingButton).toBeDisabled();
+        expect(loadingButton).toHaveAttribute('aria-busy', 'true');
         expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
     });
 
@@ -665,6 +669,51 @@ describe('RegisterDoiModal', () => {
 
             // Warning state cleared after successful retry.
             expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
+        });
+
+        it('only shows the loading indicator on the clicked preflight action button', async () => {
+            const user = userEvent.setup();
+
+            const warningResponse = makeAxiosError(409, {
+                error: 'orcid_validation_warning',
+                message: 'ORCID service unavailable',
+                invalid: [],
+                warnings: [
+                    {
+                        severity: 'warning',
+                        reason: 'timeout',
+                        role: 'creator',
+                        position: 0,
+                        orcid: '0000-0002-1825-0097',
+                        displayName: 'Jane Doe',
+                    },
+                ],
+            });
+
+            // First call: warning. Second (override): pending forever so we can
+            // observe the loading state while the request is in flight.
+            mockPost
+                .mockRejectedValueOnce(warningResponse)
+                .mockImplementationOnce(() => new Promise(() => {}));
+
+            render(<RegisterDoiModal {...defaultProps} />);
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const overrideButton = await screen.findByTestId('orcid-preflight-override');
+            const retryButton = screen.getByTestId('orcid-preflight-retry');
+
+            await user.click(overrideButton);
+
+            // Only the override button is busy; retry is merely disabled.
+            await waitFor(() => {
+                expect(overrideButton).toHaveAttribute('aria-busy', 'true');
+            });
+            expect(retryButton).toBeDisabled();
+            expect(retryButton).not.toHaveAttribute('aria-busy', 'true');
         });
     });
 });

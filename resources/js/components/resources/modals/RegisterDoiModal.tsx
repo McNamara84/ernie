@@ -9,8 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
 import { type User as AuthUser } from '@/types';
 
 interface Resource {
@@ -95,6 +95,10 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [selectedPrefix, setSelectedPrefix] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Tracks which action is currently in flight so only the clicked button
+    // renders its loading indicator. The Cancel button and form inputs remain
+    // gated by the broader `isSubmitting` flag.
+    const [submittingAction, setSubmittingAction] = useState<'submit' | 'retry' | 'override' | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [availablePrefixes, setAvailablePrefixes] = useState<string[]>([]);
     const [isTestMode, setIsTestMode] = useState<boolean>(true);
@@ -118,6 +122,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             setSelectedPrefix('');
             setError(null);
             setIsSubmitting(false);
+            setSubmittingAction(null);
             setOrcidBlockers([]);
             setOrcidWarnings([]);
         }
@@ -154,7 +159,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         }
     };
 
-    const handleSubmit = async (force = false) => {
+    const handleSubmit = async (force = false, action: 'submit' | 'retry' | 'override' = 'submit') => {
         setError(null);
 
         // Validation
@@ -169,6 +174,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         }
 
         setIsSubmitting(true);
+        setSubmittingAction(action);
 
         try {
             const response = await axios.post<DoiRegistrationResponse>(`/resources/${resource.id}/register-doi`, {
@@ -217,6 +223,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                 setOrcidWarnings(payload.warnings ?? []);
                 setError(null);
                 setIsSubmitting(false);
+                setSubmittingAction(null);
                 return;
             }
 
@@ -237,6 +244,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             setError(errorMessage);
         } finally {
             setIsSubmitting(false);
+            setSubmittingAction(null);
         }
     };
 
@@ -420,49 +428,34 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                     </Button>
                     {orcidBlockers.length === 0 && orcidWarnings.length > 0 ? (
                         <>
-                            <Button
+                            <LoadingButton
                                 variant="secondary"
+                                loading={submittingAction === 'retry'}
                                 onClick={() => {
                                     // Retry re-runs the preflight without force=true.
                                     // If orcid.org is reachable now, the warnings clear
                                     // automatically and the regular primary button reappears.
                                     setOrcidWarnings([]);
                                     setOrcidBlockers([]);
-                                    handleSubmit(false);
+                                    handleSubmit(false, 'retry');
                                 }}
                                 disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
                                 data-testid="orcid-preflight-retry"
                             >
-                                {isSubmitting ? (
-                                    <>
-                                        <span className="mr-2" aria-live="polite">
-                                            Processing...
-                                        </span>
-                                        <Spinner size="sm" aria-label="Loading" />
-                                    </>
-                                ) : (
-                                    'Retry verification'
-                                )}
-                            </Button>
-                            <Button
-                                onClick={() => handleSubmit(true)}
+                                Retry verification
+                            </LoadingButton>
+                            <LoadingButton
+                                loading={submittingAction === 'override'}
+                                onClick={() => handleSubmit(true, 'override')}
                                 disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
                                 data-testid="orcid-preflight-override"
                             >
-                                {isSubmitting ? (
-                                    <>
-                                        <span className="mr-2" aria-live="polite">
-                                            Processing...
-                                        </span>
-                                        <Spinner size="sm" aria-label="Loading" />
-                                    </>
-                                ) : (
-                                    'Register anyway'
-                                )}
-                            </Button>
+                                Register anyway
+                            </LoadingButton>
                         </>
                     ) : (
-                        <Button
+                        <LoadingButton
+                            loading={submittingAction === 'submit'}
                             onClick={() => handleSubmit()}
                             disabled={
                                 isSubmitting ||
@@ -472,19 +465,8 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                 orcidBlockers.length > 0
                             }
                         >
-                            {isSubmitting ? (
-                                <>
-                                    <span className="mr-2" aria-live="polite">
-                                        Processing...
-                                    </span>
-                                    <Spinner size="sm" aria-label="Loading" />
-                                </>
-                            ) : hasExistingDoi ? (
-                                'Update Metadata'
-                            ) : (
-                                'Register DOI'
-                            )}
-                        </Button>
+                            {hasExistingDoi ? 'Update Metadata' : 'Register DOI'}
+                        </LoadingButton>
                     )}
                 </DialogFooter>
             </DialogContent>

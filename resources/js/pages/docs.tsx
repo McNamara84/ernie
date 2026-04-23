@@ -1312,7 +1312,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
                                 re-runs the pre-flight against orcid.org (use this when the service may have
                                 recovered), and <strong>"Register anyway"</strong> submits with an override
-                                flag and continues without online verification.
+                                flag. The pre-flight still contacts orcid.org on the next attempt, but any
+                                transient warnings are ignored and registration proceeds regardless of the
+                                verification outcome. Hard blockers (malformed / checksum / not found) are
+                                never overridden this way.
                             </li>
                             <li>
                                 <strong>Success</strong> – Confirmed ORCIDs are stamped with an internal
