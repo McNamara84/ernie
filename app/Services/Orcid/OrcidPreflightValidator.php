@@ -44,7 +44,14 @@ final readonly class OrcidPreflightValidator
         $invalid = [];
         $warnings = [];
 
-        $resource->loadMissing(['creators', 'contributors']);
+        // Eager-load the morph targets to keep preflight O(1) queries regardless
+        // of author list size. Without `creators.creatorable` /
+        // `contributors.contributorable`, `resolvePerson()` would trigger one
+        // lazy-load query per row (classic N+1).
+        $resource->loadMissing([
+            'creators.creatorable',
+            'contributors.contributorable',
+        ]);
 
         foreach ($resource->creators as $creator) {
             /** @var ResourceCreator $creator */

@@ -1314,8 +1314,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Success</strong> – Confirmed ORCIDs are stamped with an internal
-                                <code>orcid_verified_at</code> timestamp so that subsequent saves and imports
-                                reuse the verified status.
+                                <code>orcid_verified_at</code> timestamp on the person record for auditing
+                                purposes. The editor itself still marks identifiers as verified via an
+                                offline format + checksum check when a resource is loaded; the stored
+                                timestamp is not yet consumed to skip future preflight checks.
                             </li>
                         </ul>
                         <p className="mt-2 text-sm text-muted-foreground">

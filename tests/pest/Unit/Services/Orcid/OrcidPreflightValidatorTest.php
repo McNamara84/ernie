@@ -330,3 +330,51 @@ it('OrcidPreflightResult::clean() produces a result with no issues', function ()
         ->and($result->warnings)->toBe([])
         ->and($result->toPayload())->toBe(['invalid' => [], 'warnings' => []]);
 });
+
+it('eager-loads morph targets to avoid N+1 queries', function () {
+    $resource = Resource::factory()->create();
+    for ($i = 0; $i < 5; $i++) {
+        $person = Person::factory()->create([
+            'name_identifier' => null,
+            'name_identifier_scheme' => null,
+        ]);
+        ResourceCreator::factory()
+            ->forPerson($person)
+            ->position($i)
+            ->create(['resource_id' => $resource->id]);
+    }
+    for ($i = 0; $i < 5; $i++) {
+        $person = Person::factory()->create([
+            'name_identifier' => null,
+            'name_identifier_scheme' => null,
+        ]);
+        ResourceContributor::factory()
+            ->forPerson($person)
+            ->atPosition($i)
+            ->create(['resource_id' => $resource->id]);
+    }
+
+    /** @var OrcidService&MockInterface $orcid */
+    $orcid = Mockery::mock(OrcidService::class);
+    $orcid->shouldNotReceive('validateOrcid');
+
+    // Simulate the controller path: fetch the resource without pre-loading
+    // anything, then let the validator handle eager loading.
+    $freshResource = Resource::query()->findOrFail($resource->id);
+
+    $queryCount = 0;
+    \DB::listen(static function () use (&$queryCount): void {
+        $queryCount++;
+    });
+
+    (new OrcidPreflightValidator($orcid))->validate($freshResource);
+
+    // Expected queries:
+    //   1. creators
+    //   2. creatorable morph (persons + institutions, grouped)
+    //   3. contributors
+    //   4. contributorable morph
+    // Plus at most a couple of extra framework queries. Anything proportional
+    // to the number of creators/contributors indicates an N+1 regression.
+    expect($queryCount)->toBeLessThanOrEqual(8);
+});
