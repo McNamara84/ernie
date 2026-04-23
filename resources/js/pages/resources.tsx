@@ -8,6 +8,10 @@ import { toast } from 'sonner';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
+import {
+    ResourcesBulkActionsToolbar,
+    type ResourcesBulkExportFormat,
+} from '@/components/resources/bulk-actions-toolbar';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
 import { ResourcesFilters } from '@/components/resources-filters';
@@ -15,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
@@ -300,6 +305,7 @@ function ResourcesPage({
 }: ResourcesProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
+    const canRegisterDoi = auth.user?.can_register_production_doi ?? false;
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -307,6 +313,9 @@ function ResourcesPage({
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [isBulkRegistering, setIsBulkRegistering] = useState(false);
+    const [isBulkExporting, setIsBulkExporting] = useState(false);
     const [filters, setFilters] = useState<ResourceFilterState>(() => {
         // SSR-safe: Only access window.location on the client side
         if (typeof window === 'undefined') {
@@ -547,6 +556,141 @@ function ResourcesPage({
         // Refresh the resources list to show imported resources
         router.reload({ only: ['resources', 'pagination'] });
     }, []);
+
+    // Drop selections that no longer correspond to a loaded resource (e.g. after
+    // filter/sort changes that replace the list).
+    useEffect(() => {
+        setSelectedIds((prev) => {
+            if (prev.size === 0) {
+                return prev;
+            }
+            const validIds = new Set(resources.map((r) => r.id).filter((id): id is number => typeof id === 'number'));
+            let changed = false;
+            const next = new Set<number>();
+            prev.forEach((id) => {
+                if (validIds.has(id)) {
+                    next.add(id);
+                } else {
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [resources]);
+
+    const visibleSelectableIds = useCallback((): number[] => {
+        return resources.map((r) => r.id).filter((id): id is number => typeof id === 'number');
+    }, [resources]);
+
+    const allVisibleSelected = resources.length > 0 && visibleSelectableIds().every((id) => selectedIds.has(id));
+    const someVisibleSelected = !allVisibleSelected && visibleSelectableIds().some((id) => selectedIds.has(id));
+
+    const handleSelectAll = useCallback(
+        (checked: boolean) => {
+            setSelectedIds(checked ? new Set(visibleSelectableIds()) : new Set());
+        },
+        [visibleSelectableIds],
+    );
+
+    const handleSelectOne = useCallback((id: number, checked: boolean) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (checked) {
+                next.add(id);
+            } else {
+                next.delete(id);
+            }
+            return next;
+        });
+    }, []);
+
+    const handleBulkRegister = useCallback(async () => {
+        if (selectedIds.size === 0) {
+            return;
+        }
+        setIsBulkRegistering(true);
+        try {
+            const response = await axios.post<{
+                success: Array<{ id: number; doi: string | null; updated: boolean }>;
+                failed: Array<{ id: number; doi: string | null; reason: string }>;
+            }>('/resources/batch-register', { ids: Array.from(selectedIds) });
+
+            const { success = [], failed = [] } = response.data ?? {};
+            if (success.length > 0) {
+                toast.success(`${success.length} ${success.length === 1 ? 'resource' : 'resources'} registered/updated`);
+            }
+            if (failed.length > 0) {
+                toast.error(`${failed.length} failed: ${failed[0].reason}`);
+            }
+            router.reload({ only: ['resources', 'pagination'] });
+            setSelectedIds(new Set());
+        } catch (error) {
+            // Axios returns 207 as an error in some configurations; handle gracefully.
+            if (isAxiosError(error) && error.response?.status === 207 && error.response.data) {
+                const { success = [], failed = [] } = error.response.data as {
+                    success?: Array<{ id: number; doi: string | null; updated: boolean }>;
+                    failed?: Array<{ id: number; doi: string | null; reason: string }>;
+                };
+                if (success.length > 0) {
+                    toast.success(`${success.length} ${success.length === 1 ? 'resource' : 'resources'} registered/updated`);
+                }
+                if (failed.length > 0) {
+                    toast.error(`${failed.length} failed: ${failed[0].reason}`);
+                }
+                router.reload({ only: ['resources', 'pagination'] });
+                setSelectedIds(new Set());
+                return;
+            }
+            console.error('Bulk register failed:', error);
+            toast.error('Bulk registration failed');
+        } finally {
+            setIsBulkRegistering(false);
+        }
+    }, [selectedIds]);
+
+    const handleBulkExport = useCallback(
+        async (format: ResourcesBulkExportFormat) => {
+            if (selectedIds.size === 0) {
+                return;
+            }
+            setIsBulkExporting(true);
+            try {
+                const response = await axios.post('/resources/batch-export', {
+                    ids: Array.from(selectedIds),
+                    format,
+                }, {
+                    responseType: 'blob',
+                });
+
+                const blob = new Blob([response.data as BlobPart], { type: 'application/zip' });
+                const contentDisposition = response.headers['content-disposition'] as string | undefined;
+                let filename = `resources-export-${format}.zip`;
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match) {
+                        filename = match[1];
+                    }
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+
+                toast.success(`Exported ${selectedIds.size} ${selectedIds.size === 1 ? 'resource' : 'resources'} as ${format.toUpperCase()}`);
+            } catch (error) {
+                console.error('Bulk export failed:', error);
+                toast.error('Bulk export failed');
+            } finally {
+                setIsBulkExporting(false);
+            }
+        },
+        [selectedIds],
+    );
 
     /**
      * Copy text to clipboard with toast notification
@@ -854,7 +998,7 @@ function ResourcesPage({
             label: (
                 <span className="flex flex-col leading-tight normal-case">
                     <span>Title</span>
-                    <span>Resource Type</span>
+                    <span className="hidden md:inline">Resource Type</span>
                 </span>
             ),
             widthClass: TITLE_COLUMN_WIDTH_CLASSES,
@@ -879,7 +1023,7 @@ function ResourcesPage({
                 return (
                     <div className="flex flex-col gap-1 text-left">
                         <span className="text-sm leading-relaxed font-normal wrap-break-word text-gray-900 dark:text-gray-100">{title}</span>
-                        <span className="text-sm whitespace-nowrap text-gray-600 dark:text-gray-300">{resourceType}</span>
+                        <span className="hidden text-sm whitespace-nowrap text-gray-600 md:inline dark:text-gray-300">{resourceType}</span>
                     </div>
                 );
             },
@@ -935,7 +1079,7 @@ function ResourcesPage({
             key: 'curator_status',
             label: (
                 <span className="flex flex-col leading-tight normal-case">
-                    <span>Curator</span>
+                    <span className="hidden lg:inline">Curator</span>
                     <span>Status</span>
                 </span>
             ),
@@ -988,7 +1132,7 @@ function ResourcesPage({
 
                 return (
                     <div className="flex flex-col gap-1 text-center text-gray-600 dark:text-gray-300">
-                        <span className="text-sm">{curator}</span>
+                        <span className="hidden text-sm lg:inline">{curator}</span>
                         <span
                             className={statusClasses}
                             onClick={isClickable ? () => handleStatusBadgeClick(resource, status) : undefined}
@@ -1016,8 +1160,8 @@ function ResourcesPage({
         {
             key: 'created_updated',
             label: DATE_COLUMN_HEADER_LABEL,
-            widthClass: 'min-w-[9rem]',
-            cellClassName: 'whitespace-normal align-middle',
+            widthClass: 'hidden min-w-[9rem] md:table-cell',
+            cellClassName: 'hidden whitespace-normal align-middle md:table-cell',
             sortOptions: [
                 {
                     key: 'created_at',
@@ -1056,6 +1200,9 @@ function ResourcesPage({
         <>
             {[...Array(5)].map((_, index) => (
                 <tr key={`skeleton-${index}`} className="animate-pulse">
+                    <td className="w-12 min-w-12 px-6 py-1.5 align-middle">
+                        <div className="size-4 rounded bg-gray-200 dark:bg-gray-700" />
+                    </td>
                     <td className={`px-6 py-1.5 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
                         <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-1">
@@ -1096,20 +1243,10 @@ function ResourcesPage({
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader>
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <CardTitle asChild>
-                                    <h1 className="text-2xl font-semibold tracking-tight">Resources</h1>
-                                </CardTitle>
-                                <CardDescription>Overview of curated resources in ERNIE</CardDescription>
-                            </div>
-                            {canImportFromDataCite && (
-                                <Button variant="outline" onClick={() => setShowImportModal(true)} className="flex items-center gap-2">
-                                    <DataCiteIcon className="size-4" aria-hidden="true" />
-                                    Import from DataCite
-                                </Button>
-                            )}
-                        </div>
+                        <CardTitle asChild>
+                            <h1 className="text-2xl font-semibold tracking-tight">Resources</h1>
+                        </CardTitle>
+                        <CardDescription>Overview of curated resources in ERNIE</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {error ? (
@@ -1139,6 +1276,29 @@ function ResourcesPage({
                             isLoading={loading}
                         />
 
+                        {/* Bulk action toolbar + Import button (mirrors IGSN pattern) */}
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                            <ResourcesBulkActionsToolbar
+                                selectedCount={selectedIds.size}
+                                onRegister={handleBulkRegister}
+                                onExport={handleBulkExport}
+                                canRegister={canRegisterDoi}
+                                isRegistering={isBulkRegistering}
+                                isExporting={isBulkExporting}
+                            />
+                            {canImportFromDataCite && (
+                                <Button
+                                    variant="outline"
+                                    size="default"
+                                    onClick={() => setShowImportModal(true)}
+                                    className="ml-auto flex items-center gap-2"
+                                >
+                                    <DataCiteIcon className="size-4" aria-hidden="true" />
+                                    Import from DataCite
+                                </Button>
+                            )}
+                        </div>
+
                         {sortedResources.length === 0 && !loading && !loadingError ? (
                             <div className="py-8 text-center text-muted-foreground">
                                 {error
@@ -1159,6 +1319,14 @@ function ResourcesPage({
                                         </caption>
                                         <TableHeader className="bg-gray-50 dark:bg-gray-800">
                                             <TableRow>
+                                                <TableHead className="w-12 min-w-12">
+                                                    <Checkbox
+                                                        checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                                                        onCheckedChange={(value) => handleSelectAll(value === true)}
+                                                        aria-label="Select all visible resources"
+                                                        data-testid="resources-select-all"
+                                                    />
+                                                </TableHead>
                                                 <TableHead
                                                     className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
@@ -1233,7 +1401,18 @@ function ResourcesPage({
                                                         key={deriveResourceRowKey(resource)}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastResourceElementRef : null}
+                                                        data-state={resource.id !== undefined && selectedIds.has(resource.id) ? 'selected' : undefined}
                                                     >
+                                                        <TableCell className="w-12 min-w-12 align-middle">
+                                                            {resource.id !== undefined && (
+                                                                <Checkbox
+                                                                    checked={selectedIds.has(resource.id)}
+                                                                    onCheckedChange={(value) => handleSelectOne(resource.id!, value === true)}
+                                                                    aria-label={`Select resource ${resourceLabel}`}
+                                                                    data-testid={`resources-row-checkbox-${resource.id}`}
+                                                                />
+                                                            )}
+                                                        </TableCell>
                                                         <TableCell
                                                             className={`align-middle text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                         >

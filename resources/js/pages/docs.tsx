@@ -1354,6 +1354,53 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'bulk-actions',
+                title: 'Bulk Actions on Resources',
+                icon: FileText,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Selecting and Acting on Multiple Resources</h3>
+                        <p>
+                            The <code>/resources</code> page supports multi-selection so you can act on several
+                            resources at once. Select rows individually with the checkbox in the leftmost column,
+                            or use the header checkbox to select all currently visible resources. The bulk
+                            actions toolbar sits directly below the filter row and shows how many resources are
+                            selected.
+                        </p>
+
+                        <h4>Bulk Export (all roles)</h4>
+                        <p>
+                            Click <strong>Export Selected</strong> to download a single ZIP archive containing
+                            the metadata of every selected resource in your chosen format:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>DataCite JSON</li>
+                            <li>DataCite XML (validated against schema 4.6)</li>
+                            <li>DataCite JSON-LD (Linked Data)</li>
+                        </ul>
+                        <p className="text-sm text-muted-foreground">Limit: up to 100 resources per ZIP.</p>
+
+                        <h4>Bulk Register / Update DOI (Curator and above)</h4>
+                        <p>
+                            Click <strong>Register Selected</strong> to send every selected resource to DataCite
+                            in one batch. Resources that already have a DOI receive an updated metadata payload;
+                            resources without a DOI are minted using your default DOI prefix. Resources without a
+                            landing page or that are physical samples (IGSNs) are skipped and reported in the
+                            response toast.
+                        </p>
+                        <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
+
+                        <h4>Responsive Layout</h4>
+                        <p>
+                            On smaller screens, less critical sub-rows (Resource Type, Curator) and the
+                            Created/Updated column are hidden so the essential columns (Title, Author/Year,
+                            Status, Actions) remain readable without horizontal scrolling.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'json-export',
                 title: 'JSON Export',
                 icon: FileText,

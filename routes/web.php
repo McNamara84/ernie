@@ -285,6 +285,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/register-doi', [ResourceController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
+    Route::post('resources/batch-register', [\App\Http\Controllers\BatchResourceRegistrationController::class, 'register'])
+        ->name('resources.batch-register');
+
+    Route::post('resources/batch-export', [\App\Http\Controllers\BatchResourceExportController::class, 'export'])
+        ->name('resources.batch-export');
+
     // DataCite prefix configuration endpoint
     Route::get('api/datacite/prefixes', [ResourceController::class, 'getDataCitePrefixes'])
         ->name('api.datacite.prefixes');
