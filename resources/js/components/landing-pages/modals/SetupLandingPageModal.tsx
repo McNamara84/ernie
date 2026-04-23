@@ -514,7 +514,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent
                 data-testid="setup-lp-modal-content"
-                className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+                className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
             >
                 <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
                     <DialogTitle className="flex items-center gap-2">
@@ -523,7 +523,11 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                     </DialogTitle>
                     <DialogDescription>
                         Configure the public landing page for:
-                        <TooltipProvider delayDuration={150}>
+                        {/* delayDuration aligned with the global TooltipProvider in
+                            app-sidebar-layout.tsx to keep tooltip timing consistent
+                            across the UI. The local provider is kept so the modal is
+                            self-contained when rendered in tests or outside the app shell. */}
+                        <TooltipProvider delayDuration={0}>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <span
