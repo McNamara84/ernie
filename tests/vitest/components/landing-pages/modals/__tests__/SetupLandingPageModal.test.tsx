@@ -1482,8 +1482,11 @@ describe('SetupLandingPageModal', () => {
             render(<SetupLandingPageModal resource={longTitleResource} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-lp-modal-resource-title');
+            // Tailwind v4 emits `.wrap-break-word { overflow-wrap: break-word }`
+            // (the v4 replacement for v3's `break-words`). Assert the exact
+            // utility so a broken/missing class cannot hide an overflow regression.
             expect(titleEl.className).toContain('line-clamp-2');
-            expect(titleEl.className).toMatch(/wrap-break-word|break-words/);
+            expect(titleEl.className).toContain('wrap-break-word');
         });
 
         it('falls back to "Resource #<id>" when title is missing and still exposes it via title attribute', async () => {
