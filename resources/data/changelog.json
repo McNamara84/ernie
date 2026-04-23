@@ -66,6 +66,10 @@
         ],
         "improvements": [
             {
+                "title": "ORCID Validation No Longer Runs on Load (Issue #610)",
+                "description": "Opening an existing resource in the curation editor no longer triggers a burst of ORCID API requests for every stored author. Client-side auto-verification is now gated behind explicit user interaction (editing the ORCID, first-name, or last-name field), eliminating the UI stutter when opening datasets with many authors. As a safety net, the server performs a single ORCID pre-flight validation immediately before DOI registration: confirmed-invalid ORCIDs (not_found / checksum / format) now hard-block DOI registration with a detailed error listing each offending author, while transient failures (network / timeout / API error) show a warning that the curator can override via a new 'Register anyway' button. Successful pre-flight validation stamps an `orcid_verified_at` timestamp on the person record."
+            },
+            {
                 "title": "Responsive Resources Page Layout",
                 "description": "The Resources page now mirrors the IGSN page layout for small screens. The Import-from-DataCite button moved out of the card header into a new toolbar row directly below the filters (next to the bulk actions). Less critical sub-rows (Resource Type, Curator) and the Created/Updated column hide progressively on small and medium viewports so the essential information (Title, Author/Year, Status, Actions) remains visible without horizontal scrolling."
             },

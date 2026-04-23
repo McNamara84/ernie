@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
+use App\Services\Orcid\OrcidPreflightValidator;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -120,6 +121,22 @@ class BatchResourceRegistrationController extends Controller
                 continue;
             }
 
+            // Pre-flight ORCID validation (see issue #610). Batch mode has no
+            // interactive override, so both confirmed-invalid ORCIDs and
+            // transient warnings cause the resource to be skipped with a
+            // human-readable reason. The curator can retry individually via
+            // the Register DOI modal.
+            $preflight = app(OrcidPreflightValidator::class)->validate($resource, force: false);
+            if ($preflight->shouldBlock || $preflight->warnings !== []) {
+                $results['failed'][] = [
+                    'id' => $resourceId,
+                    'doi' => $resource->doi,
+                    'reason' => $this->describeOrcidPreflightFailure($preflight),
+                ];
+
+                continue;
+            }
+
             try {
                 if ($wasAlreadyRegistered) {
                     $response = $service->updateMetadata($resource);
@@ -213,5 +230,27 @@ class BatchResourceRegistrationController extends Controller
         $statusCode = $results['failed'] === [] ? 200 : 207;
 
         return response()->json($results, $statusCode);
+    }
+
+    /**
+     * Build a human-readable reason string for an ORCID preflight failure.
+     *
+     * Kept private to the batch controller because the interactive Register
+     * DOI endpoint exposes the structured payload instead.
+     */
+    private function describeOrcidPreflightFailure(\App\Services\Orcid\OrcidPreflightResult $preflight): string
+    {
+        $blocking = count($preflight->invalid);
+        $warnings = count($preflight->warnings);
+
+        if ($blocking > 0 && $warnings > 0) {
+            return "ORCID preflight failed: {$blocking} invalid, {$warnings} unverifiable.";
+        }
+
+        if ($blocking > 0) {
+            return "ORCID preflight failed: {$blocking} invalid ORCID identifier(s).";
+        }
+
+        return "ORCID preflight skipped: {$warnings} identifier(s) could not be verified (orcid.org unreachable).";
     }
 }

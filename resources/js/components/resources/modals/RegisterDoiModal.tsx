@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2, GraduationCap } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, GraduationCap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -42,10 +42,53 @@ interface DoiRegistrationResponse {
     details?: unknown;
 }
 
+/**
+ * Reason codes emitted by {@see \App\Services\Orcid\OrcidPreflightValidator}.
+ *
+ * `blocking` reasons (not_found / checksum / format) prevent registration.
+ * Warning reasons (network / timeout / api_error / unknown) can be overridden
+ * by the curator via "Register anyway", which re-posts with `force: true`.
+ */
+type OrcidPreflightReason = 'not_found' | 'checksum' | 'format' | 'network' | 'timeout' | 'api_error' | 'unknown';
+
+interface OrcidPreflightIssue {
+    severity: 'blocking' | 'warning';
+    reason: OrcidPreflightReason;
+    role: 'creator' | 'contributor';
+    position: number;
+    orcid: string;
+    displayName: string;
+}
+
+interface OrcidPreflightPayload {
+    error: 'orcid_validation_failed' | 'orcid_validation_warning';
+    message?: string;
+    invalid: OrcidPreflightIssue[];
+    warnings: OrcidPreflightIssue[];
+}
+
 interface PrefixConfig {
     test: string[];
     production: string[];
     test_mode: boolean;
+}
+
+const ORCID_REASON_LABELS: Record<OrcidPreflightReason, string> = {
+    not_found: 'not found in ORCID registry',
+    checksum: 'invalid ORCID checksum',
+    format: 'malformed ORCID identifier',
+    network: 'ORCID service unreachable',
+    timeout: 'ORCID service timed out',
+    api_error: 'ORCID service reported an error',
+    unknown: 'ORCID verification failed for an unknown reason',
+};
+
+function isOrcidPreflightPayload(data: unknown): data is OrcidPreflightPayload {
+    if (!data || typeof data !== 'object') {
+        return false;
+    }
+    const error = (data as { error?: unknown }).error;
+    return error === 'orcid_validation_failed' || error === 'orcid_validation_warning';
 }
 
 export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess }: RegisterDoiModalProps) {
@@ -56,6 +99,11 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const [availablePrefixes, setAvailablePrefixes] = useState<string[]>([]);
     const [isTestMode, setIsTestMode] = useState<boolean>(true);
     const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+    // ORCID preflight state (see issue #610). `orcidBlockers` are hard blockers
+    // surfaced by the backend; `orcidWarnings` are transient failures the
+    // curator may override via the "Register anyway" button.
+    const [orcidBlockers, setOrcidBlockers] = useState<OrcidPreflightIssue[]>([]);
+    const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
 
     const hasExistingDoi = Boolean(resource.doi);
     const hasLandingPage = Boolean(resource.landingPage);
@@ -70,6 +118,8 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             setSelectedPrefix('');
             setError(null);
             setIsSubmitting(false);
+            setOrcidBlockers([]);
+            setOrcidWarnings([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
@@ -104,7 +154,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         }
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (force = false) => {
         setError(null);
 
         // Validation
@@ -123,6 +173,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         try {
             const response = await axios.post<DoiRegistrationResponse>(`/resources/${resource.id}/register-doi`, {
                 prefix: selectedPrefix,
+                force,
             });
 
             const { doi, updated, mode } = response.data;
@@ -134,6 +185,10 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                 description: `${modeLabel} DOI: ${doi}`,
                 duration: 5000,
             });
+
+            // Clear ORCID preflight state on success
+            setOrcidBlockers([]);
+            setOrcidWarnings([]);
 
             // Close modal first to ensure UI is updated
             onClose();
@@ -153,6 +208,18 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                 }
             }
         } catch (err) {
+            // ORCID preflight (see issue #610): the backend returns 422 for
+            // confirmed-invalid ORCIDs and 409 for transient failures that
+            // require explicit curator confirmation.
+            if (isAxiosError(err) && err.response && isOrcidPreflightPayload(err.response.data)) {
+                const payload = err.response.data;
+                setOrcidBlockers(payload.invalid ?? []);
+                setOrcidWarnings(payload.warnings ?? []);
+                setError(null);
+                setIsSubmitting(false);
+                return;
+            }
+
             console.error('DOI registration failed:', err);
 
             let errorMessage = 'Failed to register DOI. Please try again.';
@@ -283,6 +350,60 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                         </div>
                     )}
 
+                    {/* ORCID Preflight Blockers (see issue #610) */}
+                    {orcidBlockers.length > 0 && (
+                        <Alert variant="destructive" data-testid="orcid-preflight-blockers">
+                            <AlertCircle className="size-4" />
+                            <AlertTitle>
+                                ORCID validation failed ({orcidBlockers.length}{' '}
+                                {orcidBlockers.length === 1 ? 'author' : 'authors'})
+                            </AlertTitle>
+                            <AlertDescription>
+                                <p className="mb-2">
+                                    The following ORCID identifiers could not be verified. Please correct them in the editor before registering
+                                    the DOI.
+                                </p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {orcidBlockers.map((issue) => (
+                                        <li key={`${issue.role}-${issue.position}-${issue.orcid}`}>
+                                            <strong>{issue.displayName}</strong>{' '}
+                                            <span className="text-xs text-muted-foreground">({issue.role})</span>
+                                            <br />
+                                            <code className="text-xs">{issue.orcid}</code> – {ORCID_REASON_LABELS[issue.reason]}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {/* ORCID Preflight Warnings (transient failures, curator may override) */}
+                    {orcidBlockers.length === 0 && orcidWarnings.length > 0 && (
+                        <Alert data-testid="orcid-preflight-warnings">
+                            <AlertTriangle className="size-4" />
+                            <AlertTitle>
+                                ORCID verification unavailable ({orcidWarnings.length}{' '}
+                                {orcidWarnings.length === 1 ? 'author' : 'authors'})
+                            </AlertTitle>
+                            <AlertDescription>
+                                <p className="mb-2">
+                                    The ORCID service is temporarily unreachable for the following identifiers. You can retry or register anyway
+                                    if you are confident the ORCIDs are correct.
+                                </p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {orcidWarnings.map((issue) => (
+                                        <li key={`${issue.role}-${issue.position}-${issue.orcid}`}>
+                                            <strong>{issue.displayName}</strong>{' '}
+                                            <span className="text-xs text-muted-foreground">({issue.role})</span>
+                                            <br />
+                                            <code className="text-xs">{issue.orcid}</code> – {ORCID_REASON_LABELS[issue.reason]}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {/* Error Display */}
                     {error && (
                         <Alert variant="destructive">
@@ -297,23 +418,48 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                     <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
                         Cancel
                     </Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <span className="mr-2" aria-live="polite">
-                                    Processing...
-                                </span>
-                                <Spinner size="sm" aria-label="Loading" />
-                            </>
-                        ) : hasExistingDoi ? (
-                            'Update Metadata'
-                        ) : (
-                            'Register DOI'
-                        )}
-                    </Button>
+                    {orcidBlockers.length === 0 && orcidWarnings.length > 0 ? (
+                        <Button
+                            onClick={() => handleSubmit(true)}
+                            disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                            data-testid="orcid-preflight-override"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <span className="mr-2" aria-live="polite">
+                                        Processing...
+                                    </span>
+                                    <Spinner size="sm" aria-label="Loading" />
+                                </>
+                            ) : (
+                                'Register anyway'
+                            )}
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={() => handleSubmit()}
+                            disabled={
+                                isSubmitting ||
+                                !hasLandingPage ||
+                                (!hasExistingDoi && !selectedPrefix) ||
+                                isLoadingConfig ||
+                                orcidBlockers.length > 0
+                            }
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <span className="mr-2" aria-live="polite">
+                                        Processing...
+                                    </span>
+                                    <Spinner size="sm" aria-label="Loading" />
+                                </>
+                            ) : hasExistingDoi ? (
+                                'Update Metadata'
+                            ) : (
+                                'Register DOI'
+                            )}
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

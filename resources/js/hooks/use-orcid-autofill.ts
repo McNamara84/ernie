@@ -611,11 +611,22 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
     /**
      * Auto-verify when a valid ORCID is entered
+     *
+     * Gated by `hasUserInteracted` so existing resources loaded into the editor
+     * don't trigger network validation of pre-filled, unverified ORCIDs
+     * (see issue #610). A manual retry via `retryVerification()` bypasses the
+     * gate by bumping `retryTrigger`.
      */
     useEffect(() => {
         const autoVerifyOrcid = async () => {
             // Only auto-verify if person type
             if (!isPersonEntry(entry)) {
+                return;
+            }
+
+            // Skip on initial load – only verify after the curator has actively
+            // touched the field. Manual retries bypass this via retryTrigger.
+            if (!hasUserInteracted && retryTrigger === 0) {
                 return;
             }
 
@@ -719,7 +730,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         const timeoutId = setTimeout(autoVerifyOrcid, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [entry, isVerifying, onEntryChange, includeEmail, retryTrigger]);
+    }, [entry, isVerifying, onEntryChange, includeEmail, retryTrigger, hasUserInteracted]);
 
     return {
         isVerifying,

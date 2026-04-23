@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $name_identifier
  * @property string|null $name_identifier_scheme
  * @property string|null $scheme_uri
+ * @property Carbon|null $orcid_verified_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, ResourceCreator> $resourceCreators
@@ -38,6 +39,16 @@ class Person extends Model
 {
     /** @use HasFactory<Factory<static>> */
     use HasFactory;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'orcid_verified_at' => 'datetime',
+        ];
+    }
 
     /** @return MorphMany<ResourceCreator, static> */
     public function resourceCreators(): MorphMany

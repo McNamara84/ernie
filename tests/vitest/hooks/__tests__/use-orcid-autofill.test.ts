@@ -451,6 +451,30 @@ describe('useOrcidAutofill', () => {
             vi.useRealTimers();
         });
 
+        // Issue #610: auto-verify must stay silent until the curator has
+        // actively touched the field – otherwise opening an existing resource
+        // triggers ORCID traffic for every pre-filled author.
+        it('does not auto-verify on initial load (hasUserInteracted=false)', async () => {
+            vi.mocked(OrcidService.isValidFormat).mockReturnValue(true);
+            vi.mocked(OrcidService.validateChecksum).mockReturnValue(true);
+
+            const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
+            const onEntryChange = vi.fn();
+
+            renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            await act(async () => {
+                vi.advanceTimersByTime(1200);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(OrcidService.validateOrcid).not.toHaveBeenCalled();
+            expect(OrcidService.fetchOrcidRecord).not.toHaveBeenCalled();
+            expect(onEntryChange).not.toHaveBeenCalled();
+        });
+
         it('auto-verifies a valid ORCID after debounce', async () => {
             vi.mocked(OrcidService.isValidFormat).mockReturnValue(true);
             vi.mocked(OrcidService.validateChecksum).mockReturnValue(true);
@@ -475,7 +499,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             // Advance past debounce (500ms)
@@ -503,7 +527,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -528,7 +552,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -553,7 +577,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -578,7 +602,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -599,7 +623,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -617,7 +641,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -644,7 +668,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -669,7 +693,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             const { result } = renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true }),
             );
 
             await act(async () => {
@@ -705,7 +729,7 @@ describe('useOrcidAutofill', () => {
             const onEntryChange = vi.fn();
 
             renderHook(() =>
-                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false, includeEmail: true }),
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: true, includeEmail: true }),
             );
 
             await act(async () => {
@@ -719,6 +743,55 @@ describe('useOrcidAutofill', () => {
                     orcidVerified: true,
                 }),
             );
+        });
+
+        // Issue #610: the manual retry button must still work even when the
+        // curator hasn't edited the field yet. This covers the "I re-opened
+        // the modal and want to check again" case.
+        it('retryVerification bypasses hasUserInteracted gate', async () => {
+            vi.mocked(OrcidService.isValidFormat).mockReturnValue(true);
+            vi.mocked(OrcidService.validateChecksum).mockReturnValue(true);
+            vi.mocked(OrcidService.validateOrcid).mockResolvedValue({
+                success: true,
+                data: { valid: true, exists: true, message: 'Valid', errorType: null },
+            });
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const entry = createPersonEntry({ orcid: '0000-0001-2345-6789' });
+            const onEntryChange = vi.fn();
+
+            const { result } = renderHook(() =>
+                useOrcidAutofill({ entry, onEntryChange, hasUserInteracted: false }),
+            );
+
+            // Without interaction, nothing happens even after debounce.
+            await act(async () => {
+                vi.advanceTimersByTime(600);
+                await vi.runAllTimersAsync();
+            });
+            expect(OrcidService.validateOrcid).not.toHaveBeenCalled();
+
+            // Manual retry should force an auto-verify run.
+            act(() => {
+                result.current.retryVerification();
+            });
+            await act(async () => {
+                vi.advanceTimersByTime(600);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(OrcidService.validateOrcid).toHaveBeenCalledWith('0000-0001-2345-6789');
         });
     });
 

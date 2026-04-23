@@ -42,6 +42,7 @@ class RegisterDoiRequest extends FormRequest
                 'string',
                 Rule::in($allowedPrefixes),
             ],
+            'force' => ['sometimes', 'boolean'],
         ];
     }
 

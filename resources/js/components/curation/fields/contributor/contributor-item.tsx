@@ -75,13 +75,15 @@ export default function ContributorItem({
         opacity: isDragging ? 0.5 : 1,
     };
 
-    // Track user interactions to prevent auto-suggest on initial load
+    // Track user interactions to prevent auto-suggest / auto-verify on initial load
+    // (see issue #610 – avoids ORCID network traffic when merely opening an existing resource)
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
-    // Wrapper for onPersonFieldChange that marks user interaction for name fields only
-    // Only firstName/lastName changes should enable ORCID auto-suggest, not orcid field itself
+    // Wrapper for onPersonFieldChange that marks user interaction for the fields
+    // that should trigger ORCID lookups (orcid for auto-verify, firstName/lastName
+    // for suggestion search). Email/website do NOT flip the flag.
     const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
-        if (field === 'firstName' || field === 'lastName') {
+        if (field === 'orcid' || field === 'firstName' || field === 'lastName') {
             setHasUserInteracted(true);
         }
         onPersonFieldChange(field, value);

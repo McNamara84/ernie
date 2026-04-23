@@ -208,6 +208,7 @@ describe('RegisterDoiModal', () => {
         await waitFor(() => {
             expect(mockPost).toHaveBeenCalledWith('/resources/1/register-doi', {
                 prefix: '10.83279',
+                force: false,
             });
         });
     });
@@ -383,5 +384,125 @@ describe('RegisterDoiModal', () => {
         // Buttons should be disabled while submitting
         expect(screen.getByRole('button', { name: /processing/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+    });
+
+    // --- Issue #610: ORCID preflight ---
+    describe('ORCID preflight', () => {
+        const makeAxiosError = (status: number, data: unknown) => ({
+            isAxiosError: true,
+            response: { status, data },
+        });
+
+        it('renders blocking alert and disables submit when backend returns 422', async () => {
+            const user = userEvent.setup();
+
+            mockPost.mockRejectedValueOnce(
+                makeAxiosError(422, {
+                    error: 'orcid_validation_failed',
+                    message: 'ORCID validation failed',
+                    invalid: [
+                        {
+                            severity: 'blocking',
+                            reason: 'not_found',
+                            role: 'creator',
+                            position: 0,
+                            orcid: '0000-0001-2345-6789',
+                            displayName: 'Jane Doe',
+                        },
+                    ],
+                    warnings: [],
+                }),
+            );
+
+            render(<RegisterDoiModal {...defaultProps} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const alert = await screen.findByTestId('orcid-preflight-blockers');
+            expect(alert).toBeInTheDocument();
+            expect(alert).toHaveTextContent('Jane Doe');
+            expect(alert).toHaveTextContent('0000-0001-2345-6789');
+            expect(alert).toHaveTextContent(/not found in orcid registry/i);
+
+            // No warnings alert rendered alongside blockers.
+            expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
+
+            // Primary submit stays disabled due to blockers.
+            expect(screen.getByRole('button', { name: /register doi/i })).toBeDisabled();
+
+            // No override button is offered when hard blockers exist.
+            expect(screen.queryByTestId('orcid-preflight-override')).not.toBeInTheDocument();
+        });
+
+        it('renders warning alert and offers "Register anyway" override on 409', async () => {
+            const user = userEvent.setup();
+
+            // First call: 409 warning, second call (forced): success.
+            mockPost
+                .mockRejectedValueOnce(
+                    makeAxiosError(409, {
+                        error: 'orcid_validation_warning',
+                        message: 'ORCID service unavailable',
+                        invalid: [],
+                        warnings: [
+                            {
+                                severity: 'warning',
+                                reason: 'timeout',
+                                role: 'contributor',
+                                position: 2,
+                                orcid: '0000-0002-3333-4444',
+                                displayName: 'Alex Contributor',
+                            },
+                        ],
+                    }),
+                )
+                .mockResolvedValueOnce({
+                    data: {
+                        success: true,
+                        message: 'DOI registered successfully',
+                        doi: '10.83279/forced-doi',
+                        mode: 'test',
+                        updated: false,
+                    },
+                });
+
+            const onSuccess = vi.fn();
+
+            render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const warningAlert = await screen.findByTestId('orcid-preflight-warnings');
+            expect(warningAlert).toHaveTextContent('Alex Contributor');
+            expect(warningAlert).toHaveTextContent(/orcid service timed out/i);
+
+            // Blockers alert not rendered alongside warnings.
+            expect(screen.queryByTestId('orcid-preflight-blockers')).not.toBeInTheDocument();
+
+            // Override button replaces the regular submit button.
+            const overrideButton = await screen.findByTestId('orcid-preflight-override');
+            expect(overrideButton).toHaveTextContent(/register anyway/i);
+
+            await user.click(overrideButton);
+
+            await waitFor(() => {
+                expect(mockPost).toHaveBeenLastCalledWith('/resources/1/register-doi', {
+                    prefix: '10.83279',
+                    force: true,
+                });
+            });
+
+            await waitFor(() => {
+                expect(onSuccess).toHaveBeenCalledWith('10.83279/forced-doi');
+            });
+        });
     });
 });

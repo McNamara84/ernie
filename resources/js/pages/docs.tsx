@@ -1294,6 +1294,36 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Save is blocked until the DOI conflict is resolved</li>
                         </ul>
 
+                        <h4>ORCID Pre-flight Validation</h4>
+                        <p>
+                            Immediately before a DOI is registered, ERNIE performs a final ORCID pre-flight
+                            check for every author and contributor attached to the resource:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Hard block</strong> – If an ORCID is malformed, has an invalid checksum,
+                                or is reported as "not found" by orcid.org, registration is refused with a
+                                422 response listing each offending author. You must correct the identifier in
+                                the editor before retrying.
+                            </li>
+                            <li>
+                                <strong>Warning (override possible)</strong> – If the ORCID service is
+                                temporarily unreachable (network error, timeout, API error), the registration
+                                modal shows a warning. You can click <strong>"Register anyway"</strong> to
+                                resubmit with an override flag and continue without verification.
+                            </li>
+                            <li>
+                                <strong>Success</strong> – Confirmed ORCIDs are stamped with an internal
+                                <code>orcid_verified_at</code> timestamp so that subsequent saves and imports
+                                reuse the verified status.
+                            </li>
+                        </ul>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Note: Opening an existing resource in the editor no longer triggers ORCID
+                            validation for stored authors. The network check only runs when you actively edit
+                            an ORCID / name field or when you press <strong>Register DOI</strong>.
+                        </p>
+
                         <h4>Test vs Production</h4>
                         <div className="mt-2 space-y-2">
                             <div className="rounded-lg border bg-card p-4">
