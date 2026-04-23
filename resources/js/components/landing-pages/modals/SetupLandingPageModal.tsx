@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 interface Resource {
@@ -507,23 +508,58 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setLinks((prev) => prev.map((link, i) => (i === index ? { ...link, [field]: value } : link)));
     }, []);
 
+    const displayTitle = resource.title ?? `Resource #${resource.id}`;
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-                <DialogHeader>
+            <DialogContent
+                data-testid="setup-lp-modal-content"
+                className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+            >
+                <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
                     <DialogTitle className="flex items-center gap-2">
                         <Globe className="size-5" />
                         Setup Landing Page
                     </DialogTitle>
                     <DialogDescription>
-                        Configure the public landing page for <span className="font-medium">{resource.title ?? `Resource #${resource.id}`}</span>
+                        Configure the public landing page for:
+                        {/* delayDuration aligned with the global TooltipProvider in
+                            app-sidebar-layout.tsx to keep tooltip timing consistent
+                            across the UI. The local provider is kept so the modal is
+                            self-contained when rendered in tests or outside the app shell. */}
+                        <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span
+                                        data-testid="setup-lp-modal-resource-title"
+                                        tabIndex={0}
+                                        className="mt-1 block line-clamp-2 wrap-break-word rounded-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                    >
+                                        {displayTitle}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                    data-testid="setup-lp-modal-resource-title-tooltip"
+                                    side="bottom"
+                                    className="max-w-[min(32rem,calc(100vw-2rem))] wrap-break-word whitespace-normal text-left"
+                                >
+                                    {displayTitle}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </DialogDescription>
                 </DialogHeader>
 
                 {isLoading ? (
-                    <div className="py-8 text-center text-muted-foreground">Loading configuration...</div>
+                    <div
+                        data-testid="setup-lp-modal-scroll-area"
+                        className="flex-1 min-h-0 overflow-y-auto px-6 py-8 text-center text-muted-foreground"
+                    >
+                        Loading configuration...
+                    </div>
                 ) : (
-                    <div className="space-y-6 py-4">
+                    <div data-testid="setup-lp-modal-scroll-area" className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+                        <div className="space-y-6">
                         {/* Template Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="template">Landing Page Template</Label>
@@ -788,10 +824,14 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                 <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
                             </div>
                         )}
+                        </div>
                     </div>
                 )}
 
-                <DialogFooter className="gap-2">
+                <DialogFooter
+                    data-testid="setup-lp-modal-footer"
+                    className="shrink-0 flex-wrap gap-2 border-t px-6 py-4"
+                >
                     {/* Only show Remove Preview for draft landing pages.
                         Published landing pages cannot be removed because DOIs are persistent. */}
                     {currentConfig && currentConfig.status === 'draft' && (

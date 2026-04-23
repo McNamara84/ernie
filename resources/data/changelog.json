@@ -152,6 +152,10 @@
         ],
         "fixes": [
             {
+                "title": "Landing Page setup modal layout for long titles",
+                "description": "The Setup Landing Page modal no longer overflows horizontally when a resource has a very long title. The header title is truncated to two lines with a tooltip exposing the full text on hover, the form body scrolls vertically, and the action buttons (Cancel, Preview, Save/Publish) stay visible in a sticky footer on all screen sizes. The same fix is applied to the IGSN landing page setup modal."
+            },
+            {
                 "title": "DataCite import no longer aborts on large file sizes",
                 "description": "Widened the sizes.numeric_value column from decimal(12, 4) to decimal(20, 4). Previously, importing DOIs from the DataCite API could fail with 'SQLSTATE[22003]: Numeric value out of range' when a dataset reported a file size in bytes that exceeded ~99 million (approximately 100 MB), causing the entire import job to abort. Byte-sized values up to the petabyte range are now stored safely."
             },
