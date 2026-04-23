@@ -69,30 +69,7 @@ class BatchResourceRegistrationController extends Controller
 
         // Fetch all resources with ALL relations needed by DataCiteJsonExporter
         // to avoid N+1 queries when export() is called inside the loop.
-        $resources = Resource::with([
-            'igsnMetadata',
-            'landingPage',
-            'resourceType',
-            'language',
-            'publisher',
-            'titles.titleType',
-            'creators.creatorable',
-            'creators.affiliations',
-            'contributors.contributorable',
-            'contributors.contributorTypes',
-            'contributors.affiliations',
-            'descriptions.descriptionType',
-            'dates.dateType',
-            'subjects',
-            'geoLocations',
-            'rights',
-            'relatedIdentifiers.identifierType',
-            'relatedIdentifiers.relationType',
-            'fundingReferences.funderIdentifierType',
-            'alternateIdentifiers',
-            'sizes',
-            'formats',
-        ])
+        $resources = Resource::with(Resource::DATACITE_EXPORT_RELATIONS)
             ->whereIn('id', $ids)
             ->get()
             ->keyBy('id');
@@ -172,9 +149,7 @@ class BatchResourceRegistrationController extends Controller
                 ]);
             } catch (RequestException $e) {
                 // DataCite API error – extract user-friendly message
-                $apiResponse = $e->response;
-                /** @phpstan-ignore notIdentical.alwaysTrue */
-                $apiError = $apiResponse !== null ? $apiResponse->json() : null;
+                $apiError = $e->response->json();
 
                 $errorMessage = 'Failed to communicate with DataCite API.';
                 if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {

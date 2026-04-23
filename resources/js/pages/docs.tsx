@@ -1376,18 +1376,24 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>DataCite JSON</li>
-                            <li>DataCite XML (validated against schema 4.6)</li>
+                            <li>DataCite XML</li>
                             <li>DataCite JSON-LD (Linked Data)</li>
                         </ul>
-                        <p className="text-sm text-muted-foreground">Limit: up to 100 resources per ZIP.</p>
+                        <p className="text-sm text-muted-foreground">
+                            Limit: up to 100 resources per ZIP. Bulk exports stream the generated payload
+                            directly to the browser without running the DataCite Schema 4.7 validator —
+                            use the single-resource export in the editor if you need schema-validated output.
+                        </p>
 
                         <h4>Bulk Register / Update DOI (Curator and above)</h4>
                         <p>
-                            Click <strong>Register Selected</strong> to send every selected resource to DataCite
-                            in one batch. Resources that already have a DOI receive an updated metadata payload;
-                            resources without a DOI are minted using your default DOI prefix. Resources without a
-                            landing page or that are physical samples (IGSNs) are skipped and reported in the
-                            response toast.
+                            Click <strong>Register Selected</strong> to push every selected resource to DataCite
+                            in one batch. The bulk flow <strong>only updates resources that already have a
+                            DOI</strong>; the button is disabled when the selection contains any DOI-less resource
+                            so you never accidentally mint a DOI without picking a prefix. To mint a new DOI,
+                            open the resource in the editor and use the single-resource register action there.
+                            Resources without a landing page or that are physical samples (IGSNs) are skipped
+                            and reported in the response toast.
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
 

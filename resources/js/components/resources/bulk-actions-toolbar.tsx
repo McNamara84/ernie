@@ -1,13 +1,12 @@
 import { CloudUpload, Download } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingButton } from '@/components/ui/loading-button';
 
 export type ResourcesBulkExportFormat = 'datacite-json' | 'datacite-xml' | 'jsonld';
 
@@ -18,6 +17,12 @@ export interface ResourcesBulkActionsToolbarProps {
     canRegister: boolean;
     isRegistering?: boolean;
     isExporting?: boolean;
+    /**
+     * Human-readable reason why the register button must stay disabled despite
+     * having a valid selection (e.g. selection contains DOI-less resources).
+     * Empty/undefined means the button is enabled when a selection exists.
+     */
+    registerDisabledReason?: string;
 }
 
 /**
@@ -34,8 +39,10 @@ export function ResourcesBulkActionsToolbar({
     canRegister,
     isRegistering = false,
     isExporting = false,
+    registerDisabledReason,
 }: ResourcesBulkActionsToolbarProps) {
     const hasSelection = selectedCount > 0;
+    const registerBlocked = Boolean(registerDisabledReason);
 
     return (
         <div
@@ -50,48 +57,33 @@ export function ResourcesBulkActionsToolbar({
 
             <div className="ml-auto flex items-center gap-2">
                 {canRegister && (
-                    <Button
+                    <LoadingButton
                         type="button"
                         size="default"
                         onClick={onRegister}
-                        disabled={!hasSelection || isRegistering || isExporting}
+                        disabled={!hasSelection || registerBlocked || isExporting}
+                        loading={isRegistering}
+                        title={registerBlocked ? registerDisabledReason : undefined}
                         data-testid="bulk-register-button"
                     >
-                        {isRegistering ? (
-                            <>
-                                <Spinner size="sm" className="mr-2" />
-                                Registering...
-                            </>
-                        ) : (
-                            <>
-                                <CloudUpload className="mr-2 size-4" aria-hidden="true" />
-                                Register Selected
-                            </>
-                        )}
-                    </Button>
+                        {!isRegistering && <CloudUpload className="size-4" aria-hidden="true" />}
+                        {isRegistering ? 'Registering...' : 'Register Selected'}
+                    </LoadingButton>
                 )}
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button
+                        <LoadingButton
                             type="button"
                             size="default"
                             variant="outline"
-                            disabled={!hasSelection || isExporting || isRegistering}
+                            disabled={!hasSelection || isRegistering}
+                            loading={isExporting}
                             data-testid="bulk-export-button"
                         >
-                            {isExporting ? (
-                                <>
-                                    <Spinner size="sm" className="mr-2" />
-                                    Exporting...
-                                </>
-                            ) : (
-                                <>
-                                    <Download className="mr-2 size-4" aria-hidden="true" />
-                                    Export Selected
-                                </>
-                            )}
-                        </Button>
+                            {!isExporting && <Download className="size-4" aria-hidden="true" />}
+                            {isExporting ? 'Exporting...' : 'Export Selected'}
+                        </LoadingButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => onExport('datacite-json')}>
@@ -109,3 +101,4 @@ export function ResourcesBulkActionsToolbar({
         </div>
     );
 }
+

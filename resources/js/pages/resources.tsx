@@ -585,6 +585,24 @@ function ResourcesPage({
     const allVisibleSelected = resources.length > 0 && visibleSelectableIds().every((id) => selectedIds.has(id));
     const someVisibleSelected = !allVisibleSelected && visibleSelectableIds().some((id) => selectedIds.has(id));
 
+    /**
+     * Bulk register currently only updates existing DOIs — minting new ones requires
+     * a DataCite prefix which the bulk flow does not yet prompt for. Block the action
+     * (with an explanatory tooltip) whenever the selection contains DOI-less resources.
+     */
+    const registerDisabledReason = (() => {
+        if (selectedIds.size === 0) {
+            return undefined;
+        }
+        const selectedWithoutDoi = resources.filter(
+            (r) => typeof r.id === 'number' && selectedIds.has(r.id) && (r.doi === null || r.doi === ''),
+        );
+        if (selectedWithoutDoi.length === 0) {
+            return undefined;
+        }
+        return `Bulk register only updates existing DOIs. ${selectedWithoutDoi.length} ${selectedWithoutDoi.length === 1 ? 'resource has' : 'resources have'} no DOI yet — register them individually from the editor to mint a new DOI.`;
+    })();
+
     const handleSelectAll = useCallback(
         (checked: boolean) => {
             setSelectedIds(checked ? new Set(visibleSelectableIds()) : new Set());
@@ -1285,6 +1303,7 @@ function ResourcesPage({
                                 canRegister={canRegisterDoi}
                                 isRegistering={isBulkRegistering}
                                 isExporting={isBulkExporting}
+                                registerDisabledReason={registerDisabledReason}
                             />
                             {canImportFromDataCite && (
                                 <Button

@@ -102,6 +102,11 @@ const buildProps = () => ({
 });
 
 describe('ResourcesPage - bulk selection', () => {
+    let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
+    let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
+    let createObjectUrlMock: ReturnType<typeof vi.fn>;
+    let revokeObjectUrlMock: ReturnType<typeof vi.fn>;
+
     beforeEach(() => {
         routerMock.post.mockClear();
         routerMock.reload.mockClear();
@@ -111,10 +116,51 @@ describe('ResourcesPage - bulk selection', () => {
         toastMock.success.mockClear();
         toastMock.error.mockClear();
         toastMock.warning.mockClear();
+
+        // jsdom does not implement URL.createObjectURL / revokeObjectURL.
+        // Save the original descriptors (if any) so afterEach can restore them,
+        // preventing test leakage into unrelated specs.
+        const createDescriptor = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+        const revokeDescriptor = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
+        originalCreateObjectURL = createDescriptor ? (URL.createObjectURL as typeof URL.createObjectURL) : undefined;
+        originalRevokeObjectURL = revokeDescriptor ? (URL.revokeObjectURL as typeof URL.revokeObjectURL) : undefined;
+
+        createObjectUrlMock = vi.fn().mockReturnValue('blob:mock');
+        revokeObjectUrlMock = vi.fn();
+        Object.defineProperty(URL, 'createObjectURL', {
+            value: createObjectUrlMock,
+            configurable: true,
+            writable: true,
+        });
+        Object.defineProperty(URL, 'revokeObjectURL', {
+            value: revokeObjectUrlMock,
+            configurable: true,
+            writable: true,
+        });
     });
 
     afterEach(() => {
         document.head.innerHTML = '';
+
+        // Restore the original URL methods so later specs see the pristine jsdom state.
+        if (originalCreateObjectURL === undefined) {
+            delete (URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
+        } else {
+            Object.defineProperty(URL, 'createObjectURL', {
+                value: originalCreateObjectURL,
+                configurable: true,
+                writable: true,
+            });
+        }
+        if (originalRevokeObjectURL === undefined) {
+            delete (URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
+        } else {
+            Object.defineProperty(URL, 'revokeObjectURL', {
+                value: originalRevokeObjectURL,
+                configurable: true,
+                writable: true,
+            });
+        }
     });
 
     it('renders a select-all checkbox and per-row checkboxes', () => {
@@ -172,12 +218,6 @@ describe('ResourcesPage - bulk selection', () => {
             headers: { 'content-disposition': 'attachment; filename="resources-export-datacite-xml.zip"' },
         });
 
-        // Mock URL.createObjectURL since jsdom doesn't provide it
-        const createUrl = vi.fn().mockReturnValue('blob:mock');
-        const revokeUrl = vi.fn();
-        Object.defineProperty(window.URL, 'createObjectURL', { value: createUrl, writable: true });
-        Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeUrl, writable: true });
-
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
@@ -192,6 +232,7 @@ describe('ResourcesPage - bulk selection', () => {
             { ids: expect.arrayContaining([2, 3]), format: 'datacite-xml' },
             { responseType: 'blob' },
         );
+        expect(createObjectUrlMock).toHaveBeenCalled();
     });
 
     it('renders the import button alongside the bulk toolbar', () => {
@@ -291,18 +332,13 @@ describe('ResourcesPage - bulk selection', () => {
             headers: {},
         });
 
-        const createUrl = vi.fn().mockReturnValue('blob:mock');
-        const revokeUrl = vi.fn();
-        Object.defineProperty(window.URL, 'createObjectURL', { value: createUrl, writable: true });
-        Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeUrl, writable: true });
-
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         await userEvent.click(screen.getByTestId('bulk-export-button'));
         await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON$/i }));
 
-        expect(createUrl).toHaveBeenCalled();
+        expect(createObjectUrlMock).toHaveBeenCalled();
         expect(toastMock.success).toHaveBeenCalledWith(expect.stringContaining('DATACITE-JSON'));
     });
 

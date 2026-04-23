@@ -49,30 +49,7 @@ class BatchResourceExportController extends Controller
         /** @var string $format */
         $format = $validated['format'];
 
-        $resources = Resource::with([
-            'igsnMetadata',
-            'landingPage',
-            'resourceType',
-            'language',
-            'publisher',
-            'titles.titleType',
-            'creators.creatorable',
-            'creators.affiliations',
-            'contributors.contributorable',
-            'contributors.contributorTypes',
-            'contributors.affiliations',
-            'descriptions.descriptionType',
-            'dates.dateType',
-            'subjects',
-            'geoLocations',
-            'rights',
-            'relatedIdentifiers.identifierType',
-            'relatedIdentifiers.relationType',
-            'fundingReferences.funderIdentifierType',
-            'alternateIdentifiers',
-            'sizes',
-            'formats',
-        ])
+        $resources = Resource::with(Resource::DATACITE_EXPORT_RELATIONS)
             ->whereIn('id', $ids)
             ->get();
 
