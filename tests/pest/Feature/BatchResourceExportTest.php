@@ -266,6 +266,44 @@ describe('BatchResourceExportController@export', function () {
         $response->assertOk();
     });
 
+    test('skips entries when json encoding produces invalid output', function () {
+        $good = Resource::factory()->create(['doi' => '10.1234/good']);
+        $bad = Resource::factory()->create(['doi' => '10.1234/uncodable']);
+
+        // INF cannot be represented in JSON — json_encode returns false for the bad entry,
+        // while the good entry is still added to the archive.
+        $exporter = Mockery::mock(DataCiteJsonExporter::class);
+        $exporter->shouldReceive('export')
+            ->andReturnUsing(function (Resource $resource) use ($bad) {
+                if ($resource->id === $bad->id) {
+                    return ['attributes' => ['number' => INF]];
+                }
+
+                return ['attributes' => ['titles' => [['title' => 'OK']]]];
+            });
+        app()->instance(DataCiteJsonExporter::class, $exporter);
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => [$good->id, $bad->id],
+                'format' => 'datacite-json',
+            ]);
+
+        $response->assertOk();
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'ernie-test-zip-');
+        file_put_contents($zipPath, $response->streamedContent() ?: $response->getContent());
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath);
+        // Only the encodable resource was added; the INF entry was skipped via the
+        // `$content === false` branch.
+        expect($zip->numFiles)->toBe(1);
+        expect($zip->getNameIndex(0))->toContain('good');
+        $zip->close();
+        @unlink($zipPath);
+    });
+
     test('deduplicates repeated ids in the export request', function () {
         $resource = Resource::factory()->create();
 

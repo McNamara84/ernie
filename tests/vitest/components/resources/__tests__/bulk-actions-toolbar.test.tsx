@@ -111,6 +111,40 @@ describe('ResourcesBulkActionsToolbar', () => {
             expect(onExport).toHaveBeenCalledWith('datacite-xml');
         });
 
+        it('invokes onExport with datacite-json when the JSON option is chosen', async () => {
+            const onExport = vi.fn();
+            render(
+                <ResourcesBulkActionsToolbar
+                    {...baseProps}
+                    selectedCount={1}
+                    onExport={onExport}
+                />,
+            );
+
+            await userEvent.click(screen.getByTestId('bulk-export-button'));
+            await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON$/i }));
+
+            expect(onExport).toHaveBeenCalledTimes(1);
+            expect(onExport).toHaveBeenCalledWith('datacite-json');
+        });
+
+        it('invokes onExport with jsonld when the JSON-LD option is chosen', async () => {
+            const onExport = vi.fn();
+            render(
+                <ResourcesBulkActionsToolbar
+                    {...baseProps}
+                    selectedCount={1}
+                    onExport={onExport}
+                />,
+            );
+
+            await userEvent.click(screen.getByTestId('bulk-export-button'));
+            await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON-LD/i }));
+
+            expect(onExport).toHaveBeenCalledTimes(1);
+            expect(onExport).toHaveBeenCalledWith('jsonld');
+        });
+
         it('exposes all three export formats', async () => {
             render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
             await userEvent.click(screen.getByTestId('bulk-export-button'));

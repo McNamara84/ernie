@@ -23,6 +23,11 @@ const editorRouteMock = vi.hoisted(() =>
 
 const axiosPostMock = vi.hoisted(() => vi.fn());
 const axiosGetMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() =>
+    Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }),
+);
+
+vi.mock('sonner', () => ({ toast: toastMock }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -102,6 +107,10 @@ describe('ResourcesPage - bulk selection', () => {
         routerMock.reload.mockClear();
         axiosPostMock.mockReset();
         axiosGetMock.mockReset();
+        toastMock.mockClear();
+        toastMock.success.mockClear();
+        toastMock.error.mockClear();
+        toastMock.warning.mockClear();
     });
 
     afterEach(() => {
@@ -197,5 +206,144 @@ describe('ResourcesPage - bulk selection', () => {
         const created = screen.getByRole('columnheader', { name: /created/i });
         // The header's TH carries the responsive hidden classes via cellClassName
         expect(created.className).toMatch(/hidden/);
+    });
+
+    it('clears selection and reloads after a successful bulk register', async () => {
+        axiosPostMock.mockResolvedValue({
+            data: {
+                success: [{ id: 1, doi: '10.9999/one', updated: true }],
+                failed: [],
+            },
+        });
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('bulk-register-button'));
+
+        // flush microtasks for awaited axios + state updates
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(toastMock.success).toHaveBeenCalledWith(expect.stringMatching(/registered\/updated/i));
+        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+    });
+
+    it('reports failures from a 200 response with a `failed` array', async () => {
+        axiosPostMock.mockResolvedValue({
+            data: {
+                success: [],
+                failed: [{ id: 1, doi: '10.9999/one', reason: 'No landing page configured' }],
+            },
+        });
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('bulk-register-button'));
+
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('No landing page configured'));
+    });
+
+    it('handles a 207 partial-success error response from axios', async () => {
+        const error = Object.assign(new Error('Multi-Status'), {
+            isAxiosError: true,
+            response: {
+                status: 207,
+                data: {
+                    success: [{ id: 1, doi: '10.9999/one', updated: true }],
+                    failed: [{ id: 2, doi: '10.9999/two', reason: 'IGSN resources must use IGSN endpoint' }],
+                },
+            },
+        });
+        axiosPostMock.mockRejectedValue(error);
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        fireEvent.click(screen.getByTestId('bulk-register-button'));
+
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(toastMock.success).toHaveBeenCalledWith(expect.stringMatching(/registered\/updated/i));
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('IGSN'));
+        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+    });
+
+    it('shows a generic error toast when bulk register fails for an unexpected reason', async () => {
+        axiosPostMock.mockRejectedValue(new Error('boom'));
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('bulk-register-button'));
+
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(toastMock.error).toHaveBeenCalledWith('Bulk registration failed');
+    });
+
+    it('falls back to a synthesized filename when content-disposition is missing', async () => {
+        axiosPostMock.mockResolvedValue({
+            data: new Blob(['zip'], { type: 'application/zip' }),
+            headers: {},
+        });
+
+        const createUrl = vi.fn().mockReturnValue('blob:mock');
+        const revokeUrl = vi.fn();
+        Object.defineProperty(window.URL, 'createObjectURL', { value: createUrl, writable: true });
+        Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeUrl, writable: true });
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('bulk-export-button'));
+        await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON$/i }));
+
+        expect(createUrl).toHaveBeenCalled();
+        expect(toastMock.success).toHaveBeenCalledWith(expect.stringContaining('DATACITE-JSON'));
+    });
+
+    it('shows an error toast when bulk export fails', async () => {
+        axiosPostMock.mockRejectedValue(new Error('network down'));
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('bulk-export-button'));
+        await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON-LD/i }));
+
+        expect(toastMock.error).toHaveBeenCalledWith('Bulk export failed');
+    });
+
+    it('does not call the API when bulk register is invoked with no selection', () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        // Button is disabled while no selection — clicking has no effect
+        fireEvent.click(screen.getByTestId('bulk-register-button'));
+
+        expect(axiosPostMock).not.toHaveBeenCalled();
+    });
+
+    it('toggles a row off when its checkbox is clicked twice', () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        expect(screen.getByText(/^1 resource selected$/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        expect(screen.getByText(/select rows to enable bulk actions/i)).toBeInTheDocument();
+    });
+
+    it('clears the selection when the header checkbox is unchecked after a select-all', () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        expect(screen.getByText(/^3 resources selected$/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        expect(screen.getByText(/select rows to enable bulk actions/i)).toBeInTheDocument();
     });
 });
