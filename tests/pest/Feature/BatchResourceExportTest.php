@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteLinkedDataExporter;
+use App\Services\DataCiteXmlExporter;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -169,5 +172,118 @@ describe('BatchResourceExportController@export', function () {
         @unlink($zipPath);
 
         expect($name)->toContain("resource-{$resource->id}-")->toContain('10.1234-abcd');
+    });
+
+    test('falls back to id-only entry name when resource has no DOI', function () {
+        $resource = Resource::factory()->create(['doi' => null]);
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => [$resource->id],
+                'format' => 'datacite-json',
+            ]);
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'ernie-test-zip-');
+        file_put_contents($zipPath, $response->streamedContent() ?: $response->getContent());
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath);
+        $name = $zip->getNameIndex(0);
+        $zip->close();
+        @unlink($zipPath);
+
+        expect($name)->toBe("resource-{$resource->id}.json");
+    });
+
+    test('skips entries that fail during export but still produces a zip', function () {
+        $good = Resource::factory()->create(['doi' => '10.1234/good']);
+        $bad = Resource::factory()->create(['doi' => '10.1234/bad']);
+
+        $exporter = Mockery::mock(DataCiteJsonExporter::class);
+        $exporter->shouldReceive('export')
+            ->andReturnUsing(function (Resource $resource) use ($bad) {
+                if ($resource->id === $bad->id) {
+                    throw new \RuntimeException('Synthetic export failure');
+                }
+
+                return ['id' => 'ok', 'attributes' => []];
+            });
+        app()->instance(DataCiteJsonExporter::class, $exporter);
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => [$good->id, $bad->id],
+                'format' => 'datacite-json',
+            ]);
+
+        $response->assertOk();
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'ernie-test-zip-');
+        file_put_contents($zipPath, $response->streamedContent() ?: $response->getContent());
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath);
+        // Only the good resource ended up in the archive.
+        expect($zip->numFiles)->toBe(1);
+        expect($zip->getNameIndex(0))->toContain('10.1234-good');
+        $zip->close();
+        @unlink($zipPath);
+    });
+
+    test('uses the XML exporter for the datacite-xml format', function () {
+        $resource = Resource::factory()->create(['doi' => '10.1234/xml-call']);
+
+        $exporter = Mockery::mock(DataCiteXmlExporter::class);
+        $exporter->shouldReceive('export')
+            ->once()
+            ->andReturn('<?xml version="1.0"?><resource/>');
+        app()->instance(DataCiteXmlExporter::class, $exporter);
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => [$resource->id],
+                'format' => 'datacite-xml',
+            ]);
+
+        $response->assertOk();
+    });
+
+    test('uses the linked data exporter for the jsonld format', function () {
+        $resource = Resource::factory()->create(['doi' => '10.1234/ld-call']);
+
+        $exporter = Mockery::mock(DataCiteLinkedDataExporter::class);
+        $exporter->shouldReceive('export')
+            ->once()
+            ->andReturn(['@context' => 'https://schema.datacite.org/']);
+        app()->instance(DataCiteLinkedDataExporter::class, $exporter);
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => [$resource->id],
+                'format' => 'jsonld',
+            ]);
+
+        $response->assertOk();
+    });
+
+    test('deduplicates repeated ids in the export request', function () {
+        $resource = Resource::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => [$resource->id, $resource->id, $resource->id],
+                'format' => 'datacite-json',
+            ]);
+
+        $response->assertOk();
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'ernie-test-zip-');
+        file_put_contents($zipPath, $response->streamedContent() ?: $response->getContent());
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath);
+        expect($zip->numFiles)->toBe(1);
+        $zip->close();
+        @unlink($zipPath);
     });
 });

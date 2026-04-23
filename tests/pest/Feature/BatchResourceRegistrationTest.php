@@ -6,6 +6,7 @@ use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\DataCiteRegistrationService;
 use Illuminate\Support\Facades\Http;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -248,5 +249,193 @@ describe('BatchResourceRegistrationController@register', function () {
 
         $response->assertStatus(207);
         expect($response->json('failed.0.reason'))->toBe('Upstream error');
+    });
+
+    test('handles DataCite API error with detail-only error structure', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/DETAIL-ONLY']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response([
+                'errors' => [
+                    ['detail' => 'Detail-level error message'],
+                ],
+            ], 422),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))->toBe('Detail-level error message');
+    });
+
+    test('falls back to generic message when DataCite response has no errors body', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/NO-BODY']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response([], 503),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))
+            ->toBe('Failed to communicate with DataCite API.');
+    });
+
+    test('treats empty prefix string as missing prefix for new DOI registration', function () {
+        $resource = Resource::factory()->create(['doi' => null]);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+                'prefix' => '',
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))
+            ->toBe('Resource has no DOI. Provide a prefix to register a new DOI.');
+    });
+
+    test('reports InvalidArgumentException from the registration service as a failure', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/INVALID-001']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('updateMetadata')
+            ->once()
+            ->andThrow(new \InvalidArgumentException('Bad payload'));
+        app()->instance(DataCiteRegistrationService::class, $mock);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))->toBe('Bad payload');
+    });
+
+    test('reports RuntimeException from the registration service as a failure', function () {
+        $resource = Resource::factory()->create(['doi' => null]);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('registerDoi')
+            ->once()
+            ->andThrow(new \RuntimeException('Service offline'));
+        app()->instance(DataCiteRegistrationService::class, $mock);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+                'prefix' => '10.83279',
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))->toBe('Service offline');
+    });
+
+    test('hides unexpected errors from the user when app.debug is disabled', function () {
+        config(['app.debug' => false]);
+
+        $resource = Resource::factory()->create(['doi' => '10.83279/UNEXPECTED-001']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('updateMetadata')
+            ->once()
+            ->andThrow(new \LogicException('Internal stack trace details'));
+        app()->instance(DataCiteRegistrationService::class, $mock);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))
+            ->toBe('An unexpected error occurred during registration.');
+    });
+
+    test('exposes unexpected errors when app.debug is enabled', function () {
+        config(['app.debug' => true]);
+
+        $resource = Resource::factory()->create(['doi' => '10.83279/UNEXPECTED-002']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('updateMetadata')
+            ->once()
+            ->andThrow(new \LogicException('Detailed debug message'));
+        app()->instance(DataCiteRegistrationService::class, $mock);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))->toBe('Detailed debug message');
+    });
+
+    test('persists a freshly-minted DOI when DataCite returns a different identifier', function () {
+        $resource = Resource::factory()->create(['doi' => null]);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('registerDoi')
+            ->once()
+            ->andReturn([
+                'data' => [
+                    'id' => '10.83279/SERVER-ASSIGNED-XYZ',
+                    'type' => 'dois',
+                    'attributes' => ['state' => 'findable'],
+                ],
+            ]);
+        app()->instance(DataCiteRegistrationService::class, $mock);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+                'prefix' => '10.83279',
+            ]);
+
+        $response->assertOk();
+        $resource->refresh();
+        expect($resource->doi)->toBe('10.83279/SERVER-ASSIGNED-XYZ');
+    });
+
+    test('deduplicates repeated ids in the request payload', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/DEDUPE-001']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $mock = Mockery::mock(DataCiteRegistrationService::class);
+        $mock->shouldReceive('updateMetadata')
+            ->once() // important: only once even though we send the id twice
+            ->andReturn([
+                'data' => [
+                    'id' => '10.83279/DEDUPE-001',
+                    'type' => 'dois',
+                    'attributes' => ['state' => 'findable'],
+                ],
+            ]);
+        app()->instance(DataCiteRegistrationService::class, $mock);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id, $resource->id],
+            ]);
+
+        $response->assertOk();
+        expect($response->json('success'))->toHaveCount(1);
     });
 });

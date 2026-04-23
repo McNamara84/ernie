@@ -91,9 +91,9 @@ class BatchResourceExportController extends Controller
             abort(500, 'Unable to open temporary ZIP archive for writing.');
         }
 
-        $jsonExporter = new DataCiteJsonExporter;
-        $xmlExporter = new DataCiteXmlExporter;
-        $jsonLdExporter = new DataCiteLinkedDataExporter;
+        $jsonExporter = app(DataCiteJsonExporter::class);
+        $xmlExporter = app(DataCiteXmlExporter::class);
+        $jsonLdExporter = app(DataCiteLinkedDataExporter::class);
 
         $extension = match ($format) {
             self::FORMAT_XML => 'xml',
