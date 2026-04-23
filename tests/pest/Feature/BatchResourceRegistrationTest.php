@@ -462,4 +462,135 @@ describe('BatchResourceRegistrationController@register', function () {
         $response->assertOk();
         expect($response->json('success'))->toHaveCount(1);
     });
+
+    // --- Issue #610: ORCID preflight ---
+    test('ORCID preflight skips resources with confirmed-invalid ORCIDs', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-BAD']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $person = \App\Models\Person::factory()->create([
+            'given_name' => 'Bad',
+            'family_name' => 'Author',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        \App\Models\ResourceCreator::factory()
+            ->forPerson($person)
+            ->position(0)
+            ->create(['resource_id' => $resource->id]);
+
+        $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
+            $mock->shouldReceive('validateOrcid')
+                ->andReturn([
+                    'valid' => false,
+                    'exists' => false,
+                    'message' => 'Not found',
+                    'errorType' => 'not_found',
+                ]);
+        });
+
+        // DataCite must never be called when preflight blocks.
+        $dataCite = Mockery::mock(DataCiteRegistrationService::class);
+        $dataCite->shouldNotReceive('updateMetadata');
+        $dataCite->shouldNotReceive('registerDoi');
+        app()->instance(DataCiteRegistrationService::class, $dataCite);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed'))->toHaveCount(1);
+        expect($response->json('failed.0.reason'))->toContain('ORCID preflight failed');
+        expect($response->json('failed.0.reason'))->toContain('invalid ORCID');
+    });
+
+    test('ORCID preflight skips resources when ORCID service is unreachable (warnings)', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-WARN']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $person = \App\Models\Person::factory()->create([
+            'given_name' => 'Flaky',
+            'family_name' => 'Network',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        \App\Models\ResourceCreator::factory()
+            ->forPerson($person)
+            ->position(0)
+            ->create(['resource_id' => $resource->id]);
+
+        $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
+            $mock->shouldReceive('validateOrcid')
+                ->andReturn([
+                    'valid' => false,
+                    'exists' => null,
+                    'message' => 'Timeout',
+                    'errorType' => 'timeout',
+                ]);
+        });
+
+        $dataCite = Mockery::mock(DataCiteRegistrationService::class);
+        $dataCite->shouldNotReceive('updateMetadata');
+        app()->instance(DataCiteRegistrationService::class, $dataCite);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))->toContain('ORCID preflight skipped');
+    });
+
+    test('ORCID preflight reports combined invalid + warning counts', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-MIX']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        $badPerson = \App\Models\Person::factory()->create([
+            'given_name' => 'Bad',
+            'family_name' => 'One',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        $flakyPerson = \App\Models\Person::factory()->create([
+            'given_name' => 'Flaky',
+            'family_name' => 'Two',
+            'name_identifier' => '0000-0001-5109-3700',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        \App\Models\ResourceCreator::factory()->forPerson($badPerson)->position(0)
+            ->create(['resource_id' => $resource->id]);
+        \App\Models\ResourceCreator::factory()->forPerson($flakyPerson)->position(1)
+            ->create(['resource_id' => $resource->id]);
+
+        $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
+            $mock->shouldReceive('validateOrcid')
+                ->with('0000-0002-1825-0097')
+                ->andReturn([
+                    'valid' => false, 'exists' => false,
+                    'message' => 'Not found', 'errorType' => 'not_found',
+                ]);
+            $mock->shouldReceive('validateOrcid')
+                ->with('0000-0001-5109-3700')
+                ->andReturn([
+                    'valid' => false, 'exists' => null,
+                    'message' => 'Timeout', 'errorType' => 'timeout',
+                ]);
+        });
+
+        $dataCite = Mockery::mock(DataCiteRegistrationService::class);
+        app()->instance(DataCiteRegistrationService::class, $dataCite);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        $reason = $response->json('failed.0.reason');
+        expect($reason)->toContain('1 invalid');
+        expect($reason)->toContain('1 unverifiable');
+    });
 });

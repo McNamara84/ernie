@@ -72,6 +72,9 @@ describe('Services', function () {
             'App\Services\Assistance\AbstractAssistant',
             'App\Services\Assistance\GenericTableAssistant',
             'App\Services\Assistance\AssistantRegistrar',
+            'App\Services\Orcid\OrcidPreflightIssue',
+            'App\Services\Orcid\OrcidPreflightResult',
+            'App\Services\Orcid\OrcidPreflightValidator',
         ]);
 
     arch('services are not extending controllers')

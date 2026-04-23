@@ -242,3 +242,91 @@ it('produces a serializable payload shape', function () {
             'severity', 'reason', 'role', 'position', 'orcid', 'displayName',
         ]);
 });
+
+it('skips creators with null name_identifier', function () {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create([
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+    ]);
+    ResourceCreator::factory()
+        ->forPerson($person)
+        ->position(0)
+        ->create(['resource_id' => $resource->id]);
+
+    /** @var OrcidService&MockInterface $orcid */
+    $orcid = Mockery::mock(OrcidService::class);
+    $orcid->shouldNotReceive('validateOrcid');
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+
+    expect($result->shouldBlock)->toBeFalse()
+        ->and($result->warnings)->toBe([]);
+});
+
+it('skips institution creators (non-Person morph target)', function () {
+    $resource = Resource::factory()->create();
+    \App\Models\ResourceCreator::factory()
+        ->forInstitution()
+        ->position(0)
+        ->create(['resource_id' => $resource->id]);
+
+    /** @var OrcidService&MockInterface $orcid */
+    $orcid = Mockery::mock(OrcidService::class);
+    $orcid->shouldNotReceive('validateOrcid');
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+
+    expect($result->shouldBlock)->toBeFalse();
+});
+
+it('falls back to "Unnamed person" when display name cannot be built', function () {
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create([
+        'given_name' => '',
+        'family_name' => '',
+        'name_identifier' => 'not-an-orcid',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    ResourceCreator::factory()
+        ->forPerson($person)
+        ->position(0)
+        ->create(['resource_id' => $resource->id]);
+
+    /** @var OrcidService&MockInterface $orcid */
+    $orcid = Mockery::mock(OrcidService::class);
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+
+    expect($result->invalid[0]->displayName)->toBe('Unnamed person');
+});
+
+it('normalizes unexpected API error types to "unknown" warning', function () {
+    [$resource] = makeResourceWithCreatorOrcid(VALID_ORCID);
+
+    $orcid = mockOrcidService(function (MockInterface $mock) {
+        $mock->shouldReceive('validateOrcid')
+            ->andReturn([
+                'valid' => false,
+                'exists' => false,
+                'message' => 'Weird',
+                'errorType' => 'something_we_never_saw_before',
+            ]);
+    });
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource);
+
+    expect($result->shouldBlock)->toBeFalse()
+        ->and($result->warnings)->toHaveCount(1)
+        ->and($result->warnings[0]->reason)->toBe('unknown');
+});
+
+it('OrcidPreflightResult::clean() produces a result with no issues', function () {
+    $result = \App\Services\Orcid\OrcidPreflightResult::clean();
+
+    expect($result->shouldBlock)->toBeFalse()
+        ->and($result->needsConfirmation)->toBeFalse()
+        ->and($result->invalid)->toBe([])
+        ->and($result->warnings)->toBe([])
+        ->and($result->toPayload())->toBe(['invalid' => [], 'warnings' => []]);
+});

@@ -504,5 +504,106 @@ describe('RegisterDoiModal', () => {
                 expect(onSuccess).toHaveBeenCalledWith('10.83279/forced-doi');
             });
         });
+
+        it('renders plural author count when multiple ORCIDs are invalid', async () => {
+            const user = userEvent.setup();
+
+            mockPost.mockRejectedValueOnce(
+                makeAxiosError(422, {
+                    error: 'orcid_validation_failed',
+                    message: 'ORCID validation failed',
+                    invalid: [
+                        {
+                            severity: 'blocking',
+                            reason: 'not_found',
+                            role: 'creator',
+                            position: 0,
+                            orcid: '0000-0001-2345-6789',
+                            displayName: 'Jane Doe',
+                        },
+                        {
+                            severity: 'blocking',
+                            reason: 'checksum',
+                            role: 'creator',
+                            position: 1,
+                            orcid: '0000-0002-1111-1111',
+                            displayName: 'Bob Smith',
+                        },
+                    ],
+                    warnings: [],
+                }),
+            );
+
+            render(<RegisterDoiModal {...defaultProps} />);
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const alert = await screen.findByTestId('orcid-preflight-blockers');
+            expect(alert).toHaveTextContent(/2 authors/i);
+            expect(alert).toHaveTextContent('Jane Doe');
+            expect(alert).toHaveTextContent('Bob Smith');
+        });
+
+        it('swallows errors thrown by onSuccess callback without breaking the modal', async () => {
+            const user = userEvent.setup();
+
+            mockPost.mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'DOI registered successfully',
+                    doi: '10.83279/new-doi',
+                    mode: 'test',
+                    updated: false,
+                },
+            });
+
+            // onSuccess throws synchronously – modal must NOT re-throw.
+            const onSuccess = vi.fn(() => {
+                throw new Error('callback boom');
+            });
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+            render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            await waitFor(() => {
+                expect(onSuccess).toHaveBeenCalledWith('10.83279/new-doi');
+            });
+            expect(consoleSpy).toHaveBeenCalled();
+
+            consoleSpy.mockRestore();
+        });
+
+        it('re-displays generic error message when 500 response has no ORCID payload', async () => {
+            const user = userEvent.setup();
+
+            mockPost.mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 500,
+                    data: { success: false, message: 'Internal server error', doi: '', mode: 'test', updated: false },
+                },
+            });
+
+            render(<RegisterDoiModal {...defaultProps} />);
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            await waitFor(() => {
+                expect(screen.getByText(/internal server error/i)).toBeInTheDocument();
+            });
+            // No preflight alerts.
+            expect(screen.queryByTestId('orcid-preflight-blockers')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
+        });
     });
 });
