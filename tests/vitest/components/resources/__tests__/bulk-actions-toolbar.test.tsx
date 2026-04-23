@@ -168,4 +168,41 @@ describe('ResourcesBulkActionsToolbar', () => {
             expect(screen.getByTestId('bulk-register-button')).toBeDisabled();
         });
     });
+
+    describe('register disabled reason', () => {
+        it('renders an inline hint and disables the register button when a reason is provided', () => {
+            render(
+                <ResourcesBulkActionsToolbar
+                    {...baseProps}
+                    selectedCount={3}
+                    registerDisabledReason="2 resources have no DOI yet."
+                />,
+            );
+
+            expect(screen.getByTestId('bulk-register-blocked-hint')).toHaveTextContent(
+                '2 resources have no DOI yet.',
+            );
+            expect(screen.getByTestId('bulk-register-button')).toBeDisabled();
+        });
+
+        it('wires aria-describedby so assistive tech can announce the reason', () => {
+            render(
+                <ResourcesBulkActionsToolbar
+                    {...baseProps}
+                    selectedCount={1}
+                    registerDisabledReason="Selection contains a DOI-less resource."
+                />,
+            );
+
+            const hint = screen.getByTestId('bulk-register-blocked-hint');
+            // The tooltip trigger wraps the button; aria-describedby must point to the hint id.
+            const wrapper = screen.getByTestId('bulk-register-button').parentElement;
+            expect(wrapper).toHaveAttribute('aria-describedby', hint.id);
+        });
+
+        it('does not render the hint when no reason is supplied', () => {
+            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
+            expect(screen.queryByTestId('bulk-register-blocked-hint')).not.toBeInTheDocument();
+        });
+    });
 });

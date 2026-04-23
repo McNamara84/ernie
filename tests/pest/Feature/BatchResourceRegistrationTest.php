@@ -290,6 +290,30 @@ describe('BatchResourceRegistrationController@register', function () {
             ->toBe('Failed to communicate with DataCite API.');
     });
 
+    test('tolerates non-JSON DataCite error responses without raising a 500', function () {
+        $resource = Resource::factory()->create(['doi' => '10.83279/NON-JSON']);
+        LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        // Upstream returns an HTML error page, not JSON — `response()->json()` returns
+        // null. The handler must guard against that instead of dereferencing null.
+        Http::fake([
+            '*datacite.org/*' => Http::response(
+                '<html><body>Bad Gateway</body></html>',
+                502,
+                ['Content-Type' => 'text/html'],
+            ),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-register', [
+                'ids' => [$resource->id],
+            ]);
+
+        $response->assertStatus(207);
+        expect($response->json('failed.0.reason'))
+            ->toBe('Failed to communicate with DataCite API.');
+    });
+
     test('treats empty prefix string as missing prefix for new DOI registration', function () {
         $resource = Resource::factory()->create(['doi' => null]);
         LandingPage::factory()->create(['resource_id' => $resource->id]);

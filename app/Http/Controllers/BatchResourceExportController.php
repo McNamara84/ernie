@@ -93,6 +93,12 @@ class BatchResourceExportController extends Controller
                 };
 
                 if ($content === false) {
+                    Log::warning('Batch resource export: entry skipped (encoding failed)', [
+                        'resource_id' => $resource->id,
+                        'format' => $format,
+                        'json_error' => $format === self::FORMAT_XML ? null : json_last_error_msg(),
+                    ]);
+
                     continue;
                 }
 

@@ -148,13 +148,23 @@ class BatchResourceRegistrationController extends Controller
                     'updated' => $wasAlreadyRegistered,
                 ]);
             } catch (RequestException $e) {
-                // DataCite API error – extract user-friendly message
-                $apiError = $e->response->json();
+                // DataCite API error – extract a user-friendly message.
+                // `response->json()` may legitimately return null for non-JSON
+                // upstream payloads (HTML error pages, empty bodies, etc.), so
+                // everything below must tolerate a non-array result.
+                $apiResponse = $e->response;
+                $apiError = $apiResponse->json();
 
                 $errorMessage = 'Failed to communicate with DataCite API.';
-                if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {
+                if (is_array($apiError)
+                    && isset($apiError['errors'])
+                    && is_array($apiError['errors'])
+                    && count($apiError['errors']) > 0
+                ) {
                     $firstError = $apiError['errors'][0];
-                    $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
+                    if (is_array($firstError)) {
+                        $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
+                    }
                 }
 
                 $results['failed'][] = [
@@ -166,7 +176,8 @@ class BatchResourceRegistrationController extends Controller
                 Log::error('Batch resource registration: DataCite API error', [
                     'resource_id' => $resourceId,
                     'error' => $e->getMessage(),
-                    'api_response' => $apiError,
+                    'status' => $apiResponse->status(),
+                    'api_response' => is_array($apiError) ? $apiError : $apiResponse->body(),
                 ]);
             } catch (\InvalidArgumentException|\RuntimeException $e) {
                 $results['failed'][] = [

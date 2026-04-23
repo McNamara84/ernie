@@ -66,18 +66,6 @@
         ],
         "improvements": [
             {
-                "title": "Bulk Register Prevents Prefix-less Minting",
-                "description": "The Register Selected button on the Resources page is now automatically disabled (with an explanatory tooltip) when the selection contains any resource without a DOI. The bulk flow does not prompt for a DataCite prefix, so mixed selections that would previously fail at the backend are now caught in the UI — users are directed to the editor's single-resource registration to mint new DOIs."
-            },
-            {
-                "title": "Shared DataCite Eager-Load Relations",
-                "description": "The list of Eloquent relations required by the DataCite exporters has been extracted into a single `Resource::DATACITE_EXPORT_RELATIONS` constant and is now reused by both the bulk registration and bulk export endpoints, preventing the two code paths from drifting as new relations are added."
-            },
-            {
-                "title": "Bulk Toolbar Uses Shared LoadingButton",
-                "description": "The Register Selected and Export Selected buttons on the Resources page now use the shared `LoadingButton` component for their loading and disabled states, matching the rest of the application and removing duplicated spinner markup."
-            },
-            {
                 "title": "Responsive Resources Page Layout",
                 "description": "The Resources page now mirrors the IGSN page layout for small screens. The Import-from-DataCite button moved out of the card header into a new toolbar row directly below the filters (next to the bulk actions). Less critical sub-rows (Resource Type, Curator) and the Created/Updated column hide progressively on small and medium viewports so the essential information (Title, Author/Year, Status, Actions) remains visible without horizontal scrolling."
             },

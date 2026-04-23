@@ -1,4 +1,4 @@
-import { CloudUpload, Download } from 'lucide-react';
+import { CloudUpload, Download, Info } from 'lucide-react';
 
 import {
     DropdownMenu,
@@ -7,6 +7,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LoadingButton } from '@/components/ui/loading-button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export type ResourcesBulkExportFormat = 'datacite-json' | 'datacite-xml' | 'jsonld';
 
@@ -45,60 +46,95 @@ export function ResourcesBulkActionsToolbar({
     const registerBlocked = Boolean(registerDisabledReason);
 
     return (
-        <div
-            data-testid="resources-bulk-actions-toolbar"
-            className="flex flex-wrap items-center gap-2"
-        >
-            <span className="text-sm text-muted-foreground" aria-live="polite">
-                {hasSelection
-                    ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
-                    : 'Select rows to enable bulk actions'}
-            </span>
+        <TooltipProvider>
+            <div
+                data-testid="resources-bulk-actions-toolbar"
+                className="flex flex-wrap items-center gap-x-2 gap-y-1"
+            >
+                <span className="text-sm text-muted-foreground" aria-live="polite">
+                    {hasSelection
+                        ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
+                        : 'Select rows to enable bulk actions'}
+                </span>
 
-            <div className="ml-auto flex items-center gap-2">
-                {canRegister && (
-                    <LoadingButton
-                        type="button"
-                        size="default"
-                        onClick={onRegister}
-                        disabled={!hasSelection || registerBlocked || isExporting}
-                        loading={isRegistering}
-                        title={registerBlocked ? registerDisabledReason : undefined}
-                        data-testid="bulk-register-button"
+                <div className="ml-auto flex items-center gap-2">
+                    {canRegister && (
+                        <Tooltip>
+                            {/*
+                             * Wrap the button in a span so Radix can still receive
+                             * pointer/focus events for the tooltip even when the button
+                             * itself is disabled. `tabIndex={0}` makes the trigger
+                             * keyboard-focusable so screen-reader users can discover
+                             * the reason as well.
+                             */}
+                            <TooltipTrigger asChild>
+                                <span
+                                    className="inline-flex"
+                                    tabIndex={registerBlocked ? 0 : -1}
+                                    aria-describedby={registerBlocked ? 'bulk-register-blocked-hint' : undefined}
+                                >
+                                    <LoadingButton
+                                        type="button"
+                                        size="default"
+                                        onClick={onRegister}
+                                        disabled={!hasSelection || registerBlocked || isExporting}
+                                        loading={isRegistering}
+                                        data-testid="bulk-register-button"
+                                    >
+                                        {!isRegistering && <CloudUpload className="size-4" aria-hidden="true" />}
+                                        {isRegistering ? 'Registering...' : 'Register Selected'}
+                                    </LoadingButton>
+                                </span>
+                            </TooltipTrigger>
+                            {registerBlocked && (
+                                <TooltipContent side="bottom" className="max-w-sm text-center">
+                                    {registerDisabledReason}
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    )}
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <LoadingButton
+                                type="button"
+                                size="default"
+                                variant="outline"
+                                disabled={!hasSelection || isRegistering}
+                                loading={isExporting}
+                                data-testid="bulk-export-button"
+                            >
+                                {!isExporting && <Download className="size-4" aria-hidden="true" />}
+                                {isExporting ? 'Exporting...' : 'Export Selected'}
+                            </LoadingButton>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => onExport('datacite-json')}>
+                                DataCite JSON
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => onExport('datacite-xml')}>
+                                DataCite XML
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => onExport('jsonld')}>
+                                DataCite JSON-LD
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+
+                {registerBlocked && (
+                    <p
+                        id="bulk-register-blocked-hint"
+                        data-testid="bulk-register-blocked-hint"
+                        className="flex w-full items-start gap-1.5 text-xs text-muted-foreground"
+                        role="note"
                     >
-                        {!isRegistering && <CloudUpload className="size-4" aria-hidden="true" />}
-                        {isRegistering ? 'Registering...' : 'Register Selected'}
-                    </LoadingButton>
+                        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                        <span>{registerDisabledReason}</span>
+                    </p>
                 )}
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <LoadingButton
-                            type="button"
-                            size="default"
-                            variant="outline"
-                            disabled={!hasSelection || isRegistering}
-                            loading={isExporting}
-                            data-testid="bulk-export-button"
-                        >
-                            {!isExporting && <Download className="size-4" aria-hidden="true" />}
-                            {isExporting ? 'Exporting...' : 'Export Selected'}
-                        </LoadingButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => onExport('datacite-json')}>
-                            DataCite JSON
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onExport('datacite-xml')}>
-                            DataCite XML
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => onExport('jsonld')}>
-                            DataCite JSON-LD
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
             </div>
-        </div>
+        </TooltipProvider>
     );
 }
 
