@@ -1309,8 +1309,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <strong>Warning (override possible)</strong> – If the ORCID service is
                                 temporarily unreachable (network error, timeout, API error), the registration
-                                modal shows a warning. You can click <strong>"Register anyway"</strong> to
-                                resubmit with an override flag and continue without verification.
+                                modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
+                                re-runs the pre-flight against orcid.org (use this when the service may have
+                                recovered), and <strong>"Register anyway"</strong> submits with an override
+                                flag and continues without online verification.
                             </li>
                             <li>
                                 <strong>Success</strong> – Confirmed ORCIDs are stamped with an internal

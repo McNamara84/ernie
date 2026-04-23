@@ -117,7 +117,7 @@ it('stamps orcid_verified_at and returns clean result when the API confirms the 
     $orcid = mockOrcidService(function (MockInterface $mock) {
         $mock->shouldReceive('validateOrcid')
             ->once()
-            ->with(VALID_ORCID)
+            ->with(VALID_ORCID, Mockery::any(), Mockery::any())
             ->andReturn([
                 'valid' => true,
                 'exists' => true,

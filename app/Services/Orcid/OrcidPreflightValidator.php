@@ -145,7 +145,11 @@ final readonly class OrcidPreflightValidator
             );
         }
 
-        $response = $this->orcid->validateOrcid($bareId);
+        $response = $this->orcid->validateOrcid(
+            $bareId,
+            maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+            timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+        );
 
         // Successful confirmation → stamp verification timestamp and move on.
         if (($response['exists'] ?? null) === true) {

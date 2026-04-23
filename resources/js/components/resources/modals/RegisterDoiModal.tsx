@@ -419,22 +419,48 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                         Cancel
                     </Button>
                     {orcidBlockers.length === 0 && orcidWarnings.length > 0 ? (
-                        <Button
-                            onClick={() => handleSubmit(true)}
-                            disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
-                            data-testid="orcid-preflight-override"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <span className="mr-2" aria-live="polite">
-                                        Processing...
-                                    </span>
-                                    <Spinner size="sm" aria-label="Loading" />
-                                </>
-                            ) : (
-                                'Register anyway'
-                            )}
-                        </Button>
+                        <>
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    // Retry re-runs the preflight without force=true.
+                                    // If orcid.org is reachable now, the warnings clear
+                                    // automatically and the regular primary button reappears.
+                                    setOrcidWarnings([]);
+                                    setOrcidBlockers([]);
+                                    handleSubmit(false);
+                                }}
+                                disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                                data-testid="orcid-preflight-retry"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <span className="mr-2" aria-live="polite">
+                                            Processing...
+                                        </span>
+                                        <Spinner size="sm" aria-label="Loading" />
+                                    </>
+                                ) : (
+                                    'Retry verification'
+                                )}
+                            </Button>
+                            <Button
+                                onClick={() => handleSubmit(true)}
+                                disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                                data-testid="orcid-preflight-override"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <span className="mr-2" aria-live="polite">
+                                            Processing...
+                                        </span>
+                                        <Spinner size="sm" aria-label="Loading" />
+                                    </>
+                                ) : (
+                                    'Register anyway'
+                                )}
+                            </Button>
+                        </>
                     ) : (
                         <Button
                             onClick={() => handleSubmit()}

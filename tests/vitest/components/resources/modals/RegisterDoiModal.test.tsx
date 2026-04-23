@@ -605,5 +605,66 @@ describe('RegisterDoiModal', () => {
             expect(screen.queryByTestId('orcid-preflight-blockers')).not.toBeInTheDocument();
             expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
         });
+
+        it('offers a "Retry verification" button that re-runs preflight with force=false', async () => {
+            const user = userEvent.setup();
+
+            const warningResponse = makeAxiosError(409, {
+                error: 'orcid_validation_warning',
+                message: 'ORCID service unavailable',
+                invalid: [],
+                warnings: [
+                    {
+                        severity: 'warning',
+                        reason: 'timeout',
+                        role: 'creator',
+                        position: 0,
+                        orcid: '0000-0002-1825-0097',
+                        displayName: 'Jane Doe',
+                    },
+                ],
+            });
+
+            // First: warning. Second (retry): success.
+            mockPost
+                .mockRejectedValueOnce(warningResponse)
+                .mockResolvedValueOnce({
+                    data: {
+                        success: true,
+                        message: 'DOI registered successfully',
+                        doi: '10.83279/retried-doi',
+                        mode: 'test',
+                        updated: false,
+                    },
+                });
+
+            const onSuccess = vi.fn();
+            render(<RegisterDoiModal {...defaultProps} onSuccess={onSuccess} />);
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const retryButton = await screen.findByTestId('orcid-preflight-retry');
+            expect(retryButton).toHaveTextContent(/retry verification/i);
+
+            await user.click(retryButton);
+
+            // Second call must use force=false (not an override).
+            await waitFor(() => {
+                expect(mockPost).toHaveBeenLastCalledWith('/resources/1/register-doi', {
+                    prefix: '10.83279',
+                    force: false,
+                });
+            });
+
+            await waitFor(() => {
+                expect(onSuccess).toHaveBeenCalledWith('10.83279/retried-doi');
+            });
+
+            // Warning state cleared after successful retry.
+            expect(screen.queryByTestId('orcid-preflight-warnings')).not.toBeInTheDocument();
+        });
     });
 });

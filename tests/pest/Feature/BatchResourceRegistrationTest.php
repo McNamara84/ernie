@@ -567,13 +567,13 @@ describe('BatchResourceRegistrationController@register', function () {
 
         $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
             $mock->shouldReceive('validateOrcid')
-                ->with('0000-0002-1825-0097')
+                ->with('0000-0002-1825-0097', Mockery::any(), Mockery::any())
                 ->andReturn([
                     'valid' => false, 'exists' => false,
                     'message' => 'Not found', 'errorType' => 'not_found',
                 ]);
             $mock->shouldReceive('validateOrcid')
-                ->with('0000-0001-5109-3700')
+                ->with('0000-0001-5109-3700', Mockery::any(), Mockery::any())
                 ->andReturn([
                     'valid' => false, 'exists' => null,
                     'message' => 'Timeout', 'errorType' => 'timeout',
