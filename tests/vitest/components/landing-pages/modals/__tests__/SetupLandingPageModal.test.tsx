@@ -1162,7 +1162,7 @@ describe('SetupLandingPageModal', () => {
         });
     });
 
-    describe('Template Selection Persistence (Regression #<fix>)', () => {
+    describe('Template Selection Persistence (Regression PR #674)', () => {
         // Regression tests for the bug where a custom landing page template was
         // not retained when the Setup Landing Page dialog was reopened: the
         // loadLandingPageConfig() path did not hydrate landing_page_template_id
@@ -1225,6 +1225,71 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 const trigger = screen.getByLabelText(/Landing Page Template/i);
                 expect(trigger).toHaveTextContent('My Custom Template');
+            });
+        });
+
+        it('retains custom template selection after closing and reopening the dialog', async () => {
+            // Reproduces the exact user-reported scenario: open dialog, close
+            // it, reopen it — the saved custom template must still be shown
+            // in the dropdown (not "Default GFZ Data Services"). Before the
+            // fix, reopening hydrated all fields except landing_page_template_id,
+            // so the select fell back to the built-in default value.
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: 42,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+
+            const { rerender } = render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            // First open: custom template is shown.
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('My Custom Template');
+            });
+
+            // Close the dialog (state is reset in the component's useEffect
+            // cleanup branch when isOpen transitions to false).
+            rerender(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={false}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+
+            // Reopen the dialog — this re-triggers loadLandingPageConfig().
+            rerender(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            // After reopen, the custom template must still be selected.
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('My Custom Template');
             });
         });
 

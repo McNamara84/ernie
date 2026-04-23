@@ -88,12 +88,17 @@ describe('Landing Page Setup Modal (Smoke)', function (): void {
     });
 });
 
-describe('Landing Page Template Persistence (Regression)', function (): void {
-    // Regression coverage for the Setup Landing Page dialog losing its custom
-    // template selection on reopen. Before the fix, the select fell back to
-    // "Default GFZ Data Services" even when the resource had a custom
-    // landing_page_template_id persisted, because the loadLandingPageConfig()
-    // path did not hydrate the state.
+describe('Landing Page Template Persistence (Regression PR #674)', function (): void {
+    // Regression coverage (E2E) for PR #674: the Setup Landing Page dialog
+    // used to fall back to "Default GFZ Data Services" in the template select
+    // even when the resource had a custom landing_page_template_id persisted,
+    // because loadLandingPageConfig() did not hydrate that field into state.
+    //
+    // This test asserts the dropdown value reflects the persisted custom
+    // template on first open. The full close-and-reopen round-trip is covered
+    // exhaustively by the Vitest component test at
+    // tests/vitest/components/landing-pages/modals/__tests__/SetupLandingPageModal.test.tsx
+    // (see "retains custom template selection after closing and reopening").
 
     it('shows the previously assigned custom template in the Setup Landing Page dialog', function (): void {
         /** @var TestCase $this */
