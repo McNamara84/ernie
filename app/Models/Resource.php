@@ -67,6 +67,40 @@ class Resource extends Model
         'publication_year' => 'integer',
     ];
 
+    /**
+     * Relations that must be eager-loaded for DataCite export/registration.
+     *
+     * Shared by BatchResourceExportController and BatchResourceRegistrationController
+     * so both endpoints preload the same graph and cannot drift apart when new
+     * relations are added to the exporters.
+     *
+     * @var list<string>
+     */
+    public const DATACITE_EXPORT_RELATIONS = [
+        'igsnMetadata',
+        'landingPage',
+        'resourceType',
+        'language',
+        'publisher',
+        'titles.titleType',
+        'creators.creatorable',
+        'creators.affiliations',
+        'contributors.contributorable',
+        'contributors.contributorTypes',
+        'contributors.affiliations',
+        'descriptions.descriptionType',
+        'dates.dateType',
+        'subjects',
+        'geoLocations',
+        'rights',
+        'relatedIdentifiers.identifierType',
+        'relatedIdentifiers.relationType',
+        'fundingReferences.funderIdentifierType',
+        'alternateIdentifiers',
+        'sizes',
+        'formats',
+    ];
+
     // =========================================================================
     // Lookup Table Relations
     // =========================================================================

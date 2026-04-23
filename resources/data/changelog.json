@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-22",
+        "date": "2026-04-23",
         "features": [
+            {
+                "title": "Bulk Actions on Resources Page",
+                "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). The bulk register button is hidden for users without DOI registration permission. Per-row actions remain available."
+            },
             {
                 "title": "Landing Page Template Management",
                 "description": "Admins and Group Leaders can now create custom landing page templates by cloning the immutable Default GFZ template. Custom templates allow renaming, replacing the header logo with a custom image, and reordering all content sections via drag-and-drop with a live preview. Templates created this way appear in the template dropdown when setting up a landing page for a resource. Templates that are currently in use by landing pages are protected from deletion."
@@ -61,6 +65,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Responsive Resources Page Layout",
+                "description": "The Resources page now mirrors the IGSN page layout for small screens. The Import-from-DataCite button moved out of the card header into a new toolbar row directly below the filters (next to the bulk actions). Less critical sub-rows (Resource Type, Curator) and the Created/Updated column hide progressively on small and medium viewports so the essential information (Title, Author/Year, Status, Actions) remains visible without horizontal scrolling."
+            },
             {
                 "title": "TanStack Query Data Layer — Review Feedback Hardening",
                 "description": "Consolidated follow-up improvements from PR review rounds on the new TanStack Query data layer. CORS & headers: `apiClient` no longer injects `X-Requested-With` / CSRF headers on cross-origin requests by default and exposes an opt-out `skipCsrf` flag, avoiding needless preflights when calling third-party hosts; the MSL laboratories loader now fetches the external Utrecht vocabulary via a plain `fetch` with only simple headers to stay CORS-simple. Request handling: `apiRequest` recognises typed arrays and `DataView` via `ArrayBuffer.isView` so binary uploads reach the server untouched with the correct content type; the Vitest MSW server runs with `onUnhandledRequest: 'error'` and surfaces missing handlers as explicit test failures. DOI validation: `checkDoiBeforeSave` always hits the backend instead of reusing a cached 'available' response, coordinates with the debounced `validateDoi` through an `activeQueryKeyRef` so `isValidating` reports accurately across both paths, forwards TanStack Query's `signal` (combined with a local `AbortController`) into `apiRequest` so `queryClient.cancelQueries()` reliably aborts in-flight requests on unmount, falls back to the default/override error message on invalid format and resets `isValid` to `null` on errors; default error messages were translated to English. Caching & provider lifecycle: the 30-minute `staleTime` on ROR, MSL, and PID4INST vocabulary queries (and their editor prefetches) is now paired with a matching `gcTime` so cached data survives the full freshness window; `QueryProvider` lazily allocates a fallback `QueryClient` via a `useRef` only when no `client` prop is supplied (so `app.tsx` and the SSR entry point no longer pay for an unused internal instance per mount / request), and the Devtools import is additionally guarded by `typeof window !== 'undefined'` for safe SSR. Hook ergonomics: `useRorAffiliations` normalises the `unknown` error returned by TanStack Query to a real `Error` instance so its `Error | null` contract holds regardless of what the fetch layer throws. Tooling: query-key factory uses the Wayfinder `.url()` helper for consistency with the rest of the codebase; Vitest render helpers use a lazy `useState` initialiser so the test `QueryClient` is created once per mount; test cookie cleanup now iterates the jar and expires each entry instead of assigning an empty string (which is a no-op in jsdom). Coverage for the query layer increased substantially (DOI validation: 32% → 85%+, api-client: 86% → 92%)."
