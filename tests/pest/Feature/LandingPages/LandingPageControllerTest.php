@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\LandingPageController;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
 
@@ -415,7 +416,7 @@ describe('External Landing Page Update', function () {
 
 describe('Landing Page Template Assignment', function () {
     test('can create landing page with custom template', function () {
-        $template = \App\Models\LandingPageTemplate::factory()->create([
+        $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->user->id,
         ]);
 
@@ -433,7 +434,7 @@ describe('Landing Page Template Assignment', function () {
     });
 
     test('can update landing page template assignment', function () {
-        $template = \App\Models\LandingPageTemplate::factory()->create([
+        $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->user->id,
         ]);
 
@@ -456,7 +457,7 @@ describe('Landing Page Template Assignment', function () {
     });
 
     test('can clear template assignment by setting null', function () {
-        $template = \App\Models\LandingPageTemplate::factory()->create([
+        $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->user->id,
         ]);
 
@@ -487,5 +488,46 @@ describe('Landing Page Template Assignment', function () {
         ]);
 
         $response->assertJsonValidationErrors(['landing_page_template_id']);
+    });
+});
+
+describe('Landing Page GET Endpoint', function () {
+    // Regression coverage for the Setup Landing Page dialog template-persistence
+    // bug: the GET endpoint must return landing_page_template_id so the frontend
+    // can hydrate the dropdown with the currently saved custom template.
+
+    test('returns landing_page_template_id when a custom template is assigned', function () {
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response = $this->getJson("/resources/{$this->resource->id}/landing-page");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id)
+            ->assertJsonPath('landing_page.template', 'default_gfz')
+            ->assertJsonPath('landing_page.landing_page_template.id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.name', $template->name);
+    });
+
+    test('returns null landing_page_template_id when no custom template is assigned', function () {
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => null,
+        ]);
+
+        $response = $this->getJson("/resources/{$this->resource->id}/landing-page");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
     });
 });

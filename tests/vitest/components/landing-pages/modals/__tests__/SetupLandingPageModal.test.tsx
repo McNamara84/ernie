@@ -1161,4 +1161,298 @@ describe('SetupLandingPageModal', () => {
             expect(screen.queryByRole('button', { name: /Remove Preview/i })).not.toBeInTheDocument();
         });
     });
+
+    describe('Template Selection Persistence (Regression PR #674)', () => {
+        // Regression tests for the bug where a custom landing page template was
+        // not retained when the Setup Landing Page dialog was reopened: the
+        // loadLandingPageConfig() path did not hydrate landing_page_template_id
+        // into state, so the dropdown fell back to "default_gfz" and a subsequent
+        // save overwrote the DB field with null.
+
+        const customTemplatesResponse = {
+            data: {
+                templates: [
+                    {
+                        id: 1,
+                        name: 'Default GFZ Data Services',
+                        slug: 'default_gfz',
+                        is_default: true,
+                        logo_url: null,
+                        right_column_order: [],
+                        left_column_order: [],
+                    },
+                    {
+                        id: 42,
+                        name: 'My Custom Template',
+                        slug: 'my-custom-template',
+                        is_default: false,
+                        logo_url: null,
+                        right_column_order: [],
+                        left_column_order: [],
+                    },
+                ],
+            },
+        };
+
+        it('restores custom template selection when loading config from server (no existingConfig prop)', async () => {
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: 42,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            // The select trigger should display the custom template name, not
+            // the fallback "Default GFZ Data Services".
+            await waitFor(() => {
+                const trigger = screen.getByLabelText(/Landing Page Template/i);
+                expect(trigger).toHaveTextContent('My Custom Template');
+            });
+        });
+
+        it('retains custom template selection after closing and reopening the dialog', async () => {
+            // Reproduces the exact user-reported scenario: open dialog, close
+            // it, reopen it — the saved custom template must still be shown
+            // in the dropdown (not "Default GFZ Data Services"). Before the
+            // fix, reopening hydrated all fields except landing_page_template_id,
+            // so the select fell back to the built-in default value.
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: 42,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+
+            const { rerender } = render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            // First open: custom template is shown.
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('My Custom Template');
+            });
+
+            // Close the dialog (state is reset in the component's useEffect
+            // cleanup branch when isOpen transitions to false).
+            rerender(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={false}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+
+            // Reopen the dialog — this re-triggers loadLandingPageConfig().
+            rerender(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            // After reopen, the custom template must still be selected.
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('My Custom Template');
+            });
+        });
+
+        it('sends the previously saved landing_page_template_id when saving without re-selection', async () => {
+            // This asserts the cascading symptom: if the custom template is NOT
+            // hydrated into state, a plain Save (no re-selection) sends null
+            // and silently resets the DB field. With the fix in place, the
+            // original template id must round-trip back on save.
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: 42,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+            mockedAxiosPut.mockResolvedValue({ data: { landing_page: serverConfig } });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // Wait for the custom template to be reflected in the trigger.
+            await waitFor(() => {
+                const trigger = screen.getByLabelText(/Landing Page Template/i);
+                expect(trigger).toHaveTextContent('My Custom Template');
+            });
+
+            const updateButton = screen.getByRole('button', { name: /Update/i });
+            await user.click(updateButton);
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz',
+                        landing_page_template_id: 42,
+                    }),
+                );
+            });
+        });
+
+        it('resets landing_page_template_id to null when server returns null (default template)', async () => {
+            // Regression guard: the defensive null-reset in the 404 branch and
+            // the successful-load branch must keep the null path stable.
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: null,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+            mockedAxiosPut.mockResolvedValue({ data: { landing_page: serverConfig } });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                const trigger = screen.getByLabelText(/Landing Page Template/i);
+                expect(trigger).toHaveTextContent('Default GFZ Data Services');
+            });
+
+            const updateButton = screen.getByRole('button', { name: /Update/i });
+            await user.click(updateButton);
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+
+        it('resets landing_page_template_id to null on 404 (no landing page exists)', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 404 },
+                });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: {
+                        ...mockExistingConfig,
+                        status: 'draft',
+                        landing_page_template_id: null,
+                    },
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            const saveButton = screen.getByRole('button', { name: /Create Preview/i });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+    });
 });
