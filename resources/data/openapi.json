@@ -1052,6 +1052,75 @@
                 }
             }
         },
+        "/api/v1/citation-lookup": {
+            "get": {
+                "tags": ["DataCite"],
+                "summary": "Look up bibliographic metadata by DOI (Citation Manager)",
+                "description": "Returns structured bibliographic metadata (title, authors, publication year, volume, issue, pages, publisher, identifier) for a given DOI. Used by the Citation Manager curation form to auto-fill related item fields. Primary source is the Crossref REST API (polite pool); DataCite is used as a fallback. Responses are cached for 24h. Requires authentication and is rate-limited to 30 requests per minute per user.",
+                "parameters": [
+                    {
+                        "name": "doi",
+                        "in": "query",
+                        "required": true,
+                        "description": "The DOI to look up (bare DOI or resolver URL).",
+                        "schema": {
+                            "type": "string",
+                            "example": "10.1029/2018JB016456"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metadata retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "doi": { "type": "string", "example": "10.1029/2018JB016456" },
+                                        "related_item_type": { "type": "string", "example": "JournalArticle" },
+                                        "title": { "type": "string" },
+                                        "publication_year": { "type": "integer", "nullable": true, "example": 2019 },
+                                        "publisher": { "type": "string", "nullable": true },
+                                        "volume": { "type": "string", "nullable": true },
+                                        "issue": { "type": "string", "nullable": true },
+                                        "first_page": { "type": "string", "nullable": true },
+                                        "last_page": { "type": "string", "nullable": true },
+                                        "source": { "type": "string", "enum": ["crossref", "datacite"] },
+                                        "creators": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name_type": { "type": "string", "enum": ["Personal", "Organizational"] },
+                                                    "name": { "type": "string" },
+                                                    "given_name": { "type": "string", "nullable": true },
+                                                    "family_name": { "type": "string", "nullable": true },
+                                                    "name_identifier": { "type": "string", "nullable": true },
+                                                    "name_identifier_scheme": { "type": "string", "nullable": true }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "DOI not found in Crossref or DataCite"
+                    },
+                    "422": {
+                        "description": "Missing or invalid DOI query parameter"
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded (30 requests/minute)"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
         "/api/datacite/citation": {
             "get": {
                 "tags": ["DataCite"],

@@ -5,9 +5,9 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
-import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import {
     ResourcesBulkActionsToolbar,

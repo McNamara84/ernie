@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
+
 import { http, HttpResponse, server } from '../helpers/msw-server';
 
 describe('useCitationVocabularies', () => {

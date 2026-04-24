@@ -35,6 +35,7 @@ import {
 } from '@/utils/validation-rules';
 
 import AuthorField, { type AuthorEntry } from './fields/author';
+import { CitationsField } from './fields/citations-field';
 import ContributorField, { type ContributorEntry } from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import { DatacenterField } from './fields/datacenter-field';
@@ -46,7 +47,6 @@ import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
-import { CitationsField } from './fields/citations-field';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
@@ -1836,6 +1836,7 @@ export default function DataCiteForm({
         fundingReferences,
         gcmdKeywords,
         importedCreatedDate,
+        initialRelatedItems,
         instruments,
         licenseEntries,
         mslLaboratories,

@@ -15,6 +15,7 @@ import {
     Link2,
     MapPin,
     Palette,
+    Quote,
     Rocket,
     Settings,
     Sparkles,
@@ -1074,6 +1075,78 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>IsNewVersionOf:</strong> Version relationships
                             </li>
                         </ul>
+                    </>
+                ),
+            },
+            {
+                id: 'citation-manager',
+                title: 'Citation Manager',
+                icon: Quote,
+                minRole: 'curator',
+                content: (
+                    <>
+                        <h3>Inline Citations (DataCite 4.7 <code>relatedItem</code>)</h3>
+                        <p>
+                            The Citation Manager complements plain <em>Related Identifiers</em> by allowing you to attach full bibliographic
+                            metadata for related works — including title, authors, publication year, volume, issue, pages, and publisher —
+                            directly to the resource. This is especially useful when citing a work that has no persistent identifier, or when
+                            the linked record should remain visible even if the external DOI later becomes unavailable.
+                        </p>
+
+                        <h4>Where to find it</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Resources list:</strong> click the quote icon <code>&quot;</code> in the Actions column of any row to open the
+                                Citation Manager modal for that resource.
+                            </li>
+                            <li>
+                                <strong>Curation form:</strong> expand the <em>Citations</em> accordion to add, edit, or delete citations while
+                                editing a resource.
+                            </li>
+                        </ul>
+
+                        <h4>Adding a Citation</h4>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Auto-fill by DOI (recommended)">
+                                <p>
+                                    Enter a DOI in the identifier field and the form will pre-populate title, authors, year, volume, issue,
+                                    pages and publisher from Crossref (with DataCite as fallback). You can override any field afterwards.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Choose Relation & Type">
+                                <p>
+                                    Select the relation type (e.g. <em>IsCitedBy</em>, <em>IsSupplementTo</em>) and the related item type
+                                    (<em>JournalArticle</em>, <em>Book</em>, <em>Dataset</em>, …).
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
+                                <p>
+                                    Every citation requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
+                                    contributors additionally carry a <em>contributorType</em> (Editor, Translator, …).
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Save & Reorder">
+                                <p>
+                                    Citations are persisted immediately. Drag rows in the list to change their display order on the landing
+                                    page. Switch between APA and IEEE preview styles and copy the formatted citation with one click.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <h4>Export &amp; Import</h4>
+                        <p>
+                            Citations are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
+                            <code>&lt;relatedItems&gt;</code>/<code>relatedItems</code> and in the Schema.org landing page markup
+                            (<code>citation</code> block). XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on import and
+                            pre-filled in the editor. The DataCite JSON import path imports citations automatically.
+                        </p>
+
+                        <h4>On the Landing Page</h4>
+                        <p>
+                            Inline citations appear in the <em>Related Work</em> section alongside standard related identifiers, labelled with
+                            an <em>Inline metadata</em> badge. If the citation has a DOI or URL identifier, the card links out to the external
+                            resource.
+                        </p>
                     </>
                 ),
             },

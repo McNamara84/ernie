@@ -75,6 +75,11 @@ describe('Services', function () {
             'App\Services\Orcid\OrcidPreflightIssue',
             'App\Services\Orcid\OrcidPreflightResult',
             'App\Services\Orcid\OrcidPreflightValidator',
+            'App\Services\Citations\CitationFormatter',
+            'App\Services\Citations\CitationLookupResult',
+            'App\Services\Citations\CrossrefClient',
+            'App\Services\Citations\CrossrefTypeMapper',
+            'App\Services\Citations\DataCiteTypeMapper',
         ]);
 
     arch('services are not extending controllers')
@@ -135,4 +140,33 @@ describe('No Debugging Code', function () {
     arch('no dd() or dump() in production code')
         ->expect('App')
         ->not->toUse(['dd', 'dump', 'ray']);
+});
+
+describe('Citation Manager', function () {
+    // Keep HTTP access isolated to CrossrefClient. All other services in
+    // App\Services\Citations must stay pure (no Guzzle, no Http facade,
+    // no Http\Client\Factory) to remain trivially unit-testable.
+    arch('only CrossrefClient performs outbound HTTP calls')
+        ->expect('App\Services\Citations')
+        ->not->toUse([
+            'Illuminate\Http\Client\Factory',
+            'Illuminate\Http\Client\PendingRequest',
+            'Illuminate\Support\Facades\Http',
+            'GuzzleHttp\Client',
+        ])
+        ->ignoring('App\Services\Citations\CrossrefClient');
+
+    arch('citation manager models extend Eloquent Model')
+        ->expect([
+            'App\Models\RelatedItem',
+            'App\Models\RelatedItemTitle',
+            'App\Models\RelatedItemCreator',
+            'App\Models\RelatedItemCreatorAffiliation',
+            'App\Models\RelatedItemContributor',
+            'App\Models\RelatedItemContributorAffiliation',
+        ])->toExtend('Illuminate\Database\Eloquent\Model');
+
+    arch('citation manager services do not depend on controllers')
+        ->expect('App\Services\Citations')
+        ->not->toUse('App\Http\Controllers');
 });

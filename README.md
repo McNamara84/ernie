@@ -17,6 +17,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 ## Features
 
 - **DataCite v4.7 Metadata Editor** – Complete support for DOI registration with all mandatory and recommended fields
+- **Citation Manager** – Curate inline bibliographic metadata (DataCite 4.7 `relatedItem`) for related works, with Crossref DOI auto-fill and APA/IEEE preview
 - **Role-Based Access Control** – Four-tier permission system (Admin, Group Leader, Curator, Beginner)
 - **IGSN Support** – Physical sample registration with CSV import and hierarchical relationships
 - **ORCID & ROR Integration** – Researcher identification and institutional affiliation lookup
