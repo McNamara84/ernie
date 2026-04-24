@@ -121,6 +121,10 @@ class DataCiteJsonExporter
             $attributes['relatedIdentifiers'] = $relatedIdentifiers;
         }
 
+        if ($relatedItems = $this->buildRelatedItems($resource)) {
+            $attributes['relatedItems'] = $relatedItems;
+        }
+
         if ($sizes = $this->buildSizes($resource)) {
             $attributes['sizes'] = $sizes;
         }
@@ -942,6 +946,128 @@ class DataCiteJsonExporter
         }
 
         return ! empty($relatedIdentifiers) ? $relatedIdentifiers : null;
+    }
+
+    /**
+     * Build relatedItems array (DataCite 4.7, property 22 — optional).
+     *
+     * Each relatedItem carries inline citation metadata (titles, creators,
+     * publisher, volume, issue, pages, …).
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function buildRelatedItems(Resource $resource): ?array
+    {
+        if ($resource->relatedItems->isEmpty()) {
+            return null;
+        }
+
+        $result = [];
+        foreach ($resource->relatedItems as $item) {
+            $data = [
+                'relatedItemType' => $item->related_item_type,
+                'relationType' => $item->relationType->slug ?? 'References',
+                'titles' => $item->titles->map(fn ($t): array => array_filter([
+                    'title' => $t->title,
+                    'titleType' => $t->title_type === 'MainTitle' ? null : $t->title_type,
+                ], fn ($v) => $v !== null))->all(),
+            ];
+
+            if (is_string($item->identifier) && $item->identifier !== ''
+                && is_string($item->identifier_type) && $item->identifier_type !== ''
+            ) {
+                $data['relatedItemIdentifier'] = [
+                    'relatedItemIdentifier' => $item->identifier,
+                    'relatedItemIdentifierType' => $item->identifier_type,
+                ];
+            }
+
+            if ($item->creators->isNotEmpty()) {
+                $data['creators'] = $item->creators->map(fn ($c): array => $this->buildRelatedItemPerson($c))->all();
+            }
+            if ($item->contributors->isNotEmpty()) {
+                $data['contributors'] = $item->contributors->map(function ($c): array {
+                    $arr = $this->buildRelatedItemPerson($c);
+                    $arr['contributorType'] = $c->contributor_type;
+
+                    return $arr;
+                })->all();
+            }
+
+            if ($item->publication_year !== null) {
+                $data['publicationYear'] = (string) $item->publication_year;
+            }
+
+            foreach (['volume', 'issue', 'number', 'publisher', 'edition', 'first_page', 'last_page'] as $field) {
+                $value = $item->{$field};
+                if (is_string($value) && $value !== '') {
+                    $key = match ($field) {
+                        'first_page' => 'firstPage',
+                        'last_page' => 'lastPage',
+                        default => $field,
+                    };
+                    $data[$key] = $value;
+                }
+            }
+            if (is_string($item->number_type) && $item->number_type !== '' && isset($data['number'])) {
+                $data['numberType'] = $item->number_type;
+            }
+
+            $result[] = $data;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Build a person entry (creator/contributor) for a related item.
+     *
+     * @param \App\Models\RelatedItemCreator|\App\Models\RelatedItemContributor $person
+     * @return array<string, mixed>
+     */
+    private function buildRelatedItemPerson($person): array
+    {
+        $data = [
+            'name' => $person->name,
+            'nameType' => $person->name_type,
+        ];
+
+        if (is_string($person->given_name) && $person->given_name !== '') {
+            $data['givenName'] = $person->given_name;
+        }
+        if (is_string($person->family_name) && $person->family_name !== '') {
+            $data['familyName'] = $person->family_name;
+        }
+        if (is_string($person->name_identifier) && $person->name_identifier !== ''
+            && is_string($person->name_identifier_scheme) && $person->name_identifier_scheme !== ''
+        ) {
+            $ni = [
+                'nameIdentifier' => $person->name_identifier,
+                'nameIdentifierScheme' => $person->name_identifier_scheme,
+            ];
+            if (is_string($person->scheme_uri) && $person->scheme_uri !== '') {
+                $ni['schemeUri'] = $person->scheme_uri;
+            }
+            $data['nameIdentifiers'] = [$ni];
+        }
+
+        $affiliations = [];
+        foreach ($person->affiliations as $aff) {
+            /** @var \App\Models\RelatedItemCreatorAffiliation|\App\Models\RelatedItemContributorAffiliation $aff */
+            $entry = ['name' => $aff->name];
+            if (is_string($aff->affiliation_identifier) && $aff->affiliation_identifier !== '') {
+                $entry['affiliationIdentifier'] = $aff->affiliation_identifier;
+            }
+            if (is_string($aff->scheme) && $aff->scheme !== '') {
+                $entry['affiliationIdentifierScheme'] = $aff->scheme;
+            }
+            $affiliations[] = $entry;
+        }
+        if ($affiliations !== []) {
+            $data['affiliation'] = $affiliations;
+        }
+
+        return $data;
     }
 
     /**

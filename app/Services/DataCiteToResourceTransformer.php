@@ -19,6 +19,12 @@ use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
+use App\Models\RelatedItem;
+use App\Models\RelatedItemContributor;
+use App\Models\RelatedItemContributorAffiliation;
+use App\Models\RelatedItemCreator;
+use App\Models\RelatedItemCreatorAffiliation;
+use App\Models\RelatedItemTitle;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -75,6 +81,7 @@ class DataCiteToResourceTransformer
             $this->transformDates($attributes['dates'] ?? [], $resource);
             $this->transformGeoLocations($attributes['geoLocations'] ?? [], $resource);
             $this->transformRelatedIdentifiers($attributes['relatedIdentifiers'] ?? [], $resource);
+            $this->transformRelatedItems($attributes['relatedItems'] ?? [], $resource);
             $this->transformFundingReferences($attributes['fundingReferences'] ?? [], $resource);
             $this->transformRights($attributes['rightsList'] ?? [], $resource);
             $this->transformSizes($attributes['sizes'] ?? [], $resource);
@@ -992,6 +999,157 @@ class DataCiteToResourceTransformer
                 'scheme_uri' => $relIdData['schemeUri'] ?? null,
                 'scheme_type' => $relIdData['schemeType'] ?? null,
                 'position' => $position + 1,
+            ]);
+        }
+    }
+
+    /**
+     * Transform related items (DataCite 4.7) from DataCite JSON into RelatedItem + children.
+     *
+     * @param  array<int, array<string, mixed>>  $relatedItems
+     */
+    private function transformRelatedItems(array $relatedItems, Resource $resource): void
+    {
+        foreach ($relatedItems as $position => $riData) {
+            $relationTypeSlug = $riData['relationType'] ?? null;
+            $relatedItemType = $riData['relatedItemType'] ?? null;
+
+            if (! is_string($relationTypeSlug) || ! is_string($relatedItemType)) {
+                continue;
+            }
+
+            $relationTypeId = $this->getLookupId(RelationType::class, 'slug', $relationTypeSlug);
+            if ($relationTypeId === null) {
+                continue;
+            }
+
+            // DataCite 4.7 stores the identifier as a nested object or a simple string
+            $identifier = null;
+            $identifierType = null;
+            if (isset($riData['relatedItemIdentifier'])) {
+                $raw = $riData['relatedItemIdentifier'];
+                if (is_array($raw)) {
+                    $identifier = is_string($raw['relatedItemIdentifier'] ?? null) ? $raw['relatedItemIdentifier'] : null;
+                    $identifierType = is_string($raw['relatedItemIdentifierType'] ?? null) ? $raw['relatedItemIdentifierType'] : null;
+                } elseif (is_string($raw)) {
+                    $identifier = $raw;
+                    $identifierType = is_string($riData['relatedItemIdentifierType'] ?? null) ? $riData['relatedItemIdentifierType'] : null;
+                }
+            }
+
+            $relatedItem = RelatedItem::create([
+                'resource_id' => $resource->id,
+                'related_item_type' => $relatedItemType,
+                'relation_type_id' => $relationTypeId,
+                'identifier' => $identifier,
+                'identifier_type' => $identifierType,
+                'publication_year' => isset($riData['publicationYear']) ? (int) $riData['publicationYear'] : null,
+                'volume' => $riData['volume'] ?? null,
+                'issue' => $riData['issue'] ?? null,
+                'number' => $riData['number'] ?? null,
+                'number_type' => $riData['numberType'] ?? null,
+                'first_page' => $riData['firstPage'] ?? null,
+                'last_page' => $riData['lastPage'] ?? null,
+                'publisher' => $riData['publisher'] ?? null,
+                'edition' => $riData['edition'] ?? null,
+                'position' => $position,
+            ]);
+
+            // Titles
+            foreach (($riData['titles'] ?? []) as $titlePos => $titleData) {
+                if (! is_array($titleData) || ! isset($titleData['title']) || ! is_string($titleData['title'])) {
+                    continue;
+                }
+                RelatedItemTitle::create([
+                    'related_item_id' => $relatedItem->id,
+                    'title' => $titleData['title'],
+                    'title_type' => is_string($titleData['titleType'] ?? null) ? $titleData['titleType'] : 'MainTitle',
+                    'position' => $titlePos,
+                ]);
+            }
+
+            // Creators
+            foreach (($riData['creators'] ?? []) as $cPos => $creatorData) {
+                if (! is_array($creatorData)) {
+                    continue;
+                }
+                $creator = $this->createRelatedItemPerson($creatorData, $relatedItem->id, $cPos, RelatedItemCreator::class);
+                $this->createRelatedItemAffiliations($creatorData, $creator->id, RelatedItemCreatorAffiliation::class, 'related_item_creator_id');
+            }
+
+            // Contributors
+            foreach (($riData['contributors'] ?? []) as $cPos => $contribData) {
+                if (! is_array($contribData)) {
+                    continue;
+                }
+                $contributor = $this->createRelatedItemPerson($contribData, $relatedItem->id, $cPos, RelatedItemContributor::class);
+                $this->createRelatedItemAffiliations($contribData, $contributor->id, RelatedItemContributorAffiliation::class, 'related_item_contributor_id');
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  class-string<RelatedItemCreator|RelatedItemContributor>  $modelClass
+     * @return RelatedItemCreator|RelatedItemContributor
+     */
+    private function createRelatedItemPerson(array $data, int $relatedItemId, int $position, string $modelClass)
+    {
+        $nameIdentifier = null;
+        $nameIdentifierScheme = null;
+        $schemeUri = null;
+
+        if (is_array($data['nameIdentifiers'] ?? null) && $data['nameIdentifiers'] !== []) {
+            $first = $data['nameIdentifiers'][0] ?? null;
+            if (is_array($first)) {
+                $nameIdentifier = is_string($first['nameIdentifier'] ?? null) ? $first['nameIdentifier'] : null;
+                $nameIdentifierScheme = is_string($first['nameIdentifierScheme'] ?? null) ? $first['nameIdentifierScheme'] : null;
+                $schemeUri = is_string($first['schemeUri'] ?? null) ? $first['schemeUri'] : null;
+            }
+        }
+
+        $attrs = [
+            'related_item_id' => $relatedItemId,
+            'name_type' => is_string($data['nameType'] ?? null) ? $data['nameType'] : 'Personal',
+            'name' => is_string($data['name'] ?? null) ? $data['name'] : '',
+            'given_name' => $data['givenName'] ?? null,
+            'family_name' => $data['familyName'] ?? null,
+            'name_identifier' => $nameIdentifier,
+            'name_identifier_scheme' => $nameIdentifierScheme,
+            'scheme_uri' => $schemeUri,
+            'position' => $position,
+        ];
+
+        if ($modelClass === RelatedItemContributor::class) {
+            $attrs['contributor_type'] = is_string($data['contributorType'] ?? null) ? $data['contributorType'] : 'Other';
+        }
+
+        /** @var RelatedItemCreator|RelatedItemContributor $model */
+        $model = $modelClass::create($attrs);
+
+        return $model;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  class-string<RelatedItemCreatorAffiliation|RelatedItemContributorAffiliation>  $affiliationClass
+     */
+    private function createRelatedItemAffiliations(array $data, int $personId, string $affiliationClass, string $foreignKey): void
+    {
+        if (! is_array($data['affiliation'] ?? null)) {
+            return;
+        }
+
+        foreach ($data['affiliation'] as $pos => $aff) {
+            if (! is_array($aff) || ! isset($aff['name']) || ! is_string($aff['name']) || $aff['name'] === '') {
+                continue;
+            }
+            $affiliationClass::create([
+                $foreignKey => $personId,
+                'name' => $aff['name'],
+                'affiliation_identifier' => is_string($aff['affiliationIdentifier'] ?? null) ? $aff['affiliationIdentifier'] : null,
+                'scheme' => is_string($aff['affiliationIdentifierScheme'] ?? null) ? $aff['affiliationIdentifierScheme'] : null,
+                'position' => $pos,
             ]);
         }
     }

@@ -118,6 +118,14 @@ class SchemaOrgJsonLdExporter
             $jsonLd['version'] = $attributes['version'];
         }
 
+        // Citation: related items become schema:citation CreativeWork entries
+        if (! empty($attributes['relatedItems'])) {
+            $citations = $this->transformCitations($attributes['relatedItems']);
+            if ($citations !== []) {
+                $jsonLd['citation'] = $citations;
+            }
+        }
+
         // subjectOf: cross-links to other metadata formats via DataCite Content Negotiation
         if (isset($attributes['doi'])) {
             $jsonLd['subjectOf'] = $this->buildSubjectOf($attributes['doi']);
@@ -483,6 +491,120 @@ class SchemaOrgJsonLdExporter
 
             return $grant;
         }, $fundingReferences);
+    }
+
+    /**
+     * Transform DataCite relatedItems into Schema.org citation CreativeWork entries.
+     *
+     * @param  array<int, array<string, mixed>>  $relatedItems
+     * @return array<int, array<string, mixed>>
+     */
+    private function transformCitations(array $relatedItems): array
+    {
+        $citations = [];
+        foreach ($relatedItems as $ri) {
+            $entry = ['@type' => 'CreativeWork'];
+
+            // Name (MainTitle preferred)
+            if (is_array($ri['titles'] ?? null)) {
+                foreach ($ri['titles'] as $title) {
+                    if (! isset($title['titleType']) && isset($title['title'])) {
+                        $entry['name'] = $title['title'];
+                        break;
+                    }
+                }
+                if (! isset($entry['name'])) {
+                    $first = $ri['titles'][0] ?? null;
+                    if (is_array($first) && isset($first['title'])) {
+                        $entry['name'] = $first['title'];
+                    }
+                }
+            }
+
+            // Identifier (DOI → URL, others → PropertyValue)
+            if (is_array($ri['relatedItemIdentifier'] ?? null)) {
+                $idVal = $ri['relatedItemIdentifier']['relatedItemIdentifier'] ?? null;
+                $idType = $ri['relatedItemIdentifier']['relatedItemIdentifierType'] ?? null;
+                if (is_string($idVal) && $idVal !== '') {
+                    if ($idType === 'DOI') {
+                        $entry['@id'] = 'https://doi.org/' . $idVal;
+                        $entry['identifier'] = [
+                            '@type' => 'PropertyValue',
+                            'propertyID' => 'https://registry.identifiers.org/registry/doi',
+                            'value' => 'doi:' . $idVal,
+                        ];
+                    } elseif ($idType === 'URL') {
+                        $entry['url'] = $idVal;
+                    } else {
+                        $entry['identifier'] = [
+                            '@type' => 'PropertyValue',
+                            'propertyID' => is_string($idType) ? $idType : 'identifier',
+                            'value' => $idVal,
+                        ];
+                    }
+                }
+            }
+
+            // Authors
+            if (is_array($ri['creators'] ?? null) && $ri['creators'] !== []) {
+                $authors = [];
+                foreach ($ri['creators'] as $creator) {
+                    if (! is_array($creator)) {
+                        continue;
+                    }
+                    $author = [
+                        '@type' => ($creator['nameType'] ?? 'Personal') === 'Organizational' ? 'Organization' : 'Person',
+                        'name' => $creator['name'] ?? '',
+                    ];
+                    if (isset($creator['givenName'])) {
+                        $author['givenName'] = $creator['givenName'];
+                    }
+                    if (isset($creator['familyName'])) {
+                        $author['familyName'] = $creator['familyName'];
+                    }
+                    $authors[] = $author;
+                }
+                if ($authors !== []) {
+                    $entry['author'] = count($authors) === 1 ? $authors[0] : $authors;
+                }
+            }
+
+            // Publisher
+            if (isset($ri['publisher']) && is_string($ri['publisher']) && $ri['publisher'] !== '') {
+                $entry['publisher'] = [
+                    '@type' => 'Organization',
+                    'name' => $ri['publisher'],
+                ];
+            }
+
+            // Date published
+            if (isset($ri['publicationYear'])) {
+                $entry['datePublished'] = (string) $ri['publicationYear'];
+            }
+
+            // Bibliographic details
+            $bibParts = [];
+            if (isset($ri['volume'])) {
+                $bibParts[] = 'Vol. ' . $ri['volume'];
+            }
+            if (isset($ri['issue'])) {
+                $bibParts[] = 'Issue ' . $ri['issue'];
+            }
+            if (isset($ri['firstPage'])) {
+                $pages = (string) $ri['firstPage'];
+                if (isset($ri['lastPage'])) {
+                    $pages .= '-' . (string) $ri['lastPage'];
+                }
+                $bibParts[] = 'pp. ' . $pages;
+            }
+            if ($bibParts !== []) {
+                $entry['description'] = implode(', ', $bibParts);
+            }
+
+            $citations[] = $entry;
+        }
+
+        return $citations;
     }
 
     /**
