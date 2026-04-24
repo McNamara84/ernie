@@ -52,6 +52,9 @@ enum CacheKey: string
     // DataCite REST API metadata cache keys
     case DOI_DATACITE_METADATA = 'doi:datacite_metadata';
 
+    // Citation lookup (Crossref → DataCite fallback)
+    case CITATION_LOOKUP = 'citations:lookup';
+
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
@@ -124,7 +127,7 @@ enum CacheKey: string
             self::PORTAL_DATACENTER_FACETS => 600,
 
             // DOI citations and DataCite metadata are relatively stable - 24 hours
-            self::DOI_CITATION, self::DOI_DATACITE_METADATA => 86400,
+            self::DOI_CITATION, self::DOI_DATACITE_METADATA, self::CITATION_LOOKUP => 86400,
 
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
@@ -177,6 +180,8 @@ enum CacheKey: string
             self::DOI_CITATION => ['doi', 'citations'],
 
             self::DOI_DATACITE_METADATA => ['doi', 'datacite_metadata'],
+
+            self::CITATION_LOOKUP => ['doi', 'citations'],
 
             self::CACHE_STATS => ['system'],
 
