@@ -6,8 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RelatedItem\StoreRelatedItemRequest;
 use App\Http\Requests\RelatedItem\UpdateRelatedItemRequest;
+use App\Models\ContributorType;
 use App\Models\RelatedItem;
+use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Services\Citations\RelatedItemStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -80,6 +83,43 @@ class RelatedItemController extends Controller
     {
         $user = $request->user();
         abort_unless($user !== null && $user->can('update', $resource), 403);
+    }
+
+    /**
+     * Return the vocabularies required by the Citation Manager UI.
+     *
+     * Bundled in a single endpoint so the modal only makes one extra request
+     * when opened.
+     */
+    public function vocabularies(): JsonResponse
+    {
+        $resourceTypes = ResourceType::query()
+            ->active()
+            ->orderByName()
+            ->get(['slug', 'name'])
+            ->map(fn (ResourceType $t): array => ['value' => $t->slug, 'label' => $t->name])
+            ->all();
+
+        $relationTypes = RelationType::query()
+            ->where('is_active', true)
+            ->orderByName()
+            ->get(['id', 'name'])
+            ->map(fn (RelationType $t): array => ['id' => $t->id, 'label' => $t->name])
+            ->all();
+
+        $contributorTypes = ContributorType::query()
+            ->active()
+            ->forPersons()
+            ->orderBy('name')
+            ->get(['slug', 'name'])
+            ->map(fn (ContributorType $t): array => ['value' => $t->slug, 'label' => $t->name])
+            ->all();
+
+        return response()->json([
+            'resourceTypes' => $resourceTypes,
+            'relationTypes' => $relationTypes,
+            'contributorTypes' => $contributorTypes,
+        ]);
     }
 
     /**

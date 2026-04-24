@@ -223,4 +223,27 @@ describe('RelatedItemController', function () {
             ->assertStatus(422)
             ->assertJsonValidationErrors(['order']);
     });
+
+    test('vocabularies returns resource, relation and contributor types', function () {
+        seedRelatedItemPrereqs();
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->getJson('/related-items/vocabularies')
+            ->assertOk()
+            ->assertJsonStructure([
+                'resourceTypes' => [['value', 'label']],
+                'relationTypes' => [['id', 'label']],
+                'contributorTypes',
+            ]);
+
+        $body = $response->json();
+        expect($body['resourceTypes'])->not->toBeEmpty();
+        expect($body['relationTypes'])->not->toBeEmpty();
+    });
+
+    test('vocabularies requires authentication', function () {
+        $this->getJson('/related-items/vocabularies')
+            ->assertStatus(401);
+    });
 });

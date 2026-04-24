@@ -221,6 +221,7 @@ class UploadXmlController extends Controller
 
             ['relatedWorks' => $relatedWorks, 'instruments' => $instruments] = $this->extractRelatedWorksAndInstruments($reader, $filename);
             $fundingReferences = $this->extractFundingReferences($reader);
+            $relatedItems = $this->extractRelatedItems($reader);
         } catch (XmlReaderException|XmlRuntimeException $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::XML_PARSE_ERROR,
@@ -276,6 +277,7 @@ class UploadXmlController extends Controller
             'gemetKeywords' => $gemetKeywords,
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
+            'relatedItems' => $relatedItems,
         ]);
 
         return response()->json([
@@ -450,6 +452,351 @@ class UploadXmlController extends Controller
             'relatedWorks' => $relatedWorks,
             'instruments' => $instruments,
         ];
+    }
+
+    /**
+     * Extract `<relatedItems>` (DataCite 4.7) with nested titles, creators,
+     * contributors and affiliations into a form payload.
+     *
+     * The returned structure mirrors the JSON accepted by the REST endpoints
+     * `POST /resources/{resource}/related-items` so it can later be persisted
+     * via `RelatedItemStorageService`.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractRelatedItems(XmlReader $reader): array
+    {
+        $items = $reader
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="relatedItems"]/*[local-name()="relatedItem"]')
+            ->get();
+
+        $result = [];
+
+        foreach ($items as $position => $item) {
+            $relatedItemType = $item->getAttribute('relatedItemType');
+            $relationTypeSlug = $item->getAttribute('relationType');
+
+            if (! is_string($relatedItemType) || trim($relatedItemType) === '') {
+                continue;
+            }
+            if (! is_string($relationTypeSlug) || trim($relationTypeSlug) === '') {
+                continue;
+            }
+
+            $titles = $this->extractRelatedItemTitles($item);
+            if ($titles === []) {
+                // DataCite 4.7 requires at least one title with type MainTitle.
+                continue;
+            }
+
+            $entry = [
+                'related_item_type' => trim($relatedItemType),
+                'relation_type_slug' => trim($relationTypeSlug),
+                'titles' => $titles,
+                'creators' => $this->extractRelatedItemCreators($item),
+                'contributors' => $this->extractRelatedItemContributors($item),
+                'publication_year' => $this->intOrNull($this->scalarChild($item, 'publicationYear')),
+                'volume' => $this->stringOrNull($this->scalarChild($item, 'volume')),
+                'issue' => $this->stringOrNull($this->scalarChild($item, 'issue')),
+                'first_page' => $this->stringOrNull($this->scalarChild($item, 'firstPage')),
+                'last_page' => $this->stringOrNull($this->scalarChild($item, 'lastPage')),
+                'publisher' => $this->stringOrNull($this->scalarChild($item, 'publisher')),
+                'edition' => $this->stringOrNull($this->scalarChild($item, 'edition')),
+                'position' => $position,
+            ];
+
+            // <number numberType="Article">42</number>
+            $numberElement = $this->firstChildElement($item, 'number');
+            if ($numberElement !== null) {
+                $numberValue = $this->stringValue($numberElement);
+                if (is_string($numberValue) && trim($numberValue) !== '') {
+                    $entry['number'] = trim($numberValue);
+                    $typeAttr = $numberElement->getAttribute('numberType');
+                    $entry['number_type'] = is_string($typeAttr) && trim($typeAttr) !== '' ? trim($typeAttr) : null;
+                }
+            }
+
+            // <relatedItemIdentifier relatedItemIdentifierType="DOI">10.1234/x</relatedItemIdentifier>
+            $identifierElement = $this->firstChildElement($item, 'relatedItemIdentifier');
+            if ($identifierElement !== null) {
+                $identifierValue = $this->stringValue($identifierElement);
+                if (is_string($identifierValue) && trim($identifierValue) !== '') {
+                    $entry['identifier'] = trim($identifierValue);
+                    $idType = $identifierElement->getAttribute('relatedItemIdentifierType');
+                    $entry['identifier_type'] = is_string($idType) && trim($idType) !== '' ? trim($idType) : null;
+                    $scheme = $identifierElement->getAttribute('relatedMetadataScheme');
+                    if (is_string($scheme) && trim($scheme) !== '') {
+                        $entry['related_metadata_scheme'] = trim($scheme);
+                    }
+                    $schemeUri = $identifierElement->getAttribute('schemeURI');
+                    if (is_string($schemeUri) && trim($schemeUri) !== '') {
+                        $entry['scheme_uri'] = trim($schemeUri);
+                    }
+                    $schemeType = $identifierElement->getAttribute('schemeType');
+                    if (is_string($schemeType) && trim($schemeType) !== '') {
+                        $entry['scheme_type'] = trim($schemeType);
+                    }
+                }
+            }
+
+            $result[] = $entry;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<int, array{title: string, title_type: string}>
+     */
+    private function extractRelatedItemTitles(Element $item): array
+    {
+        $titles = [];
+        foreach ($this->childElements($item, 'titles') as $titlesWrapper) {
+            foreach ($this->childElements($titlesWrapper, 'title') as $t) {
+                $value = $this->stringValue($t);
+                if (! is_string($value) || trim($value) === '') {
+                    continue;
+                }
+                $typeAttr = $t->getAttribute('titleType');
+                $titleType = is_string($typeAttr) && trim($typeAttr) !== '' ? trim($typeAttr) : 'MainTitle';
+                $titles[] = [
+                    'title' => trim($value),
+                    'title_type' => $titleType,
+                ];
+            }
+        }
+
+        $hasMain = false;
+        foreach ($titles as $t) {
+            if ($t['title_type'] === 'MainTitle') {
+                $hasMain = true;
+
+                break;
+            }
+        }
+        if (! $hasMain && $titles !== []) {
+            // Promote the first entry to MainTitle so the item passes validation.
+            $titles[0]['title_type'] = 'MainTitle';
+        }
+
+        return $titles;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractRelatedItemCreators(Element $item): array
+    {
+        $result = [];
+        foreach ($this->childElements($item, 'creators') as $creatorsEl) {
+            foreach ($this->childElements($creatorsEl, 'creator') as $creator) {
+                $entry = $this->extractRelatedItemPerson($creator, 'creatorName');
+                if ($entry !== null) {
+                    $result[] = $entry;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractRelatedItemContributors(Element $item): array
+    {
+        $result = [];
+        foreach ($this->childElements($item, 'contributors') as $contributorsEl) {
+            foreach ($this->childElements($contributorsEl, 'contributor') as $contributor) {
+                $entry = $this->extractRelatedItemPerson($contributor, 'contributorName');
+                if ($entry === null) {
+                    continue;
+                }
+                $type = $contributor->getAttribute('contributorType');
+                if (is_string($type) && trim($type) !== '') {
+                    $entry['contributor_type'] = trim($type);
+                    $result[] = $entry;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function extractRelatedItemPerson(Element $person, string $nameElementName): ?array
+    {
+        $nameElement = $this->firstChildElement($person, $nameElementName);
+        if ($nameElement === null) {
+            return null;
+        }
+
+        $nameValue = $this->stringValue($nameElement);
+        if (! is_string($nameValue) || trim($nameValue) === '') {
+            return null;
+        }
+
+        $nameTypeAttr = $nameElement->getAttribute('nameType');
+        $nameType = is_string($nameTypeAttr) && trim($nameTypeAttr) !== '' ? trim($nameTypeAttr) : 'Personal';
+
+        $entry = [
+            'name_type' => $nameType,
+            'name' => trim($nameValue),
+            'given_name' => $this->stringOrNull($this->scalarChild($person, 'givenName')),
+            'family_name' => $this->stringOrNull($this->scalarChild($person, 'familyName')),
+        ];
+
+        $idElement = $this->firstChildElement($person, 'nameIdentifier');
+        if ($idElement !== null) {
+            $idValue = $this->stringValue($idElement);
+            if (is_string($idValue) && trim($idValue) !== '') {
+                $entry['name_identifier'] = trim($idValue);
+                $scheme = $idElement->getAttribute('nameIdentifierScheme');
+                if (is_string($scheme) && trim($scheme) !== '') {
+                    $entry['name_identifier_scheme'] = trim($scheme);
+                }
+            }
+        }
+
+        $affiliations = [];
+        foreach ($this->childElements($person, 'affiliation') as $aff) {
+            $affValue = $this->stringValue($aff);
+            if (! is_string($affValue) || trim($affValue) === '') {
+                continue;
+            }
+            $affEntry = ['name' => trim($affValue)];
+            $affId = $aff->getAttribute('affiliationIdentifier');
+            if (is_string($affId) && trim($affId) !== '') {
+                $affEntry['affiliation_identifier'] = trim($affId);
+            }
+            $affScheme = $aff->getAttribute('affiliationIdentifierScheme');
+            if (is_string($affScheme) && trim($affScheme) !== '') {
+                $affEntry['scheme'] = trim($affScheme);
+            }
+            $affiliations[] = $affEntry;
+        }
+        if ($affiliations !== []) {
+            $entry['affiliations'] = $affiliations;
+        }
+
+        return $entry;
+    }
+
+    /**
+     * @return Element[]
+     */
+    private function childElements(Element $parent, string $localName): array
+    {
+        $content = $parent->getContent();
+        if (! is_array($content)) {
+            return [];
+        }
+
+        $matches = [];
+        foreach ($content as $key => $child) {
+            if ($this->localName((string) $key) !== $localName) {
+                continue;
+            }
+            if ($child instanceof Element) {
+                // XmlWrangler collapses repeating siblings of the same name
+                // into a single Element whose content is an indexed list of
+                // the individual sibling Elements.
+                $inner = $child->getContent();
+                if (is_array($inner) && array_is_list($inner) && $this->containsElements($inner)) {
+                    foreach ($inner as $nested) {
+                        if ($nested instanceof Element) {
+                            $matches[] = $nested;
+                        }
+                    }
+
+                    continue;
+                }
+                $matches[] = $child;
+
+                continue;
+            }
+            if (is_array($child)) {
+                foreach ($child as $nested) {
+                    if ($nested instanceof Element) {
+                        $matches[] = $nested;
+                    }
+                }
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $values
+     */
+    private function containsElements(array $values): bool
+    {
+        foreach ($values as $value) {
+            if ($value instanceof Element) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function firstChildElement(Element $parent, string $localName): ?Element
+    {
+        $matches = $this->childElements($parent, $localName);
+
+        return $matches[0] ?? null;
+    }
+
+    private function scalarChild(Element $parent, string $localName): ?string
+    {
+        $child = $this->firstChildElement($parent, $localName);
+        if ($child === null) {
+            return null;
+        }
+        $value = $this->stringValue($child);
+
+        return is_string($value) ? $value : null;
+    }
+
+    private function localName(string $key): string
+    {
+        $trimmed = ltrim($key, '@');
+        $colonPos = strrpos($trimmed, ':');
+        $stripped = $colonPos === false ? $trimmed : substr($trimmed, $colonPos + 1);
+
+        // XmlWrangler indexes repeating siblings as "name.1", "name.2", …
+        $dotPos = strrpos($stripped, '.');
+        if ($dotPos !== false && ctype_digit(substr($stripped, $dotPos + 1))) {
+            $stripped = substr($stripped, 0, $dotPos);
+        }
+
+        return $stripped;
+    }
+
+    private function stringOrNull(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function intOrNull(?string $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim($value);
+        if ($trimmed === '' || ! preg_match('/^-?\d+$/', $trimmed)) {
+            return null;
+        }
+
+        return (int) $trimmed;
     }
 
     /**

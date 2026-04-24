@@ -32,7 +32,7 @@ class EditorController extends Controller
     private const UPLOAD_SESSION_REQUIRED_ARRAY_KEYS = [
         'titles', 'licenses', 'authors', 'contributors', 'descriptions',
         'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
-        'coverages', 'relatedWorks', 'instruments', 'fundingReferences', 'mslLaboratories',
+        'coverages', 'relatedWorks', 'relatedItems', 'instruments', 'fundingReferences', 'mslLaboratories',
     ];
 
     /**
@@ -139,6 +139,7 @@ class EditorController extends Controller
                 'gemetKeywords' => $sessionData['gemetKeywords'] ?? [],
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => $sessionData['relatedWorks'] ?? [],
+                'relatedItems' => $sessionData['relatedItems'] ?? [],
                 'instruments' => $sessionData['instruments'] ?? [],
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
@@ -199,6 +200,7 @@ class EditorController extends Controller
                 'gemetKeywords' => $sessionData['gemetKeywords'] ?? [],
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => $sessionData['relatedWorks'] ?? [],
+                'relatedItems' => $sessionData['relatedItems'] ?? [],
                 'instruments' => $sessionData['instruments'] ?? [],
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
                 'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],

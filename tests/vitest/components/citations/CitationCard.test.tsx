@@ -55,9 +55,7 @@ describe('CitationCard', () => {
 
         await user.click(screen.getByRole('radio', { name: /IEEE style/i }));
 
-        const text = screen.getByTestId
-            ? screen.getByText(/J\. Doe/)
-            : screen.getByText(/J\. Doe/);
+        const text = screen.getByText(/J\. Doe/);
         expect(text).toBeInTheDocument();
     });
 

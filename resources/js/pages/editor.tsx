@@ -43,6 +43,7 @@ interface EditorProps {
     gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
     coverages?: SpatialTemporalCoverageEntry[];
     relatedWorks?: RelatedIdentifier[];
+    relatedItems?: Array<Record<string, unknown>>;
     fundingReferences?: FundingReferenceEntry[];
     mslLaboratories?: MSLLaboratory[];
     instruments?: InstrumentSelection[];
@@ -73,6 +74,7 @@ export default function Editor({
     gemetKeywords = [],
     coverages = [],
     relatedWorks = [],
+    relatedItems = [],
     fundingReferences = [],
     mslLaboratories = [],
     instruments = [],
@@ -249,6 +251,7 @@ export default function Editor({
                             initialGemetKeywords={gemetKeywords}
                             initialSpatialTemporalCoverages={coverages}
                             initialRelatedWorks={relatedWorks}
+                            initialRelatedItems={relatedItems}
                             initialFundingReferences={fundingReferences}
                             initialMslLaboratories={mslLaboratories}
                             initialInstruments={instruments}

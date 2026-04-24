@@ -46,6 +46,7 @@ import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
+import { CitationsField } from './fields/citations-field';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
@@ -111,6 +112,7 @@ export default function DataCiteForm({
     initialMslLaboratories = [],
     initialInstruments = [],
     initialRelatedWorks = [],
+    initialRelatedItems = [],
     initialFundingReferences = [],
     initialDatacenters = [],
     availableDatacenters = [],
@@ -373,6 +375,7 @@ export default function DataCiteForm({
         'spatial-temporal-coverage',
         'dates',
         'related-work',
+        'citations',
         'funding-references',
         'used-instruments',
     ]);
@@ -1791,6 +1794,12 @@ export default function DataCiteForm({
                 relationType: rw.relation_type,
                 ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
             })),
+            // Pass-through for XML-imported inline citations; the backend
+            // persists these on first save, after which the REST-based
+            // CitationManagerModal owns the data.
+            ...(initialRelatedItems && initialRelatedItems.length > 0
+                ? { relatedItems: initialRelatedItems }
+                : {}),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,
                 funderIdentifier: funding.funderIdentifier,
@@ -2581,6 +2590,21 @@ export default function DataCiteForm({
                             activeRelationTypes={activeRelationTypes}
                             activeIdentifierTypes={activeIdentifierTypes}
                         />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="citations" data-testid="citations-section">
+                    <AccordionTrigger data-testid="citations-accordion-trigger">
+                        <div className="flex items-center gap-2">
+                            <span>Citations</span>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="citations-accordion-content">
+                        <SectionHeader
+                            label="Citations"
+                            description="Inline citation metadata (DataCite 4.7 relatedItem)."
+                            tooltip="Use the Citation Manager to add publications cited by or supplementing this dataset. Each entry carries full metadata (authors, title, year, pages)."
+                        />
+                        <CitationsField resourceId={resolvedResourceId} />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="used-instruments" data-testid="used-instruments-section">

@@ -22,6 +22,7 @@ use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\Citations\RelatedItemStorageService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +39,7 @@ class ResourceStorageService
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
         protected RorLookupService $rorLookupService,
+        protected RelatedItemStorageService $relatedItemStorage,
     ) {}
 
     /**
@@ -107,6 +109,7 @@ class ResourceStorageService
             $this->storeSubjects($resource, $data, $isUpdate);
             $this->storeGeoLocations($resource, $data, $isUpdate);
             $this->storeRelatedIdentifiers($resource, $data, $isUpdate);
+            $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
             $this->storeInstruments($resource, $data, $isUpdate);
             $this->syncDatacenters($resource, $data);
@@ -978,6 +981,51 @@ class ResourceStorageService
                     'position' => $index,
                 ]);
             }
+        }
+    }
+
+    /**
+     * Save inline <relatedItem> metadata (DataCite 4.7 Citation Manager).
+     *
+     * Resolves `relation_type_slug` → id and delegates persistence of the
+     * full aggregate (item + titles + creators + contributors + affiliations)
+     * to {@see RelatedItemStorageService}. Uses delete-and-recreate on update
+     * for consistency with other relations in this service.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function storeRelatedItems(Resource $resource, array $data, bool $isUpdate): void
+    {
+        if ($isUpdate) {
+            foreach ($resource->relatedItems()->get() as $existing) {
+                $this->relatedItemStorage->delete($existing);
+            }
+        }
+
+        $items = $data['relatedItems'] ?? [];
+        if (! is_array($items) || $items === []) {
+            return;
+        }
+
+        /** @var array<string, int> $relationTypeLookup */
+        $relationTypeLookup = RelationType::query()->pluck('id', 'slug')->all();
+
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $slug = $item['relation_type_slug'] ?? null;
+            if (! is_string($slug) || ! isset($relationTypeLookup[$slug])) {
+                continue;
+            }
+
+            $payload = $item;
+            $payload['relation_type_id'] = $relationTypeLookup[$slug];
+            $payload['position'] = $item['position'] ?? $index;
+            unset($payload['relation_type_slug']);
+
+            $this->relatedItemStorage->create($resource, $payload);
         }
     }
 

@@ -286,6 +286,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('resources.register-doi');
 
     // Related Items (DataCite 4.7) — Citation Manager
+    Route::get('related-items/vocabularies', [App\Http\Controllers\RelatedItemController::class, 'vocabularies'])
+        ->name('related-items.vocabularies');
     Route::get('resources/{resource}/related-items', [App\Http\Controllers\RelatedItemController::class, 'index'])
         ->name('resources.related-items.index');
     Route::post('resources/{resource}/related-items', [App\Http\Controllers\RelatedItemController::class, 'store'])
