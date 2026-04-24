@@ -1119,7 +1119,7 @@ class ResourceController extends Controller
 
                 return response()->json([
                     'error' => 'orcid_validation_warning',
-                    'message' => 'ORCID verification service is temporarily unreachable for one or more authors. Review the warnings and confirm to continue.',
+                    'message' => 'ORCID verification service is temporarily unreachable for one or more creators or contributors. Review the warnings and confirm to continue.',
                     ...$preflight->toPayload(),
                 ], 409);
             }

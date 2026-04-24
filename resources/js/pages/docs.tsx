@@ -1296,15 +1296,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>ORCID Pre-flight Validation</h4>
                         <p>
-                            Immediately before a DOI is registered, ERNIE performs a final ORCID pre-flight
-                            check for every author and contributor attached to the resource:
+                            Both when registering a new DOI <em>and</em> when updating metadata for an
+                            existing DOI, ERNIE performs a final ORCID pre-flight check for every creator
+                            and contributor attached to the resource before any request is sent to DataCite:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Hard block</strong> – If an ORCID is malformed, has an invalid checksum,
-                                or is reported as "not found" by orcid.org, registration is refused with a
-                                422 response listing each offending author. You must correct the identifier in
-                                the editor before retrying.
+                                or is reported as "not found" by orcid.org, registration <em>and</em> metadata
+                                updates are refused with a 422 response listing each offending person. You must
+                                correct the identifier in the editor before retrying.
                             </li>
                             <li>
                                 <strong>Warning (override possible)</strong> – If the ORCID service is
