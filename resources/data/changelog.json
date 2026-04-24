@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-23",
+        "date": "2026-04-24",
         "features": [
+            {
+                "title": "Password Visibility Toggle on Reset Password Page",
+                "description": "The 'Reset password' page now shows an eye icon inside both the password and confirm-password fields. Clicking the icon toggles the entered value between hidden and plain text, helping users verify their new password before submission and avoid typos. The icon clearly indicates the current state (eye = hidden, eye-with-slash = visible), is fully keyboard accessible, and carries distinct screen-reader labels for the two fields. Toggling visibility does not affect how the password is transmitted or stored."
+            },
             {
                 "title": "Bulk Actions on Resources Page",
                 "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). The bulk register button is hidden for users without DOI registration permission. Per-row actions remain available."
