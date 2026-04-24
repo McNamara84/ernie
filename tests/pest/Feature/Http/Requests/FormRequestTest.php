@@ -95,6 +95,44 @@ describe('RegisterDoiRequest', function () {
 
         expect($request->authorize())->toBeTrue();
     });
+
+    it('makes prefix nullable when the bound resource already has a DOI', function () {
+        Config::set('datacite.test_mode', true);
+        Config::set('datacite.test.prefixes', ['10.5880']);
+
+        $resource = \App\Models\Resource::factory()->create(['doi' => '10.5880/existing']);
+
+        $route = new \Illuminate\Routing\Route('POST', '/resources/{resource}/register-doi', []);
+        $route->bind(\Illuminate\Http\Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
+        $route->setParameter('resource', $resource);
+
+        $request = RegisterDoiRequest::create('/resources/'.$resource->id.'/register-doi', 'POST');
+        $request->setRouteResolver(fn () => $route);
+
+        $rules = $request->rules();
+
+        expect($rules['prefix'])->toContain('nullable')
+            ->and($rules['prefix'])->not->toContain('required');
+    });
+
+    it('requires prefix when the bound resource has no DOI yet', function () {
+        Config::set('datacite.test_mode', true);
+        Config::set('datacite.test.prefixes', ['10.5880']);
+
+        $resource = \App\Models\Resource::factory()->create(['doi' => null]);
+
+        $route = new \Illuminate\Routing\Route('POST', '/resources/{resource}/register-doi', []);
+        $route->bind(\Illuminate\Http\Request::create('/resources/'.$resource->id.'/register-doi', 'POST'));
+        $route->setParameter('resource', $resource);
+
+        $request = RegisterDoiRequest::create('/resources/'.$resource->id.'/register-doi', 'POST');
+        $request->setRouteResolver(fn () => $route);
+
+        $rules = $request->rules();
+
+        expect($rules['prefix'])->toContain('required')
+            ->and($rules['prefix'])->not->toContain('nullable');
+    });
 });
 
 /*
