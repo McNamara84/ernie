@@ -251,6 +251,6 @@ class BatchResourceRegistrationController extends Controller
             return "ORCID preflight failed: {$blocking} invalid ORCID identifier(s).";
         }
 
-        return "ORCID preflight skipped: {$warnings} identifier(s) could not be verified (orcid.org unreachable).";
+        return "ORCID preflight skipped: {$warnings} identifier(s) could not be verified (ORCID verification service unavailable).";
     }
 }
