@@ -86,4 +86,34 @@ describe('ResetPassword integration', () => {
             expect(screen.getByRole('button', { name: /reset password/i })).not.toBeDisabled();
         });
     });
+
+    it('transmits the plain password regardless of visibility toggle state (AC #4)', async () => {
+        routerMock.post.mockImplementation((_url: string, _data: unknown, options?: { onFinish?: () => void }) => {
+            options?.onFinish?.();
+        });
+        render(<ResetPassword token={token} email={email} />);
+        const user = userEvent.setup();
+
+        await user.type(screen.getByLabelText('Password'), 'newpassword');
+        await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
+
+        // Toggle both fields to visible before submission
+        await user.click(screen.getByRole('button', { name: 'Show password' }));
+        await user.click(screen.getByRole('button', { name: 'Show password confirmation' }));
+
+        await user.click(screen.getByRole('button', { name: /reset password/i }));
+
+        await waitFor(() => {
+            expect(routerMock.post).toHaveBeenCalledWith(
+                '/reset-password',
+                expect.objectContaining({
+                    email,
+                    password: 'newpassword',
+                    password_confirmation: 'newpassword',
+                    token,
+                }),
+                expect.any(Object),
+            );
+        });
+    });
 });

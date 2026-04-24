@@ -7,6 +7,7 @@ import NewPasswordController from '@/actions/App/Http/Controllers/Auth/NewPasswo
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { LoadingButton } from '@/components/ui/loading-button';
+import { PasswordInput } from '@/components/ui/password-input';
 import AuthLayout from '@/layouts/auth-layout';
 import { type ResetPasswordInput, resetPasswordSchema } from '@/lib/validations/user';
 
@@ -65,7 +66,15 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                             <FormItem className="grid gap-2">
                                 <FormLabel>Password</FormLabel>
                                 <FormControl>
-                                    <Input {...field} type="password" autoComplete="new-password" className="mt-1 block w-full" autoFocus placeholder="Password" />
+                                    <PasswordInput
+                                        {...field}
+                                        autoComplete="new-password"
+                                        className="mt-1 block w-full"
+                                        autoFocus
+                                        placeholder="Password"
+                                        showPasswordLabel="Show password"
+                                        hidePasswordLabel="Hide password"
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -79,7 +88,14 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                             <FormItem className="grid gap-2">
                                 <FormLabel>Confirm password</FormLabel>
                                 <FormControl>
-                                    <Input {...field} type="password" autoComplete="new-password" className="mt-1 block w-full" placeholder="Confirm password" />
+                                    <PasswordInput
+                                        {...field}
+                                        autoComplete="new-password"
+                                        className="mt-1 block w-full"
+                                        placeholder="Confirm password"
+                                        showPasswordLabel="Show password confirmation"
+                                        hidePasswordLabel="Hide password confirmation"
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
