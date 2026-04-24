@@ -68,6 +68,10 @@ class BatchResourceRegistrationController extends Controller
         /** @var DataCiteRegistrationService $service */
         $service = app(DataCiteRegistrationService::class);
 
+        // Resolve the ORCID preflight validator once and reuse it for every
+        // resource in the batch to avoid repeated container lookups.
+        $orcidPreflight = app(OrcidPreflightValidator::class);
+
         // Fetch all resources with ALL relations needed by DataCiteJsonExporter
         // to avoid N+1 queries when export() is called inside the loop.
         $resources = Resource::with(Resource::DATACITE_EXPORT_RELATIONS)
@@ -126,7 +130,7 @@ class BatchResourceRegistrationController extends Controller
             // transient warnings cause the resource to be skipped with a
             // human-readable reason. The curator can retry individually via
             // the Register DOI modal.
-            $preflight = app(OrcidPreflightValidator::class)->validate($resource, force: false);
+            $preflight = $orcidPreflight->validate($resource, force: false);
             if ($preflight->shouldBlock || $preflight->warnings !== []) {
                 $results['failed'][] = [
                     'id' => $resourceId,

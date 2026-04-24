@@ -186,8 +186,8 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
 
             // Show success toast
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
-            const action = updated ? 'updated' : 'registered';
-            toast.success(`DOI ${action} successfully`, {
+            const actionLabel = updated ? 'updated' : 'registered';
+            toast.success(`DOI ${actionLabel} successfully`, {
                 description: `${modeLabel} DOI: ${doi}`,
                 duration: 5000,
             });
