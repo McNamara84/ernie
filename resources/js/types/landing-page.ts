@@ -313,6 +313,78 @@ export interface LandingPageRelatedIdentifier {
 }
 
 /**
+ * Affiliation entry attached to a related-item creator or contributor.
+ */
+export interface LandingPageRelatedItemAffiliation {
+    id: number;
+    name: string;
+    affiliation_identifier: string | null;
+    scheme: string | null;
+}
+
+/**
+ * Creator entry for an inline related-item (DataCite 4.7 relatedItem).
+ */
+export interface LandingPageRelatedItemCreator {
+    id: number;
+    name_type: 'Personal' | 'Organizational';
+    name: string;
+    given_name: string | null;
+    family_name: string | null;
+    name_identifier: string | null;
+    name_identifier_scheme: string | null;
+    scheme_uri: string | null;
+    position: number;
+    affiliations: LandingPageRelatedItemAffiliation[];
+}
+
+/**
+ * Contributor entry for an inline related-item.
+ */
+export interface LandingPageRelatedItemContributor extends LandingPageRelatedItemCreator {
+    contributor_type: string;
+}
+
+/**
+ * Title entry for an inline related-item.
+ */
+export interface LandingPageRelatedItemTitle {
+    id: number;
+    title: string;
+    title_type: string;
+    language: string | null;
+}
+
+/**
+ * Inline relatedItem entry (DataCite 4.7 Citation Manager). Rendered on the
+ * landing page alongside plain relatedIdentifiers with a visual distinction.
+ */
+export interface LandingPageRelatedItem {
+    id: number;
+    related_item_type: string;
+    relation_type: string | null;
+    relation_type_slug: string | null;
+    publication_year: number | null;
+    volume: string | null;
+    issue: string | null;
+    number: string | null;
+    number_type: string | null;
+    first_page: string | null;
+    last_page: string | null;
+    publisher: string | null;
+    edition: string | null;
+    identifier: string | null;
+    identifier_type: string | null;
+    related_metadata_scheme: string | null;
+    scheme_uri: string | null;
+    scheme_type: string | null;
+    position: number;
+    titles: LandingPageRelatedItemTitle[];
+    creators: LandingPageRelatedItemCreator[];
+    contributors: LandingPageRelatedItemContributor[];
+}
+
+/**
  * Funding reference entry for landing pages
  */
 export interface LandingPageFundingReference {
@@ -446,6 +518,7 @@ export interface LandingPageResource {
     contributors?: LandingPageContributor[];
     licenses?: LandingPageLicense[];
     related_identifiers?: LandingPageRelatedIdentifier[];
+    related_items?: LandingPageRelatedItem[];
     funding_references?: LandingPageFundingReference[];
     subjects?: LandingPageSubject[];
     geo_locations?: LandingPageGeoLocation[];

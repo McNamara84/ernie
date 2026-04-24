@@ -12,6 +12,12 @@ use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
+use App\Models\RelatedItem;
+use App\Models\RelatedItemContributor;
+use App\Models\RelatedItemContributorAffiliation;
+use App\Models\RelatedItemCreator;
+use App\Models\RelatedItemCreatorAffiliation;
+use App\Models\RelatedItemTitle;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -40,6 +46,10 @@ final class LandingPageResourceTransformer
             'dates.dateType',
             'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
+            'relatedItems.relationType',
+            'relatedItems.titles',
+            'relatedItems.creators.affiliations',
+            'relatedItems.contributors.affiliations',
             'fundingReferences.funderIdentifierType',
             'resourceType',
             'language',
@@ -77,6 +87,96 @@ final class LandingPageResourceTransformer
                     'identifier_type' => $identifierType !== null ? $identifierType->name : null,
                     'relation_type' => $relationType !== null ? $relationType->name : null,
                     'position' => $relatedId->position,
+                ];
+            })
+            ->all();
+
+        $relatedItems = $resource->relationLoaded('relatedItems')
+            ? $resource->relatedItems
+            : new \Illuminate\Database\Eloquent\Collection;
+
+        $resourceData['related_items'] = $relatedItems
+            ->sortBy('position')
+            ->values()
+            ->map(static function (RelatedItem $item): array {
+                /** @var RelationType|null $relationType */
+                $relationType = $item->relationType;
+
+                return [
+                    'id' => $item->id,
+                    'related_item_type' => $item->related_item_type,
+                    'relation_type' => $relationType?->name,
+                    'relation_type_slug' => $relationType?->slug,
+                    'publication_year' => $item->publication_year,
+                    'volume' => $item->volume,
+                    'issue' => $item->issue,
+                    'number' => $item->number,
+                    'number_type' => $item->number_type,
+                    'first_page' => $item->first_page,
+                    'last_page' => $item->last_page,
+                    'publisher' => $item->publisher,
+                    'edition' => $item->edition,
+                    'identifier' => $item->identifier,
+                    'identifier_type' => $item->identifier_type,
+                    'related_metadata_scheme' => $item->related_metadata_scheme,
+                    'scheme_uri' => $item->scheme_uri,
+                    'scheme_type' => $item->scheme_type,
+                    'position' => $item->position,
+                    'titles' => $item->titles
+                        ->map(static fn (RelatedItemTitle $title): array => [
+                            'id' => $title->id,
+                            'title' => $title->title,
+                            'title_type' => $title->title_type,
+                            'language' => $title->language,
+                        ])
+                        ->all(),
+                    'creators' => $item->creators
+                        ->sortBy('position')
+                        ->values()
+                        ->map(static fn (RelatedItemCreator $creator): array => [
+                            'id' => $creator->id,
+                            'name_type' => $creator->name_type,
+                            'name' => $creator->name,
+                            'given_name' => $creator->given_name,
+                            'family_name' => $creator->family_name,
+                            'name_identifier' => $creator->name_identifier,
+                            'name_identifier_scheme' => $creator->name_identifier_scheme,
+                            'scheme_uri' => $creator->scheme_uri,
+                            'position' => $creator->position,
+                            'affiliations' => $creator->affiliations
+                                ->map(static fn (RelatedItemCreatorAffiliation $affiliation): array => [
+                                    'id' => $affiliation->id,
+                                    'name' => $affiliation->name,
+                                    'affiliation_identifier' => $affiliation->affiliation_identifier,
+                                    'scheme' => $affiliation->scheme,
+                                ])
+                                ->all(),
+                        ])
+                        ->all(),
+                    'contributors' => $item->contributors
+                        ->sortBy('position')
+                        ->values()
+                        ->map(static fn (RelatedItemContributor $contributor): array => [
+                            'id' => $contributor->id,
+                            'contributor_type' => $contributor->contributor_type,
+                            'name_type' => $contributor->name_type,
+                            'name' => $contributor->name,
+                            'given_name' => $contributor->given_name,
+                            'family_name' => $contributor->family_name,
+                            'name_identifier' => $contributor->name_identifier,
+                            'name_identifier_scheme' => $contributor->name_identifier_scheme,
+                            'scheme_uri' => $contributor->scheme_uri,
+                            'position' => $contributor->position,
+                            'affiliations' => $contributor->affiliations
+                                ->map(static fn (RelatedItemContributorAffiliation $affiliation): array => [
+                                    'id' => $affiliation->id,
+                                    'name' => $affiliation->name,
+                                    'affiliation_identifier' => $affiliation->affiliation_identifier,
+                                    'scheme' => $affiliation->scheme,
+                                ])
+                                ->all(),
+                        ])
+                        ->all(),
                 ];
             })
             ->all();

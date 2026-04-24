@@ -440,3 +440,177 @@ test('deduplicates contributor contact persons against creator contact persons',
         ->and($data['contact_persons'][0]['source'])->toBe('creator')
         ->and($data['contact_persons'][0]['name'])->toBe('Alice Duplicate');
 });
+
+test('transforms inline relatedItems with titles, creators and contributors', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $relationType = new \App\Models\RelationType;
+    $relationType->forceFill([
+        'id' => 1,
+        'name' => 'IsCitedBy',
+        'slug' => 'iscitedby',
+    ]);
+
+    $title = new \App\Models\RelatedItemTitle;
+    $title->forceFill([
+        'id' => 1,
+        'title' => 'A Related Journal Article',
+        'title_type' => 'MainTitle',
+        'language' => 'en',
+    ]);
+
+    $affiliation = new \App\Models\RelatedItemCreatorAffiliation;
+    $affiliation->forceFill([
+        'id' => 1,
+        'name' => 'GFZ Potsdam',
+        'affiliation_identifier' => 'https://ror.org/04z8jg394',
+        'scheme' => 'ROR',
+    ]);
+
+    $creator = new \App\Models\RelatedItemCreator;
+    $creator->forceFill([
+        'id' => 1,
+        'name_type' => 'Personal',
+        'name' => 'Doe, Jane',
+        'given_name' => 'Jane',
+        'family_name' => 'Doe',
+        'name_identifier' => '0000-0001-2345-6789',
+        'name_identifier_scheme' => 'ORCID',
+        'scheme_uri' => 'https://orcid.org',
+        'position' => 1,
+    ]);
+    $creator->setRelation('affiliations', new EloquentCollection([$affiliation]));
+
+    $contribAff = new \App\Models\RelatedItemContributorAffiliation;
+    $contribAff->forceFill([
+        'id' => 2,
+        'name' => 'ETH Zurich',
+        'affiliation_identifier' => null,
+        'scheme' => null,
+    ]);
+
+    $contributor = new \App\Models\RelatedItemContributor;
+    $contributor->forceFill([
+        'id' => 1,
+        'contributor_type' => 'Editor',
+        'name_type' => 'Personal',
+        'name' => 'Smith, John',
+        'given_name' => 'John',
+        'family_name' => 'Smith',
+        'name_identifier' => null,
+        'name_identifier_scheme' => null,
+        'scheme_uri' => null,
+        'position' => 1,
+    ]);
+    $contributor->setRelation('affiliations', new EloquentCollection([$contribAff]));
+
+    $relatedItem = new \App\Models\RelatedItem;
+    $relatedItem->forceFill([
+        'id' => 1,
+        'related_item_type' => 'JournalArticle',
+        'publication_year' => 2024,
+        'volume' => '42',
+        'issue' => '3',
+        'number' => null,
+        'number_type' => null,
+        'first_page' => '101',
+        'last_page' => '115',
+        'publisher' => 'Acme Publisher',
+        'edition' => null,
+        'identifier' => '10.1234/abc',
+        'identifier_type' => 'DOI',
+        'related_metadata_scheme' => null,
+        'scheme_uri' => null,
+        'scheme_type' => null,
+        'position' => 1,
+    ]);
+    $relatedItem->setRelation('relationType', $relationType);
+    $relatedItem->setRelation('titles', new EloquentCollection([$title]));
+    $relatedItem->setRelation('creators', new EloquentCollection([$creator]));
+    $relatedItem->setRelation('contributors', new EloquentCollection([$contributor]));
+
+    $resource->setRelation('relatedItems', new EloquentCollection([$relatedItem]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data)->toHaveKey('related_items');
+    expect($data['related_items'])->toHaveCount(1);
+
+    $item = $data['related_items'][0];
+    expect($item)->toMatchArray([
+        'id' => 1,
+        'related_item_type' => 'JournalArticle',
+        'relation_type' => 'IsCitedBy',
+        'relation_type_slug' => 'iscitedby',
+        'publication_year' => 2024,
+        'volume' => '42',
+        'issue' => '3',
+        'first_page' => '101',
+        'last_page' => '115',
+        'publisher' => 'Acme Publisher',
+        'identifier' => '10.1234/abc',
+        'identifier_type' => 'DOI',
+        'position' => 1,
+    ]);
+
+    expect($item['titles'])->toHaveCount(1);
+    expect($item['titles'][0])->toMatchArray([
+        'title' => 'A Related Journal Article',
+        'title_type' => 'MainTitle',
+        'language' => 'en',
+    ]);
+
+    expect($item['creators'])->toHaveCount(1);
+    expect($item['creators'][0])->toMatchArray([
+        'name' => 'Doe, Jane',
+        'given_name' => 'Jane',
+        'family_name' => 'Doe',
+        'name_identifier' => '0000-0001-2345-6789',
+        'name_identifier_scheme' => 'ORCID',
+    ]);
+    expect($item['creators'][0]['affiliations'])->toHaveCount(1);
+    expect($item['creators'][0]['affiliations'][0])->toMatchArray([
+        'name' => 'GFZ Potsdam',
+        'affiliation_identifier' => 'https://ror.org/04z8jg394',
+        'scheme' => 'ROR',
+    ]);
+
+    expect($item['contributors'])->toHaveCount(1);
+    expect($item['contributors'][0])->toMatchArray([
+        'contributor_type' => 'Editor',
+        'name' => 'Smith, John',
+    ]);
+    expect($item['contributors'][0]['affiliations'])->toHaveCount(1);
+    expect($item['contributors'][0]['affiliations'][0]['name'])->toBe('ETH Zurich');
+});
+
+test('related_items defaults to empty array when relation not loaded', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data)->toHaveKey('related_items')
+        ->and($data['related_items'])->toBeArray()->toBeEmpty();
+});
