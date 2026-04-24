@@ -23,6 +23,7 @@ use App\Services\DataCiteSyncService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
 use App\Services\JsonSchemaValidator;
+use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceCacheService;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
@@ -1088,6 +1089,40 @@ class ResourceController extends Controller
 
             // Resolve service from container (allows testing with fake service)
             $service = app(DataCiteRegistrationService::class);
+
+            // Pre-flight ORCID validation (see issue #610). Confirmed-invalid
+            // ORCIDs block registration unconditionally; transient errors (e.g.
+            // orcid.org unreachable) require the curator to resubmit with
+            // `force=true`.
+            $force = $request->boolean('force');
+            $preflight = app(OrcidPreflightValidator::class)->validate($resource, $force);
+
+            if ($preflight->shouldBlock) {
+                Log::info('DOI registration blocked by ORCID preflight', [
+                    'resource_id' => $resource->id,
+                    'invalid_count' => count($preflight->invalid),
+                    'warning_count' => count($preflight->warnings),
+                ]);
+
+                return response()->json([
+                    'error' => 'orcid_validation_failed',
+                    'message' => 'One or more ORCID identifiers could not be verified. Please correct them before registering a DOI.',
+                    ...$preflight->toPayload(),
+                ], 422);
+            }
+
+            if ($preflight->needsConfirmation) {
+                Log::info('DOI registration paused for ORCID warning confirmation', [
+                    'resource_id' => $resource->id,
+                    'warning_count' => count($preflight->warnings),
+                ]);
+
+                return response()->json([
+                    'error' => 'orcid_validation_warning',
+                    'message' => 'ORCID verification service is temporarily unreachable for one or more creators or contributors. Review the warnings and confirm to continue.',
+                    ...$preflight->toPayload(),
+                ], 409);
+            }
 
             // Check if DOI already exists - if yes, update metadata instead of registering
             if ($resource->doi) {

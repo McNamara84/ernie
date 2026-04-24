@@ -421,6 +421,42 @@ describe('Retries', function () {
         // Verify all 3 attempts were made (2 retries + final success)
         Http::assertSentCount(3);
     });
+
+    it('honors maxAttempts=1 for preflight to avoid retry/backoff budget', function () {
+        Http::fake([
+            'pub.orcid.org/v3.0/0000-0002-1825-0097/person' => Http::sequence()
+                ->push(null, 500)
+                ->push(null, 500)
+                ->push(['name' => []], 200),
+        ]);
+
+        $result = $this->service->validateOrcid(
+            '0000-0002-1825-0097',
+            maxAttempts: \App\Services\OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+            timeoutSeconds: \App\Services\OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+        );
+
+        // No retry → first 500 immediately surfaces as api_error.
+        expect($result['errorType'])->toBe('api_error');
+        Http::assertSentCount(1);
+    });
+
+    it('honors maxAttempts=1 for preflight on connection failures', function () {
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+            throw new ConnectionException('timed out');
+        });
+
+        $result = $this->service->validateOrcid(
+            '0000-0002-1825-0097',
+            maxAttempts: \App\Services\OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+            timeoutSeconds: \App\Services\OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+        );
+
+        expect($result['errorType'])->toBe('timeout');
+        expect($attempts)->toBe(1);
+    });
 });
 
 describe('ROR ID extraction from affiliations', function () {

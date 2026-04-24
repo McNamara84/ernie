@@ -1294,6 +1294,50 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>Save is blocked until the DOI conflict is resolved</li>
                         </ul>
 
+                        <h4>ORCID Pre-flight Validation</h4>
+                        <p>
+                            Both when registering a new DOI <em>and</em> when updating metadata for an
+                            existing DOI, ERNIE performs a final ORCID pre-flight check for every creator
+                            and contributor attached to the resource before any request is sent to DataCite:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Hard block</strong> – If an ORCID is malformed, has an invalid checksum,
+                                or is reported as "not found" by orcid.org, registration <em>and</em> metadata
+                                updates are refused with a 422 response listing each offending person. You must
+                                correct the identifier in the editor before retrying.
+                            </li>
+                            <li>
+                                <strong>Warning (override possible)</strong> – If the ORCID service is
+                                temporarily unreachable (network error, timeout, API error), the registration
+                                modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
+                                re-runs the pre-flight against orcid.org (use this when the service may have
+                                recovered), and <strong>"Register anyway"</strong> (labeled{' '}
+                                <strong>"Update anyway"</strong> when updating an existing DOI) submits with
+                                an override flag. On the override attempt the throttled orcid.org call is
+                                skipped entirely – only the offline format + checksum gates still run, and
+                                registration (or metadata update) proceeds regardless of the earlier transient
+                                warning. Hard blockers (malformed / checksum / not found) are never overridden
+                                this way.
+                            </li>
+                            <li>
+                                <strong>Success</strong> – On the first successful pre-flight, the person
+                                record is stamped with an internal <code>orcid_verified_at</code> timestamp
+                                for auditing purposes. The timestamp records the <em>first</em> confirmation
+                                by orcid.org and is intentionally not refreshed on subsequent registrations,
+                                so the audit trail of the original verification is preserved. The editor
+                                itself still marks identifiers as verified via an offline format + checksum
+                                check when a resource is loaded; the stored timestamp is not yet consumed
+                                to skip future preflight checks.
+                            </li>
+                        </ul>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Note: Opening an existing resource in the editor no longer triggers ORCID
+                            validation for stored authors. The network check only runs when you actively edit
+                            an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
+                            <strong>Update Metadata</strong>.
+                        </p>
+
                         <h4>Test vs Production</h4>
                         <div className="mt-2 space-y-2">
                             <div className="rounded-lg border bg-card p-4">

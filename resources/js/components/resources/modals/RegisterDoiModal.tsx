@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2, GraduationCap } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, GraduationCap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -9,8 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
 import { type User as AuthUser } from '@/types';
 
 interface Resource {
@@ -42,20 +42,99 @@ interface DoiRegistrationResponse {
     details?: unknown;
 }
 
+/**
+ * Reason codes emitted by {@see \App\Services\Orcid\OrcidPreflightValidator}.
+ *
+ * `blocking` reasons (not_found / checksum / format) prevent registration.
+ * Warning reasons (network / timeout / api_error / unknown) can be overridden
+ * by the curator via "Register anyway", which re-posts with `force: true`.
+ */
+type OrcidPreflightReason = 'not_found' | 'checksum' | 'format' | 'network' | 'timeout' | 'api_error' | 'unknown';
+
+interface OrcidPreflightIssue {
+    severity: 'blocking' | 'warning';
+    reason: OrcidPreflightReason;
+    role: 'creator' | 'contributor';
+    position: number;
+    orcid: string;
+    displayName: string;
+}
+
+interface OrcidPreflightPayload {
+    error: 'orcid_validation_failed' | 'orcid_validation_warning';
+    message?: string;
+    // Kept optional because some proxies strip empty arrays from JSON error
+    // responses. The guard and consumers must treat missing values as `[]`.
+    invalid?: OrcidPreflightIssue[];
+    warnings?: OrcidPreflightIssue[];
+}
+
 interface PrefixConfig {
     test: string[];
     production: string[];
     test_mode: boolean;
 }
 
+const ORCID_REASON_LABELS: Record<OrcidPreflightReason, string> = {
+    not_found: 'not found in ORCID registry',
+    checksum: 'invalid ORCID checksum',
+    format: 'malformed ORCID identifier',
+    network: 'ORCID service unreachable',
+    timeout: 'ORCID service timed out',
+    api_error: 'ORCID service reported an error',
+    unknown: 'ORCID verification failed for an unknown reason',
+};
+
+const KNOWN_ORCID_REASONS: ReadonlySet<string> = new Set(Object.keys(ORCID_REASON_LABELS));
+
+function describeOrcidReason(reason: string | undefined): string {
+    if (reason !== undefined && KNOWN_ORCID_REASONS.has(reason)) {
+        return ORCID_REASON_LABELS[reason as OrcidPreflightReason];
+    }
+    return ORCID_REASON_LABELS.unknown;
+}
+
+function isOrcidPreflightPayload(data: unknown): data is OrcidPreflightPayload {
+    if (!data || typeof data !== 'object') {
+        return false;
+    }
+    const { error, invalid, warnings } = data as {
+        error?: unknown;
+        invalid?: unknown;
+        warnings?: unknown;
+    };
+    if (error !== 'orcid_validation_failed' && error !== 'orcid_validation_warning') {
+        return false;
+    }
+    // Both fields are always emitted by the backend, but some proxies strip
+    // empty arrays. Accept missing fields, but reject anything that is present
+    // and not an array to avoid storing non-iterable values in state.
+    if (invalid !== undefined && !Array.isArray(invalid)) {
+        return false;
+    }
+    if (warnings !== undefined && !Array.isArray(warnings)) {
+        return false;
+    }
+    return true;
+}
+
 export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess }: RegisterDoiModalProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [selectedPrefix, setSelectedPrefix] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Tracks which action is currently in flight so only the clicked button
+    // renders its loading indicator. The Cancel button and form inputs remain
+    // gated by the broader `isSubmitting` flag.
+    const [submittingAction, setSubmittingAction] = useState<'submit' | 'retry' | 'override' | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [availablePrefixes, setAvailablePrefixes] = useState<string[]>([]);
     const [isTestMode, setIsTestMode] = useState<boolean>(true);
     const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+    // ORCID preflight state (see issue #610). `orcidBlockers` are hard blockers
+    // surfaced by the backend; `orcidWarnings` are transient failures the
+    // curator may override via the "Register anyway" button.
+    const [orcidBlockers, setOrcidBlockers] = useState<OrcidPreflightIssue[]>([]);
+    const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
 
     const hasExistingDoi = Boolean(resource.doi);
     const hasLandingPage = Boolean(resource.landingPage);
@@ -70,6 +149,9 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             setSelectedPrefix('');
             setError(null);
             setIsSubmitting(false);
+            setSubmittingAction(null);
+            setOrcidBlockers([]);
+            setOrcidWarnings([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
@@ -104,7 +186,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         }
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (force = false, action: 'submit' | 'retry' | 'override' = 'submit') => {
         setError(null);
 
         // Validation
@@ -119,21 +201,27 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         }
 
         setIsSubmitting(true);
+        setSubmittingAction(action);
 
         try {
             const response = await axios.post<DoiRegistrationResponse>(`/resources/${resource.id}/register-doi`, {
                 prefix: selectedPrefix,
+                force,
             });
 
             const { doi, updated, mode } = response.data;
 
             // Show success toast
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
-            const action = updated ? 'updated' : 'registered';
-            toast.success(`DOI ${action} successfully`, {
+            const actionLabel = updated ? 'updated' : 'registered';
+            toast.success(`DOI ${actionLabel} successfully`, {
                 description: `${modeLabel} DOI: ${doi}`,
                 duration: 5000,
             });
+
+            // Clear ORCID preflight state on success
+            setOrcidBlockers([]);
+            setOrcidWarnings([]);
 
             // Close modal first to ensure UI is updated
             onClose();
@@ -153,6 +241,19 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                 }
             }
         } catch (err) {
+            // ORCID preflight (see issue #610): the backend returns 422 for
+            // confirmed-invalid ORCIDs and 409 for transient failures that
+            // require explicit curator confirmation.
+            if (isAxiosError(err) && err.response && isOrcidPreflightPayload(err.response.data)) {
+                const payload = err.response.data;
+                setOrcidBlockers(Array.isArray(payload.invalid) ? payload.invalid : []);
+                setOrcidWarnings(Array.isArray(payload.warnings) ? payload.warnings : []);
+                setError(null);
+                setIsSubmitting(false);
+                setSubmittingAction(null);
+                return;
+            }
+
             console.error('DOI registration failed:', err);
 
             let errorMessage = 'Failed to register DOI. Please try again.';
@@ -170,6 +271,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             setError(errorMessage);
         } finally {
             setIsSubmitting(false);
+            setSubmittingAction(null);
         }
     };
 
@@ -283,6 +385,60 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                         </div>
                     )}
 
+                    {/* ORCID Preflight Blockers (see issue #610) */}
+                    {orcidBlockers.length > 0 && (
+                        <Alert variant="destructive" data-testid="orcid-preflight-blockers">
+                            <AlertCircle className="size-4" />
+                            <AlertTitle>
+                                ORCID validation failed ({orcidBlockers.length}{' '}
+                                {orcidBlockers.length === 1 ? 'identifier' : 'identifiers'})
+                            </AlertTitle>
+                            <AlertDescription>
+                                <p className="mb-2">
+                                    The following ORCID identifiers could not be verified. Please correct them in the editor before registering
+                                    the DOI.
+                                </p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {orcidBlockers.map((issue) => (
+                                        <li key={`${issue.role}-${issue.position}-${issue.orcid}`}>
+                                            <strong>{issue.displayName}</strong>{' '}
+                                            <span className="text-xs text-muted-foreground">({issue.role})</span>
+                                            <br />
+                                            <code className="text-xs">{issue.orcid}</code> – {describeOrcidReason(issue.reason)}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {/* ORCID Preflight Warnings (transient failures, curator may override) */}
+                    {orcidBlockers.length === 0 && orcidWarnings.length > 0 && (
+                        <Alert data-testid="orcid-preflight-warnings">
+                            <AlertTriangle className="size-4" />
+                            <AlertTitle>
+                                ORCID verification unavailable ({orcidWarnings.length}{' '}
+                                {orcidWarnings.length === 1 ? 'identifier' : 'identifiers'})
+                            </AlertTitle>
+                            <AlertDescription>
+                                <p className="mb-2">
+                                    The ORCID service is temporarily unreachable for the following identifiers. You can retry or register anyway
+                                    if you are confident the ORCIDs are correct.
+                                </p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {orcidWarnings.map((issue) => (
+                                        <li key={`${issue.role}-${issue.position}-${issue.orcid}`}>
+                                            <strong>{issue.displayName}</strong>{' '}
+                                            <span className="text-xs text-muted-foreground">({issue.role})</span>
+                                            <br />
+                                            <code className="text-xs">{issue.orcid}</code> – {describeOrcidReason(issue.reason)}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {/* Error Display */}
                     {error && (
                         <Alert variant="destructive">
@@ -297,23 +453,47 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                     <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
                         Cancel
                     </Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <span className="mr-2" aria-live="polite">
-                                    Processing...
-                                </span>
-                                <Spinner size="sm" aria-label="Loading" />
-                            </>
-                        ) : hasExistingDoi ? (
-                            'Update Metadata'
-                        ) : (
-                            'Register DOI'
-                        )}
-                    </Button>
+                    {orcidBlockers.length === 0 && orcidWarnings.length > 0 ? (
+                        <>
+                            <LoadingButton
+                                variant="secondary"
+                                loading={submittingAction === 'retry'}
+                                onClick={() => {
+                                    // Keep the warning state visible while the retry is in flight so
+                                    // this button stays mounted and its loading indicator is shown.
+                                    // On success, handleSubmit clears the warnings before closing the
+                                    // modal; on another failure, the catch branch repopulates them.
+                                    handleSubmit(false, 'retry');
+                                }}
+                                disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                                data-testid="orcid-preflight-retry"
+                            >
+                                Retry verification
+                            </LoadingButton>
+                            <LoadingButton
+                                loading={submittingAction === 'override'}
+                                onClick={() => handleSubmit(true, 'override')}
+                                disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
+                                data-testid="orcid-preflight-override"
+                            >
+                                {hasExistingDoi ? 'Update anyway' : 'Register anyway'}
+                            </LoadingButton>
+                        </>
+                    ) : (
+                        <LoadingButton
+                            loading={submittingAction === 'submit'}
+                            onClick={() => handleSubmit()}
+                            disabled={
+                                isSubmitting ||
+                                !hasLandingPage ||
+                                (!hasExistingDoi && !selectedPrefix) ||
+                                isLoadingConfig ||
+                                orcidBlockers.length > 0
+                            }
+                        >
+                            {hasExistingDoi ? 'Update Metadata' : 'Register DOI'}
+                        </LoadingButton>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

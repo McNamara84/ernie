@@ -200,4 +200,36 @@ describe('ContributorItem Component', () => {
         expect(screen.getByDisplayValue('slug@example.org')).toBeInTheDocument();
         expect(screen.getByDisplayValue('https://slug.example.org')).toBeInTheDocument();
     });
+
+    it('forwards orcid, firstName, lastName, email and website changes via onPersonFieldChange', async () => {
+        const user = userEvent.setup();
+        const contactPerson: ContributorEntry = {
+            ...mockPersonContributor,
+            firstName: '',
+            lastName: '',
+            orcid: '',
+            roles: [{ value: 'ContactPerson' }],
+            rolesInput: 'ContactPerson',
+            email: '',
+            website: '',
+        };
+        render(<ContributorItem contributor={contactPerson} {...mockProps} />);
+
+        // First name / last name / ORCID flip the interaction gate (true branch).
+        await user.type(screen.getByLabelText(/^first name/i), 'A');
+        await user.type(screen.getByLabelText(/^last name/i), 'B');
+        await user.type(screen.getByLabelText(/^orcid/i), '0');
+
+        // Email + website hit the false branch of the `field === 'orcid' || ...` gate.
+        await user.type(screen.getByLabelText(/^email/i), 'x');
+        await user.type(screen.getByLabelText(/^website/i), 'y');
+
+        // The callback fires for every keystroke; assert each field produced at least one call.
+        const calls = mockProps.onPersonFieldChange.mock.calls.map((c: unknown[]) => c[0]);
+        expect(calls).toContain('firstName');
+        expect(calls).toContain('lastName');
+        expect(calls).toContain('orcid');
+        expect(calls).toContain('email');
+        expect(calls).toContain('website');
+    });
 });

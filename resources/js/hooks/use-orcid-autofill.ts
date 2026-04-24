@@ -420,14 +420,29 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const prevOrcidRef = useRef(orcidValue);
     const entryRef = useRef(entry);
     const onEntryChangeRef = useRef(onEntryChange);
+    // Mirror isVerifying so the auto-verify effect can check it without
+    // having to list it as a dependency (which would re-trigger the effect
+    // on every true/false toggle and cause repeated ORCID traffic on
+    // transient failures, see issue #676 review).
+    const isVerifyingRef = useRef(false);
+    // Signature of the last ORCID value we attempted to verify. Combined
+    // with `retryTrigger`, this guarantees auto-verify runs at most once
+    // per (ORCID value, manual retry) pair – transient failures don't
+    // re-fire just because unrelated entry fields change.
+    const lastAttemptedSignatureRef = useRef<string | null>(null);
     entryRef.current = entry;
     onEntryChangeRef.current = onEntryChange;
+    isVerifyingRef.current = isVerifying;
     useEffect(() => {
         setPendingOrcidData(null);
         // Reset verified state when the ORCID value actually changes so the new value can be re-verified
         const currentEntry = entryRef.current;
         if (prevOrcidRef.current !== orcidValue && isPersonEntry(currentEntry) && currentEntry.orcidVerified) {
             onEntryChangeRef.current({ ...currentEntry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
+        }
+        if (prevOrcidRef.current !== orcidValue) {
+            // A fresh ORCID value always deserves a new verification attempt.
+            lastAttemptedSignatureRef.current = null;
         }
         prevOrcidRef.current = orcidValue;
     }, [orcidValue, entryType]);
@@ -611,6 +626,18 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
     /**
      * Auto-verify when a valid ORCID is entered
+     *
+     * Gated by `hasUserInteracted` so existing resources loaded into the editor
+     * don't trigger network validation of pre-filled, unverified ORCIDs
+     * (see issue #610). A manual retry via `retryVerification()` bypasses the
+     * gate by bumping `retryTrigger`.
+     *
+     * The effect is intentionally NOT dependent on `isVerifying`: listing it
+     * would cause the effect to re-fire on every true/false toggle, and
+     * transient failures (timeout / api_error / network) would then re-issue
+     * an ORCID request every debounce interval. Instead we read the current
+     * value through `isVerifyingRef` and use `lastAttemptedSignatureRef` to
+     * guarantee each (ORCID value, retryTrigger) pair is only verified once.
      */
     useEffect(() => {
         const autoVerifyOrcid = async () => {
@@ -619,15 +646,35 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 return;
             }
 
+            // Skip on initial load – only verify after the curator has actively
+            // touched the field. Manual retries bypass this via retryTrigger.
+            if (!hasUserInteracted && retryTrigger === 0) {
+                return;
+            }
+
             const personEntry = entry;
 
             // Only auto-verify if:
             // 1. ORCID has valid format
             // 2. Not already verified
-            // 3. Not currently verifying
-            if (!personEntry.orcid?.trim() || !OrcidService.isValidFormat(personEntry.orcid) || personEntry.orcidVerified || isVerifying) {
+            // 3. Not currently verifying (read via ref – see effect header)
+            if (
+                !personEntry.orcid?.trim()
+                || !OrcidService.isValidFormat(personEntry.orcid)
+                || personEntry.orcidVerified
+                || isVerifyingRef.current
+            ) {
                 return;
             }
+
+            // Skip if we already attempted this exact (ORCID, retryTrigger) pair.
+            // The signature is refreshed when the curator bumps retryTrigger or
+            // edits the ORCID itself, so intentional retries still work.
+            const signature = `${personEntry.orcid}|${retryTrigger}`;
+            if (lastAttemptedSignatureRef.current === signature) {
+                return;
+            }
+            lastAttemptedSignatureRef.current = signature;
 
             // Early checksum validation (offline) - provides instant feedback without network round-trip.
             // Backend also validates for security, but frontend validation improves UX.
@@ -719,7 +766,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         const timeoutId = setTimeout(autoVerifyOrcid, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [entry, isVerifying, onEntryChange, includeEmail, retryTrigger]);
+    }, [entry, onEntryChange, includeEmail, retryTrigger, hasUserInteracted]);
 
     return {
         isVerifying,

@@ -26,6 +26,11 @@ class RegisterDoiRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
+     * The `prefix` field is only required when registering a *new* DOI.
+     * When the bound resource already has a DOI, the controller performs a
+     * metadata update and ignores the prefix entirely, so the modal is allowed
+     * to submit without a selection.
+     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -36,12 +41,16 @@ class RegisterDoiRequest extends FormRequest
             ? Config::get('datacite.test.prefixes', [])
             : Config::get('datacite.production.prefixes', []);
 
+        $resource = $this->route('resource');
+        $hasExistingDoi = $resource instanceof \App\Models\Resource && $resource->doi !== null && $resource->doi !== '';
+
         return [
             'prefix' => [
-                'required',
+                $hasExistingDoi ? 'nullable' : 'required',
                 'string',
                 Rule::in($allowedPrefixes),
             ],
+            'force' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -76,5 +85,17 @@ class RegisterDoiRequest extends FormRequest
         return [
             'prefix' => 'DOI prefix',
         ];
+    }
+
+    /**
+     * Normalize an empty-string prefix to null so the conditional `nullable`
+     * rule applied on metadata updates skips the `Rule::in(...)` check when
+     * the modal submits without a selection.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('prefix') && is_string($this->input('prefix')) && trim($this->input('prefix')) === '') {
+            $this->merge(['prefix' => null]);
+        }
     }
 }

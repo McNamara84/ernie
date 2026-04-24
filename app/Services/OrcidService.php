@@ -64,6 +64,14 @@ class OrcidService
     private const VALIDATION_TIMEOUT = 7;
 
     /**
+     * Shorter validation timeout (seconds) for latency-sensitive call sites
+     * such as the DOI registration preflight (see issue #610). Keeping the
+     * per-ORCID budget low is important because preflight checks every author
+     * sequentially before the DataCite call.
+     */
+    public const PREFLIGHT_VALIDATION_TIMEOUT = 4;
+
+    /**
      * Timeout for full record fetch requests (seconds)
      */
     private const FETCH_TIMEOUT = 12;
@@ -72,6 +80,13 @@ class OrcidService
      * Maximum number of attempts for API calls (1 initial + retries)
      */
     private const MAX_ATTEMPTS = 3;
+
+    /**
+     * Maximum attempts for latency-sensitive call sites (no retries/backoff).
+     * The DOI preflight uses this to cap total preflight time on large author
+     * lists (see issue #610).
+     */
+    public const PREFLIGHT_MAX_ATTEMPTS = 1;
 
     /**
      * Initial retry delay in seconds (doubles with each retry)
@@ -108,11 +123,22 @@ class OrcidService
      * Validate ORCID ID format and check if it exists
      *
      * @param  string  $orcid  The ORCID ID to validate
+     * @param  int|null  $maxAttempts  Override the default retry budget. Pass
+     *                                 {@see self::PREFLIGHT_MAX_ATTEMPTS} for
+     *                                 latency-sensitive call sites.
+     * @param  int|null  $timeoutSeconds  Override the per-request timeout.
      * @return array{valid: bool, exists: bool|null, message: string, errorType: string|null}
      */
     #[\NoDiscard('ORCID validation result must be checked')]
-    public function validateOrcid(string $orcid): array
+    public function validateOrcid(
+        string $orcid,
+        ?int $maxAttempts = null,
+        ?int $timeoutSeconds = null,
+    ): array
     {
+        $maxAttempts = $maxAttempts ?? self::MAX_ATTEMPTS;
+        $timeoutSeconds = $timeoutSeconds ?? self::VALIDATION_TIMEOUT;
+
         // Check format first
         if (! $this->validateOrcidFormat($orcid)) {
             return [
@@ -147,14 +173,15 @@ class OrcidService
             ];
         }
 
-        // Try API with retry logic for transient failures
+        // Try API with retry logic for transient failures. Preflight call sites
+        // may pass maxAttempts=1 to skip retries/backoff entirely (see issue #610).
         $retryDelay = self::RETRY_DELAY;
 
-        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             try {
                 $this->respectRateLimit();
 
-                $response = Http::timeout(self::VALIDATION_TIMEOUT)
+                $response = Http::timeout($timeoutSeconds)
                     ->acceptJson()
                     ->get(self::API_BASE_URL.'/'.$orcid.'/person');
 
@@ -180,7 +207,7 @@ class OrcidService
                 }
 
                 // Server error (5xx) or rate limited (429) - retry if attempts remain
-                if (($response->status() >= 500 || $response->status() === 429) && $attempt < self::MAX_ATTEMPTS) {
+                if (($response->status() >= 500 || $response->status() === 429) && $attempt < $maxAttempts) {
                     Log::info('ORCID API error, retrying', [
                         'orcid' => $orcid,
                         'attempt' => $attempt,
@@ -205,7 +232,7 @@ class OrcidService
                     'error' => $e->getMessage(),
                 ]);
 
-                if ($attempt < self::MAX_ATTEMPTS) {
+                if ($attempt < $maxAttempts) {
                     sleep($retryDelay);
                     $retryDelay *= 2;
 
@@ -226,7 +253,7 @@ class OrcidService
                     'error' => $e->getMessage(),
                 ]);
 
-                if ($attempt < self::MAX_ATTEMPTS) {
+                if ($attempt < $maxAttempts) {
                     sleep($retryDelay);
                     $retryDelay *= 2;
 

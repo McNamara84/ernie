@@ -161,6 +161,41 @@ test('doi registration updates metadata for existing doi', function () {
     expect($response->json('message'))->toContain('metadata updated');
 });
 
+test('doi registration allows metadata update without a prefix', function () {
+    actingAs($this->user);
+
+    $this->resource->update(['doi' => '10.83279/existing-doi']);
+
+    LandingPage::factory()->create([
+        'resource_id' => $this->resource->id,
+        'is_published' => true,
+    ]);
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.83279/existing-doi',
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => '10.83279/existing-doi',
+                    'state' => 'findable',
+                ],
+            ],
+        ], 200),
+    ]);
+
+    // Modal submits prefix='' when a DOI already exists – validation must accept it.
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+        'prefix' => '',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'updated' => true,
+    ]);
+});
+
 test('doi registration handles datacite api errors gracefully', function () {
     actingAs($this->user);
 
