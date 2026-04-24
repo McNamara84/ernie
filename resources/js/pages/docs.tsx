@@ -1312,11 +1312,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 temporarily unreachable (network error, timeout, API error), the registration
                                 modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
                                 re-runs the pre-flight against orcid.org (use this when the service may have
-                                recovered), and <strong>"Register anyway"</strong> submits with an override
-                                flag. The pre-flight still contacts orcid.org on the next attempt, but any
-                                transient warnings are ignored and registration proceeds regardless of the
-                                verification outcome. Hard blockers (malformed / checksum / not found) are
-                                never overridden this way.
+                                recovered), and <strong>"Register anyway"</strong> (labeled{' '}
+                                <strong>"Update anyway"</strong> when updating an existing DOI) submits with
+                                an override flag. On the override attempt the throttled orcid.org call is
+                                skipped entirely – only the offline format + checksum gates still run, and
+                                registration (or metadata update) proceeds regardless of the earlier transient
+                                warning. Hard blockers (malformed / checksum / not found) are never overridden
+                                this way.
                             </li>
                             <li>
                                 <strong>Success</strong> – On the first successful pre-flight, the person
@@ -1332,7 +1334,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p className="mt-2 text-sm text-muted-foreground">
                             Note: Opening an existing resource in the editor no longer triggers ORCID
                             validation for stored authors. The network check only runs when you actively edit
-                            an ORCID / name field or when you press <strong>Register DOI</strong>.
+                            an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
+                            <strong>Update Metadata</strong>.
                         </p>
 
                         <h4>Test vs Production</h4>

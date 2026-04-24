@@ -476,7 +476,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                 disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
                                 data-testid="orcid-preflight-override"
                             >
-                                Register anyway
+                                {hasExistingDoi ? 'Update anyway' : 'Register anyway'}
                             </LoadingButton>
                         </>
                     ) : (

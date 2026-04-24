@@ -509,6 +509,40 @@ describe('RegisterDoiModal', () => {
             });
         });
 
+        it('labels the override button "Update anyway" when the resource already has a DOI', async () => {
+            const user = userEvent.setup();
+
+            mockPost.mockRejectedValueOnce(
+                makeAxiosError(409, {
+                    error: 'orcid_validation_warning',
+                    message: 'ORCID service unavailable',
+                    invalid: [],
+                    warnings: [
+                        {
+                            severity: 'warning',
+                            reason: 'timeout',
+                            role: 'creator',
+                            position: 0,
+                            orcid: '0000-0002-3333-4444',
+                            displayName: 'Alex Creator',
+                        },
+                    ],
+                }),
+            );
+
+            render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithDoi} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /update metadata/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /update metadata/i }));
+
+            const overrideButton = await screen.findByTestId('orcid-preflight-override');
+            expect(overrideButton).toHaveTextContent(/update anyway/i);
+            expect(overrideButton).not.toHaveTextContent(/register anyway/i);
+        });
+
         it('renders plural identifier count when multiple ORCIDs are invalid', async () => {
             const user = userEvent.setup();
 
