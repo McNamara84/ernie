@@ -432,11 +432,10 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                 variant="secondary"
                                 loading={submittingAction === 'retry'}
                                 onClick={() => {
-                                    // Retry re-runs the preflight without force=true.
-                                    // If orcid.org is reachable now, the warnings clear
-                                    // automatically and the regular primary button reappears.
-                                    setOrcidWarnings([]);
-                                    setOrcidBlockers([]);
+                                    // Keep the warning state visible while the retry is in flight so
+                                    // this button stays mounted and its loading indicator is shown.
+                                    // On success, handleSubmit clears the warnings before closing the
+                                    // modal; on another failure, the catch branch repopulates them.
                                     handleSubmit(false, 'retry');
                                 }}
                                 disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}

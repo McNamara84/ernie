@@ -1320,8 +1320,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <strong>Success</strong> – On the first successful pre-flight, the person
                                 record is stamped with an internal <code>orcid_verified_at</code> timestamp
-                                for auditing purposes. The timestamp records the *first* confirmation by
-                                orcid.org and is intentionally not refreshed on subsequent registrations,
+                                for auditing purposes. The timestamp records the <em>first</em> confirmation
+                                by orcid.org and is intentionally not refreshed on subsequent registrations,
                                 so the audit trail of the original verification is preserved. The editor
                                 itself still marks identifiers as verified via an offline format + checksum
                                 check when a resource is loaded; the stored timestamp is not yet consumed

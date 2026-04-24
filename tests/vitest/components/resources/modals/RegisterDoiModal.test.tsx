@@ -715,5 +715,49 @@ describe('RegisterDoiModal', () => {
             expect(retryButton).toBeDisabled();
             expect(retryButton).not.toHaveAttribute('aria-busy', 'true');
         });
+
+        it('keeps the Retry button mounted with a loading indicator while the retry request is in flight', async () => {
+            const user = userEvent.setup();
+
+            const warningResponse = makeAxiosError(409, {
+                error: 'orcid_validation_warning',
+                message: 'ORCID service unavailable',
+                invalid: [],
+                warnings: [
+                    {
+                        severity: 'warning',
+                        reason: 'timeout',
+                        role: 'creator',
+                        position: 0,
+                        orcid: '0000-0002-1825-0097',
+                        displayName: 'Jane Doe',
+                    },
+                ],
+            });
+
+            // First call: warning. Second (retry): pending forever so we can
+            // observe the retry button's loading state while the request is in flight.
+            mockPost
+                .mockRejectedValueOnce(warningResponse)
+                .mockImplementationOnce(() => new Promise(() => {}));
+
+            render(<RegisterDoiModal {...defaultProps} />);
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const retryButton = await screen.findByTestId('orcid-preflight-retry');
+            await user.click(retryButton);
+
+            // The retry button must remain mounted AND show its loading indicator
+            // while the request is in flight. The warning alert stays visible so
+            // the user has continuous feedback that their retry is being processed.
+            await waitFor(() => {
+                expect(screen.getByTestId('orcid-preflight-retry')).toHaveAttribute('aria-busy', 'true');
+            });
+            expect(screen.getByTestId('orcid-preflight-warnings')).toBeInTheDocument();
+        });
     });
 });
