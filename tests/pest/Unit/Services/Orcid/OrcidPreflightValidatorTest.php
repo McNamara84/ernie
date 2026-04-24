@@ -387,11 +387,16 @@ it('eager-loads morph targets to avoid N+1 queries', function () {
     $freshResource = Resource::query()->findOrFail($resource->id);
 
     $queryCount = 0;
-    \DB::listen(static function () use (&$queryCount): void {
-        $queryCount++;
-    });
+    \DB::flushQueryLog();
+    \DB::enableQueryLog();
 
-    (new OrcidPreflightValidator($orcid))->validate($freshResource);
+    try {
+        (new OrcidPreflightValidator($orcid))->validate($freshResource);
+        $queryCount = count(\DB::getQueryLog());
+    } finally {
+        \DB::disableQueryLog();
+        \DB::flushQueryLog();
+    }
 
     // Expected queries:
     //   1. creators

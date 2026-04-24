@@ -87,8 +87,24 @@ function isOrcidPreflightPayload(data: unknown): data is OrcidPreflightPayload {
     if (!data || typeof data !== 'object') {
         return false;
     }
-    const error = (data as { error?: unknown }).error;
-    return error === 'orcid_validation_failed' || error === 'orcid_validation_warning';
+    const { error, invalid, warnings } = data as {
+        error?: unknown;
+        invalid?: unknown;
+        warnings?: unknown;
+    };
+    if (error !== 'orcid_validation_failed' && error !== 'orcid_validation_warning') {
+        return false;
+    }
+    // Both fields are always emitted by the backend, but some proxies strip
+    // empty arrays. Accept missing fields, but reject anything that is present
+    // and not an array to avoid storing non-iterable values in state.
+    if (invalid !== undefined && !Array.isArray(invalid)) {
+        return false;
+    }
+    if (warnings !== undefined && !Array.isArray(warnings)) {
+        return false;
+    }
+    return true;
 }
 
 export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess }: RegisterDoiModalProps) {
@@ -219,8 +235,8 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
             // require explicit curator confirmation.
             if (isAxiosError(err) && err.response && isOrcidPreflightPayload(err.response.data)) {
                 const payload = err.response.data;
-                setOrcidBlockers(payload.invalid ?? []);
-                setOrcidWarnings(payload.warnings ?? []);
+                setOrcidBlockers(Array.isArray(payload.invalid) ? payload.invalid : []);
+                setOrcidWarnings(Array.isArray(payload.warnings) ? payload.warnings : []);
                 setError(null);
                 setIsSubmitting(false);
                 setSubmittingAction(null);
