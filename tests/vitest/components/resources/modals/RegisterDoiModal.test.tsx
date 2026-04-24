@@ -509,7 +509,7 @@ describe('RegisterDoiModal', () => {
             });
         });
 
-        it('renders plural author count when multiple ORCIDs are invalid', async () => {
+        it('renders plural identifier count when multiple ORCIDs are invalid', async () => {
             const user = userEvent.setup();
 
             mockPost.mockRejectedValueOnce(
@@ -545,7 +545,7 @@ describe('RegisterDoiModal', () => {
             await user.click(screen.getByRole('button', { name: /register doi/i }));
 
             const alert = await screen.findByTestId('orcid-preflight-blockers');
-            expect(alert).toHaveTextContent(/2 authors/i);
+            expect(alert).toHaveTextContent(/2 identifiers/i);
             expect(alert).toHaveTextContent('Jane Doe');
             expect(alert).toHaveTextContent('Bob Smith');
         });

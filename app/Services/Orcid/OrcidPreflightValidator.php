@@ -206,8 +206,20 @@ final readonly class OrcidPreflightValidator
         return $full === '' ? 'Unnamed person' : $full;
     }
 
+    /**
+     * Stamp the very first successful verification time for auditing.
+     *
+     * The timestamp is intentionally set only once: it represents *when this
+     * ORCID was first confirmed by orcid.org*, not the last check. Keeping it
+     * stable preserves the audit trail across repeated DOI updates and avoids
+     * unnecessary writes on every preflight pass.
+     */
     private function markVerified(Person $person): void
     {
+        if ($person->orcid_verified_at !== null) {
+            return;
+        }
+
         $person->orcid_verified_at = Date::now();
         $person->save();
     }

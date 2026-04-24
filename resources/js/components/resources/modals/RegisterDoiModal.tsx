@@ -364,7 +364,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             <AlertCircle className="size-4" />
                             <AlertTitle>
                                 ORCID validation failed ({orcidBlockers.length}{' '}
-                                {orcidBlockers.length === 1 ? 'author' : 'authors'})
+                                {orcidBlockers.length === 1 ? 'identifier' : 'identifiers'})
                             </AlertTitle>
                             <AlertDescription>
                                 <p className="mb-2">
@@ -391,7 +391,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             <AlertTriangle className="size-4" />
                             <AlertTitle>
                                 ORCID verification unavailable ({orcidWarnings.length}{' '}
-                                {orcidWarnings.length === 1 ? 'author' : 'authors'})
+                                {orcidWarnings.length === 1 ? 'identifier' : 'identifiers'})
                             </AlertTitle>
                             <AlertDescription>
                                 <p className="mb-2">

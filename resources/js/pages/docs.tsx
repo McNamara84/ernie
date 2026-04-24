@@ -1318,11 +1318,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 never overridden this way.
                             </li>
                             <li>
-                                <strong>Success</strong> – Confirmed ORCIDs are stamped with an internal
-                                <code>orcid_verified_at</code> timestamp on the person record for auditing
-                                purposes. The editor itself still marks identifiers as verified via an
-                                offline format + checksum check when a resource is loaded; the stored
-                                timestamp is not yet consumed to skip future preflight checks.
+                                <strong>Success</strong> – On the first successful pre-flight, the person
+                                record is stamped with an internal <code>orcid_verified_at</code> timestamp
+                                for auditing purposes. The timestamp records the *first* confirmation by
+                                orcid.org and is intentionally not refreshed on subsequent registrations,
+                                so the audit trail of the original verification is preserved. The editor
+                                itself still marks identifiers as verified via an offline format + checksum
+                                check when a resource is loaded; the stored timestamp is not yet consumed
+                                to skip future preflight checks.
                             </li>
                         </ul>
                         <p className="mt-2 text-sm text-muted-foreground">

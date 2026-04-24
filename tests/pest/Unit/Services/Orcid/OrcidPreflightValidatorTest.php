@@ -135,6 +135,30 @@ it('stamps orcid_verified_at and returns clean result when the API confirms the 
         ->and($person->fresh()->orcid_verified_at)->not->toBeNull();
 });
 
+it('preserves the original orcid_verified_at on subsequent successful preflights', function () {
+    [$resource, $person] = makeResourceWithCreatorOrcid(VALID_ORCID);
+
+    $original = now()->subDays(7)->startOfSecond();
+    $person->forceFill(['orcid_verified_at' => $original])->save();
+
+    $orcid = mockOrcidService(function (MockInterface $mock) {
+        $mock->shouldReceive('validateOrcid')
+            ->once()
+            ->with(VALID_ORCID, Mockery::any(), Mockery::any())
+            ->andReturn([
+                'valid' => true,
+                'exists' => true,
+                'message' => 'Valid',
+                'errorType' => null,
+            ]);
+    });
+
+    (new OrcidPreflightValidator($orcid))->validate($resource);
+
+    // The audit timestamp must reflect the *first* verification, not the latest.
+    expect($person->fresh()->orcid_verified_at?->equalTo($original))->toBeTrue();
+});
+
 it('hard-blocks on not_found responses', function () {
     [$resource, $person] = makeResourceWithCreatorOrcid(VALID_ORCID);
 
