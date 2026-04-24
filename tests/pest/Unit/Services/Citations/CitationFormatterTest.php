@@ -211,4 +211,246 @@ describe('IEEE formatting', function () {
         $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']), CitationFormatter::STYLE_IEEE);
         expect($out)->toContain('et al.');
     });
+
+    it('returns publisher and year for a book (non-container) in IEEE', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Book',
+            'publication_year' => 2019,
+            'publisher' => 'Springer',
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'Geology Textbook',
+            'title_type' => 'MainTitle',
+        ]);
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name' => 'Smith, A',
+            'given_name' => 'A',
+            'family_name' => 'Smith',
+        ]);
+
+        $out = (new CitationFormatter())->format(
+            $item->fresh(['titles', 'creators']),
+            CitationFormatter::STYLE_IEEE
+        );
+
+        expect($out)
+            ->toContain('A. Smith,')
+            ->toContain('"Geology Textbook,"')
+            ->toContain('Springer,')
+            ->toContain('2019.');
+    });
+
+    it('omits creators segment in IEEE when no creators exist', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2022,
+            'publisher' => null,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'Anon Report',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format(
+            $item->fresh(['titles', 'creators']),
+            CitationFormatter::STYLE_IEEE
+        );
+
+        expect($out)->toStartWith('"Anon Report,"')
+            ->toContain('2022');
+    });
 });
+
+describe('APA edge cases', function () {
+    it('formats volume-only without issue for non-container', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+            'volume' => '5',
+            'issue' => null,
+            'first_page' => null,
+            'last_page' => null,
+            'publisher' => 'GFZ',
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'Report Title',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('Report Title (5).')
+            ->toContain('GFZ.');
+    });
+
+    it('formats issue-only as "(issue)" when no volume', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+            'volume' => null,
+            'issue' => '7',
+            'first_page' => null,
+            'last_page' => null,
+            'publisher' => null,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'X',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('X ((7)).');
+    });
+
+    it('formats a single first page without last page', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+            'volume' => null,
+            'issue' => null,
+            'first_page' => '42',
+            'last_page' => null,
+            'publisher' => null,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'Y',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('Y, 42.');
+    });
+
+    it('keeps the DOI as-is when the identifier is already a URL', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+            'identifier' => 'https://doi.org/10.1/already',
+            'identifier_type' => 'DOI',
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'Z',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('https://doi.org/10.1/already')
+            ->not->toContain('https://doi.org/https://');
+    });
+
+    it('strips a leading slash from a bare DOI', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+            'identifier' => '/10.1234/slash',
+            'identifier_type' => 'DOI',
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'S',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('https://doi.org/10.1234/slash');
+    });
+
+    it('omits creators segment when no creators exist', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+            'publisher' => null,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'Anon',
+            'title_type' => 'MainTitle',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toStartWith('(2024).')
+            ->toContain('Anon');
+    });
+
+    it('falls back to name when family/given are missing', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'T',
+            'title_type' => 'MainTitle',
+        ]);
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name_type' => 'Personal',
+            'name' => 'Madonna',
+            'given_name' => null,
+            'family_name' => null,
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('Madonna (2024).');
+    });
+
+    it('computes multi-part initials from hyphenated given names', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'T',
+            'title_type' => 'MainTitle',
+        ]);
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name_type' => 'Personal',
+            'name' => 'Picard, Jean-Luc',
+            'given_name' => 'Jean-Luc',
+            'family_name' => 'Picard',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('Picard, J. L.');
+    });
+
+    it('uppercases multibyte initials safely', function () {
+        $item = RelatedItem::factory()->create([
+            'related_item_type' => 'Report',
+            'publication_year' => 2024,
+        ]);
+        RelatedItemTitle::factory()->create([
+            'related_item_id' => $item->id,
+            'title' => 'T',
+            'title_type' => 'MainTitle',
+        ]);
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name_type' => 'Personal',
+            'name' => 'Ångström, Örjan',
+            'given_name' => 'örjan',
+            'family_name' => 'Ångström',
+        ]);
+
+        $out = (new CitationFormatter())->format($item->fresh(['titles', 'creators']));
+
+        expect($out)->toContain('Ångström, Ö.');
+    });
+});
+

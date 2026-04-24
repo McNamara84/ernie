@@ -154,3 +154,199 @@ describe('CitationLookupResult', function () {
         expect($r3->found)->toBeFalse();
     });
 });
+
+describe('CrossrefClient edge cases', function () {
+    it('returns an error when the HTTP client throws', function () {
+        Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('timeout');
+        });
+
+        $result = makeClient()->lookup('10.1/timeout');
+
+        expect($result->found)->toBeFalse();
+        expect($result->error)->toBe('Crossref request failed.');
+    });
+
+    it('returns notFound when the response body is not a JSON array', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response('not-json-array', 200, ['Content-Type' => 'text/plain']),
+        ]);
+
+        $result = makeClient()->lookup('10.1/plain');
+
+        expect($result->found)->toBeFalse();
+        expect($result->error)->toBeNull();
+    });
+
+    it('returns notFound when message is missing', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response(['status' => 'ok'], 200),
+        ]);
+
+        expect(makeClient()->lookup('10.1/nomsg')->found)->toBeFalse();
+    });
+
+    it('returns notFound when message is not an array', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response(['message' => 'oops'], 200),
+        ]);
+
+        expect(makeClient()->lookup('10.1/strmsg')->found)->toBeFalse();
+    });
+
+    it('sends the bare user agent when mailto is empty', function () {
+        config()->set('crossref.mailto', '');
+
+        Http::fake([
+            'api.crossref.org/*' => Http::response(['message' => []], 200),
+        ]);
+
+        makeClient()->lookup('10.1/noemail');
+
+        Http::assertSent(function ($request) {
+            $ua = (string) $request->header('User-Agent')[0];
+
+            return $ua === 'ERNIE/1.0';
+        });
+    });
+
+    it('skips authors that have neither name nor given/family', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'author' => [['sequence' => 'first'], ['given' => 'A', 'family' => 'B']],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/skip');
+
+        expect($result->data['creators'])->toHaveCount(1);
+        expect($result->data['creators'][0]['familyName'])->toBe('B');
+    });
+
+    it('extracts authors that have only a given name', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'author' => [['given' => 'Cher']],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/only-given');
+
+        expect($result->data['creators'])->toHaveCount(1);
+        expect($result->data['creators'][0]['nameType'])->toBe('Personal');
+        expect($result->data['creators'][0]['givenName'])->toBe('Cher');
+        expect($result->data['creators'][0]['familyName'])->toBeNull();
+    });
+
+    it('extracts affiliation names for an author', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'author' => [[
+                        'given' => 'A',
+                        'family' => 'B',
+                        'affiliation' => [
+                            ['name' => 'GFZ'],
+                            ['something' => 'else'], // missing name, skipped
+                            'not-an-array', // skipped
+                        ],
+                    ]],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/aff');
+
+        expect($result->data['creators'][0]['affiliations'])->toHaveCount(1);
+        expect($result->data['creators'][0]['affiliations'][0]['name'])->toBe('GFZ');
+    });
+
+    it('falls back through date fields to extract the publication year', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'published-online' => ['date-parts' => [[2018]]],
+                    'created' => ['date-parts' => [[2010]]],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/online');
+
+        expect($result->data['publicationYear'])->toBe(2018);
+    });
+
+    it('ignores non-positive years', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'issued' => ['date-parts' => [[0]]],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/zero');
+
+        expect($result->data['publicationYear'])->toBeNull();
+    });
+
+    it('parses a single page (no dash)', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'page' => '42',
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/single-page');
+
+        expect($result->data['firstPage'])->toBe('42');
+        expect($result->data['lastPage'])->toBeNull();
+    });
+
+    it('falls back to publisher when container-title is empty', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'title' => ['T'],
+                    'publisher' => 'Imprint Co',
+                    'container-title' => ['', '  '],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/publisher');
+
+        expect($result->data['publisher'])->toBe('Imprint Co');
+    });
+
+    it('extracts ISBN identifiers', function () {
+        Http::fake([
+            'api.crossref.org/*' => Http::response([
+                'message' => [
+                    'type' => 'book',
+                    'title' => ['The Book'],
+                    'ISBN' => ['978-0-12-345678-9'],
+                ],
+            ], 200),
+        ]);
+
+        $result = makeClient()->lookup('10.1/book');
+
+        expect($result->data['additionalIdentifiers'])->toContain([
+            'identifier' => '978-0-12-345678-9',
+            'identifierType' => 'ISBN',
+        ]);
+    });
+});

@@ -221,3 +221,160 @@ describe('SchemaOrgJsonLdExporter — citations', function () {
         ]);
     });
 });
+
+describe('SchemaOrgJsonLdExporter — citation edge cases', function () {
+    function makeMinimalRelatedItemResource(array $relatedItemOverrides = [], array $titleOverrides = []): Resource
+    {
+        $resource = Resource::factory()->create();
+        $relationType = RelationType::firstOrCreate(
+            ['slug' => 'Cites'],
+            ['name' => 'Cites', 'is_active' => true]
+        );
+        $item = RelatedItem::factory()->create(array_merge([
+            'resource_id' => $resource->id,
+            'related_item_type' => 'Book',
+            'relation_type_id' => $relationType->id,
+            'publication_year' => null,
+            'volume' => null,
+            'issue' => null,
+            'first_page' => null,
+            'last_page' => null,
+            'publisher' => null,
+            'edition' => null,
+            'identifier' => null,
+            'identifier_type' => null,
+        ], $relatedItemOverrides));
+        RelatedItemTitle::factory()->create(array_merge([
+            'related_item_id' => $item->id,
+            'title' => 'Some Book',
+            'title_type' => 'MainTitle',
+            'position' => 0,
+        ], $titleOverrides));
+
+        return $resource->fresh();
+    }
+
+    test('emits url (not @id) when identifier type is URL', function () {
+        $resource = makeMinimalRelatedItemResource([
+            'identifier' => 'https://example.org/paper',
+            'identifier_type' => 'URL',
+        ]);
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        $citation = $schema['citation'][0];
+        expect($citation['url'])->toBe('https://example.org/paper');
+        expect($citation)->not->toHaveKey('@id');
+    });
+
+    test('emits PropertyValue for non-DOI/non-URL identifier types', function () {
+        $resource = makeMinimalRelatedItemResource([
+            'identifier' => 'urn:isbn:9781234567890',
+            'identifier_type' => 'ISBN',
+        ]);
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        $citation = $schema['citation'][0];
+        expect($citation['identifier'])->toMatchArray([
+            '@type' => 'PropertyValue',
+            'propertyID' => 'ISBN',
+            'value' => 'urn:isbn:9781234567890',
+        ]);
+        expect($citation)->not->toHaveKey('@id');
+        expect($citation)->not->toHaveKey('url');
+    });
+
+    test('emits Organization @type for organizational creators', function () {
+        $resource = makeMinimalRelatedItemResource();
+        $item = $resource->relatedItems->first();
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name_type' => 'Organizational',
+            'name' => 'GFZ Helmholtz Centre',
+            'given_name' => null,
+            'family_name' => null,
+            'position' => 0,
+        ]);
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource->fresh());
+
+        $citation = $schema['citation'][0];
+        expect($citation['author'])->toMatchArray([
+            '@type' => 'Organization',
+            'name' => 'GFZ Helmholtz Centre',
+        ]);
+        expect($citation['author'])->not->toHaveKey('givenName');
+        expect($citation['author'])->not->toHaveKey('familyName');
+    });
+
+    test('returns author as array when multiple creators exist', function () {
+        $resource = makeMinimalRelatedItemResource();
+        $item = $resource->relatedItems->first();
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name_type' => 'Personal',
+            'name' => 'Alpha, A',
+            'given_name' => 'A',
+            'family_name' => 'Alpha',
+            'position' => 0,
+        ]);
+        RelatedItemCreator::factory()->create([
+            'related_item_id' => $item->id,
+            'name_type' => 'Personal',
+            'name' => 'Beta, B',
+            'given_name' => 'B',
+            'family_name' => 'Beta',
+            'position' => 1,
+        ]);
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource->fresh());
+
+        $authors = $schema['citation'][0]['author'];
+        expect($authors)->toBeArray()->toHaveCount(2);
+        expect($authors[0]['name'])->toBe('Alpha, A');
+        expect($authors[1]['name'])->toBe('Beta, B');
+    });
+
+    test('omits publisher when not set', function () {
+        $resource = makeMinimalRelatedItemResource();
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        $citation = $schema['citation'][0];
+        expect($citation)->not->toHaveKey('publisher');
+    });
+
+    test('omits datePublished when publicationYear is null', function () {
+        $resource = makeMinimalRelatedItemResource();
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        $citation = $schema['citation'][0];
+        expect($citation)->not->toHaveKey('datePublished');
+    });
+
+    test('emits pp. with only firstPage when lastPage missing', function () {
+        $resource = makeMinimalRelatedItemResource([
+            'first_page' => '42',
+            'last_page' => null,
+        ]);
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        $citation = $schema['citation'][0];
+        expect($citation['description'])->toBe('pp. 42');
+        expect($citation['description'])->not->toContain('-');
+    });
+
+    test('omits citation key entirely when no relatedItems exist', function () {
+        $resource = Resource::factory()->create();
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        expect($schema)->not->toHaveKey('citation');
+    });
+
+    test('uses first title when no MainTitle (untyped) is present', function () {
+        $resource = makeMinimalRelatedItemResource([], [
+            'title' => 'Only Subtitle',
+            'title_type' => 'Subtitle',
+        ]);
+        $schema = (new SchemaOrgJsonLdExporter())->export($resource);
+
+        $citation = $schema['citation'][0];
+        expect($citation['name'])->toBe('Only Subtitle');
+    });
+});

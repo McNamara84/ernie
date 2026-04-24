@@ -145,4 +145,156 @@ describe('formatCitation (IEEE)', () => {
         const out = formatCitation(baseItem({ creators }), 'ieee');
         expect(out).toContain('et al.');
     });
+
+    it('formats a non-container book without container segment', () => {
+        const out = formatCitation(
+            baseItem({
+                related_item_type: 'Book',
+                publisher: 'Springer',
+                publication_year: 2019,
+                volume: null,
+                issue: null,
+                first_page: null,
+                last_page: null,
+                identifier: null,
+                identifier_type: null,
+            }),
+            'ieee',
+        );
+        expect(out).toContain('Springer,');
+        expect(out).toContain('2019.');
+        expect(out).not.toContain('vol.');
+        expect(out).not.toContain('pp.');
+    });
+
+    it('omits creator segment when no creators present', () => {
+        const out = formatCitation(
+            baseItem({ creators: [], related_item_type: 'Book', publisher: 'X', identifier: null, identifier_type: null }),
+            'ieee',
+        );
+        expect(out.startsWith('"')).toBe(true);
+    });
+});
+
+describe('formatCitation (APA edge cases)', () => {
+    it('wraps volume-only in parentheses when no container', () => {
+        const out = formatCitation(
+            baseItem({
+                related_item_type: 'Report',
+                volume: '5',
+                issue: null,
+                first_page: null,
+                last_page: null,
+                publisher: null,
+                identifier: null,
+                identifier_type: null,
+                titles: [{ title: 'Report Title', title_type: 'MainTitle', position: 0 }],
+            }),
+            'apa',
+        );
+        expect(out).toContain('Report Title (5).');
+    });
+
+    it('uses only firstPage when lastPage missing', () => {
+        const out = formatCitation(
+            baseItem({ first_page: '42', last_page: null }),
+            'apa',
+        );
+        expect(out).toContain(', 42.');
+        expect(out).not.toContain('42-');
+    });
+
+    it('keeps DOI identifier already starting with https://', () => {
+        const out = formatCitation(
+            baseItem({ identifier: 'https://doi.org/10.9999/custom', identifier_type: 'DOI' }),
+            'apa',
+        );
+        expect(out).toContain('https://doi.org/10.9999/custom');
+    });
+
+    it('strips leading slashes from DOI identifier', () => {
+        const out = formatCitation(
+            baseItem({ identifier: '//10.1234/x', identifier_type: 'DOI' }),
+            'apa',
+        );
+        expect(out).toContain('https://doi.org/10.1234/x');
+        expect(out).not.toMatch(/\/\/+10\.1234/);
+    });
+
+    it('emits (YEAR). alone when no creators present', () => {
+        const out = formatCitation(
+            baseItem({ creators: [], publication_year: 2024 }),
+            'apa',
+        );
+        expect(out.startsWith('(2024).')).toBe(true);
+    });
+
+    it('falls back to name when family/given absent', () => {
+        const out = formatCitation(
+            baseItem({
+                creators: [
+                    {
+                        name: 'Madonna',
+                        name_type: 'Personal',
+                        position: 0,
+                        affiliations: [],
+                    },
+                ],
+            }),
+            'apa',
+        );
+        expect(out).toContain('Madonna (2024).');
+    });
+
+    it('splits hyphenated given names into separate initials', () => {
+        const out = formatCitation(
+            baseItem({
+                creators: [
+                    {
+                        name: 'Picard, Jean-Luc',
+                        name_type: 'Personal',
+                        given_name: 'Jean-Luc',
+                        family_name: 'Picard',
+                        position: 0,
+                        affiliations: [],
+                    },
+                ],
+            }),
+            'apa',
+        );
+        expect(out).toContain('Picard, J. L.');
+    });
+
+    it('uppercases multibyte initials', () => {
+        const out = formatCitation(
+            baseItem({
+                creators: [
+                    {
+                        name: 'Ågren, Örjan',
+                        name_type: 'Personal',
+                        given_name: 'örjan',
+                        family_name: 'Ågren',
+                        position: 0,
+                        affiliations: [],
+                    },
+                ],
+            }),
+            'apa',
+        );
+        expect(out).toContain('Ågren, Ö.');
+    });
+
+    it('omits publisher segment when empty string', () => {
+        const out = formatCitation(
+            baseItem({
+                related_item_type: 'Book',
+                publisher: '',
+                identifier: null,
+                identifier_type: null,
+            }),
+            'apa',
+        );
+        expect(out).not.toMatch(/\.\s+\./);
+        expect(out).not.toContain('  ');
+    });
 });

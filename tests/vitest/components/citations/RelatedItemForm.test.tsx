@@ -155,3 +155,262 @@ describe('RelatedItemForm', () => {
         expect(onCancel).toHaveBeenCalled();
     });
 });
+
+describe('RelatedItemForm — lookup edge cases', () => {
+    it('shows "No metadata found" message when source is not_found', async () => {
+        server.use(
+            http.get('/api/v1/citation-lookup', () =>
+                HttpResponse.json({ source: 'not_found' }),
+            ),
+        );
+
+        const user = userEvent.setup();
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        await user.type(
+            screen.getByPlaceholderText(/10\.1234\/abcd/),
+            '10.9999/missing',
+        );
+        await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(/No metadata found for this identifier/i),
+            ).toBeInTheDocument();
+        });
+    });
+
+    it('renders lookup error as destructive message', async () => {
+        server.use(
+            http.get('/api/v1/citation-lookup', () =>
+                HttpResponse.json({ message: 'Crossref timed out' }, { status: 500 }),
+            ),
+        );
+
+        const user = userEvent.setup();
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        await user.type(
+            screen.getByPlaceholderText(/10\.1234\/abcd/),
+            '10.1234/boom',
+        );
+        await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/Crossref timed out|failed/i)).toBeInTheDocument();
+        });
+    });
+
+    it('does not call the API when identifier field is empty', async () => {
+        let called = false;
+        server.use(
+            http.get('/api/v1/citation-lookup', () => {
+                called = true;
+                return HttpResponse.json({ source: 'not_found' });
+            }),
+        );
+
+        const user = userEvent.setup();
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
+
+        // Wait briefly for any request to have fired
+        await new Promise((r) => setTimeout(r, 50));
+        expect(called).toBe(false);
+    });
+
+    it('hides the Lookup button when enableLookup is false', () => {
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+                enableLookup={false}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: /Look up DOI metadata/i }),
+        ).toBeNull();
+    });
+
+    it('also autofills the subtitle when provided', async () => {
+        server.use(
+            http.get('/api/v1/citation-lookup', () =>
+                HttpResponse.json({
+                    source: 'crossref',
+                    identifier: '10.1234/x',
+                    identifier_type: 'DOI',
+                    related_item_type: 'JournalArticle',
+                    title: 'Main Autofilled',
+                    subtitle: 'An Autofilled Subtitle',
+                    publication_year: 2024,
+                }),
+            ),
+        );
+
+        const user = userEvent.setup();
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        await user.type(
+            screen.getByPlaceholderText(/10\.1234\/abcd/),
+            '10.1234/x',
+        );
+        await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
+
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('Main Autofilled')).toBeInTheDocument();
+        });
+        expect(screen.getByDisplayValue('An Autofilled Subtitle')).toBeInTheDocument();
+    });
+
+    it('autofills an organizational creator', async () => {
+        server.use(
+            http.get('/api/v1/citation-lookup', () =>
+                HttpResponse.json({
+                    source: 'datacite',
+                    identifier: '10.1234/org',
+                    identifier_type: 'DOI',
+                    related_item_type: 'Book',
+                    title: 'Org Book',
+                    publication_year: 2020,
+                    creators: [
+                        {
+                            name: 'GFZ Helmholtz Centre',
+                            name_type: 'Organizational',
+                        },
+                    ],
+                }),
+            ),
+        );
+
+        const user = userEvent.setup();
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        await user.type(
+            screen.getByPlaceholderText(/10\.1234\/abcd/),
+            '10.1234/org',
+        );
+        await user.click(screen.getByRole('button', { name: /Look up DOI metadata/i }));
+
+        // Wait until the autofill effect has populated the creators field array
+        // (accordion header text reflects the count).
+        const creatorsAccordion = await screen.findByRole('button', {
+            name: /Creators \(1\)/,
+        });
+        await user.click(creatorsAccordion);
+
+        await waitFor(() => {
+            expect(
+                screen.getByDisplayValue('GFZ Helmholtz Centre'),
+            ).toBeInTheDocument();
+        });
+    });
+});
+
+describe('RelatedItemForm — titles field array', () => {
+    it('disables the remove button when only one title remains', () => {
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        const removeBtn = screen.getByRole('button', { name: /Remove title 1/i });
+        expect(removeBtn).toBeDisabled();
+    });
+
+    it('adds and removes additional titles', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedItemForm
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /Add title/i }));
+
+        // Now there are two titles → remove buttons both enabled
+        const removeButtons = screen.getAllByRole('button', {
+            name: /Remove title \d+/i,
+        });
+        expect(removeButtons).toHaveLength(2);
+        expect(removeButtons[0]).not.toBeDisabled();
+
+        await user.click(removeButtons[1]);
+
+        await waitFor(() => {
+            expect(
+                screen.getAllByRole('button', { name: /Remove title \d+/i }),
+            ).toHaveLength(1);
+        });
+    });
+
+    it('prefills all fields from initialValue in edit mode', () => {
+        render(
+            <RelatedItemForm
+                initialValue={{
+                    related_item_type: 'Book',
+                    relation_type_id: 2,
+                    publisher: 'Springer',
+                    publication_year: 2019,
+                    titles: [
+                        { title: 'Existing Main', title_type: 'MainTitle', position: 0 },
+                        { title: 'Existing Sub', title_type: 'Subtitle', position: 1 },
+                    ],
+                    position: 0,
+                }}
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+                onSubmit={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByDisplayValue('Existing Main')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Existing Sub')).toBeInTheDocument();
+    });
+});

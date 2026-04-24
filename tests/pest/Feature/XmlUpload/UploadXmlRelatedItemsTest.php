@@ -137,3 +137,171 @@ test('extracts DataCite 4.7 <relatedItems> from uploaded XML', function () {
         'title_type' => 'MainTitle',
     ]);
 });
+
+/**
+ * Helper: wrap arbitrary <relatedItem> XML in a minimal valid DataCite resource
+ * and upload it, returning the parsed `relatedItems` array from the session.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function uploadRelatedItemsXml(string $relatedItemXml): array
+{
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.7/metadata.xsd">
+  <identifier identifierType="DOI">10.5880/pik.2021.999</identifier>
+  <creators><creator><creatorName>Doe, Jane</creatorName></creator></creators>
+  <titles><title>Test Dataset</title></titles>
+  <publisher>GFZ</publisher>
+  <publicationYear>2021</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+  <relatedItems>
+{$relatedItemXml}
+  </relatedItems>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('ri.xml', $xml);
+    $response = test()->postJson('/dashboard/upload-xml', ['file' => $file])->assertOk();
+    $payload = session()->get($response->json('sessionKey'));
+
+    return $payload['relatedItems'] ?? [];
+}
+
+describe('extractRelatedItems edge cases', function () {
+    beforeEach(function () {
+        $this->actingAs(User::factory()->create());
+    });
+
+    test('skips relatedItem missing relationType attribute', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book">
+      <titles><title>No relationType</title></titles>
+    </relatedItem>
+XML);
+
+        expect($items)->toBeEmpty();
+    });
+
+    test('skips relatedItem missing relatedItemType attribute', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relationType="Cites">
+      <titles><title>No relatedItemType</title></titles>
+    </relatedItem>
+XML);
+
+        expect($items)->toBeEmpty();
+    });
+
+    test('accepts <number> without numberType attribute', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>With bare number</title></titles>
+      <number>17</number>
+    </relatedItem>
+XML);
+
+        expect($items)->toHaveCount(1);
+        expect($items[0]['number'])->toBe('17');
+        expect($items[0]['number_type'])->toBeNull();
+    });
+
+    test('captures all optional identifier scheme attributes', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Dataset" relationType="Cites">
+      <titles><title>Full identifier</title></titles>
+      <relatedItemIdentifier relatedItemIdentifierType="URL"
+                             relatedMetadataScheme="DataCite"
+                             schemeURI="https://schema.datacite.org/"
+                             schemeType="XSD">https://example.org/data</relatedItemIdentifier>
+    </relatedItem>
+XML);
+
+        expect($items)->toHaveCount(1);
+        expect($items[0])->toMatchArray([
+            'identifier' => 'https://example.org/data',
+            'identifier_type' => 'URL',
+            'related_metadata_scheme' => 'DataCite',
+            'scheme_uri' => 'https://schema.datacite.org/',
+            'scheme_type' => 'XSD',
+        ]);
+    });
+
+    test('skips empty-string identifier element', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>Empty id</title></titles>
+      <relatedItemIdentifier relatedItemIdentifierType="DOI">   </relatedItemIdentifier>
+    </relatedItem>
+XML);
+
+        expect($items)->toHaveCount(1);
+        expect($items[0])->not->toHaveKey('identifier');
+        expect($items[0])->not->toHaveKey('identifier_type');
+    });
+
+    test('accepts creator nameIdentifier without scheme attribute', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>Bare identifier</title></titles>
+      <creators>
+        <creator>
+          <creatorName>Smith, J</creatorName>
+          <nameIdentifier>X-123</nameIdentifier>
+        </creator>
+      </creators>
+    </relatedItem>
+XML);
+
+        expect($items[0]['creators'][0])->toMatchArray([
+            'name' => 'Smith, J',
+            'name_identifier' => 'X-123',
+        ]);
+        expect($items[0]['creators'][0])->not->toHaveKey('name_identifier_scheme');
+    });
+
+    test('drops contributor without contributorType attribute', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>Bad contributor</title></titles>
+      <contributors>
+        <contributor>
+          <contributorName>No Type, Person</contributorName>
+        </contributor>
+        <contributor contributorType="Editor">
+          <contributorName>Editor, One</contributorName>
+        </contributor>
+      </contributors>
+    </relatedItem>
+XML);
+
+        expect($items[0]['contributors'])->toHaveCount(1);
+        expect($items[0]['contributors'][0]['name'])->toBe('Editor, One');
+    });
+
+    test('ignores non-numeric publicationYear', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>Bad year</title></titles>
+      <publicationYear>not-a-year</publicationYear>
+    </relatedItem>
+XML);
+
+        expect($items[0]['publication_year'])->toBeNull();
+    });
+
+    test('defaults creator nameType to Personal when absent', function () {
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>No nameType</title></titles>
+      <creators>
+        <creator><creatorName>Anonymous</creatorName></creator>
+      </creators>
+    </relatedItem>
+XML);
+
+        expect($items[0]['creators'][0]['name_type'])->toBe('Personal');
+    });
+});

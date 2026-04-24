@@ -93,3 +93,156 @@ it('caches the result so repeat calls do not hit the network', function () {
     expect($r1->found)->toBeTrue();
     expect($r2->found)->toBeTrue();
 });
+
+it('falls back to DataCite when Crossref returns an error', function () {
+    $crossref = Mockery::mock(CrossrefClient::class);
+    $crossref->shouldReceive('lookup')->once()->andReturn(CitationLookupResult::error('crossref', 'HTTP 500'));
+
+    $datacite = Mockery::mock(DataCiteApiService::class);
+    $datacite->shouldReceive('getDataCiteMetadata')->once()->andReturn([
+        'titles' => [['title' => 'Recovered']],
+        'publicationYear' => 2020,
+    ]);
+
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+    $result = $svc->lookup('10.1/err');
+
+    expect($result->source)->toBe('datacite');
+    expect($result->found)->toBeTrue();
+    expect($result->data['titles'][0]['title'])->toBe('Recovered');
+});
+
+describe('DataCite attribute transformation', function () {
+    /**
+     * @param array<string, mixed> $attrs
+     * @return array<string, mixed>
+     */
+    function runDataCiteFallback(array $attrs): array
+    {
+        $crossref = Mockery::mock(CrossrefClient::class);
+        $crossref->shouldReceive('lookup')->andReturn(CitationLookupResult::notFound('crossref'));
+
+        $datacite = Mockery::mock(DataCiteApiService::class);
+        $datacite->shouldReceive('getDataCiteMetadata')->andReturn($attrs);
+
+        $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+        $result = $svc->lookup('10.1/transform');
+
+        /** @var array<string, mixed> $data */
+        $data = $result->data ?? [];
+
+        return $data;
+    }
+
+    it('defaults titleType to MainTitle when missing', function () {
+        $data = runDataCiteFallback([
+            'titles' => [['title' => 'Bare Title']],
+        ]);
+
+        expect($data['titles'][0]['titleType'])->toBe('MainTitle');
+    });
+
+    it('skips titles that are not arrays or have a non-string title', function () {
+        $data = runDataCiteFallback([
+            'titles' => ['not-an-array', ['title' => 42], ['title' => 'Valid']],
+        ]);
+
+        expect($data['titles'])->toHaveCount(1);
+        expect($data['titles'][0]['title'])->toBe('Valid');
+    });
+
+    it('defaults nameType to Personal when missing', function () {
+        $data = runDataCiteFallback([
+            'creators' => [['name' => 'Anon']],
+        ]);
+
+        expect($data['creators'][0]['nameType'])->toBe('Personal');
+    });
+
+    it('only takes the first nameIdentifier', function () {
+        $data = runDataCiteFallback([
+            'creators' => [[
+                'nameType' => 'Personal',
+                'name' => 'X',
+                'nameIdentifiers' => [
+                    ['nameIdentifier' => 'FIRST', 'nameIdentifierScheme' => 'ORCID'],
+                    ['nameIdentifier' => 'SECOND', 'nameIdentifierScheme' => 'OTHER'],
+                ],
+            ]],
+        ]);
+
+        expect($data['creators'][0]['nameIdentifier'])->toBe('FIRST');
+        expect($data['creators'][0]['nameIdentifierScheme'])->toBe('ORCID');
+    });
+
+    it('accepts a plain string affiliation', function () {
+        $data = runDataCiteFallback([
+            'creators' => [[
+                'name' => 'X',
+                'affiliation' => ['GFZ'],
+            ]],
+        ]);
+
+        expect($data['creators'][0]['affiliations'][0])->toMatchArray([
+            'name' => 'GFZ',
+            'affiliationIdentifier' => null,
+            'scheme' => null,
+        ]);
+    });
+
+    it('marks affiliations with schemeUri as ROR', function () {
+        $data = runDataCiteFallback([
+            'creators' => [[
+                'name' => 'X',
+                'affiliation' => [[
+                    'name' => 'GFZ',
+                    'affiliationIdentifier' => 'https://ror.org/04z8jg394',
+                    'schemeUri' => 'https://ror.org',
+                ]],
+            ]],
+        ]);
+
+        expect($data['creators'][0]['affiliations'][0])->toMatchArray([
+            'name' => 'GFZ',
+            'affiliationIdentifier' => 'https://ror.org/04z8jg394',
+            'scheme' => 'ROR',
+        ]);
+    });
+
+    it('returns scheme null when schemeUri is absent', function () {
+        $data = runDataCiteFallback([
+            'creators' => [[
+                'name' => 'X',
+                'affiliation' => [[
+                    'name' => 'GFZ',
+                    'affiliationIdentifier' => 'some-id',
+                ]],
+            ]],
+        ]);
+
+        expect($data['creators'][0]['affiliations'][0]['scheme'])->toBeNull();
+    });
+
+    it('casts the publicationYear string to int', function () {
+        $data = runDataCiteFallback([
+            'publicationYear' => '2022',
+        ]);
+
+        expect($data['publicationYear'])->toBe(2022);
+    });
+
+    it('falls back to the Text type mapper when no resourceTypeGeneral', function () {
+        $data = runDataCiteFallback([]);
+
+        expect($data['relatedItemType'])->toBe('Text');
+    });
+
+    it('skips non-array creators', function () {
+        $data = runDataCiteFallback([
+            'creators' => ['not-a-creator', ['name' => 'Valid']],
+        ]);
+
+        expect($data['creators'])->toHaveCount(1);
+        expect($data['creators'][0]['name'])->toBe('Valid');
+    });
+});

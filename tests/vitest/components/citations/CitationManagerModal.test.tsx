@@ -113,4 +113,110 @@ describe('CitationManagerModal', () => {
 
         await waitFor(() => expect(posted).toBe(true));
     });
+
+    it('renders an error message when the fetch fails', async () => {
+        server.use(
+            http.get(base, () =>
+                HttpResponse.json({ message: 'boom' }, { status: 500 }),
+            ),
+        );
+        renderModal();
+
+        await waitFor(() => {
+            expect(screen.getByText(/boom|failed/i)).toBeInTheDocument();
+        });
+    });
+
+    it('closes the modal when the Close button is clicked', async () => {
+        server.use(http.get(base, () => HttpResponse.json({ data: [] })));
+        const onOpenChange = vi.fn();
+        const user = userEvent.setup();
+        render(
+            <CitationManagerModal
+                open
+                onOpenChange={onOpenChange}
+                resourceId={resourceId}
+                resourceTypes={resourceTypes}
+                relationTypes={relationTypes}
+                contributorTypes={contributorTypes}
+            />,
+        );
+
+        await waitFor(() =>
+            expect(screen.getByText(/No related items yet/i)).toBeInTheDocument(),
+        );
+        // The Dialog wrapper exposes its own "Close" (X) button; pick the
+        // footer text button which is the last one in DOM order.
+        const closeButtons = screen.getAllByRole('button', { name: /^Close$/ });
+        await user.click(closeButtons[closeButtons.length - 1]);
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('does not call DELETE when window.confirm is cancelled', async () => {
+        let deleted = false;
+        server.use(
+            http.get(base, () => HttpResponse.json({ data: [sampleItem] })),
+            http.delete(`${base}/1`, () => {
+                deleted = true;
+                return new HttpResponse(null, { status: 204 });
+            }),
+        );
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+        const user = userEvent.setup();
+        renderModal();
+
+        await waitFor(() =>
+            expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
+        );
+
+        const deleteBtn = screen.getByRole('button', { name: /delete/i });
+        await user.click(deleteBtn);
+
+        expect(confirmSpy).toHaveBeenCalled();
+        expect(deleted).toBe(false);
+
+        confirmSpy.mockRestore();
+    });
+
+    it('calls DELETE and removes the item when window.confirm is accepted', async () => {
+        let deleted = false;
+        server.use(
+            http.get(base, () => HttpResponse.json({ data: [sampleItem] })),
+            http.delete(`${base}/1`, () => {
+                deleted = true;
+                return new HttpResponse(null, { status: 204 });
+            }),
+        );
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const user = userEvent.setup();
+        renderModal();
+
+        await waitFor(() =>
+            expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
+        );
+
+        await user.click(screen.getByRole('button', { name: /delete/i }));
+
+        await waitFor(() => expect(deleted).toBe(true));
+        await waitFor(() =>
+            expect(screen.queryByText(/Sample paper/)).toBeNull(),
+        );
+
+        confirmSpy.mockRestore();
+    });
+
+    it('opens the edit form with pre-filled title', async () => {
+        server.use(http.get(base, () => HttpResponse.json({ data: [sampleItem] })));
+        const user = userEvent.setup();
+        renderModal();
+
+        await waitFor(() =>
+            expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
+        );
+
+        await user.click(screen.getByRole('button', { name: /edit/i }));
+
+        expect(screen.getByDisplayValue('Sample paper')).toBeInTheDocument();
+    });
 });
