@@ -53,9 +53,18 @@ final readonly class OrcidPreflightValidator
             'contributors.contributorable',
         ]);
 
+        // Cache network results per bare ORCID id within a single invocation.
+        // Each `OrcidService::validateOrcid()` call is globally throttled
+        // (~2.1s between calls), so deduplicating identifiers shared between
+        // creators/contributors keeps preflight time proportional to the
+        // number of *unique* ORCIDs rather than the number of rows.
+        //
+        // @var array<string, array<string, mixed>> $networkCache
+        $networkCache = [];
+
         foreach ($resource->creators as $creator) {
             /** @var ResourceCreator $creator */
-            $issue = $this->checkCreatorOrContributor($creator, 'creator');
+            $issue = $this->checkCreatorOrContributor($creator, 'creator', $force, $networkCache);
             if ($issue === null) {
                 continue;
             }
@@ -68,7 +77,7 @@ final readonly class OrcidPreflightValidator
 
         foreach ($resource->contributors as $contributor) {
             /** @var ResourceContributor $contributor */
-            $issue = $this->checkCreatorOrContributor($contributor, 'contributor');
+            $issue = $this->checkCreatorOrContributor($contributor, 'contributor', $force, $networkCache);
             if ($issue === null) {
                 continue;
             }
@@ -99,8 +108,12 @@ final readonly class OrcidPreflightValidator
      *
      * @param  ResourceCreator|ResourceContributor  $row
      * @param  'creator'|'contributor'  $role
+     * @param  array<string, array<string, mixed>>  $networkCache  Reference to
+     *         the per-invocation cache keyed by bare ORCID id. The entry is
+     *         populated on first network call and reused for subsequent rows
+     *         sharing the same identifier.
      */
-    private function checkCreatorOrContributor(object $row, string $role): ?OrcidPreflightIssue
+    private function checkCreatorOrContributor(object $row, string $role, bool $force, array &$networkCache): ?OrcidPreflightIssue
     {
         $person = $this->resolvePerson($row);
         if ($person === null) {
@@ -145,11 +158,21 @@ final readonly class OrcidPreflightValidator
             );
         }
 
-        $response = $this->orcid->validateOrcid(
-            $bareId,
-            maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
-            timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
-        );
+        // When the curator has already overridden warnings via `force=true`,
+        // skip the throttled network validation. The offline format+checksum
+        // gates above still catch truly malformed identifiers, and any
+        // `not_found` that was detected on the first pass would have returned
+        // a 422 (blocking) rather than the 409 that leads to the force retry.
+        if ($force) {
+            return null;
+        }
+
+        $response = $networkCache[$bareId]
+            ?? $networkCache[$bareId] = $this->orcid->validateOrcid(
+                $bareId,
+                maxAttempts: OrcidService::PREFLIGHT_MAX_ATTEMPTS,
+                timeoutSeconds: OrcidService::PREFLIGHT_VALIDATION_TIMEOUT,
+            );
 
         // Successful confirmation → stamp verification timestamp and move on.
         if (($response['exists'] ?? null) === true) {

@@ -63,8 +63,10 @@ interface OrcidPreflightIssue {
 interface OrcidPreflightPayload {
     error: 'orcid_validation_failed' | 'orcid_validation_warning';
     message?: string;
-    invalid: OrcidPreflightIssue[];
-    warnings: OrcidPreflightIssue[];
+    // Kept optional because some proxies strip empty arrays from JSON error
+    // responses. The guard and consumers must treat missing values as `[]`.
+    invalid?: OrcidPreflightIssue[];
+    warnings?: OrcidPreflightIssue[];
 }
 
 interface PrefixConfig {
@@ -82,6 +84,15 @@ const ORCID_REASON_LABELS: Record<OrcidPreflightReason, string> = {
     api_error: 'ORCID service reported an error',
     unknown: 'ORCID verification failed for an unknown reason',
 };
+
+const KNOWN_ORCID_REASONS: ReadonlySet<string> = new Set(Object.keys(ORCID_REASON_LABELS));
+
+function describeOrcidReason(reason: string | undefined): string {
+    if (reason !== undefined && KNOWN_ORCID_REASONS.has(reason)) {
+        return ORCID_REASON_LABELS[reason as OrcidPreflightReason];
+    }
+    return ORCID_REASON_LABELS.unknown;
+}
 
 function isOrcidPreflightPayload(data: unknown): data is OrcidPreflightPayload {
     if (!data || typeof data !== 'object') {
@@ -393,7 +404,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                             <strong>{issue.displayName}</strong>{' '}
                                             <span className="text-xs text-muted-foreground">({issue.role})</span>
                                             <br />
-                                            <code className="text-xs">{issue.orcid}</code> – {ORCID_REASON_LABELS[issue.reason]}
+                                            <code className="text-xs">{issue.orcid}</code> – {describeOrcidReason(issue.reason)}
                                         </li>
                                     ))}
                                 </ul>
@@ -420,7 +431,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                             <strong>{issue.displayName}</strong>{' '}
                                             <span className="text-xs text-muted-foreground">({issue.role})</span>
                                             <br />
-                                            <code className="text-xs">{issue.orcid}</code> – {ORCID_REASON_LABELS[issue.reason]}
+                                            <code className="text-xs">{issue.orcid}</code> – {describeOrcidReason(issue.reason)}
                                         </li>
                                     ))}
                                 </ul>

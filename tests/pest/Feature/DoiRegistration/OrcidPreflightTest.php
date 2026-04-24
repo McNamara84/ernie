@@ -103,13 +103,13 @@ test('registerDoi returns 409 warning for transient ORCID failures and succeeds 
     actingAs($this->user);
     attachCreatorWithOrcid($this->resource, '0000-0002-1825-0097');
 
-    // Mock called twice: first without force (warning), then with force (no
-    // revalidation is performed because force bypasses the warning path, but
-    // preflight still re-runs the API call – the fake just keeps returning
-    // the transient error).
+    // The service is called exactly once: on the first (force=false) pass.
+    // When the curator overrides via force=true, the preflight short-circuits
+    // the throttled network call for identifiers that already passed the
+    // offline format+checksum gates, so no second API request is issued.
     $this->mock(OrcidService::class, function (MockInterface $mock) {
         $mock->shouldReceive('validateOrcid')
-            ->twice()
+            ->once()
             ->andReturn([
                 'valid' => false,
                 'exists' => null,

@@ -202,24 +202,38 @@ it('emits a warning (not a block) on timeout and requires confirmation', functio
         ->and($result->warnings[0]->reason)->toBe('timeout');
 });
 
-it('suppresses needsConfirmation when force=true even with warnings', function () {
+it('skips the throttled network validation entirely when force=true', function () {
     [$resource] = makeResourceWithCreatorOrcid(VALID_ORCID);
 
     $orcid = mockOrcidService(function (MockInterface $mock) {
-        $mock->shouldReceive('validateOrcid')
-            ->andReturn([
-                'valid' => false,
-                'exists' => null,
-                'message' => 'API error',
-                'errorType' => 'api_error',
-            ]);
+        // force=true is the override path – we must NOT issue another
+        // throttled network call for identifiers that already passed the
+        // offline format+checksum gates on the first pass.
+        $mock->shouldNotReceive('validateOrcid');
     });
 
     $result = (new OrcidPreflightValidator($orcid))->validate($resource, force: true);
 
     expect($result->shouldBlock)->toBeFalse()
         ->and($result->needsConfirmation)->toBeFalse()
-        ->and($result->warnings)->toHaveCount(1);
+        ->and($result->warnings)->toBe([])
+        ->and($result->invalid)->toBe([]);
+});
+
+it('still reports blocking offline issues (format/checksum) when force=true', function () {
+    // An ORCID with an invalid checksum must still block even on the override
+    // path, because the offline gate runs before the network short-circuit.
+    [$resource] = makeResourceWithCreatorOrcid('0000-0002-1825-0000');
+
+    $orcid = mockOrcidService(function (MockInterface $mock) {
+        $mock->shouldNotReceive('validateOrcid');
+    });
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource, force: true);
+
+    expect($result->shouldBlock)->toBeTrue()
+        ->and($result->invalid)->toHaveCount(1)
+        ->and($result->invalid[0]->reason)->toBe('checksum');
 });
 
 it('validates contributors in addition to creators', function () {
@@ -250,6 +264,42 @@ it('validates contributors in addition to creators', function () {
 
     expect($result->shouldBlock)->toBeTrue()
         ->and($result->invalid[0]->role)->toBe('contributor');
+});
+
+it('deduplicates the throttled network call when the same ORCID is shared across rows', function () {
+    // Same identifier used both as creator and as contributor – the throttled
+    // network call must only be issued once per bare ORCID id per invocation.
+    $resource = Resource::factory()->create();
+    $person = Person::factory()->create([
+        'given_name' => 'Dup',
+        'family_name' => 'Licate',
+        'name_identifier' => VALID_ORCID,
+        'name_identifier_scheme' => 'ORCID',
+        'orcid_verified_at' => null,
+    ]);
+    ResourceCreator::factory()
+        ->forPerson($person)
+        ->position(0)
+        ->create(['resource_id' => $resource->id]);
+    ResourceContributor::factory()
+        ->forPerson($person)
+        ->atPosition(0)
+        ->create(['resource_id' => $resource->id]);
+
+    $orcid = mockOrcidService(function (MockInterface $mock) {
+        $mock->shouldReceive('validateOrcid')
+            ->once()
+            ->andReturn([
+                'valid' => true,
+                'exists' => true,
+            ]);
+    });
+
+    $result = (new OrcidPreflightValidator($orcid))->validate($resource->fresh());
+
+    expect($result->shouldBlock)->toBeFalse()
+        ->and($result->invalid)->toBe([])
+        ->and($result->warnings)->toBe([]);
 });
 
 it('produces a serializable payload shape', function () {
