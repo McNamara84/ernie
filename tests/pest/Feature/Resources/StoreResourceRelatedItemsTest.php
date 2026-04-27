@@ -230,3 +230,45 @@ test('empty relatedItems array is accepted', function () {
     $resource = Resource::query()->latest('id')->firstOrFail();
     expect($resource->relatedItems)->toHaveCount(0);
 });
+
+test('rejects relatedItems with identifier but no identifier_type', function () {
+    $user = User::factory()->create();
+    $baseline = seedRelatedItemsBaseline();
+
+    $payload = basePayload($baseline['resource_type_id'], $baseline['datacenter_id']);
+    $payload['relatedItems'] = [
+        [
+            'related_item_type' => 'JournalArticle',
+            'relation_type_slug' => 'IsPublishedIn',
+            'titles' => [['title' => 'No type', 'title_type' => 'MainTitle']],
+            'identifier' => '10.1234/missing-type',
+            // identifier_type intentionally missing
+        ],
+    ];
+
+    $this->actingAs($user)
+        ->postJson(route('editor.resources.store'), $payload)
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['relatedItems.0.identifier_type']);
+});
+
+test('rejects relatedItems with identifier_type but no identifier', function () {
+    $user = User::factory()->create();
+    $baseline = seedRelatedItemsBaseline();
+
+    $payload = basePayload($baseline['resource_type_id'], $baseline['datacenter_id']);
+    $payload['relatedItems'] = [
+        [
+            'related_item_type' => 'JournalArticle',
+            'relation_type_slug' => 'IsPublishedIn',
+            'titles' => [['title' => 'No identifier', 'title_type' => 'MainTitle']],
+            'identifier_type' => 'DOI',
+            // identifier intentionally missing
+        ],
+    ];
+
+    $this->actingAs($user)
+        ->postJson(route('editor.resources.store'), $payload)
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['relatedItems.0.identifier']);
+});

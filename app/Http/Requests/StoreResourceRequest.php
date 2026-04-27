@@ -173,8 +173,12 @@ class StoreResourceRequest extends FormRequest
             'relatedItems.*.last_page' => ['nullable', 'string', 'max:32'],
             'relatedItems.*.publisher' => ['nullable', 'string', 'max:255'],
             'relatedItems.*.edition' => ['nullable', 'string', 'max:64'],
-            'relatedItems.*.identifier' => ['nullable', 'string', 'max:2183'],
-            'relatedItems.*.identifier_type' => ['nullable', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
+            // Keep identifier and identifier_type symmetrically required so a
+            // related item cannot be persisted with a value but no type (which
+            // would make landing-page link resolution and DataCite XML export
+            // ambiguous). Mirrors `StoreRelatedItemRequest`.
+            'relatedItems.*.identifier' => ['nullable', 'required_with:relatedItems.*.identifier_type', 'string', 'max:2183'],
+            'relatedItems.*.identifier_type' => ['nullable', 'required_with:relatedItems.*.identifier', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
             'relatedItems.*.related_metadata_scheme' => ['nullable', 'string', 'max:255'],
             'relatedItems.*.scheme_uri' => ['nullable', 'string', 'max:512'],
             'relatedItems.*.scheme_type' => ['nullable', 'string', 'max:64'],

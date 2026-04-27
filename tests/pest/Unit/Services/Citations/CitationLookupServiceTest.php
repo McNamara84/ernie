@@ -112,6 +112,70 @@ it('falls back to DataCite when Crossref returns an error', function () {
     expect($result->data['titles'][0]['title'])->toBe('Recovered');
 });
 
+it('does not cache a DataCite notFound when the Crossref primary errored', function () {
+    // Crossref outage → DataCite has no record either. We must NOT cache the
+    // notFound, because Crossref might come back online with the DOI and
+    // would otherwise be locked out for the full TTL.
+    $crossref = Mockery::mock(CrossrefClient::class);
+    $crossref->shouldReceive('lookup')
+        ->twice()
+        ->andReturn(CitationLookupResult::error('crossref', 'HTTP 500'));
+
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $datacite->shouldReceive('getDataCiteMetadata')
+        ->twice()
+        ->andReturn(null);
+
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+
+    $svc->lookup('10.1/transient-outage');
+    $svc->lookup('10.1/transient-outage'); // must re-query, not hit cache
+});
+
+it('caches a DataCite hit reached via Crossref error fallback', function () {
+    // Even if the primary errored, a positive DataCite hit is safe to cache:
+    // we have a confirmed record for that DOI.
+    $crossref = Mockery::mock(CrossrefClient::class);
+    $crossref->shouldReceive('lookup')
+        ->once()
+        ->andReturn(CitationLookupResult::error('crossref', 'HTTP 500'));
+
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $datacite->shouldReceive('getDataCiteMetadata')
+        ->once()
+        ->andReturn(['titles' => [['title' => 'Cached fallback hit']]]);
+
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+
+    $svc->lookup('10.1/recovered');
+    $r2 = $svc->lookup('10.1/recovered');
+
+    expect($r2->found)->toBeTrue();
+    expect($r2->source)->toBe('datacite');
+});
+
+it('caches a notFound when the Crossref primary completed cleanly', function () {
+    // Crossref returned a clean 404 → DataCite also misses. This is a
+    // legitimate negative result and SHOULD be cached.
+    $crossref = Mockery::mock(CrossrefClient::class);
+    $crossref->shouldReceive('lookup')
+        ->once()
+        ->andReturn(CitationLookupResult::notFound('crossref'));
+
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
+    $datacite->shouldReceive('getDataCiteMetadata')
+        ->once()
+        ->andReturn(null);
+
+    $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
+
+    $r1 = $svc->lookup('10.1/legit-miss');
+    $r2 = $svc->lookup('10.1/legit-miss'); // must come from cache
+
+    expect($r1->found)->toBeFalse();
+    expect($r2->found)->toBeFalse();
+});
+
 describe('DataCite attribute transformation', function () {
     /**
      * @param array<string, mixed> $attrs

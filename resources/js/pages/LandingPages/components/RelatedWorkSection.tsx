@@ -318,8 +318,11 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                 .map((item) => {
                                     const mainTitle =
                                         item.titles.find((t) => t.title_type === 'MainTitle')?.title ?? item.titles[0]?.title ?? '';
-                                    const url = item.identifier
-                                        ? resolveIdentifierUrl(item.identifier, item.identifier_type ?? 'DOI')
+                                    // Only resolve when a type is set: defaulting to 'DOI'
+                                    // would generate bogus doi.org links for URL/Handle/etc.
+                                    // identifiers if a legacy record ever lacked a type.
+                                    const url = item.identifier && item.identifier_type
+                                        ? resolveIdentifierUrl(item.identifier, item.identifier_type)
                                         : null;
                                     const authorList = item.creators
                                         .map((c) => c.family_name || c.name)

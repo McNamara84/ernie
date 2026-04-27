@@ -47,16 +47,24 @@ class CitationLookupService
             return $cached;
         }
 
-        $result = $this->crossref->lookup($normalized);
+        $primary = $this->crossref->lookup($normalized);
+        $primaryErrored = $primary->error !== null;
 
-        if (!$result->found || $result->error !== null) {
-            $result = $this->lookupDataCite($normalized);
-        }
+        $result = ($primaryErrored || ! $primary->found)
+            ? $this->lookupDataCite($normalized)
+            : $primary;
 
-        // Only cache successful hits and confirmed `not_found` results. Caching
-        // transient upstream errors would lock users out of a working DOI for
-        // the full TTL once the upstream recovers.
-        if ($result->error === null) {
+        // Cache policy:
+        //   - Successful hits: always cache.
+        //   - `not_found`: only cache when the primary lookup completed
+        //     without errors. Otherwise a transient Crossref outage would
+        //     persist a DataCite `not_found` for a DOI that does exist in
+        //     Crossref, locking users out for the full TTL.
+        //   - Errors: never cache (transient upstream failure).
+        $shouldCache = $result->error === null
+            && ($result->found || ! $primaryErrored);
+
+        if ($shouldCache) {
             $cache->put($cacheKey, $result, $ttl);
         }
 
