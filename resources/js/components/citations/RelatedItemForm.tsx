@@ -28,7 +28,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useCitationLookup } from '@/hooks/use-citation-lookup';
-import { type RelatedItemInput,relatedItemSchema } from '@/lib/validations/related-item';
+import { type RelatedItemInput, relatedItemSchema } from '@/lib/validations/related-item';
 import type { RelatedItem } from '@/types/related-item';
 
 export interface RelatedItemFormOption {
