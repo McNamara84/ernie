@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 const nameTypeSchema = z.enum(['Personal', 'Organizational']);
 
+// Match the backend rule (`StoreRelatedItemRequest`): allow up to five years
+// in the future to accommodate forthcoming publications, so users do not see
+// confusing 422 errors after the form passes client-side validation.
+const maxPublicationYear = (): number => new Date().getFullYear() + 5;
+
 const affiliationSchema = z.object({
     name: z.string().min(1, 'Affiliation name is required'),
     affiliation_identifier: z.string().nullish(),
@@ -42,7 +47,7 @@ export const relatedItemSchema = z
             .number()
             .int()
             .min(1000, 'Year must be ≥ 1000')
-            .max(2100, 'Year must be ≤ 2100')
+            .max(maxPublicationYear(), `Year must be ≤ ${maxPublicationYear()}`)
             .nullish(),
         volume: z.string().max(50).nullish(),
         issue: z.string().max(50).nullish(),

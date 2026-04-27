@@ -43,8 +43,8 @@ class StoreRelatedItemRequest extends FormRequest
             'publisher' => ['nullable', 'string', 'max:255'],
             'edition' => ['nullable', 'string', 'max:64'],
 
-            'identifier' => ['nullable', 'string', 'max:2183'],
-            'identifier_type' => ['nullable', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
+            'identifier' => ['nullable', 'required_with:identifier_type', 'string', 'max:2183'],
+            'identifier_type' => ['nullable', 'required_with:identifier', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
 
             // Item-level scheme metadata (DataCite 4.7 relatedItem attributes).
             // Required so XML/DataCite-imported citations round-trip through the

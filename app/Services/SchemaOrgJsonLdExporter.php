@@ -151,6 +151,36 @@ class SchemaOrgJsonLdExporter
     }
 
     /**
+     * Strip resolver URL prefixes (`https://doi.org/`, `http://dx.doi.org/`)
+     * and the `doi:` scheme prefix from a DOI string. Mirrors the backend
+     * behaviour of {@see DataCiteApiService::normalizeDoi()} but preserves the
+     * original casing so the resulting identifier matches what users entered.
+     */
+    private function stripDoiPrefix(string $doi): string
+    {
+        $value = trim($doi);
+
+        if (preg_match('/^https?:\/\/(?:dx\.)?doi\.org\/?(.*)$/i', $value, $matches) === 1) {
+            $value = $matches[1];
+        }
+
+        if (preg_match('/^doi:(.+)$/i', $value, $matches) === 1) {
+            $value = $matches[1];
+        }
+
+        return trim($value);
+    }
+
+    /**
+     * URL-encode the DOI path while preserving the slash between the prefix
+     * and suffix, so e.g. `10.1234/foo bar` becomes `10.1234/foo%20bar`.
+     */
+    private function encodeDoiPath(string $doi): string
+    {
+        return implode('/', array_map(rawurlencode(...), explode('/', $doi)));
+    }
+
+    /**
      * Extract the main title from the titles array.
      *
      * @param  array<int, array<string, mixed>>  $titles
@@ -532,11 +562,17 @@ class SchemaOrgJsonLdExporter
                 $idType = $ri['relatedItemIdentifier']['relatedItemIdentifierType'] ?? null;
                 if (is_string($idVal) && $idVal !== '') {
                     if ($idType === 'DOI') {
-                        $entry['@id'] = 'https://doi.org/' . $idVal;
+                        // The stored identifier may already be a resolver URL
+                        // (`https://doi.org/...`, `http://dx.doi.org/...`) or a
+                        // `doi:`-prefixed value. Strip those before composing the
+                        // canonical resolver URL so we never emit
+                        // `https://doi.org/https://doi.org/...`.
+                        $bareDoi = $this->stripDoiPrefix($idVal);
+                        $entry['@id'] = 'https://doi.org/' . $this->encodeDoiPath($bareDoi);
                         $entry['identifier'] = [
                             '@type' => 'PropertyValue',
                             'propertyID' => 'https://registry.identifiers.org/registry/doi',
-                            'value' => 'doi:' . $idVal,
+                            'value' => 'doi:' . $bareDoi,
                         ];
                     } elseif ($idType === 'URL') {
                         $entry['url'] = $idVal;

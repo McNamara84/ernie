@@ -7,6 +7,16 @@ import {
     type RelatedItemFormOption,
     type RelationTypeOption,
 } from '@/components/citations/RelatedItemForm';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -52,6 +62,8 @@ export function CitationManagerModal({
     const { items, isLoading, error, create, update, remove } = useRelatedItems(resourceId);
     const [mode, setMode] = useState<Mode>({ type: 'list' });
     const [submitting, setSubmitting] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<RelatedItem | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const relationLabelOf = (item: RelatedItem): string | undefined =>
         relationTypes.find((r) => r.id === item.relation_type_id)?.label;
@@ -85,14 +97,23 @@ export function CitationManagerModal({
         }
     };
 
-    const handleDelete = async (item: RelatedItem) => {
+    const handleDelete = (item: RelatedItem) => {
         if (!item.id) return;
-        if (!window.confirm('Delete this related item?')) return;
+        setPendingDelete(item);
+    };
+
+    const confirmDelete = async () => {
+        const item = pendingDelete;
+        if (!item?.id) return;
+        setIsDeleting(true);
         try {
             await remove(item.id);
             toast.success('Related item deleted');
+            setPendingDelete(null);
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to delete');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -168,6 +189,33 @@ export function CitationManagerModal({
                     </div>
                 )}
             </DialogContent>
+
+            <AlertDialog
+                open={pendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !isDeleting) setPendingDelete(null);
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete related item</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this related item? This action
+                            cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Deleting…' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Dialog>
     );
 }

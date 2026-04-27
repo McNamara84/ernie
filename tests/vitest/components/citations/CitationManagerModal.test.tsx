@@ -153,7 +153,7 @@ describe('CitationManagerModal', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
-    it('does not call DELETE when window.confirm is cancelled', async () => {
+    it('does not call DELETE when the confirmation dialog is cancelled', async () => {
         let deleted = false;
         server.use(
             http.get(base, () => HttpResponse.json({ data: [sampleItem] })),
@@ -162,7 +162,6 @@ describe('CitationManagerModal', () => {
                 return new HttpResponse(null, { status: 204 });
             }),
         );
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
         const user = userEvent.setup();
         renderModal();
 
@@ -170,16 +169,18 @@ describe('CitationManagerModal', () => {
             expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
         );
 
-        const deleteBtn = screen.getByRole('button', { name: /delete/i });
-        await user.click(deleteBtn);
+        await user.click(
+            screen.getByRole('button', { name: /delete related item/i }),
+        );
 
-        expect(confirmSpy).toHaveBeenCalled();
+        const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
+        await user.click(cancelBtn);
+
         expect(deleted).toBe(false);
-
-        confirmSpy.mockRestore();
+        expect(screen.getByText(/Sample paper/)).toBeInTheDocument();
     });
 
-    it('calls DELETE and removes the item when window.confirm is accepted', async () => {
+    it('calls DELETE and removes the item when the confirmation dialog is accepted', async () => {
         let deleted = false;
         server.use(
             http.get(base, () => HttpResponse.json({ data: [sampleItem] })),
@@ -188,7 +189,6 @@ describe('CitationManagerModal', () => {
                 return new HttpResponse(null, { status: 204 });
             }),
         );
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
         const user = userEvent.setup();
         renderModal();
 
@@ -196,14 +196,17 @@ describe('CitationManagerModal', () => {
             expect(screen.getByText(/Sample paper/)).toBeInTheDocument(),
         );
 
-        await user.click(screen.getByRole('button', { name: /delete/i }));
+        await user.click(
+            screen.getByRole('button', { name: /delete related item/i }),
+        );
+
+        const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
+        await user.click(confirmBtn);
 
         await waitFor(() => expect(deleted).toBe(true));
         await waitFor(() =>
             expect(screen.queryByText(/Sample paper/)).toBeNull(),
         );
-
-        confirmSpy.mockRestore();
     });
 
     it('opens the edit form with pre-filled title', async () => {
