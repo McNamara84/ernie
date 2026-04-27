@@ -15,7 +15,7 @@ beforeEach(function () {
 });
 
 test('unauthenticated requests are rejected', function () {
-    $this->getJson('/api/v1/citation-lookup?doi=10.1/x')
+    $this->getJson('/api/v1/citation-lookup?doi=10.1234/x')
         ->assertStatus(401);
 });
 
@@ -82,10 +82,10 @@ test('returns not_found when the lookup service reports missing', function () {
     $this->app->instance(CitationLookupService::class, $mock);
 
     $this->actingAs($user)
-        ->getJson('/api/v1/citation-lookup?doi=10.1/missing')
+        ->getJson('/api/v1/citation-lookup?doi=10.1234/missing')
         ->assertOk()
         ->assertJsonPath('source', 'not_found')
-        ->assertJsonPath('identifier', '10.1/missing')
+        ->assertJsonPath('identifier', '10.1234/missing')
         ->assertJsonPath('identifier_type', 'DOI')
         ->assertJsonMissingPath('title');
 });
@@ -100,10 +100,10 @@ test('returns 502 when the lookup service reports a transient upstream error', f
     $this->app->instance(CitationLookupService::class, $mock);
 
     $this->actingAs($user)
-        ->getJson('/api/v1/citation-lookup?doi=10.1/upstream-error')
+        ->getJson('/api/v1/citation-lookup?doi=10.1234/upstream-error')
         ->assertStatus(502)
         ->assertJsonPath('source', 'crossref')
-        ->assertJsonPath('identifier', '10.1/upstream-error')
+        ->assertJsonPath('identifier', '10.1234/upstream-error')
         ->assertJsonPath('error', 'HTTP 503')
         ->assertJsonStructure(['message']);
 });
@@ -113,6 +113,20 @@ test('requires a DOI query parameter', function () {
 
     $this->actingAs($user)
         ->getJson('/api/v1/citation-lookup')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['doi']);
+});
+
+test('rejects malformed DOIs with a 422 validation error', function () {
+    $user = User::factory()->create();
+
+    // Service must NOT be invoked for invalid input.
+    $mock = Mockery::mock(CitationLookupService::class);
+    $mock->shouldNotReceive('lookup');
+    $this->app->instance(CitationLookupService::class, $mock);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/citation-lookup?doi=not-a-doi')
         ->assertStatus(422)
         ->assertJsonValidationErrors(['doi']);
 });
@@ -127,12 +141,12 @@ test('enforces the rate limit (30 req/min)', function () {
     // 30 requests should be allowed
     for ($i = 0; $i < 30; $i++) {
         $this->actingAs($user)
-            ->getJson('/api/v1/citation-lookup?doi=10.1/x' . $i)
+            ->getJson('/api/v1/citation-lookup?doi=10.1234/x' . $i)
             ->assertOk();
     }
 
     // 31st should be throttled
     $this->actingAs($user)
-        ->getJson('/api/v1/citation-lookup?doi=10.1/throttled')
+        ->getJson('/api/v1/citation-lookup?doi=10.1234/throttled')
         ->assertStatus(429);
 });
