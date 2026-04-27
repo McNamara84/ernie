@@ -13,6 +13,7 @@ use App\Support\GcmdUriHelper;
 use App\Support\MslLaboratoryService;
 use App\Support\UploadError;
 use App\Support\UriHelper;
+use App\Support\Xml\XmlElementHelpers;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -287,32 +288,12 @@ class UploadXmlController extends Controller
 
     private function extractFirstStringFromQuery(mixed $query): ?string
     {
-        if (! is_object($query) || ! method_exists($query, 'first')) {
-            return null;
-        }
-
-        $value = $query->first();
-
-        if (is_string($value)) {
-            return $value;
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return (string) $value;
-        }
-
-        return null;
+        return XmlElementHelpers::firstStringFromQuery($query);
     }
 
     private function extractFirstElementFromQuery(mixed $query): ?Element
     {
-        if (! is_object($query) || ! method_exists($query, 'first')) {
-            return null;
-        }
-
-        $value = $query->first();
-
-        return $value instanceof Element ? $value : null;
+        return XmlElementHelpers::firstElementFromQuery($query);
     }
 
     /**
@@ -689,114 +670,27 @@ class UploadXmlController extends Controller
      */
     private function childElements(Element $parent, string $localName): array
     {
-        $content = $parent->getContent();
-        if (! is_array($content)) {
-            return [];
-        }
-
-        $matches = [];
-        foreach ($content as $key => $child) {
-            if ($this->localName((string) $key) !== $localName) {
-                continue;
-            }
-            if ($child instanceof Element) {
-                // XmlWrangler collapses repeating siblings of the same name
-                // into a single Element whose content is an indexed list of
-                // the individual sibling Elements.
-                $inner = $child->getContent();
-                if (is_array($inner) && array_is_list($inner) && $this->containsElements($inner)) {
-                    foreach ($inner as $nested) {
-                        if ($nested instanceof Element) {
-                            $matches[] = $nested;
-                        }
-                    }
-
-                    continue;
-                }
-                $matches[] = $child;
-
-                continue;
-            }
-            if (is_array($child)) {
-                foreach ($child as $nested) {
-                    if ($nested instanceof Element) {
-                        $matches[] = $nested;
-                    }
-                }
-            }
-        }
-
-        return $matches;
-    }
-
-    /**
-     * @param  array<int|string, mixed>  $values
-     */
-    private function containsElements(array $values): bool
-    {
-        foreach ($values as $value) {
-            if ($value instanceof Element) {
-                return true;
-            }
-        }
-
-        return false;
+        return XmlElementHelpers::childElements($parent, $localName);
     }
 
     private function firstChildElement(Element $parent, string $localName): ?Element
     {
-        $matches = $this->childElements($parent, $localName);
-
-        return $matches[0] ?? null;
+        return XmlElementHelpers::firstChildElement($parent, $localName);
     }
 
     private function scalarChild(Element $parent, string $localName): ?string
     {
-        $child = $this->firstChildElement($parent, $localName);
-        if ($child === null) {
-            return null;
-        }
-        $value = $this->stringValue($child);
-
-        return is_string($value) ? $value : null;
-    }
-
-    private function localName(string $key): string
-    {
-        $trimmed = ltrim($key, '@');
-        $colonPos = strrpos($trimmed, ':');
-        $stripped = $colonPos === false ? $trimmed : substr($trimmed, $colonPos + 1);
-
-        // XmlWrangler indexes repeating siblings as "name.1", "name.2", …
-        $dotPos = strrpos($stripped, '.');
-        if ($dotPos !== false && ctype_digit(substr($stripped, $dotPos + 1))) {
-            $stripped = substr($stripped, 0, $dotPos);
-        }
-
-        return $stripped;
+        return XmlElementHelpers::scalarChild($parent, $localName);
     }
 
     private function stringOrNull(?string $value): ?string
     {
-        if ($value === null) {
-            return null;
-        }
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? null : $trimmed;
+        return XmlElementHelpers::stringOrNull($value);
     }
 
     private function intOrNull(?string $value): ?int
     {
-        if ($value === null) {
-            return null;
-        }
-        $trimmed = trim($value);
-        if ($trimmed === '' || ! preg_match('/^-?\d+$/', $trimmed)) {
-            return null;
-        }
-
-        return (int) $trimmed;
+        return XmlElementHelpers::intOrNull($value);
     }
 
     /**
@@ -2003,9 +1897,7 @@ class UploadXmlController extends Controller
      */
     private function firstElement(array $content, string $key): ?Element
     {
-        $elements = $this->allElements($content, $key);
-
-        return array_first($elements);
+        return XmlElementHelpers::firstElementByKey($content, $key);
     }
 
     /**
@@ -2014,78 +1906,12 @@ class UploadXmlController extends Controller
      */
     private function allElements(array $content, string $key): array
     {
-        if (! array_key_exists($key, $content)) {
-            return [];
-        }
-
-        return $this->normaliseToElementList($content[$key]);
-    }
-
-    /**
-     * @return Element[]
-     */
-    private function normaliseToElementList(mixed $value): array
-    {
-        if ($value instanceof Element) {
-            $content = $value->getContent();
-
-            if (is_array($content)) {
-                $elements = [];
-
-                foreach ($content as $nested) {
-                    array_push($elements, ...$this->normaliseToElementList($nested));
-                }
-
-                return $elements ?: [$value];
-            }
-
-            return [$value];
-        }
-
-        if (is_array($value)) {
-            $elements = [];
-
-            foreach ($value as $nested) {
-                array_push($elements, ...$this->normaliseToElementList($nested));
-            }
-
-            return $elements;
-        }
-
-        return [];
+        return XmlElementHelpers::allElementsByKey($content, $key);
     }
 
     private function stringValue(?Element $element): ?string
     {
-        if (! $element instanceof Element) {
-            return null;
-        }
-
-        $content = $element->getContent();
-
-        if (is_string($content)) {
-            $trimmed = trim($content);
-
-            return $trimmed === '' ? null : $trimmed;
-        }
-
-        if (is_array($content)) {
-            $parts = [];
-
-            foreach ($content as $value) {
-                $text = $this->stringValue($value instanceof Element ? $value : null);
-
-                if ($text !== null) {
-                    $parts[] = $text;
-                }
-            }
-
-            if (! empty($parts)) {
-                return trim(implode(' ', $parts));
-            }
-        }
-
-        return null;
+        return XmlElementHelpers::stringValue($element);
     }
 
     /**
@@ -2093,23 +1919,7 @@ class UploadXmlController extends Controller
      */
     private function splitCreatorName(?string $name): array
     {
-        if (! is_string($name) || $name === '') {
-            return ['givenName' => null, 'familyName' => null];
-        }
-
-        $parts = array_map('trim', explode(',', $name, 2));
-
-        if (count($parts) === 2) {
-            return [
-                'familyName' => $parts[0] !== '' ? $parts[0] : null,
-                'givenName' => $parts[1] !== '' ? $parts[1] : null,
-            ];
-        }
-
-        return [
-            'familyName' => $name,
-            'givenName' => null,
-        ];
+        return XmlElementHelpers::splitCreatorName($name);
     }
 
     /**
