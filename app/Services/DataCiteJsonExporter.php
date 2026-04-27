@@ -1061,6 +1061,12 @@ class DataCiteJsonExporter
             if (is_string($aff->scheme) && $aff->scheme !== '') {
                 $entry['affiliationIdentifierScheme'] = $aff->scheme;
             }
+            // Mirror the import side: if a scheme URI is stored on the
+            // related-item affiliation, emit it so the export round-trips
+            // through DataCite JSON without losing data.
+            if (is_string($aff->scheme_uri) && $aff->scheme_uri !== '') {
+                $entry['schemeUri'] = $aff->scheme_uri;
+            }
             $affiliations[] = $entry;
         }
         if ($affiliations !== []) {

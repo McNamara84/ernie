@@ -76,6 +76,7 @@ describe('DataCiteToResourceTransformer — relatedItems', function (): void {
                             'name' => 'GFZ',
                             'affiliationIdentifier' => 'https://ror.org/04z8jg394',
                             'affiliationIdentifierScheme' => 'ROR',
+                            'schemeUri' => 'https://ror.org',
                         ]],
                     ]],
                     'contributors' => [[
@@ -113,6 +114,7 @@ describe('DataCiteToResourceTransformer — relatedItems', function (): void {
         expect($creator->affiliations)->toHaveCount(1);
         expect($creator->affiliations->first()->name)->toBe('GFZ');
         expect($creator->affiliations->first()->scheme)->toBe('ROR');
+        expect($creator->affiliations->first()->scheme_uri)->toBe('https://ror.org');
         expect($ri->contributors)->toHaveCount(1);
         expect($ri->contributors->first()->contributor_type)->toBe('Editor');
     });

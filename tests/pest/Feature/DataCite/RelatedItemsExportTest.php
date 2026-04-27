@@ -172,6 +172,25 @@ describe('DataCiteJsonExporter — relatedItems', function () {
 
         expect($json['data']['attributes'])->not->toHaveKey('relatedItems');
     });
+
+    test('emits schemeUri on relatedItem affiliations when stored', function () {
+        $resource = makeResourceWithRelatedItem();
+        // Attach scheme_uri to the existing creator affiliation so we can
+        // verify the export round-trips the optional DataCite 4.7 attribute.
+        $aff = $resource->relatedItems[0]->creators[0]->affiliations[0];
+        $aff->scheme_uri = 'https://ror.org';
+        $aff->save();
+
+        $json = (new DataCiteJsonExporter())->export($resource->fresh());
+        $ri = $json['data']['attributes']['relatedItems'][0];
+
+        expect($ri['creators'][0]['affiliation'][0])->toMatchArray([
+            'name' => 'GFZ Helmholtz Centre',
+            'affiliationIdentifier' => 'https://ror.org/04z8jg394',
+            'affiliationIdentifierScheme' => 'ROR',
+            'schemeUri' => 'https://ror.org',
+        ]);
+    });
 });
 
 describe('DataCiteLinkedDataExporter — relatedItems', function () {

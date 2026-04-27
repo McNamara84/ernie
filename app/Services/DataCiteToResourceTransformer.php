@@ -1149,6 +1149,11 @@ class DataCiteToResourceTransformer
                 'name' => $aff['name'],
                 'affiliation_identifier' => is_string($aff['affiliationIdentifier'] ?? null) ? $aff['affiliationIdentifier'] : null,
                 'scheme' => is_string($aff['affiliationIdentifierScheme'] ?? null) ? $aff['affiliationIdentifierScheme'] : null,
+                // DataCite 4.7 affiliations may carry an optional `schemeUri`
+                // alongside the identifier scheme. Persist it so JSON exports
+                // can round-trip the value (the column exists on both
+                // affiliation tables).
+                'scheme_uri' => is_string($aff['schemeUri'] ?? null) ? $aff['schemeUri'] : null,
                 'position' => $pos,
             ]);
         }
