@@ -22,7 +22,7 @@ it('returns the crossref result when found and does not call DataCite', function
         ->with('10.1/hit')
         ->andReturn(CitationLookupResult::hit('crossref', ['identifier' => '10.1/hit']));
 
-    $datacite = Mockery::mock(DataCiteApiService::class);
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $datacite->shouldNotReceive('getDataCiteMetadata');
 
     $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
@@ -36,7 +36,7 @@ it('falls back to DataCite when Crossref returns notFound', function () {
     $crossref = Mockery::mock(CrossrefClient::class);
     $crossref->shouldReceive('lookup')->once()->andReturn(CitationLookupResult::notFound('crossref'));
 
-    $datacite = Mockery::mock(DataCiteApiService::class);
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $datacite->shouldReceive('getDataCiteMetadata')->once()->andReturn([
         'titles' => [['title' => 'From DataCite']],
         'creators' => [[
@@ -69,7 +69,7 @@ it('returns notFound when neither source has the DOI', function () {
     $crossref = Mockery::mock(CrossrefClient::class);
     $crossref->shouldReceive('lookup')->andReturn(CitationLookupResult::notFound('crossref'));
 
-    $datacite = Mockery::mock(DataCiteApiService::class);
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $datacite->shouldReceive('getDataCiteMetadata')->andReturn(null);
 
     $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
@@ -83,7 +83,7 @@ it('caches the result so repeat calls do not hit the network', function () {
     $crossref = Mockery::mock(CrossrefClient::class);
     $crossref->shouldReceive('lookup')->once()->andReturn(CitationLookupResult::hit('crossref', ['x' => 1]));
 
-    $datacite = Mockery::mock(DataCiteApiService::class);
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
 
     $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());
 
@@ -98,7 +98,7 @@ it('falls back to DataCite when Crossref returns an error', function () {
     $crossref = Mockery::mock(CrossrefClient::class);
     $crossref->shouldReceive('lookup')->once()->andReturn(CitationLookupResult::error('crossref', 'HTTP 500'));
 
-    $datacite = Mockery::mock(DataCiteApiService::class);
+    $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
     $datacite->shouldReceive('getDataCiteMetadata')->once()->andReturn([
         'titles' => [['title' => 'Recovered']],
         'publicationYear' => 2020,
@@ -122,7 +122,7 @@ describe('DataCite attribute transformation', function () {
         $crossref = Mockery::mock(CrossrefClient::class);
         $crossref->shouldReceive('lookup')->andReturn(CitationLookupResult::notFound('crossref'));
 
-        $datacite = Mockery::mock(DataCiteApiService::class);
+        $datacite = Mockery::mock(DataCiteApiService::class)->makePartial();
         $datacite->shouldReceive('getDataCiteMetadata')->andReturn($attrs);
 
         $svc = new CitationLookupService($crossref, $datacite, new DataCiteTypeMapper());

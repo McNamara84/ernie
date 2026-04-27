@@ -505,17 +505,22 @@ class SchemaOrgJsonLdExporter
         foreach ($relatedItems as $ri) {
             $entry = ['@type' => 'CreativeWork'];
 
-            // Name (MainTitle preferred)
+            // Name (MainTitle preferred — explicit MainTitle wins, missing
+            // titleType is treated as MainTitle, otherwise fall back to first.)
             if (is_array($ri['titles'] ?? null)) {
                 foreach ($ri['titles'] as $title) {
-                    if (! isset($title['titleType']) && isset($title['title'])) {
+                    if (! is_array($title) || ! isset($title['title']) || ! is_string($title['title'])) {
+                        continue;
+                    }
+                    $type = $title['titleType'] ?? null;
+                    if ($type === null || $type === 'MainTitle') {
                         $entry['name'] = $title['title'];
                         break;
                     }
                 }
                 if (! isset($entry['name'])) {
                     $first = $ri['titles'][0] ?? null;
-                    if (is_array($first) && isset($first['title'])) {
+                    if (is_array($first) && isset($first['title']) && is_string($first['title'])) {
                         $entry['name'] = $first['title'];
                     }
                 }

@@ -116,12 +116,34 @@ class RelatedItemStorageService
      */
     public function reorder(Resource $resource, array $order): void
     {
+        if ($order === []) {
+            return;
+        }
+
+        // Bulk update via a single CASE/WHEN UPDATE so we issue one query
+        // regardless of list size, instead of one UPDATE per row. Both id and
+        // position are explicitly cast to int, so embedding them directly into
+        // the raw expression is safe (no SQL injection surface).
         DB::transaction(function () use ($resource, $order): void {
+            $ids = [];
+            $cases = [];
             foreach ($order as $entry) {
-                $resource->relatedItems()
-                    ->where('id', $entry['id'])
-                    ->update(['position' => $entry['position']]);
+                $id = (int) $entry['id'];
+                $position = (int) $entry['position'];
+                $ids[] = $id;
+                $cases[] = sprintf('WHEN %d THEN %d', $id, $position);
             }
+
+            $resource->relatedItems()
+                ->whereIn('id', $ids)
+                ->update([
+                    'position' => DB::raw(
+                        // Both id and position are explicitly cast to int above,
+                        // so the resulting CASE expression contains no user input.
+                        // @phpstan-ignore argument.type
+                        'CASE id ' . implode(' ', $cases) . ' ELSE position END'
+                    ),
+                ]);
         });
     }
 

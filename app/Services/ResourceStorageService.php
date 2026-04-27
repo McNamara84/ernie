@@ -996,6 +996,15 @@ class ResourceStorageService
      */
     private function storeRelatedItems(Resource $resource, array $data, bool $isUpdate): void
     {
+        // Citations are persisted via the dedicated /resources/{id}/related-items
+        // REST endpoints (Citation Manager). Only touch them here when the caller
+        // explicitly includes a `relatedItems` payload (e.g., XML import or full
+        // resource replace). Otherwise leave existing related items untouched so
+        // a regular editor save does not wipe them.
+        if (! array_key_exists('relatedItems', $data)) {
+            return;
+        }
+
         if ($isUpdate) {
             foreach ($resource->relatedItems()->get() as $existing) {
                 $this->relatedItemStorage->delete($existing);

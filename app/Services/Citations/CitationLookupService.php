@@ -6,7 +6,7 @@ namespace App\Services\Citations;
 
 use App\Enums\CacheKey;
 use App\Services\DataCiteApiService;
-use Illuminate\Support\Facades\Cache;
+use App\Support\Traits\ChecksCacheTagging;
 
 /**
  * Orchestrates DOI metadata lookup for the Citation Manager. Per project
@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Cache;
  */
 class CitationLookupService
 {
+    use ChecksCacheTagging;
+
     public function __construct(
         private readonly CrossrefClient $crossref,
         private readonly DataCiteApiService $datacite,
@@ -23,22 +25,31 @@ class CitationLookupService
 
     public function lookup(string $doi): CitationLookupResult
     {
-        $cacheKey = CacheKey::CITATION_LOOKUP->key(strtolower(trim($doi)));
+        // Reuse the shared DOI normalization (resolver-URL stripping +
+        // lowercasing) so resolver URLs and bare DOIs share a single cache
+        // entry, matching DataCiteApiService behavior.
+        $normalized = $this->datacite->normalizeDoi($doi);
+        if ($normalized === null) {
+            return CitationLookupResult::notFound('crossref');
+        }
+
+        $cacheKey = CacheKey::CITATION_LOOKUP->key($normalized);
+        $cache = $this->getCacheInstance(CacheKey::CITATION_LOOKUP->tags());
         $ttl = CacheKey::CITATION_LOOKUP->ttl();
 
         /** @var CitationLookupResult|null $cached */
-        $cached = Cache::get($cacheKey);
+        $cached = $cache->get($cacheKey);
         if ($cached instanceof CitationLookupResult) {
             return $cached;
         }
 
-        $result = $this->crossref->lookup($doi);
+        $result = $this->crossref->lookup($normalized);
 
         if (!$result->found || $result->error !== null) {
-            $result = $this->lookupDataCite($doi);
+            $result = $this->lookupDataCite($normalized);
         }
 
-        Cache::put($cacheKey, $result, $ttl);
+        $cache->put($cacheKey, $result, $ttl);
 
         return $result;
     }

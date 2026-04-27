@@ -105,13 +105,16 @@ export function useRelatedItems(resourceId: number | null): UseRelatedItemsRetur
                 body: { order },
             });
             setItems((prev) => {
-                const byId = new Map(prev.map((it) => [it.id, it] as const));
-                return order
-                    .map(({ id, position }) => {
-                        const item = byId.get(id);
-                        return item ? { ...item, position } : null;
-                    })
-                    .filter((it): it is RelatedItem => it !== null)
+                // Apply the new positions but preserve any items that are not
+                // included in the payload (partial reorder is allowed). Items
+                // not mentioned keep their previous position.
+                const positionById = new Map(order.map(({ id, position }) => [id, position] as const));
+                return prev
+                    .map((item) =>
+                        item.id !== undefined && positionById.has(item.id)
+                            ? { ...item, position: positionById.get(item.id) as number }
+                            : item,
+                    )
                     .sort((a, b) => a.position - b.position);
             });
         },

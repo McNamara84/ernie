@@ -42,6 +42,11 @@ describe('useCitationLookup', () => {
     });
 
     it('returns cached result without re-requesting for the same DOI', async () => {
+        // The lookup cache lives in a per-instance `useRef(new Map())` inside
+        // the hook (not at module scope), so this test is fully self-contained:
+        // both lookups happen against the SAME renderHook instance and share
+        // that instance's ref. Re-running this test in isolation exercises the
+        // exact same code path.
         let calls = 0;
         server.use(
             http.get(endpoint, () => {
@@ -52,17 +57,22 @@ describe('useCitationLookup', () => {
 
         const { result } = renderHook(() => useCitationLookup({ debounceMs: 100 }));
 
+        // First lookup: triggers a real HTTP call.
         act(() => result.current.lookup('10.1234/abcd'));
         await act(async () => {
             vi.advanceTimersByTime(100);
         });
+        // Switch to real timers exactly once so waitFor / promise resolution
+        // can settle. We stay on real timers for the cache-hit assertion below.
         vi.useRealTimers();
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(calls).toBe(1);
+        expect(result.current.result?.title).toBe('Example Article');
 
-        vi.useFakeTimers();
+        // Second lookup with the SAME DOI on the SAME hook instance: must be
+        // served synchronously from the per-instance ref cache. No timer
+        // advance, no awaiting needed — the hook short-circuits in `lookup`.
         act(() => result.current.lookup('10.1234/abcd'));
-        // Cache hit: result is set synchronously without HTTP call.
         expect(result.current.isLoading).toBe(false);
         expect(result.current.result?.title).toBe('Example Article');
         expect(calls).toBe(1);
