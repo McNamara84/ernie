@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatCitation } from '@/lib/citation-formatter';
+import { normalizeIdentifier } from '@/lib/identifier-type-detection';
 import type { RelatedItem } from '@/types/related-item';
 
 export type CitationStyle = 'apa' | 'ieee';
@@ -128,14 +129,22 @@ export function CitationCard({
                 {item.identifier ? (
                     <div className="text-xs text-muted-foreground wrap-break-word">
                         {item.identifier_type === 'DOI' ? (
-                            <a
-                                href={`https://doi.org/${encodeURI(item.identifier)}`}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="underline decoration-dotted underline-offset-2 hover:text-foreground wrap-break-word"
-                            >
-                                https://doi.org/{item.identifier}
-                            </a>
+                            (() => {
+                                // Strip any resolver URL or `doi:` prefix the user may have
+                                // pasted, so we never end up with `https://doi.org/https://…`.
+                                const bare = normalizeIdentifier(item.identifier, 'DOI');
+                                const href = `https://doi.org/${encodeURI(bare)}`;
+                                return (
+                                    <a
+                                        href={href}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="underline decoration-dotted underline-offset-2 hover:text-foreground wrap-break-word"
+                                    >
+                                        {href}
+                                    </a>
+                                );
+                            })()
                         ) : (
                             <span>
                                 {item.identifier_type}: {item.identifier}

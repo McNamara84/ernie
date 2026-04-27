@@ -11,6 +11,7 @@ export interface RelatedItemAffiliation {
     name: string;
     affiliation_identifier?: string | null;
     scheme?: string | null;
+    scheme_uri?: string | null;
 }
 
 export interface RelatedItemCreator {
@@ -54,6 +55,9 @@ export interface RelatedItem {
     edition?: string | null;
     identifier?: string | null;
     identifier_type?: string | null;
+    related_metadata_scheme?: string | null;
+    scheme_uri?: string | null;
+    scheme_type?: string | null;
     position: number;
     titles: RelatedItemTitle[];
     creators: RelatedItemCreator[];

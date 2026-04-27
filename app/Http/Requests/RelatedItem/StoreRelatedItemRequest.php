@@ -46,6 +46,13 @@ class StoreRelatedItemRequest extends FormRequest
             'identifier' => ['nullable', 'string', 'max:2183'],
             'identifier_type' => ['nullable', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
 
+            // Item-level scheme metadata (DataCite 4.7 relatedItem attributes).
+            // Required so XML/DataCite-imported citations round-trip through the
+            // Citation Manager modal without losing these values on update.
+            'related_metadata_scheme' => ['nullable', 'string', 'max:255'],
+            'scheme_uri' => ['nullable', 'string', 'max:512'],
+            'scheme_type' => ['nullable', 'string', 'max:64'],
+
             'creators' => ['nullable', 'array'],
             'creators.*.name_type' => ['required_with:creators', Rule::in(RelatedItem::NAME_TYPES)],
             'creators.*.name' => ['required_with:creators', 'string', 'max:255'],
@@ -53,10 +60,12 @@ class StoreRelatedItemRequest extends FormRequest
             'creators.*.family_name' => ['nullable', 'string', 'max:255'],
             'creators.*.name_identifier' => ['nullable', 'string', 'max:255'],
             'creators.*.name_identifier_scheme' => ['nullable', Rule::in(RelatedItem::NAME_IDENTIFIER_SCHEMES)],
+            'creators.*.scheme_uri' => ['nullable', 'string', 'max:512'],
             'creators.*.affiliations' => ['nullable', 'array'],
             'creators.*.affiliations.*.name' => ['required_with:creators.*.affiliations', 'string', 'max:255'],
             'creators.*.affiliations.*.affiliation_identifier' => ['nullable', 'string', 'max:255'],
             'creators.*.affiliations.*.scheme' => ['nullable', 'string', 'max:32'],
+            'creators.*.affiliations.*.scheme_uri' => ['nullable', 'string', 'max:512'],
 
             'contributors' => ['nullable', 'array'],
             'contributors.*.contributor_type' => ['required_with:contributors', 'string', 'max:64'],
@@ -66,8 +75,12 @@ class StoreRelatedItemRequest extends FormRequest
             'contributors.*.family_name' => ['nullable', 'string', 'max:255'],
             'contributors.*.name_identifier' => ['nullable', 'string', 'max:255'],
             'contributors.*.name_identifier_scheme' => ['nullable', Rule::in(RelatedItem::NAME_IDENTIFIER_SCHEMES)],
+            'contributors.*.scheme_uri' => ['nullable', 'string', 'max:512'],
             'contributors.*.affiliations' => ['nullable', 'array'],
             'contributors.*.affiliations.*.name' => ['required_with:contributors.*.affiliations', 'string', 'max:255'],
+            'contributors.*.affiliations.*.affiliation_identifier' => ['nullable', 'string', 'max:255'],
+            'contributors.*.affiliations.*.scheme' => ['nullable', 'string', 'max:32'],
+            'contributors.*.affiliations.*.scheme_uri' => ['nullable', 'string', 'max:512'],
         ];
     }
 }

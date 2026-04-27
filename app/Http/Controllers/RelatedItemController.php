@@ -151,6 +151,9 @@ class RelatedItemController extends Controller
             'edition' => $item->edition,
             'identifier' => $item->identifier,
             'identifier_type' => $item->identifier_type,
+            'related_metadata_scheme' => $item->related_metadata_scheme,
+            'scheme_uri' => $item->scheme_uri,
+            'scheme_type' => $item->scheme_type,
             'position' => $item->position,
             'titles' => $item->titles->map(fn ($t): array => [
                 'id' => $t->id,
@@ -177,12 +180,14 @@ class RelatedItemController extends Controller
             'family_name' => $c->family_name,
             'name_identifier' => $c->name_identifier,
             'name_identifier_scheme' => $c->name_identifier_scheme,
+            'scheme_uri' => $c->scheme_uri,
             'position' => $c->position,
             'affiliations' => $c->affiliations->map(fn ($a): array => [
                 'id' => $a->id,
                 'name' => $a->name,
                 'affiliation_identifier' => $a->affiliation_identifier,
                 'scheme' => $a->scheme,
+                'scheme_uri' => $a->scheme_uri,
             ])->all(),
         ];
     }
@@ -201,12 +206,14 @@ class RelatedItemController extends Controller
             'family_name' => $c->family_name,
             'name_identifier' => $c->name_identifier,
             'name_identifier_scheme' => $c->name_identifier_scheme,
+            'scheme_uri' => $c->scheme_uri,
             'position' => $c->position,
             'affiliations' => $c->affiliations->map(fn ($a): array => [
                 'id' => $a->id,
                 'name' => $a->name,
                 'affiliation_identifier' => $a->affiliation_identifier,
                 'scheme' => $a->scheme,
+                'scheme_uri' => $a->scheme_uri,
             ])->all(),
         ];
     }

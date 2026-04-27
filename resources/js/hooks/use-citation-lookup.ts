@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, apiRequest } from '@/lib/api-client';
+import { normalizeIdentifier } from '@/lib/identifier-type-detection';
 import type { CitationLookupResult } from '@/types/related-item';
 
 interface UseCitationLookupOptions {
@@ -47,7 +48,12 @@ export function useCitationLookup(options: UseCitationLookupOptions = {}): UseCi
 
     const lookup = useCallback(
         (doi: string) => {
-            const normalized = doi.trim();
+            // Normalise the DOI client-side (strip resolver URL + lowercase) so
+            // that `10.x/foo`, `https://doi.org/10.X/FOO`, and `doi:10.x/foo`
+            // all share the same cache entry and never trigger redundant
+            // requests against the rate-limited lookup endpoint. This mirrors
+            // the backend `DataCiteApiService::normalizeDoi()` behaviour.
+            const normalized = normalizeIdentifier(doi.trim(), 'DOI').toLowerCase();
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             abortRef.current?.abort();
 

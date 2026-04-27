@@ -6,6 +6,7 @@ const affiliationSchema = z.object({
     name: z.string().min(1, 'Affiliation name is required'),
     affiliation_identifier: z.string().nullish(),
     scheme: z.string().nullish(),
+    scheme_uri: z.string().nullish(),
 });
 
 const creatorSchema = z.object({
@@ -53,6 +54,9 @@ export const relatedItemSchema = z
         edition: z.string().max(100).nullish(),
         identifier: z.string().max(500).nullish(),
         identifier_type: z.string().max(50).nullish(),
+        related_metadata_scheme: z.string().max(255).nullish(),
+        scheme_uri: z.string().max(512).nullish(),
+        scheme_type: z.string().max(64).nullish(),
         position: z.number().int().nonnegative(),
         titles: z.array(titleSchema).min(1, 'At least one title is required'),
         creators: z.array(creatorSchema).default([]),
