@@ -51,6 +51,9 @@ describe('DataCiteToResourceTransformer — relatedItems', function (): void {
                     'relatedItemIdentifier' => [
                         'relatedItemIdentifier' => '10.1234/abcd',
                         'relatedItemIdentifierType' => 'DOI',
+                        'relatedMetadataScheme' => 'citeproc-json',
+                        'schemeURI' => 'https://citationstyles.org/schema',
+                        'schemeType' => 'JSON',
                     ],
                     'publicationYear' => 2023,
                     'volume' => '42',
@@ -98,6 +101,9 @@ describe('DataCiteToResourceTransformer — relatedItems', function (): void {
         expect($ri->related_item_type)->toBe('JournalArticle');
         expect($ri->identifier)->toBe('10.1234/abcd');
         expect($ri->identifier_type)->toBe('DOI');
+        expect($ri->related_metadata_scheme)->toBe('citeproc-json');
+        expect($ri->scheme_uri)->toBe('https://citationstyles.org/schema');
+        expect($ri->scheme_type)->toBe('JSON');
         expect($ri->publication_year)->toBe(2023);
         expect($ri->volume)->toBe('42');
         expect($ri->first_page)->toBe('1');

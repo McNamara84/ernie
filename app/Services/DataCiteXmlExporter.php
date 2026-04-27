@@ -895,6 +895,18 @@ class DataCiteXmlExporter
                     htmlspecialchars($item->identifier)
                 );
                 $idEl->setAttribute('relatedItemIdentifierType', $item->identifier_type);
+                // DataCite 4.7 schema attaches the optional metadata-scheme
+                // attributes to <relatedItemIdentifier>. Emit them when the
+                // RelatedItem stores values so XML exports round-trip.
+                if (is_string($item->related_metadata_scheme) && $item->related_metadata_scheme !== '') {
+                    $idEl->setAttribute('relatedMetadataScheme', htmlspecialchars($item->related_metadata_scheme));
+                }
+                if (is_string($item->scheme_uri) && $item->scheme_uri !== '') {
+                    $idEl->setAttribute('schemeURI', htmlspecialchars($item->scheme_uri));
+                }
+                if (is_string($item->scheme_type) && $item->scheme_type !== '') {
+                    $idEl->setAttribute('schemeType', htmlspecialchars($item->scheme_type));
+                }
                 $itemEl->appendChild($idEl);
             }
 

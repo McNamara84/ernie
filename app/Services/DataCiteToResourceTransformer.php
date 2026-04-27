@@ -1026,11 +1026,23 @@ class DataCiteToResourceTransformer
             // DataCite 4.7 stores the identifier as a nested object or a simple string
             $identifier = null;
             $identifierType = null;
+            $relatedMetadataScheme = null;
+            $relatedSchemeUri = null;
+            $relatedSchemeType = null;
             if (isset($riData['relatedItemIdentifier'])) {
                 $raw = $riData['relatedItemIdentifier'];
                 if (is_array($raw)) {
                     $identifier = is_string($raw['relatedItemIdentifier'] ?? null) ? $raw['relatedItemIdentifier'] : null;
                     $identifierType = is_string($raw['relatedItemIdentifierType'] ?? null) ? $raw['relatedItemIdentifierType'] : null;
+                    // Optional DataCite 4.7 metadata-scheme attributes — read
+                    // both `schemeURI` (DataCite spec casing) and `schemeUri`
+                    // (camelCase variant emitted by some clients) so the
+                    // value survives round-trips regardless of source casing.
+                    $relatedMetadataScheme = is_string($raw['relatedMetadataScheme'] ?? null) ? $raw['relatedMetadataScheme'] : null;
+                    $relatedSchemeUri = is_string($raw['schemeURI'] ?? null)
+                        ? $raw['schemeURI']
+                        : (is_string($raw['schemeUri'] ?? null) ? $raw['schemeUri'] : null);
+                    $relatedSchemeType = is_string($raw['schemeType'] ?? null) ? $raw['schemeType'] : null;
                 } elseif (is_string($raw)) {
                     $identifier = $raw;
                     $identifierType = is_string($riData['relatedItemIdentifierType'] ?? null) ? $riData['relatedItemIdentifierType'] : null;
@@ -1043,6 +1055,9 @@ class DataCiteToResourceTransformer
                 'relation_type_id' => $relationTypeId,
                 'identifier' => $identifier,
                 'identifier_type' => $identifierType,
+                'related_metadata_scheme' => $relatedMetadataScheme,
+                'scheme_uri' => $relatedSchemeUri,
+                'scheme_type' => $relatedSchemeType,
                 'publication_year' => isset($riData['publicationYear']) ? (int) $riData['publicationYear'] : null,
                 'volume' => $riData['volume'] ?? null,
                 'issue' => $riData['issue'] ?? null,

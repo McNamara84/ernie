@@ -976,10 +976,23 @@ class DataCiteJsonExporter
             if (is_string($item->identifier) && $item->identifier !== ''
                 && is_string($item->identifier_type) && $item->identifier_type !== ''
             ) {
-                $data['relatedItemIdentifier'] = [
+                $idEntry = [
                     'relatedItemIdentifier' => $item->identifier,
                     'relatedItemIdentifierType' => $item->identifier_type,
                 ];
+                // DataCite 4.7 relatedItemIdentifier may carry optional
+                // metadata-scheme attributes. Emit them when stored so the
+                // payload round-trips through DataCite JSON imports/exports.
+                if (is_string($item->related_metadata_scheme) && $item->related_metadata_scheme !== '') {
+                    $idEntry['relatedMetadataScheme'] = $item->related_metadata_scheme;
+                }
+                if (is_string($item->scheme_uri) && $item->scheme_uri !== '') {
+                    $idEntry['schemeURI'] = $item->scheme_uri;
+                }
+                if (is_string($item->scheme_type) && $item->scheme_type !== '') {
+                    $idEntry['schemeType'] = $item->scheme_type;
+                }
+                $data['relatedItemIdentifier'] = $idEntry;
             }
 
             if ($item->creators->isNotEmpty()) {

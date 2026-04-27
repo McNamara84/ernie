@@ -164,7 +164,11 @@ class StoreResourceRequest extends FormRequest
             'relatedItems.*.titles.*.title' => ['required', 'string', 'max:512'],
             'relatedItems.*.titles.*.title_type' => ['required', Rule::in(RelatedItem::TITLE_TYPES)],
             'relatedItems.*.titles.*.language' => ['nullable', 'string', 'max:8'],
-            'relatedItems.*.publication_year' => ['nullable', 'integer', 'between:1000,9999'],
+            // Mirror `StoreRelatedItemRequest`: allow up to current year + 5
+            // for forthcoming publications. Using a fixed `9999` upper bound
+            // here would let resources save a year that subsequent edits via
+            // the related-items REST endpoints would reject.
+            'relatedItems.*.publication_year' => ['nullable', 'integer', 'between:1000,'.((int) date('Y') + 5)],
             'relatedItems.*.volume' => ['nullable', 'string', 'max:64'],
             'relatedItems.*.issue' => ['nullable', 'string', 'max:64'],
             'relatedItems.*.number' => ['nullable', 'string', 'max:64'],

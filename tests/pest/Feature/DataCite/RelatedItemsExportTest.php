@@ -122,6 +122,22 @@ describe('DataCiteXmlExporter — relatedItems', function () {
 
         expect($xml)->not->toContain('<relatedItems>');
     });
+
+    test('emits relatedMetadataScheme/schemeURI/schemeType attributes on <relatedItemIdentifier>', function () {
+        $resource = makeResourceWithRelatedItem();
+        $item = $resource->relatedItems[0];
+        $item->related_metadata_scheme = 'citeproc-json';
+        $item->scheme_uri = 'https://citationstyles.org/schema';
+        $item->scheme_type = 'JSON';
+        $item->save();
+
+        $xml = (new DataCiteXmlExporter())->export($resource->fresh());
+
+        expect($xml)
+            ->toContain('relatedMetadataScheme="citeproc-json"')
+            ->toContain('schemeURI="https://citationstyles.org/schema"')
+            ->toContain('schemeType="JSON"');
+    });
 });
 
 describe('DataCiteJsonExporter — relatedItems', function () {
@@ -189,6 +205,26 @@ describe('DataCiteJsonExporter — relatedItems', function () {
             'affiliationIdentifier' => 'https://ror.org/04z8jg394',
             'affiliationIdentifierScheme' => 'ROR',
             'schemeUri' => 'https://ror.org',
+        ]);
+    });
+
+    test('emits relatedMetadataScheme/schemeURI/schemeType on relatedItemIdentifier', function () {
+        $resource = makeResourceWithRelatedItem();
+        $item = $resource->relatedItems[0];
+        $item->related_metadata_scheme = 'citeproc-json';
+        $item->scheme_uri = 'https://citationstyles.org/schema';
+        $item->scheme_type = 'JSON';
+        $item->save();
+
+        $json = (new DataCiteJsonExporter())->export($resource->fresh());
+        $ri = $json['data']['attributes']['relatedItems'][0];
+
+        expect($ri['relatedItemIdentifier'])->toMatchArray([
+            'relatedItemIdentifier' => '10.1234/xyz',
+            'relatedItemIdentifierType' => 'DOI',
+            'relatedMetadataScheme' => 'citeproc-json',
+            'schemeURI' => 'https://citationstyles.org/schema',
+            'schemeType' => 'JSON',
         ]);
     });
 });

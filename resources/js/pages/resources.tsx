@@ -763,7 +763,7 @@ function ResourcesPage({
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
-    const { vocabularies: citationVocabularies } = useCitationVocabularies();
+    const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -1490,8 +1490,13 @@ function ResourcesPage({
                                                                             resource.id != null &&
                                                                             setCitationManagerResourceId(resource.id)
                                                                         }
+                                                                        disabled={citationVocabulariesLoading}
                                                                         aria-label={`Manage citations for resource ${resourceLabel}`}
-                                                                        title="Manage related items / citations"
+                                                                        title={
+                                                                            citationVocabulariesLoading
+                                                                                ? 'Loading citation vocabularies…'
+                                                                                : 'Manage related items / citations'
+                                                                        }
                                                                         data-testid="citation-manager-button"
                                                                     >
                                                                         <Quote aria-hidden="true" className="size-4" />
