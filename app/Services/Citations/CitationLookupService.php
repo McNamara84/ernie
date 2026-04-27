@@ -35,7 +35,11 @@ class CitationLookupService
 
         $cacheKey = CacheKey::CITATION_LOOKUP->key($normalized);
         $cache = $this->getCacheInstance(CacheKey::CITATION_LOOKUP->tags());
-        $ttl = CacheKey::CITATION_LOOKUP->ttl();
+
+        // Honour the operator-configurable `CROSSREF_CACHE_TTL` (env →
+        // `config/crossref.php`) so deployments can tune how long lookups are
+        // cached without code changes; fall back to the enum default.
+        $ttl = (int) config('crossref.cache_ttl', CacheKey::CITATION_LOOKUP->ttl());
 
         /** @var CitationLookupResult|null $cached */
         $cached = $cache->get($cacheKey);
@@ -49,7 +53,12 @@ class CitationLookupService
             $result = $this->lookupDataCite($normalized);
         }
 
-        $cache->put($cacheKey, $result, $ttl);
+        // Only cache successful hits and confirmed `not_found` results. Caching
+        // transient upstream errors would lock users out of a working DOI for
+        // the full TTL once the upstream recovers.
+        if ($result->error === null) {
+            $cache->put($cacheKey, $result, $ttl);
+        }
 
         return $result;
     }

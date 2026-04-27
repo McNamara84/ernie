@@ -57,7 +57,10 @@ export const relatedItemSchema = z
         last_page: z.string().max(50).nullish(),
         publisher: z.string().max(255).nullish(),
         edition: z.string().max(100).nullish(),
-        identifier: z.string().max(500).nullish(),
+        // Backend (`StoreRelatedItemRequest` + `related_items` migration)
+        // accepts up to 2183 characters; keep the client rule in sync to avoid
+        // blocking valid URL identifiers.
+        identifier: z.string().max(2183).nullish(),
         identifier_type: z.string().max(50).nullish(),
         related_metadata_scheme: z.string().max(255).nullish(),
         scheme_uri: z.string().max(512).nullish(),
