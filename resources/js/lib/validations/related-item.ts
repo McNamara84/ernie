@@ -11,7 +11,8 @@ const affiliationSchema = z.object({
     name: z.string().min(1, 'Affiliation name is required'),
     affiliation_identifier: z.string().nullish(),
     scheme: z.string().nullish(),
-    scheme_uri: z.string().nullish(),
+    // Mirror the backend rule: `nullable, string, max:512`, no URL constraint.
+    scheme_uri: z.string().max(512).nullish(),
 });
 
 const creatorSchema = z.object({
@@ -22,7 +23,11 @@ const creatorSchema = z.object({
     family_name: z.string().nullish(),
     name_identifier: z.string().nullish(),
     name_identifier_scheme: z.string().nullish(),
-    scheme_uri: z.string().url().nullish().or(z.literal('')),
+    // Match the backend rule (`StoreRelatedItemRequest`): `nullable, string,
+    // max:512` with NO URL constraint. DataCite accepts non-URL scheme URIs
+    // (e.g. legacy registry shortcuts), so a strict client-side `.url()`
+    // would reject server-accepted payloads.
+    scheme_uri: z.string().max(512).nullish(),
     position: z.number().int().nonnegative(),
     affiliations: z.array(affiliationSchema).default([]),
 });
