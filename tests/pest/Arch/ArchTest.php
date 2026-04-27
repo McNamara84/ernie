@@ -80,6 +80,21 @@ describe('Services', function () {
             'App\Services\Citations\CrossrefClient',
             'App\Services\Citations\CrossrefTypeMapper',
             'App\Services\Citations\DataCiteTypeMapper',
+            'App\Services\Xml\DataCiteXmlImportParser',
+            'App\Services\Xml\DataCiteXmlImportResult',
+            'App\Services\Xml\Sections\AuthorSectionParser',
+            'App\Services\Xml\Sections\ContributorSectionParser',
+            'App\Services\Xml\Sections\CoverageSectionParser',
+            'App\Services\Xml\Sections\DateSectionParser',
+            'App\Services\Xml\Sections\DescriptionSectionParser',
+            'App\Services\Xml\Sections\FundingReferenceSectionParser',
+            'App\Services\Xml\Sections\GcmdKeywordSectionParser',
+            'App\Services\Xml\Sections\IdentifierSectionParser',
+            'App\Services\Xml\Sections\IsoContactSectionParser',
+            'App\Services\Xml\Sections\RelatedItemSectionParser',
+            'App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser',
+            'App\Services\Xml\Sections\RightsSectionParser',
+            'App\Services\Xml\Sections\TitleSectionParser',
         ]);
 
     arch('services are not extending controllers')
