@@ -105,7 +105,7 @@ describe('RelatedItemController', function () {
             ->assertJsonPath('data.titles.0.title', 'The Main Title')
             ->assertJsonPath('data.creators.0.name', 'Doe, Jane')
             ->assertJsonPath('data.creators.0.affiliations.0.name', 'GFZ Helmholtz Centre')
-            ->assertJsonPath('data.contributors.0.contributorType', 'Editor')
+            ->assertJsonPath('data.contributors.0.contributor_type', 'Editor')
             ->assertJsonPath('data.identifier', '10.1234/example');
 
         expect(RelatedItem::count())->toBe(1);

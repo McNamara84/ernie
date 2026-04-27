@@ -176,7 +176,7 @@ class StoreResourceRequest extends FormRequest
             'relatedItems.*.identifier' => ['nullable', 'string', 'max:2183'],
             'relatedItems.*.identifier_type' => ['nullable', Rule::in(RelatedItem::IDENTIFIER_TYPES)],
             'relatedItems.*.related_metadata_scheme' => ['nullable', 'string', 'max:255'],
-            'relatedItems.*.scheme_uri' => ['nullable', 'string', 'max:2048'],
+            'relatedItems.*.scheme_uri' => ['nullable', 'string', 'max:512'],
             'relatedItems.*.scheme_type' => ['nullable', 'string', 'max:64'],
             'relatedItems.*.position' => ['nullable', 'integer', 'min:0'],
             'relatedItems.*.creators' => ['nullable', 'array'],

@@ -28,9 +28,24 @@ test('returns a hit with the transformed payload', function () {
         ->with('10.1234/abcd')
         ->andReturn(CitationLookupResult::hit('crossref', [
             'relatedItemType' => 'JournalArticle',
-            'titles' => [['title' => 'Great Paper', 'titleType' => 'MainTitle']],
-            'creators' => [],
+            'titles' => [
+                ['title' => 'Great Paper', 'titleType' => 'MainTitle'],
+                ['title' => 'A Subtitle', 'titleType' => 'Subtitle'],
+            ],
+            'creators' => [[
+                'name' => 'Doe, Jane',
+                'nameType' => 'Personal',
+                'givenName' => 'Jane',
+                'familyName' => 'Doe',
+                'nameIdentifier' => '0000-0001-0002-0003',
+                'nameIdentifierScheme' => 'ORCID',
+            ]],
             'publicationYear' => 2023,
+            'publisher' => 'Science Journal',
+            'volume' => '12',
+            'issue' => '3',
+            'firstPage' => '101',
+            'lastPage' => '115',
             'identifier' => '10.1234/abcd',
             'identifierType' => 'DOI',
         ]));
@@ -40,12 +55,26 @@ test('returns a hit with the transformed payload', function () {
         ->getJson('/api/v1/citation-lookup?doi=10.1234/abcd')
         ->assertOk()
         ->assertJsonPath('source', 'crossref')
-        ->assertJsonPath('found', true)
-        ->assertJsonPath('data.titles.0.title', 'Great Paper')
-        ->assertJsonPath('data.publicationYear', 2023);
+        ->assertJsonPath('identifier', '10.1234/abcd')
+        ->assertJsonPath('identifier_type', 'DOI')
+        ->assertJsonPath('related_item_type', 'JournalArticle')
+        ->assertJsonPath('title', 'Great Paper')
+        ->assertJsonPath('subtitle', 'A Subtitle')
+        ->assertJsonPath('publication_year', 2023)
+        ->assertJsonPath('publisher', 'Science Journal')
+        ->assertJsonPath('volume', '12')
+        ->assertJsonPath('issue', '3')
+        ->assertJsonPath('first_page', '101')
+        ->assertJsonPath('last_page', '115')
+        ->assertJsonPath('creators.0.name', 'Doe, Jane')
+        ->assertJsonPath('creators.0.name_type', 'Personal')
+        ->assertJsonPath('creators.0.given_name', 'Jane')
+        ->assertJsonPath('creators.0.family_name', 'Doe')
+        ->assertJsonPath('creators.0.name_identifier', '0000-0001-0002-0003')
+        ->assertJsonPath('creators.0.name_identifier_scheme', 'ORCID');
 });
 
-test('returns notFound when the lookup service reports missing', function () {
+test('returns not_found when the lookup service reports missing', function () {
     $user = User::factory()->create();
 
     $mock = Mockery::mock(CitationLookupService::class);
@@ -55,8 +84,10 @@ test('returns notFound when the lookup service reports missing', function () {
     $this->actingAs($user)
         ->getJson('/api/v1/citation-lookup?doi=10.1/missing')
         ->assertOk()
-        ->assertJsonPath('found', false)
-        ->assertJsonPath('source', 'datacite');
+        ->assertJsonPath('source', 'not_found')
+        ->assertJsonPath('identifier', '10.1/missing')
+        ->assertJsonPath('identifier_type', 'DOI')
+        ->assertJsonMissingPath('title');
 });
 
 test('requires a DOI query parameter', function () {

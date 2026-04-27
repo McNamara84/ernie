@@ -21,7 +21,7 @@ interface CitationsFieldProps {
 export function CitationsField({ resourceId }: CitationsFieldProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const { vocabularies, isLoading: vocabLoading } = useCitationVocabularies();
-    const { items, isLoading: itemsLoading } = useRelatedItems(resourceId ?? 0);
+    const { items, isLoading: itemsLoading } = useRelatedItems(resourceId);
 
     if (resourceId === null) {
         return (

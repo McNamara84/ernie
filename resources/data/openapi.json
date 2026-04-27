@@ -1071,22 +1071,29 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Metadata retrieved successfully",
+                        "description": "Lookup completed. The response payload always contains the `source` discriminator. On a hit, `source` is `crossref` or `datacite` and the bibliographic fields are populated. On a miss, `source` is `not_found` and only `identifier` and `identifier_type` are returned.",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "type": "object",
+                                    "required": ["source", "identifier", "identifier_type"],
                                     "properties": {
-                                        "doi": { "type": "string", "example": "10.1029/2018JB016456" },
-                                        "related_item_type": { "type": "string", "example": "JournalArticle" },
-                                        "title": { "type": "string" },
+                                        "source": {
+                                            "type": "string",
+                                            "enum": ["crossref", "datacite", "not_found"],
+                                            "description": "Origin of the bibliographic data, or `not_found` if neither Crossref nor DataCite returned a record."
+                                        },
+                                        "identifier": { "type": "string", "example": "10.1029/2018JB016456" },
+                                        "identifier_type": { "type": "string", "example": "DOI" },
+                                        "related_item_type": { "type": "string", "nullable": true, "example": "JournalArticle" },
+                                        "title": { "type": "string", "nullable": true },
+                                        "subtitle": { "type": "string", "nullable": true },
                                         "publication_year": { "type": "integer", "nullable": true, "example": 2019 },
                                         "publisher": { "type": "string", "nullable": true },
                                         "volume": { "type": "string", "nullable": true },
                                         "issue": { "type": "string", "nullable": true },
                                         "first_page": { "type": "string", "nullable": true },
                                         "last_page": { "type": "string", "nullable": true },
-                                        "source": { "type": "string", "enum": ["crossref", "datacite"] },
                                         "creators": {
                                             "type": "array",
                                             "items": {
@@ -1105,9 +1112,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "description": "DOI not found in Crossref or DataCite"
                     },
                     "422": {
                         "description": "Missing or invalid DOI query parameter"

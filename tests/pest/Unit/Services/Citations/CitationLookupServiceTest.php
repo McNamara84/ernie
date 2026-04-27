@@ -190,13 +190,14 @@ describe('DataCite attribute transformation', function () {
         ]);
     });
 
-    it('marks affiliations with schemeUri as ROR', function () {
+    it('reads the affiliationIdentifierScheme from DataCite payloads', function () {
         $data = runDataCiteFallback([
             'creators' => [[
                 'name' => 'X',
                 'affiliation' => [[
                     'name' => 'GFZ',
                     'affiliationIdentifier' => 'https://ror.org/04z8jg394',
+                    'affiliationIdentifierScheme' => 'ROR',
                     'schemeUri' => 'https://ror.org',
                 ]],
             ]],
@@ -209,7 +210,22 @@ describe('DataCite attribute transformation', function () {
         ]);
     });
 
-    it('returns scheme null when schemeUri is absent', function () {
+    it('preserves non-ROR schemes such as GRID or ISNI', function () {
+        $data = runDataCiteFallback([
+            'creators' => [[
+                'name' => 'X',
+                'affiliation' => [[
+                    'name' => 'GFZ',
+                    'affiliationIdentifier' => 'grid.123',
+                    'affiliationIdentifierScheme' => 'GRID',
+                ]],
+            ]],
+        ]);
+
+        expect($data['creators'][0]['affiliations'][0]['scheme'])->toBe('GRID');
+    });
+
+    it('returns scheme null when affiliationIdentifierScheme is absent', function () {
         $data = runDataCiteFallback([
             'creators' => [[
                 'name' => 'X',

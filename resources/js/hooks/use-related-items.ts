@@ -24,14 +24,20 @@ interface ApiEnvelope<T> {
  * Keeps an in-memory list of {@link RelatedItem}s that mirrors the server
  * state and exposes optimistic helpers for create / update / delete / reorder.
  */
-export function useRelatedItems(resourceId: number): UseRelatedItemsReturn {
+export function useRelatedItems(resourceId: number | null): UseRelatedItemsReturn {
     const [items, setItems] = useState<RelatedItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const base = `/resources/${resourceId}/related-items`;
+    const base = resourceId !== null ? `/resources/${resourceId}/related-items` : null;
 
     const refresh = useCallback(async () => {
+        if (base === null) {
+            setItems([]);
+            setIsLoading(false);
+            setError(null);
+            return;
+        }
         setIsLoading(true);
         setError(null);
         try {
@@ -50,6 +56,9 @@ export function useRelatedItems(resourceId: number): UseRelatedItemsReturn {
 
     const create = useCallback(
         async (payload: Partial<RelatedItem>): Promise<RelatedItem> => {
+            if (base === null) {
+                throw new Error('Cannot create related items before the resource is saved.');
+            }
             const res = await apiRequest<ApiEnvelope<RelatedItem>>(base, {
                 method: 'POST',
                 body: payload as Record<string, unknown>,
@@ -62,6 +71,9 @@ export function useRelatedItems(resourceId: number): UseRelatedItemsReturn {
 
     const update = useCallback(
         async (id: number, payload: Partial<RelatedItem>): Promise<RelatedItem> => {
+            if (base === null) {
+                throw new Error('Cannot update related items before the resource is saved.');
+            }
             const res = await apiRequest<ApiEnvelope<RelatedItem>>(`${base}/${id}`, {
                 method: 'PUT',
                 body: payload as Record<string, unknown>,
@@ -74,6 +86,9 @@ export function useRelatedItems(resourceId: number): UseRelatedItemsReturn {
 
     const remove = useCallback(
         async (id: number): Promise<void> => {
+            if (base === null) {
+                throw new Error('Cannot delete related items before the resource is saved.');
+            }
             await apiRequest(`${base}/${id}`, { method: 'DELETE' });
             setItems((prev) => prev.filter((it) => it.id !== id));
         },
@@ -82,6 +97,9 @@ export function useRelatedItems(resourceId: number): UseRelatedItemsReturn {
 
     const reorder = useCallback(
         async (order: { id: number; position: number }[]): Promise<void> => {
+            if (base === null) {
+                throw new Error('Cannot reorder related items before the resource is saved.');
+            }
             await apiRequest(`${base}/reorder`, {
                 method: 'POST',
                 body: { order },

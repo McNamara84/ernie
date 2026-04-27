@@ -121,18 +121,18 @@ export function CitationCard({
                     </div>
                 </div>
 
-                <p data-slot="citation-text" className="text-sm leading-relaxed">
+                <p data-slot="citation-text" className="text-sm leading-relaxed wrap-break-word">
                     {citation}
                 </p>
 
                 {item.identifier ? (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground wrap-break-word">
                         {item.identifier_type === 'DOI' ? (
                             <a
                                 href={`https://doi.org/${encodeURI(item.identifier)}`}
                                 target="_blank"
                                 rel="noreferrer noopener"
-                                className="underline decoration-dotted underline-offset-2 hover:text-foreground"
+                                className="underline decoration-dotted underline-offset-2 hover:text-foreground wrap-break-word"
                             >
                                 https://doi.org/{item.identifier}
                             </a>

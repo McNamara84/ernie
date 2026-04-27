@@ -106,4 +106,23 @@ describe('useRelatedItems', () => {
 
         expect(result.current.items.map((it) => it.id)).toEqual([2, 1]);
     });
+
+    it('skips fetching and exposes empty state when resourceId is null', async () => {
+        let called = false;
+        server.use(
+            http.get(base, () => {
+                called = true;
+                return HttpResponse.json({ data: [] });
+            }),
+        );
+
+        const { result } = renderHook(() => useRelatedItems(null));
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.items).toEqual([]);
+        expect(result.current.error).toBeNull();
+        expect(called).toBe(false);
+
+        await expect(result.current.create({ related_item_type: 'Book' })).rejects.toThrow();
+    });
 });

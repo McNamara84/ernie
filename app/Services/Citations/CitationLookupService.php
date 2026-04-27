@@ -104,8 +104,8 @@ class CitationLookupService
                         'affiliationIdentifier' => isset($aff['affiliationIdentifier']) && is_string($aff['affiliationIdentifier'])
                             ? $aff['affiliationIdentifier']
                             : null,
-                        'scheme' => isset($aff['schemeUri']) && is_string($aff['schemeUri'])
-                            ? 'ROR'
+                        'scheme' => isset($aff['affiliationIdentifierScheme']) && is_string($aff['affiliationIdentifierScheme'])
+                            ? $aff['affiliationIdentifierScheme']
                             : null,
                     ];
                 }
