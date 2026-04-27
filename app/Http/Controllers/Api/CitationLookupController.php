@@ -22,6 +22,19 @@ class CitationLookupController extends Controller
 
         $result = $this->lookup->lookup($validated['doi']);
 
+        // Transient upstream failure (Crossref timeout / non-2xx with no
+        // confirming DataCite hit) → 502 so the UI can show a retryable
+        // error instead of a misleading "not found".
+        if ($result->error !== null) {
+            return response()->json([
+                'source' => $result->source,
+                'identifier' => $validated['doi'],
+                'identifier_type' => 'DOI',
+                'message' => 'Upstream metadata provider is temporarily unavailable. Please try again.',
+                'error' => $result->error,
+            ], 502);
+        }
+
         return response()->json($this->present($result, $validated['doi']));
     }
 

@@ -54,6 +54,14 @@ class CitationLookupService
             ? $this->lookupDataCite($normalized)
             : $primary;
 
+        // If the primary (Crossref) errored and DataCite did not produce a
+        // confirming hit, surface the original error to the caller instead
+        // of masquerading it as `not_found`. This lets the controller map
+        // it to a 502 so the UI can show a transient-failure message.
+        if ($primaryErrored && ! $result->found) {
+            return CitationLookupResult::error($primary->source, (string) $primary->error);
+        }
+
         // Cache policy:
         //   - Successful hits: always cache.
         //   - `not_found`: only cache when the primary lookup completed

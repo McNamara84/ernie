@@ -450,7 +450,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
     $relationType->forceFill([
         'id' => 1,
         'name' => 'IsCitedBy',
-        'slug' => 'iscitedby',
+        'slug' => 'IsCitedBy',
     ]);
 
     $title = new \App\Models\RelatedItemTitle;
@@ -552,7 +552,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
         'id' => 1,
         'related_item_type' => 'JournalArticle',
         'relation_type' => 'IsCitedBy',
-        'relation_type_slug' => 'iscitedby',
+        'relation_type_slug' => 'IsCitedBy',
         'publication_year' => 2024,
         'volume' => '42',
         'issue' => '3',

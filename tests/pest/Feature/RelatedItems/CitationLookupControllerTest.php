@@ -90,6 +90,24 @@ test('returns not_found when the lookup service reports missing', function () {
         ->assertJsonMissingPath('title');
 });
 
+test('returns 502 when the lookup service reports a transient upstream error', function () {
+    $user = User::factory()->create();
+
+    $mock = Mockery::mock(CitationLookupService::class);
+    $mock->shouldReceive('lookup')
+        ->once()
+        ->andReturn(CitationLookupResult::error('crossref', 'HTTP 503'));
+    $this->app->instance(CitationLookupService::class, $mock);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/citation-lookup?doi=10.1/upstream-error')
+        ->assertStatus(502)
+        ->assertJsonPath('source', 'crossref')
+        ->assertJsonPath('identifier', '10.1/upstream-error')
+        ->assertJsonPath('error', 'HTTP 503')
+        ->assertJsonStructure(['message']);
+});
+
 test('requires a DOI query parameter', function () {
     $user = User::factory()->create();
 

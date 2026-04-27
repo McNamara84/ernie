@@ -1121,6 +1121,24 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "502": {
+                        "description": "Transient upstream failure. Returned when the primary metadata provider (Crossref) errored and the DataCite fallback did not produce a confirming hit. Clients should retry after a short delay rather than treat this as `not_found`.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["source", "identifier", "identifier_type", "message", "error"],
+                                    "properties": {
+                                        "source": { "type": "string", "example": "crossref" },
+                                        "identifier": { "type": "string" },
+                                        "identifier_type": { "type": "string", "example": "DOI" },
+                                        "message": { "type": "string", "example": "Upstream metadata provider is temporarily unavailable. Please try again." },
+                                        "error": { "type": "string", "example": "HTTP 503" }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
