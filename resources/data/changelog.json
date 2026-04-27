@@ -4,6 +4,10 @@
         "date": "2026-04-24",
         "features": [
             {
+                "title": "Citation Manager",
+                "description": "A new Citation Manager allows curators to add detailed inline metadata for related works directly to a resource, using DataCite Metadata Schema 4.7 relatedItem. A new Quote icon on the /resources page opens a modal to create, edit, reorder, and delete citations per resource. Each citation captures full bibliographic metadata: resource type, relation type, titles (with MainTitle/Subtitle/TranslatedTitle/AlternativeTitle), creators and contributors with ORCID/ROR affiliations, publication year, volume, issue, pages, publisher, edition, identifier (DOI, ISBN, URL, etc.). DOIs can be auto-filled via a Crossref lookup (30 requests/minute), and citations are rendered in APA or IEEE style with one-click copy. Citations are included in DataCite XML, JSON, JSON-LD, and Schema.org exports; imported from DataCite JSON; parsed from XML uploads; and displayed on the public landing page next to plain related identifiers with an 'Inline metadata' badge. Administrators can inspect and curate citations via the curation form's new Citations accordion."
+            },
+            {
                 "title": "Password Visibility Toggle on Reset Password Page",
                 "description": "The 'Reset password' page now shows an eye icon inside both the password and confirm-password fields. Clicking the icon toggles the entered value between hidden and plain text, helping users verify their new password before submission and avoid typos. The icon clearly indicates the current state (eye = hidden, eye-with-slash = visible), is fully keyboard accessible, and carries distinct screen-reader labels for the two fields. Toggling visibility does not affect how the password is transmitted or stored."
             },

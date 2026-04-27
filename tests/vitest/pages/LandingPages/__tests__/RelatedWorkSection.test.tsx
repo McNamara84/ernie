@@ -71,6 +71,66 @@ describe('RelatedWorkSection', () => {
         expect(container.firstChild).toBeNull();
     });
 
+    it('renders inline relatedItems with Inline metadata badge', () => {
+        const relatedItems = [
+            {
+                id: 10,
+                related_item_type: 'JournalArticle',
+                relation_type: 'IsCitedBy',
+                relation_type_slug: 'iscitedby',
+                publication_year: 2024,
+                volume: '42',
+                issue: '3',
+                number: null,
+                number_type: null,
+                first_page: '1',
+                last_page: '20',
+                publisher: 'Acme Press',
+                edition: null,
+                identifier: '10.1234/cited',
+                identifier_type: 'DOI',
+                related_metadata_scheme: null,
+                scheme_uri: null,
+                scheme_type: null,
+                position: 1,
+                titles: [
+                    { id: 1, title: 'Cited Paper Title', title_type: 'MainTitle', language: 'en' },
+                ],
+                creators: [
+                    {
+                        id: 1,
+                        name_type: 'Personal' as const,
+                        name: 'Doe, Jane',
+                        given_name: 'Jane',
+                        family_name: 'Doe',
+                        name_identifier: null,
+                        name_identifier_scheme: null,
+                        scheme_uri: null,
+                        position: 1,
+                        affiliations: [],
+                    },
+                ],
+                contributors: [],
+            },
+        ];
+
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[]}
+                relatedItems={relatedItems}
+            />,
+        );
+
+        expect(screen.getByTestId('related-items-list')).toBeInTheDocument();
+        expect(screen.getByText('Inline metadata')).toBeInTheDocument();
+        expect(screen.getByText('Cited Paper Title')).toBeInTheDocument();
+        expect(screen.getByTestId('related-item-10')).toBeInTheDocument();
+        // Descriptor combines author, year, publisher, volume/issue/pages
+        expect(screen.getByText(/Doe/)).toBeInTheDocument();
+        expect(screen.getByText(/2024/)).toBeInTheDocument();
+    });
+
     it('returns null when all identifiers have unsupported types', () => {
         const relatedIdentifiers = [
             { id: 1, identifier: '12345', identifier_type: 'PMID', relation_type: 'References' },

@@ -338,6 +338,96 @@ erDiagram
         timestamp updated_at
     }
 
+    related_items {
+        bigint id PK
+        bigint resource_id FK
+        varchar related_item_type "resource_types.slug"
+        bigint relation_type_id FK
+        smallint publication_year "nullable"
+        varchar volume "nullable"
+        varchar issue "nullable"
+        varchar number "nullable"
+        varchar number_type "Article|Chapter|Report|Other"
+        varchar first_page "nullable"
+        varchar last_page "nullable"
+        varchar publisher "nullable"
+        varchar edition "nullable"
+        varchar identifier "max 2183, nullable"
+        varchar identifier_type "DOI|ISBN|URL|..."
+        varchar related_metadata_scheme "nullable"
+        varchar scheme_uri "nullable"
+        varchar scheme_type "nullable"
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    related_item_titles {
+        bigint id PK
+        bigint related_item_id FK
+        varchar title
+        varchar title_type "MainTitle|Subtitle|TranslatedTitle|AlternativeTitle"
+        varchar language "nullable"
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    related_item_creators {
+        bigint id PK
+        bigint related_item_id FK
+        varchar name_type "Personal|Organizational"
+        varchar name
+        varchar given_name "nullable"
+        varchar family_name "nullable"
+        varchar name_identifier "nullable"
+        varchar name_identifier_scheme "ORCID|ROR|ISNI"
+        varchar scheme_uri "nullable"
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    related_item_creator_affiliations {
+        bigint id PK
+        bigint related_item_creator_id FK
+        varchar name
+        varchar affiliation_identifier "nullable, ROR/GRID URL"
+        varchar scheme "nullable"
+        varchar scheme_uri "nullable"
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    related_item_contributors {
+        bigint id PK
+        bigint related_item_id FK
+        varchar contributor_type
+        varchar name_type "Personal|Organizational"
+        varchar name
+        varchar given_name "nullable"
+        varchar family_name "nullable"
+        varchar name_identifier "nullable"
+        varchar name_identifier_scheme "ORCID|ROR|ISNI"
+        varchar scheme_uri "nullable"
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    related_item_contributor_affiliations {
+        bigint id PK
+        bigint related_item_contributor_id FK
+        varchar name
+        varchar affiliation_identifier "nullable"
+        varchar scheme "nullable"
+        varchar scheme_uri "nullable"
+        int position
+        timestamp created_at
+        timestamp updated_at
+    }
+
     funding_references {
         bigint id PK
         bigint resource_id FK
@@ -811,6 +901,7 @@ erDiagram
     resources ||--o{ descriptions : "has"
     resources ||--o{ geo_locations : "has"
     resources ||--o{ related_identifiers : "has"
+    resources ||--o{ related_items : "has citations"
     resources ||--o{ funding_references : "has"
     resources ||--o{ resource_rights : "has"
     resources ||--o{ sizes : "has"
@@ -832,6 +923,12 @@ erDiagram
     resource_contributor_contributor_type }o--|| contributor_types : "type"
     related_identifiers }o--|| identifier_types : "identifier type"
     related_identifiers }o--|| relation_types : "relation type"
+    related_items }o--|| relation_types : "relation type"
+    related_items ||--o{ related_item_titles : "has"
+    related_items ||--o{ related_item_creators : "has"
+    related_items ||--o{ related_item_contributors : "has"
+    related_item_creators ||--o{ related_item_creator_affiliations : "has"
+    related_item_contributors ||--o{ related_item_contributor_affiliations : "has"
     identifier_type_patterns }o--|| identifier_types : "patterns for"
     funding_references }o--o| funder_identifier_types : "identifier type"
 

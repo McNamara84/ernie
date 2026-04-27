@@ -118,6 +118,14 @@ class SchemaOrgJsonLdExporter
             $jsonLd['version'] = $attributes['version'];
         }
 
+        // Citation: related items become schema:citation CreativeWork entries
+        if (! empty($attributes['relatedItems'])) {
+            $citations = $this->transformCitations($attributes['relatedItems']);
+            if ($citations !== []) {
+                $jsonLd['citation'] = $citations;
+            }
+        }
+
         // subjectOf: cross-links to other metadata formats via DataCite Content Negotiation
         if (isset($attributes['doi'])) {
             $jsonLd['subjectOf'] = $this->buildSubjectOf($attributes['doi']);
@@ -140,6 +148,36 @@ class SchemaOrgJsonLdExporter
             'value' => 'doi:' . $doi,
             'url' => 'https://doi.org/' . $doi,
         ];
+    }
+
+    /**
+     * Strip resolver URL prefixes (`https://doi.org/`, `http://dx.doi.org/`)
+     * and the `doi:` scheme prefix from a DOI string. Mirrors the backend
+     * behaviour of {@see DataCiteApiService::normalizeDoi()} but preserves the
+     * original casing so the resulting identifier matches what users entered.
+     */
+    private function stripDoiPrefix(string $doi): string
+    {
+        $value = trim($doi);
+
+        if (preg_match('/^https?:\/\/(?:dx\.)?doi\.org\/?(.*)$/i', $value, $matches) === 1) {
+            $value = $matches[1];
+        }
+
+        if (preg_match('/^doi:(.+)$/i', $value, $matches) === 1) {
+            $value = $matches[1];
+        }
+
+        return trim($value);
+    }
+
+    /**
+     * URL-encode the DOI path while preserving the slash between the prefix
+     * and suffix, so e.g. `10.1234/foo bar` becomes `10.1234/foo%20bar`.
+     */
+    private function encodeDoiPath(string $doi): string
+    {
+        return implode('/', array_map(rawurlencode(...), explode('/', $doi)));
     }
 
     /**
@@ -483,6 +521,131 @@ class SchemaOrgJsonLdExporter
 
             return $grant;
         }, $fundingReferences);
+    }
+
+    /**
+     * Transform DataCite relatedItems into Schema.org citation CreativeWork entries.
+     *
+     * @param  array<int, array<string, mixed>>  $relatedItems
+     * @return array<int, array<string, mixed>>
+     */
+    private function transformCitations(array $relatedItems): array
+    {
+        $citations = [];
+        foreach ($relatedItems as $ri) {
+            $entry = ['@type' => 'CreativeWork'];
+
+            // Name (MainTitle preferred — explicit MainTitle wins, missing
+            // titleType is treated as MainTitle, otherwise fall back to first.)
+            if (is_array($ri['titles'] ?? null)) {
+                foreach ($ri['titles'] as $title) {
+                    if (! is_array($title) || ! isset($title['title']) || ! is_string($title['title'])) {
+                        continue;
+                    }
+                    $type = $title['titleType'] ?? null;
+                    if ($type === null || $type === 'MainTitle') {
+                        $entry['name'] = $title['title'];
+                        break;
+                    }
+                }
+                if (! isset($entry['name'])) {
+                    $first = $ri['titles'][0] ?? null;
+                    if (is_array($first) && isset($first['title']) && is_string($first['title'])) {
+                        $entry['name'] = $first['title'];
+                    }
+                }
+            }
+
+            // Identifier (DOI → URL, others → PropertyValue)
+            if (is_array($ri['relatedItemIdentifier'] ?? null)) {
+                $idVal = $ri['relatedItemIdentifier']['relatedItemIdentifier'] ?? null;
+                $idType = $ri['relatedItemIdentifier']['relatedItemIdentifierType'] ?? null;
+                if (is_string($idVal) && $idVal !== '') {
+                    if ($idType === 'DOI') {
+                        // The stored identifier may already be a resolver URL
+                        // (`https://doi.org/...`, `http://dx.doi.org/...`) or a
+                        // `doi:`-prefixed value. Strip those before composing the
+                        // canonical resolver URL so we never emit
+                        // `https://doi.org/https://doi.org/...`.
+                        $bareDoi = $this->stripDoiPrefix($idVal);
+                        $entry['@id'] = 'https://doi.org/' . $this->encodeDoiPath($bareDoi);
+                        $entry['identifier'] = [
+                            '@type' => 'PropertyValue',
+                            'propertyID' => 'https://registry.identifiers.org/registry/doi',
+                            'value' => 'doi:' . $bareDoi,
+                        ];
+                    } elseif ($idType === 'URL') {
+                        $entry['url'] = $idVal;
+                    } else {
+                        $entry['identifier'] = [
+                            '@type' => 'PropertyValue',
+                            'propertyID' => is_string($idType) ? $idType : 'identifier',
+                            'value' => $idVal,
+                        ];
+                    }
+                }
+            }
+
+            // Authors
+            if (is_array($ri['creators'] ?? null) && $ri['creators'] !== []) {
+                $authors = [];
+                foreach ($ri['creators'] as $creator) {
+                    if (! is_array($creator)) {
+                        continue;
+                    }
+                    $author = [
+                        '@type' => ($creator['nameType'] ?? 'Personal') === 'Organizational' ? 'Organization' : 'Person',
+                        'name' => $creator['name'] ?? '',
+                    ];
+                    if (isset($creator['givenName'])) {
+                        $author['givenName'] = $creator['givenName'];
+                    }
+                    if (isset($creator['familyName'])) {
+                        $author['familyName'] = $creator['familyName'];
+                    }
+                    $authors[] = $author;
+                }
+                if ($authors !== []) {
+                    $entry['author'] = count($authors) === 1 ? $authors[0] : $authors;
+                }
+            }
+
+            // Publisher
+            if (isset($ri['publisher']) && is_string($ri['publisher']) && $ri['publisher'] !== '') {
+                $entry['publisher'] = [
+                    '@type' => 'Organization',
+                    'name' => $ri['publisher'],
+                ];
+            }
+
+            // Date published
+            if (isset($ri['publicationYear'])) {
+                $entry['datePublished'] = (string) $ri['publicationYear'];
+            }
+
+            // Bibliographic details
+            $bibParts = [];
+            if (isset($ri['volume'])) {
+                $bibParts[] = 'Vol. ' . $ri['volume'];
+            }
+            if (isset($ri['issue'])) {
+                $bibParts[] = 'Issue ' . $ri['issue'];
+            }
+            if (isset($ri['firstPage'])) {
+                $pages = (string) $ri['firstPage'];
+                if (isset($ri['lastPage'])) {
+                    $pages .= '-' . (string) $ri['lastPage'];
+                }
+                $bibParts[] = 'pp. ' . $pages;
+            }
+            if ($bibParts !== []) {
+                $entry['description'] = implode(', ', $bibParts);
+            }
+
+            $citations[] = $entry;
+        }
+
+        return $citations;
     }
 
     /**

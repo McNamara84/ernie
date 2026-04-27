@@ -44,6 +44,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceDate> $dates
  * @property-read \Illuminate\Database\Eloquent\Collection<int, GeoLocation> $geoLocations
  * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedIdentifier> $relatedIdentifiers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedItem> $relatedItems
  * @property-read \Illuminate\Database\Eloquent\Collection<int, FundingReference> $fundingReferences
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Right> $rights
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Size> $sizes
@@ -95,6 +96,10 @@ class Resource extends Model
         'rights',
         'relatedIdentifiers.identifierType',
         'relatedIdentifiers.relationType',
+        'relatedItems.relationType',
+        'relatedItems.titles',
+        'relatedItems.creators.affiliations',
+        'relatedItems.contributors.affiliations',
         'fundingReferences.funderIdentifierType',
         'alternateIdentifiers',
         'sizes',
@@ -204,6 +209,15 @@ class Resource extends Model
     {
         /** @var HasMany<RelatedIdentifier, static> $relation */
         $relation = $this->hasMany(RelatedIdentifier::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<RelatedItem, static> */
+    public function relatedItems(): HasMany
+    {
+        /** @var HasMany<RelatedItem, static> $relation */
+        $relation = $this->hasMany(RelatedItem::class)->orderBy('position');
 
         return $relation;
     }

@@ -285,6 +285,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/register-doi', [ResourceController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
+    // Related Items (DataCite 4.7) — Citation Manager
+    Route::get('related-items/vocabularies', [App\Http\Controllers\RelatedItemController::class, 'vocabularies'])
+        ->name('related-items.vocabularies');
+    Route::get('resources/{resource}/related-items', [App\Http\Controllers\RelatedItemController::class, 'index'])
+        ->name('resources.related-items.index');
+    Route::post('resources/{resource}/related-items', [App\Http\Controllers\RelatedItemController::class, 'store'])
+        ->name('resources.related-items.store');
+    Route::put('resources/{resource}/related-items/{relatedItem}', [App\Http\Controllers\RelatedItemController::class, 'update'])
+        ->name('resources.related-items.update');
+    Route::delete('resources/{resource}/related-items/{relatedItem}', [App\Http\Controllers\RelatedItemController::class, 'destroy'])
+        ->name('resources.related-items.destroy');
+    Route::post('resources/{resource}/related-items/reorder', [App\Http\Controllers\RelatedItemController::class, 'reorder'])
+        ->name('resources.related-items.reorder');
+
+    // Citation Manager DOI auto-fill lookup (Crossref → DataCite fallback)
+    Route::get('api/v1/citation-lookup', [App\Http\Controllers\Api\CitationLookupController::class, 'lookup'])
+        ->middleware('throttle:30,1')
+        ->name('api.citation-lookup');
+
     Route::post('resources/batch-register', [\App\Http\Controllers\BatchResourceRegistrationController::class, 'register'])
         ->name('resources.batch-register');
 

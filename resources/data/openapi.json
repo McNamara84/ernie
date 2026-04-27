@@ -1052,6 +1052,97 @@
                 }
             }
         },
+        "/api/v1/citation-lookup": {
+            "get": {
+                "tags": ["DataCite"],
+                "summary": "Look up bibliographic metadata by DOI (Citation Manager)",
+                "description": "Returns structured bibliographic metadata (title, authors, publication year, volume, issue, pages, publisher, identifier) for a given DOI. Used by the Citation Manager curation form to auto-fill related item fields. Primary source is the Crossref REST API (polite pool); DataCite is used as a fallback. Responses are cached for 24h. Requires authentication and is rate-limited to 30 requests per minute per user.",
+                "parameters": [
+                    {
+                        "name": "doi",
+                        "in": "query",
+                        "required": true,
+                        "description": "The DOI to look up (bare DOI or resolver URL).",
+                        "schema": {
+                            "type": "string",
+                            "example": "10.1029/2018JB016456"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lookup completed. The response payload always contains the `source` discriminator. On a hit, `source` is `crossref` or `datacite` and the bibliographic fields are populated. On a miss, `source` is `not_found` and only `identifier` and `identifier_type` are returned.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["source", "identifier", "identifier_type"],
+                                    "properties": {
+                                        "source": {
+                                            "type": "string",
+                                            "enum": ["crossref", "datacite", "not_found"],
+                                            "description": "Origin of the bibliographic data, or `not_found` if neither Crossref nor DataCite returned a record."
+                                        },
+                                        "identifier": { "type": "string", "example": "10.1029/2018JB016456" },
+                                        "identifier_type": { "type": "string", "example": "DOI" },
+                                        "related_item_type": { "type": "string", "nullable": true, "example": "JournalArticle" },
+                                        "title": { "type": "string", "nullable": true },
+                                        "subtitle": { "type": "string", "nullable": true },
+                                        "publication_year": { "type": "integer", "nullable": true, "example": 2019 },
+                                        "publisher": { "type": "string", "nullable": true },
+                                        "volume": { "type": "string", "nullable": true },
+                                        "issue": { "type": "string", "nullable": true },
+                                        "first_page": { "type": "string", "nullable": true },
+                                        "last_page": { "type": "string", "nullable": true },
+                                        "creators": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name_type": { "type": "string", "enum": ["Personal", "Organizational"] },
+                                                    "name": { "type": "string" },
+                                                    "given_name": { "type": "string", "nullable": true },
+                                                    "family_name": { "type": "string", "nullable": true },
+                                                    "name_identifier": { "type": "string", "nullable": true },
+                                                    "name_identifier_scheme": { "type": "string", "nullable": true }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Missing or invalid DOI query parameter"
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded (30 requests/minute)"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "502": {
+                        "description": "Transient upstream failure. Returned when the primary metadata provider (Crossref) errored and the DataCite fallback did not produce a confirming hit. Clients should retry after a short delay rather than treat this as `not_found`.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["source", "identifier", "identifier_type", "message", "error"],
+                                    "properties": {
+                                        "source": { "type": "string", "example": "crossref" },
+                                        "identifier": { "type": "string" },
+                                        "identifier_type": { "type": "string", "example": "DOI" },
+                                        "message": { "type": "string", "example": "Upstream metadata provider is temporarily unavailable. Please try again." },
+                                        "error": { "type": "string", "example": "HTTP 503" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/datacite/citation": {
             "get": {
                 "tags": ["DataCite"],

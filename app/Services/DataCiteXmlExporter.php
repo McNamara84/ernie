@@ -100,6 +100,7 @@ class DataCiteXmlExporter
         $this->buildDescriptions($resource);
         $this->buildGeoLocations($resource);
         $this->buildFundingReferences($resource);
+        $this->buildRelatedItems($resource);
 
         $xml = $this->dom->saveXML();
 
@@ -863,6 +864,200 @@ class DataCiteXmlExporter
         }
 
         $this->root->appendChild($relatedIdentifiers);
+    }
+
+    /**
+     * Build relatedItems element (DataCite 4.7, property 22 — optional).
+     *
+     * A relatedItem carries inline citation metadata (title, creators,
+     * publisher, volume, issue, pages, …) and is preferred over a bare
+     * relatedIdentifier when the citing resource is known in detail.
+     */
+    private function buildRelatedItems(Resource $resource): void
+    {
+        if ($resource->relatedItems->isEmpty()) {
+            return;
+        }
+
+        $relatedItems = $this->dom->createElement('relatedItems');
+
+        foreach ($resource->relatedItems as $item) {
+            $itemEl = $this->dom->createElement('relatedItem');
+            $itemEl->setAttribute('relatedItemType', $item->related_item_type);
+            $itemEl->setAttribute('relationType', $item->relationType->slug ?? 'References');
+
+            // relatedItemIdentifier (optional)
+            if (is_string($item->identifier) && $item->identifier !== ''
+                && is_string($item->identifier_type) && $item->identifier_type !== ''
+            ) {
+                $idEl = $this->dom->createElement(
+                    'relatedItemIdentifier',
+                    htmlspecialchars($item->identifier)
+                );
+                $idEl->setAttribute('relatedItemIdentifierType', $item->identifier_type);
+                // DataCite 4.7 schema attaches the optional metadata-scheme
+                // attributes to <relatedItemIdentifier>. Emit them when the
+                // RelatedItem stores values so XML exports round-trip.
+                if (is_string($item->related_metadata_scheme) && $item->related_metadata_scheme !== '') {
+                    $idEl->setAttribute('relatedMetadataScheme', htmlspecialchars($item->related_metadata_scheme));
+                }
+                if (is_string($item->scheme_uri) && $item->scheme_uri !== '') {
+                    $idEl->setAttribute('schemeURI', htmlspecialchars($item->scheme_uri));
+                }
+                if (is_string($item->scheme_type) && $item->scheme_type !== '') {
+                    $idEl->setAttribute('schemeType', htmlspecialchars($item->scheme_type));
+                }
+                $itemEl->appendChild($idEl);
+            }
+
+            // creators (optional but recommended)
+            if ($item->creators->isNotEmpty()) {
+                $creatorsEl = $this->dom->createElement('creators');
+                foreach ($item->creators as $creator) {
+                    $creatorEl = $this->dom->createElement('creator');
+                    $nameEl = $this->dom->createElement(
+                        'creatorName',
+                        htmlspecialchars($creator->name)
+                    );
+                    $nameEl->setAttribute('nameType', $creator->name_type);
+                    $creatorEl->appendChild($nameEl);
+
+                    if (is_string($creator->given_name) && $creator->given_name !== '') {
+                        $creatorEl->appendChild(
+                            $this->dom->createElement('givenName', htmlspecialchars($creator->given_name))
+                        );
+                    }
+                    if (is_string($creator->family_name) && $creator->family_name !== '') {
+                        $creatorEl->appendChild(
+                            $this->dom->createElement('familyName', htmlspecialchars($creator->family_name))
+                        );
+                    }
+                    if (is_string($creator->name_identifier) && $creator->name_identifier !== ''
+                        && is_string($creator->name_identifier_scheme) && $creator->name_identifier_scheme !== ''
+                    ) {
+                        $niEl = $this->dom->createElement(
+                            'nameIdentifier',
+                            htmlspecialchars($creator->name_identifier)
+                        );
+                        $niEl->setAttribute('nameIdentifierScheme', $creator->name_identifier_scheme);
+                        if (is_string($creator->scheme_uri) && $creator->scheme_uri !== '') {
+                            $niEl->setAttribute('schemeURI', $creator->scheme_uri);
+                        }
+                        $creatorEl->appendChild($niEl);
+                    }
+                    foreach ($creator->affiliations as $aff) {
+                        $affEl = $this->dom->createElement(
+                            'affiliation',
+                            htmlspecialchars($aff->name)
+                        );
+                        if (is_string($aff->affiliation_identifier) && $aff->affiliation_identifier !== '') {
+                            $affEl->setAttribute('affiliationIdentifier', $aff->affiliation_identifier);
+                        }
+                        if (is_string($aff->scheme) && $aff->scheme !== '') {
+                            $affEl->setAttribute('affiliationIdentifierScheme', $aff->scheme);
+                        }
+                        $creatorEl->appendChild($affEl);
+                    }
+                    $creatorsEl->appendChild($creatorEl);
+                }
+                $itemEl->appendChild($creatorsEl);
+            }
+
+            // titles (required per DataCite 4.7 — must include MainTitle)
+            $titlesEl = $this->dom->createElement('titles');
+            foreach ($item->titles as $title) {
+                $titleEl = $this->dom->createElement(
+                    'title',
+                    htmlspecialchars($title->title)
+                );
+                if ($title->title_type !== 'MainTitle') {
+                    $titleEl->setAttribute('titleType', $title->title_type);
+                }
+                $titlesEl->appendChild($titleEl);
+            }
+            $itemEl->appendChild($titlesEl);
+
+            // publicationYear (optional in relatedItem)
+            if ($item->publication_year !== null) {
+                $itemEl->appendChild(
+                    $this->dom->createElement('publicationYear', (string) $item->publication_year)
+                );
+            }
+
+            // volume, issue, number, firstPage, lastPage, publisher, edition
+            if (is_string($item->volume) && $item->volume !== '') {
+                $itemEl->appendChild($this->dom->createElement('volume', htmlspecialchars($item->volume)));
+            }
+            if (is_string($item->issue) && $item->issue !== '') {
+                $itemEl->appendChild($this->dom->createElement('issue', htmlspecialchars($item->issue)));
+            }
+            if (is_string($item->number) && $item->number !== '') {
+                $numberEl = $this->dom->createElement('number', htmlspecialchars($item->number));
+                if (is_string($item->number_type) && $item->number_type !== '') {
+                    $numberEl->setAttribute('numberType', $item->number_type);
+                }
+                $itemEl->appendChild($numberEl);
+            }
+            if (is_string($item->first_page) && $item->first_page !== '') {
+                $itemEl->appendChild($this->dom->createElement('firstPage', htmlspecialchars($item->first_page)));
+            }
+            if (is_string($item->last_page) && $item->last_page !== '') {
+                $itemEl->appendChild($this->dom->createElement('lastPage', htmlspecialchars($item->last_page)));
+            }
+            if (is_string($item->publisher) && $item->publisher !== '') {
+                $itemEl->appendChild($this->dom->createElement('publisher', htmlspecialchars($item->publisher)));
+            }
+            if (is_string($item->edition) && $item->edition !== '') {
+                $itemEl->appendChild($this->dom->createElement('edition', htmlspecialchars($item->edition)));
+            }
+
+            // contributors (optional)
+            if ($item->contributors->isNotEmpty()) {
+                $contribsEl = $this->dom->createElement('contributors');
+                foreach ($item->contributors as $contributor) {
+                    $contribEl = $this->dom->createElement('contributor');
+                    $contribEl->setAttribute('contributorType', $contributor->contributor_type);
+
+                    $nameEl = $this->dom->createElement(
+                        'contributorName',
+                        htmlspecialchars($contributor->name)
+                    );
+                    $nameEl->setAttribute('nameType', $contributor->name_type);
+                    $contribEl->appendChild($nameEl);
+
+                    if (is_string($contributor->given_name) && $contributor->given_name !== '') {
+                        $contribEl->appendChild(
+                            $this->dom->createElement('givenName', htmlspecialchars($contributor->given_name))
+                        );
+                    }
+                    if (is_string($contributor->family_name) && $contributor->family_name !== '') {
+                        $contribEl->appendChild(
+                            $this->dom->createElement('familyName', htmlspecialchars($contributor->family_name))
+                        );
+                    }
+                    foreach ($contributor->affiliations as $aff) {
+                        $affEl = $this->dom->createElement(
+                            'affiliation',
+                            htmlspecialchars($aff->name)
+                        );
+                        if (is_string($aff->affiliation_identifier) && $aff->affiliation_identifier !== '') {
+                            $affEl->setAttribute('affiliationIdentifier', $aff->affiliation_identifier);
+                        }
+                        if (is_string($aff->scheme) && $aff->scheme !== '') {
+                            $affEl->setAttribute('affiliationIdentifierScheme', $aff->scheme);
+                        }
+                        $contribEl->appendChild($affEl);
+                    }
+
+                    $contribsEl->appendChild($contribEl);
+                }
+                $itemEl->appendChild($contribsEl);
+            }
+
+            $relatedItems->appendChild($itemEl);
+        }
+
+        $this->root->appendChild($relatedItems);
     }
 
     /**

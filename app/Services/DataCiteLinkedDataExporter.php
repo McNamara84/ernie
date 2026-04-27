@@ -96,6 +96,11 @@ class DataCiteLinkedDataExporter
             $jsonLd['relatedIdentifiers'] = $this->transformRelatedIdentifiers($attributes['relatedIdentifiers']);
         }
 
+        // Related Items
+        if (! empty($attributes['relatedItems'])) {
+            $jsonLd['relatedItems'] = $this->transformRelatedItems($attributes['relatedItems']);
+        }
+
         // Sizes
         if (! empty($attributes['sizes'])) {
             $jsonLd['sizes'] = $this->transformSizes($attributes['sizes']);
@@ -447,6 +452,39 @@ class DataCiteLinkedDataExporter
         }, $relatedIdentifiers);
 
         return ['relatedIdentifier' => count($transformed) === 1 ? $transformed[0] : $transformed];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $relatedItems
+     * @return array<string, mixed>
+     */
+    private function transformRelatedItems(array $relatedItems): array
+    {
+        $transformed = array_map(function (array $ri): array {
+            $attrs = array_filter([
+                'relatedItemType' => $ri['relatedItemType'] ?? null,
+                'relationType' => $ri['relationType'] ?? null,
+            ]);
+
+            $value = [];
+            foreach (['titles', 'creators', 'contributors', 'relatedItemIdentifier', 'publicationYear', 'volume', 'issue', 'number', 'numberType', 'firstPage', 'lastPage', 'publisher', 'edition'] as $key) {
+                if (array_key_exists($key, $ri)) {
+                    $value[$key] = $ri[$key];
+                }
+            }
+
+            $result = [];
+            if ($attrs !== []) {
+                $result['attrs'] = $attrs;
+            }
+            if ($value !== []) {
+                $result['value'] = $value;
+            }
+
+            return $result;
+        }, $relatedItems);
+
+        return ['relatedItem' => count($transformed) === 1 ? $transformed[0] : $transformed];
     }
 
     /**

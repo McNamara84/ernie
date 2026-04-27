@@ -1,10 +1,11 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Braces, Eye, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Braces, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
@@ -22,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
+import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { editor as editorRoute } from '@/routes';
@@ -760,6 +762,8 @@ function ResourcesPage({
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
+    const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
+    const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -1478,6 +1482,25 @@ function ResourcesPage({
                                                                             />
                                                                         </Button>
                                                                     )}
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() =>
+                                                                            resource.id != null &&
+                                                                            setCitationManagerResourceId(resource.id)
+                                                                        }
+                                                                        disabled={citationVocabulariesLoading}
+                                                                        aria-label={`Manage citations for resource ${resourceLabel}`}
+                                                                        title={
+                                                                            citationVocabulariesLoading
+                                                                                ? 'Loading citation vocabularies…'
+                                                                                : 'Manage related items / citations'
+                                                                        }
+                                                                        data-testid="citation-manager-button"
+                                                                    >
+                                                                        <Quote aria-hidden="true" className="size-4" />
+                                                                    </Button>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <Button
@@ -1587,6 +1610,20 @@ function ResourcesPage({
                 resourceType="Resource"
                 schemaVersion={validationSchemaVersion}
             />
+
+            {/* Citation Manager Modal (DataCite 4.7 relatedItem) */}
+            {citationManagerResourceId !== null && (
+                <CitationManagerModal
+                    open={citationManagerResourceId !== null}
+                    onOpenChange={(open) => {
+                        if (!open) setCitationManagerResourceId(null);
+                    }}
+                    resourceId={citationManagerResourceId}
+                    resourceTypes={citationVocabularies.resourceTypes}
+                    relationTypes={citationVocabularies.relationTypes}
+                    contributorTypes={citationVocabularies.contributorTypes}
+                />
+            )}
         </AppLayout>
     );
 }

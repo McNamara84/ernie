@@ -377,6 +377,103 @@ entity "related_identifiers" as related_identifiers {
     updated_at : TIMESTAMP
 }
 
+' DataCite 4.7 relatedItem — inline citation metadata
+entity "related_items" as related_items {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>>
+    * related_item_type : VARCHAR(64) //resource_types.slug//
+    * relation_type_id : BIGINT <<FK>>
+    publication_year : SMALLINT
+    volume : VARCHAR(64)
+    issue : VARCHAR(64)
+    number : VARCHAR(64)
+    number_type : VARCHAR(32) //Article|Chapter|Report|Other//
+    first_page : VARCHAR(32)
+    last_page : VARCHAR(32)
+    publisher : VARCHAR(255)
+    edition : VARCHAR(64)
+    identifier : VARCHAR(2183)
+    identifier_type : VARCHAR(32)
+    related_metadata_scheme : VARCHAR
+    scheme_uri : VARCHAR(512)
+    scheme_type : VARCHAR(100)
+    * position : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "related_item_titles" as related_item_titles {
+    * **id** : BIGINT <<PK>>
+    --
+    * related_item_id : BIGINT <<FK>>
+    * title : VARCHAR(512)
+    * title_type : VARCHAR(32) //MainTitle|Subtitle|TranslatedTitle|AlternativeTitle//
+    language : VARCHAR(8)
+    * position : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "related_item_creators" as related_item_creators {
+    * **id** : BIGINT <<PK>>
+    --
+    * related_item_id : BIGINT <<FK>>
+    * name_type : VARCHAR(16) = 'Personal'
+    * name : VARCHAR(255)
+    given_name : VARCHAR(255)
+    family_name : VARCHAR(255)
+    name_identifier : VARCHAR(255)
+    name_identifier_scheme : VARCHAR(32)
+    scheme_uri : VARCHAR(255)
+    * position : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "related_item_creator_affiliations" as related_item_creator_affiliations {
+    * **id** : BIGINT <<PK>>
+    --
+    * related_item_creator_id : BIGINT <<FK>>
+    * name : VARCHAR(255)
+    affiliation_identifier : VARCHAR(255)
+    scheme : VARCHAR(32)
+    scheme_uri : VARCHAR(255)
+    * position : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "related_item_contributors" as related_item_contributors {
+    * **id** : BIGINT <<PK>>
+    --
+    * related_item_id : BIGINT <<FK>>
+    * contributor_type : VARCHAR(64)
+    * name_type : VARCHAR(16) = 'Personal'
+    * name : VARCHAR(255)
+    given_name : VARCHAR(255)
+    family_name : VARCHAR(255)
+    name_identifier : VARCHAR(255)
+    name_identifier_scheme : VARCHAR(32)
+    scheme_uri : VARCHAR(255)
+    * position : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "related_item_contributor_affiliations" as related_item_contributor_affiliations {
+    * **id** : BIGINT <<PK>>
+    --
+    * related_item_contributor_id : BIGINT <<FK>>
+    * name : VARCHAR(255)
+    affiliation_identifier : VARCHAR(255)
+    scheme : VARCHAR(32)
+    scheme_uri : VARCHAR(255)
+    * position : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "funding_references" as funding_references {
     * **id** : BIGINT <<PK>>
     --
@@ -887,6 +984,7 @@ resources ||--o{ dates
 resources ||--o{ descriptions
 resources ||--o{ geo_locations
 resources ||--o{ related_identifiers
+resources ||--o{ related_items
 resources ||--o{ funding_references
 resources ||--o{ resource_rights
 resources ||--o{ sizes
@@ -912,6 +1010,12 @@ resource_contributors ||--o{ rc_ct
 rc_ct }o--|| contributor_types
 related_identifiers }o--|| identifier_types
 related_identifiers }o--|| relation_types
+related_items }o--|| relation_types
+related_items ||--o{ related_item_titles
+related_items ||--o{ related_item_creators
+related_items ||--o{ related_item_contributors
+related_item_creators ||--o{ related_item_creator_affiliations
+related_item_contributors ||--o{ related_item_contributor_affiliations
 identifier_type_patterns }o--|| identifier_types
 funding_references }o--o| funder_identifier_types
 

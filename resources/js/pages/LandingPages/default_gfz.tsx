@@ -98,7 +98,7 @@ export default function DefaultGfzTemplate() {
             ),
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
-            related_work: <RelatedWorkSection key="related_work" relatedIdentifiers={resource.related_identifiers || []} resource={resource} />,
+            related_work: <RelatedWorkSection key="related_work" relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} resource={resource} />,
         };
     }, [resource, landingPage, mainTitle]);
 

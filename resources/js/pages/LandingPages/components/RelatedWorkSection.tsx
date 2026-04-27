@@ -1,9 +1,10 @@
-import { ChevronDown, ChevronUp, ExternalLink, Network } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Network, Quote } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { LandingPageRelatedIdentifier, LandingPageResource } from '@/types/landing-page';
+import type { LandingPageRelatedIdentifier, LandingPageRelatedItem, LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 import { LandingPageCard } from './LandingPageCard';
@@ -12,6 +13,8 @@ const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then(m 
 
 interface RelatedWorkSectionProps {
     relatedIdentifiers: LandingPageRelatedIdentifier[];
+    /** Inline relatedItem metadata (DataCite 4.7 Citation Manager). Optional for backward-compatibility. */
+    relatedItems?: LandingPageRelatedItem[];
     resource: LandingPageResource;
 }
 
@@ -38,7 +41,7 @@ const COLLAPSE_THRESHOLD = 9;
  * Displays all Related Identifiers grouped by RelationType.
  * The first IsSupplementTo relation is excluded (shown in Model Description).
  */
-export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWorkSectionProps) {
+export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], resource }: RelatedWorkSectionProps) {
     const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
@@ -178,7 +181,7 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
         return new Set(orderedIds.slice(COLLAPSE_THRESHOLD));
     }, [sortedTypes, groupedByType, expanded]);
 
-    if (renderableRelations.length === 0) {
+    if (renderableRelations.length === 0 && relatedItems.length === 0) {
         return null;
     }
 
@@ -299,6 +302,74 @@ export function RelatedWorkSection({ relatedIdentifiers, resource }: RelatedWork
                         </div>
                     );
                 })}
+
+                {relatedItems.length > 0 && (
+                    <div data-testid="related-items-list">
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Citations
+                            <Badge variant="secondary" className="gap-1 text-[10px] font-normal uppercase tracking-wide">
+                                <Quote className="h-3 w-3" aria-hidden="true" />
+                                Inline metadata
+                            </Badge>
+                        </h3>
+                        <ul className="space-y-2">
+                            {[...relatedItems]
+                                .sort((a, b) => a.position - b.position)
+                                .map((item) => {
+                                    const mainTitle =
+                                        item.titles.find((t) => t.title_type === 'MainTitle')?.title ?? item.titles[0]?.title ?? '';
+                                    // Only resolve when a type is set: defaulting to 'DOI'
+                                    // would generate bogus doi.org links for URL/Handle/etc.
+                                    // identifiers if a legacy record ever lacked a type.
+                                    const url = item.identifier && item.identifier_type
+                                        ? resolveIdentifierUrl(item.identifier, item.identifier_type)
+                                        : null;
+                                    const authorList = item.creators
+                                        .map((c) => c.family_name || c.name)
+                                        .filter(Boolean)
+                                        .slice(0, 3)
+                                        .join(', ');
+                                    const descriptor = [
+                                        authorList,
+                                        item.publication_year,
+                                        item.publisher,
+                                        item.volume ? `Vol. ${item.volume}` : null,
+                                        item.issue ? `Issue ${item.issue}` : null,
+                                        item.first_page && item.last_page ? `pp. ${item.first_page}-${item.last_page}` : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ');
+
+                                    const content = (
+                                        <div className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50">
+                                            <Quote className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                                            <div className="flex-1">
+                                                <div className="font-medium">{mainTitle}</div>
+                                                {descriptor && (
+                                                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{descriptor}</div>
+                                                )}
+                                            </div>
+                                            {url && (
+                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                                            )}
+                                        </div>
+                                    );
+
+                                    return (
+                                        <li key={item.id} data-testid={`related-item-${item.id}`}>
+                                            {url ? (
+                                                <a href={url} target="_blank" rel="noopener noreferrer">
+                                                    {content}
+                                                </a>
+                                            ) : (
+                                                content
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                        </ul>
+                    </div>
+                )}
             </div>
 
             {/* Collapse/Expand toggle for mobile when >9 entries */}
