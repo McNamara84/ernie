@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
+use App\Http\Requests\Batch\DestroyIgsnsRequest;
 use App\Models\Resource;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,31 +19,16 @@ use Illuminate\Validation\ValidationException;
 class BatchIgsnController extends Controller
 {
     /**
-     * Maximum number of IGSNs that can be deleted in a single batch operation.
-     * Matches MAX_PER_PAGE in IgsnController to align with UI pagination.
-     */
-    private const MAX_BATCH_SIZE = 100;
-
-    /**
      * Delete multiple IGSN resources.
      *
      * Only admins can delete IGSN resources.
      *
      * @throws ValidationException
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(DestroyIgsnsRequest $request): RedirectResponse
     {
-        $user = $request->user();
-
-        // Only admins can delete IGSNs
-        if ($user === null || $user->role !== UserRole::ADMIN) {
-            abort(403, 'You are not authorized to delete IGSNs.');
-        }
-
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
-        ]);
+        /** @var array{ids: array<int, int>} $validated */
+        $validated = $request->validated();
 
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));
