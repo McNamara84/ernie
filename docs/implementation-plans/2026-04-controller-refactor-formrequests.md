@@ -245,12 +245,12 @@ Nach jeder Section: `composer test --filter XmlUpload` muss grün bleiben.
 - [ ] Vorhandene Tests, die `app(ResourceController::class)` direkt nutzen (z. B. `Performance/ResourceQueryPerformanceTest`), auf `ResourceQueryBuilder` umbiegen.
 
 ### Phase 7 — Frontend-Anpassungen
-- [ ] TS-Types unter `resources/js/types/resources.ts` an neue API-Resource-Shape anpassen (sofern abweichend).
-- [ ] Wayfinder-Imports in `resources/js/pages/resources.tsx`, `resources/js/components/curation/datacite-form.tsx`, `resources/js/hooks/*.ts`, … aktualisieren (search&replace nach altem Routen-Helper).
-- [ ] **Tests:**
-  - `npm run types` muss grün laufen.
-  - Vitest: ggf. Mocks für API-Calls in `tests/vitest/pages/resources.test.tsx`, `tests/vitest/hooks/*` aktualisieren.
-  - Neue Vitest-Tests, wo Snapshot-Shape geändert wurde.
+- [x] TS-Types unter `resources/js/types/resources.ts` an neue API-Resource-Shape anpassen (sofern abweichend). _Keine Drift — `ResourceListItemResource` ist 1:1 zum alten Controller-Output._
+- [x] Wayfinder-Imports in `resources/js/pages/resources.tsx`, `resources/js/components/curation/datacite-form.tsx`, `resources/js/hooks/*.ts`, … aktualisieren (search&replace nach altem Routen-Helper). _Frontend nutzt rohe URL-Strings für die verschobenen Endpoints; Wayfinder-Helper werden nur für `editor/resources/store` + `editor/resources/draft` verwendet, deren Controller (`ResourceController`) unverändert bleibt._
+- [x] **Tests:**
+  - `npm run types` muss grün laufen. _OK_
+  - Vitest: ggf. Mocks für API-Calls in `tests/vitest/pages/resources.test.tsx`, `tests/vitest/hooks/*` aktualisieren. _Keine Mocks angepasst — URLs unverändert._
+  - Neue Vitest-Tests, wo Snapshot-Shape geändert wurde. _Nicht erforderlich._
 
 ### Phase 8 — Projektweite Form Request Migration
 Reihenfolge (nach Risiko, niedrig zuerst):
