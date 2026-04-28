@@ -63,6 +63,7 @@ describe('Services', function () {
             'App\Services\DataCiteServiceInterface',
             'App\Services\Traits\DataCiteExporterHelpers',
             'App\Services\OldDatasetEditorLoader',
+            'App\Services\Resources\ResourceQueryBuilder',
             'App\Services\JsonSchemaValidator',
             'App\Services\DataCiteSyncResult',
             'App\Services\OaiPmh\OaiPmhXmlResponseBuilder',

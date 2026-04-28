@@ -1,23 +1,42 @@
 <?php
 
+use App\Http\Controllers\Api\CitationLookupController;
+use App\Http\Controllers\BatchIgsnController;
+use App\Http\Controllers\BatchIgsnRegistrationController;
+use App\Http\Controllers\BatchResourceExportController;
+use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\DatacenterController;
+use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DocsController;
+use App\Http\Controllers\DoiValidationController;
 use App\Http\Controllers\EditorController;
+use App\Http\Controllers\IgsnController;
+use App\Http\Controllers\IgsnImportController;
 use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\LandingPageTemplateController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\OaiPmh\OaiPmhController;
 use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\RelatedItemController;
 use App\Http\Controllers\ResourceController;
+use App\Http\Controllers\ResourceDoiRegistrationController;
+use App\Http\Controllers\ResourceExportController;
+use App\Http\Controllers\ResourceFilterController;
+use App\Http\Controllers\Settings\PidSettingsController;
+use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
 use App\Http\Controllers\UploadJsonController;
 use App\Http\Controllers\UploadXmlController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Affiliation;
 use App\Models\Resource;
@@ -227,95 +246,95 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Logs routes (Admin only - Issue #379)
     Route::middleware(['can:access-logs'])->group(function () {
-        Route::get('logs', [\App\Http\Controllers\LogController::class, 'index'])
+        Route::get('logs', [LogController::class, 'index'])
             ->name('logs.index');
 
-        Route::get('logs/data', [\App\Http\Controllers\LogController::class, 'getLogsJson'])
+        Route::get('logs/data', [LogController::class, 'getLogsJson'])
             ->name('logs.data');
 
-        Route::delete('logs/entry', [\App\Http\Controllers\LogController::class, 'destroy'])
+        Route::delete('logs/entry', [LogController::class, 'destroy'])
             ->middleware('can:delete-logs')
             ->name('logs.destroy');
 
-        Route::delete('logs/clear', [\App\Http\Controllers\LogController::class, 'clear'])
+        Route::delete('logs/clear', [LogController::class, 'clear'])
             ->middleware('can:delete-logs')
             ->name('logs.clear');
     });
 
     // Thesaurus settings routes (Admin and Group Leader)
     Route::middleware(['can:manage-thesauri'])->prefix('thesauri')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'index'])
+        Route::get('/', [ThesaurusSettingsController::class, 'index'])
             ->name('thesauri.index');
-        Route::post('/{type}/check', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'checkStatus'])
+        Route::post('/{type}/check', [ThesaurusSettingsController::class, 'checkStatus'])
             ->name('thesauri.check');
-        Route::post('/{type}/update', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'triggerUpdate'])
+        Route::post('/{type}/update', [ThesaurusSettingsController::class, 'triggerUpdate'])
             ->name('thesauri.update');
-        Route::get('/update-status/{jobId}', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'updateStatus'])
+        Route::get('/update-status/{jobId}', [ThesaurusSettingsController::class, 'updateStatus'])
             ->name('thesauri.update-status');
-        Route::patch('/{type}/version', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'updateVersion'])
+        Route::patch('/{type}/version', [ThesaurusSettingsController::class, 'updateVersion'])
             ->name('thesauri.update-version');
     });
 
     // PID settings routes (Admin and Group Leader) - PID4INST instrument registry
     Route::middleware(['can:manage-thesauri'])->prefix('pid-settings')->group(function () {
-        Route::post('/{type}/check', [\App\Http\Controllers\Settings\PidSettingsController::class, 'checkStatus'])
+        Route::post('/{type}/check', [PidSettingsController::class, 'checkStatus'])
             ->name('pid-settings.check');
-        Route::post('/{type}/update', [\App\Http\Controllers\Settings\PidSettingsController::class, 'triggerUpdate'])
+        Route::post('/{type}/update', [PidSettingsController::class, 'triggerUpdate'])
             ->name('pid-settings.update');
-        Route::get('/update-status/{jobId}', [\App\Http\Controllers\Settings\PidSettingsController::class, 'updateStatus'])
+        Route::get('/update-status/{jobId}', [PidSettingsController::class, 'updateStatus'])
             ->name('pid-settings.update-status');
     });
 
     // Resources routes (new curated resources)
-    Route::get('resources/filter-options', [ResourceController::class, 'getFilterOptions'])
+    Route::get('resources/filter-options', [ResourceFilterController::class, 'getFilterOptions'])
         ->name('resources.filter-options');
 
-    Route::get('resources/load-more', [ResourceController::class, 'loadMore'])
+    Route::get('resources/load-more', [ResourceFilterController::class, 'loadMore'])
         ->name('resources.load-more');
 
-    Route::get('resources/{resource}/export-datacite-json', [ResourceController::class, 'exportDataCiteJson'])
+    Route::get('resources/{resource}/export-datacite-json', [ResourceExportController::class, 'exportDataCiteJson'])
         ->name('resources.export-datacite-json');
 
-    Route::get('resources/{resource}/export-datacite-xml', [ResourceController::class, 'exportDataCiteXml'])
+    Route::get('resources/{resource}/export-datacite-xml', [ResourceExportController::class, 'exportDataCiteXml'])
         ->name('resources.export-datacite-xml');
 
-    Route::get('resources/{resource}/export-jsonld', [ResourceController::class, 'exportJsonLd'])
+    Route::get('resources/{resource}/export-jsonld', [ResourceExportController::class, 'exportJsonLd'])
         ->name('resources.export-jsonld');
 
-    Route::post('resources/{resource}/register-doi', [ResourceController::class, 'registerDoi'])
+    Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
     // Related Items (DataCite 4.7) — Citation Manager
-    Route::get('related-items/vocabularies', [App\Http\Controllers\RelatedItemController::class, 'vocabularies'])
+    Route::get('related-items/vocabularies', [RelatedItemController::class, 'vocabularies'])
         ->name('related-items.vocabularies');
-    Route::get('resources/{resource}/related-items', [App\Http\Controllers\RelatedItemController::class, 'index'])
+    Route::get('resources/{resource}/related-items', [RelatedItemController::class, 'index'])
         ->name('resources.related-items.index');
-    Route::post('resources/{resource}/related-items', [App\Http\Controllers\RelatedItemController::class, 'store'])
+    Route::post('resources/{resource}/related-items', [RelatedItemController::class, 'store'])
         ->name('resources.related-items.store');
-    Route::put('resources/{resource}/related-items/{relatedItem}', [App\Http\Controllers\RelatedItemController::class, 'update'])
+    Route::put('resources/{resource}/related-items/{relatedItem}', [RelatedItemController::class, 'update'])
         ->name('resources.related-items.update');
-    Route::delete('resources/{resource}/related-items/{relatedItem}', [App\Http\Controllers\RelatedItemController::class, 'destroy'])
+    Route::delete('resources/{resource}/related-items/{relatedItem}', [RelatedItemController::class, 'destroy'])
         ->name('resources.related-items.destroy');
-    Route::post('resources/{resource}/related-items/reorder', [App\Http\Controllers\RelatedItemController::class, 'reorder'])
+    Route::post('resources/{resource}/related-items/reorder', [RelatedItemController::class, 'reorder'])
         ->name('resources.related-items.reorder');
 
     // Citation Manager DOI auto-fill lookup (Crossref → DataCite fallback)
-    Route::get('api/v1/citation-lookup', [App\Http\Controllers\Api\CitationLookupController::class, 'lookup'])
+    Route::get('api/v1/citation-lookup', [CitationLookupController::class, 'lookup'])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');
 
-    Route::post('resources/batch-register', [\App\Http\Controllers\BatchResourceRegistrationController::class, 'register'])
+    Route::post('resources/batch-register', [BatchResourceRegistrationController::class, 'register'])
         ->name('resources.batch-register');
 
-    Route::post('resources/batch-export', [\App\Http\Controllers\BatchResourceExportController::class, 'export'])
+    Route::post('resources/batch-export', [BatchResourceExportController::class, 'export'])
         ->name('resources.batch-export');
 
     // DataCite prefix configuration endpoint
-    Route::get('api/datacite/prefixes', [ResourceController::class, 'getDataCitePrefixes'])
+    Route::get('api/datacite/prefixes', [ResourceDoiRegistrationController::class, 'getDataCitePrefixes'])
         ->name('api.datacite.prefixes');
 
     // DOI validation endpoint (proxy to avoid CORS issues)
-    Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
+    Route::post('api/validate-doi', [DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');
 
     // DOI duplicate check endpoint - used by the editor form to validate DOI uniqueness
@@ -335,13 +354,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('resources.destroy');
 
     // DataCite Import (Admin/Group Leader only)
-    Route::post('datacite/import/start', [App\Http\Controllers\DataCiteImportController::class, 'start'])
+    Route::post('datacite/import/start', [DataCiteImportController::class, 'start'])
         ->name('datacite.import.start');
 
-    Route::get('datacite/import/{importId}/status', [App\Http\Controllers\DataCiteImportController::class, 'status'])
+    Route::get('datacite/import/{importId}/status', [DataCiteImportController::class, 'status'])
         ->name('datacite.import.status');
 
-    Route::post('datacite/import/{importId}/cancel', [App\Http\Controllers\DataCiteImportController::class, 'cancel'])
+    Route::post('datacite/import/{importId}/cancel', [DataCiteImportController::class, 'cancel'])
         ->name('datacite.import.cancel');
 
     // Landing Page Management (Admin)
@@ -378,11 +397,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('landing-page.get');
 
     // Landing Page Domains - read-only for all authenticated users (curators need this for the modal dropdown)
-    Route::get('api/landing-page-domains/list', [\App\Http\Controllers\LandingPageDomainController::class, 'index'])
+    Route::get('api/landing-page-domains/list', [LandingPageDomainController::class, 'index'])
         ->name('landing-page-domains.list');
 
     // Datacenters - read-only for all authenticated users (editor dropdown)
-    Route::get('api/datacenters', [\App\Http\Controllers\DatacenterController::class, 'index'])
+    Route::get('api/datacenters', [DatacenterController::class, 'index'])
         ->name('datacenters.index');
 
     // Landing Page Temporary Preview (Session-based)
@@ -405,31 +424,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('dashboard.upload-igsn-csv');
 
     // IGSNs (Physical Samples) routes
-    Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
+    Route::get('igsns', [IgsnController::class, 'index'])
         ->name('igsns.index');
-    Route::get('igsns/filter-options', [\App\Http\Controllers\IgsnController::class, 'filterOptions'])
+    Route::get('igsns/filter-options', [IgsnController::class, 'filterOptions'])
         ->name('igsns.filter-options');
     Route::get('igsns-map', [IgsnMapController::class, 'index'])
         ->name('igsns.map');
     // IGSN Import from DataCite
-    Route::post('igsns/import/start', [\App\Http\Controllers\IgsnImportController::class, 'start'])
+    Route::post('igsns/import/start', [IgsnImportController::class, 'start'])
         ->name('igsns.import.start');
-    Route::get('igsns/import/{importId}/status', [\App\Http\Controllers\IgsnImportController::class, 'status'])
+    Route::get('igsns/import/{importId}/status', [IgsnImportController::class, 'status'])
         ->name('igsns.import.status');
-    Route::post('igsns/import/{importId}/cancel', [\App\Http\Controllers\IgsnImportController::class, 'cancel'])
+    Route::post('igsns/import/{importId}/cancel', [IgsnImportController::class, 'cancel'])
         ->name('igsns.import.cancel');
     // Batch operations must be defined before routes with {resource} parameter
-    Route::delete('igsns/batch', [\App\Http\Controllers\BatchIgsnController::class, 'destroy'])
+    Route::delete('igsns/batch', [BatchIgsnController::class, 'destroy'])
         ->name('igsns.batch.destroy');
-    Route::post('igsns/batch-register', [\App\Http\Controllers\BatchIgsnRegistrationController::class, 'register'])
+    Route::post('igsns/batch-register', [BatchIgsnRegistrationController::class, 'register'])
         ->name('igsns.batch-register');
-    Route::get('igsns/{resource}/export/json', [\App\Http\Controllers\IgsnController::class, 'exportJson'])
+    Route::get('igsns/{resource}/export/json', [IgsnController::class, 'exportJson'])
         ->name('igsns.export.json');
-    Route::get('igsns/{resource}/export/jsonld', [\App\Http\Controllers\IgsnController::class, 'exportJsonLd'])
+    Route::get('igsns/{resource}/export/jsonld', [IgsnController::class, 'exportJsonLd'])
         ->name('igsns.export.jsonld');
-    Route::post('igsns/{resource}/register', [\App\Http\Controllers\IgsnController::class, 'registerAtDataCite'])
+    Route::post('igsns/{resource}/register', [IgsnController::class, 'registerAtDataCite'])
         ->name('igsns.register');
-    Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])
+    Route::delete('igsns/{resource}', [IgsnController::class, 'destroy'])
         ->name('igsns.destroy');
 
     Route::get('dashboard', function () {
@@ -571,17 +590,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // User Management routes (Admin & Group Leader only - Issue #379)
     Route::middleware(['can:access-users'])->prefix('users')->group(function () {
-        Route::get('/', [App\Http\Controllers\UserController::class, 'index'])
+        Route::get('/', [UserController::class, 'index'])
             ->name('users.index');
-        Route::post('/', [App\Http\Controllers\UserController::class, 'store'])
+        Route::post('/', [UserController::class, 'store'])
             ->name('users.store');
-        Route::patch('{user}/role', [App\Http\Controllers\UserController::class, 'updateRole'])
+        Route::patch('{user}/role', [UserController::class, 'updateRole'])
             ->name('users.update-role');
-        Route::post('{user}/deactivate', [App\Http\Controllers\UserController::class, 'deactivate'])
+        Route::post('{user}/deactivate', [UserController::class, 'deactivate'])
             ->name('users.deactivate');
-        Route::post('{user}/reactivate', [App\Http\Controllers\UserController::class, 'reactivate'])
+        Route::post('{user}/reactivate', [UserController::class, 'reactivate'])
             ->name('users.reactivate');
-        Route::post('{user}/reset-password', [App\Http\Controllers\UserController::class, 'resetPassword'])
+        Route::post('{user}/reset-password', [UserController::class, 'resetPassword'])
             ->name('users.reset-password');
     });
 });

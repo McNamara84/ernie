@@ -4,60 +4,43 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\JsonValidationException;
-use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Requests\Resource\DestroyAllResourcesRequest;
 use App\Http\Requests\Resource\DestroyResourceRequest;
-use App\Http\Requests\Resource\ExportResourceRequest;
 use App\Http\Requests\Resource\IndexResourcesRequest;
-use App\Http\Requests\Resource\LoadMoreResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
-use App\Http\Resources\DataCitePrefixResource;
-use App\Http\Resources\FilterOptionsResource;
 use App\Http\Resources\ResourceListItemResource;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
-use App\Models\User;
-use App\Services\DataCiteJsonExporter;
-use App\Services\DataCiteLinkedDataExporter;
-use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteSyncService;
-use App\Services\DataCiteXmlExporter;
-use App\Services\DataCiteXmlValidator;
-use App\Services\JsonSchemaValidator;
-use App\Services\Orcid\OrcidPreflightValidator;
-use App\Services\ResourceCacheService;
+use App\Services\Resources\ResourceQueryBuilder;
 use App\Services\ResourceStorageService;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
 class ResourceController extends Controller
 {
-    /**
-     * Create a new controller instance.
-     */
     public function __construct(
-        private readonly ResourceCacheService $cacheService,
+        private readonly ResourceQueryBuilder $queryBuilder,
         private readonly ResourceStorageService $storageService,
         private readonly DataCiteSyncService $syncService,
     ) {}
 
+    /**
+     * Render the paginated resource listing page.
+     */
     public function index(IndexResourcesRequest $request): Response
     {
         $criteria = $request->toCriteria();
-        $resources = $this->paginateResources($criteria);
+        $resources = $this->queryBuilder->paginate($criteria);
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
@@ -83,6 +66,9 @@ class ResourceController extends Controller
         ]);
     }
 
+    /**
+     * Persist a fully validated resource and sync it with DataCite if it has a DOI.
+     */
     public function store(StoreResourceRequest $request): JsonResponse
     {
         try {
@@ -96,7 +82,6 @@ class ResourceController extends Controller
                 'errors' => $exception->errors(),
             ], 422);
         } catch (Throwable $exception) {
-            // Log detailed context to help diagnose production issues
             Log::error('ResourceController::store failed', [
                 'exception' => $exception->getMessage(),
                 'exception_class' => $exception::class,
@@ -112,14 +97,12 @@ class ResourceController extends Controller
             ], 500);
         }
 
-        // Automatic DataCite synchronization (Issue #383)
-        // If resource has a DOI, sync metadata with DataCite
+        // Automatic DataCite synchronization (Issue #383).
         $syncResult = $this->syncService->syncIfRegistered($resource);
 
         $message = $isUpdate ? 'Successfully updated resource.' : 'Successfully saved resource.';
         $status = $isUpdate ? 200 : 201;
 
-        // Build response with sync status
         $response = [
             'message' => $message,
             'resource' => [
@@ -128,7 +111,6 @@ class ResourceController extends Controller
             'dataCiteSync' => $syncResult->toArray(),
         ];
 
-        // Add warning to message if sync failed
         if ($syncResult->hasFailed()) {
             $response['message'] = $message.' However, DataCite update failed.';
             $response['warning'] = $syncResult->errorMessage;
@@ -140,8 +122,8 @@ class ResourceController extends Controller
     /**
      * Store a draft resource with relaxed validation (Issue #548).
      *
-     * Only requires a Main Title. All other fields are optional.
-     * Does NOT trigger DataCite synchronization.
+     * Only requires a Main Title; all other fields are optional. Does NOT trigger
+     * DataCite synchronization.
      */
     public function storeDraft(StoreDraftResourceRequest $request): JsonResponse
     {
@@ -200,10 +182,10 @@ class ResourceController extends Controller
     /**
      * Delete all resources (datasets and IGSNs) from the database.
      *
-     * This is a destructive admin-only operation for cleaning up test data.
-     * It deletes all resources with their cascading relations and cleans up
-     * orphaned persons, institutions, and publishers. Settings tables,
-     * user accounts, and lookup data are preserved.
+     * Destructive admin-only operation for cleaning up test data. Deletes all
+     * resources with cascading relations, then cleans up orphaned persons,
+     * institutions, and publishers. Settings tables, user accounts, and lookup
+     * data are preserved.
      *
      * Authorization is enforced by both route middleware ('can:delete-all-resources')
      * and DestroyAllResourcesRequest::authorize() for defense in depth.
@@ -211,25 +193,23 @@ class ResourceController extends Controller
     public function destroyAll(DestroyAllResourcesRequest $request): RedirectResponse
     {
         DB::transaction(function (): void {
-            // Delete all resources in chunks, triggering ResourceObserver per delete
-            // for proper cache invalidation. DB cascading FKs handle child tables.
+            // Delete in chunks so ResourceObserver fires per resource for cache invalidation.
+            // DB cascading FKs handle child tables.
             Resource::query()->chunkById(100, function ($resources): void {
                 foreach ($resources as $resource) {
                     $resource->delete();
                 }
             });
 
-            // Clean up orphaned persons (not referenced by any resource_creators or resource_contributors)
+            // Clean up orphaned persons, institutions and publishers.
             Person::whereDoesntHave('resourceCreators')
                 ->whereDoesntHave('resourceContributors')
                 ->delete();
 
-            // Clean up orphaned institutions (not referenced by any resource_creators or resource_contributors)
             Institution::whereDoesntHave('resourceCreators')
                 ->whereDoesntHave('resourceContributors')
                 ->delete();
 
-            // Clean up orphaned publishers (no longer referenced by any resource)
             Publisher::whereDoesntHave('resources')->delete();
         });
 
@@ -241,792 +221,5 @@ class ResourceController extends Controller
         return redirect()
             ->route('logs.index')
             ->with('success', 'All resources have been deleted successfully.');
-    }
-
-    /**
-     * API endpoint for loading more resources (for infinite scrolling).
-     */
-    public function loadMore(LoadMoreResourcesRequest $request): JsonResponse
-    {
-        $criteria = $request->toCriteria();
-        $resources = $this->paginateResources($criteria);
-
-        /** @var array<int, Resource> $items */
-        $items = $resources->items();
-        $resourcesData = ResourceListItemResource::collection(collect($items))
-            ->resolve($request);
-
-        return response()->json([
-            'resources' => $resourcesData,
-            'pagination' => [
-                'current_page' => $resources->currentPage(),
-                'last_page' => $resources->lastPage(),
-                'per_page' => $resources->perPage(),
-                'total' => $resources->total(),
-                'from' => $resources->firstItem(),
-                'to' => $resources->lastItem(),
-                'has_more' => $resources->hasMorePages(),
-            ],
-            'sort' => [
-                'key' => $criteria['sortKey'],
-                'direction' => $criteria['sortDirection'],
-            ],
-        ]);
-    }
-
-    /**
-     * API endpoint to get available filter options.
-     *
-     * Note: Physical Object resources are excluded from filters
-     * because they have their own dedicated page at /igsns.
-     */
-    public function getFilterOptions(): JsonResponse
-    {
-        $resourceTypes = [];
-        $curators = [];
-        $yearMin = null;
-        $yearMax = null;
-
-        // Get distinct resource types (excluding Physical Object which has its own page)
-        try {
-            $resourceTypes = \App\Models\ResourceType::query()
-                ->where('slug', '!=', 'physical-object')
-                ->whereHas('resources')
-                ->orderBy('name')
-                ->get(['name', 'slug'])
-                ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
-                ->all();
-        } catch (Throwable $e) {
-            Log::warning('Failed to load resource type filter options', [
-                'exception' => $e::class,
-                'message' => $e->getMessage(),
-            ]);
-        }
-
-        // Get distinct curators (users who updated or created resources)
-        // Prioritize updatedBy, fallback to createdBy if never updated
-        try {
-            $resourceQuery = Resource::query();
-            $hasUpdatedBy = Schema::hasColumn('resources', 'updated_by_user_id');
-            $hasCreatedBy = Schema::hasColumn('resources', 'created_by_user_id');
-
-            $updatedByIds = collect();
-            $createdByIdsWithoutUpdates = collect();
-
-            if ($hasUpdatedBy) {
-                $updatedByIds = (clone $resourceQuery)
-                    ->whereNotNull('updated_by_user_id')
-                    ->distinct()
-                    ->pluck('updated_by_user_id');
-            }
-
-            if ($hasCreatedBy) {
-                $createdByQuery = clone $resourceQuery;
-
-                if ($hasUpdatedBy) {
-                    $createdByQuery->whereNull('updated_by_user_id');
-                }
-
-                $createdByIdsWithoutUpdates = $createdByQuery
-                    ->whereNotNull('created_by_user_id')
-                    ->distinct()
-                    ->pluck('created_by_user_id');
-            }
-
-            $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique()->values();
-
-            if ($curatorIds->isNotEmpty()) {
-                $curators = User::query()
-                    ->whereIn('id', $curatorIds->all())
-                    ->orderBy('name')
-                    ->pluck('name')
-                    ->unique()
-                    ->values()
-                    ->all();
-            }
-        } catch (Throwable $e) {
-            Log::warning('Failed to load curator filter options', [
-                'exception' => $e::class,
-                'message' => $e->getMessage(),
-            ]);
-        }
-
-        // Get year range
-        try {
-            if (Schema::hasColumn('resources', 'year')) {
-                $yearMin = Resource::query()->min('year');
-                $yearMax = Resource::query()->max('year');
-            }
-
-            // When there are no resources yet, min/max can be null.
-            // Keep the API shape stable (numbers) to avoid frontend crashes.
-            if ($yearMin === null || $yearMax === null) {
-                $currentYear = (int) now()->year;
-                $yearMin = $currentYear;
-                $yearMax = $currentYear;
-            }
-        } catch (Throwable $e) {
-            Log::warning('Failed to load year range filter options', [
-                'exception' => $e::class,
-                'message' => $e->getMessage(),
-            ]);
-        }
-
-        // Available publication statuses (draft added in Issue #548)
-        $statuses = ['draft', 'curation', 'review', 'published'];
-
-        return (new FilterOptionsResource([
-            'resource_types' => $resourceTypes,
-            'curators' => $curators,
-            'year_range' => [
-                'min' => $yearMin,
-                'max' => $yearMax,
-            ],
-            'statuses' => $statuses,
-        ]))->response();
-    }
-
-    /**
-     * Build, filter, sort and paginate the resource listing query.
-     *
-     * @param  array{
-     *     page:int,
-     *     perPage:int,
-     *     sortKey:string,
-     *     sortDirection:string,
-     *     filters:array<string,mixed>
-     * }  $criteria
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, Resource>
-     */
-    private function paginateResources(array $criteria)
-    {
-        $query = $this->baseQuery();
-
-        $this->applyFilters($query, $criteria['filters']);
-        $this->applySorting($query, $criteria['sortKey'], $criteria['sortDirection']);
-
-        $cacheFilters = array_merge($criteria['filters'], [
-            'sort' => $criteria['sortKey'],
-            'direction' => $criteria['sortDirection'],
-        ]);
-
-        return $this->cacheService->cacheResourceList(
-            $query,
-            $criteria['perPage'],
-            $criteria['page'],
-            $cacheFilters
-        );
-    }
-
-    /**
-     * Base query for resource listing with optimized eager loading.
-     *
-     * This query eager loads all necessary relationships to avoid N+1 problems:
-     * - Polymorphic relations (creators, contributors) with their affiliations
-     * - All lookup tables (resource types, languages, title types)
-     * - User relationships for audit tracking
-     *
-     * Note: Physical Object resources (IGSNs) are excluded from this listing
-     * because they have their own dedicated page at /igsns.
-     *
-     * Performance: ~10 queries for 50+ resources with complex relationships
-     *
-     * @return \Illuminate\Database\Eloquent\Builder<Resource>
-     */
-    protected function baseQuery()
-    {
-        return Resource::query()
-            ->whereDoesntHave('resourceType', function ($query): void {
-                $query->where('slug', 'physical-object');
-            })
-            ->with([
-                'resourceType:id,name,slug',
-                'language:id,code,name',
-                'createdBy:id,name',
-                'updatedBy:id,name',
-                'landingPage:id,resource_id,is_published,published_at,preview_token',
-                'titles' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'value', 'title_type_id'])
-                        ->with(['titleType:id,name,slug'])
-                        ->orderBy('id');
-                },
-                'rights:id,identifier,name',
-                // Eager load descriptions with descriptionType for completeness check (Issue #548)
-                'descriptions' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'value', 'description_type_id'])
-                        ->with(['descriptionType:id,slug']);
-                },
-                // Eager load dates with the dateType relation.
-                // Note: date_type_id MUST be included in the select() for the dateType relation
-                // to work, as Eloquent uses it as the foreign key for the belongsTo relation.
-                'dates' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date', 'end_date'])
-                        ->with(['dateType:id,slug']);
-                },
-                'creators' => function ($query): void {
-                    $query
-                        ->with([
-                            'creatorable', // Eager load Person or Institution
-                            'affiliations', // Eager load affiliations
-                        ])
-                        ->orderBy('position');
-                },
-                'contributors' => function ($query): void {
-                    $query
-                        ->with([
-                            'contributorTypes',
-                            'contributorable', // Eager load Person or Institution
-                            'affiliations', // Eager load affiliations
-                        ])
-                        ->orderBy('position');
-                },
-            ]);
-    }
-
-    /**
-     * Extract filters from the request.
-     *
-     * Apply filters to the query.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<resource>  $query
-     * @param  array<string, mixed>  $filters
-     */
-    protected function applyFilters($query, array $filters): void
-    {
-        // Resource Type filter
-        if (! empty($filters['resource_type'])) {
-            $query->whereHas('resourceType', function ($q) use ($filters) {
-                $q->whereIn('slug', $filters['resource_type']);
-            });
-        }
-
-        // Curator filter - filter by updatedBy (last editor), fallback to createdBy if never updated
-        if (! empty($filters['curator'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('updatedBy', function ($subQ) use ($filters) {
-                    $subQ->whereIn('name', $filters['curator']);
-                })->orWhere(function ($subQ) use ($filters) {
-                    // Fallback: if never updated (updated_by_user_id is null), check creator
-                    $subQ->whereNull('updated_by_user_id')
-                        ->whereHas('createdBy', function ($creatorQ) use ($filters) {
-                            $creatorQ->whereIn('name', $filters['curator']);
-                        });
-                });
-            });
-        }
-
-        // Status filter - filter based on completeness, DOI and landing page status
-        // Must match logic in determinePublicStatus():
-        // - draft: missing mandatory fields (type, year, creators, rights, or abstract)
-        // - curation: complete + no DOI OR (has DOI but no landing page)
-        // - review: complete + has DOI AND has landing page with is_published = false
-        // - published: complete + has DOI AND has landing page with is_published = true
-        if (! empty($filters['status'])) {
-            $statuses = $filters['status'];
-            $query->where(function ($q) use ($statuses) {
-                foreach ($statuses as $status) {
-                    if ($status === 'draft') {
-                        // Draft: missing any mandatory field
-                        $q->orWhere(function ($subQ) {
-                            $subQ->where(function ($inner) {
-                                $inner->whereNull('resource_type_id')
-                                    ->orWhereNull('publication_year')
-                                    ->orWhereDoesntHave('creators')
-                                    ->orWhereDoesntHave('rights')
-                                    ->orWhere(function ($titleQ) {
-                                        // No Main Title with non-empty trimmed value
-                                        // (legacy: NULL title_type_id counts as MainTitle)
-                                        $titleQ->whereDoesntHave('titles', function ($tQ) {
-                                            $tQ->whereRaw("TRIM(value) != ''")
-                                                ->where(function ($typeQ) {
-                                                    $typeQ->whereNull('title_type_id')
-                                                        ->orWhereHas('titleType', function ($ttQ) {
-                                                            $ttQ->where('slug', 'MainTitle');
-                                                        });
-                                                });
-                                        });
-                                    })
-                                    ->orWhereDoesntHave('descriptions', function ($dQ) {
-                                        $dQ->whereRaw("TRIM(value) != ''")
-                                            ->whereHas('descriptionType', function ($dtQ) {
-                                                $dtQ->where('slug', 'Abstract');
-                                            });
-                                    });
-                            });
-                        });
-                    } elseif ($status === 'curation') {
-                        // Curation: complete resource with no DOI OR (has DOI but no landing page)
-                        $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints($subQ)
-                                ->where(function ($inner) {
-                                    $inner->whereNull('doi')
-                                        ->orWhereDoesntHave('landingPage');
-                                });
-                        });
-                    } elseif ($status === 'review') {
-                        // Review: complete + DOI + landing page with is_published = false
-                        $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints($subQ)
-                                ->whereNotNull('doi')
-                                ->whereHas('landingPage', function ($lpQ) {
-                                    $lpQ->where('is_published', false);
-                                });
-                        });
-                    } elseif ($status === 'published') {
-                        // Published: complete + DOI + landing page with is_published = true
-                        $q->orWhere(function ($subQ) {
-                            $this->applyCompletenessConstraints($subQ)
-                                ->whereNotNull('doi')
-                                ->whereHas('landingPage', function ($lpQ) {
-                                    $lpQ->where('is_published', true);
-                                });
-                        });
-                    }
-                }
-            });
-        }
-
-        // Year range filter
-        if (isset($filters['year_from'])) {
-            $query->where('publication_year', '>=', $filters['year_from']);
-        }
-
-        if (isset($filters['year_to'])) {
-            $query->where('publication_year', '<=', $filters['year_to']);
-        }
-
-        // Text search (title, DOI)
-        if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('doi', 'like', "%{$search}%")
-                    ->orWhereHas('titles', function ($titleQuery) use ($search) {
-                        $titleQuery->where('value', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        // Created date range
-        if (! empty($filters['created_from'])) {
-            $query->whereDate('created_at', '>=', $filters['created_from']);
-        }
-
-        if (! empty($filters['created_to'])) {
-            $query->whereDate('created_at', '<=', $filters['created_to']);
-        }
-
-        // Updated date range
-        if (! empty($filters['updated_from'])) {
-            $query->whereDate('updated_at', '>=', $filters['updated_from']);
-        }
-
-        if (! empty($filters['updated_to'])) {
-            $query->whereDate('updated_at', '<=', $filters['updated_to']);
-        }
-    }
-
-    /**
-     * Apply sorting to the query.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<resource>  $query
-     */
-    protected function applySorting($query, string $sortKey, string $sortDirection): void
-    {
-        switch ($sortKey) {
-            case 'title':
-                // Sort by first title
-                $query->leftJoin('titles', function ($join) {
-                    $join->on('resources.id', '=', 'titles.resource_id')
-                        ->whereRaw('titles.id = (SELECT MIN(id) FROM titles WHERE resource_id = resources.id)');
-                })
-                    ->orderBy('titles.value', $sortDirection)
-                    ->select('resources.*');
-                break;
-
-            case 'resourcetypegeneral':
-                $query->leftJoin('resource_types', 'resources.resource_type_id', '=', 'resource_types.id')
-                    ->orderBy('resource_types.name', $sortDirection)
-                    ->select('resources.*');
-                break;
-
-            case 'first_author':
-                // Sort by first creator's family name
-                $query->leftJoin('resource_creators', function ($join) {
-                    $join->on('resources.id', '=', 'resource_creators.resource_id')
-                        ->whereRaw('resource_creators.position = (SELECT MIN(position) FROM resource_creators WHERE resource_id = resources.id)');
-                })
-                    ->leftJoin('persons', function ($join) {
-                        $join->on('resource_creators.creatorable_id', '=', 'persons.id')
-                            ->where('resource_creators.creatorable_type', '=', Person::class);
-                    })
-                    ->leftJoin('institutions', function ($join) {
-                        $join->on('resource_creators.creatorable_id', '=', 'institutions.id')
-                            ->where('resource_creators.creatorable_type', '=', Institution::class);
-                    })
-                    ->orderByRaw(match ($sortDirection) {
-                        'desc' => 'COALESCE(persons.family_name, institutions.name) desc',
-                        default => 'COALESCE(persons.family_name, institutions.name) asc',
-                    })
-                    ->select('resources.*');
-                break;
-
-            case 'curator':
-                $query->leftJoin('users as creator_users', 'resources.created_by_user_id', '=', 'creator_users.id')
-                    ->orderBy('creator_users.name', $sortDirection)
-                    ->select('resources.*');
-                break;
-
-            case 'publicstatus':
-                // Status (draft/curation/review/published) is computed at serialization time,
-                // not stored in the DB, so we fall back to sorting by id.
-                $query->orderBy('id', $sortDirection);
-                break;
-
-            case 'year':
-                // Map 'year' sort key to actual database column
-                $query->orderBy('publication_year', $sortDirection);
-                break;
-
-            default:
-                // Direct column sorting (id, doi, created_at, updated_at)
-                $query->orderBy($sortKey, $sortDirection);
-                break;
-        }
-    }
-
-    /**
-     * Export a resource as DataCite JSON
-     */
-    public function exportDataCiteJson(
-        ExportResourceRequest $request,
-        Resource $resource,
-        JsonSchemaValidator $validator,
-    ): SymfonyResponse {
-        $exporter = new DataCiteJsonExporter;
-        $dataCiteJson = $exporter->export($resource);
-
-        // Validate attributes against DataCite 4.7 schema
-        // Schema expects flat structure, export has data.attributes wrapper
-        try {
-            $validator->validate($dataCiteJson['data']['attributes']);
-        } catch (JsonValidationException $e) {
-            return response()->json([
-                'message' => 'JSON export validation failed against DataCite Schema.',
-                'errors' => $e->getErrors(),
-                'schema_version' => $e->getSchemaVersion(),
-            ], 422);
-        }
-
-        // Generate filename with timestamp
-        $timestamp = now()->format('YmdHis');
-        $filename = "resource-{$resource->id}-{$timestamp}-datacite.json";
-
-        return response()->json($dataCiteJson, 200, [
-            'Content-Type' => 'application/json',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    }
-
-    /**
-     * Export a resource as DataCite XML
-     */
-    public function exportDataCiteXml(ExportResourceRequest $request, Resource $resource): SymfonyResponse
-    {
-        try {
-            // Generate XML
-            $exporter = new DataCiteXmlExporter;
-            $xml = $exporter->export($resource);
-
-            // Validate against XSD schema
-            $validator = new DataCiteXmlValidator;
-            $isValid = $validator->validate($xml);
-
-            // Generate filename with timestamp
-            $timestamp = now()->format('YmdHis');
-            $filename = "resource-{$resource->id}-{$timestamp}-datacite.xml";
-
-            $headers = [
-                'Content-Type' => 'application/xml',
-                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-            ];
-
-            // Add validation warning header if validation failed
-            if (! $isValid && $validator->hasWarnings()) {
-                $warningMessage = $validator->getFormattedWarningMessage();
-                if ($warningMessage) {
-                    $headers['X-Validation-Warning'] = base64_encode($warningMessage);
-                }
-            }
-
-            return response($xml, 200, $headers);
-
-        } catch (\Exception $e) {
-            // Log full exception details for debugging
-            Log::error('DataCite XML export failed', [
-                'resource_id' => $resource->id,
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // Return generic error message in production, detailed in development
-            $message = config('app.debug')
-                ? $e->getMessage()
-                : 'An error occurred while generating the XML export. Please contact support if the problem persists.';
-
-            return response()->json([
-                'error' => 'Failed to export DataCite XML',
-                'message' => $message,
-            ], 500);
-        }
-    }
-
-    /**
-     * Export a resource as DataCite Linked Data JSON-LD
-     */
-    public function exportJsonLd(ExportResourceRequest $request, Resource $resource): SymfonyResponse
-    {
-        $exporter = new DataCiteLinkedDataExporter;
-        $jsonLd = $exporter->export($resource);
-
-        $timestamp = now()->format('YmdHis');
-        $filename = "resource-{$resource->id}-{$timestamp}-datacite-ld.jsonld";
-
-        return response()->json($jsonLd, 200, [
-            'Content-Type' => 'application/ld+json',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    }
-
-    /**
-     * Register a DOI with DataCite or update metadata for existing DOI
-     */
-    public function registerDoi(RegisterDoiRequest $request, Resource $resource): JsonResponse
-    {
-        try {
-            // Check if resource has a landing page
-            $resource->load('landingPage');
-            if (! $resource->landingPage) {
-                return response()->json([
-                    'error' => 'Landing page required',
-                    'message' => 'A landing page must be created before registering a DOI. Please set up a landing page first.',
-                ], 422);
-            }
-
-            // Resolve service from container (allows testing with fake service)
-            $service = app(DataCiteRegistrationService::class);
-
-            // Pre-flight ORCID validation (see issue #610). Confirmed-invalid
-            // ORCIDs block registration unconditionally; transient errors (e.g.
-            // orcid.org unreachable) require the curator to resubmit with
-            // `force=true`.
-            $force = $request->boolean('force');
-            $preflight = app(OrcidPreflightValidator::class)->validate($resource, $force);
-
-            if ($preflight->shouldBlock) {
-                Log::info('DOI registration blocked by ORCID preflight', [
-                    'resource_id' => $resource->id,
-                    'invalid_count' => count($preflight->invalid),
-                    'warning_count' => count($preflight->warnings),
-                ]);
-
-                return response()->json([
-                    'error' => 'orcid_validation_failed',
-                    'message' => 'One or more ORCID identifiers could not be verified. Please correct them before registering a DOI.',
-                    ...$preflight->toPayload(),
-                ], 422);
-            }
-
-            if ($preflight->needsConfirmation) {
-                Log::info('DOI registration paused for ORCID warning confirmation', [
-                    'resource_id' => $resource->id,
-                    'warning_count' => count($preflight->warnings),
-                ]);
-
-                return response()->json([
-                    'error' => 'orcid_validation_warning',
-                    'message' => 'ORCID verification service is temporarily unreachable for one or more creators or contributors. Review the warnings and confirm to continue.',
-                    ...$preflight->toPayload(),
-                ], 409);
-            }
-
-            // Check if DOI already exists - if yes, update metadata instead of registering
-            if ($resource->doi) {
-                Log::info('Updating existing DOI metadata', [
-                    'resource_id' => $resource->id,
-                    'doi' => $resource->doi,
-                ]);
-
-                $response = $service->updateMetadata($resource);
-
-                // Extract DOI from response
-                $doi = $response['data']['id'] ?? $resource->doi;
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'DOI metadata updated successfully',
-                    'doi' => $doi,
-                    'mode' => $service->isTestMode() ? 'test' : 'production',
-                    'updated' => true,
-                ]);
-            }
-
-            // Register new DOI
-            $validated = $request->validated();
-            $prefix = $validated['prefix'];
-
-            Log::info('Registering new DOI', [
-                'resource_id' => $resource->id,
-                'prefix' => $prefix,
-                'test_mode' => $service->isTestMode(),
-            ]);
-
-            $response = $service->registerDoi($resource, $prefix);
-
-            // Extract DOI from DataCite response
-            $doi = $response['data']['id'] ?? null;
-
-            if (! $doi) {
-                Log::error('DataCite response missing DOI', [
-                    'resource_id' => $resource->id,
-                    'response' => $response,
-                ]);
-
-                return response()->json([
-                    'error' => 'Registration incomplete',
-                    'message' => 'DOI was registered but the response did not contain the DOI identifier.',
-                ], 500);
-            }
-
-            // Save DOI to resource
-            $resource->doi = $doi;
-            $resource->save();
-
-            Log::info('DOI saved to resource', [
-                'resource_id' => $resource->id,
-                'doi' => $doi,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'DOI registered successfully',
-                'doi' => $doi,
-                'mode' => $service->isTestMode() ? 'test' : 'production',
-                'updated' => false,
-            ]);
-
-        } catch (\InvalidArgumentException $e) {
-            Log::warning('Invalid DOI registration request', [
-                'resource_id' => $resource->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'error' => 'Invalid request',
-                'message' => $e->getMessage(),
-            ], 422);
-
-        } catch (\RuntimeException $e) {
-            Log::warning('DOI registration runtime error', [
-                'resource_id' => $resource->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'error' => 'Registration failed',
-                'message' => $e->getMessage(),
-            ], 422);
-
-        } catch (RequestException $e) {
-            // DataCite API error
-            // PHPDoc indicates response is always present, but it can be null at runtime
-            $response = $e->response;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $statusCode = $response !== null ? $response->status() : 500;
-            /** @phpstan-ignore notIdentical.alwaysTrue */
-            $apiError = $response !== null ? $response->json() : null;
-
-            Log::error('DataCite API error during DOI registration', [
-                'resource_id' => $resource->id,
-                'status' => $statusCode,
-                'error' => $e->getMessage(),
-                'api_response' => $apiError,
-            ]);
-
-            // Extract error message from DataCite response
-            $errorMessage = 'Failed to communicate with DataCite API.';
-            if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {
-                $firstError = $apiError['errors'][0];
-                $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
-            }
-
-            return response()->json([
-                'error' => 'DataCite API error',
-                'message' => $errorMessage,
-                'details' => config('app.debug') ? $apiError : null,
-            ], $statusCode >= 400 && $statusCode < 500 ? $statusCode : 500);
-
-        } catch (\Exception $e) {
-            Log::error('Unexpected error during DOI registration', [
-                'resource_id' => $resource->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'error' => 'Unexpected error',
-                'message' => config('app.debug')
-                    ? $e->getMessage()
-                    : 'An unexpected error occurred during DOI registration. Please contact support.',
-            ], 500);
-        }
-    }
-
-    /**
-     * Get available DataCite prefixes based on test mode configuration
-     */
-    public function getDataCitePrefixes(): JsonResponse
-    {
-        $testMode = (bool) config('datacite.test_mode', true);
-
-        return (new DataCitePrefixResource([
-            'test' => config('datacite.test.prefixes', []),
-            'production' => config('datacite.production.prefixes', []),
-            'test_mode' => $testMode,
-        ]))->response();
-    }
-
-    /**
-     * Apply resource completeness constraints to a query builder.
-     *
-     * Ensures the resource has all mandatory fields: resource_type_id, publication_year,
-     * at least one creator, at least one license, a Main Title with non-empty value,
-     * and an Abstract description with non-empty value.
-     *
-     * Legacy: NULL title_type_id is treated as MainTitle (consistent with Title::isMainTitle()).
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<Resource>
-     */
-    private function applyCompletenessConstraints($query)
-    {
-        return $query->whereNotNull('resource_type_id')
-            ->whereNotNull('publication_year')
-            ->whereHas('creators')
-            ->whereHas('rights')
-            ->whereHas('titles', function ($tQ) {
-                $tQ->whereRaw("TRIM(value) != ''")
-                    ->where(function ($typeQ) {
-                        $typeQ->whereNull('title_type_id')
-                            ->orWhereHas('titleType', function ($ttQ) {
-                                $ttQ->where('slug', 'MainTitle');
-                            });
-                    });
-            })
-            ->whereHas('descriptions', function ($dQ) {
-                $dQ->whereRaw("TRIM(value) != ''")
-                    ->whereHas('descriptionType', function ($dtQ) {
-                        $dtQ->where('slug', 'Abstract');
-                    });
-            });
     }
 }
