@@ -74,18 +74,21 @@ it('extracts multi-value resource_type filter from arrays', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->getJson('/_test/index-resources?resource_type[]=Dataset&resource_type[]=Software')
+        ->getJson('/_test/index-resources?resource_type[]=dataset&resource_type[]=software')
         ->assertOk()
-        ->assertJsonPath('filters.resource_type', ['Dataset', 'Software']);
+        ->assertJsonPath('filters.resource_type', ['dataset', 'software']);
 });
 
 it('wraps a single resource_type string into an array filter', function (): void {
     $user = User::factory()->create();
 
+    // Use slug values (e.g. 'dataset') to mirror the real frontend, which
+    // sends resource_types.slug as the filter value. ResourceQueryBuilder::
+    // applyFilters() filters by resource_types.slug, not name.
     $this->actingAs($user)
-        ->getJson('/_test/index-resources?resource_type=Dataset')
+        ->getJson('/_test/index-resources?resource_type=dataset')
         ->assertOk()
-        ->assertJsonPath('filters.resource_type', ['Dataset']);
+        ->assertJsonPath('filters.resource_type', ['dataset']);
 });
 
 it('passes status values straight through (controller validates them downstream)', function (): void {

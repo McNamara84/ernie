@@ -531,4 +531,43 @@ describe('Curator Filter', function (): void {
         expect($curators)->toContain('Dataset Curator')
             ->and($curators)->not->toContain('IGSN Only Curator');
     });
+
+    it('excludes Physical Object publication years from the /resources year_range (Issue: PR #679 review)', function (): void {
+        $datasetType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $physicalObjectType = ResourceType::factory()->create(['slug' => 'physical-object', 'name' => 'Physical Object']);
+        $language = Language::factory()->create();
+
+        // Datasets span 2018–2024; the year_range must reflect this.
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2018,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+
+        // Physical Object outliers (1985, 2099) must NOT skew /resources year_range.
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'publication_year' => 1985,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2099,
+        ]);
+
+        get(route('resources.filter-options'))
+            ->assertOk()
+            ->assertJson([
+                'year_range' => [
+                    'min' => 2018,
+                    'max' => 2024,
+                ],
+            ]);
+    });
 });

@@ -75,6 +75,10 @@ it('detects N+1 queries in development environment', function () {
     expect(function () use ($resource) {
         $reflection = new ReflectionClass(ResourceListItemResource::class);
         $method = $reflection->getMethod('assertRelationsLoaded');
+        // The guardrail is a private static method; reflection must override
+        // accessibility before invoking, otherwise PHP raises a reflection
+        // error and masks the RuntimeException we want to assert.
+        $method->setAccessible(true);
 
         // Load resource without eager loading relationships
         $freshResource = Resource::find($resource->id);

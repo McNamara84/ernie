@@ -164,8 +164,16 @@ class ResourceFilterController extends Controller
 
         try {
             if (Schema::hasColumn('resources', 'publication_year')) {
-                $yearMin = Resource::query()->min('publication_year');
-                $yearMax = Resource::query()->max('publication_year');
+                // Mirror ResourceQueryBuilder::baseQuery() — exclude Physical Object
+                // resources (IGSNs) so the /resources year range filter cannot be
+                // skewed by IGSN publication years.
+                $yearQuery = Resource::query()
+                    ->whereDoesntHave('resourceType', function ($query): void {
+                        $query->where('slug', 'physical-object');
+                    });
+
+                $yearMin = (clone $yearQuery)->min('publication_year');
+                $yearMax = (clone $yearQuery)->max('publication_year');
             }
         } catch (Throwable $e) {
             Log::warning('Failed to load year range filter options', [
