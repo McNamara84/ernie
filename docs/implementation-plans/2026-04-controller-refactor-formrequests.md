@@ -235,12 +235,12 @@ Nach jeder Section: `composer test --filter XmlUpload` muss grün bleiben.
 - [ ] **Tests:** `tests/pest/Unit/Http/Requests/IndexResourcesRequestTest.php` (Rules + Authorize), eine Test-Datei pro Request.
 
 ### Phase 6 — Controller Split
-- [ ] `ResourceFilterController` extrahieren (`loadMore`, `getFilterOptions`, plus `applyFilters`, `applySorting`, `extractFilters`, `resolveSortState`, `baseQuery` → in `app/Services/Resources/ResourceQueryBuilder.php`).
+- [x] `ResourceFilterController` extrahieren (`loadMore`, `getFilterOptions`, plus `applyFilters`, `applySorting`, `extractFilters`, `resolveSortState`, `baseQuery` → in `app/Services/Resources/ResourceQueryBuilder.php`).
   - `ResourceQueryBuilder` ist nun die Single Source für Filter-/Sort-Logik, wiederverwendet in `ResourceController@index`.
-- [ ] `ResourceExportController` extrahieren (`exportDataCiteJson`, `exportDataCiteXml`, `exportJsonLd`).
-- [ ] `ResourceDoiRegistrationController` extrahieren (`registerDoi`, `getDataCitePrefixes`).
-- [ ] `routes/web.php` updaten: nur Action-References austauschen, URLs unverändert.
-- [ ] Wayfinder regenerieren: `docker exec ernie-app-dev php artisan wayfinder:generate` → TS-Imports unter `resources/js/routes/` aktualisieren.
+- [x] `ResourceExportController` extrahieren (`exportDataCiteJson`, `exportDataCiteXml`, `exportJsonLd`).
+- [x] `ResourceDoiRegistrationController` extrahieren (`registerDoi`, `getDataCitePrefixes`).
+- [x] `routes/web.php` updaten: nur Action-References austauschen, URLs unverändert.
+- [x] Wayfinder regenerieren: `docker exec ernie-app-dev php artisan wayfinder:generate` → TS-Imports unter `resources/js/routes/` aktualisieren.
 - [ ] **Tests:** Pro neuem Controller eine Feature-Test-Datei unter `tests/pest/Feature/Http/Controllers/`. Mindestens ein Happy-Path und ein Authorization-Path je Action.
 - [ ] Vorhandene Tests, die `app(ResourceController::class)` direkt nutzen (z. B. `Performance/ResourceQueryPerformanceTest`), auf `ResourceQueryBuilder` umbiegen.
 
