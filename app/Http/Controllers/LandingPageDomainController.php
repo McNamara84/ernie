@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LandingPageDomain\StoreLandingPageDomainRequest;
 use App\Models\LandingPageDomain;
-use App\Rules\SafeDomainUrl;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * Manages landing page domains for external landing page URLs.
@@ -41,25 +40,16 @@ class LandingPageDomainController extends Controller
     /**
      * Store a new landing page domain.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreLandingPageDomainRequest $request): JsonResponse
     {
-        // Normalize before validation: trim whitespace and ensure trailing slash
-        // so that max:768 and unique checks apply to the stored form.
-        $domain = trim((string) $request->input('domain'));
-        if ($domain !== '' && ! str_ends_with($domain, '/')) {
-            $domain .= '/';
-        }
-        $request->merge(['domain' => $domain]);
-
-        $validated = $request->validate([
-            'domain' => ['required', 'string', new SafeDomainUrl, 'max:768', 'unique:landing_page_domains,domain'],
-        ]);
+        /** @var array{domain: string} $validated */
+        $validated = $request->validated();
 
         // Use try/catch to handle the race condition where another request
         // inserts the same normalized domain between validation and insert.
         // The unique DB constraint on the 'domain' column guarantees atomicity.
         try {
-            $landingPageDomain = LandingPageDomain::create(['domain' => $domain]);
+            $landingPageDomain = LandingPageDomain::create(['domain' => $validated['domain']]);
         } catch (QueryException $e) {
             // Detect unique constraint violation via errorInfo vendor codes
             // (consistent with LandingPageController pattern):

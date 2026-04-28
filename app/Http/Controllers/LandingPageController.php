@@ -6,24 +6,26 @@ namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
 use App\Exceptions\ResourceAlreadyExistsException;
+use App\Http\Requests\LandingPage\StoreLandingPageRequest;
+use App\Http\Requests\LandingPage\UpdateLandingPageRequest;
 use App\Models\LandingPage;
 use App\Models\Resource;
-use App\Rules\SafeUrl;
 use App\Services\KeywordSuggestionService;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LandingPageController extends Controller
 {
     use AuthorizesRequests;
-    use \App\Support\Traits\ChecksCacheTagging;
+    use ChecksCacheTagging;
 
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
@@ -101,33 +103,11 @@ class LandingPageController extends Controller
      * - Landing page creation and observer hooks (e.g., DOI sync) either all succeed or all fail
      * - Prevents partial state where landing page exists but related operations failed
      */
-    public function store(Request $request, Resource $resource): JsonResponse
+    public function store(StoreLandingPageRequest $request, Resource $resource): JsonResponse
     {
         $this->authorize('create', LandingPage::class);
 
-        $rules = [
-            'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
-            'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
-            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
-            'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
-            'external_path' => ['required_if:template,external', 'string', 'max:2048'],
-            'is_published' => 'boolean',
-            'status' => 'sometimes|string|in:draft,published',
-        ];
-
-        // Only validate links for templates that support them
-        $template = $request->input('template');
-        $supportsLinks = $template !== 'external'
-            && ! in_array($template, self::IGSN_ONLY_TEMPLATES, true);
-
-        if ($supportsLinks) {
-            $rules['links'] = ['nullable', 'array', 'max:10'];
-            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
-            $rules['links.*.label'] = ['required', 'string', 'max:255'];
-            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
-        }
-
-        $validated = $request->validate($rules);
+        $validated = $request->validated();
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
@@ -145,7 +125,7 @@ class LandingPageController extends Controller
         if (isset($validated['status']) && isset($validated['is_published'])) {
             $statusImpliesPublished = $validated['status'] === 'published';
             if ($statusImpliesPublished !== $validated['is_published']) {
-                \Illuminate\Support\Facades\Log::warning(
+                Log::warning(
                     'LandingPageController: Conflicting status and is_published values received',
                     [
                         'resource_id' => $resource->id,
@@ -278,7 +258,7 @@ class LandingPageController extends Controller
                 }
                 // Other SQLite constraint violations (NOT NULL, FOREIGN KEY, CHECK).
                 // These indicate data integrity issues that the user should know about.
-                \Illuminate\Support\Facades\Log::warning(
+                Log::warning(
                     'LandingPageController: SQLite constraint violation (non-UNIQUE)',
                     [
                         'error_message' => $errorMessage,
@@ -336,7 +316,7 @@ class LandingPageController extends Controller
     /**
      * Update the landing page configuration.
      */
-    public function update(Request $request, Resource $resource): JsonResponse
+    public function update(UpdateLandingPageRequest $request, Resource $resource): JsonResponse
     {
         $landingPage = $resource->landingPage;
 
@@ -348,29 +328,7 @@ class LandingPageController extends Controller
 
         $this->authorize('update', $landingPage);
 
-        $rules = [
-            'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
-            'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
-            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
-            'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
-            'external_path' => ['required_if:template,external', 'string', 'max:2048'],
-            'is_published' => 'sometimes|boolean',
-            'status' => 'sometimes|string|in:draft,published',
-        ];
-
-        // Only validate links for templates that support them
-        $effectiveTemplate = $request->input('template', $landingPage->template);
-        $supportsLinks = $effectiveTemplate !== 'external'
-            && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
-
-        if ($supportsLinks) {
-            $rules['links'] = ['nullable', 'array', 'max:10'];
-            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
-            $rules['links.*.label'] = ['required', 'string', 'max:255'];
-            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
-        }
-
-        $validated = $request->validate($rules);
+        $validated = $request->validated();
 
         // Validate that IGSN-only templates can only be used with PhysicalObject resources
         if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {

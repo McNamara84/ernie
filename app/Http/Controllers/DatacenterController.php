@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Datacenter\StoreDatacenterRequest;
 use App\Models\Datacenter;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class DatacenterController extends Controller
 {
@@ -25,17 +25,9 @@ class DatacenterController extends Controller
     /**
      * Store a new datacenter (Settings management).
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreDatacenterRequest $request): JsonResponse
     {
-        $request->merge([
-            'name' => is_string($request->name) ? trim($request->name) : $request->name,
-        ]);
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:datacenters,name'],
-        ]);
-
-        $datacenter = Datacenter::create($validated);
+        $datacenter = Datacenter::create($request->validated());
 
         return response()->json([
             'datacenter' => [
