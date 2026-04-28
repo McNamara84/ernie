@@ -418,4 +418,83 @@ describe('Curator Filter', function (): void {
                 ],
             ]);
     });
+
+    it('returns the actual publication_year range in filter options (Issue: PR #679 review)', function (): void {
+        $resourceType = ResourceType::factory()->create();
+        $language = Language::factory()->create();
+
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2018,
+        ]);
+
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+
+        get(route('resources.filter-options'))
+            ->assertOk()
+            ->assertJson([
+                'year_range' => [
+                    'min' => 2018,
+                    'max' => 2024,
+                ],
+            ]);
+    });
+
+    it('sorts by curator using updatedBy with createdBy fallback (Issue: PR #679 review)', function (): void {
+        $resourceType = ResourceType::factory()->create();
+        $language = Language::factory()->create();
+
+        $alice = User::factory()->create(['name' => 'Alice']);
+        $charlie = User::factory()->create(['name' => 'Charlie']);
+        $bob = User::factory()->create(['name' => 'Bob']);
+
+        // Resource A: created by Charlie, updated by Alice -> effective curator "Alice"
+        $resourceA = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $charlie->id,
+            'updated_by_user_id' => $alice->id,
+        ]);
+        makeResourceComplete($resourceA);
+
+        // Resource B: created by Bob, never updated -> effective curator "Bob"
+        $resourceB = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $bob->id,
+            'updated_by_user_id' => null,
+        ]);
+        makeResourceComplete($resourceB);
+
+        // Resource C: created by Alice, updated by Charlie -> effective curator "Charlie"
+        $resourceC = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $alice->id,
+            'updated_by_user_id' => $charlie->id,
+        ]);
+        makeResourceComplete($resourceC);
+
+        // Ascending: Alice (A), Bob (B), Charlie (C) — based on effective curator,
+        // NOT on created_by_user_id alone (which would yield Alice (C), Bob (B), Charlie (A)).
+        get(route('resources', ['sort_key' => 'curator', 'sort_direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->where('resources.0.id', $resourceA->id)
+                ->where('resources.0.curator', 'Alice')
+                ->where('resources.1.id', $resourceB->id)
+                ->where('resources.1.curator', 'Bob')
+                ->where('resources.2.id', $resourceC->id)
+                ->where('resources.2.curator', 'Charlie')
+            );
+    });
 });

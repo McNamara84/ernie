@@ -288,8 +288,15 @@ final readonly class ResourceQueryBuilder
                 break;
 
             case 'curator':
-                $query->leftJoin('users as creator_users', 'resources.created_by_user_id', '=', 'creator_users.id')
-                    ->orderBy('creator_users.name', $sortDirection)
+                // Match the UI's effective curator (ResourceListItemResource):
+                //   curator = updatedBy?->name ?? createdBy?->name
+                // so that the sort order is consistent with the displayed name.
+                $query->leftJoin('users as updater_users', 'resources.updated_by_user_id', '=', 'updater_users.id')
+                    ->leftJoin('users as creator_users', 'resources.created_by_user_id', '=', 'creator_users.id')
+                    ->orderByRaw(match ($sortDirection) {
+                        'desc' => 'COALESCE(updater_users.name, creator_users.name) desc',
+                        default => 'COALESCE(updater_users.name, creator_users.name) asc',
+                    })
                     ->select('resources.*');
                 break;
 

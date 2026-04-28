@@ -157,9 +157,9 @@ class ResourceFilterController extends Controller
         $yearMax = null;
 
         try {
-            if (Schema::hasColumn('resources', 'year')) {
-                $yearMin = Resource::query()->min('year');
-                $yearMax = Resource::query()->max('year');
+            if (Schema::hasColumn('resources', 'publication_year')) {
+                $yearMin = Resource::query()->min('publication_year');
+                $yearMax = Resource::query()->max('publication_year');
             }
         } catch (Throwable $e) {
             Log::warning('Failed to load year range filter options', [
