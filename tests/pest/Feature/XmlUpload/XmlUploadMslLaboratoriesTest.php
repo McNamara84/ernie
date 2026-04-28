@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\UploadXmlController;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -12,6 +13,10 @@ covers(UploadXmlController::class);
 
 beforeEach(function () {
     Storage::fake('local');
+
+    // Clear MSL laboratory cache between tests so per-test Http::fake responses
+    // are not shadowed by a previous test's cached vocabulary payload.
+    Cache::forget('msl_laboratories');
 
     $this->user = User::factory()->create();
 
