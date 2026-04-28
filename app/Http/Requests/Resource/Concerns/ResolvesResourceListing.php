@@ -48,6 +48,30 @@ trait ResolvesResourceListing
     public const DEFAULT_SORT_DIRECTION = 'desc';
 
     /**
+     * Normalise multi-value filters (resource_type, curator, status) into arrays
+     * so the `.*` rules — in particular `Rule::in(ALLOWED_STATUSES)` — apply
+     * uniformly whether the client sends `?status=draft` or `?status[]=draft`.
+     */
+    protected function normaliseListingInput(): void
+    {
+        foreach (['resource_type', 'curator', 'status'] as $key) {
+            if (! $this->has($key)) {
+                continue;
+            }
+
+            $value = $this->input($key);
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            if (! is_array($value)) {
+                $this->merge([$key => [$value]]);
+            }
+        }
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     protected function listingRules(): array
@@ -58,12 +82,12 @@ trait ResolvesResourceListing
             'sort_key' => ['nullable', 'string', Rule::in(self::ALLOWED_SORT_KEYS)],
             'sort_direction' => ['nullable', 'string', Rule::in(self::ALLOWED_SORT_DIRECTIONS)],
 
-            'resource_type' => ['nullable'],
+            'resource_type' => ['nullable', 'array'],
             'resource_type.*' => ['nullable', 'string'],
-            'curator' => ['nullable'],
+            'curator' => ['nullable', 'array'],
             'curator.*' => ['nullable', 'string'],
-            'status' => ['nullable'],
-            'status.*' => ['nullable', 'string'],
+            'status' => ['nullable', 'array'],
+            'status.*' => ['nullable', 'string', Rule::in(self::ALLOWED_STATUSES)],
 
             'year_from' => ['nullable', 'integer', 'between:1000,9999'],
             'year_to' => ['nullable', 'integer', 'between:1000,9999'],

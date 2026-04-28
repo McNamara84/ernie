@@ -497,4 +497,38 @@ describe('Curator Filter', function (): void {
                 ->where('resources.2.curator', 'Charlie')
             );
     });
+
+    it('excludes Physical Object curators from the /resources curator filter list (Issue: PR #679 review)', function (): void {
+        $datasetType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $physicalObjectType = ResourceType::factory()->create(['slug' => 'physical-object', 'name' => 'Physical Object']);
+        $language = Language::factory()->create();
+
+        $datasetCurator = User::factory()->create(['name' => 'Dataset Curator']);
+        $igsnOnlyCurator = User::factory()->create(['name' => 'IGSN Only Curator']);
+
+        // A regular dataset curated by 'Dataset Curator' — must appear.
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $datasetCurator->id,
+            'updated_by_user_id' => null,
+        ]);
+
+        // A Physical Object (IGSN) curated only by 'IGSN Only Curator' — must NOT
+        // leak into /resources curator filter options (IGSNs live on /igsns).
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $igsnOnlyCurator->id,
+            'updated_by_user_id' => null,
+        ]);
+
+        $response = get(route('resources.filter-options'))->assertOk();
+        $curators = $response->json('curators');
+
+        expect($curators)->toContain('Dataset Curator')
+            ->and($curators)->not->toContain('IGSN Only Curator');
+    });
 });

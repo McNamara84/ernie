@@ -12,6 +12,11 @@ final class IndexResourcesRequest extends FormRequest
 {
     use ResolvesResourceListing;
 
+    protected function prepareForValidation(): void
+    {
+        $this->normaliseListingInput();
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('viewAny', Resource::class) ?? false;

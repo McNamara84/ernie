@@ -98,7 +98,13 @@ class ResourceFilterController extends Controller
     private function loadCurators(): array
     {
         try {
-            $resourceQuery = Resource::query();
+            // Mirror ResourceQueryBuilder::baseQuery() — exclude Physical Object
+            // resources (IGSNs), which live on their own /igsns page and must not
+            // leak into the /resources curator filter.
+            $resourceQuery = Resource::query()
+                ->whereDoesntHave('resourceType', function ($query): void {
+                    $query->where('slug', 'physical-object');
+                });
             $hasUpdatedBy = Schema::hasColumn('resources', 'updated_by_user_id');
             $hasCreatedBy = Schema::hasColumn('resources', 'created_by_user_id');
 

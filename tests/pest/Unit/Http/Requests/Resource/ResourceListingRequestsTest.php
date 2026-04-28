@@ -97,6 +97,31 @@ it('passes status values straight through (controller validates them downstream)
         ->assertJsonPath('filters.status', ['draft', 'published']);
 });
 
+it('rejects unknown status values regardless of array vs scalar form (Issue: PR #679 review)', function (): void {
+    $user = User::factory()->create();
+
+    // Array form
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?status[]=bogus')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['status.0']);
+
+    // Scalar form must be normalised to array first, then rejected by Rule::in
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?status=bogus')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['status.0']);
+});
+
+it('accepts a single status string and normalises it to an array filter', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/_test/index-resources?status=draft')
+        ->assertOk()
+        ->assertJsonPath('filters.status', ['draft']);
+});
+
 it('extracts year_from / year_to as integers and trims search', function (): void {
     $user = User::factory()->create();
 
