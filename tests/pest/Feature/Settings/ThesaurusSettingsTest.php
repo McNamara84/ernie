@@ -1,8 +1,13 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\Language;
+use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\ThesaurusSetting;
+use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -102,6 +107,24 @@ describe('ThesaurusSettingsController', function () {
         $this->actingAs($admin)
             ->getJson("/thesauri/update-status/{$unknownJobId}")
             ->assertNotFound();
+    });
+
+    test('updateVersion rejects unauthorised users via route middleware (Issue: PR #679 review)', function () {
+        // Regression guard: the /thesauri/{type}/version endpoint is gated by
+        // the `can:manage-thesauri` route middleware, NOT by the controller or
+        // FormRequest. The middleware throws AuthorizationException, which
+        // Laravel renders as `{ "message": "This action is unauthorized." }`
+        // with HTTP 403. The Gate::denies block that lived in the original
+        // controller before the FormRequest migration was unreachable dead
+        // code (the middleware always preempted it) — this test pins the
+        // actual public contract so the FormRequest migration cannot silently
+        // drift from it.
+        $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $this->actingAs($curator)
+            ->patchJson('/thesauri/'.ThesaurusSetting::TYPE_SCIENCE_KEYWORDS.'/version', ['version' => '2024-2'])
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'This action is unauthorized.');
     });
 });
 
@@ -208,29 +231,29 @@ describe('EditorSettings with Thesauri', function () {
 
     test('thesauri settings can be updated via editor settings', function () {
         // Create required test data for all mandatory fields
-        $resourceType = \App\Models\ResourceType::create([
+        $resourceType = ResourceType::create([
             'name' => 'Dataset',
             'slug' => 'Dataset',
             'is_active' => true,
             'is_elmo_active' => true,
         ]);
-        $titleType = \App\Models\TitleType::firstOrCreate(
+        $titleType = TitleType::firstOrCreate(
             ['slug' => 'MainTitle'],
             ['name' => 'Main Title', 'is_active' => true, 'is_elmo_active' => true]
         );
-        $license = \App\Models\Right::create([
+        $license = Right::create([
             'identifier' => 'CC-BY-4.0',
             'name' => 'CC BY 4.0',
             'is_active' => true,
             'is_elmo_active' => true,
         ]);
-        $language = \App\Models\Language::create([
+        $language = Language::create([
             'code' => 'en',
             'name' => 'English',
             'active' => true,
             'elmo_active' => true,
         ]);
-        $dateType = \App\Models\DateType::create([
+        $dateType = DateType::create([
             'name' => 'Created',
             'slug' => 'Created',
             'is_active' => true,

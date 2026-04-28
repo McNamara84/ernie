@@ -9,15 +9,18 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Validates payloads for updating a thesaurus version (e.g. ARDC vocabularies).
  *
- * Authorization is gated by `manage-thesauri` (Admin and Group Leader only).
- * The thesaurus type is part of the route, not the request body, so it is not
- * validated here.
+ * Authorization is gated by `manage-thesauri` (Admin and Group Leader only) at
+ * the route level (`Route::middleware(['can:manage-thesauri'])`), so the
+ * `authorize()` method here is intentionally permissive — by the time this
+ * FormRequest is resolved, the route middleware has already rejected anyone
+ * without the gate. The thesaurus type is part of the route, not the request
+ * body, so it is not validated here.
  */
 class UpdateThesaurusVersionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('manage-thesauri') === true;
+        return true;
     }
 
     /**
