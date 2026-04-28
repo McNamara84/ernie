@@ -230,7 +230,7 @@ Nach jeder Section: `composer test --filter XmlUpload` muss grün bleiben.
   - Bestehende `ResourcesFilterSortTest`, `Performance/ResourceQueryPerformanceTest` müssen grün bleiben (ggf. minimal angepasst).
 
 ### Phase 5 — Form Requests für `Resource*`-Scope
-- [ ] `IndexResourcesRequest`, `LoadMoreResourcesRequest`, `DestroyResourceRequest`, `DestroyAllResourcesRequest`, `ExportResourceRequest` erstellen.
+- [x] `IndexResourcesRequest`, `LoadMoreResourcesRequest`, `DestroyResourceRequest`, `DestroyAllResourcesRequest`, `ExportResourceRequest` erstellen.
 - [ ] Validation-Regeln aus `extractFilters`, `resolveSortState`, inline `validate(['confirmation' => …])` migrieren.
 - [ ] **Tests:** `tests/pest/Unit/Http/Requests/IndexResourcesRequestTest.php` (Rules + Authorize), eine Test-Datei pro Request.
 

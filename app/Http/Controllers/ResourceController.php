@@ -6,6 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\JsonValidationException;
 use App\Http\Requests\RegisterDoiRequest;
+use App\Http\Requests\Resource\DestroyAllResourcesRequest;
+use App\Http\Requests\Resource\DestroyResourceRequest;
+use App\Http\Requests\Resource\ExportResourceRequest;
+use App\Http\Requests\Resource\IndexResourcesRequest;
+use App\Http\Requests\Resource\LoadMoreResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Http\Resources\DataCitePrefixResource;
@@ -29,7 +34,6 @@ use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -41,16 +45,6 @@ use Throwable;
 
 class ResourceController extends Controller
 {
-    private const DEFAULT_PER_PAGE = 50;
-
-    private const MIN_PER_PAGE = 1;
-
-    private const MAX_PER_PAGE = 100;
-
-    private const DEFAULT_SORT_KEY = 'updated_at';
-
-    private const DEFAULT_SORT_DIRECTION = 'desc';
-
     /**
      * Create a new controller instance.
      */
@@ -60,51 +54,10 @@ class ResourceController extends Controller
         private readonly DataCiteSyncService $syncService,
     ) {}
 
-    private const ALLOWED_SORT_KEYS = [
-        'id',
-        'doi',
-        'title',
-        'resourcetypegeneral',
-        'first_author',
-        'year',
-        'curator',
-        'publicstatus',
-        'created_at',
-        'updated_at',
-    ];
-
-    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
-
-    public function index(Request $request): Response
+    public function index(IndexResourcesRequest $request): Response
     {
-        $page = max(1, (int) $request->query('page', 1));
-        $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
-        $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
-
-        [$sortKey, $sortDirection] = $this->resolveSortState($request);
-        $filters = $this->extractFilters($request);
-
-        $query = $this->baseQuery();
-
-        // Apply filters
-        $this->applyFilters($query, $filters);
-
-        // Apply sorting
-        $this->applySorting($query, $sortKey, $sortDirection);
-
-        // Prepare cache key data
-        $cacheFilters = array_merge($filters, [
-            'sort' => $sortKey,
-            'direction' => $sortDirection,
-        ]);
-
-        // Use caching for resource listing
-        $resources = $this->cacheService->cacheResourceList(
-            $query,
-            $perPage,
-            $page,
-            $cacheFilters
-        );
+        $criteria = $request->toCriteria();
+        $resources = $this->paginateResources($criteria);
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
@@ -123,8 +76,8 @@ class ResourceController extends Controller
                 'has_more' => $resources->hasMorePages(),
             ],
             'sort' => [
-                'key' => $sortKey,
-                'direction' => $sortDirection,
+                'key' => $criteria['sortKey'],
+                'direction' => $criteria['sortDirection'],
             ],
             'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
         ]);
@@ -232,19 +185,11 @@ class ResourceController extends Controller
     /**
      * Delete a resource.
      *
-     * @param  Request  $request  The HTTP request - needed for user() access to check authorization.
-     *                            While Laravel's route model binding could inject User directly,
-     *                            using Request allows for consistent null-safety checks and follows
-     *                            the pattern used in other controller methods.
-     * @param  Resource  $resource  The resource to delete (injected via route model binding).
+     * Authorization is enforced by DestroyResourceRequest::authorize() (delegates
+     * to ResourcePolicy::delete – Admin / Group Leader only).
      */
-    public function destroy(Request $request, Resource $resource): RedirectResponse
+    public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
-        // Authorize deletion using ResourcePolicy - only Admin/GroupLeader can delete
-        if ($request->user()?->cannot('delete', $resource)) {
-            abort(403, 'You are not authorized to delete this resource.');
-        }
-
         $resource->delete();
 
         return redirect()
@@ -261,18 +206,10 @@ class ResourceController extends Controller
      * user accounts, and lookup data are preserved.
      *
      * Authorization is enforced by both route middleware ('can:delete-all-resources')
-     * and an explicit check in this method for defense in depth.
+     * and DestroyAllResourcesRequest::authorize() for defense in depth.
      */
-    public function destroyAll(Request $request): RedirectResponse
+    public function destroyAll(DestroyAllResourcesRequest $request): RedirectResponse
     {
-        if ($request->user()?->cannot('delete-all-resources')) {
-            abort(403, 'You are not authorized to perform this action.');
-        }
-
-        $request->validate([
-            'confirmation' => ['required', 'string', 'in:delete'],
-        ]);
-
         DB::transaction(function (): void {
             // Delete all resources in chunks, triggering ResourceObserver per delete
             // for proper cache invalidation. DB cascading FKs handle child tables.
@@ -309,36 +246,10 @@ class ResourceController extends Controller
     /**
      * API endpoint for loading more resources (for infinite scrolling).
      */
-    public function loadMore(Request $request): JsonResponse
+    public function loadMore(LoadMoreResourcesRequest $request): JsonResponse
     {
-        $page = max(1, (int) $request->query('page', 1));
-        $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
-        $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
-
-        [$sortKey, $sortDirection] = $this->resolveSortState($request);
-        $filters = $this->extractFilters($request);
-
-        $query = $this->baseQuery();
-
-        // Apply filters
-        $this->applyFilters($query, $filters);
-
-        // Apply sorting
-        $this->applySorting($query, $sortKey, $sortDirection);
-
-        // Prepare cache key data
-        $cacheFilters = array_merge($filters, [
-            'sort' => $sortKey,
-            'direction' => $sortDirection,
-        ]);
-
-        // Use caching for resource listing
-        $resources = $this->cacheService->cacheResourceList(
-            $query,
-            $perPage,
-            $page,
-            $cacheFilters
-        );
+        $criteria = $request->toCriteria();
+        $resources = $this->paginateResources($criteria);
 
         /** @var array<int, Resource> $items */
         $items = $resources->items();
@@ -357,8 +268,8 @@ class ResourceController extends Controller
                 'has_more' => $resources->hasMorePages(),
             ],
             'sort' => [
-                'key' => $sortKey,
-                'direction' => $sortDirection,
+                'key' => $criteria['sortKey'],
+                'direction' => $criteria['sortDirection'],
             ],
         ]);
     }
@@ -476,24 +387,35 @@ class ResourceController extends Controller
     }
 
     /**
-     * Resolve the requested sort state, falling back to the default when invalid.
+     * Build, filter, sort and paginate the resource listing query.
      *
-     * @return array{string, string}
+     * @param  array{
+     *     page:int,
+     *     perPage:int,
+     *     sortKey:string,
+     *     sortDirection:string,
+     *     filters:array<string,mixed>
+     * }  $criteria
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, Resource>
      */
-    protected function resolveSortState(Request $request): array
+    private function paginateResources(array $criteria)
     {
-        $requestedKey = strtolower((string) $request->get('sort_key', self::DEFAULT_SORT_KEY));
-        $requestedDirection = strtolower((string) $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION));
+        $query = $this->baseQuery();
 
-        $sortKey = in_array($requestedKey, self::ALLOWED_SORT_KEYS, true)
-            ? $requestedKey
-            : self::DEFAULT_SORT_KEY;
+        $this->applyFilters($query, $criteria['filters']);
+        $this->applySorting($query, $criteria['sortKey'], $criteria['sortDirection']);
 
-        $sortDirection = in_array($requestedDirection, self::ALLOWED_SORT_DIRECTIONS, true)
-            ? $requestedDirection
-            : self::DEFAULT_SORT_DIRECTION;
+        $cacheFilters = array_merge($criteria['filters'], [
+            'sort' => $criteria['sortKey'],
+            'direction' => $criteria['sortDirection'],
+        ]);
 
-        return [$sortKey, $sortDirection];
+        return $this->cacheService->cacheResourceList(
+            $query,
+            $criteria['perPage'],
+            $criteria['page'],
+            $cacheFilters
+        );
     }
 
     /**
@@ -564,92 +486,6 @@ class ResourceController extends Controller
     /**
      * Extract filters from the request.
      *
-     * @return array<string, mixed>
-     */
-    protected function extractFilters(Request $request): array
-    {
-        $filters = [];
-
-        // Resource Type filter
-        if ($request->has('resource_type')) {
-            $resourceType = $request->input('resource_type');
-            if (is_array($resourceType)) {
-                $filters['resource_type'] = array_filter($resourceType);
-            } elseif (! empty($resourceType)) {
-                $filters['resource_type'] = [$resourceType];
-            }
-        }
-
-        // Curator filter
-        if ($request->has('curator')) {
-            $curator = $request->input('curator');
-            if (is_array($curator)) {
-                $filters['curator'] = array_filter($curator);
-            } elseif (! empty($curator)) {
-                $filters['curator'] = [$curator];
-            }
-        }
-
-        // Status filter (draft, curation, review, published)
-        if ($request->has('status')) {
-            $status = $request->input('status');
-            if (is_array($status)) {
-                $filters['status'] = array_filter($status);
-            } elseif (! empty($status)) {
-                $filters['status'] = [$status];
-            }
-        }
-
-        // Publication Year Range
-        if ($request->has('year_from') && is_numeric($request->input('year_from'))) {
-            $filters['year_from'] = (int) $request->input('year_from');
-        }
-
-        if ($request->has('year_to') && is_numeric($request->input('year_to'))) {
-            $filters['year_to'] = (int) $request->input('year_to');
-        }
-
-        // Text Search
-        if ($request->has('search')) {
-            $search = trim((string) $request->input('search'));
-            if (! empty($search)) {
-                $filters['search'] = $search;
-            }
-        }
-
-        // Date Range filters
-        if ($request->has('created_from')) {
-            $createdFrom = $request->input('created_from');
-            if (! empty($createdFrom)) {
-                $filters['created_from'] = $createdFrom;
-            }
-        }
-
-        if ($request->has('created_to')) {
-            $createdTo = $request->input('created_to');
-            if (! empty($createdTo)) {
-                $filters['created_to'] = $createdTo;
-            }
-        }
-
-        if ($request->has('updated_from')) {
-            $updatedFrom = $request->input('updated_from');
-            if (! empty($updatedFrom)) {
-                $filters['updated_from'] = $updatedFrom;
-            }
-        }
-
-        if ($request->has('updated_to')) {
-            $updatedTo = $request->input('updated_to');
-            if (! empty($updatedTo)) {
-                $filters['updated_to'] = $updatedTo;
-            }
-        }
-
-        return $filters;
-    }
-
-    /**
      * Apply filters to the query.
      *
      * @param  \Illuminate\Database\Eloquent\Builder<resource>  $query
@@ -861,8 +697,11 @@ class ResourceController extends Controller
     /**
      * Export a resource as DataCite JSON
      */
-    public function exportDataCiteJson(Resource $resource, JsonSchemaValidator $validator): SymfonyResponse
-    {
+    public function exportDataCiteJson(
+        ExportResourceRequest $request,
+        Resource $resource,
+        JsonSchemaValidator $validator,
+    ): SymfonyResponse {
         $exporter = new DataCiteJsonExporter;
         $dataCiteJson = $exporter->export($resource);
 
@@ -891,7 +730,7 @@ class ResourceController extends Controller
     /**
      * Export a resource as DataCite XML
      */
-    public function exportDataCiteXml(Resource $resource): SymfonyResponse
+    public function exportDataCiteXml(ExportResourceRequest $request, Resource $resource): SymfonyResponse
     {
         try {
             // Generate XML
@@ -944,7 +783,7 @@ class ResourceController extends Controller
     /**
      * Export a resource as DataCite Linked Data JSON-LD
      */
-    public function exportJsonLd(Resource $resource): SymfonyResponse
+    public function exportJsonLd(ExportResourceRequest $request, Resource $resource): SymfonyResponse
     {
         $exporter = new DataCiteLinkedDataExporter;
         $jsonLd = $exporter->export($resource);
