@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Doi\ResolveDoiRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,13 +16,9 @@ class DoiValidationController extends Controller
      *
      * Tries DataCite API first, then falls back to doi.org resolution check
      */
-    public function validateDoi(Request $request): JsonResponse
+    public function validateDoi(ResolveDoiRequest $request): JsonResponse
     {
-        $request->validate([
-            'doi' => 'required|string',
-        ]);
-
-        $doi = trim($request->input('doi'));
+        $doi = trim((string) $request->input('doi'));
 
         // Extract bare DOI if URL format
         if (preg_match('/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i', $doi, $matches)) {
