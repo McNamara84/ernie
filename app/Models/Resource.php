@@ -441,4 +441,66 @@ class Resource extends Model
 
         return $this->resourceType?->slug === 'physical-object';
     }
+
+    /**
+     * Check whether this resource has all mandatory DataCite fields filled (Issue #548).
+     *
+     * Mandatory fields: Main Title, Publication Year, Resource Type,
+     * at least one Creator, at least one License, and an Abstract description.
+     *
+     * Expects that titles, creators, rights, and descriptions relations are already
+     * eager loaded.
+     */
+    public function isComplete(): bool
+    {
+        $hasMainTitle = $this->titles->contains(
+            fn (Title $title): bool => $title->isMainTitle() && trim($title->value) !== ''
+        );
+
+        if (! $hasMainTitle) {
+            return false;
+        }
+
+        if ($this->publication_year === null) {
+            return false;
+        }
+
+        if ($this->resource_type_id === null) {
+            return false;
+        }
+
+        if ($this->creators->isEmpty()) {
+            return false;
+        }
+
+        if ($this->rights->isEmpty()) {
+            return false;
+        }
+
+        return $this->descriptions->contains(
+            fn (Description $description): bool => $description->isAbstract() && trim($description->value) !== ''
+        );
+    }
+
+    /**
+     * Determine the publication status of this resource (Issue #548).
+     *
+     * Status hierarchy:
+     * - 'draft': missing any mandatory field (takes precedence)
+     * - 'curation': all mandatory fields present, no DOI or no landing page
+     * - 'review': has DOI + landing page with is_published = false
+     * - 'published': has DOI + landing page with is_published = true
+     */
+    public function publicStatus(): string
+    {
+        if (! $this->isComplete()) {
+            return 'draft';
+        }
+
+        if ($this->doi && $this->landingPage) {
+            return $this->landingPage->is_published ? 'published' : 'review';
+        }
+
+        return 'curation';
+    }
 }
