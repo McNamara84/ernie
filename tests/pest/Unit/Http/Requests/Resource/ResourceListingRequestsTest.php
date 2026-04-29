@@ -40,13 +40,18 @@ it('returns sane defaults for an empty query string', function (): void {
         ]);
 });
 
-it('clamps per_page to the configured maximum', function (): void {
+it('rejects per_page values above MAX_PER_PAGE and accepts the maximum itself', function (): void {
     $user = User::factory()->create();
 
+    // Anything strictly larger than MAX_PER_PAGE is rejected by validation
+    // (no silent clamping, so paginators do not return more rows than the
+    // caller asked for).
     $this->actingAs($user)
         ->getJson('/_test/index-resources?per_page=999')
         ->assertStatus(422);
 
+    // The exact maximum is still accepted and surfaces unchanged in the
+    // resolved criteria.
     $this->actingAs($user)
         ->getJson('/_test/index-resources?per_page=100')
         ->assertOk()

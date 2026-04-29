@@ -162,7 +162,8 @@ class StoreResourceRequest extends FormRequest
             // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
             // spaces — e.g. `JournalArticle`); kept in sync with
             // `StoreRelatedItemRequest` and the vocabularies endpoint via
-            // `ResourceType::nameToDataciteResourceTypeGeneral()`.
+            // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
+            // matching instance helper `dataciteResourceTypeGeneral()`).
             'relatedItems.*.related_item_type' => ['required_with:relatedItems', 'string', Rule::in(ResourceType::activeDataciteResourceTypesGeneral())],
             'relatedItems.*.relation_type_slug' => ['required_with:relatedItems', 'string', Rule::exists('relation_types', 'slug')],
             'relatedItems.*.titles' => ['required_with:relatedItems', 'array', 'min:1', new HasMainTitle],

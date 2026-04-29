@@ -31,7 +31,8 @@ class StoreRelatedItemRequest extends FormRequest
             // `resourceTypeGeneral` enum value (PascalCase, no spaces — e.g.
             // `JournalArticle`). The XML parser, vocabularies endpoint, and
             // DataCite exporters all agree on this representation; see
-            // `ResourceType::nameToDataciteResourceTypeGeneral()`.
+            // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
+            // matching instance helper `dataciteResourceTypeGeneral()`).
             'related_item_type' => ['required', 'string', Rule::in(ResourceType::activeDataciteResourceTypesGeneral())],
             'relation_type_id' => ['required', 'integer', Rule::exists('relation_types', 'id')],
 

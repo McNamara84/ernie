@@ -21,7 +21,8 @@ return new class extends Migration
      * exports of XML-imported items therefore failed against the
      * `resourceTypeGeneral` enum, and `CitationFormatter::containerTitle()`
      * silently skipped journal article container titles. Both code paths now
-     * agree on PascalCase via `ResourceType::nameToDataciteResourceTypeGeneral()`;
+     * agree on PascalCase via `ResourceType::slugToDataciteResourceTypeGeneral()`
+     * (and the matching instance helper `dataciteResourceTypeGeneral()`);
      * this migration backfills any rows persisted by the kebab-case parser.
      */
     public function up(): void
