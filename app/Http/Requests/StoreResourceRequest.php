@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Models\ContributorType;
 use App\Models\RelatedItem;
+use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Rules\HasMainTitle;
 use App\Services\DoiSuggestionService;
@@ -158,9 +159,14 @@ class StoreResourceRequest extends FormRequest
 
             // Citation Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
-            'relatedItems.*.related_item_type' => ['required_with:relatedItems', 'string', Rule::exists('resource_types', 'slug')],
+            // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
+            // spaces — e.g. `JournalArticle`); kept in sync with
+            // `StoreRelatedItemRequest` and the vocabularies endpoint via
+            // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
+            // matching instance helper `dataciteResourceTypeGeneral()`).
+            'relatedItems.*.related_item_type' => ['required_with:relatedItems', 'string', Rule::in(ResourceType::activeDataciteResourceTypesGeneral())],
             'relatedItems.*.relation_type_slug' => ['required_with:relatedItems', 'string', Rule::exists('relation_types', 'slug')],
-            'relatedItems.*.titles' => ['required_with:relatedItems', 'array', 'min:1', new HasMainTitle()],
+            'relatedItems.*.titles' => ['required_with:relatedItems', 'array', 'min:1', new HasMainTitle],
             'relatedItems.*.titles.*.title' => ['required', 'string', 'max:512'],
             'relatedItems.*.titles.*.title_type' => ['required', Rule::in(RelatedItem::TITLE_TYPES)],
             'relatedItems.*.titles.*.language' => ['nullable', 'string', 'max:8'],
@@ -550,7 +556,7 @@ class StoreResourceRequest extends FormRequest
             }
 
             // Convert to kebab-case for database storage
-            $normalizedType = \Illuminate\Support\Str::kebab($descriptionType);
+            $normalizedType = Str::kebab($descriptionType);
 
             $descriptionLanguage = isset($description['language']) ? trim((string) $description['language']) : '';
 
@@ -590,7 +596,7 @@ class StoreResourceRequest extends FormRequest
             }
 
             // Convert to kebab-case for database storage (if needed)
-            $normalizedType = \Illuminate\Support\Str::kebab($dateType);
+            $normalizedType = Str::kebab($dateType);
 
             $dates[] = [
                 'dateType' => $normalizedType,

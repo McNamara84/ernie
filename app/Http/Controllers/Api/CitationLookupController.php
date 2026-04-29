@@ -5,36 +5,21 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Citation\LookupCitationRequest;
 use App\Services\Citations\CitationLookupResult;
 use App\Services\Citations\CitationLookupService;
-use App\Services\DoiSuggestionService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class CitationLookupController extends Controller
 {
     public function __construct(
         private readonly CitationLookupService $lookup,
-        private readonly DoiSuggestionService $doiSuggestions,
     ) {}
 
-    public function lookup(Request $request): JsonResponse
+    public function lookup(LookupCitationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'doi' => [
-                'required',
-                'string',
-                'max:512',
-                // Reject obvious garbage early so the upstream Crossref/DataCite
-                // calls (and their rate-limit budgets) are not wasted on input
-                // that cannot possibly be a DOI. Mirrors the OpenAPI 422 contract.
-                function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (! is_string($value) || ! $this->doiSuggestions->isValidDoiFormat($value)) {
-                        $fail('The :attribute must be a valid DOI (e.g., 10.1234/example).');
-                    }
-                },
-            ],
-        ]);
+        /** @var array{doi: string} $validated */
+        $validated = $request->validated();
 
         $result = $this->lookup->lookup($validated['doi']);
 

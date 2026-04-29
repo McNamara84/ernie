@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateThesaurusVersionRequest;
 use App\Jobs\UpdateThesaurusJob;
 use App\Models\ThesaurusSetting;
 use App\Services\ThesaurusStatusService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -32,8 +32,6 @@ class ThesaurusSettingsController extends Controller
      * List all thesauri with their current status.
      *
      * GET /api/v1/thesauri
-     *
-     * @return JsonResponse
      */
     public function index(): JsonResponse
     {
@@ -61,7 +59,6 @@ class ThesaurusSettingsController extends Controller
      * POST /api/v1/thesauri/{type}/check
      *
      * @param  string  $type  The thesaurus type (science_keywords, platforms, instruments)
-     * @return JsonResponse
      */
     public function checkStatus(string $type): JsonResponse
     {
@@ -99,7 +96,6 @@ class ThesaurusSettingsController extends Controller
      * Requires 'manage-thesauri' gate (Admin and Group Leader).
      *
      * @param  string  $type  The thesaurus type (science_keywords, platforms, instruments)
-     * @return JsonResponse
      */
     public function triggerUpdate(string $type): JsonResponse
     {
@@ -154,7 +150,6 @@ class ThesaurusSettingsController extends Controller
      * GET /api/v1/thesauri/update-status/{jobId}
      *
      * @param  string  $jobId  The UUID of the update job
-     * @return JsonResponse
      */
     public function updateStatus(string $jobId): JsonResponse
     {
@@ -187,14 +182,8 @@ class ThesaurusSettingsController extends Controller
      * Only applicable for thesauri that support versioning (e.g., ARDC vocabularies).
      * Requires 'manage-thesauri' gate (Admin and Group Leader).
      */
-    public function updateVersion(Request $request, string $type): JsonResponse
+    public function updateVersion(UpdateThesaurusVersionRequest $request, string $type): JsonResponse
     {
-        if (Gate::denies('manage-thesauri')) {
-            return response()->json([
-                'error' => 'Unauthorized. Only administrators and group leaders can update thesaurus versions.',
-            ], 403);
-        }
-
         $thesaurus = ThesaurusSetting::where('type', $type)->first();
 
         if ($thesaurus === null) {
@@ -209,9 +198,8 @@ class ThesaurusSettingsController extends Controller
             ], 400);
         }
 
-        $validated = $request->validate([
-            'version' => ['required', 'string', 'max:20', 'regex:/^\d+(-\d+)*$/'],
-        ]);
+        /** @var array{version: string} $validated */
+        $validated = $request->validated();
 
         $thesaurus->update(['version' => $validated['version']]);
 

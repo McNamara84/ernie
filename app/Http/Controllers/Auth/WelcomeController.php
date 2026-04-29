@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ResendWelcomeEmailRequest;
+use App\Http\Requests\Auth\SetWelcomePasswordRequest;
 use App\Mail\WelcomeNewUser;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -63,7 +64,7 @@ class WelcomeController extends Controller
      * Validates the signed URL and password, then updates the user's password.
      * After successful password setup, redirects to login page.
      */
-    public function store(Request $request, User $user): RedirectResponse
+    public function store(SetWelcomePasswordRequest $request, User $user): RedirectResponse
     {
         // Verify signature again for security
         if (! $request->hasValidSignature()) {
@@ -77,9 +78,8 @@ class WelcomeController extends Controller
                 ->with('status', 'Your password has already been set. Please log in.');
         }
 
-        $validated = $request->validate([
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
+        /** @var array{password: string} $validated */
+        $validated = $request->validated();
 
         // Use atomic update to prevent race condition
         $updated = User::where('id', $user->id)
@@ -104,11 +104,10 @@ class WelcomeController extends Controller
      * Only sends email if user exists and hasn't set their password yet.
      * Always returns success message to prevent email enumeration attacks.
      */
-    public function resend(Request $request): RedirectResponse
+    public function resend(ResendWelcomeEmailRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-        ]);
+        /** @var array{email: string} $validated */
+        $validated = $request->validated();
 
         $user = User::where('email', $validated['email'])->first();
 

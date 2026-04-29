@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\ResourceType;
 use App\Models\User;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -303,5 +305,45 @@ XML);
 XML);
 
         expect($items[0]['creators'][0]['name_type'])->toBe('Personal');
+    });
+
+    test('preserves DataCite PascalCase relatedItemType as the canonical resourceTypeGeneral enum (Issue: PR #679 review)', function () {
+        // DataCite 4.7 carries `relatedItemType` as the PascalCase
+        // `resourceTypeGeneral` enum (e.g. `JournalArticle`,
+        // `ConferencePaper`, `BookChapter`). The parser preserves that form
+        // verbatim because it is the canonical representation persisted to
+        // `related_items.related_item_type`, accepted by
+        // `StoreResourceRequest` / `StoreRelatedItemRequest`, emitted by both
+        // DataCite exporters, and consumed by
+        // `CitationFormatter::containerTitle()`. The unrelated kebab-case
+        // `resource_types.slug` is intentionally not used for this column.
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="JournalArticle" relationType="Cites">
+      <titles><title>JA</title></titles>
+    </relatedItem>
+    <relatedItem relatedItemType="ConferencePaper" relationType="Cites">
+      <titles><title>CP</title></titles>
+    </relatedItem>
+    <relatedItem relatedItemType="BookChapter" relationType="Cites">
+      <titles><title>BC</title></titles>
+    </relatedItem>
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>B</title></titles>
+    </relatedItem>
+XML);
+
+        expect($items)->toHaveCount(4);
+        expect($items[0]['related_item_type'])->toBe('JournalArticle');
+        expect($items[1]['related_item_type'])->toBe('ConferencePaper');
+        expect($items[2]['related_item_type'])->toBe('BookChapter');
+        expect($items[3]['related_item_type'])->toBe('Book');
+
+        // Sanity: every value must be in the active DataCite enum derived
+        // from the production-seeded resource_types vocabulary.
+        $this->seed(ResourceTypeSeeder::class);
+        $allowed = ResourceType::activeDataciteResourceTypesGeneral();
+        foreach ($items as $item) {
+            expect($allowed)->toContain($item['related_item_type']);
+        }
     });
 });

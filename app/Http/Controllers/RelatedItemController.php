@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RelatedItem\ReorderRelatedItemsRequest;
 use App\Http\Requests\RelatedItem\StoreRelatedItemRequest;
 use App\Http\Requests\RelatedItem\UpdateRelatedItemRequest;
 use App\Models\ContributorType;
 use App\Models\RelatedItem;
+use App\Models\RelatedItemContributor;
+use App\Models\RelatedItemCreator;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -64,15 +67,9 @@ class RelatedItemController extends Controller
         return response()->json(null, 204);
     }
 
-    public function reorder(Request $request, Resource $resource): JsonResponse
+    public function reorder(ReorderRelatedItemsRequest $request, Resource $resource): JsonResponse
     {
-        $this->authorizeAccess($request, $resource);
-
-        $validated = $request->validate([
-            'order' => ['required', 'array'],
-            'order.*.id' => ['required', 'integer'],
-            'order.*.position' => ['required', 'integer', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $this->storage->reorder($resource, $validated['order']);
 
@@ -97,7 +94,16 @@ class RelatedItemController extends Controller
             ->active()
             ->orderByName()
             ->get(['slug', 'name'])
-            ->map(fn (ResourceType $t): array => ['value' => $t->slug, 'label' => $t->name])
+            ->map(fn (ResourceType $t): array => [
+                // Use the DataCite `resourceTypeGeneral` PascalCase form
+                // (e.g. `JournalArticle`) so the value submitted by the
+                // Citation Manager Select matches what is persisted to
+                // `related_items.related_item_type` and accepted by
+                // `StoreRelatedItemRequest`. The unrelated kebab-case
+                // `resource_types.slug` is intentionally not exposed here.
+                'value' => $t->dataciteResourceTypeGeneral(),
+                'label' => $t->name,
+            ])
             ->all();
 
         $relationTypes = RelationType::query()
@@ -170,7 +176,7 @@ class RelatedItemController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function presentCreator(\App\Models\RelatedItemCreator $c): array
+    private function presentCreator(RelatedItemCreator $c): array
     {
         return [
             'id' => $c->id,
@@ -195,7 +201,7 @@ class RelatedItemController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function presentContributor(\App\Models\RelatedItemContributor $c): array
+    private function presentContributor(RelatedItemContributor $c): array
     {
         return [
             'id' => $c->id,

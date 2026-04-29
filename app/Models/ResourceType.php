@@ -6,16 +6,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Str;
 
 #[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active'])]
 class ResourceType extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     protected $casts = [
@@ -48,6 +50,59 @@ class ResourceType extends Model
     public function scopeOrderByName(Builder $query): Builder
     {
         return $query->orderBy('name');
+    }
+
+    /**
+     * Map this resource type to the DataCite 4.7 `resourceTypeGeneral` enum
+     * value (PascalCase, no spaces), which is also the canonical representation
+     * used for `related_items.related_item_type`.
+     *
+     * Derived from the immutable `slug` column rather than the human-readable
+     * `name` because curators can rename the latter via editor settings: a
+     * rename of "Journal Article" to "Articles in Journals" must not change
+     * the canonical DataCite enum (still `JournalArticle`) nor invalidate
+     * already-stored `related_item_type` values.
+     *
+     * Examples: slug `journal-article` → `JournalArticle`, slug `book` → `Book`.
+     *
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relateditem/
+     */
+    public function dataciteResourceTypeGeneral(): string
+    {
+        return self::slugToDataciteResourceTypeGeneral($this->slug);
+    }
+
+    /**
+     * Static helper for boundary code that has the immutable slug but not a
+     * hydrated model (e.g. validation rules or vocabulary endpoints).
+     */
+    public static function slugToDataciteResourceTypeGeneral(string $slug): string
+    {
+        return Str::studly($slug);
+    }
+
+    /**
+     * List of all DataCite resourceTypeGeneral values currently allowed
+     * as `related_items.related_item_type`. Derived from the immutable
+     * `slug` column of the active rows in `resource_types` so curators
+     * can extend the vocabulary at runtime without touching code, while
+     * renames of the user-facing `name` cannot drift the allow-list away
+     * from already-stored values.
+     *
+     * @return list<string>
+     */
+    public static function activeDataciteResourceTypesGeneral(): array
+    {
+        /** @var list<string> $slugs */
+        $slugs = self::query()
+            ->active()
+            ->pluck('slug')
+            ->all();
+
+        return array_values(array_unique(array_map(
+            self::slugToDataciteResourceTypeGeneral(...),
+            $slugs,
+        )));
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Http\JsonResponse;
@@ -139,12 +140,8 @@ class AssistanceController extends Controller
     /**
      * Decline a suggestion from any assistant.
      */
-    public function decline(Request $request, int $suggestion): JsonResponse
+    public function decline(DeclineSuggestionRequest $request, int $suggestion): JsonResponse
     {
-        $request->validate([
-            'reason' => ['nullable', 'string', 'max:255'],
-        ]);
-
         $assistantId = $request->route('assistantId');
         $assistant = $this->registrar->get((string) $assistantId);
 
@@ -174,6 +171,7 @@ class AssistanceController extends Controller
             if (! $lock->get()) {
                 $result["{$id}Error"] = $assistant->getManifest()->statusLabels['already_running']
                     ?? 'A discovery job is already running.';
+
                 continue;
             }
 

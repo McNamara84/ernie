@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
 use App\Models\LandingPageTemplate;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -18,18 +18,6 @@ use Inertia\Response;
 class LandingPageTemplateController extends Controller
 {
     use AuthorizesRequests;
-
-    /**
-     * Maximum logo file size in kilobytes.
-     */
-    private const MAX_LOGO_SIZE_KB = 2048;
-
-    /**
-     * Allowed MIME types for logo uploads.
-     *
-     * @var list<string>
-     */
-    private const ALLOWED_LOGO_MIMES = ['png', 'jpg', 'jpeg', 'webp'];
 
     /**
      * Display the template management page.
@@ -63,7 +51,7 @@ class LandingPageTemplateController extends Controller
 
         $template = LandingPageTemplate::create([
             'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']) . '-' . Str::random(6),
+            'slug' => Str::slug($validated['name']).'-'.Str::random(6),
             'is_default' => false,
             'logo_path' => null,
             'logo_filename' => null,
@@ -135,7 +123,7 @@ class LandingPageTemplateController extends Controller
 
         if ($landingPageTemplate->isInUse()) {
             return response()->json([
-                'message' => 'This template is currently in use by ' . $landingPageTemplate->getUsageCount() . ' landing page(s) and cannot be deleted.',
+                'message' => 'This template is currently in use by '.$landingPageTemplate->getUsageCount().' landing page(s) and cannot be deleted.',
                 'error' => 'template_in_use',
             ], 422);
         }
@@ -155,7 +143,7 @@ class LandingPageTemplateController extends Controller
     /**
      * Upload a custom logo for a template.
      */
-    public function uploadLogo(Request $request, LandingPageTemplate $landingPageTemplate): JsonResponse
+    public function uploadLogo(UploadLandingPageTemplateLogoRequest $request, LandingPageTemplate $landingPageTemplate): JsonResponse
     {
         $this->authorize('update', $landingPageTemplate);
 
@@ -166,9 +154,7 @@ class LandingPageTemplateController extends Controller
             ], 403);
         }
 
-        $request->validate([
-            'logo' => ['required', 'file', 'mimes:' . implode(',', self::ALLOWED_LOGO_MIMES), 'max:' . self::MAX_LOGO_SIZE_KB],
-        ]);
+        $request->validated();
 
         $file = $request->file('logo');
 
@@ -179,7 +165,7 @@ class LandingPageTemplateController extends Controller
         $oldLogoPath = $landingPageTemplate->logo_path;
 
         // Store new file first to avoid losing the old logo on failure
-        $directory = 'landing-page-logos/' . $landingPageTemplate->slug;
+        $directory = 'landing-page-logos/'.$landingPageTemplate->slug;
 
         try {
             $path = $file->store($directory, 'public');

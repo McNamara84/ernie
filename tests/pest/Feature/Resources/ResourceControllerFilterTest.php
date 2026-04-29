@@ -3,6 +3,7 @@
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
@@ -417,5 +418,355 @@ describe('Curator Filter', function (): void {
                     'Charlie Creator', // From createdBy (fallback)
                 ],
             ]);
+    });
+
+    it('returns the actual publication_year range in filter options (Issue: PR #679 review)', function (): void {
+        $resourceType = ResourceType::factory()->create();
+        $language = Language::factory()->create();
+
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2018,
+        ]);
+
+        Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+
+        get(route('resources.filter-options'))
+            ->assertOk()
+            ->assertJson([
+                'year_range' => [
+                    'min' => 2018,
+                    'max' => 2024,
+                ],
+            ]);
+    });
+
+    it('sorts by curator using updatedBy with createdBy fallback (Issue: PR #679 review)', function (): void {
+        $resourceType = ResourceType::factory()->create();
+        $language = Language::factory()->create();
+
+        $alice = User::factory()->create(['name' => 'Alice']);
+        $charlie = User::factory()->create(['name' => 'Charlie']);
+        $bob = User::factory()->create(['name' => 'Bob']);
+
+        // Resource A: created by Charlie, updated by Alice -> effective curator "Alice"
+        $resourceA = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $charlie->id,
+            'updated_by_user_id' => $alice->id,
+        ]);
+        makeResourceComplete($resourceA);
+
+        // Resource B: created by Bob, never updated -> effective curator "Bob"
+        $resourceB = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $bob->id,
+            'updated_by_user_id' => null,
+        ]);
+        makeResourceComplete($resourceB);
+
+        // Resource C: created by Alice, updated by Charlie -> effective curator "Charlie"
+        $resourceC = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $alice->id,
+            'updated_by_user_id' => $charlie->id,
+        ]);
+        makeResourceComplete($resourceC);
+
+        // Ascending: Alice (A), Bob (B), Charlie (C) — based on effective curator,
+        // NOT on created_by_user_id alone (which would yield Alice (C), Bob (B), Charlie (A)).
+        get(route('resources', ['sort_key' => 'curator', 'sort_direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->where('resources.0.id', $resourceA->id)
+                ->where('resources.0.curator', 'Alice')
+                ->where('resources.1.id', $resourceB->id)
+                ->where('resources.1.curator', 'Bob')
+                ->where('resources.2.id', $resourceC->id)
+                ->where('resources.2.curator', 'Charlie')
+            );
+    });
+
+    it('excludes Physical Object curators from the /resources curator filter list (Issue: PR #679 review)', function (): void {
+        $datasetType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $physicalObjectType = ResourceType::factory()->create(['slug' => 'physical-object', 'name' => 'Physical Object']);
+        $language = Language::factory()->create();
+
+        $datasetCurator = User::factory()->create(['name' => 'Dataset Curator']);
+        $igsnOnlyCurator = User::factory()->create(['name' => 'IGSN Only Curator']);
+
+        // A regular dataset curated by 'Dataset Curator' — must appear.
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $datasetCurator->id,
+            'updated_by_user_id' => null,
+        ]);
+
+        // A Physical Object (IGSN) curated only by 'IGSN Only Curator' — must NOT
+        // leak into /resources curator filter options (IGSNs live on /igsns).
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+            'created_by_user_id' => $igsnOnlyCurator->id,
+            'updated_by_user_id' => null,
+        ]);
+
+        $response = get(route('resources.filter-options'))->assertOk();
+        $curators = $response->json('curators');
+
+        expect($curators)->toContain('Dataset Curator')
+            ->and($curators)->not->toContain('IGSN Only Curator');
+    });
+
+    it('excludes Physical Object publication years from the /resources year_range (Issue: PR #679 review)', function (): void {
+        $datasetType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $physicalObjectType = ResourceType::factory()->create(['slug' => 'physical-object', 'name' => 'Physical Object']);
+        $language = Language::factory()->create();
+
+        // Datasets span 2018–2024; the year_range must reflect this.
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2018,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $datasetType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+
+        // Physical Object outliers (1985, 2099) must NOT skew /resources year_range.
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'publication_year' => 1985,
+        ]);
+        Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2099,
+        ]);
+
+        get(route('resources.filter-options'))
+            ->assertOk()
+            ->assertJson([
+                'year_range' => [
+                    'min' => 2018,
+                    'max' => 2024,
+                ],
+            ]);
+    });
+
+    it('exposes the MainTitle on /resources even when subtitles are eager-loaded first (Issue: PR #679 review)', function (): void {
+        // Titles are eager-loaded ordered by id and may include subtitles /
+        // alternate titles. Picking `titles->first()` blindly would surface a
+        // subtitle as the resource's display title in list views. The list
+        // resource must select the title flagged as MainTitle.
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $subtitleType = TitleType::factory()->create(['slug' => 'Subtitle', 'name' => 'Subtitle']);
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+
+        // Insert the subtitle FIRST so it has the lower id and would win a
+        // naive `titles->first()` selection.
+        $resource->titles()->create([
+            'value' => 'A subtitle that must NOT be the display title',
+            'title_type_id' => $subtitleType->id,
+        ]);
+        $resource->titles()->create([
+            'value' => 'The real main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($resource);
+
+        get(route('resources'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->where('resources.0.id', $resource->id)
+                ->where('resources.0.title', 'The real main title')
+            );
+    });
+
+    it('exposes a correct landingPage.public_url on /resources for internal and external pages (Issue: PR #679 review)', function (): void {
+        // ResourceQueryBuilder must eager-load the LandingPage columns and the
+        // externalDomain relation that LandingPage::public_url derives from.
+        // Otherwise list endpoints return empty / wrong public_url and trigger
+        // an N+1 query on externalDomain for external pages.
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+
+        // --- Internal landing page (default_gfz template, with DOI) ---
+        $internalResource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $internalResource->titles()->create([
+            'value' => 'Internal Resource',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($internalResource);
+        LandingPage::factory()->create([
+            'resource_id' => $internalResource->id,
+            'doi_prefix' => '10.5880/test.internal',
+            'slug' => 'internal-slug',
+            'template' => 'default_gfz',
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        // --- External landing page ---
+        $externalDomain = LandingPageDomain::factory()->withDomain('https://example.org/')->create();
+        $externalResource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $externalResource->titles()->create([
+            'value' => 'External Resource',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($externalResource);
+        LandingPage::factory()->create([
+            'resource_id' => $externalResource->id,
+            'doi_prefix' => '10.5880/test.external',
+            'slug' => 'external-slug',
+            'template' => 'external',
+            'external_domain_id' => $externalDomain->id,
+            'external_path' => 'datasets/foo',
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $response = get(route('resources'))->assertOk();
+        $response->assertInertia(function ($page) use ($internalResource, $externalResource) {
+            $resources = collect($page->toArray()['props']['resources'] ?? [])
+                ->keyBy('id');
+
+            expect($resources[$internalResource->id]['landingPage']['public_url'])
+                ->toContain('/10.5880/test.internal/internal-slug');
+
+            expect($resources[$externalResource->id]['landingPage']['public_url'])
+                ->toBe('https://example.org/datasets/foo');
+
+            return $page;
+        });
+    });
+
+    it('sorts /resources by MainTitle even when a subtitle has the lower titles.id (Issue: PR #679 review)', function (): void {
+        // Sorting must use the MainTitle to stay consistent with the title
+        // displayed by ResourceListItemResource. A subtitle that was inserted
+        // first (and therefore has the lower titles.id) must NOT decide the
+        // sort order.
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+        $subtitleType = TitleType::factory()->create(['slug' => 'Subtitle', 'name' => 'Subtitle']);
+
+        // Resource A — main title "Alpha", subtitle "Zulu" inserted FIRST.
+        $resourceA = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $resourceA->titles()->create([
+            'value' => 'Zulu subtitle for Alpha',
+            'title_type_id' => $subtitleType->id,
+        ]);
+        $resourceA->titles()->create([
+            'value' => 'Alpha main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($resourceA);
+
+        // Resource B — main title "Mike", no subtitle.
+        $resourceB = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $resourceB->titles()->create([
+            'value' => 'Mike main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($resourceB);
+
+        get(route('resources', ['sort_key' => 'title', 'sort_direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                // Naive MIN(titles.id) would put resourceB ("Mike") before
+                // resourceA (whose lowest-id title is "Zulu subtitle for Alpha"),
+                // because "Mike" < "Zulu". With MainTitle-aware sorting,
+                // resourceA ("Alpha main title") must come first.
+                ->where('resources.0.id', $resourceA->id)
+                ->where('resources.0.title', 'Alpha main title')
+                ->where('resources.1.id', $resourceB->id)
+                ->where('resources.1.title', 'Mike main title')
+            );
+    });
+
+    it('falls back to the lowest-id title when no MainTitle exists (Issue: PR #679 review)', function (): void {
+        // Legacy data: a resource may have no MainTitle row at all. The sort
+        // must still include it, falling back to MIN(titles.id).
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+        $subtitleType = TitleType::factory()->create(['slug' => 'Subtitle', 'name' => 'Subtitle']);
+
+        // Resource with only a subtitle (legacy / partial data).
+        $legacy = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $legacy->titles()->create([
+            'value' => 'Aardvark legacy subtitle',
+            'title_type_id' => $subtitleType->id,
+        ]);
+        makeResourceComplete($legacy);
+
+        // Regular resource with a MainTitle.
+        $regular = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $regular->titles()->create([
+            'value' => 'Beta main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($regular);
+
+        get(route('resources', ['sort_key' => 'title', 'sort_direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->where('resources.0.id', $legacy->id) // "Aardvark…" < "Beta…"
+                ->where('resources.1.id', $regular->id)
+            );
     });
 });

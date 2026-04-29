@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
+use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -20,15 +21,6 @@ use Illuminate\Support\Facades\Log;
  */
 class BatchResourceRegistrationController extends Controller
 {
-    /**
-     * Maximum number of resources that can be registered in a single batch.
-     *
-     * Kept intentionally low because each registration performs a synchronous
-     * HTTP request to the DataCite API, so large batches can exceed web-server
-     * request timeouts or tie up PHP workers.
-     */
-    private const MAX_BATCH_SIZE = 25;
-
     /**
      * Batch register or update resource DOIs at DataCite.
      *
@@ -43,18 +35,10 @@ class BatchResourceRegistrationController extends Controller
      * IGSN resources (resources carrying IGSN metadata) are rejected via the
      * `failed` list – they must be registered via the IGSN batch endpoint.
      */
-    public function register(Request $request): JsonResponse
+    public function register(RegisterResourcesRequest $request): JsonResponse
     {
-        // Authorization: only users who can register production DOIs may register resources
-        if (! $request->user()?->can('register-production-doi')) {
-            abort(403, 'You are not authorized to register resources.');
-        }
-
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:' . self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
-            'prefix' => ['nullable', 'string', 'max:255'],
-        ]);
+        /** @var array{ids: array<int, int>, prefix?: string|null} $validated */
+        $validated = $request->validated();
 
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));
@@ -242,7 +226,7 @@ class BatchResourceRegistrationController extends Controller
      * Kept private to the batch controller because the interactive Register
      * DOI endpoint exposes the structured payload instead.
      */
-    private function describeOrcidPreflightFailure(\App\Services\Orcid\OrcidPreflightResult $preflight): string
+    private function describeOrcidPreflightFailure(OrcidPreflightResult $preflight): string
     {
         $blocking = count($preflight->invalid);
         $warnings = count($preflight->warnings);

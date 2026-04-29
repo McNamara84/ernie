@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Batch\RegisterIgsnsRequest;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -21,32 +21,16 @@ use Illuminate\Support\Facades\Log;
 class BatchIgsnRegistrationController extends Controller
 {
     /**
-     * Maximum number of IGSNs that can be registered in a single batch.
-     *
-     * Kept intentionally low because each registration performs a synchronous
-     * HTTP request to the DataCite API, so large batches can exceed web-server
-     * request timeouts or tie up PHP workers.
-     */
-    private const MAX_BATCH_SIZE = 25;
-
-    /**
      * Batch register or update IGSNs at DataCite.
      *
      * Each IGSN is processed independently: failures are recorded but do not
      * prevent other IGSNs from being registered. Returns HTTP 200 if all succeed,
      * or HTTP 207 (Multi-Status) if some fail.
      */
-    public function register(Request $request): JsonResponse
+    public function register(RegisterIgsnsRequest $request): JsonResponse
     {
-        // Authorization: only users who can register production DOIs may register IGSNs
-        if (! $request->user()?->can('register-production-doi')) {
-            abort(403, 'You are not authorized to register IGSNs.');
-        }
-
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:' . self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
-        ]);
+        /** @var array{ids: array<int, int>} $validated */
+        $validated = $request->validated();
 
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));

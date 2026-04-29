@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Batch\ExportResourcesRequest;
 use App\Models\Resource;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
@@ -21,13 +21,6 @@ use ZipArchive;
  */
 class BatchResourceExportController extends Controller
 {
-    /**
-     * Maximum number of resources that can be exported in a single batch.
-     */
-    private const MAX_BATCH_SIZE = 100;
-
-    private const FORMAT_JSON = 'datacite-json';
-
     private const FORMAT_XML = 'datacite-xml';
 
     private const FORMAT_JSONLD = 'jsonld';
@@ -35,13 +28,10 @@ class BatchResourceExportController extends Controller
     /**
      * Export the selected resources as a downloadable ZIP archive.
      */
-    public function export(Request $request): BinaryFileResponse
+    public function export(ExportResourcesRequest $request): BinaryFileResponse
     {
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:' . self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
-            'format' => ['required', 'string', 'in:' . self::FORMAT_JSON . ',' . self::FORMAT_XML . ',' . self::FORMAT_JSONLD],
-        ]);
+        /** @var array{ids: array<int, int>, format: string} $validated */
+        $validated = $request->validated();
 
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));
@@ -112,6 +102,7 @@ class BatchResourceExportController extends Controller
                     'format' => $format,
                     'error' => $e->getMessage(),
                 ]);
+
                 // Skip this entry but keep producing the archive.
                 continue;
             }

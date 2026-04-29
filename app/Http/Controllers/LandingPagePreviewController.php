@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LandingPage\StoreLandingPagePreviewRequest;
 use App\Models\LandingPage;
 use App\Models\Resource;
-use App\Rules\SafeUrl;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,28 +31,11 @@ class LandingPagePreviewController extends Controller
     /**
      * Store preview data in session and return a preview URL
      */
-    public function store(Request $request, Resource $resource): JsonResponse
+    public function store(StoreLandingPagePreviewRequest $request, Resource $resource): JsonResponse
     {
         $this->authorize('create', LandingPage::class);
 
-        $rules = [
-            'template' => ['required', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
-            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
-        ];
-
-        // Only validate links for templates that support them
-        $template = $request->input('template');
-        $supportsLinks = $template !== 'external'
-            && ! in_array($template, LandingPageController::IGSN_ONLY_TEMPLATES, true);
-
-        if ($supportsLinks) {
-            $rules['links'] = ['nullable', 'array', 'max:10'];
-            $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
-            $rules['links.*.label'] = ['required', 'string', 'max:255'];
-            $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
-        }
-
-        $validated = $request->validate($rules);
+        $validated = $request->validated();
 
         // External templates don't have a renderable preview — the frontend opens the external URL directly
         if ($validated['template'] === 'external') {
