@@ -237,7 +237,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'];
-        $newLeftOrder = ['contact', 'files', 'model_description', 'related_work'];
+        $newLeftOrder = ['contact', 'files', 'general', 'acquisition', 'model_description', 'related_work'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -776,7 +776,7 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 4 required left column sections
+        // Only 2 of 6 required left column sections
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],

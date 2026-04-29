@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
+    Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -454,6 +456,92 @@ describe('DefaultGfzIgsnTemplate', () => {
             const parentLink = screen.getByRole('link', { name: '10.58050/IGSN-PARENT' });
             expect(parentLink).toBeInTheDocument();
             expect(parentLink).toHaveAttribute('href', 'https://example.test/landing/parent-slug');
+        });
+    });
+
+    describe('Template customisation props', () => {
+        it('uses customLogoUrl when provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    customLogoUrl: 'https://cdn.example/custom.png',
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute(
+                'src',
+                'https://cdn.example/custom.png',
+            );
+        });
+
+        it('respects sectionOrder.leftColumn override', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        doi: '10.58050/IGSN-X',
+                        igsn_metadata: {
+                            id: 1,
+                            sample_type: 'Rock',
+                            material: 'Granite',
+                            collection_method: null,
+                            collection_method_description: null,
+                            sample_purpose: null,
+                            cruise_field_program: null,
+                            parent: null,
+                        },
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        leftColumn: ['acquisition', 'general', 'contact', 'model_description', 'related_work'],
+                        rightColumn: ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const general = screen.getByText('General');
+            const acquisition = screen.getByText('Acquisition');
+
+            // Acquisition should appear before General in the DOM with the override
+            expect(acquisition.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('embeds schema.org JSON-LD when provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    schemaOrgJsonLd: { '@context': 'https://schema.org', '@type': 'Dataset', name: 'Test' },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const script = document.querySelector('script[type="application/ld+json"]');
+            expect(script?.textContent).toContain('"@type":"Dataset"');
+        });
+
+        it('falls back to "published" status when landingPage has no status and not in preview', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: { id: 1, ftp_url: null },
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            // Should still render the page with main title; status defaulted internally
+            expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
         });
     });
 });
