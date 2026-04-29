@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { AcquisitionSection } from '@/pages/LandingPages/components/AcquisitionSection';
 import type {
     LandingPageContributor,
     LandingPageCreatorable,
@@ -10,8 +11,6 @@ import type {
     LandingPageIgsnMetadata,
     LandingPageResourceDate,
 } from '@/types/landing-page';
-
-import { AcquisitionSection } from '@/pages/LandingPages/components/AcquisitionSection';
 
 const baseIgsn = (overrides: Partial<LandingPageIgsnMetadata> = {}): LandingPageIgsnMetadata => ({
     sample_type: null,
@@ -144,11 +143,21 @@ describe('AcquisitionSection', () => {
     });
 
     it('deduplicates funding agencies and ignores empty values', () => {
+        const fr = (id: number, funder_name: string): LandingPageFundingReference => ({
+            id,
+            funder_name,
+            funder_identifier: null,
+            funder_identifier_type: null,
+            award_number: null,
+            award_uri: null,
+            award_title: null,
+            position: id,
+        });
         const fundingReferences: LandingPageFundingReference[] = [
-            { id: 1, funder_name: 'DFG', award_title: null, award_number: null },
-            { id: 2, funder_name: 'DFG', award_title: null, award_number: null },
-            { id: 3, funder_name: 'NSF', award_title: null, award_number: null },
-            { id: 4, funder_name: '   ', award_title: null, award_number: null },
+            fr(1, 'DFG'),
+            fr(2, 'DFG'),
+            fr(3, 'NSF'),
+            fr(4, '   '),
         ];
 
         render(

@@ -1,9 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { LandingPageFundingReference, LandingPageIgsnMetadata, LandingPageResourceDate } from '@/types/landing-page';
-
 import { GeneralSection } from '@/pages/LandingPages/components/GeneralSection';
+import type { LandingPageFundingReference, LandingPageIgsnMetadata, LandingPageResourceDate } from '@/types/landing-page';
 
 const baseIgsn = (overrides: Partial<LandingPageIgsnMetadata> = {}): LandingPageIgsnMetadata => ({
     sample_type: null,
@@ -61,12 +60,22 @@ describe('GeneralSection', () => {
     });
 
     it('deduplicates project award titles and ignores empty/whitespace values', () => {
+        const fr = (id: number, funder_name: string, award_title: string | null, award_number: string): LandingPageFundingReference => ({
+            id,
+            funder_name,
+            funder_identifier: null,
+            funder_identifier_type: null,
+            award_number,
+            award_uri: null,
+            award_title,
+            position: id,
+        });
         const fundingReferences: LandingPageFundingReference[] = [
-            { id: 1, funder_name: 'A', award_title: 'Project Alpha', award_number: '1' },
-            { id: 2, funder_name: 'B', award_title: 'Project Alpha', award_number: '2' },
-            { id: 3, funder_name: 'C', award_title: 'Project Beta', award_number: '3' },
-            { id: 4, funder_name: 'D', award_title: '   ', award_number: '4' },
-            { id: 5, funder_name: 'E', award_title: null, award_number: '5' },
+            fr(1, 'A', 'Project Alpha', '1'),
+            fr(2, 'B', 'Project Alpha', '2'),
+            fr(3, 'C', 'Project Beta', '3'),
+            fr(4, 'D', '   ', '4'),
+            fr(5, 'E', null, '5'),
         ];
 
         render(<GeneralSection igsn={null} doi={null} fundingReferences={fundingReferences} dates={[]} />);

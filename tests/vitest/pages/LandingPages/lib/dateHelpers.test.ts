@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { LandingPageResourceDate } from '@/types/landing-page';
-
 import { findDateByType, pickDateString } from '@/pages/LandingPages/lib/dateHelpers';
+import type { LandingPageResourceDate } from '@/types/landing-page';
 
 const makeDate = (overrides: Partial<LandingPageResourceDate> = {}): LandingPageResourceDate => ({
     id: 1,
