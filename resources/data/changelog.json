@@ -176,6 +176,10 @@
                 "description": "Widened the sizes.numeric_value column from decimal(12, 4) to decimal(20, 4). Previously, importing DOIs from the DataCite API could fail with 'SQLSTATE[22003]: Numeric value out of range' when a dataset reported a file size in bytes that exceeded ~99 million (approximately 100 MB), causing the entire import job to abort. Byte-sized values up to the petabyte range are now stored safely."
             },
             {
+                "title": "DataCite import no longer aborts on long free-text size descriptions",
+                "description": "Widened the sizes.unit column from VARCHAR(50) to VARCHAR(255) and tightened the import parser. DataCite allows the sizes property to contain free-text values such as 'Approximately 80 active stations; greater than 440MB/day.', which previously triggered 'SQLSTATE[22001]: Data too long for column unit' and aborted the entire import. The full original wording is now preserved verbatim, while well-formed values like '1.5 GB' continue to be split into a structured numeric value and unit."
+            },
+            {
                 "title": "Landing Page Template Clone Fails with 404",
                 "description": "Fixed a bug where cloning a new landing page template could fail with a 404 response when the immutable default template record was missing in the database. The clone endpoint now self-heals by restoring the default template automatically and proceeds with template creation. An idempotent database backfill migration was added to prevent this state in existing installations."
             },
