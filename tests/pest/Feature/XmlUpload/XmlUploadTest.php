@@ -2,10 +2,11 @@
 
 use App\Models\ResourceType;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('extracts doi, publication year, version, language, resource type and titles from uploaded xml, ignoring related item titles', function () {
     $this->actingAs(User::factory()->create());
@@ -58,6 +59,34 @@ XML;
         'licenses' => ['CC-BY-4.0', 'MIT'],
         'authors' => [],
     ]);
+});
+
+it('resolves resourceTypeGeneral to a seeded resource type whose name contains spaces (Issue: PR #679 review)', function () {
+    // Regression: DataCite XML carries `resourceTypeGeneral` as a PascalCase
+    // enum (e.g. `PhysicalObject`, `JournalArticle`), but the seeded
+    // `resource_types.name` column is the human-readable form with spaces
+    // ("Physical Object", "Journal Article"). A naive
+    // `LOWER(name) = LOWER('PhysicalObject')` lookup would never match and
+    // leave `resourceType` null in the import payload — silently breaking the
+    // editor's resource-type selection for IGSN / journal-article imports.
+    $this->actingAs(User::factory()->create());
+    $physicalObject = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+    $xml = <<<'XML'
+<resource>
+    <identifier identifierType="DOI">10.1234/abc</identifier>
+    <titles><title>Sample</title></titles>
+    <resourceType resourceTypeGeneral="PhysicalObject">Physical Object</resourceType>
+</resource>
+XML;
+    $file = UploadedFile::fake()->createWithContent('physical.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertSessionData(['resourceType' => (string) $physicalObject->id]);
 });
 
 it('returns null when doi, publication year, version, language and resource type are missing', function () {

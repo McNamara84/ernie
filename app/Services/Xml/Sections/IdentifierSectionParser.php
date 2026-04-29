@@ -46,7 +46,23 @@ final readonly class IdentifierSectionParser
         $resourceType = null;
 
         if ($resourceTypeName !== null) {
-            $resourceTypeModel = ResourceType::whereRaw('LOWER(name) = ?', [Str::lower($resourceTypeName)])->first();
+            // The XML attribute is the DataCite `resourceTypeGeneral` enum
+            // (PascalCase, no spaces — e.g. `PhysicalObject`, `JournalArticle`).
+            // The seeded `resource_types.name` column is the human-readable
+            // form ("Physical Object", "Journal Article"), so a direct
+            // `LOWER(name) = LOWER('PhysicalObject')` comparison would never
+            // match. Resolve the lookup in PHP via
+            // `ResourceType::nameToDataciteResourceTypeGeneral()` so the same
+            // mapping that `RelatedItemSectionParser` and the vocabularies
+            // endpoint use is applied here, too.
+            $needle = Str::lower($resourceTypeName);
+
+            $resourceTypeModel = ResourceType::query()
+                ->get(['id', 'name'])
+                ->first(fn (ResourceType $type): bool => Str::lower(
+                    ResourceType::nameToDataciteResourceTypeGeneral($type->name)
+                ) === $needle);
+
             $resourceType = $resourceTypeModel?->id !== null ? (string) $resourceTypeModel->id : null;
         }
 
