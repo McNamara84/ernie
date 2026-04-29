@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\LandingPageTemplateFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -31,15 +35,15 @@ use Illuminate\Support\Str;
  * @property array<int, string> $right_column_order Ordered section keys for right column
  * @property array<int, string> $left_column_order Ordered section keys for left column
  * @property int|null $created_by FK to users table
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read string|null $logo_url Full URL for the logo file
  * @property-read User|null $creator The user who created this template
- * @property-read \Illuminate\Database\Eloquent\Collection<int, LandingPage> $landingPages
+ * @property-read Collection<int, LandingPage> $landingPages
  */
 class LandingPageTemplate extends Model
 {
-    /** @use HasFactory<\Database\Factories\LandingPageTemplateFactory> */
+    /** @use HasFactory<LandingPageTemplateFactory> */
     use HasFactory;
 
     public const DEFAULT_TEMPLATE_SLUG = 'default_gfz';
@@ -68,6 +72,8 @@ class LandingPageTemplate extends Model
      */
     public const LEFT_COLUMN_SECTIONS = [
         'files',
+        'general',
+        'acquisition',
         'contact',
         'model_description',
         'related_work',
@@ -118,7 +124,7 @@ class LandingPageTemplate extends Model
             return null;
         }
 
-        return asset('storage/' . $this->logo_path);
+        return asset('storage/'.$this->logo_path);
     }
 
     /**
@@ -171,10 +177,10 @@ class LandingPageTemplate extends Model
     /**
      * Scope to only custom (non-default) templates.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<static>
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
-    public function scopeCustom(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopeCustom(Builder $query): Builder
     {
         return $query->where('is_default', false);
     }
@@ -279,13 +285,13 @@ class LandingPageTemplate extends Model
         }
 
         for ($index = 2; $index <= 1000; $index++) {
-            $candidate = self::DEFAULT_TEMPLATE_NAME . ' ' . $index;
+            $candidate = self::DEFAULT_TEMPLATE_NAME.' '.$index;
             if (! static::query()->where('name', $candidate)->exists()) {
                 return $candidate;
             }
         }
 
-        return self::DEFAULT_TEMPLATE_NAME . ' ' . Str::upper(Str::random(6));
+        return self::DEFAULT_TEMPLATE_NAME.' '.Str::upper(Str::random(6));
     }
 
     private static function isUniqueConstraintViolation(QueryException $exception): bool

@@ -3,12 +3,25 @@
 declare(strict_types=1);
 
 use App\Models\ContributorType;
+use App\Models\DateType;
 use App\Models\Description;
+use App\Models\IgsnClassification;
+use App\Models\IgsnMetadata;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
+use App\Models\RelatedItem;
+use App\Models\RelatedItemContributor;
+use App\Models\RelatedItemContributorAffiliation;
+use App\Models\RelatedItemCreator;
+use App\Models\RelatedItemCreatorAffiliation;
+use App\Models\RelatedItemTitle;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
+use App\Models\Right;
 use App\Models\Title;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -151,7 +164,7 @@ test('transforms rights to licenses with correct field mapping', function () {
 
     $resource = new Resource;
 
-    $right = new \App\Models\Right;
+    $right = new Right;
     $right->forceFill([
         'id' => 1,
         'identifier' => 'CC-BY-4.0',
@@ -190,7 +203,7 @@ test('transforms multiple licenses correctly', function () {
 
     $resource = new Resource;
 
-    $ccBy = new \App\Models\Right;
+    $ccBy = new Right;
     $ccBy->forceFill([
         'id' => 1,
         'identifier' => 'CC-BY-4.0',
@@ -198,7 +211,7 @@ test('transforms multiple licenses correctly', function () {
         'uri' => 'https://creativecommons.org/licenses/by/4.0/',
     ]);
 
-    $mit = new \App\Models\Right;
+    $mit = new Right;
     $mit->forceFill([
         'id' => 2,
         'identifier' => 'MIT',
@@ -446,14 +459,14 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
 
     $resource = new Resource;
 
-    $relationType = new \App\Models\RelationType;
+    $relationType = new RelationType;
     $relationType->forceFill([
         'id' => 1,
         'name' => 'IsCitedBy',
         'slug' => 'IsCitedBy',
     ]);
 
-    $title = new \App\Models\RelatedItemTitle;
+    $title = new RelatedItemTitle;
     $title->forceFill([
         'id' => 1,
         'title' => 'A Related Journal Article',
@@ -461,7 +474,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
         'language' => 'en',
     ]);
 
-    $affiliation = new \App\Models\RelatedItemCreatorAffiliation;
+    $affiliation = new RelatedItemCreatorAffiliation;
     $affiliation->forceFill([
         'id' => 1,
         'name' => 'GFZ Potsdam',
@@ -469,7 +482,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
         'scheme' => 'ROR',
     ]);
 
-    $creator = new \App\Models\RelatedItemCreator;
+    $creator = new RelatedItemCreator;
     $creator->forceFill([
         'id' => 1,
         'name_type' => 'Personal',
@@ -483,7 +496,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
     ]);
     $creator->setRelation('affiliations', new EloquentCollection([$affiliation]));
 
-    $contribAff = new \App\Models\RelatedItemContributorAffiliation;
+    $contribAff = new RelatedItemContributorAffiliation;
     $contribAff->forceFill([
         'id' => 2,
         'name' => 'ETH Zurich',
@@ -491,7 +504,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
         'scheme' => null,
     ]);
 
-    $contributor = new \App\Models\RelatedItemContributor;
+    $contributor = new RelatedItemContributor;
     $contributor->forceFill([
         'id' => 1,
         'contributor_type' => 'Editor',
@@ -506,7 +519,7 @@ test('transforms inline relatedItems with titles, creators and contributors', fu
     ]);
     $contributor->setRelation('affiliations', new EloquentCollection([$contribAff]));
 
-    $relatedItem = new \App\Models\RelatedItem;
+    $relatedItem = new RelatedItem;
     $relatedItem->forceFill([
         'id' => 1,
         'related_item_type' => 'JournalArticle',
@@ -613,4 +626,133 @@ test('related_items defaults to empty array when relation not loaded', function 
 
     expect($data)->toHaveKey('related_items')
         ->and($data['related_items'])->toBeArray()->toBeEmpty();
+});
+
+test('exposes igsn_metadata, igsn_classifications and dates for IGSN resources', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+    $resource->forceFill(['id' => 1, 'doi' => '10.58050/IGSN-CHILD']);
+
+    // dates
+    $dateType = new DateType;
+    $dateType->forceFill(['id' => 1, 'name' => 'Available', 'slug' => 'Available']);
+
+    $date = new ResourceDate;
+    $date->forceFill([
+        'id' => 1,
+        'date_value' => '2024-01-15',
+        'start_date' => null,
+        'end_date' => null,
+        'date_information' => null,
+    ]);
+    $date->setRelation('dateType', $dateType);
+
+    // parent landing page (published)
+    $parentLandingPage = new LandingPage;
+    $parentLandingPage->forceFill([
+        'id' => 7,
+        'slug' => 'parent-slug',
+        'is_published' => true,
+    ]);
+
+    $parent = new Resource;
+    $parent->forceFill(['id' => 99, 'doi' => '10.58050/IGSN-PARENT']);
+    $parent->setRelation('landingPage', $parentLandingPage);
+
+    $igsn = new IgsnMetadata;
+    $igsn->forceFill([
+        'id' => 1,
+        'sample_type' => 'Rock',
+        'material' => 'Granite',
+        'cruise_field_program' => 'Alpine 2023',
+        'sample_purpose' => 'Tectonic study',
+        'collection_method' => 'Drilling',
+        'collection_method_description' => null,
+    ]);
+    $igsn->setRelation('parentResource', $parent);
+
+    $classificationA = new IgsnClassification;
+    $classificationA->forceFill(['id' => 1, 'value' => 'Igneous', 'position' => 1]);
+    $classificationB = new IgsnClassification;
+    $classificationB->forceFill(['id' => 2, 'value' => 'Plutonic', 'position' => 2]);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+    $resource->setRelation('dates', new EloquentCollection([$date]));
+    $resource->setRelation('igsnMetadata', $igsn);
+    $resource->setRelation('igsnClassifications', new EloquentCollection([$classificationB, $classificationA]));
+
+    $data = $transformer->transform($resource);
+
+    expect($data)->toHaveKey('dates')
+        ->and($data['dates'])->toHaveCount(1)
+        ->and($data['dates'][0])->toMatchArray([
+            'date_type' => 'Available',
+            'date_type_slug' => 'Available',
+            'date_value' => '2024-01-15',
+        ]);
+
+    expect($data)->toHaveKey('igsn_metadata')
+        ->and($data['igsn_metadata'])->toMatchArray([
+            'sample_type' => 'Rock',
+            'material' => 'Granite',
+            'cruise_field_program' => 'Alpine 2023',
+            'sample_purpose' => 'Tectonic study',
+            'collection_method' => 'Drilling',
+        ])
+        ->and($data['igsn_metadata']['parent'])->toMatchArray([
+            'doi' => '10.58050/IGSN-PARENT',
+        ])
+        ->and($data['igsn_metadata']['parent']['landing_page'])->toBeArray()
+        ->and($data['igsn_metadata']['parent']['landing_page'])->toHaveKey('public_url');
+
+    // sorted by position ascending
+    expect($data)->toHaveKey('igsn_classifications')
+        ->and($data['igsn_classifications'])->toHaveCount(2)
+        ->and($data['igsn_classifications'][0]['value'])->toBe('Igneous')
+        ->and($data['igsn_classifications'][1]['value'])->toBe('Plutonic');
+});
+
+test('omits parent landing_page when parent is unpublished', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+    $resource->forceFill(['id' => 1]);
+
+    $parentLandingPage = new LandingPage;
+    $parentLandingPage->forceFill(['id' => 7, 'slug' => 'parent-slug', 'is_published' => false]);
+
+    $parent = new Resource;
+    $parent->forceFill(['id' => 99, 'doi' => '10.58050/IGSN-PARENT']);
+    $parent->setRelation('landingPage', $parentLandingPage);
+
+    $igsn = new IgsnMetadata;
+    $igsn->forceFill(['id' => 1, 'sample_type' => 'Rock']);
+    $igsn->setRelation('parentResource', $parent);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+    $resource->setRelation('dates', new EloquentCollection);
+    $resource->setRelation('igsnMetadata', $igsn);
+    $resource->setRelation('igsnClassifications', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['igsn_metadata']['parent']['doi'])->toBe('10.58050/IGSN-PARENT');
+    expect($data['igsn_metadata']['parent']['landing_page'])->toBeNull();
 });

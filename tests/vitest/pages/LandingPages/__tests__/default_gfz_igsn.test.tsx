@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia's usePage hook
 vi.mock('@inertiajs/react', () => ({
     usePage: vi.fn(),
+    Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
 import { usePage } from '@inertiajs/react';
@@ -198,8 +200,8 @@ describe('DefaultGfzIgsnTemplate', () => {
         });
     });
 
-    describe('Simplified Content (No Abstract/Files sections)', () => {
-        it('does not render Abstract section', () => {
+    describe('Simplified Content (No Files section)', () => {
+        it('renders Abstract section when descriptions are provided', () => {
             mockUsePage.mockReturnValue({
                 props: {
                     resource: {
@@ -213,9 +215,8 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            // Abstract section should not be rendered in IGSN template
-            expect(screen.queryByText('Abstract')).not.toBeInTheDocument();
-            expect(screen.queryByText('Sample abstract text')).not.toBeInTheDocument();
+            // Abstract content from descriptions is now rendered alongside General/Acquisition modules
+            expect(screen.getByText('Sample abstract text')).toBeInTheDocument();
         });
 
         it('does not render Files section', () => {
@@ -237,10 +238,13 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.queryByText('Download')).not.toBeInTheDocument();
         });
 
-        it('does not render Creators section', () => {
+        it('renders Creators section when creators are provided', () => {
             mockUsePage.mockReturnValue({
                 props: {
-                    resource: mockResource,
+                    resource: {
+                        ...mockResource,
+                        descriptions: [{ id: 1, value: 'Some abstract', description_type: 'Abstract' }],
+                    },
                     landingPage: mockLandingPage,
                     isPreview: false,
                 },
@@ -248,8 +252,8 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            // Creators section header should not be present
-            expect(screen.queryByText('Creators')).not.toBeInTheDocument();
+            // Creators section is rendered inside the AbstractSection card
+            expect(screen.getByText('Creators')).toBeInTheDocument();
         });
     });
 
@@ -300,6 +304,243 @@ describe('DefaultGfzIgsnTemplate', () => {
             render(<DefaultGfzIgsnTemplate />);
 
             // Should still render without crashing
+            expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
+        });
+    });
+
+    describe('General & Acquisition Modules', () => {
+        it('renders General module with IGSN-specific fields', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        doi: '10.58050/IGSN-XYZ123',
+                        igsn_metadata: {
+                            id: 1,
+                            sample_type: 'Rock',
+                            material: 'Granite',
+                            collection_method: 'Drilling',
+                            collection_method_description: null,
+                            sample_purpose: 'Tectonic study',
+                            cruise_field_program: 'Alpine 2023',
+                            parent: null,
+                        },
+                        igsn_classifications: [
+                            { id: 1, value: 'Igneous' },
+                            { id: 2, value: 'Plutonic' },
+                        ],
+                        funding_references: [
+                            { id: 1, funder_name: 'DFG', award_title: 'Project Alpha', award_number: '123' },
+                        ],
+                        dates: [
+                            { id: 1, date_type: 'Available', date_type_slug: 'Available', date_value: '2024-01-15', start_date: null, end_date: null, date_information: null },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByText('General')).toBeInTheDocument();
+            expect(screen.getByText('Project Alpha')).toBeInTheDocument();
+            expect(screen.getByText('Alpine 2023')).toBeInTheDocument();
+            expect(screen.getByText('Rock')).toBeInTheDocument();
+            expect(screen.getByText('10.58050/IGSN-XYZ123')).toBeInTheDocument();
+            expect(screen.getByText('Tectonic study')).toBeInTheDocument();
+            expect(screen.getByText('2024-01-15')).toBeInTheDocument();
+        });
+
+        it('renders Acquisition module with IGSN-specific fields', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        igsn_metadata: {
+                            id: 1,
+                            sample_type: null,
+                            material: 'Basalt',
+                            collection_method: 'Hand sampling',
+                            collection_method_description: 'Surface outcrop',
+                            sample_purpose: null,
+                            cruise_field_program: null,
+                            parent: null,
+                        },
+                        igsn_classifications: [
+                            { id: 1, value: 'Igneous' },
+                            { id: 2, value: 'Volcanic' },
+                        ],
+                        funding_references: [
+                            { id: 1, funder_name: 'NSF', award_title: 'X', award_number: 'Y' },
+                        ],
+                        descriptions: [
+                            { id: 1, value: 'Field comments here', description_type: 'Other' },
+                        ],
+                        contributors: [
+                            {
+                                id: 1,
+                                position: 1,
+                                affiliations: [],
+                                contributorable: { type: 'Person', id: 1, given_name: 'Jane', family_name: 'Smith' },
+                                contributor_types: ['Data Collector'],
+                            },
+                        ],
+                        dates: [
+                            { id: 1, date_type: 'Collected', date_type_slug: 'Collected', date_value: null, start_date: '2023-06-01', end_date: '2023-06-30', date_information: null },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByText('Acquisition')).toBeInTheDocument();
+            expect(screen.getByText('Basalt')).toBeInTheDocument();
+            expect(screen.getByText('Igneous, Volcanic')).toBeInTheDocument();
+            expect(screen.getByText('Hand sampling')).toBeInTheDocument();
+            expect(screen.getByText('Surface outcrop')).toBeInTheDocument();
+            expect(screen.getByText('NSF')).toBeInTheDocument();
+            expect(screen.getByText('Field comments here')).toBeInTheDocument();
+            expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+            expect(screen.getByText('2023-06-01')).toBeInTheDocument();
+            expect(screen.getByText('2023-06-30')).toBeInTheDocument();
+        });
+
+        it('hides General and Acquisition modules when no IGSN data is provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.queryByText('General')).not.toBeInTheDocument();
+            expect(screen.queryByText('Acquisition')).not.toBeInTheDocument();
+        });
+
+        it('renders Parent IGSN as link when parent landing page is published', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        doi: '10.58050/IGSN-CHILD',
+                        igsn_metadata: {
+                            id: 1,
+                            sample_type: null,
+                            material: null,
+                            collection_method: null,
+                            collection_method_description: null,
+                            sample_purpose: null,
+                            cruise_field_program: null,
+                            parent: {
+                                doi: '10.58050/IGSN-PARENT',
+                                landing_page: {
+                                    public_url: 'https://example.test/landing/parent-slug',
+                                },
+                            },
+                        },
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const parentLink = screen.getByRole('link', { name: '10.58050/IGSN-PARENT' });
+            expect(parentLink).toBeInTheDocument();
+            expect(parentLink).toHaveAttribute('href', 'https://example.test/landing/parent-slug');
+        });
+    });
+
+    describe('Template customisation props', () => {
+        it('uses customLogoUrl when provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    customLogoUrl: 'https://cdn.example/custom.png',
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute(
+                'src',
+                'https://cdn.example/custom.png',
+            );
+        });
+
+        it('respects sectionOrder.leftColumn override', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        doi: '10.58050/IGSN-X',
+                        igsn_metadata: {
+                            id: 1,
+                            sample_type: 'Rock',
+                            material: 'Granite',
+                            collection_method: null,
+                            collection_method_description: null,
+                            sample_purpose: null,
+                            cruise_field_program: null,
+                            parent: null,
+                        },
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        leftColumn: ['acquisition', 'general', 'contact', 'model_description', 'related_work'],
+                        rightColumn: ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const general = screen.getByText('General');
+            const acquisition = screen.getByText('Acquisition');
+
+            // Acquisition should appear before General in the DOM with the override
+            expect(acquisition.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('embeds schema.org JSON-LD when provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    schemaOrgJsonLd: { '@context': 'https://schema.org', '@type': 'Dataset', name: 'Test' },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const script = document.querySelector('script[type="application/ld+json"]');
+            expect(script?.textContent).toContain('"@type":"Dataset"');
+        });
+
+        it('falls back to "published" status when landingPage has no status and not in preview', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: { id: 1, ftp_url: null },
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            // Should still render the page with main title; status defaulted internally
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
         });
     });
