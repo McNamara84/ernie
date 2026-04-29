@@ -345,6 +345,53 @@ final readonly class ResourceQueryBuilder
                 $query->orderBy('publication_year', $sortDirection);
                 break;
 
+            case 'created_at':
+                // Match the timestamps surfaced by ResourceListItemResource:
+                // it prefers the earliest DataCite `Created` entry from the
+                // `dates` relation and only falls back to resources.created_at
+                // when no Created row exists. Sorting must mirror this so list
+                // rows are not visibly out of order.
+                $query->orderByRaw(
+                    match ($sortDirection) {
+                        'desc' => 'COALESCE('
+                            .'(SELECT MIN(COALESCE(rd.date_value, rd.start_date)) '
+                            .'FROM dates rd '
+                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
+                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
+                            .'resources.created_at) desc',
+                        default => 'COALESCE('
+                            .'(SELECT MIN(COALESCE(rd.date_value, rd.start_date)) '
+                            .'FROM dates rd '
+                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
+                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
+                            .'resources.created_at) asc',
+                    },
+                    ['Created']
+                );
+                break;
+
+            case 'updated_at':
+                // Mirror ResourceListItemResource: latest DataCite `Updated`
+                // entry, falling back to resources.updated_at.
+                $query->orderByRaw(
+                    match ($sortDirection) {
+                        'desc' => 'COALESCE('
+                            .'(SELECT MAX(COALESCE(rd.date_value, rd.start_date)) '
+                            .'FROM dates rd '
+                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
+                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
+                            .'resources.updated_at) desc',
+                        default => 'COALESCE('
+                            .'(SELECT MAX(COALESCE(rd.date_value, rd.start_date)) '
+                            .'FROM dates rd '
+                            .'INNER JOIN date_types dt ON rd.date_type_id = dt.id '
+                            .'WHERE rd.resource_id = resources.id AND dt.slug = ?), '
+                            .'resources.updated_at) asc',
+                    },
+                    ['Updated']
+                );
+                break;
+
             default:
                 $query->orderBy($sortKey, $sortDirection);
                 break;
