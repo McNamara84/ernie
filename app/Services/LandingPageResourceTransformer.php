@@ -9,6 +9,8 @@ use App\Models\ContributorType;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\IdentifierType;
+use App\Models\IgsnClassification;
+use App\Models\IgsnMetadata;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
@@ -22,8 +24,10 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\Right;
 use App\Models\Title;
+use Illuminate\Database\Eloquent\Collection;
 
 final class LandingPageResourceTransformer
 {
@@ -53,6 +57,8 @@ final class LandingPageResourceTransformer
             'fundingReferences.funderIdentifierType',
             'resourceType',
             'language',
+            'igsnMetadata.parentResource.landingPage',
+            'igsnClassifications',
         ];
     }
 
@@ -93,7 +99,7 @@ final class LandingPageResourceTransformer
 
         $relatedItems = $resource->relationLoaded('relatedItems')
             ? $resource->relatedItems
-            : new \Illuminate\Database\Eloquent\Collection;
+            : new Collection;
 
         $resourceData['related_items'] = $relatedItems
             ->sortBy('position')
@@ -415,6 +421,65 @@ final class LandingPageResourceTransformer
 
         // 6. Merge: creators first, then contributors
         $resourceData['contact_persons'] = $mappedCreators->concat($mappedContributors)->values()->all();
+
+        // Transform dates to a flat shape (date_type as string).
+        // Defensive: relation may not be eager-loaded in unit tests.
+        $dates = $resource->relationLoaded('dates')
+            ? $resource->dates
+            : new Collection;
+
+        $resourceData['dates'] = $dates
+            ->map(static function (ResourceDate $date): array {
+                $dateType = $date->relationLoaded('dateType') ? $date->dateType : null;
+
+                return [
+                    'id' => $date->id,
+                    'date_type' => $dateType?->name,
+                    'date_type_slug' => $dateType?->slug,
+                    'date_value' => $date->date_value,
+                    'start_date' => $date->start_date,
+                    'end_date' => $date->end_date,
+                    'date_information' => $date->date_information,
+                ];
+            })
+            ->all();
+
+        // IGSN-specific metadata (only present for PhysicalObject resources)
+        if ($resource->relationLoaded('igsnMetadata') && $resource->igsnMetadata !== null) {
+            /** @var IgsnMetadata $meta */
+            $meta = $resource->igsnMetadata;
+            $parent = $meta->parentResource;
+            $parentLandingPage = $parent?->landingPage;
+
+            $resourceData['igsn_metadata'] = [
+                'sample_type' => $meta->sample_type,
+                'material' => $meta->material,
+                'cruise_field_program' => $meta->cruise_field_program,
+                'sample_purpose' => $meta->sample_purpose,
+                'collection_method' => $meta->collection_method,
+                'collection_method_description' => $meta->collection_method_description,
+                'parent' => $parent === null ? null : [
+                    'doi' => $parent->doi,
+                    'landing_page' => ($parentLandingPage !== null && $parentLandingPage->status === 'published')
+                        ? ['public_url' => $parentLandingPage->public_url]
+                        : null,
+                ],
+            ];
+
+            $resourceData['igsn_classifications'] = ($resource->relationLoaded('igsnClassifications')
+                ? $resource->igsnClassifications
+                : new Collection)
+                ->sortBy('position')
+                ->values()
+                ->map(static fn (IgsnClassification $classification): array => [
+                    'id' => $classification->id,
+                    'value' => $classification->value,
+                ])
+                ->all();
+        } else {
+            $resourceData['igsn_metadata'] = null;
+            $resourceData['igsn_classifications'] = [];
+        }
 
         return $resourceData;
     }

@@ -6,7 +6,7 @@ export type RightColumnSection = 'descriptions' | 'creators' | 'contributors' | 
 /**
  * Left column section identifiers for landing page templates.
  */
-export type LeftColumnSection = 'files' | 'contact' | 'model_description' | 'related_work';
+export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'contact' | 'model_description' | 'related_work';
 
 /**
  * Section order configuration for landing page templates.
@@ -501,6 +501,53 @@ export interface LandingPageContactPerson {
 }
 
 /**
+ * Resource date entry for landing pages.
+ */
+export interface LandingPageResourceDate {
+    id: number;
+    /** Human-readable date type name (e.g., 'Available', 'Collected') */
+    date_type: string | null;
+    /** Slug form (e.g., 'Available', 'Collected') */
+    date_type_slug: string | null;
+    /** Single date value */
+    date_value: string | null;
+    /** Range start */
+    start_date: string | null;
+    /** Range end */
+    end_date: string | null;
+    /** Free-text date information */
+    date_information: string | null;
+}
+
+/**
+ * IGSN-specific metadata for PhysicalObject resources on landing pages.
+ */
+export interface LandingPageIgsnMetadata {
+    sample_type: string | null;
+    material: string | null;
+    /** Cruise / field program (rendered as "Campaign") */
+    cruise_field_program: string | null;
+    /** Sample purpose (rendered as "Purpose") */
+    sample_purpose: string | null;
+    collection_method: string | null;
+    collection_method_description: string | null;
+    /** Parent IGSN reference (null when standalone) */
+    parent: {
+        doi: string | null;
+        /** Parent's published landing page URL (null when not published) */
+        landing_page: { public_url: string } | null;
+    } | null;
+}
+
+/**
+ * IGSN rock classification entry.
+ */
+export interface LandingPageIgsnClassification {
+    id: number;
+    value: string;
+}
+
+/**
  * Complete resource data as passed to landing page templates
  *
  * Arrays are optional to support partial data from backend
@@ -508,6 +555,8 @@ export interface LandingPageContactPerson {
 export interface LandingPageResource {
     id: number;
     identifier: string | null;
+    /** DOI / IGSN identifier string (when registered) */
+    doi?: string | null;
     publication_year?: number;
     version: string | null;
     language: string | null;
@@ -522,7 +571,12 @@ export interface LandingPageResource {
     funding_references?: LandingPageFundingReference[];
     subjects?: LandingPageSubject[];
     geo_locations?: LandingPageGeoLocation[];
+    dates?: LandingPageResourceDate[];
     contact_persons?: LandingPageContactPerson[];
+    /** IGSN-specific metadata (only present for PhysicalObject resources) */
+    igsn_metadata?: LandingPageIgsnMetadata | null;
+    /** IGSN rock classifications (ordered) */
+    igsn_classifications?: LandingPageIgsnClassification[];
 }
 
 /**

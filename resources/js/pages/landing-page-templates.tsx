@@ -37,6 +37,8 @@ const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
 /** Display labels for left column sections */
 const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
     files: 'Files & Downloads',
+    general: 'General',
+    acquisition: 'Acquisition',
     contact: 'Contact Person',
     model_description: 'Model / Method Description',
     related_work: 'Related Work',
