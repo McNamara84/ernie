@@ -57,10 +57,23 @@ it('coerces numeric query results to string', function (): void {
     expect(XmlElementHelpers::firstStringFromQuery($fakeQuery))->toBe('1.5');
 });
 
-it('returns null for non-object query input', function (): void {
+it('returns null for unsupported query input', function (): void {
     expect(XmlElementHelpers::firstStringFromQuery(null))->toBeNull()
-        ->and(XmlElementHelpers::firstStringFromQuery('plain'))->toBeNull()
-        ->and(XmlElementHelpers::firstStringFromQuery(42))->toBeNull();
+        ->and(XmlElementHelpers::firstStringFromQuery(true))->toBeNull()
+        ->and(XmlElementHelpers::firstStringFromQuery(new \stdClass()))->toBeNull();
+});
+
+it('accepts scalar query results directly', function (): void {
+    expect(XmlElementHelpers::firstStringFromQuery('plain'))->toBe('plain')
+        ->and(XmlElementHelpers::firstStringFromQuery(42))->toBe('42')
+        ->and(XmlElementHelpers::firstStringFromQuery(1.5))->toBe('1.5');
+});
+
+it('extracts the first scalar from an array query result', function (): void {
+    expect(XmlElementHelpers::firstStringFromQuery(['first', 'second']))->toBe('first')
+        ->and(XmlElementHelpers::firstStringFromQuery([['nested-first']]))->toBe('nested-first')
+        ->and(XmlElementHelpers::firstStringFromQuery([new Element('elem-content')]))->toBe('elem-content')
+        ->and(XmlElementHelpers::firstStringFromQuery([]))->toBeNull();
 });
 
 it('extracts the first element from an xpath element query', function (): void {

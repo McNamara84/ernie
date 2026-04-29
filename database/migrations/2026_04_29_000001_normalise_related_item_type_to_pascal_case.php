@@ -26,20 +26,45 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $rows = DB::table('related_items')
+        // Pre-filter at the database level so we only touch rows that
+        // actually need conversion. The legacy parser produced kebab-case
+        // (lowercase + hyphens), so a value containing a hyphen or starting
+        // with a lowercase letter is the only candidate. Already-canonical
+        // PascalCase rows (the vast majority) are skipped without ever being
+        // hydrated into PHP, which keeps memory bounded and avoids issuing
+        // no-op UPDATEs.
+        DB::table('related_items')
             ->select(['id', 'related_item_type'])
-            ->get();
+            ->where(function ($query): void {
+                $query->where('related_item_type', 'like', '%-%')
+                    ->orWhereRaw('SUBSTR(related_item_type, 1, 1) = LOWER(SUBSTR(related_item_type, 1, 1))');
+            })
+            ->orderBy('id')
+            ->chunkById(500, function ($rows): void {
+                /** @var array<string, list<int>> $idsByCanonical */
+                $idsByCanonical = [];
 
-        foreach ($rows as $row) {
-            $current = (string) $row->related_item_type;
-            $canonical = Str::studly($current);
+                foreach ($rows as $row) {
+                    $current = (string) $row->related_item_type;
+                    $canonical = Str::studly($current);
 
-            if ($canonical !== '' && $canonical !== $current) {
-                DB::table('related_items')
-                    ->where('id', $row->id)
-                    ->update(['related_item_type' => $canonical]);
-            }
-        }
+                    if ($canonical === '' || $canonical === $current) {
+                        continue;
+                    }
+
+                    $idsByCanonical[$canonical][] = (int) $row->id;
+                }
+
+                // One UPDATE per distinct target value, scoped to the matching
+                // chunk ids. With ~10 distinct DataCite resourceTypeGeneral
+                // values in practice this collapses thousands of per-row
+                // UPDATEs into a handful of batched ones.
+                foreach ($idsByCanonical as $canonical => $ids) {
+                    DB::table('related_items')
+                        ->whereIn('id', $ids)
+                        ->update(['related_item_type' => $canonical]);
+                }
+            });
     }
 
     /**

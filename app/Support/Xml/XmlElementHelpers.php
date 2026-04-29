@@ -20,23 +20,62 @@ final class XmlElementHelpers
     /**
      * Extract the first string value from an XmlReader::xpathValue() query result.
      *
-     * Accepts the dynamic return type of XmlWrangler queries (LazyQuery|array|object)
-     * and returns the first scalar value coerced to a string, or null.
+     * Accepts the dynamic return type of XmlWrangler queries, which depending
+     * on the query and document shape can be:
+     *  - a `LazyQuery`-style object exposing `first()` (the common case),
+     *  - an `array` of scalar / `Element` values (when the same element repeats
+     *    or when callers pass through the already-collected result),
+     *  - a bare scalar (`string|int|float`),
+     *  - or `null` / anything else (no value).
+     *
+     * Returns the first scalar value coerced to a string, or `null`.
      */
     public static function firstStringFromQuery(mixed $query): ?string
     {
-        if (! is_object($query) || ! method_exists($query, 'first')) {
-            return null;
+        if (is_object($query) && method_exists($query, 'first')) {
+            $query = $query->first();
         }
 
-        $value = $query->first();
-
-        if (is_string($value)) {
-            return $value;
+        if (is_array($query)) {
+            $query = self::firstScalarFromList($query);
         }
 
-        if (is_int($value) || is_float($value)) {
-            return (string) $value;
+        if (is_string($query)) {
+            return $query;
+        }
+
+        if (is_int($query) || is_float($query)) {
+            return (string) $query;
+        }
+
+        return null;
+    }
+
+    /**
+     * Walk a (possibly nested) array of XmlWrangler values and return the first
+     * scalar leaf, mirroring how `LazyQuery::first()` peels through wrappers.
+     *
+     * @param  array<int|string, mixed>  $values
+     */
+    private static function firstScalarFromList(array $values): string|int|float|null
+    {
+        foreach ($values as $value) {
+            if ($value instanceof Element) {
+                $value = $value->getContent();
+            }
+
+            if (is_array($value)) {
+                $nested = self::firstScalarFromList($value);
+                if ($nested !== null) {
+                    return $nested;
+                }
+
+                continue;
+            }
+
+            if (is_string($value) || is_int($value) || is_float($value)) {
+                return $value;
+            }
         }
 
         return null;
