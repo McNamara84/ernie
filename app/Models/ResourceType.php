@@ -6,16 +6,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Str;
 
 #[Fillable(['name', 'slug', 'description', 'is_active', 'is_elmo_active'])]
 class ResourceType extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     protected $casts = [
@@ -48,6 +50,52 @@ class ResourceType extends Model
     public function scopeOrderByName(Builder $query): Builder
     {
         return $query->orderBy('name');
+    }
+
+    /**
+     * Map this resource type's human-readable `name` to the
+     * DataCite 4.7 `resourceTypeGeneral` enum value (PascalCase, no spaces),
+     * which is also the canonical representation used for
+     * `related_items.related_item_type`.
+     *
+     * Examples: `Journal Article` → `JournalArticle`, `Book` → `Book`.
+     *
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relateditem/
+     */
+    public function dataciteResourceTypeGeneral(): string
+    {
+        return self::nameToDataciteResourceTypeGeneral($this->name);
+    }
+
+    /**
+     * Static helper for boundary code that has the human-readable name
+     * but not a hydrated model (e.g. validation rules or vocabulary endpoints).
+     */
+    public static function nameToDataciteResourceTypeGeneral(string $name): string
+    {
+        return Str::studly($name);
+    }
+
+    /**
+     * List of all DataCite resourceTypeGeneral values currently allowed
+     * as `related_items.related_item_type`. Derived from the active rows
+     * in `resource_types` so curators can extend the vocabulary at runtime
+     * without touching code.
+     *
+     * @return list<string>
+     */
+    public static function activeDataciteResourceTypesGeneral(): array
+    {
+        /** @var list<string> $names */
+        $names = self::query()
+            ->active()
+            ->pluck('name')
+            ->all();
+
+        return array_values(array_unique(array_map(
+            self::nameToDataciteResourceTypeGeneral(...),
+            $names,
+        )));
     }
 
     /**

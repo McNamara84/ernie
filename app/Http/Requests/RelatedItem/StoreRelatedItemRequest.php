@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\RelatedItem;
 
 use App\Models\RelatedItem;
+use App\Models\ResourceType;
 use App\Rules\HasMainTitle;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,22 +20,27 @@ class StoreRelatedItemRequest extends FormRequest
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         $currentYear = (int) date('Y');
 
         return [
-            'related_item_type' => ['required', 'string', Rule::exists('resource_types', 'slug')],
+            // `related_item_type` is the canonical DataCite 4.7
+            // `resourceTypeGeneral` enum value (PascalCase, no spaces — e.g.
+            // `JournalArticle`). The XML parser, vocabularies endpoint, and
+            // DataCite exporters all agree on this representation; see
+            // `ResourceType::nameToDataciteResourceTypeGeneral()`.
+            'related_item_type' => ['required', 'string', Rule::in(ResourceType::activeDataciteResourceTypesGeneral())],
             'relation_type_id' => ['required', 'integer', Rule::exists('relation_types', 'id')],
 
-            'titles' => ['required', 'array', 'min:1', new HasMainTitle()],
+            'titles' => ['required', 'array', 'min:1', new HasMainTitle],
             'titles.*.title' => ['required', 'string', 'max:512'],
             'titles.*.title_type' => ['required', Rule::in(RelatedItem::TITLE_TYPES)],
             'titles.*.language' => ['nullable', 'string', 'max:8'],
 
-            'publication_year' => ['nullable', 'integer', 'between:1000,' . ($currentYear + 5)],
+            'publication_year' => ['nullable', 'integer', 'between:1000,'.($currentYear + 5)],
             'volume' => ['nullable', 'string', 'max:64'],
             'issue' => ['nullable', 'string', 'max:64'],
             'number' => ['nullable', 'string', 'max:64'],

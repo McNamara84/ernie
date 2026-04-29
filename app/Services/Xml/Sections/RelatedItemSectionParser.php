@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Models\ResourceType;
 use App\Support\Xml\XmlElementHelpers;
-use Illuminate\Support\Str;
 use Saloon\XmlWrangler\Data\Element;
 use Saloon\XmlWrangler\XmlReader;
 
@@ -42,18 +42,17 @@ final readonly class RelatedItemSectionParser
                 continue;
             }
 
-            // DataCite XML carries the resource type general value in PascalCase
-            // (e.g. "JournalArticle"), but `resource_types.slug` is generated
-            // from `Str::slug($name)` in `ResourceTypeSeeder`, which yields
-            // kebab-case ("journal-article"). `StoreResourceRequest` validates
-            // the parser output via `Rule::exists('resource_types', 'slug')`,
-            // so without normalisation imported related items would fail to
-            // round-trip through save. `Str::kebab` is idempotent for values
-            // that are already kebab-case, and `Str::slug` cannot be used here
-            // because it does not split CamelCase ("JournalArticle" →
-            // "journalarticle", which still does not match the seeded slug).
+            // DataCite XML carries the resource type general value in
+            // PascalCase (e.g. "JournalArticle"), which is also the canonical
+            // representation persisted to `related_items.related_item_type`
+            // (consumed by `CitationFormatter::containerTitle()` and emitted
+            // verbatim by both DataCite exporters). The seeder slugs in
+            // `resource_types.slug` are an unrelated kebab-case URL form and
+            // intentionally not used here. The mapping is centralised in
+            // `ResourceType::nameToDataciteResourceTypeGeneral()` so the parser
+            // / vocabulary endpoint / validation all agree on the format.
             $entry = [
-                'related_item_type' => Str::kebab(trim($relatedItemType)),
+                'related_item_type' => ResourceType::nameToDataciteResourceTypeGeneral(trim($relatedItemType)),
                 'relation_type_slug' => trim($relationTypeSlug),
                 'titles' => $titles,
                 'creators' => $this->extractCreators($item),

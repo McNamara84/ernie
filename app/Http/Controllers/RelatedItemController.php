@@ -94,7 +94,16 @@ class RelatedItemController extends Controller
             ->active()
             ->orderByName()
             ->get(['slug', 'name'])
-            ->map(fn (ResourceType $t): array => ['value' => $t->slug, 'label' => $t->name])
+            ->map(fn (ResourceType $t): array => [
+                // Use the DataCite `resourceTypeGeneral` PascalCase form
+                // (e.g. `JournalArticle`) so the value submitted by the
+                // Citation Manager Select matches what is persisted to
+                // `related_items.related_item_type` and accepted by
+                // `StoreRelatedItemRequest`. The unrelated kebab-case
+                // `resource_types.slug` is intentionally not exposed here.
+                'value' => $t->dataciteResourceTypeGeneral(),
+                'label' => $t->name,
+            ])
             ->all();
 
         $relationTypes = RelationType::query()

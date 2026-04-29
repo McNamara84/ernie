@@ -84,7 +84,7 @@ test('extracts DataCite 4.7 <relatedItems> from uploaded XML', function () {
 
     // First item — rich metadata.
     expect($items[0])->toMatchArray([
-        'related_item_type' => 'journal-article',
+        'related_item_type' => 'JournalArticle',
         'relation_type_slug' => 'IsCitedBy',
         'publication_year' => 2020,
         'volume' => '12',
@@ -130,7 +130,7 @@ test('extracts DataCite 4.7 <relatedItems> from uploaded XML', function () {
 
     // Second item — minimal, title promoted to MainTitle.
     expect($items[1])->toMatchArray([
-        'related_item_type' => 'book',
+        'related_item_type' => 'Book',
         'relation_type_slug' => 'IsSupplementTo',
         'publication_year' => 2019,
     ]);
@@ -307,15 +307,16 @@ XML);
         expect($items[0]['creators'][0]['name_type'])->toBe('Personal');
     });
 
-    test('normalises DataCite PascalCase relatedItemType to the kebab-case slug stored by ResourceTypeSeeder (Issue: PR #679 review)', function () {
-        // ResourceTypeSeeder seeds slugs via Str::slug($name), e.g.
-        //   "Journal Article" → "journal-article"
-        //   "Conference Paper" → "conference-paper"
-        //   "Book Chapter" → "book-chapter"
-        // DataCite XML, however, carries the PascalCase form ("JournalArticle",
-        // "ConferencePaper", "BookChapter"). Without normalisation
-        // `StoreResourceRequest`'s `Rule::exists('resource_types', 'slug')`
-        // would reject every imported related item in production.
+    test('preserves DataCite PascalCase relatedItemType as the canonical resourceTypeGeneral enum (Issue: PR #679 review)', function () {
+        // DataCite 4.7 carries `relatedItemType` as the PascalCase
+        // `resourceTypeGeneral` enum (e.g. `JournalArticle`,
+        // `ConferencePaper`, `BookChapter`). The parser preserves that form
+        // verbatim because it is the canonical representation persisted to
+        // `related_items.related_item_type`, accepted by
+        // `StoreResourceRequest` / `StoreRelatedItemRequest`, emitted by both
+        // DataCite exporters, and consumed by
+        // `CitationFormatter::containerTitle()`. The unrelated kebab-case
+        // `resource_types.slug` is intentionally not used for this column.
         $items = uploadRelatedItemsXml(<<<'XML'
     <relatedItem relatedItemType="JournalArticle" relationType="Cites">
       <titles><title>JA</title></titles>
@@ -332,17 +333,17 @@ XML);
 XML);
 
         expect($items)->toHaveCount(4);
-        expect($items[0]['related_item_type'])->toBe('journal-article');
-        expect($items[1]['related_item_type'])->toBe('conference-paper');
-        expect($items[2]['related_item_type'])->toBe('book-chapter');
-        expect($items[3]['related_item_type'])->toBe('book');
+        expect($items[0]['related_item_type'])->toBe('JournalArticle');
+        expect($items[1]['related_item_type'])->toBe('ConferencePaper');
+        expect($items[2]['related_item_type'])->toBe('BookChapter');
+        expect($items[3]['related_item_type'])->toBe('Book');
 
-        // Sanity: every value must exist in the production-seeded
-        // resource_types.slug column.
+        // Sanity: every value must be in the active DataCite enum derived
+        // from the production-seeded resource_types vocabulary.
         $this->seed(ResourceTypeSeeder::class);
-        $existing = ResourceType::query()->pluck('slug')->all();
+        $allowed = ResourceType::activeDataciteResourceTypesGeneral();
         foreach ($items as $item) {
-            expect($existing)->toContain($item['related_item_type']);
+            expect($allowed)->toContain($item['related_item_type']);
         }
     });
 });

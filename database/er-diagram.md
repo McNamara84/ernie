@@ -341,7 +341,7 @@ erDiagram
     related_items {
         bigint id PK
         bigint resource_id FK
-        varchar related_item_type "resource_types.slug"
+        varchar related_item_type "DataCite resourceTypeGeneral (PascalCase)"
         bigint relation_type_id FK
         smallint publication_year "nullable"
         varchar volume "nullable"

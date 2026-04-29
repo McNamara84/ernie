@@ -382,7 +382,7 @@ entity "related_items" as related_items {
     * **id** : BIGINT <<PK>>
     --
     * resource_id : BIGINT <<FK>>
-    * related_item_type : VARCHAR(64) //resource_types.slug//
+    * related_item_type : VARCHAR(64) //DataCite resourceTypeGeneral (PascalCase)//
     * relation_type_id : BIGINT <<FK>>
     publication_year : SMALLINT
     volume : VARCHAR(64)
