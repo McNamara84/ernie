@@ -130,6 +130,104 @@ describe('DataCiteToResourceTransformer::transformSizes()', function (): void {
         expect($size->numeric_value)->toBeNull()
             ->and($size->unit)->toBe('several pages');
     });
+
+    it('preserves long DataCite free-text size descriptions verbatim in unit', function (): void {
+        // Regression guard for SQLSTATE[22001] "Data too long for column 'unit'"
+        // observed when importing real DataCite payloads that use the `sizes`
+        // property as a prose summary rather than a structured value.
+        // The full original wording must survive the round-trip so it can be
+        // re-exported unchanged via the Size::$export_string accessor.
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+        $original = 'Approximately 80 active stations; greater than 440MB/day.';
+
+        $resource = $transformer->transform(
+            sizesDoiData('10.5880/sizes.freetext.long.001', [$original]),
+            $user->id,
+        );
+
+        $size = Size::where('resource_id', $resource->id)->sole();
+
+        expect($size->numeric_value)->toBeNull()
+            ->and($size->unit)->toBe($original)
+            ->and($size->export_string)->toBe($original);
+    });
+
+    it('does not split when the trailing unit token is a long sentence fragment', function (): void {
+        // The tail "files of seismic data, version 2" starts with a real word
+        // but is far longer than a unit and contains a comma. Splitting would
+        // (a) lose the original wording on export and (b) cram the remainder
+        // into `sizes.unit`. The transformer must therefore keep the whole
+        // string in `unit` and leave `numeric_value` empty.
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+        $original = '1000 files of seismic data, version 2';
+
+        $resource = $transformer->transform(
+            sizesDoiData('10.5880/sizes.freetext.long.002', [$original]),
+            $user->id,
+        );
+
+        $size = Size::where('resource_id', $resource->id)->sole();
+
+        expect($size->numeric_value)->toBeNull()
+            ->and($size->unit)->toBe($original);
+    });
+
+    it('does not split when the trailing unit token contains semicolons', function (): void {
+        // Sentence punctuation is a strong signal that the tail is prose, not
+        // a unit. The transformer must keep the original string intact.
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+        $original = '440MB/day; about 80 active stations';
+
+        $resource = $transformer->transform(
+            sizesDoiData('10.5880/sizes.freetext.long.003', [$original]),
+            $user->id,
+        );
+
+        $size = Size::where('resource_id', $resource->id)->sole();
+
+        expect($size->numeric_value)->toBeNull()
+            ->and($size->unit)->toBe($original);
+    });
+
+    it('still splits compact unit tokens with up to three words', function (): void {
+        // Boundary case for the "<= 3 words" rule of looksLikeSizeUnit():
+        // "files per minute" is exactly three tokens, contains no punctuation,
+        // and stays well below the 50-character cap, so it must still be
+        // recognised as a unit and trigger the structured split.
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform(
+            sizesDoiData('10.5880/sizes.boundary.threewords', ['12 files per minute']),
+            $user->id,
+        );
+
+        $size = Size::where('resource_id', $resource->id)->sole();
+
+        expect($size->numeric_value)->toBe('12.0000')
+            ->and($size->unit)->toBe('files per minute');
+    });
+
+    it('skips empty size entries without persisting placeholder rows', function (): void {
+        // Empty strings must be silently ignored — they contain no information
+        // worth round-tripping and would otherwise produce blank Size rows.
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform(
+            sizesDoiData('10.5880/sizes.empty.001', ['', '5 GB']),
+            $user->id,
+        );
+
+        $sizes = Size::where('resource_id', $resource->id)->get();
+
+        expect($sizes)->toHaveCount(1)
+            ->and($sizes->first()->numeric_value)->toBe('5.0000')
+            ->and($sizes->first()->unit)->toBe('GB');
+    });
 });
 
 describe('sizes.numeric_value column precision', function (): void {

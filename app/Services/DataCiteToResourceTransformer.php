@@ -36,6 +36,7 @@ use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -638,7 +639,7 @@ class DataCiteToResourceTransformer
             'gmbh', 'ltd', 'inc', 'e\.v\.', 'helmholtz',
         ];
 
-        $pattern = '/\b(' . implode('|', $orgKeywords) . ')\b/iu';
+        $pattern = '/\b('.implode('|', $orgKeywords).')\b/iu';
 
         return (bool) preg_match($pattern, $name);
     }
@@ -1261,8 +1262,17 @@ class DataCiteToResourceTransformer
 
             $size = trim($size);
 
-            // Try to parse "number unit" pattern (e.g., "1.5 GB", "1000 files", "1.5GB")
-            if (preg_match('/^([\d.]+)\s*(.+)$/', $size, $matches)) {
+            // Try to parse "number unit" pattern (e.g., "1.5 GB", "1000 files", "1.5GB").
+            // We only split when the trailing unit part actually looks like a
+            // unit token; otherwise free-text values such as
+            // "440MB/day; about 80 active stations" would be partially
+            // misinterpreted (numeric prefix stripped) and the long remainder
+            // would overflow sizes.unit. See the implementation plan for the
+            // contract this helper enforces.
+            if (
+                preg_match('/^([\d.]+)\s*(.+)$/', $size, $matches) === 1
+                && $this->looksLikeSizeUnit($matches[2])
+            ) {
                 Size::create([
                     'resource_id' => $resource->id,
                     'numeric_value' => $matches[1],
@@ -1276,6 +1286,32 @@ class DataCiteToResourceTransformer
                 ]);
             }
         }
+    }
+
+    /**
+     * Decide whether the captured "tail" of a size string looks like a real
+     * unit token (e.g. "GB", "pages", "Mb/s") rather than a sentence fragment.
+     *
+     * A candidate is treated as a unit when ALL of the following hold:
+     *  - it is at most 50 characters long (matches the historical column size
+     *    and keeps "unit" semantically narrow);
+     *  - it consists of at most three whitespace-separated tokens;
+     *  - it contains no sentence punctuation (".", ",", ";", ":").
+     *
+     * Anything else is preserved verbatim by the caller in `sizes.unit` so the
+     * original DataCite free-text wording survives the round-trip.
+     */
+    private function looksLikeSizeUnit(string $candidate): bool
+    {
+        if (mb_strlen($candidate) > 50) {
+            return false;
+        }
+
+        if (preg_match('/[.,;:]/', $candidate) === 1) {
+            return false;
+        }
+
+        return str_word_count($candidate) <= 3;
     }
 
     /**
@@ -1429,7 +1465,7 @@ class DataCiteToResourceTransformer
             // Invalid calendar date - try Carbon as fallback, but log a warning
             // as this may introduce data quality issues (e.g., 2024-02-30 -> 2024-03-01)
             try {
-                $correctedDate = \Carbon\Carbon::parse($date)->format('Y-m-d');
+                $correctedDate = Carbon::parse($date)->format('Y-m-d');
                 Log::warning('DataCite import: Invalid calendar date corrected by Carbon', [
                     'original' => $date,
                     'corrected' => $correctedDate,
@@ -1471,7 +1507,7 @@ class DataCiteToResourceTransformer
 
         // Try to parse with Carbon for other formats
         try {
-            return \Carbon\Carbon::parse($date)->format('Y-m-d');
+            return Carbon::parse($date)->format('Y-m-d');
         } catch (\Exception) {
             return null;
         }
