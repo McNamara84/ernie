@@ -122,15 +122,11 @@ final readonly class ResourceQueryBuilder
                         ])
                         ->orderBy('position');
                 },
-                'contributors' => function ($query): void {
-                    $query
-                        ->with([
-                            'contributorTypes',
-                            'contributorable',
-                            'affiliations',
-                        ])
-                        ->orderBy('position');
-                },
+                // Note: `contributors` are intentionally NOT eager-loaded here.
+                // ResourceListItemResource::toArray() does not surface any
+                // contributor data on list-item rows, and eager-loading them
+                // (with contributorable / contributorTypes / affiliations)
+                // would inflate query count and memory for every listing.
             ]);
     }
 

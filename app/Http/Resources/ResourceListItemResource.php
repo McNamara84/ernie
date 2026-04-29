@@ -135,9 +135,12 @@ final class ResourceListItemResource extends JsonResource
      */
     private static function assertRelationsLoaded(Resource $resource): void
     {
+        // Only relations actually consumed by toArray() (and the `publicStatus()`
+        // / `isComplete()` helpers it calls) are required here. Adding relations
+        // that the list-item contract does not surface inflates query count and
+        // memory for every list endpoint without benefit.
         $requiredRelations = [
             'creators',
-            'contributors',
             'titles',
             'rights',
             'dates',
@@ -205,25 +208,6 @@ final class ResourceListItemResource extends JsonResource
             if (! $firstCreator->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
-                );
-            }
-        }
-
-        if ($resource->contributors->isNotEmpty()) {
-            $firstContributor = $resource->contributors->first();
-            if (! $firstContributor->relationLoaded('contributorable')) {
-                throw new \RuntimeException(
-                    'Relation contributorable not loaded on ResourceContributor. N+1 query detected!'
-                );
-            }
-            if (! $firstContributor->relationLoaded('contributorTypes')) {
-                throw new \RuntimeException(
-                    'Relation contributorTypes not loaded on ResourceContributor. N+1 query detected!'
-                );
-            }
-            if (! $firstContributor->relationLoaded('affiliations')) {
-                throw new \RuntimeException(
-                    'Relation affiliations not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
         }

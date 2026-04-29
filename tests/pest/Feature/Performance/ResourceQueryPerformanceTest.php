@@ -187,3 +187,26 @@ it('maintains performance with pagination', function () {
     $response->assertStatus(200);
     $response2->assertStatus(200);
 });
+
+it('does not eager-load contributors on list endpoints (Issue: PR #679 review)', function () {
+    // Regression: ResourceListItemResource::toArray() does not surface any
+    // contributor data, so the list query builder must not eager-load the
+    // contributors relation (or its nested contributorable / contributorTypes
+    // / affiliations) — doing so inflated query count and memory for every
+    // listing without benefit.
+    $resource = Resource::factory()->create();
+    Title::factory()->for($resource)->create();
+
+    $person = Person::factory()->create();
+    $resource->contributors()->create([
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $person->id,
+        'position' => 1,
+    ]);
+
+    $loaded = app(ResourceQueryBuilder::class)->baseQuery()->find($resource->id);
+
+    expect($loaded)->not->toBeNull();
+    expect($loaded->relationLoaded('contributors'))
+        ->toBeFalse('contributors must not be eager-loaded by the list query builder');
+});
