@@ -80,7 +80,7 @@ it('makes template optional on UpdateLandingPageRequest', function () {
     expect($v->fails())->toBeFalse();
 });
 
-it('rejects external template on preview request payload validation', function () {
+it('accepts external template at the rules layer (controller rejects previews of external pages downstream)', function () {
     $user = User::factory()->create();
     $v = validatePhase8dRequest(StoreLandingPagePreviewRequest::class, ['template' => 'external'], $user);
     // External is allowed at the rules layer — the controller rejects previews of external pages.
