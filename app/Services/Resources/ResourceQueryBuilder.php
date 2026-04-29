@@ -272,9 +272,24 @@ final readonly class ResourceQueryBuilder
     {
         switch ($sortKey) {
             case 'title':
+                // Sort by the MainTitle so the displayed title (see
+                // ResourceListItemResource::toArray() and Title::isMainTitle())
+                // matches the sort order. Legacy rows with NULL title_type_id
+                // are treated as MainTitle. Only when no MainTitle exists do
+                // we fall back to the lowest-id title to keep the resource in
+                // the result set.
                 $query->leftJoin('titles', function ($join) {
                     $join->on('resources.id', '=', 'titles.resource_id')
-                        ->whereRaw('titles.id = (SELECT MIN(id) FROM titles WHERE resource_id = resources.id)');
+                        ->whereRaw(
+                            'titles.id = COALESCE('
+                            .'(SELECT MIN(t.id) FROM titles t '
+                            .'LEFT JOIN title_types tt ON t.title_type_id = tt.id '
+                            .'WHERE t.resource_id = resources.id '
+                            .'AND (t.title_type_id IS NULL OR tt.slug = ?)),'
+                            .'(SELECT MIN(t.id) FROM titles t WHERE t.resource_id = resources.id)'
+                            .')',
+                            ['MainTitle']
+                        );
                 })
                     ->orderBy('titles.value', $sortDirection)
                     ->select('resources.*');

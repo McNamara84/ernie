@@ -34,10 +34,17 @@ final class FilterOptionsResource extends JsonResource
         /** @var array<string, mixed> $payload */
         $payload = $this->resource;
 
+        // Mirror ResourceFilterController::loadYearRange(): when no usable
+        // year range is available we fall back to the current year so the
+        // documented {min:int, max:int} contract holds and frontend consumers
+        // (resources.ts, OldDatasetsFilters) never receive nulls they would
+        // crash on.
+        $currentYear = (int) now()->year;
+
         return [
             'resource_types' => $payload['resource_types'] ?? [],
             'curators' => $payload['curators'] ?? [],
-            'year_range' => $payload['year_range'] ?? ['min' => null, 'max' => null],
+            'year_range' => $payload['year_range'] ?? ['min' => $currentYear, 'max' => $currentYear],
             'statuses' => $payload['statuses'] ?? [],
         ];
     }

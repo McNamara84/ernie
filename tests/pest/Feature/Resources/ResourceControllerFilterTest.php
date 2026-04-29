@@ -675,4 +675,98 @@ describe('Curator Filter', function (): void {
             return $page;
         });
     });
+
+    it('sorts /resources by MainTitle even when a subtitle has the lower titles.id (Issue: PR #679 review)', function (): void {
+        // Sorting must use the MainTitle to stay consistent with the title
+        // displayed by ResourceListItemResource. A subtitle that was inserted
+        // first (and therefore has the lower titles.id) must NOT decide the
+        // sort order.
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+        $subtitleType = TitleType::factory()->create(['slug' => 'Subtitle', 'name' => 'Subtitle']);
+
+        // Resource A — main title "Alpha", subtitle "Zulu" inserted FIRST.
+        $resourceA = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $resourceA->titles()->create([
+            'value' => 'Zulu subtitle for Alpha',
+            'title_type_id' => $subtitleType->id,
+        ]);
+        $resourceA->titles()->create([
+            'value' => 'Alpha main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($resourceA);
+
+        // Resource B — main title "Mike", no subtitle.
+        $resourceB = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $resourceB->titles()->create([
+            'value' => 'Mike main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($resourceB);
+
+        get(route('resources', ['sort_key' => 'title', 'sort_direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                // Naive MIN(titles.id) would put resourceB ("Mike") before
+                // resourceA (whose lowest-id title is "Zulu subtitle for Alpha"),
+                // because "Mike" < "Zulu". With MainTitle-aware sorting,
+                // resourceA ("Alpha main title") must come first.
+                ->where('resources.0.id', $resourceA->id)
+                ->where('resources.0.title', 'Alpha main title')
+                ->where('resources.1.id', $resourceB->id)
+                ->where('resources.1.title', 'Mike main title')
+            );
+    });
+
+    it('falls back to the lowest-id title when no MainTitle exists (Issue: PR #679 review)', function (): void {
+        // Legacy data: a resource may have no MainTitle row at all. The sort
+        // must still include it, falling back to MIN(titles.id).
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+        $subtitleType = TitleType::factory()->create(['slug' => 'Subtitle', 'name' => 'Subtitle']);
+
+        // Resource with only a subtitle (legacy / partial data).
+        $legacy = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $legacy->titles()->create([
+            'value' => 'Aardvark legacy subtitle',
+            'title_type_id' => $subtitleType->id,
+        ]);
+        makeResourceComplete($legacy);
+
+        // Regular resource with a MainTitle.
+        $regular = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $regular->titles()->create([
+            'value' => 'Beta main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($regular);
+
+        get(route('resources', ['sort_key' => 'title', 'sort_direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->where('resources.0.id', $legacy->id) // "Aardvark…" < "Beta…"
+                ->where('resources.1.id', $regular->id)
+            );
+    });
 });
