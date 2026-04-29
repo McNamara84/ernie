@@ -118,10 +118,15 @@ final readonly class ResourceQueryBuilder
                     $query
                         ->with([
                             'creatorable',
-                            'affiliations',
                         ])
                         ->orderBy('position');
                 },
+                // Note: `creators.affiliations` is intentionally NOT eager-loaded
+                // here. ResourceListItemResource::toArray() only surfaces the
+                // first creator's name (Person / Institution), and
+                // `publicStatus()` / `isComplete()` do not touch affiliations.
+                // Loading them would cost an extra query per list page without
+                // affecting the response contract.
                 // Note: `contributors` are intentionally NOT eager-loaded here.
                 // ResourceListItemResource::toArray() does not surface any
                 // contributor data on list-item rows, and eager-loading them

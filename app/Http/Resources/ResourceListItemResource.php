@@ -54,9 +54,18 @@ final class ResourceListItemResource extends JsonResource
         // Get DataCite Created/Updated dates from the dates relation, falling back
         // to Eloquent timestamps. Filtering is done in-memory on the eager-loaded
         // collection (typically <10 dates per resource).
-        $createdDateRecord = $resource->dates->first(
-            fn ($date): bool => $date->dateType->slug === 'Created'
-        );
+        //
+        // The `dates` relation is unordered and the schema permits multiple
+        // `Created` / `Updated` rows per resource (e.g. when an XML import
+        // carries both an explicit `Created` and historical revisions), so we
+        // sort deterministically before picking one: earliest `Created` for
+        // `created_at`, latest `Updated` for `updated_at`. Without this two
+        // identical responses could surface different timestamps depending on
+        // database row ordering.
+        $createdDateRecord = $resource->dates
+            ->filter(fn ($date): bool => $date->dateType->slug === 'Created')
+            ->sortBy(fn ($date) => $date->date_value ?? $date->start_date ?? '')
+            ->first();
         $createdDate = $createdDateRecord !== null
             ? ($createdDateRecord->date_value ?? $createdDateRecord->start_date)
             : null;
@@ -205,11 +214,12 @@ final class ResourceListItemResource extends JsonResource
                     'Relation creatorable not loaded on ResourceCreator. N+1 query detected!'
                 );
             }
-            if (! $firstCreator->relationLoaded('affiliations')) {
-                throw new \RuntimeException(
-                    'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
-                );
-            }
+            // Note: `creators.affiliations` is intentionally NOT required here.
+            // toArray() only surfaces the first creator's name (Person /
+            // Institution), not its affiliations, and `publicStatus()` /
+            // `isComplete()` only check `creators->isEmpty()`. Eager-loading
+            // affiliations for every list-item row would inflate query count
+            // and memory without affecting the output contract.
         }
     }
 }
