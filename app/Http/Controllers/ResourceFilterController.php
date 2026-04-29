@@ -65,7 +65,12 @@ class ResourceFilterController extends Controller
             'resource_types' => $this->loadResourceTypes(),
             'curators' => $this->loadCurators(),
             'year_range' => $this->loadYearRange(),
-            'statuses' => ['draft', 'curation', 'review', 'published'],
+            // Single source of truth: the same allow-list that
+            // ResolvesResourceListing uses for request validation, so the
+            // filter UI cannot drift away from accepted query values.
+            // Accessed via a consumer class because the constant lives on a
+            // trait (PHPStan rejects `Trait::CONST` access).
+            'statuses' => LoadMoreResourcesRequest::ALLOWED_STATUSES,
         ]))->response();
     }
 

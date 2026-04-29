@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
-use App\Models\ResourceType;
 use App\Support\Xml\XmlElementHelpers;
+use Illuminate\Support\Str;
 use Saloon\XmlWrangler\Data\Element;
 use Saloon\XmlWrangler\XmlReader;
 
@@ -46,13 +46,15 @@ final readonly class RelatedItemSectionParser
             // PascalCase (e.g. "JournalArticle"), which is also the canonical
             // representation persisted to `related_items.related_item_type`
             // (consumed by `CitationFormatter::containerTitle()` and emitted
-            // verbatim by both DataCite exporters). The seeder slugs in
-            // `resource_types.slug` are an unrelated kebab-case URL form and
-            // intentionally not used here. The mapping is centralised in
-            // `ResourceType::nameToDataciteResourceTypeGeneral()` so the parser
-            // / vocabulary endpoint / validation all agree on the format.
+            // verbatim by both DataCite exporters). The XML enum is already
+            // in the target format; `Str::studly` is applied defensively so
+            // stray whitespace / punctuation in malformed inputs is normalised
+            // to the same shape produced by
+            // `ResourceType::slugToDataciteResourceTypeGeneral()`. The seeder
+            // slugs in `resource_types.slug` are an unrelated kebab-case URL
+            // form and intentionally not used here.
             $entry = [
-                'related_item_type' => ResourceType::nameToDataciteResourceTypeGeneral(trim($relatedItemType)),
+                'related_item_type' => Str::studly(trim($relatedItemType)),
                 'relation_type_slug' => trim($relationTypeSlug),
                 'titles' => $titles,
                 'creators' => $this->extractCreators($item),

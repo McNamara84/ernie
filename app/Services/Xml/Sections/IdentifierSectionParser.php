@@ -48,19 +48,20 @@ final readonly class IdentifierSectionParser
         if ($resourceTypeName !== null) {
             // The XML attribute is the DataCite `resourceTypeGeneral` enum
             // (PascalCase, no spaces — e.g. `PhysicalObject`, `JournalArticle`).
-            // The seeded `resource_types.name` column is the human-readable
-            // form ("Physical Object", "Journal Article"), so a direct
-            // `LOWER(name) = LOWER('PhysicalObject')` comparison would never
-            // match. Resolve the lookup in PHP via
-            // `ResourceType::nameToDataciteResourceTypeGeneral()` so the same
-            // mapping that `RelatedItemSectionParser` and the vocabularies
-            // endpoint use is applied here, too.
+            // Match it against `resource_types.slug`, which is the immutable
+            // canonical key (kebab-case, e.g. `physical-object`,
+            // `journal-article`) — `name` is editable via editor settings and
+            // therefore unsafe as the lookup key. The same PascalCase
+            // representation is produced by
+            // `ResourceType::slugToDataciteResourceTypeGeneral()`, which is
+            // also used by `RelatedItemSectionParser` and the vocabularies
+            // endpoint.
             $needle = Str::lower($resourceTypeName);
 
             $resourceTypeModel = ResourceType::query()
-                ->get(['id', 'name'])
+                ->get(['id', 'slug'])
                 ->first(fn (ResourceType $type): bool => Str::lower(
-                    ResourceType::nameToDataciteResourceTypeGeneral($type->name)
+                    ResourceType::slugToDataciteResourceTypeGeneral($type->slug)
                 ) === $needle);
 
             $resourceType = $resourceTypeModel?->id !== null ? (string) $resourceTypeModel->id : null;
