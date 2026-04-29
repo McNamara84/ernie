@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\ResourceType;
 use App\Models\User;
+use Database\Seeders\ResourceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -82,7 +84,7 @@ test('extracts DataCite 4.7 <relatedItems> from uploaded XML', function () {
 
     // First item — rich metadata.
     expect($items[0])->toMatchArray([
-        'related_item_type' => 'JournalArticle',
+        'related_item_type' => 'journal-article',
         'relation_type_slug' => 'IsCitedBy',
         'publication_year' => 2020,
         'volume' => '12',
@@ -128,7 +130,7 @@ test('extracts DataCite 4.7 <relatedItems> from uploaded XML', function () {
 
     // Second item — minimal, title promoted to MainTitle.
     expect($items[1])->toMatchArray([
-        'related_item_type' => 'Book',
+        'related_item_type' => 'book',
         'relation_type_slug' => 'IsSupplementTo',
         'publication_year' => 2019,
     ]);
@@ -303,5 +305,44 @@ XML);
 XML);
 
         expect($items[0]['creators'][0]['name_type'])->toBe('Personal');
+    });
+
+    test('normalises DataCite PascalCase relatedItemType to the kebab-case slug stored by ResourceTypeSeeder (Issue: PR #679 review)', function () {
+        // ResourceTypeSeeder seeds slugs via Str::slug($name), e.g.
+        //   "Journal Article" → "journal-article"
+        //   "Conference Paper" → "conference-paper"
+        //   "Book Chapter" → "book-chapter"
+        // DataCite XML, however, carries the PascalCase form ("JournalArticle",
+        // "ConferencePaper", "BookChapter"). Without normalisation
+        // `StoreResourceRequest`'s `Rule::exists('resource_types', 'slug')`
+        // would reject every imported related item in production.
+        $items = uploadRelatedItemsXml(<<<'XML'
+    <relatedItem relatedItemType="JournalArticle" relationType="Cites">
+      <titles><title>JA</title></titles>
+    </relatedItem>
+    <relatedItem relatedItemType="ConferencePaper" relationType="Cites">
+      <titles><title>CP</title></titles>
+    </relatedItem>
+    <relatedItem relatedItemType="BookChapter" relationType="Cites">
+      <titles><title>BC</title></titles>
+    </relatedItem>
+    <relatedItem relatedItemType="Book" relationType="Cites">
+      <titles><title>B</title></titles>
+    </relatedItem>
+XML);
+
+        expect($items)->toHaveCount(4);
+        expect($items[0]['related_item_type'])->toBe('journal-article');
+        expect($items[1]['related_item_type'])->toBe('conference-paper');
+        expect($items[2]['related_item_type'])->toBe('book-chapter');
+        expect($items[3]['related_item_type'])->toBe('book');
+
+        // Sanity: every value must exist in the production-seeded
+        // resource_types.slug column.
+        $this->seed(ResourceTypeSeeder::class);
+        $existing = ResourceType::query()->pluck('slug')->all();
+        foreach ($items as $item) {
+            expect($existing)->toContain($item['related_item_type']);
+        }
     });
 });
