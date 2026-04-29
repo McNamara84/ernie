@@ -570,4 +570,41 @@ describe('Curator Filter', function (): void {
                 ],
             ]);
     });
+
+    it('exposes the MainTitle on /resources even when subtitles are eager-loaded first (Issue: PR #679 review)', function (): void {
+        // Titles are eager-loaded ordered by id and may include subtitles /
+        // alternate titles. Picking `titles->first()` blindly would surface a
+        // subtitle as the resource's display title in list views. The list
+        // resource must select the title flagged as MainTitle.
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $subtitleType = TitleType::factory()->create(['slug' => 'Subtitle', 'name' => 'Subtitle']);
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+
+        // Insert the subtitle FIRST so it has the lower id and would win a
+        // naive `titles->first()` selection.
+        $resource->titles()->create([
+            'value' => 'A subtitle that must NOT be the display title',
+            'title_type_id' => $subtitleType->id,
+        ]);
+        $resource->titles()->create([
+            'value' => 'The real main title',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($resource);
+
+        get(route('resources'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('resources')
+                ->where('resources.0.id', $resource->id)
+                ->where('resources.0.title', 'The real main title')
+            );
+    });
 });

@@ -7,8 +7,8 @@ namespace App\Http\Resources;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\Title;
 use App\Models\Right;
+use App\Models\Title;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -88,7 +88,12 @@ final class ResourceListItemResource extends JsonResource
                 'code' => $resource->language->code,
                 'name' => $resource->language->name,
             ] : null,
-            'title' => $resource->titles->first()?->value,
+            // Pick the main title explicitly (titles are eager-loaded ordered by id
+            // and may include subtitles / alternate titles, so `titles->first()`
+            // could surface the wrong title in list views). Falls back to the
+            // first title if no MainTitle is flagged.
+            'title' => ($resource->titles->first(fn (Title $title): bool => $title->isMainTitle())
+                ?? $resource->titles->first())?->value,
             'titles' => $resource->titles
                 ->map(static function (Title $title): array {
                     return [
@@ -167,6 +172,17 @@ final class ResourceListItemResource extends JsonResource
             if (! $firstDescription->relationLoaded('descriptionType')) {
                 throw new \RuntimeException(
                     'Relation descriptionType not loaded on Description. N+1 query detected!'
+                );
+            }
+        }
+
+        // titles.titleType is required because Title::isMainTitle() reads it
+        // (and we use that to pick the main title for the `title` field).
+        if ($resource->titles->isNotEmpty()) {
+            $firstTitle = $resource->titles->first();
+            if (! $firstTitle->relationLoaded('titleType')) {
+                throw new \RuntimeException(
+                    'Relation titleType not loaded on Title. N+1 query detected!'
                 );
             }
         }
