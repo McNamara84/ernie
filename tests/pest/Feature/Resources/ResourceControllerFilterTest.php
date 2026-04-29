@@ -3,6 +3,7 @@
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
@@ -606,5 +607,72 @@ describe('Curator Filter', function (): void {
                 ->where('resources.0.id', $resource->id)
                 ->where('resources.0.title', 'The real main title')
             );
+    });
+
+    it('exposes a correct landingPage.public_url on /resources for internal and external pages (Issue: PR #679 review)', function (): void {
+        // ResourceQueryBuilder must eager-load the LandingPage columns and the
+        // externalDomain relation that LandingPage::public_url derives from.
+        // Otherwise list endpoints return empty / wrong public_url and trigger
+        // an N+1 query on externalDomain for external pages.
+        $resourceType = ResourceType::factory()->create(['slug' => 'dataset', 'name' => 'Dataset']);
+        $language = Language::factory()->create();
+        $mainTitleType = TitleType::factory()->create(['slug' => 'MainTitle', 'name' => 'Main Title']);
+
+        // --- Internal landing page (default_gfz template, with DOI) ---
+        $internalResource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $internalResource->titles()->create([
+            'value' => 'Internal Resource',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($internalResource);
+        LandingPage::factory()->create([
+            'resource_id' => $internalResource->id,
+            'doi_prefix' => '10.5880/test.internal',
+            'slug' => 'internal-slug',
+            'template' => 'default_gfz',
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        // --- External landing page ---
+        $externalDomain = LandingPageDomain::factory()->withDomain('https://example.org/')->create();
+        $externalResource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'publication_year' => 2024,
+        ]);
+        $externalResource->titles()->create([
+            'value' => 'External Resource',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+        makeResourceComplete($externalResource);
+        LandingPage::factory()->create([
+            'resource_id' => $externalResource->id,
+            'doi_prefix' => '10.5880/test.external',
+            'slug' => 'external-slug',
+            'template' => 'external',
+            'external_domain_id' => $externalDomain->id,
+            'external_path' => 'datasets/foo',
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $response = get(route('resources'))->assertOk();
+        $response->assertInertia(function ($page) use ($internalResource, $externalResource) {
+            $resources = collect($page->toArray()['props']['resources'] ?? [])
+                ->keyBy('id');
+
+            expect($resources[$internalResource->id]['landingPage']['public_url'])
+                ->toContain('/10.5880/test.internal/internal-slug');
+
+            expect($resources[$externalResource->id]['landingPage']['public_url'])
+                ->toBe('https://example.org/datasets/foo');
+
+            return $page;
+        });
     });
 });

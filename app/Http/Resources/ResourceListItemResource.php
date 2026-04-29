@@ -187,6 +187,14 @@ final class ResourceListItemResource extends JsonResource
             }
         }
 
+        // landingPage.externalDomain is required because LandingPage::public_url
+        // reads it for external landing pages (template === 'external').
+        if ($resource->landingPage !== null && ! $resource->landingPage->relationLoaded('externalDomain')) {
+            throw new \RuntimeException(
+                'Relation externalDomain not loaded on LandingPage. N+1 query detected!'
+            );
+        }
+
         if ($resource->creators->isNotEmpty()) {
             $firstCreator = $resource->creators->first();
             if (! $firstCreator->relationLoaded('creatorable')) {

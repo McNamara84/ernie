@@ -79,7 +79,26 @@ final readonly class ResourceQueryBuilder
                 'language:id,code,name',
                 'createdBy:id,name',
                 'updatedBy:id,name',
-                'landingPage:id,resource_id,is_published,published_at,preview_token',
+                // landingPage.public_url derives from doi_prefix, slug, resource_id
+                // (internal URL), or template + external_domain_id + external_path
+                // + externalDomain.domain (external URL). All of these must be
+                // selected/eager-loaded, otherwise public_url returns an empty
+                // or incorrect string in list views and triggers N+1 queries
+                // for the externalDomain lookup.
+                'landingPage' => function ($query): void {
+                    $query->select([
+                        'id',
+                        'resource_id',
+                        'doi_prefix',
+                        'slug',
+                        'template',
+                        'external_domain_id',
+                        'external_path',
+                        'is_published',
+                        'published_at',
+                        'preview_token',
+                    ])->with(['externalDomain:id,domain']);
+                },
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'value', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
