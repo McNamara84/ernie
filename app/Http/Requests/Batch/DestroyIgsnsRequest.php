@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Batch;
 
 use App\Enums\UserRole;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -21,11 +22,27 @@ class DestroyIgsnsRequest extends FormRequest
      */
     public const MAX_BATCH_SIZE = 100;
 
+    /**
+     * Custom 403 message preserved from the controller's previous
+     * `abort(403, ...)` contract so existing UI/API consumers keep receiving
+     * the same wording instead of Laravel's generic default.
+     */
+    public const UNAUTHORIZED_MESSAGE = 'You are not authorized to delete IGSNs.';
+
     public function authorize(): bool
     {
         $user = $this->user();
 
         return $user !== null && $user->role === UserRole::ADMIN;
+    }
+
+    /**
+     * Preserve the prior controller-side 403 response message.
+     */
+    #[\Override]
+    protected function failedAuthorization(): never
+    {
+        throw new AuthorizationException(self::UNAUTHORIZED_MESSAGE);
     }
 
     /**

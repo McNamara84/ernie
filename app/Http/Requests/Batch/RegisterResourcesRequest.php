@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Batch;
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,9 +25,25 @@ class RegisterResourcesRequest extends FormRequest
      */
     public const MAX_BATCH_SIZE = 25;
 
+    /**
+     * Custom 403 message preserved from the controller's previous
+     * `abort(403, ...)` contract so existing UI/API consumers keep receiving
+     * the same wording instead of Laravel's generic default.
+     */
+    public const UNAUTHORIZED_MESSAGE = 'You are not authorized to register resources.';
+
     public function authorize(): bool
     {
         return $this->user()?->can('register-production-doi') === true;
+    }
+
+    /**
+     * Preserve the prior controller-side 403 response message.
+     */
+    #[\Override]
+    protected function failedAuthorization(): never
+    {
+        throw new AuthorizationException(self::UNAUTHORIZED_MESSAGE);
     }
 
     /**

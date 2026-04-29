@@ -9,6 +9,7 @@ use App\Http\Requests\Batch\ExportResourcesRequest;
 use App\Http\Requests\Batch\RegisterIgsnsRequest;
 use App\Http\Requests\Batch\RegisterResourcesRequest;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 
@@ -104,4 +105,53 @@ it('ExportResourcesRequest validates ids and format whitelist', function (): voi
     expect(Validator::make([], $rules)->fails())->toBeTrue();
     expect(Validator::make(['ids' => [1], 'format' => 'invalid'], $rules)->fails())->toBeTrue();
     expect(Validator::make(['ids' => array_fill(0, 101, 1), 'format' => 'datacite-json'], $rules)->fails())->toBeTrue();
+});
+
+/*
+ * Preservation of the prior `abort(403, '...')` response contract.
+ *
+ * When authorization moved from controller-side `abort()` calls into
+ * FormRequest::authorize(), Laravel would otherwise return its generic
+ * "This action is unauthorized." message. The `failedAuthorization()`
+ * overrides keep the original wording so existing UI/API consumers are not
+ * broken (Issue: PR #679 review).
+ */
+
+it('RegisterResourcesRequest::failedAuthorization preserves the prior 403 message', function (): void {
+    $req = new RegisterResourcesRequest;
+
+    $reflection = new ReflectionMethod($req, 'failedAuthorization');
+    $reflection->setAccessible(true);
+
+    expect(fn () => $reflection->invoke($req))
+        ->toThrow(AuthorizationException::class, 'You are not authorized to register resources.');
+
+    expect(RegisterResourcesRequest::UNAUTHORIZED_MESSAGE)
+        ->toBe('You are not authorized to register resources.');
+});
+
+it('RegisterIgsnsRequest::failedAuthorization preserves the prior 403 message', function (): void {
+    $req = new RegisterIgsnsRequest;
+
+    $reflection = new ReflectionMethod($req, 'failedAuthorization');
+    $reflection->setAccessible(true);
+
+    expect(fn () => $reflection->invoke($req))
+        ->toThrow(AuthorizationException::class, 'You are not authorized to register IGSNs.');
+
+    expect(RegisterIgsnsRequest::UNAUTHORIZED_MESSAGE)
+        ->toBe('You are not authorized to register IGSNs.');
+});
+
+it('DestroyIgsnsRequest::failedAuthorization preserves the prior 403 message', function (): void {
+    $req = new DestroyIgsnsRequest;
+
+    $reflection = new ReflectionMethod($req, 'failedAuthorization');
+    $reflection->setAccessible(true);
+
+    expect(fn () => $reflection->invoke($req))
+        ->toThrow(AuthorizationException::class, 'You are not authorized to delete IGSNs.');
+
+    expect(DestroyIgsnsRequest::UNAUTHORIZED_MESSAGE)
+        ->toBe('You are not authorized to delete IGSNs.');
 });
