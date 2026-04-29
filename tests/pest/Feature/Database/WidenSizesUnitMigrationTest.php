@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Models\Resource;
 use App\Models\Size;
-use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -161,11 +160,48 @@ it('leaves null unit values untouched during the rollback guard check', function
         ->and($reloaded->unit)->toBeNull();
 });
 
-it('exposes sizes.unit as a string column after migration', function (): void {
-    // Smoke test: confirm the column type the rest of the app relies on.
-    // Doctrine/DBAL exposes both VARCHAR(50) and VARCHAR(255) as `string`,
-    // so this guards primarily against the column being accidentally
-    // dropped or renamed by a future migration.
-    expect(Schema::hasColumn('sizes', 'unit'))->toBeTrue()
-        ->and(Schema::getColumnType('sizes', 'unit'))->toBe('varchar');
+it('exposes sizes.unit as a varchar column with the widened length after migration', function (): void {
+    // Driver-aware schema introspection: this project does not depend on
+    // doctrine/dbal, so Schema::getColumnType() is unreliable. We query the
+    // native catalog instead — PRAGMA on SQLite, information_schema on MySQL —
+    // which also lets us assert the EXACT character limit (255) rather than
+    // just the column type. Other backends are skipped to keep the test
+    // honest about what it actually verifies.
+    expect(Schema::hasColumn('sizes', 'unit'))->toBeTrue();
+
+    $driver = DB::connection()->getDriverName();
+
+    if ($driver === 'sqlite') {
+        /** @var array<int, object{name: string, type: string}> $columns */
+        $columns = DB::select('PRAGMA table_info(sizes)');
+        $unit = collect($columns)->firstWhere('name', 'unit');
+
+        // SQLite normalises the column type produced by Laravel's
+        // `->string('unit', 255)->change()` to plain "varchar" without a
+        // length suffix, so we only assert the type affinity here. The
+        // effective 255-char ceiling is covered by the data-level tests
+        // above.
+        expect($unit)->not->toBeNull()
+            ->and(strtolower($unit->type))->toBe('varchar');
+
+        return;
+    }
+
+    if ($driver === 'mysql' || $driver === 'mariadb') {
+        /** @var array<int, object{DATA_TYPE: string, CHARACTER_MAXIMUM_LENGTH: int}> $rows */
+        $rows = DB::select(
+            'SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH '
+            .'FROM information_schema.COLUMNS '
+            .'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            ['sizes', 'unit']
+        );
+
+        expect($rows)->toHaveCount(1)
+            ->and(strtolower($rows[0]->DATA_TYPE))->toBe('varchar')
+            ->and((int) $rows[0]->CHARACTER_MAXIMUM_LENGTH)->toBe(255);
+
+        return;
+    }
+
+    test()->markTestSkipped("Schema introspection not implemented for driver [{$driver}].");
 });

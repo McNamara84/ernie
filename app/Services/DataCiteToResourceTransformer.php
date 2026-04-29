@@ -1267,8 +1267,9 @@ class DataCiteToResourceTransformer
             // unit token; otherwise free-text values such as
             // "440MB/day; about 80 active stations" would be partially
             // misinterpreted (numeric prefix stripped) and the long remainder
-            // would overflow sizes.unit. See the implementation plan for the
-            // contract this helper enforces.
+            // would overflow sizes.unit. The exact contract for the tail is
+            // documented on `looksLikeSizeUnit()` below and exercised by
+            // tests/pest/Feature/Services/DataCiteToResourceTransformerSizesTest.php.
             if (
                 preg_match('/^([\d.]+)\s*(.+)$/', $size, $matches) === 1
                 && $this->looksLikeSizeUnit($matches[2])
