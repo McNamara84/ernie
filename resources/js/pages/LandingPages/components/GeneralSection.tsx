@@ -28,6 +28,7 @@ export function GeneralSection({ igsn, doi, fundingReferences, dates }: GeneralS
     const project = fundingReferences
         .map((funding) => funding.award_title)
         .filter((title): title is string => typeof title === 'string' && title.trim() !== '')
+        .map((title) => title.trim())
         .filter((title, index, all) => all.indexOf(title) === index)
         .join(', ');
 
@@ -49,7 +50,7 @@ export function GeneralSection({ igsn, doi, fundingReferences, dates }: GeneralS
 
     const trimmedPurpose = igsn?.sample_purpose?.trim();
     const purpose = trimmedPurpose
-        ? <span className="whitespace-pre-line">{igsn?.sample_purpose}</span>
+        ? <span className="whitespace-pre-line">{trimmedPurpose}</span>
         : null;
 
     const rows: MetadataRow[] = [

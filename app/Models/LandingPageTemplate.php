@@ -60,7 +60,7 @@ class LandingPageTemplate extends Model
     public const TEMPLATE_TYPE_IGSN = 'igsn';
 
     /**
-     * Allowed values for {@see self::$template_type}.
+     * Allowed values for the {@see self::$template_type template_type} attribute.
      *
      * @var list<string>
      */

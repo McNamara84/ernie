@@ -46,7 +46,9 @@ describe('MetadataList', () => {
         render(<>{MetadataList({ rows })}</>);
 
         expect(screen.getByTestId('el')).toBeInTheDocument();
-        // Number 0 is truthy as ReactNode (not empty), so it should render
+        // Number 0 is a valid ReactNode and is not treated as empty by
+        // MetadataList's emptiness check (only null/undefined/empty string/
+        // empty array are filtered out), so the row should render.
         expect(screen.getByText('Element')).toBeInTheDocument();
         expect(screen.getByText('Number')).toBeInTheDocument();
     });
