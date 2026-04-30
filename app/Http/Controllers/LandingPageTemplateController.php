@@ -26,9 +26,13 @@ class LandingPageTemplateController extends Controller
     {
         $this->authorize('viewAny', LandingPageTemplate::class);
 
+        // Ensure both system-owned default templates (resource + IGSN) exist.
+        LandingPageTemplate::ensureSystemTemplatesExist();
+
         $templates = LandingPageTemplate::query()
             ->with('creator:id,name')
             ->withCount('landingPages')
+            ->orderBy('template_type')
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
@@ -39,7 +43,7 @@ class LandingPageTemplateController extends Controller
     }
 
     /**
-     * Clone the default template with a new name.
+     * Clone the default template (of the requested type) with a new name.
      */
     public function store(StoreLandingPageTemplateRequest $request): JsonResponse
     {
@@ -47,12 +51,14 @@ class LandingPageTemplateController extends Controller
 
         $validated = $request->validated();
 
-        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+        $templateType = $validated['template_type'] ?? LandingPageTemplate::TEMPLATE_TYPE_RESOURCE;
+        $defaultTemplate = LandingPageTemplate::defaultForType($templateType);
 
         $template = LandingPageTemplate::create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']).'-'.Str::random(6),
             'is_default' => false,
+            'template_type' => $templateType,
             'logo_path' => null,
             'logo_filename' => null,
             'right_column_order' => $defaultTemplate->right_column_order,

@@ -10,13 +10,14 @@ use Illuminate\Database\Seeder;
 class LandingPageTemplateSeeder extends Seeder
 {
     /**
-     * Seed the default landing page template.
+     * Seed the immutable system landing page templates.
      *
-     * This creates the immutable default GFZ Data Services template
-     * that serves as the base for cloning custom templates.
+     * Creates the two default templates that serve as the base for cloning
+     * custom templates: the GFZ Data Services default for resources (DOIs)
+     * and the GFZ IGSN default for physical samples.
      */
     public function run(): void
     {
-        LandingPageTemplate::ensureDefaultTemplateExists();
+        LandingPageTemplate::ensureSystemTemplatesExist();
     }
 }

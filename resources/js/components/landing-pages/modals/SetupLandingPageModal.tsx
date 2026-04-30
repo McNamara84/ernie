@@ -569,7 +569,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     if (val.startsWith('custom:')) {
                                         const id = Number(val.replace('custom:', ''));
                                         setLandingPageTemplateId(id);
-                                        setTemplate('default_gfz'); // Custom templates use default_gfz renderer
+                                        // Pick the renderer slug based on the custom template's type.
+                                        const ct = customTemplates.find((t) => t.id === id);
+                                        setTemplate(ct?.template_type === 'igsn' ? 'default_gfz_igsn' : 'default_gfz');
                                     } else {
                                         setLandingPageTemplateId(null);
                                         setTemplate(val);
@@ -588,13 +590,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                             </div>
                                         </SelectItem>
                                     ))}
-                                    {customTemplates.filter((ct) => !ct.is_default).length > 0 && (
+                                    {customTemplates.filter((ct) => !ct.is_default && ct.template_type !== 'igsn').length > 0 && (
                                         <>
                                             <SelectSeparator />
                                             <SelectGroup>
                                                 <SelectLabel>Custom Templates</SelectLabel>
                                                 {customTemplates
-                                                    .filter((ct) => !ct.is_default)
+                                                    .filter((ct) => !ct.is_default && ct.template_type !== 'igsn')
                                                     .map((ct) => (
                                                         <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
                                                             <div className="flex flex-col">

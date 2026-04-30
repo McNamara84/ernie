@@ -35,6 +35,13 @@ export interface LandingPageTemplateConfig {
     /** Whether this is the immutable default template */
     is_default: boolean;
 
+    /**
+     * Template variant: distinguishes resource (DOI) templates from IGSN templates.
+     * Drives which Inertia page component renders the landing page and which
+     * default template is used when cloning.
+     */
+    template_type: 'resource' | 'igsn';
+
     /** Storage path for custom logo */
     logo_path: string | null;
 
@@ -74,6 +81,7 @@ export interface LandingPageTemplateSummary {
     name: string;
     slug: string;
     is_default: boolean;
+    template_type: 'resource' | 'igsn';
     logo_path: string | null;
     logo_url: string | null;
     right_column_order: RightColumnSection[];

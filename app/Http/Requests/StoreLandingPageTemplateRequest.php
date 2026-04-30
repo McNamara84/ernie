@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\LandingPageTemplate;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreLandingPageTemplateRequest extends FormRequest
 {
@@ -19,12 +22,13 @@ class StoreLandingPageTemplateRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'name' => ['required', 'filled', 'string', 'max:255', 'unique:landing_page_templates,name'],
+            'template_type' => ['sometimes', 'string', Rule::in(LandingPageTemplate::TEMPLATE_TYPES)],
         ];
     }
 

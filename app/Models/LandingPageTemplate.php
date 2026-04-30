@@ -30,6 +30,7 @@ use Illuminate\Support\Str;
  * @property string $name Human-readable template name
  * @property string $slug URL-friendly unique identifier
  * @property bool $is_default Whether this is the immutable default template
+ * @property string $template_type Distinguishes resource (DOI) from IGSN templates ('resource'|'igsn')
  * @property string|null $logo_path Storage path for custom logo file
  * @property string|null $logo_filename Original filename of the uploaded logo
  * @property array<int, string> $right_column_order Ordered section keys for right column
@@ -49,6 +50,24 @@ class LandingPageTemplate extends Model
     public const DEFAULT_TEMPLATE_SLUG = 'default_gfz';
 
     public const DEFAULT_TEMPLATE_NAME = 'Default GFZ Data Services';
+
+    public const IGSN_DEFAULT_TEMPLATE_SLUG = 'default_gfz_igsn';
+
+    public const IGSN_DEFAULT_TEMPLATE_NAME = 'Default GFZ IGSN';
+
+    public const TEMPLATE_TYPE_RESOURCE = 'resource';
+
+    public const TEMPLATE_TYPE_IGSN = 'igsn';
+
+    /**
+     * Allowed values for {@see self::$template_type}.
+     *
+     * @var list<string>
+     */
+    public const TEMPLATE_TYPES = [
+        self::TEMPLATE_TYPE_RESOURCE,
+        self::TEMPLATE_TYPE_IGSN,
+    ];
 
     /**
      * Valid section keys for the right column.
@@ -88,6 +107,7 @@ class LandingPageTemplate extends Model
         'name',
         'slug',
         'is_default',
+        'template_type',
         'logo_path',
         'logo_filename',
         'right_column_order',
@@ -206,20 +226,70 @@ class LandingPageTemplate extends Model
     }
 
     /**
-     * Ensure the immutable default template exists and has required defaults.
+     * Ensure the immutable default template (resource type) exists and has required defaults.
      */
     public static function ensureDefaultTemplateExists(): self
     {
-        $template = static::query()->where('slug', self::DEFAULT_TEMPLATE_SLUG)->first();
+        return self::ensureSystemTemplate(
+            self::DEFAULT_TEMPLATE_SLUG,
+            self::DEFAULT_TEMPLATE_NAME,
+            self::TEMPLATE_TYPE_RESOURCE,
+        );
+    }
+
+    /**
+     * Ensure the immutable default IGSN template exists and has required defaults.
+     */
+    public static function ensureIgsnDefaultTemplateExists(): self
+    {
+        return self::ensureSystemTemplate(
+            self::IGSN_DEFAULT_TEMPLATE_SLUG,
+            self::IGSN_DEFAULT_TEMPLATE_NAME,
+            self::TEMPLATE_TYPE_IGSN,
+        );
+    }
+
+    /**
+     * Ensure all system-owned default templates exist (resource + IGSN).
+     *
+     * @return array{resource: self, igsn: self}
+     */
+    public static function ensureSystemTemplatesExist(): array
+    {
+        return [
+            self::TEMPLATE_TYPE_RESOURCE => self::ensureDefaultTemplateExists(),
+            self::TEMPLATE_TYPE_IGSN => self::ensureIgsnDefaultTemplateExists(),
+        ];
+    }
+
+    /**
+     * Resolve the default template for a given type.
+     */
+    public static function defaultForType(string $templateType): self
+    {
+        return match ($templateType) {
+            self::TEMPLATE_TYPE_IGSN => self::ensureIgsnDefaultTemplateExists(),
+            default => self::ensureDefaultTemplateExists(),
+        };
+    }
+
+    /**
+     * Shared implementation backing {@see self::ensureDefaultTemplateExists()} and
+     * {@see self::ensureIgsnDefaultTemplateExists()}.
+     */
+    private static function ensureSystemTemplate(string $slug, string $preferredName, string $templateType): self
+    {
+        $template = static::query()->where('slug', $slug)->first();
 
         if ($template === null) {
             for ($attempt = 0; $attempt < 5; $attempt++) {
                 try {
                     $template = static::query()->firstOrCreate(
-                        ['slug' => self::DEFAULT_TEMPLATE_SLUG],
+                        ['slug' => $slug],
                         [
-                            'name' => self::resolveUniqueDefaultTemplateName(),
+                            'name' => self::resolveUniqueSystemTemplateName($preferredName),
                             'is_default' => true,
+                            'template_type' => $templateType,
                             'logo_path' => null,
                             'logo_filename' => null,
                             'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
@@ -230,7 +300,7 @@ class LandingPageTemplate extends Model
 
                     break;
                 } catch (QueryException $exception) {
-                    $template = static::query()->where('slug', self::DEFAULT_TEMPLATE_SLUG)->first();
+                    $template = static::query()->where('slug', $slug)->first();
 
                     if ($template !== null) {
                         break;
@@ -244,20 +314,21 @@ class LandingPageTemplate extends Model
         }
 
         if ($template === null) {
-            throw new \RuntimeException('Failed to restore the default landing page template.');
+            throw new \RuntimeException(sprintf('Failed to restore the system landing page template "%s".', $slug));
         }
 
-        DB::transaction(function () use (&$template): void {
-            // Keep exactly one immutable default template marker to avoid accidental locks.
+        DB::transaction(function () use (&$template, $templateType): void {
+            // Keep exactly one immutable default template per type to avoid accidental locks.
             static::query()
                 ->where('is_default', true)
+                ->where('template_type', $templateType)
                 ->whereKeyNot($template->id)
                 ->update(['is_default' => false]);
 
-            // Force-fill all canonical fields to ensure the default template is immutable/system-owned.
-            // If the canonical row is "corrupted" (has creator, logo, etc.), restore it to clean state.
+            // Force-fill all canonical fields to ensure the system template stays clean and immutable.
             $template->forceFill([
                 'is_default' => true,
+                'template_type' => $templateType,
                 'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
                 'left_column_order' => self::LEFT_COLUMN_SECTIONS,
                 'created_by' => null,           // System-owned, not created by a user
@@ -265,7 +336,7 @@ class LandingPageTemplate extends Model
                 'logo_filename' => null,        // No custom logo
             ]);
 
-            if ($template->isDirty(['is_default', 'right_column_order', 'left_column_order', 'created_by', 'logo_path', 'logo_filename'])) {
+            if ($template->isDirty(['is_default', 'template_type', 'right_column_order', 'left_column_order', 'created_by', 'logo_path', 'logo_filename'])) {
                 $template->save();
             }
 
@@ -276,22 +347,22 @@ class LandingPageTemplate extends Model
     }
 
     /**
-     * Resolve a unique template name for restoring the default template.
+     * Resolve a unique template name for restoring a system-owned default template.
      */
-    private static function resolveUniqueDefaultTemplateName(): string
+    private static function resolveUniqueSystemTemplateName(string $preferred): string
     {
-        if (! static::query()->where('name', self::DEFAULT_TEMPLATE_NAME)->exists()) {
-            return self::DEFAULT_TEMPLATE_NAME;
+        if (! static::query()->where('name', $preferred)->exists()) {
+            return $preferred;
         }
 
         for ($index = 2; $index <= 1000; $index++) {
-            $candidate = self::DEFAULT_TEMPLATE_NAME.' '.$index;
+            $candidate = $preferred.' '.$index;
             if (! static::query()->where('name', $candidate)->exists()) {
                 return $candidate;
             }
         }
 
-        return self::DEFAULT_TEMPLATE_NAME.' '.Str::upper(Str::random(6));
+        return $preferred.' '.Str::upper(Str::random(6));
     }
 
     private static function isUniqueConstraintViolation(QueryException $exception): bool
