@@ -479,7 +479,39 @@ describe('API List', function (): void {
             ->getJson('/api/landing-page-templates');
 
         $response->assertOk()
-            ->assertJsonCount(4, 'templates'); // resource default + IGSN default + 2 custom
+            ->assertJsonCount(4, 'templates') // resource default + IGSN default + 2 custom
+            ->assertJsonStructure([
+                'templates' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'slug',
+                        'is_default',
+                        'template_type',
+                        'logo_path',
+                        'right_column_order',
+                        'left_column_order',
+                    ],
+                ],
+            ]);
+    });
+
+    it('ensures both system default templates exist when listing', function (): void {
+        // Remove all templates to simulate a fresh environment.
+        LandingPageTemplate::query()->delete();
+
+        $response = $this->actingAs($this->curator)
+            ->getJson('/api/landing-page-templates');
+
+        $response->assertOk();
+
+        $templateTypes = collect($response->json('templates'))
+            ->pluck('template_type')
+            ->all();
+
+        expect($templateTypes)
+            ->toContain(LandingPageTemplate::TEMPLATE_TYPE_RESOURCE)
+            ->toContain(LandingPageTemplate::TEMPLATE_TYPE_IGSN);
     });
 
     it('rejects unauthenticated access to API list', function (): void {

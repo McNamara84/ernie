@@ -230,10 +230,25 @@ class LandingPageTemplateController extends Controller
      */
     public function list(): JsonResponse
     {
+        // Ensure both system-owned default templates (resource + IGSN) exist
+        // so the SetupLandingPageModal always has the canonical defaults
+        // available for selection / filtering.
+        LandingPageTemplate::ensureSystemTemplatesExist();
+
         $templates = LandingPageTemplate::query()
+            ->orderBy('template_type')
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get(['id', 'name', 'slug', 'is_default', 'logo_path', 'right_column_order', 'left_column_order']);
+            ->get([
+                'id',
+                'name',
+                'slug',
+                'is_default',
+                'template_type',
+                'logo_path',
+                'right_column_order',
+                'left_column_order',
+            ]);
 
         return response()->json([
             'templates' => $templates,
