@@ -20,6 +20,7 @@ interface Resource {
     id: number;
     doi?: string | null;
     title?: string;
+    resourcetypegeneral?: string;
     [key: string]: unknown;
 }
 
@@ -111,6 +112,24 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const isIgsn = template === 'default_gfz_igsn';
     const supportsLinks = !isExternal && !isIgsn;
     const MAX_LINKS = 10;
+
+    // Resource type drives which built-in templates are offered and which
+    // custom templates are eligible. PhysicalObject resources (IGSNs) get the
+    // IGSN-typed built-in template and IGSN-typed custom templates; everything
+    // else gets the resource-typed built-in template and resource-typed custom
+    // templates.
+    const isPhysicalObject = resource.resourcetypegeneral === 'PhysicalObject';
+    const eligibleTemplateType: 'resource' | 'igsn' = isPhysicalObject ? 'igsn' : 'resource';
+    const eligibleCustomTemplates = useMemo(
+        () => customTemplates.filter(
+            (ct) => !ct.is_default && (ct.template_type ?? 'resource') === eligibleTemplateType,
+        ),
+        [customTemplates, eligibleTemplateType],
+    );
+    const builtInTemplateOptions = useMemo(
+        () => getTemplateOptions(resource.resourcetypegeneral),
+        [resource.resourcetypegeneral],
+    );
 
     // Load existing config when modal opens
     useEffect(() => {
@@ -569,10 +588,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     if (val.startsWith('custom:')) {
                                         const id = Number(val.replace('custom:', ''));
                                         setLandingPageTemplateId(id);
-                                        // The dropdown filters out IGSN-typed custom templates above,
-                                        // so any custom selection here is a resource template and uses
-                                        // the default_gfz renderer.
-                                        setTemplate('default_gfz');
+                                        // Resolve the renderer key from the selected custom
+                                        // template's template_type (resource → default_gfz,
+                                        // igsn → default_gfz_igsn) so the correct landing
+                                        // page renderer is used regardless of which custom
+                                        // template the curator picks.
+                                        const selected = customTemplates.find((ct) => ct.id === id);
+                                        const rendererKey = (selected?.template_type ?? 'resource') === 'igsn'
+                                            ? 'default_gfz_igsn'
+                                            : 'default_gfz';
+                                        setTemplate(rendererKey);
                                     } else {
                                         setLandingPageTemplateId(null);
                                         setTemplate(val);
@@ -583,7 +608,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {getTemplateOptions().map((tmpl) => (
+                                    {builtInTemplateOptions.map((tmpl) => (
                                         <SelectItem key={tmpl.value} value={tmpl.value}>
                                             <div className="flex flex-col">
                                                 <span>{tmpl.label}</span>
@@ -591,21 +616,19 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                             </div>
                                         </SelectItem>
                                     ))}
-                                    {customTemplates.filter((ct) => !ct.is_default && ct.template_type !== 'igsn').length > 0 && (
+                                    {eligibleCustomTemplates.length > 0 && (
                                         <>
                                             <SelectSeparator />
                                             <SelectGroup>
                                                 <SelectLabel>Custom Templates</SelectLabel>
-                                                {customTemplates
-                                                    .filter((ct) => !ct.is_default && ct.template_type !== 'igsn')
-                                                    .map((ct) => (
-                                                        <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
-                                                            <div className="flex flex-col">
-                                                                <span>{ct.name}</span>
-                                                                <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
+                                                {eligibleCustomTemplates.map((ct) => (
+                                                    <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
+                                                        <div className="flex flex-col">
+                                                            <span>{ct.name}</span>
+                                                            <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
                                             </SelectGroup>
                                         </>
                                     )}
