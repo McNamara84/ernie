@@ -16,7 +16,14 @@ interface MetadataListProps {
     rows: MetadataRow[];
 }
 
-const isEmpty = (value: ReactNode | null | undefined): boolean => {
+/**
+ * Returns `true` when the given value would be hidden by {@link MetadataList}.
+ *
+ * Exported so callers (e.g. section components) can reuse the exact same
+ * emptiness rules when deciding whether to render a wrapping card, avoiding
+ * drift between the list filter and external "has content" checks.
+ */
+export const isMetadataValueEmpty = (value: ReactNode | null | undefined): boolean => {
     if (value === null || value === undefined) {
         return true;
     }
@@ -30,6 +37,14 @@ const isEmpty = (value: ReactNode | null | undefined): boolean => {
 };
 
 /**
+ * Returns `true` when at least one row in `rows` would be rendered by
+ * {@link MetadataList}. Useful for callers that only want to render a
+ * surrounding card when the list is non-empty.
+ */
+export const hasVisibleMetadataRows = (rows: MetadataRow[]): boolean =>
+    rows.some((row) => !isMetadataValueEmpty(row.value));
+
+/**
  * Renders a definition-list-style label/value grid for compact metadata
  * sections (e.g. "General", "Acquisition" on IGSN landing pages).
  *
@@ -38,7 +53,7 @@ const isEmpty = (value: ReactNode | null | undefined): boolean => {
  * card at all.
  */
 export function MetadataList({ rows }: MetadataListProps): ReactNode {
-    const visible = rows.filter((row) => !isEmpty(row.value));
+    const visible = rows.filter((row) => !isMetadataValueEmpty(row.value));
 
     if (visible.length === 0) {
         return null;

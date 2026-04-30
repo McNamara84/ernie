@@ -1321,12 +1321,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={3} title="Reorder Sections">
                                 <p>
                                     Click the edit icon on a template card. Use <strong>drag &amp; drop</strong> to rearrange the
-                                    right column sections (e.g., Descriptions, Creators, Dates) and left column sections (e.g.,
-                                    Files, Details, Map) independently. For IGSN landing pages, the left column also includes
-                                    <strong> General</strong> (Project, Campaign, Type, IGSN, Parent IGSN, Purpose, Release Date)
-                                    and <strong>Acquisition</strong> (Material, Rock Classification, Collection Method, Funding
-                                    Agency, Comments, Chief Scientist, Start/End Date) modules. Empty fields and empty modules are
-                                    hidden automatically on the rendered page.
+                                    right column sections (e.g., Descriptions, Creators, Location) and left column sections (e.g.,
+                                    Files, Contact, Model Description, Related Work) independently. For IGSN landing pages, the
+                                    left column also includes <strong>General</strong> (Project, Campaign, Type, IGSN, Parent IGSN,
+                                    Purpose, Release Date) and <strong>Acquisition</strong> (Material, Rock Classification,
+                                    Collection Method, Funding Agency, Comments, Chief Scientist, Start/End Date) modules. Empty
+                                    fields and empty modules are hidden automatically on the rendered page.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">

@@ -8,7 +8,7 @@ import type {
 
 import { findDateByType, pickDateString } from '../lib/dateHelpers';
 import { LandingPageCard } from './LandingPageCard';
-import { MetadataList, type MetadataRow } from './MetadataList';
+import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
 interface GeneralSectionProps {
     igsn: LandingPageIgsnMetadata | null | undefined;
@@ -61,12 +61,7 @@ export function GeneralSection({ igsn, doi, fundingReferences, dates }: GeneralS
         { label: 'Release Date', value: releaseDate },
     ];
 
-    const hasContent = rows.some((row) => {
-        const value = row.value;
-        if (value === null || value === undefined) return false;
-        if (typeof value === 'string') return value.trim() !== '';
-        return true;
-    });
+    const hasContent = hasVisibleMetadataRows(rows);
 
     if (!hasContent) {
         return null;
