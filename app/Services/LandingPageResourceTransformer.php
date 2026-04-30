@@ -57,7 +57,7 @@ final class LandingPageResourceTransformer
             'fundingReferences.funderIdentifierType',
             'resourceType',
             'language',
-            'igsnMetadata.parentResource.landingPage',
+            'igsnMetadata.parentResource.landingPage.externalDomain',
             'igsnClassifications',
         ];
     }
