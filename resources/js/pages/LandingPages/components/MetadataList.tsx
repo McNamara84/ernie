@@ -67,7 +67,7 @@ export function MetadataList({ rows }: MetadataListProps): ReactNode {
             {visible.map((row) => (
                 <Fragment key={row.label}>
                     <dt className="font-medium text-gray-600 dark:text-gray-400">{row.label}</dt>
-                    <dd className="text-gray-900 dark:text-gray-100">{row.value}</dd>
+                    <dd className="min-w-0 wrap-break-word text-gray-900 dark:text-gray-100">{row.value}</dd>
                 </Fragment>
             ))}
         </dl>

@@ -569,9 +569,10 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     if (val.startsWith('custom:')) {
                                         const id = Number(val.replace('custom:', ''));
                                         setLandingPageTemplateId(id);
-                                        // Pick the renderer slug based on the custom template's type.
-                                        const ct = customTemplates.find((t) => t.id === id);
-                                        setTemplate(ct?.template_type === 'igsn' ? 'default_gfz_igsn' : 'default_gfz');
+                                        // The dropdown filters out IGSN-typed custom templates above,
+                                        // so any custom selection here is a resource template and uses
+                                        // the default_gfz renderer.
+                                        setTemplate('default_gfz');
                                     } else {
                                         setLandingPageTemplateId(null);
                                         setTemplate(val);
