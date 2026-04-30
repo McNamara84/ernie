@@ -491,7 +491,7 @@ export default function LandingPageTemplatesPage() {
                             Clone Default Template
                         </DialogTitle>
                         <DialogDescription>
-                            Create a new template based on the default GFZ template. You can customize the section order and logo afterwards.
+                            Create a new template based on the selected default template type (resource or IGSN). You can customize the section order and logo afterwards.
                         </DialogDescription>
                     </DialogHeader>
 
