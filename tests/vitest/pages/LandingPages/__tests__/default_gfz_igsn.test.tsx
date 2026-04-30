@@ -498,7 +498,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     landingPage: mockLandingPage,
                     isPreview: false,
                     sectionOrder: {
-                        leftColumn: ['acquisition', 'general', 'contact', 'model_description', 'related_work'],
+                        leftColumn: ['files', 'acquisition', 'general', 'contact', 'model_description', 'related_work'],
                         rightColumn: ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
                     },
                 },

@@ -142,6 +142,68 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('5m core barrel')).toBeInTheDocument();
     });
 
+    it('hides Collection Method when value is whitespace-only', () => {
+        const igsn = baseIgsn({
+            collection_method: '   ',
+            collection_method_description: 'irrelevant because method is empty',
+        });
+
+        const { container } = render(
+            <AcquisitionSection
+                igsn={igsn}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        // Card should not render since the only field (collection method) is whitespace
+        expect(container.firstChild).toBeNull();
+    });
+
+    it('renders Collection Method as plain text when description is whitespace-only', () => {
+        const igsn = baseIgsn({
+            collection_method: 'Drilling',
+            collection_method_description: '   ',
+        });
+
+        render(
+            <AcquisitionSection
+                igsn={igsn}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        // Drilling renders, but no extra description block
+        expect(screen.getByText('Drilling')).toBeInTheDocument();
+        expect(screen.queryByText('   ')).not.toBeInTheDocument();
+    });
+
+    it('hides Comments when description value is whitespace-only', () => {
+        const descriptions = [
+            { id: 1, value: '   ', description_type: 'Other' },
+        ];
+
+        const { container } = render(
+            <AcquisitionSection
+                igsn={null}
+                classifications={[]}
+                descriptions={descriptions}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(container.firstChild).toBeNull();
+    });
+
     it('deduplicates funding agencies and ignores empty values', () => {
         const fr = (id: number, funder_name: string): LandingPageFundingReference => ({
             id,

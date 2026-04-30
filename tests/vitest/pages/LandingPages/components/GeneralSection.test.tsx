@@ -110,4 +110,15 @@ describe('GeneralSection', () => {
         expect(screen.getByText('Release Date')).toBeInTheDocument();
         expect(screen.getByText('2024-05-10')).toBeInTheDocument();
     });
+
+    it('hides Purpose when sample_purpose is whitespace-only', () => {
+        const igsn = baseIgsn({ sample_purpose: '   ' });
+
+        const { container } = render(
+            <GeneralSection igsn={igsn} doi={null} fundingReferences={[]} dates={[]} />,
+        );
+
+        // Card collapses entirely since no other fields are set
+        expect(container.firstChild).toBeNull();
+    });
 });

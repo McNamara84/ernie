@@ -47,8 +47,9 @@ export function GeneralSection({ igsn, doi, fundingReferences, dates }: GeneralS
         );
     }
 
-    const purpose = igsn?.sample_purpose
-        ? <span className="whitespace-pre-line">{igsn.sample_purpose}</span>
+    const trimmedPurpose = igsn?.sample_purpose?.trim();
+    const purpose = trimmedPurpose
+        ? <span className="whitespace-pre-line">{igsn?.sample_purpose}</span>
         : null;
 
     const rows: MetadataRow[] = [

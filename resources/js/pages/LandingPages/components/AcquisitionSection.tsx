@@ -65,8 +65,9 @@ export function AcquisitionSection({
     const otherDescription = descriptions.find(
         (description) => description.description_type?.toLowerCase() === 'other',
     );
-    const comments = otherDescription?.value
-        ? <span className="whitespace-pre-line">{otherDescription.value}</span>
+    const trimmedComment = otherDescription?.value?.trim();
+    const comments = trimmedComment
+        ? <span className="whitespace-pre-line">{otherDescription?.value}</span>
         : null;
 
     const chiefScientists = dedup(
@@ -86,13 +87,17 @@ export function AcquisitionSection({
     // Hide end date if equal to start date (single-day collection rendered as "Start Date" only).
     const endDate = endDateRaw !== null && endDateRaw !== startDate ? endDateRaw : null;
 
-    let collectionMethodNode: ReactNode = igsn?.collection_method ?? null;
-    if (collectionMethodNode && igsn?.collection_method_description) {
+    const collectionMethod = igsn?.collection_method?.trim() ? igsn.collection_method : null;
+    const collectionMethodDescription = igsn?.collection_method_description?.trim()
+        ? igsn.collection_method_description
+        : null;
+    let collectionMethodNode: ReactNode = collectionMethod;
+    if (collectionMethod && collectionMethodDescription) {
         collectionMethodNode = (
             <span>
-                {igsn.collection_method}
+                {collectionMethod}
                 <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">
-                    {igsn.collection_method_description}
+                    {collectionMethodDescription}
                 </span>
             </span>
         );
