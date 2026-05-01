@@ -54,12 +54,12 @@ test('docs page includes shared sidebar counts for resources and IGSNs', functio
     ]);
 
     Resource::create([
-        'year' => 2024,
+        'publication_year' => 2024,
         'resource_type_id' => $datasetType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => null,
     ]);
 
