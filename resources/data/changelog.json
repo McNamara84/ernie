@@ -78,6 +78,10 @@
         ],
         "improvements": [
             {
+                "title": "Main Menu Counts and Administration Ordering",
+                "description": "The authenticated sidebar now shows total counters on Resources and IGSNs List. Resources counts all non-Physical Object records, IGSNs List counts all Physical Object records, and both counters remain visible even when the total is 0. Editor Settings was moved from the footer into the Administration section between Logs and Landing Pages, while Changelog and Documentation remain in the footer."
+            },
+            {
                 "title": "Controller Refactor: FormRequest Migration",
                 "description": "Internal refactor that moves all controller validation, payload normalisation, and gate-based authorization out of controller actions and into dedicated FormRequest classes under `app/Http/Requests/`. New requests cover Auth (welcome activation, password reset), DOI/Citation lookup, Assistance suggestions, batch IGSN/Resource registration and export, batch IGSN deletion, datacenter creation, landing page configuration (store, update, preview, custom logo upload), landing page domains, related-item reordering, profile deletion, and thesaurus version updates. Authorization is now consistently expressed via `authorize()` (using policies, gates, or `register-production-doi` checks) and validation is consistently expressed via `rules()`, eliminating ~25 inline `$request->validate(...)` and `Validator::make($request->all(), ...)` blocks across the HTTP layer. A new architecture test (`tests/pest/Arch/HttpLayerTest.php`) enforces the convention going forward, with a documented allow-list for the three endpoints whose public 422 contract or pre-validation guards prevent migration (`Api\\DataCiteController`, `OrcidController` search, `ContactMessageController`). All public URLs, response shapes, and DataCite/OAI-PMH/OpenAPI contracts remain unchanged."
             },

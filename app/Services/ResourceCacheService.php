@@ -22,6 +22,10 @@ class ResourceCacheService
 {
     use ChecksCacheTagging;
 
+    private const DATA_RESOURCE_COUNT_CACHE_SUFFIX = 'data_resources';
+
+    private const IGSN_RESOURCE_COUNT_CACHE_SUFFIX = 'igsn_resources';
+
     /**
      * Cache a paginated resource listing.
      *
@@ -70,16 +74,55 @@ class ResourceCacheService
      *
      * @param  \Closure(): int  $callback  Callback to count resources
      */
-    public function cacheResourceCount(\Closure $callback): int
+    public function cacheResourceCount(\Closure $callback, string|int|null $suffix = null): int
     {
-        $cacheKey = CacheKey::RESOURCE_COUNT->key();
+        $cacheKey = CacheKey::RESOURCE_COUNT->key($suffix);
 
-        return $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags())
+        return (int) $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags())
             ->remember(
                 $cacheKey,
                 CacheKey::RESOURCE_COUNT->ttl(),
                 $callback
             );
+    }
+
+    /**
+     * Get the total count of non-IGSN resources.
+     */
+    public function getDataResourceCount(?int $physicalObjectTypeId): int
+    {
+        return $this->cacheResourceCount(
+            callback: function () use ($physicalObjectTypeId): int {
+                if ($physicalObjectTypeId === null) {
+                    return Resource::query()->count();
+                }
+
+                return Resource::query()
+                    ->where(function (Builder $query) use ($physicalObjectTypeId): void {
+                        $query->whereNull('resource_type_id')
+                            ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                    })
+                    ->count();
+            },
+            suffix: self::DATA_RESOURCE_COUNT_CACHE_SUFFIX,
+        );
+    }
+
+    /**
+     * Get the total count of IGSN resources.
+     */
+    public function getIgsnCount(?int $physicalObjectTypeId): int
+    {
+        if ($physicalObjectTypeId === null) {
+            return 0;
+        }
+
+        return $this->cacheResourceCount(
+            callback: fn (): int => Resource::query()
+                ->where('resource_type_id', $physicalObjectTypeId)
+                ->count(),
+            suffix: self::IGSN_RESOURCE_COUNT_CACHE_SUFFIX,
+        );
     }
 
     /**

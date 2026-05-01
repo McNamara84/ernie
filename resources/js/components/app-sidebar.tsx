@@ -28,7 +28,7 @@ import { type NavItem, type SharedData, type User as AuthUser } from '@/types';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth, pendingAssistanceTotalCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
+    const { auth, dataResourceCount, igsnCount, pendingAssistanceTotalCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
     const prefetchEditor = useEditorPrefetch();
 
     // Dashboard - always visible
@@ -52,6 +52,8 @@ export function AppSidebar() {
             title: 'Resources',
             href: '/resources',
             icon: Layers,
+            badge: dataResourceCount ?? 0,
+            showZeroBadge: true,
         },
     ];
 
@@ -61,6 +63,8 @@ export function AppSidebar() {
             title: 'IGSNs List',
             href: '/igsns',
             icon: FlaskConical,
+            badge: igsnCount ?? 0,
+            showZeroBadge: true,
         },
         {
             title: 'IGSNs Map',
@@ -122,6 +126,14 @@ export function AppSidebar() {
         });
     }
 
+    if (auth.user?.can_access_editor_settings) {
+        administrationItems.push({
+            title: 'Editor Settings',
+            href: settings(),
+            icon: Settings,
+        });
+    }
+
     if (auth.user?.can_manage_landing_page_templates) {
         administrationItems.push({
             title: 'Landing Pages',
@@ -132,14 +144,6 @@ export function AppSidebar() {
 
     // Footer navigation - Editor Settings only for users with permission (Issue #379)
     const footerNavItems: NavItem[] = [];
-
-    if (auth.user?.can_access_editor_settings) {
-        footerNavItems.push({
-            title: 'Editor Settings',
-            href: settings(),
-            icon: Settings,
-        });
-    }
 
     footerNavItems.push(
         {

@@ -1,14 +1,26 @@
 <?php
 
+use App\Enums\CacheKey;
 use App\Models\Affiliation;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function () {
+    if (method_exists(Cache::getStore(), 'tags')) {
+        Cache::tags(CacheKey::RESOURCE_COUNT->tags())->flush();
+
+        return;
+    }
+
+    Cache::flush();
+});
 
 test('guests are redirected to the login page', function () {
     $this->get(route('dashboard'))->assertRedirect(route('login'));

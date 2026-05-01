@@ -42,6 +42,7 @@ use App\Models\Affiliation;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -455,16 +456,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Get PhysicalObject type ID for filtering
         $physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
 
+        /** @var ResourceCacheService $resourceCache */
+        $resourceCache = app(ResourceCacheService::class);
+
         // Count Data Resources (non-IGSN)
-        $dataResourceCount = Resource::where(function ($query) use ($physicalObjectTypeId) {
-            $query->whereNull('resource_type_id')
-                ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
-        })->count();
+        $dataResourceCount = $resourceCache->getDataResourceCount($physicalObjectTypeId);
 
         // Count IGSN Resources
-        $igsnCount = $physicalObjectTypeId
-            ? Resource::where('resource_type_id', $physicalObjectTypeId)->count()
-            : 0;
+        $igsnCount = $resourceCache->getIgsnCount($physicalObjectTypeId);
 
         // Count unique institutions (ROR-identified) for Data Resources
         $dataInstitutionCount = Affiliation::query()

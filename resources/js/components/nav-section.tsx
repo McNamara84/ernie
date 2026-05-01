@@ -12,6 +12,14 @@ interface NavSectionProps {
 export function NavSection({ label, items, showSeparator = false }: NavSectionProps) {
     const page = usePage();
 
+    const shouldRenderBadge = (item: NavItem) => {
+        if (item.badge === undefined) {
+            return false;
+        }
+
+        return item.badge > 0 || (item.showZeroBadge === true && item.badge === 0);
+    };
+
     if (items.length === 0) {
         return null;
     }
@@ -49,7 +57,7 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                     </Link>
                                 </SidebarMenuButton>
                             )}
-                            {item.badge !== undefined && item.badge > 0 && (
+                            {shouldRenderBadge(item) && (
                                 <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
                             )}
                         </SidebarMenuItem>

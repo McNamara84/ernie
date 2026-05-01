@@ -19,6 +19,13 @@ let mockUser = {
     can_access_users: true,
     can_access_editor_settings: true,
     can_manage_landing_page_templates: false,
+    can_access_assistance: false,
+};
+
+let mockSharedProps = {
+    dataResourceCount: 12,
+    igsnCount: 5,
+    pendingAssistanceTotalCount: 0,
 };
 
 // Helper to set mock user for each test
@@ -32,6 +39,7 @@ const setMockUser = (
         can_access_users: boolean;
         can_access_editor_settings: boolean;
         can_manage_landing_page_templates: boolean;
+        can_access_assistance: boolean;
     }> = {}
 ) => {
     mockUser = {
@@ -47,6 +55,22 @@ const setMockUser = (
         can_access_users: true,
         can_access_editor_settings: true,
         can_manage_landing_page_templates: false,
+        can_access_assistance: false,
+        ...overrides,
+    };
+};
+
+const setMockSharedProps = (
+    overrides: Partial<{
+        dataResourceCount: number;
+        igsnCount: number;
+        pendingAssistanceTotalCount: number;
+    }> = {}
+) => {
+    mockSharedProps = {
+        dataResourceCount: 12,
+        igsnCount: 5,
+        pendingAssistanceTotalCount: 0,
         ...overrides,
     };
 };
@@ -127,6 +151,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                 auth: {
                     user: mockUser,
                 },
+                ...mockSharedProps,
             },
         }),
     };
@@ -144,6 +169,7 @@ describe('AppSidebar', () => {
         vi.clearAllMocks();
         // Reset to admin user by default
         setMockUser();
+        setMockSharedProps();
     });
 
     it('renders navigation sections with correct items for admin user', () => {
@@ -172,10 +198,14 @@ describe('AppSidebar', () => {
         // Section 2: Data Curation
         expect(sectionCalls[1][0].items.map((i: NavItem) => i.title)).toEqual(['Data Editor', 'Resources']);
         expect(sectionCalls[1][0].label).toBe('Data Curation');
+        expect(sectionCalls[1][0].items[1].badge).toBe(12);
+        expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
 
         // Section 3: IGSN Curation
         expect(sectionCalls[2][0].items.map((i: NavItem) => i.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
         expect(sectionCalls[2][0].label).toBe('IGSN Curation');
+        expect(sectionCalls[2][0].items[0].badge).toBe(5);
+        expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
 
         // Section 4: Administration (only for admins)
         expect(sectionCalls[3][0].items.map((i: NavItem) => i.title)).toEqual([
@@ -183,13 +213,14 @@ describe('AppSidebar', () => {
             'Statistics (old)',
             'Users',
             'Logs',
+            'Editor Settings',
         ]);
         expect(sectionCalls[3][0].label).toBe('Administration');
 
         // Check footer navigation
         expect(NavFooterMock).toHaveBeenCalled();
         const footerArgs = NavFooterMock.mock.calls[0][0];
-        expect(footerArgs.items.map((i: NavItem) => i.title)).toEqual(['Editor Settings', 'Changelog', 'Documentation']);
+        expect(footerArgs.items.map((i: NavItem) => i.title)).toEqual(['Changelog', 'Documentation']);
         expect(footerArgs.className).toBe('mt-auto');
 
         // Check nav sections render links
@@ -203,7 +234,6 @@ describe('AppSidebar', () => {
 
         // Check footer links
         const navFooter = screen.getByTestId('nav-footer');
-        expect(within(navFooter).getByRole('link', { name: /editor settings/i })).toHaveAttribute('href', '/settings');
         expect(within(navFooter).getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/changelog');
         expect(within(navFooter).getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/docs');
 
@@ -302,13 +332,31 @@ describe('AppSidebar', () => {
         const adminItems = adminSection![0].items.map((i: NavItem) => i.title);
         expect(adminItems).toContain('Statistics (old)');
         expect(adminItems).toContain('Users');
+        expect(adminItems).toContain('Editor Settings');
         expect(adminItems).not.toContain('Logs');
         expect(adminItems).not.toContain('Old Datasets');
 
-        // Verify Editor Settings IS in footer for group leader
+        // Verify footer only contains informational links
         const footerArgs = NavFooterMock.mock.calls[0][0];
         const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
-        expect(footerTitles).toContain('Editor Settings');
+        expect(footerTitles).not.toContain('Editor Settings');
+        expect(footerTitles).toEqual(['Changelog', 'Documentation']);
+    });
+
+    it('passes visible zero badges for Resources and IGSNs List', () => {
+        setMockSharedProps({
+            dataResourceCount: 0,
+            igsnCount: 0,
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+
+        expect(sectionCalls[1][0].items[1].badge).toBe(0);
+        expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
+        expect(sectionCalls[2][0].items[0].badge).toBe(0);
+        expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
     });
 
     it('shows Landing Pages in Administration when user has permission', () => {

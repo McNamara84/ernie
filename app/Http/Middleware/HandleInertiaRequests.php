@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
+use App\Models\ResourceType;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
@@ -51,6 +53,20 @@ class HandleInertiaRequests extends Middleware
             $author = 'Steve Jobs';
         }
 
+        $physicalObjectTypeId = $request->user() !== null
+            ? ResourceType::query()->where('slug', 'physical-object')->value('id')
+            : null;
+
+        $resourceCache = app(ResourceCacheService::class);
+
+        $dataResourceCount = $request->user() !== null
+            ? $resourceCache->getDataResourceCount($physicalObjectTypeId)
+            : 0;
+
+        $igsnCount = $request->user() !== null
+            ? $resourceCache->getIgsnCount($physicalObjectTypeId)
+            : 0;
+
         return [
             ...parent::share($request),
             'name' => config('app.name', 'ERNIE'),
@@ -79,6 +95,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
+            'dataResourceCount' => $dataResourceCount,
+            'igsnCount' => $igsnCount,
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),

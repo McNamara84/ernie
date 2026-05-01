@@ -8,7 +8,7 @@ import { type NavItem } from '@/types';
 // Mock Inertia's usePage hook
 const mockUsePage = vi.fn();
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => (
+    Link: ({ children, href, prefetch: _prefetch, ...props }: { children: React.ReactNode; href: string; prefetch?: boolean }) => (
         <a href={href} {...props}>
             {children}
         </a>
@@ -25,6 +25,7 @@ vi.mock('@/components/ui/sidebar', () => ({
     ),
     SidebarGroupLabel: ({ children }: { children: React.ReactNode }) => <h3 data-testid="sidebar-label">{children}</h3>,
     SidebarMenu: ({ children }: { children: React.ReactNode }) => <ul data-testid="sidebar-menu">{children}</ul>,
+    SidebarMenuBadge: ({ children }: { children: React.ReactNode }) => <span data-testid="sidebar-badge">{children}</span>,
     SidebarMenuButton: ({
         children,
         isActive,
@@ -225,5 +226,21 @@ describe('NavSection', () => {
 
         const menuItems = screen.getAllByTestId('sidebar-item');
         expect(menuItems).toHaveLength(3);
+    });
+
+    it('renders a zero badge when explicitly configured', () => {
+        const items: NavItem[] = [{ title: 'Resources', href: '/resources', icon: Database, badge: 0, showZeroBadge: true }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.getByTestId('sidebar-badge')).toHaveTextContent('0');
+    });
+
+    it('does not render a zero badge without explicit opt-in', () => {
+        const items: NavItem[] = [{ title: 'Assistance', href: '/assistance', icon: Settings, badge: 0 }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.queryByTestId('sidebar-badge')).not.toBeInTheDocument();
     });
 });
