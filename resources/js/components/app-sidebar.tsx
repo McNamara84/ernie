@@ -142,7 +142,7 @@ export function AppSidebar() {
         });
     }
 
-    // Footer navigation - Editor Settings only for users with permission (Issue #379)
+    // Footer navigation contains only informational links.
     const footerNavItems: NavItem[] = [];
 
     footerNavItems.push(

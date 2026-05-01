@@ -88,7 +88,7 @@ test('dashboard counts institutions with ROR identifiers for data resources', fu
     $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
     // Create resource with creator having ROR affiliation
-    $resource = Resource::create(['year' => 2024, 'resource_type_id' => $datasetType->id]);
+    $resource = Resource::create(['publication_year' => 2024, 'resource_type_id' => $datasetType->id]);
     $person = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
     $creator = ResourceCreator::create([
         'resource_id' => $resource->id,
@@ -118,7 +118,7 @@ test('dashboard counts institutions with ROR identifiers for IGSNs', function ()
     $physicalObjectType = ResourceType::create(['name' => 'PhysicalObject', 'slug' => 'physical-object']);
 
     // Create IGSN resource with creator having ROR affiliation
-    $resource = Resource::create(['year' => 2024, 'resource_type_id' => $physicalObjectType->id]);
+    $resource = Resource::create(['publication_year' => 2024, 'resource_type_id' => $physicalObjectType->id]);
     $person = Person::create(['given_name' => 'Jane', 'family_name' => 'Smith']);
     $creator = ResourceCreator::create([
         'resource_id' => $resource->id,
@@ -151,7 +151,7 @@ test('dashboard only counts unique ROR identifiers per category', function () {
     $person1 = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
     $person2 = Person::create(['given_name' => 'Jane', 'family_name' => 'Smith']);
 
-    $resource1 = Resource::create(['year' => 2024, 'resource_type_id' => $datasetType->id]);
+    $resource1 = Resource::create(['publication_year' => 2024, 'resource_type_id' => $datasetType->id]);
     $creator1 = ResourceCreator::create([
         'resource_id' => $resource1->id,
         'creatorable_type' => Person::class,
@@ -166,7 +166,7 @@ test('dashboard only counts unique ROR identifiers per category', function () {
         'identifier_scheme' => 'ROR',
     ]);
 
-    $resource2 = Resource::create(['year' => 2025, 'resource_type_id' => $datasetType->id]);
+    $resource2 = Resource::create(['publication_year' => 2025, 'resource_type_id' => $datasetType->id]);
     $creator2 = ResourceCreator::create([
         'resource_id' => $resource2->id,
         'creatorable_type' => Person::class,
@@ -194,7 +194,7 @@ test('dashboard does not count affiliations without ROR identifier', function ()
 
     $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
-    $resource = Resource::create(['year' => 2024, 'resource_type_id' => $datasetType->id]);
+    $resource = Resource::create(['publication_year' => 2024, 'resource_type_id' => $datasetType->id]);
     $person = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
     $creator = ResourceCreator::create([
         'resource_id' => $resource->id,
