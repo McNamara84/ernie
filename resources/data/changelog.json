@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-04-24",
+        "date": "2026-05-01",
         "features": [
             {
                 "title": "IGSN Landing Page: General & Acquisition Modules",
@@ -171,6 +171,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "DataCite import no longer fails on long edition values",
+                "description": "Widened the related_items.edition column from VARCHAR(64) to VARCHAR(255). Previously, importing DOIs from the DataCite API could fail with 'SQLSTATE[22001]: Data too long for column edition' when a related item carried a long conference or edition description, causing the entire import job to abort and roll back the resource."
+            },
             {
                 "title": "Landing Page setup modal layout for long titles",
                 "description": "The Setup Landing Page modal no longer overflows horizontally when a resource has a very long title. The header title is truncated to two lines with a tooltip exposing the full text on hover, the form body scrolls vertically, and the action buttons (Cancel, Preview, Save/Publish) stay visible in a sticky footer on all screen sizes. The same fix is applied to the IGSN landing page setup modal."

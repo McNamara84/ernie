@@ -392,7 +392,7 @@ entity "related_items" as related_items {
     first_page : VARCHAR(32)
     last_page : VARCHAR(32)
     publisher : VARCHAR(255)
-    edition : VARCHAR(64)
+    edition : VARCHAR(255)
     identifier : VARCHAR(2183)
     identifier_type : VARCHAR(32)
     related_metadata_scheme : VARCHAR
