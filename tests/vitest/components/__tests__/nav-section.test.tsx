@@ -8,11 +8,15 @@ import { type NavItem } from '@/types';
 // Mock Inertia's usePage hook
 const mockUsePage = vi.fn();
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ children, href, prefetch: _prefetch, ...props }: { children: React.ReactNode; href: string; prefetch?: boolean }) => (
-        <a href={href} {...props}>
-            {children}
-        </a>
-    ),
+    Link: ({ children, href, prefetch, ...props }: { children: React.ReactNode; href: string; prefetch?: boolean }) => {
+        void prefetch;
+
+        return (
+            <a href={href} {...props}>
+                {children}
+            </a>
+        );
+    },
     usePage: () => mockUsePage(),
 }));
 
