@@ -806,7 +806,7 @@ Do NOT skip this step or mark a task as complete if PHPStan reports errors.
 ### Evaluation Criteria
 
 1. **Security Issues** → Usually valid, prioritize fixes (e.g., SQL injection, XSS, enumeration attacks)
-2. **Contradicts Project Guidelines** → Reject and explain (e.g., requesting `down()` migrations when one-way is policy)
+2. **Contradicts Project Guidelines** → Reject and explain (e.g., suggesting `React.forwardRef` / `displayName` for new UI components when the shadcn/ui v4 pattern uses `ref` as a regular prop)
 3. **Best Practice Suggestions** → Evaluate effort vs. benefit
 4. **Overengineering** → Reject if complexity outweighs benefit for current scope
 5. **Already Implemented** → Point to existing implementation
