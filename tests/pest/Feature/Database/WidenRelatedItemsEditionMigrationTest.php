@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Models\RelatedItem;
-use App\Models\Resource;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;

@@ -351,7 +351,7 @@ erDiagram
         varchar first_page "nullable"
         varchar last_page "nullable"
         varchar publisher "nullable"
-        varchar edition "nullable"
+        varchar edition "max 255, nullable"
         varchar identifier "max 2183, nullable"
         varchar identifier_type "DOI|ISBN|URL|..."
         varchar related_metadata_scheme "nullable"
