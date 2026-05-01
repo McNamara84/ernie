@@ -162,6 +162,10 @@ it('maintains performance with pagination', function () {
     // Use same authenticated user for both requests to ensure consistent query counts
     $user = User::factory()->create();
 
+    // Warm shared Inertia sidebar props (resource counters, assistance badge, auth/session)
+    // so the measured requests compare pagination work instead of first-request cache fill.
+    $this->actingAs($user)->get('/resources?per_page=1');
+
     // Act: Test first page
     DB::enableQueryLog();
     $response = $this->actingAs($user)

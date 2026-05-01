@@ -1,14 +1,26 @@
 <?php
 
+use App\Enums\CacheKey;
 use App\Models\Affiliation;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function () {
+    if (method_exists(Cache::getStore(), 'tags')) {
+        Cache::tags(CacheKey::RESOURCE_COUNT->tags())->flush();
+
+        return;
+    }
+
+    Cache::flush();
+});
 
 test('guests are redirected to the login page', function () {
     $this->get(route('dashboard'))->assertRedirect(route('login'));
@@ -37,28 +49,28 @@ test('dashboard view receives separate resource counts for data resources and IG
 
     // Create 2 Data Resources
     Resource::create([
-        'year' => 2024,
+        'publication_year' => 2024,
         'resource_type_id' => $datasetType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => $datasetType->id,
     ]);
 
     // Create 3 IGSNs
     Resource::create([
-        'year' => 2024,
+        'publication_year' => 2024,
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
@@ -76,7 +88,7 @@ test('dashboard counts institutions with ROR identifiers for data resources', fu
     $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
     // Create resource with creator having ROR affiliation
-    $resource = Resource::create(['year' => 2024, 'resource_type_id' => $datasetType->id]);
+    $resource = Resource::create(['publication_year' => 2024, 'resource_type_id' => $datasetType->id]);
     $person = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
     $creator = ResourceCreator::create([
         'resource_id' => $resource->id,
@@ -106,7 +118,7 @@ test('dashboard counts institutions with ROR identifiers for IGSNs', function ()
     $physicalObjectType = ResourceType::create(['name' => 'PhysicalObject', 'slug' => 'physical-object']);
 
     // Create IGSN resource with creator having ROR affiliation
-    $resource = Resource::create(['year' => 2024, 'resource_type_id' => $physicalObjectType->id]);
+    $resource = Resource::create(['publication_year' => 2024, 'resource_type_id' => $physicalObjectType->id]);
     $person = Person::create(['given_name' => 'Jane', 'family_name' => 'Smith']);
     $creator = ResourceCreator::create([
         'resource_id' => $resource->id,
@@ -139,7 +151,7 @@ test('dashboard only counts unique ROR identifiers per category', function () {
     $person1 = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
     $person2 = Person::create(['given_name' => 'Jane', 'family_name' => 'Smith']);
 
-    $resource1 = Resource::create(['year' => 2024, 'resource_type_id' => $datasetType->id]);
+    $resource1 = Resource::create(['publication_year' => 2024, 'resource_type_id' => $datasetType->id]);
     $creator1 = ResourceCreator::create([
         'resource_id' => $resource1->id,
         'creatorable_type' => Person::class,
@@ -154,7 +166,7 @@ test('dashboard only counts unique ROR identifiers per category', function () {
         'identifier_scheme' => 'ROR',
     ]);
 
-    $resource2 = Resource::create(['year' => 2025, 'resource_type_id' => $datasetType->id]);
+    $resource2 = Resource::create(['publication_year' => 2025, 'resource_type_id' => $datasetType->id]);
     $creator2 = ResourceCreator::create([
         'resource_id' => $resource2->id,
         'creatorable_type' => Person::class,
@@ -182,7 +194,7 @@ test('dashboard does not count affiliations without ROR identifier', function ()
 
     $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
-    $resource = Resource::create(['year' => 2024, 'resource_type_id' => $datasetType->id]);
+    $resource = Resource::create(['publication_year' => 2024, 'resource_type_id' => $datasetType->id]);
     $person = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
     $creator = ResourceCreator::create([
         'resource_id' => $resource->id,
@@ -205,6 +217,44 @@ test('dashboard does not count affiliations without ROR identifier', function ()
             ->component('dashboard')
             ->where('dataResourceCount', 1)
             ->where('dataInstitutionCount', 0) // No ROR = not counted
+        );
+});
+
+test('dashboard treats all resources as non-IGSN when physical object type is missing', function () {
+    $this->actingAs(User::factory()->create());
+
+    $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+
+    $resource = Resource::create([
+        'publication_year' => 2024,
+        'resource_type_id' => $datasetType->id,
+    ]);
+
+    $person = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
+    $creator = ResourceCreator::create([
+        'resource_id' => $resource->id,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $person->id,
+        'position' => 1,
+    ]);
+
+    Affiliation::create([
+        'affiliatable_type' => ResourceCreator::class,
+        'affiliatable_id' => $creator->id,
+        'name' => 'GFZ German Research Centre for Geosciences',
+        'identifier' => 'https://ror.org/04z8jg394',
+        'identifier_scheme' => 'ROR',
+    ]);
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->where('dataResourceCount', 1)
+            ->where('igsnCount', 0)
+            ->where('dataInstitutionCount', 1)
+            ->where('igsnInstitutionCount', 0)
+            ->where('draftCount', 1)
+            ->has('recentDrafts', 1)
         );
 });
 

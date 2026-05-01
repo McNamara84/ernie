@@ -795,9 +795,23 @@ PHPStan is configured at **level 8** (strictest). All errors must be resolved be
 - Modifications to existing PHP code
 - Refactoring or bug fixes in backend code
 
-**CI/CD Integration:** PHPStan runs automatically in the GitHub Actions workflow. If PHPStan fails locally, the PR workflow will also fail. Always verify locally before pushing.
+**CI/CD Integration (Backend):** PHPStan runs automatically in the GitHub Actions workflow. If PHPStan fails locally, the PR workflow will also fail. Always verify locally before pushing.
 
-Do NOT skip this step or mark a task as complete if PHPStan reports errors.
+⚠️ **MANDATORY:** Before completing any frontend code changes in TypeScript, JavaScript, TSX, JSX, or frontend tests, always run ESLint and resolve all reported issues:
+
+```bash
+npm run lint
+```
+
+This applies to:
+- React components and pages in `resources/js/`
+- frontend hooks, utilities, schemas, and types
+- Vitest test files in `tests/vitest/`
+- any other JavaScript or TypeScript files touched by the change
+
+**CI/CD Integration (Frontend):** ESLint runs automatically in CI for frontend changes. If ESLint fails locally, the PR workflow can also fail. Always verify locally before pushing frontend updates.
+
+Do NOT skip these steps or mark a task as complete if any required local check reports errors.
 
 ## Code Review Guidelines
 

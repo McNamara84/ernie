@@ -41,7 +41,6 @@ use App\Http\Controllers\VocabularyController;
 use App\Models\Affiliation;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
-use App\Models\ResourceType;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -452,30 +451,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.destroy');
 
     Route::get('dashboard', function () {
-        // Get PhysicalObject type ID for filtering
-        $physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
+        $physicalObjectTypeId = app(\App\Services\ResourceCacheService::class)->getPhysicalObjectTypeId();
 
-        // Count Data Resources (non-IGSN)
-        $dataResourceCount = Resource::where(function ($query) use ($physicalObjectTypeId) {
-            $query->whereNull('resource_type_id')
-                ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
-        })->count();
+        $applyNonIgsnResourceFilter = static function ($query) use ($physicalObjectTypeId): void {
+            if ($physicalObjectTypeId === null) {
+                return;
+            }
 
-        // Count IGSN Resources
-        $igsnCount = $physicalObjectTypeId
-            ? Resource::where('resource_type_id', $physicalObjectTypeId)->count()
-            : 0;
+            $query->where(function ($subQ) use ($physicalObjectTypeId) {
+                $subQ->whereNull('resource_type_id')
+                    ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+            });
+        };
 
         // Count unique institutions (ROR-identified) for Data Resources
         $dataInstitutionCount = Affiliation::query()
             ->whereNotNull('identifier')
             ->where('identifier_scheme', 'ROR')
-            ->whereHasMorph('affiliatable', [ResourceCreator::class], function ($query) use ($physicalObjectTypeId) {
-                $query->whereHas('resource', function ($q) use ($physicalObjectTypeId) {
-                    $q->where(function ($subQ) use ($physicalObjectTypeId) {
-                        $subQ->whereNull('resource_type_id')
-                            ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
-                    });
+            ->whereHasMorph('affiliatable', [ResourceCreator::class], function ($query) use ($applyNonIgsnResourceFilter) {
+                $query->whereHas('resource', function ($q) use ($applyNonIgsnResourceFilter) {
+                    $applyNonIgsnResourceFilter($q);
                 });
             })
             ->distinct('identifier')
@@ -498,12 +493,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Draft resources: incomplete non-IGSN resources (Issue #548)
         // A resource is a draft if it lacks any of: Main Title, publication_year,
         // resource_type_id, at least one creator, at least one license, or an abstract.
-        $draftQuery = Resource::query()
-            ->where(function ($q) use ($physicalObjectTypeId) {
-                $q->whereNull('resource_type_id')
-                    ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
-            })
-            ->where(function ($q) {
+        $draftQuery = Resource::query();
+
+        $applyNonIgsnResourceFilter($draftQuery);
+
+        $draftQuery->where(function ($q) {
                 $q->whereNull('publication_year')
                     ->orWhereNull('resource_type_id')
                     ->orWhereDoesntHave('creators')
@@ -540,8 +534,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->all();
 
         return Inertia::render('dashboard', [
-            'dataResourceCount' => $dataResourceCount,
-            'igsnCount' => $igsnCount,
             'dataInstitutionCount' => $dataInstitutionCount,
             'igsnInstitutionCount' => $igsnInstitutionCount,
             'draftCount' => $draftCount,

@@ -3,6 +3,7 @@
 use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Models\Language;
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\ThesaurusSetting;
@@ -18,6 +19,14 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     // Clear the docs editor settings cache before each test
     Cache::forget(CacheKey::DOCS_EDITOR_SETTINGS->key());
+
+    if (method_exists(Cache::getStore(), 'tags')) {
+        Cache::tags(CacheKey::RESOURCE_COUNT->tags())->flush();
+
+        return;
+    }
+
+    Cache::flush();
 });
 
 test('guests are redirected to login when visiting docs', function () {
@@ -32,6 +41,34 @@ test('authenticated users can view the docs page', function () {
     $response->assertInertia(fn (Assert $page) => $page
         ->component('docs')
         ->has('userRole'));
+});
+
+test('docs page includes shared sidebar counts for resources and IGSNs', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    withoutVite();
+
+    $datasetType = ResourceType::create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    Resource::create([
+        'publication_year' => 2024,
+        'resource_type_id' => $datasetType->id,
+    ]);
+
+    Resource::create([
+        'publication_year' => 2025,
+        'resource_type_id' => null,
+    ]);
+
+    $response = $this->get(route('docs'))->assertOk();
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('docs')
+        ->where('dataResourceCount', 2)
+        ->where('igsnCount', 0));
 });
 
 test('docs page includes editor settings for dynamic content', function () {

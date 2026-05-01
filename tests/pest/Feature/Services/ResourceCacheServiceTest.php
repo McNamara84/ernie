@@ -4,10 +4,12 @@ use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Services\ResourceCacheService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function () {
     $this->cacheService = new ResourceCacheService;
+    Cache::flush();
 });
 
 describe('ResourceCacheService - Resource List Caching', function () {
@@ -73,6 +75,83 @@ describe('ResourceCacheService - Resource Count Caching', function () {
         $count = $this->cacheService->cacheResourceCount(fn () => Resource::count());
 
         expect($count)->toBe(7);
+    });
+
+    test('caches data resource counts separately per excluded resource type id', function () {
+        $typeA = ResourceType::create(['name' => 'Type A', 'slug' => 'type-a']);
+        $typeB = ResourceType::create(['name' => 'Type B', 'slug' => 'type-b']);
+
+        Resource::factory()->count(2)->create(['resource_type_id' => $typeA->id]);
+        Resource::factory()->create(['resource_type_id' => $typeB->id]);
+        Resource::factory()->create(['resource_type_id' => null]);
+
+        $countExcludingTypeA = $this->cacheService->getDataResourceCount($typeA->id);
+        $countExcludingTypeB = $this->cacheService->getDataResourceCount($typeB->id);
+
+        expect($countExcludingTypeA)->toBe(2)
+            ->and($countExcludingTypeB)->toBe(3);
+    });
+
+    test('caches IGSN counts separately per resource type id', function () {
+        $typeA = ResourceType::create(['name' => 'Type A', 'slug' => 'type-a']);
+        $typeB = ResourceType::create(['name' => 'Type B', 'slug' => 'type-b']);
+
+        Resource::factory()->count(2)->create(['resource_type_id' => $typeA->id]);
+        Resource::factory()->create(['resource_type_id' => $typeB->id]);
+
+        $countForTypeA = $this->cacheService->getIgsnCount($typeA->id);
+        $countForTypeB = $this->cacheService->getIgsnCount($typeB->id);
+
+        expect($countForTypeA)->toBe(2)
+            ->and($countForTypeB)->toBe(1);
+    });
+
+    test('caches the physical object type id after the first lookup', function () {
+        $physicalObjectType = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBe($physicalObjectType->id);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBe($physicalObjectType->id)
+            ->and(DB::getQueryLog())->toBe([]);
+
+        DB::disableQueryLog();
+    });
+
+    test('caches missing physical object type lookups until resource types change', function () {
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBeNull();
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBeNull()
+            ->and(DB::getQueryLog())->toBe([]);
+
+        DB::disableQueryLog();
+
+        $physicalObjectType = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBe($physicalObjectType->id);
+    });
+
+    test('invalidates the cached physical object type id when resource types change', function () {
+        $physicalObjectType = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBe($physicalObjectType->id);
+
+        $physicalObjectType->update(['slug' => 'sample']);
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBeNull();
+
+        $physicalObjectType->update(['slug' => 'physical-object']);
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBe($physicalObjectType->id);
+
+        $physicalObjectType->delete();
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBeNull();
     });
 });
 

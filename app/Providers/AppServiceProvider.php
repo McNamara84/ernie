@@ -11,9 +11,11 @@ use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Models\User;
 use App\Observers\LandingPageObserver;
 use App\Observers\ResourceObserver;
+use App\Observers\ResourceTypeObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\RorLookupService;
@@ -46,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         Resource::observe(ResourceObserver::class);
+        ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);
 
         // Configure rate limiters

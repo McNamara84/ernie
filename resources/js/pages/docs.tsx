@@ -97,6 +97,14 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>Viewing resource statistics</li>
                             <li>Quick access to recent resources</li>
                         </ul>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources</strong> and{' '}
+                                <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
+                                suggestions.
+                            </p>
+                        </div>
                     </>
                 ),
             },
@@ -250,7 +258,9 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Editor Configuration</h3>
                         <p>
-                            You can configure the Data Editor at <code>/settings</code> (Editor Settings):
+                            You can configure the Data Editor at <code>/settings</code> (Editor Settings). In the authenticated main menu,
+                            the entry is located under <strong>Administration</strong>, near <strong>Logs</strong> and{' '}
+                            <strong>Landing Pages</strong> when those entries are available for your role:
                         </p>
 
                         <h4>Configurable Options</h4>

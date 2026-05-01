@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
@@ -79,6 +80,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
+            'dataResourceCount' => fn (): int => $this->resolveSharedDataResourceCount($request),
+            'igsnCount' => fn (): int => $this->resolveSharedIgsnCount($request),
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
@@ -112,6 +115,30 @@ class HandleInertiaRequests extends Middleware
         } catch (\Exception $e) {
             return $request->getSchemeAndHttpHost();
         }
+    }
+
+    private function resolveSharedDataResourceCount(Request $request): int
+    {
+        if ($request->user() === null) {
+            return 0;
+        }
+
+        $resourceCache = app(ResourceCacheService::class);
+        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+
+        return $resourceCache->getDataResourceCount($physicalObjectTypeId);
+    }
+
+    private function resolveSharedIgsnCount(Request $request): int
+    {
+        if ($request->user() === null) {
+            return 0;
+        }
+
+        $resourceCache = app(ResourceCacheService::class);
+        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+
+        return $resourceCache->getIgsnCount($physicalObjectTypeId);
     }
 
     /**

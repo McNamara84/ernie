@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,14 @@ use Illuminate\Support\Facades\Log;
 class ResourceCacheService
 {
     use ChecksCacheTagging;
+
+    private const MISSING_PHYSICAL_OBJECT_TYPE_ID = -1;
+
+    private const PHYSICAL_OBJECT_TYPE_ID_CACHE_SUFFIX = 'physical_object_type_id';
+
+    private const DATA_RESOURCE_COUNT_CACHE_SUFFIX = 'data_resources';
+
+    private const IGSN_RESOURCE_COUNT_CACHE_SUFFIX = 'igsn_resources';
 
     /**
      * Cache a paginated resource listing.
@@ -70,16 +79,77 @@ class ResourceCacheService
      *
      * @param  \Closure(): int  $callback  Callback to count resources
      */
-    public function cacheResourceCount(\Closure $callback): int
+    public function cacheResourceCount(\Closure $callback, string|int|null $suffix = null): int
     {
-        $cacheKey = CacheKey::RESOURCE_COUNT->key();
+        $cacheKey = CacheKey::RESOURCE_COUNT->key($suffix);
 
-        return $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags())
+        return (int) $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags())
             ->remember(
                 $cacheKey,
                 CacheKey::RESOURCE_COUNT->ttl(),
                 $callback
             );
+    }
+
+    /**
+     * Get the resource type ID for physical objects.
+     */
+    public function getPhysicalObjectTypeId(): ?int
+    {
+        $cacheKey = CacheKey::RESOURCE_COUNT->key(self::PHYSICAL_OBJECT_TYPE_ID_CACHE_SUFFIX);
+        $cache = $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags());
+        $cachedTypeId = (int) $cache->remember(
+            $cacheKey,
+            CacheKey::RESOURCE_COUNT->ttl(),
+            fn (): int => ResourceType::query()
+                ->where('slug', 'physical-object')
+                ->value('id') ?? self::MISSING_PHYSICAL_OBJECT_TYPE_ID
+        );
+
+        if ($cachedTypeId === self::MISSING_PHYSICAL_OBJECT_TYPE_ID) {
+            return null;
+        }
+
+        return $cachedTypeId;
+    }
+
+    /**
+     * Get the total count of non-IGSN resources.
+     */
+    public function getDataResourceCount(?int $physicalObjectTypeId): int
+    {
+        return $this->cacheResourceCount(
+            callback: function () use ($physicalObjectTypeId): int {
+                if ($physicalObjectTypeId === null) {
+                    return Resource::query()->count();
+                }
+
+                return Resource::query()
+                    ->where(function (Builder $query) use ($physicalObjectTypeId): void {
+                        $query->whereNull('resource_type_id')
+                            ->orWhere('resource_type_id', '!=', $physicalObjectTypeId);
+                    })
+                    ->count();
+            },
+            suffix: $this->buildCountCacheSuffix(self::DATA_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId),
+        );
+    }
+
+    /**
+     * Get the total count of IGSN resources.
+     */
+    public function getIgsnCount(?int $physicalObjectTypeId): int
+    {
+        if ($physicalObjectTypeId === null) {
+            return 0;
+        }
+
+        return $this->cacheResourceCount(
+            callback: fn (): int => Resource::query()
+                ->where('resource_type_id', $physicalObjectTypeId)
+                ->count(),
+            suffix: $this->buildCountCacheSuffix(self::IGSN_RESOURCE_COUNT_CACHE_SUFFIX, $physicalObjectTypeId),
+        );
     }
 
     /**
@@ -131,6 +201,13 @@ class ResourceCacheService
         return CacheKey::RESOURCE_LIST->key(
             implode(':', [$perPage, $currentPage, $filterString])
         );
+    }
+
+    private function buildCountCacheSuffix(string $prefix, ?int $physicalObjectTypeId): string
+    {
+        return $physicalObjectTypeId === null
+            ? "{$prefix}:none"
+            : "{$prefix}:{$physicalObjectTypeId}";
     }
 
     /**
