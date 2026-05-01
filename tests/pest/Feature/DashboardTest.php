@@ -220,6 +220,44 @@ test('dashboard does not count affiliations without ROR identifier', function ()
         );
 });
 
+test('dashboard treats all resources as non-IGSN when physical object type is missing', function () {
+    $this->actingAs(User::factory()->create());
+
+    $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+
+    $resource = Resource::create([
+        'publication_year' => 2024,
+        'resource_type_id' => $datasetType->id,
+    ]);
+
+    $person = Person::create(['given_name' => 'John', 'family_name' => 'Doe']);
+    $creator = ResourceCreator::create([
+        'resource_id' => $resource->id,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $person->id,
+        'position' => 1,
+    ]);
+
+    Affiliation::create([
+        'affiliatable_type' => ResourceCreator::class,
+        'affiliatable_id' => $creator->id,
+        'name' => 'GFZ German Research Centre for Geosciences',
+        'identifier' => 'https://ror.org/04z8jg394',
+        'identifier_scheme' => 'ROR',
+    ]);
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->where('dataResourceCount', 1)
+            ->where('igsnCount', 0)
+            ->where('dataInstitutionCount', 1)
+            ->where('igsnInstitutionCount', 0)
+            ->where('draftCount', 1)
+            ->has('recentDrafts', 1)
+        );
+});
+
 test('dashboard provides PHP version from system', function () {
     $this->actingAs(User::factory()->create());
 
