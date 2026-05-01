@@ -75,5 +75,19 @@ class UpdateLandingPageTemplateRequest extends FormRequest
         if ($this->has('name') && is_string($this->input('name'))) {
             $this->merge(['name' => trim($this->input('name'))]);
         }
+
+        if ($this->has('right_column_order')) {
+            $rightOrder = $this->input('right_column_order');
+
+            if (is_array($rightOrder)) {
+                $stringKeys = array_values(array_filter($rightOrder, 'is_string'));
+
+                if (count($stringKeys) === count($rightOrder)) {
+                    $this->merge([
+                        'right_column_order' => LandingPageTemplate::normalizeRightColumnOrder($stringKeys),
+                    ]);
+                }
+            }
+        }
     }
 }

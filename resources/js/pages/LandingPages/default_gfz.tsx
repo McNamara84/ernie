@@ -15,6 +15,7 @@ import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { buildCitation } from './lib/buildCitation';
+import { type MetadataSectionKey } from './lib/metadata-sections';
 
 /**
  * Props passed to landing page templates via Inertia
@@ -37,7 +38,20 @@ interface DefaultGfzTemplatePageProps {
 }
 
 /** Default section orders matching the original layout */
-const DEFAULT_RIGHT_ORDER: RightColumnSection[] = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'];
+const DEFAULT_RIGHT_ORDER: RightColumnSection[] = [
+    'abstract',
+    'methods',
+    'technical_info',
+    'series_information',
+    'table_of_contents',
+    'other',
+    'creators',
+    'contributors',
+    'funders',
+    'keywords',
+    'metadata_download',
+    'location',
+];
 const DEFAULT_LEFT_ORDER: LeftColumnSection[] = ['files', 'contact', 'model_description', 'related_work'];
 
 export default function DefaultGfzTemplate() {
@@ -54,17 +68,21 @@ export default function DefaultGfzTemplate() {
     // Resolve section orders (custom template overrides or defaults)
     const rightOrder = sectionOrder?.rightColumn ?? DEFAULT_RIGHT_ORDER;
     const leftOrder = sectionOrder?.leftColumn ?? DEFAULT_LEFT_ORDER;
+    const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
+    const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
+    const locationIndex = rightOrder.indexOf('location');
+    const renderLocationBeforeMetadata = locationIndex !== -1 && (firstMetadataIndex === -1 || locationIndex < firstMetadataIndex);
 
     // Logo: custom template logo or default GFZ logo
     const logoSrc = customLogoUrl ?? '/images/gfz-ds-logo.png';
 
     // Section registry: map section keys to React elements
-    const rightSectionRegistry = useMemo((): Record<RightColumnSection, ReactNode> => {
+    const rightSectionRegistry = useMemo((): { metadata: ReactNode; location: ReactNode } => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
         return {
-            descriptions: (
+            metadata: (
                 <AbstractSection
-                    key="descriptions"
+                    key="metadata"
                     descriptions={resource.descriptions || []}
                     creators={resource.creators || []}
                     contributors={resource.contributors || []}
@@ -72,16 +90,12 @@ export default function DefaultGfzTemplate() {
                     subjects={resource.subjects || []}
                     resourceId={resource.id}
                     jsonLdExportUrl={jsonLdExportUrl}
+                    sectionOrder={metadataOrder}
                 />
             ),
-            creators: null, // Rendered inside AbstractSection
-            contributors: null, // Rendered inside AbstractSection
-            funders: null, // Rendered inside AbstractSection
-            keywords: null, // Rendered inside AbstractSection
-            metadata_download: null, // Rendered inside AbstractSection
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
-    }, [resource, landingPage, isDark]);
+    }, [resource, landingPage, isDark, metadataOrder]);
 
     const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
         return {
@@ -161,7 +175,9 @@ export default function DefaultGfzTemplate() {
                         <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                             {/* Right Column (Abstract, Location) — show first on mobile */}
                             <div className="order-1 space-y-6 lg:order-2 lg:col-span-2">
-                                {rightOrder.map((key) => rightSectionRegistry[key]).filter(Boolean)}
+                                {renderLocationBeforeMetadata && rightSectionRegistry.location}
+                                {rightSectionRegistry.metadata}
+                                {!renderLocationBeforeMetadata && rightSectionRegistry.location}
                             </div>
 
                             {/* Left Column (Files, Contact, Related) — show second on mobile */}

@@ -457,7 +457,7 @@ describe('Landing Page with Custom Template', function () {
     test('renders landing page with custom template section order and logo', function () {
         $template = \App\Models\LandingPageTemplate::factory()->create([
             'created_by' => \App\Models\User::factory()->admin()->create()->id,
-            'right_column_order' => ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/custom-logo.png',
         ]);

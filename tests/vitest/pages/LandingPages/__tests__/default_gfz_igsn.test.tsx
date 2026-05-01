@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -397,16 +397,23 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            expect(screen.getByText('Acquisition')).toBeInTheDocument();
-            expect(screen.getByText('Basalt')).toBeInTheDocument();
-            expect(screen.getByText('Igneous, Volcanic')).toBeInTheDocument();
-            expect(screen.getByText('Hand sampling')).toBeInTheDocument();
-            expect(screen.getByText('Surface outcrop')).toBeInTheDocument();
-            expect(screen.getByText('NSF')).toBeInTheDocument();
-            expect(screen.getByText('Field comments here')).toBeInTheDocument();
-            expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-            expect(screen.getByText('2023-06-01')).toBeInTheDocument();
-            expect(screen.getByText('2023-06-30')).toBeInTheDocument();
+            const acquisitionHeading = screen.getByText('Acquisition');
+            const acquisitionCard = acquisitionHeading.closest('[data-slot="landing-page-card"]');
+
+            expect(acquisitionCard).not.toBeNull();
+
+            const acquisition = within(acquisitionCard as HTMLElement);
+
+            expect(acquisitionHeading).toBeInTheDocument();
+            expect(acquisition.getByText('Basalt')).toBeInTheDocument();
+            expect(acquisition.getByText('Igneous, Volcanic')).toBeInTheDocument();
+            expect(acquisition.getByText('Hand sampling')).toBeInTheDocument();
+            expect(acquisition.getByText('Surface outcrop')).toBeInTheDocument();
+            expect(acquisition.getByText('NSF')).toBeInTheDocument();
+            expect(acquisition.getByText('Field comments here')).toBeInTheDocument();
+            expect(acquisition.getByText('Jane Smith')).toBeInTheDocument();
+            expect(acquisition.getByText('2023-06-01')).toBeInTheDocument();
+            expect(acquisition.getByText('2023-06-30')).toBeInTheDocument();
         });
 
         it('hides General and Acquisition modules when no IGSN data is provided', () => {
@@ -499,7 +506,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                     isPreview: false,
                     sectionOrder: {
                         leftColumn: ['files', 'acquisition', 'general', 'contact', 'model_description', 'related_work'],
-                        rightColumn: ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+                        rightColumn: ['abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
                     },
                 },
             } as unknown as ReturnType<typeof usePage>);
@@ -542,6 +549,33 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             // Should still render the page with main title; status defaulted internally
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
+        });
+
+        it('renders methods before abstract when the right column order requests it', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        descriptions: [
+                            { id: 1, value: 'IGSN abstract', description_type: 'Abstract' },
+                            { id: 2, value: 'IGSN methods', description_type: 'Methods' },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        leftColumn: ['general', 'acquisition', 'contact', 'model_description', 'related_work'],
+                        rightColumn: ['methods', 'abstract', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            const methodsHeading = screen.getByText('Methods');
+            const abstractHeading = screen.getByText('Abstract');
+            expect(methodsHeading.compareDocumentPosition(abstractHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(screen.getByText('IGSN methods')).toBeInTheDocument();
         });
     });
 });

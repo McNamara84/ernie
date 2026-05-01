@@ -21,7 +21,7 @@ describe('DefaultGfzTemplate', () => {
             { id: 1, title: 'Test Dataset Title', title_type: 'MainTitle' },
             { id: 2, title: 'Test Subtitle', title_type: 'Subtitle' },
         ],
-        descriptions: [{ id: 1, description: 'Test abstract', description_type: 'Abstract' }],
+        descriptions: [{ id: 1, value: 'Test abstract', description_type: 'Abstract' }],
         creators: [],
         funding_references: [],
         subjects: [],
@@ -483,6 +483,65 @@ describe('DefaultGfzTemplate', () => {
             // Render should succeed with jsonLdExportUrl derived from public_url
             render(<DefaultGfzTemplate />);
             expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
+        });
+
+        it('renders separate description modules in the configured order', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        descriptions: [
+                            { id: 1, value: 'Abstract block', description_type: 'Abstract' },
+                            { id: 2, value: 'Methods block', description_type: 'Methods' },
+                            { id: 3, value: 'Technical block', description_type: 'TechnicalInfo' },
+                        ],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        rightColumn: [
+                            'methods',
+                            'abstract',
+                            'technical_info',
+                            'creators',
+                            'contributors',
+                            'funders',
+                            'keywords',
+                            'metadata_download',
+                            'location',
+                        ],
+                        leftColumn: ['files', 'contact', 'model_description', 'related_work'],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            const methodsHeading = screen.getByText('Methods');
+            const abstractHeading = screen.getByText('Abstract');
+            const technicalHeading = screen.getByText('Technical Information');
+
+            expect(methodsHeading.compareDocumentPosition(abstractHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(abstractHeading.compareDocumentPosition(technicalHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(screen.getByText('Technical block')).toBeInTheDocument();
+        });
+
+        it('renders non-abstract descriptions when no abstract exists', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        descriptions: [{ id: 1, value: 'Only methods', description_type: 'Methods' }],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(screen.getByText('Methods')).toBeInTheDocument();
+            expect(screen.getByText('Only methods')).toBeInTheDocument();
         });
     });
 });

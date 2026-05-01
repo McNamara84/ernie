@@ -8,6 +8,36 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { LandingPageTemplateConfig } from '@/types/landing-page';
 
+const defaultRightOrder: LandingPageTemplateConfig['right_column_order'] = [
+    'abstract',
+    'methods',
+    'technical_info',
+    'series_information',
+    'table_of_contents',
+    'other',
+    'creators',
+    'contributors',
+    'funders',
+    'keywords',
+    'metadata_download',
+    'location',
+];
+
+const locationFirstRightOrder: LandingPageTemplateConfig['right_column_order'] = [
+    'location',
+    'abstract',
+    'methods',
+    'technical_info',
+    'series_information',
+    'table_of_contents',
+    'other',
+    'creators',
+    'contributors',
+    'funders',
+    'keywords',
+    'metadata_download',
+];
+
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const routerMock = vi.hoisted(() => ({ reload: vi.fn() }));
@@ -90,7 +120,7 @@ const defaultTemplate: LandingPageTemplateConfig = {
     logo_path: null,
     logo_filename: null,
     logo_url: null,
-    right_column_order: ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+    right_column_order: defaultRightOrder,
     left_column_order: ['files', 'contact', 'model_description', 'related_work'],
     created_by: null,
     creator: null,
@@ -108,7 +138,7 @@ const customTemplate: LandingPageTemplateConfig = {
     logo_path: 'landing-page-logos/geophysics/logo.png',
     logo_filename: 'logo.png',
     logo_url: 'http://localhost/storage/landing-page-logos/geophysics/logo.png',
-    right_column_order: ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+    right_column_order: locationFirstRightOrder,
     left_column_order: ['contact', 'files', 'model_description', 'related_work'],
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
@@ -126,7 +156,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     logo_path: null,
     logo_filename: null,
     logo_url: null,
-    right_column_order: ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+    right_column_order: defaultRightOrder,
     left_column_order: ['files', 'contact', 'model_description', 'related_work'],
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
@@ -200,7 +230,8 @@ describe('LandingPageTemplatesPage', () => {
         it('shows section order lists', () => {
             render(<LandingPageTemplatesPage />);
             // Check section labels are rendered
-            expect(screen.getAllByText('Abstract & Descriptions').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Abstract').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Methods').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Creators / Authors').length).toBeGreaterThanOrEqual(1);
         });
 
@@ -637,7 +668,12 @@ describe('LandingPageTemplatesPage', () => {
     describe('Section Labels', () => {
         it('renders right column section labels', () => {
             render(<LandingPageTemplatesPage />);
-            expect(screen.getAllByText('Abstract & Descriptions').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Abstract').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Methods').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Technical Information').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Series Information').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Table of Contents').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Other').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Creators / Authors').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Contributors').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Funding References').length).toBeGreaterThanOrEqual(1);

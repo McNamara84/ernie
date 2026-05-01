@@ -4,6 +4,10 @@
         "date": "2026-05-01",
         "features": [
             {
+                "title": "Separate Description-Type Modules on Default Landing Pages",
+                "description": "Default GFZ landing pages for both regular resources and IGSNs now render every supported DataCite description type as its own module inside the shared metadata card. Abstract, Methods, Technical Information, Series Information, Table of Contents, and Other are displayed independently when present, including multiple entries of the same type in their original order. In Landing Page Template Management, these description modules can now be reordered individually instead of being grouped under a single 'Abstract & Descriptions' block, while the Location / Map card remains a separate module before or after the shared metadata card."
+            },
+            {
                 "title": "IGSN Landing Page: General & Acquisition Modules",
                 "description": "The default IGSN landing page now displays sample-specific metadata in two new modules in the left column. 'General' shows Project (from funding award titles), Campaign (cruise/field program), Type, IGSN, Parent IGSN (rendered as a link to the parent's landing page when published), Purpose, and Release Date (from the Available date). 'Acquisition' shows Material, Rock Classification (joined IGSN classifications), Collection Method (with optional method description), Funding Agency (deduplicated funder names), Comments (from descriptions of type 'Other'), Chief Scientist (contributors with role 'Data Collector'), and Start/End Date (from the Collected date range). Empty fields and empty modules are hidden automatically. Both new sections are configurable in landing page templates and can be reordered alongside Contact, Model Description, and Related Work."
             },
