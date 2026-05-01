@@ -26,7 +26,28 @@ function loadWidenRelatedItemsEditionMigration(): Migration
     return $migration;
 }
 
+/**
+ * Skip data-level boundary tests on backends that do not enforce VARCHAR(n)
+ * length. SQLite ignores the declared length entirely, so any
+ * "persists N characters" assertion would pass even if the migration had
+ * never widened the column. The MySQL/MariaDB-only gate keeps this suite
+ * honest about what it actually verifies on each driver.
+ */
+function skipUnlessLengthEnforcingDriver(): void
+{
+    $driver = DB::connection()->getDriverName();
+
+    if (! in_array($driver, ['mysql', 'mariadb'], true)) {
+        test()->markTestSkipped(
+            "VARCHAR length is not enforced on driver [{$driver}]; "
+            .'data-level boundary assertions only meaningful on MySQL/MariaDB.'
+        );
+    }
+}
+
 it('persists related_items edition values longer than the legacy 64-character limit', function (): void {
+    skipUnlessLengthEnforcingDriver();
+
     // Direct-write regression test: the original DataCite payload that broke
     // the import job ("36th General Assembly of the European Seismological
     // Commission, Malta, ESC2018-S11-402") is well over 64 characters. After
@@ -46,6 +67,8 @@ it('persists related_items edition values longer than the legacy 64-character li
 });
 
 it('persists related_items edition values up to the new 255-character ceiling', function (): void {
+    skipUnlessLengthEnforcingDriver();
+
     // Boundary test: the widened column must accept the full 255-character
     // payload that VARCHAR(255) advertises. Any future migration that
     // accidentally narrows the column will surface here as a truncation.

@@ -36,11 +36,19 @@ return new class extends Migration
     public function down(): void
     {
         // Guard against silent truncation: refuse to narrow the column if any
-        // existing row holds a value longer than 64 characters. Length is
-        // computed in the database (LENGTH on SQLite, CHAR_LENGTH on MySQL)
-        // so this guard is portable across the supported backends.
+        // existing row holds a value longer than 64 characters. Each supported
+        // driver exposes its own character-count function (sqlsrv has no
+        // CHAR_LENGTH), so resolve the expression per driver instead of
+        // assuming a single SQL dialect.
         $driver = DB::connection()->getDriverName();
-        $lengthExpression = $driver === 'sqlite' ? 'LENGTH(edition)' : 'CHAR_LENGTH(edition)';
+        $lengthExpression = match ($driver) {
+            'sqlite' => 'LENGTH(edition)',
+            'mysql', 'mariadb', 'pgsql' => 'CHAR_LENGTH(edition)',
+            'sqlsrv' => 'LEN(edition)',
+            default => throw new RuntimeException(
+                "Unsupported database driver for related_items.edition rollback: [{$driver}]."
+            ),
+        };
 
         $overflowExists = DB::table('related_items')
             ->where(function (Builder $query) use ($lengthExpression): void {
