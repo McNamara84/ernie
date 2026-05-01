@@ -127,6 +127,22 @@ describe('AbstractSection', () => {
             expect(screen.getByText('Download Metadata')).toBeInTheDocument();
         });
 
+        it('returns null when no metadata modules are requested', () => {
+            const { container } = render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[]}
+                    creators={[]}
+                    contributors={[]}
+                    fundingReferences={[]}
+                    subjects={[]}
+                    sectionOrder={[]}
+                />
+            );
+
+            expect(container).toBeEmptyDOMElement();
+        });
+
         it('displays the abstract text', () => {
             render(<AbstractSection {...defaultProps} />);
             

@@ -485,6 +485,43 @@ describe('DefaultGfzTemplate', () => {
             expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
         });
 
+        it('uses customLogoUrl when provided', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    customLogoUrl: 'https://cdn.example/custom-logo.png',
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute('src', 'https://cdn.example/custom-logo.png');
+        });
+
+        it('handles a right column order that only contains location', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        descriptions: [],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        rightColumn: ['location'],
+                        leftColumn: ['files', 'contact', 'model_description', 'related_work'],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(screen.getByText('Test Dataset Title')).toBeInTheDocument();
+            expect(screen.queryByText('Abstract')).not.toBeInTheDocument();
+        });
+
         it('renders separate description modules in the configured order', () => {
             mockUsePage.mockReturnValue({
                 props: {

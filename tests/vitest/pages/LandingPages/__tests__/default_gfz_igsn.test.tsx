@@ -551,6 +551,28 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
         });
 
+        it('handles a right column order that only contains location', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: {
+                        ...mockResource,
+                        descriptions: [],
+                    },
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: {
+                        leftColumn: ['general', 'acquisition', 'contact', 'model_description', 'related_work'],
+                        rightColumn: ['location'],
+                    },
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByText('Rock Sample Core XYZ')).toBeInTheDocument();
+            expect(screen.queryByText('Abstract')).not.toBeInTheDocument();
+        });
+
         it('renders methods before abstract when the right column order requests it', () => {
             mockUsePage.mockReturnValue({
                 props: {

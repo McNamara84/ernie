@@ -38,6 +38,40 @@ const locationFirstRightOrder: LandingPageTemplateConfig['right_column_order'] =
     'metadata_download',
 ];
 
+const legacyLocationFirstRightOrder = [
+    'location',
+    'descriptions',
+    'keywords',
+] as unknown as LandingPageTemplateConfig['right_column_order'];
+
+const middleLocationRightOrder = [
+    'abstract',
+    'location',
+    'methods',
+] as unknown as LandingPageTemplateConfig['right_column_order'];
+
+const dirtyRightOrder = [
+    'unknown',
+    'abstract',
+    'abstract',
+    'location',
+] as unknown as LandingPageTemplateConfig['right_column_order'];
+
+const expandedLegacyLocationFirstOrder = [
+    'location',
+    'abstract',
+    'methods',
+    'technical_info',
+    'series_information',
+    'table_of_contents',
+    'other',
+    'keywords',
+    'creators',
+    'contributors',
+    'funders',
+    'metadata_download',
+];
+
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const routerMock = vi.hoisted(() => ({ reload: vi.fn() }));
@@ -163,6 +197,14 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     landing_pages_count: 0,
     created_at: '2025-04-01T00:00:00Z',
     updated_at: '2025-04-01T00:00:00Z',
+};
+
+const defaultIgsnTemplate: LandingPageTemplateConfig = {
+    ...defaultTemplate,
+    id: 4,
+    name: 'Default GFZ IGSN',
+    slug: 'default_gfz_igsn',
+    template_type: 'igsn',
 };
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
@@ -370,6 +412,21 @@ describe('LandingPageTemplatesPage', () => {
                 expect(screen.queryByText('Clone Default Template')).not.toBeInTheDocument();
             });
         });
+
+        it('clones from the default IGSN template with igsn template type', async () => {
+            mockedAxiosPost.mockResolvedValue({ data: { message: 'Created', template: {} } });
+            mockTemplates = [defaultIgsnTemplate];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Clone this template/i }));
+            await user.type(screen.getByLabelText('Template Name'), 'IGSN Clone');
+            await user.click(screen.getByRole('button', { name: /Clone Template/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'IGSN Clone', template_type: 'igsn' });
+            });
+        });
     });
 
     // ─── Edit Dialog ─────────────────────────────────────────────────────
@@ -451,6 +508,79 @@ describe('LandingPageTemplatesPage', () => {
 
             expect(screen.getByText('Right Column (main content)')).toBeInTheDocument();
             expect(screen.getByText('Left Column (sidebar)')).toBeInTheDocument();
+            expect(screen.getByText(/Description modules render inside one shared metadata card/i)).toBeInTheDocument();
+        });
+
+        it('normalizes middle location to the end before saving', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...customTemplateNoLogo,
+                    right_column_order: middleLocationRightOrder,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplateNoLogo.id}`,
+                    expect.objectContaining({
+                        right_column_order: defaultRightOrder,
+                    }),
+                );
+            });
+        });
+
+        it('expands legacy descriptions while preserving leading location before saving', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...customTemplateNoLogo,
+                    right_column_order: legacyLocationFirstRightOrder,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplateNoLogo.id}`,
+                    expect.objectContaining({
+                        right_column_order: expandedLegacyLocationFirstOrder,
+                    }),
+                );
+            });
+        });
+
+        it('drops unknown and duplicate right column keys before saving', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...customTemplateNoLogo,
+                    right_column_order: dirtyRightOrder,
+                },
+            ];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplateNoLogo.id}`,
+                    expect.objectContaining({
+                        right_column_order: defaultRightOrder,
+                    }),
+                );
+            });
         });
 
         it('closes edit dialog via Cancel', async () => {
@@ -558,6 +688,27 @@ describe('LandingPageTemplatesPage', () => {
 
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Failed to delete template');
+            });
+        });
+
+        it('shows backend delete error message when provided', async () => {
+            const { toast } = await import('sonner');
+            mockedAxiosDelete.mockRejectedValue({
+                isAxiosError: true,
+                response: { data: { message: 'Template is currently in use.' } },
+            });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            const deleteButtons = screen.getAllByRole('button', { name: /Delete/i });
+            await user.click(deleteButtons[1]);
+
+            const confirmButtons = screen.getAllByRole('button', { name: /Delete/i });
+            const alertDialogDelete = confirmButtons.find((btn) => btn.closest('[role="alertdialog"]'));
+            if (alertDialogDelete) await user.click(alertDialogDelete);
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Template is currently in use.');
             });
         });
     });
