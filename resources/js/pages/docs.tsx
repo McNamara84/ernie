@@ -259,8 +259,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <h3>Editor Configuration</h3>
                         <p>
                             You can configure the Data Editor at <code>/settings</code> (Editor Settings). In the authenticated main menu,
-                            the entry is located under <strong>Administration</strong> between <strong>Logs</strong> and{' '}
-                            <strong>Landing Pages</strong>:
+                            the entry is located under <strong>Administration</strong>, near <strong>Logs</strong> and{' '}
+                            <strong>Landing Pages</strong> when those entries are available for your role:
                         </p>
 
                         <h4>Configurable Options</h4>
