@@ -28,7 +28,7 @@ interface Resource {
     creators?: Creator[];
     titles?: Title[];
     publisher?: string;
-    doi?: string;
+    doi?: string | null;
     publication_year?: number;
     year?: number; // Actual database field name
 }

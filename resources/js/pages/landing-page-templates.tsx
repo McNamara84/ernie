@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -37,10 +38,62 @@ const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
 /** Display labels for left column sections */
 const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
     files: 'Files & Downloads',
+    general: 'General',
+    acquisition: 'Acquisition',
     contact: 'Contact Person',
     model_description: 'Model / Method Description',
     related_work: 'Related Work',
 };
+
+/** Canonical section orders – mirror of `LandingPageTemplate::*_COLUMN_SECTIONS`. */
+const CANONICAL_RIGHT_ORDER: RightColumnSection[] = [
+    'descriptions',
+    'creators',
+    'contributors',
+    'funders',
+    'keywords',
+    'metadata_download',
+    'location',
+];
+
+const CANONICAL_LEFT_ORDER: LeftColumnSection[] = [
+    'files',
+    'general',
+    'acquisition',
+    'contact',
+    'model_description',
+    'related_work',
+];
+
+/**
+ * Merge a stored section order with the canonical list:
+ *   - drop unknown keys (defensive, e.g. removed sections),
+ *   - deduplicate,
+ *   - append canonical keys that are missing (preserving existing ordering).
+ *
+ * This keeps templates that were created before new sections were added
+ * editable in the UI and saveable through the backend validator, which
+ * requires the full canonical set.
+ */
+function normalizeOrder<T extends string>(stored: readonly T[], canonical: readonly T[]): T[] {
+    const canonicalSet = new Set<T>(canonical);
+    const seen = new Set<T>();
+    const result: T[] = [];
+
+    for (const key of stored) {
+        if (!canonicalSet.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        result.push(key);
+    }
+
+    for (const key of canonical) {
+        if (!seen.has(key)) {
+            result.push(key);
+        }
+    }
+
+    return result;
+}
 
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];
@@ -130,6 +183,7 @@ export default function LandingPageTemplatesPage() {
     // Clone dialog
     const [cloneOpen, setCloneOpen] = useState(false);
     const [cloneName, setCloneName] = useState('');
+    const [cloneType, setCloneType] = useState<'resource' | 'igsn'>('resource');
     const [cloning, setCloning] = useState(false);
 
     // Edit dialog
@@ -151,11 +205,17 @@ export default function LandingPageTemplatesPage() {
     const [logoTargetId, setLogoTargetId] = useState<number | null>(null);
 
     // --- Clone ---
+    const openClone = (templateType: 'resource' | 'igsn' = 'resource') => {
+        setCloneType(templateType);
+        setCloneName('');
+        setCloneOpen(true);
+    };
+
     const handleClone = async () => {
         if (!cloneName.trim()) return;
         setCloning(true);
         try {
-            await axios.post('/landing-pages', { name: cloneName.trim() });
+            await axios.post('/landing-pages', { name: cloneName.trim(), template_type: cloneType });
             toast.success('Template cloned successfully');
             setCloneOpen(false);
             setCloneName('');
@@ -175,8 +235,8 @@ export default function LandingPageTemplatesPage() {
     const openEdit = (tmpl: LandingPageTemplateConfig) => {
         setEditTemplate(tmpl);
         setEditName(tmpl.name);
-        setEditRightOrder([...tmpl.right_column_order]);
-        setEditLeftOrder([...tmpl.left_column_order]);
+        setEditRightOrder(normalizeOrder<RightColumnSection>(tmpl.right_column_order, CANONICAL_RIGHT_ORDER));
+        setEditLeftOrder(normalizeOrder<LeftColumnSection>(tmpl.left_column_order, CANONICAL_LEFT_ORDER));
         setEditOpen(true);
     };
 
@@ -289,10 +349,10 @@ export default function LandingPageTemplatesPage() {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Landing Pages</h1>
                         <p className="text-muted-foreground">
-                            Manage custom templates for resource landing pages. Clone the default template and customize section order and logo.
+                            Manage custom templates for resource and IGSN landing pages. Clone a default template and customize section order and logo.
                         </p>
                     </div>
-                    <Button onClick={() => { setCloneName(''); setCloneOpen(true); }}>
+                    <Button onClick={() => openClone('resource')}>
                         <Plus className="mr-2 size-4" />
                         New Template
                     </Button>
@@ -319,6 +379,9 @@ export default function LandingPageTemplatesPage() {
                                         {tmpl.is_default && (
                                             <Badge variant="secondary" className="text-xs">Default</Badge>
                                         )}
+                                        <Badge variant="outline" className="text-xs">
+                                            {tmpl.template_type === 'igsn' ? 'IGSN' : 'Resource'}
+                                        </Badge>
                                         {(tmpl.landing_pages_count ?? 0) > 0 && (
                                             <Badge variant="outline" className="text-xs">
                                                 {tmpl.landing_pages_count} {tmpl.landing_pages_count === 1 ? 'page' : 'pages'}
@@ -373,7 +436,14 @@ export default function LandingPageTemplatesPage() {
                                 </div>
 
                                 {/* Actions */}
-                                {!tmpl.is_default && (
+                                {tmpl.is_default ? (
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <Button variant="outline" size="sm" onClick={() => openClone(tmpl.template_type)}>
+                                            <Copy className="mr-1.5 size-3.5" />
+                                            Clone this template
+                                        </Button>
+                                    </div>
+                                ) : (
                                     <div className="flex items-center gap-2 pt-1">
                                         <Button variant="outline" size="sm" onClick={() => openEdit(tmpl)}>
                                             <Pencil className="mr-1.5 size-3.5" />
@@ -421,11 +491,23 @@ export default function LandingPageTemplatesPage() {
                             Clone Default Template
                         </DialogTitle>
                         <DialogDescription>
-                            Create a new template based on the default GFZ template. You can customize the section order and logo afterwards.
+                            Create a new template based on the selected default template type (resource or IGSN). You can customize the section order and logo afterwards.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="clone-type">Template Type</Label>
+                            <Select value={cloneType} onValueChange={(value) => setCloneType(value as 'resource' | 'igsn')}>
+                                <SelectTrigger id="clone-type">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="resource">Resource (DOI) — Default GFZ Data Services</SelectItem>
+                                    <SelectItem value="igsn">IGSN — Default GFZ IGSN</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="clone-name">Template Name</Label>
                             <Input

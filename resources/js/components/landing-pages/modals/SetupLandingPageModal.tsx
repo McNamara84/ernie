@@ -20,6 +20,7 @@ interface Resource {
     id: number;
     doi?: string | null;
     title?: string;
+    resourcetypegeneral?: string;
     [key: string]: unknown;
 }
 
@@ -85,7 +86,15 @@ function SortableLinkItem({
 }
 
 export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupLandingPageModalProps) {
-    const [template, setTemplate] = useState<string>(existingConfig?.template ?? getDefaultTemplate());
+    // PhysicalObject resources (IGSNs) default to the IGSN renderer; everything
+    // else uses the standard `default_gfz` template. This is reused for the
+    // initial state, the reset-on-close branch, and the 404 fallback inside
+    // `loadLandingPageConfig` so a freshly opened IGSN modal always points at
+    // the correct built-in template.
+    const defaultTemplateForResource =
+        resource.resourcetypegeneral === 'PhysicalObject' ? 'default_gfz_igsn' : getDefaultTemplate();
+
+    const [template, setTemplate] = useState<string>(existingConfig?.template ?? defaultTemplateForResource);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
@@ -112,6 +121,32 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const supportsLinks = !isExternal && !isIgsn;
     const MAX_LINKS = 10;
 
+    // Resource type drives which built-in templates are offered and which
+    // custom templates are eligible.
+    //
+    // - Built-in templates: `getTemplateOptions(resource.resourcetypegeneral)`
+    //   returns every template whose `resourceTypes` either is `null`
+    //   (unrestricted, e.g. `default_gfz` and `external`) or explicitly lists
+    //   the resource type. PhysicalObject resources therefore see the standard
+    //   resource template + the IGSN-only template + external; everything else
+    //   sees the standard template + external. This is intentional so curators
+    //   retain the option to fall back to the resource renderer for unusual
+    //   IGSN configurations.
+    // - Custom templates: filtered strictly to the resource's eligible
+    //   `template_type` (PhysicalObject → `igsn`, otherwise → `resource`).
+    const isPhysicalObject = resource.resourcetypegeneral === 'PhysicalObject';
+    const eligibleTemplateType: 'resource' | 'igsn' = isPhysicalObject ? 'igsn' : 'resource';
+    const eligibleCustomTemplates = useMemo(
+        () => customTemplates.filter(
+            (ct) => !ct.is_default && (ct.template_type ?? 'resource') === eligibleTemplateType,
+        ),
+        [customTemplates, eligibleTemplateType],
+    );
+    const builtInTemplateOptions = useMemo(
+        () => getTemplateOptions(resource.resourcetypegeneral),
+        [resource.resourcetypegeneral],
+    );
+
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
@@ -137,7 +172,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         } else if (!isOpen) {
             // Reset state when modal closes
             setCurrentConfig(null);
-            setTemplate(getDefaultTemplate());
+            setTemplate(defaultTemplateForResource);
             setFtpUrl('');
             setIsPublished(false);
             setPreviewUrl('');
@@ -186,7 +221,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
                 setCurrentConfig(null);
-                setTemplate('default_gfz');
+                setTemplate(defaultTemplateForResource);
                 setFtpUrl('');
                 setIsPublished(false);
                 setPreviewUrl('');
@@ -569,7 +604,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     if (val.startsWith('custom:')) {
                                         const id = Number(val.replace('custom:', ''));
                                         setLandingPageTemplateId(id);
-                                        setTemplate('default_gfz'); // Custom templates use default_gfz renderer
+                                        // Resolve the renderer key from the selected custom
+                                        // template's template_type (resource → default_gfz,
+                                        // igsn → default_gfz_igsn) so the correct landing
+                                        // page renderer is used regardless of which custom
+                                        // template the curator picks.
+                                        const selected = customTemplates.find((ct) => ct.id === id);
+                                        const rendererKey = (selected?.template_type ?? 'resource') === 'igsn'
+                                            ? 'default_gfz_igsn'
+                                            : 'default_gfz';
+                                        setTemplate(rendererKey);
                                     } else {
                                         setLandingPageTemplateId(null);
                                         setTemplate(val);
@@ -580,7 +624,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {getTemplateOptions().map((tmpl) => (
+                                    {builtInTemplateOptions.map((tmpl) => (
                                         <SelectItem key={tmpl.value} value={tmpl.value}>
                                             <div className="flex flex-col">
                                                 <span>{tmpl.label}</span>
@@ -588,21 +632,19 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                             </div>
                                         </SelectItem>
                                     ))}
-                                    {customTemplates.filter((ct) => !ct.is_default).length > 0 && (
+                                    {eligibleCustomTemplates.length > 0 && (
                                         <>
                                             <SelectSeparator />
                                             <SelectGroup>
                                                 <SelectLabel>Custom Templates</SelectLabel>
-                                                {customTemplates
-                                                    .filter((ct) => !ct.is_default)
-                                                    .map((ct) => (
-                                                        <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
-                                                            <div className="flex flex-col">
-                                                                <span>{ct.name}</span>
-                                                                <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
+                                                {eligibleCustomTemplates.map((ct) => (
+                                                    <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
+                                                        <div className="flex flex-col">
+                                                            <span>{ct.name}</span>
+                                                            <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
                                             </SelectGroup>
                                         </>
                                     )}

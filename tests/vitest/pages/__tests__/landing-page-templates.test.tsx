@@ -86,6 +86,7 @@ const defaultTemplate: LandingPageTemplateConfig = {
     name: 'Default GFZ Data Services',
     slug: 'default_gfz',
     is_default: true,
+    template_type: 'resource',
     logo_path: null,
     logo_filename: null,
     logo_url: null,
@@ -103,6 +104,7 @@ const customTemplate: LandingPageTemplateConfig = {
     name: 'Geophysics Template',
     slug: 'geophysics-template-abc123',
     is_default: false,
+    template_type: 'resource',
     logo_path: 'landing-page-logos/geophysics/logo.png',
     logo_filename: 'logo.png',
     logo_url: 'http://localhost/storage/landing-page-logos/geophysics/logo.png',
@@ -120,6 +122,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     name: 'Minimal Template',
     slug: 'minimal-template-xyz789',
     is_default: false,
+    template_type: 'resource',
     logo_path: null,
     logo_filename: null,
     logo_url: null,
@@ -261,7 +264,7 @@ describe('LandingPageTemplatesPage', () => {
             await user.click(screen.getByRole('button', { name: /Clone Template/i }));
 
             await waitFor(() => {
-                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'My New Template' });
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'My New Template', template_type: 'resource' });
             });
         });
 
@@ -319,7 +322,7 @@ describe('LandingPageTemplatesPage', () => {
             await user.keyboard('{Enter}');
 
             await waitFor(() => {
-                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'Enter Template' });
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'Enter Template', template_type: 'resource' });
             });
         });
 

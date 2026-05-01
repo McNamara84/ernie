@@ -540,6 +540,7 @@ entity "landing_page_templates" as landing_page_templates {
     * name : VARCHAR <<UK>>
     * slug : VARCHAR <<UK>>
     * is_default : BOOLEAN = false
+    * template_type : VARCHAR(32) = 'resource' //resource|igsn//
     logo_path : VARCHAR
     logo_filename : VARCHAR
     * right_column_order : JSON

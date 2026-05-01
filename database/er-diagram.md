@@ -478,6 +478,7 @@ erDiagram
         varchar name UK
         varchar slug UK
         boolean is_default "default false"
+        varchar template_type "resource|igsn, default 'resource'"
         varchar logo_path "nullable"
         varchar logo_filename "nullable"
         json right_column_order

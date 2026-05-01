@@ -29,8 +29,9 @@ class LandingPageTemplateFactory extends Factory
 
         return [
             'name' => $name,
-            'slug' => Str::slug($name) . '-' . Str::random(6),
+            'slug' => Str::slug($name).'-'.Str::random(6),
             'is_default' => false,
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
             'logo_path' => null,
             'logo_filename' => null,
             'right_column_order' => LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
@@ -48,7 +49,32 @@ class LandingPageTemplateFactory extends Factory
             'name' => 'Default GFZ Data Services',
             'slug' => 'default_gfz',
             'is_default' => true,
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
             'created_by' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that this is the default IGSN template.
+     */
+    public function defaultIgsn(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME,
+            'slug' => LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG,
+            'is_default' => true,
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+            'created_by' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that this is an IGSN-typed template.
+     */
+    public function igsn(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_IGSN,
         ]);
     }
 

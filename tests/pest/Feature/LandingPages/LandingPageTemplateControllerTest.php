@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Policies\LandingPageTemplatePolicy;
 use Database\Factories\LandingPageTemplateFactory;
 use Database\Seeders\LandingPageTemplateSeeder;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -34,8 +35,10 @@ beforeEach(function (): void {
     $this->curator = User::factory()->curator()->create();
     $this->beginner = User::factory()->beginner()->create();
 
-    // Ensure default template exists using production self-heal logic.
-    $this->defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+    // Ensure both system-owned default templates exist using production self-heal logic.
+    $systemTemplates = LandingPageTemplate::ensureSystemTemplatesExist();
+    $this->defaultTemplate = $systemTemplates[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE];
+    $this->igsnDefaultTemplate = $systemTemplates[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
 });
 
 // ─── Authorization ───────────────────────────────────────────────────────────
@@ -99,7 +102,7 @@ describe('Index', function (): void {
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('landing-page-templates')
-                ->has('templates', 3) // default + 2 custom
+                ->has('templates', 4) // resource default + IGSN default + 2 custom
             );
     });
 });
@@ -228,6 +231,46 @@ describe('Clone', function (): void {
             ->and($canonicalDefault?->is_default)->toBeTrue()
             ->and($wrongDefault->fresh()->is_default)->toBeFalse();
     });
+
+    it('clones the IGSN default template when template_type=igsn is provided', function (): void {
+        $response = $this->actingAs($this->admin)
+            ->postJson('/landing-pages', [
+                'name' => 'My IGSN Template',
+                'template_type' => 'igsn',
+            ]);
+
+        $response->assertCreated();
+
+        $template = LandingPageTemplate::where('name', 'My IGSN Template')->first();
+
+        expect($template)->not->toBeNull()
+            ->and($template?->is_default)->toBeFalse()
+            ->and($template?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN);
+    });
+
+    it('rejects invalid template_type values', function (): void {
+        $this->actingAs($this->admin)
+            ->postJson('/landing-pages', [
+                'name' => 'Bad Type',
+                'template_type' => 'unknown',
+            ])
+            ->assertJsonValidationErrors(['template_type']);
+    });
+
+    it('does not demote IGSN default when restoring resource default', function (): void {
+        // Both system templates already exist via beforeEach.
+        $igsnDefaultId = $this->igsnDefaultTemplate->id;
+
+        // Trigger restore of resource default by demoting it manually.
+        LandingPageTemplate::query()
+            ->where('id', $this->defaultTemplate->id)
+            ->update(['is_default' => false]);
+
+        LandingPageTemplate::ensureDefaultTemplateExists();
+
+        expect($this->defaultTemplate->fresh()?->is_default)->toBeTrue()
+            ->and(LandingPageTemplate::find($igsnDefaultId)?->is_default)->toBeTrue();
+    });
 });
 
 // ─── Update ──────────────────────────────────────────────────────────────────
@@ -237,7 +280,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'];
-        $newLeftOrder = ['contact', 'files', 'model_description', 'related_work'];
+        $newLeftOrder = ['contact', 'files', 'general', 'acquisition', 'model_description', 'related_work'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -436,7 +479,39 @@ describe('API List', function (): void {
             ->getJson('/api/landing-page-templates');
 
         $response->assertOk()
-            ->assertJsonCount(3, 'templates'); // default + 2 custom
+            ->assertJsonCount(4, 'templates') // resource default + IGSN default + 2 custom
+            ->assertJsonStructure([
+                'templates' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'slug',
+                        'is_default',
+                        'template_type',
+                        'logo_path',
+                        'right_column_order',
+                        'left_column_order',
+                    ],
+                ],
+            ]);
+    });
+
+    it('ensures both system default templates exist when listing', function (): void {
+        // Remove all templates to simulate a fresh environment.
+        LandingPageTemplate::query()->delete();
+
+        $response = $this->actingAs($this->curator)
+            ->getJson('/api/landing-page-templates');
+
+        $response->assertOk();
+
+        $templateTypes = collect($response->json('templates'))
+            ->pluck('template_type')
+            ->all();
+
+        expect($templateTypes)
+            ->toContain(LandingPageTemplate::TEMPLATE_TYPE_RESOURCE)
+            ->toContain(LandingPageTemplate::TEMPLATE_TYPE_IGSN);
     });
 
     it('rejects unauthenticated access to API list', function (): void {
@@ -692,9 +767,26 @@ describe('Seeder', function (): void {
 
     it('does not duplicate default template when seeder runs again', function (): void {
         // Run the seeder a second time
-        $this->seed(\Database\Seeders\LandingPageTemplateSeeder::class);
+        $this->seed(LandingPageTemplateSeeder::class);
 
         $count = LandingPageTemplate::where('slug', LandingPageTemplate::DEFAULT_TEMPLATE_SLUG)->count();
+
+        expect($count)->toBe(1);
+    });
+
+    it('seeds the IGSN default template alongside the resource default', function (): void {
+        $igsn = LandingPageTemplate::where('slug', LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG)->first();
+
+        expect($igsn)->not->toBeNull()
+            ->and($igsn?->name)->toBe(LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME)
+            ->and($igsn?->is_default)->toBeTrue()
+            ->and($igsn?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN);
+    });
+
+    it('does not duplicate the IGSN default when seeder runs again', function (): void {
+        $this->seed(LandingPageTemplateSeeder::class);
+
+        $count = LandingPageTemplate::where('slug', LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG)->count();
 
         expect($count)->toBe(1);
     });
@@ -776,7 +868,7 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 4 required left column sections
+        // Only 2 of 6 required left column sections
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],
@@ -868,8 +960,8 @@ describe('Delete with Logo Cleanup', function (): void {
         Storage::shouldReceive('disk')
             ->with('public')
             ->andReturnUsing(function () {
-                $mock = \Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
-                $mock->shouldReceive('putFileAs')->andThrow(new \RuntimeException('Disk full'));
+                $mock = Mockery::mock(Filesystem::class);
+                $mock->shouldReceive('putFileAs')->andThrow(new RuntimeException('Disk full'));
 
                 return $mock;
             });

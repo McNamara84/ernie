@@ -99,6 +99,9 @@ export default function DefaultGfzTemplate() {
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
             related_work: <RelatedWorkSection key="related_work" relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} resource={resource} />,
+            // IGSN-only sections — not rendered in the default resource template
+            general: null,
+            acquisition: null,
         };
     }, [resource, landingPage, mainTitle]);
 
