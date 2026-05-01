@@ -41,8 +41,6 @@ use App\Http\Controllers\VocabularyController;
 use App\Models\Affiliation;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
-use App\Models\ResourceType;
-use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -453,17 +451,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.destroy');
 
     Route::get('dashboard', function () {
-        // Get PhysicalObject type ID for filtering
-        $physicalObjectTypeId = ResourceType::where('slug', 'physical-object')->value('id');
-
-        /** @var ResourceCacheService $resourceCache */
-        $resourceCache = app(ResourceCacheService::class);
-
-        // Count Data Resources (non-IGSN)
-        $dataResourceCount = $resourceCache->getDataResourceCount($physicalObjectTypeId);
-
-        // Count IGSN Resources
-        $igsnCount = $resourceCache->getIgsnCount($physicalObjectTypeId);
+        $physicalObjectTypeId = app(\App\Services\ResourceCacheService::class)->getPhysicalObjectTypeId();
 
         // Count unique institutions (ROR-identified) for Data Resources
         $dataInstitutionCount = Affiliation::query()
@@ -539,8 +527,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->all();
 
         return Inertia::render('dashboard', [
-            'dataResourceCount' => $dataResourceCount,
-            'igsnCount' => $igsnCount,
             'dataInstitutionCount' => $dataInstitutionCount,
             'igsnInstitutionCount' => $igsnInstitutionCount,
             'draftCount' => $draftCount,

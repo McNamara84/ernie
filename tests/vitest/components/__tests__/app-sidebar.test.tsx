@@ -62,9 +62,9 @@ const setMockUser = (
 
 const setMockSharedProps = (
     overrides: Partial<{
-        dataResourceCount: number;
-        igsnCount: number;
-        pendingAssistanceTotalCount: number;
+        dataResourceCount: number | undefined;
+        igsnCount: number | undefined;
+        pendingAssistanceTotalCount: number | undefined;
     }> = {}
 ) => {
     mockSharedProps = {
@@ -399,5 +399,62 @@ describe('AppSidebar', () => {
         // Also should not appear in Administration (since curator has no admin items)
         const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
         expect(adminSection).toBeUndefined();
+    });
+
+    it('shows Assistance in Tools with the pending suggestion count', () => {
+        setMockUser({
+            role: 'group_leader',
+            can_manage_users: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
+            can_manage_landing_page_templates: false,
+            can_access_assistance: true,
+        });
+        setMockSharedProps({
+            pendingAssistanceTotalCount: 7,
+        });
+
+        render(<AppSidebar />);
+
+        expect(NavSectionMock).toHaveBeenCalledTimes(4);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
+
+        expect(toolsSection).toBeDefined();
+        expect(toolsSection![0].items.map((i: NavItem) => i.title)).toEqual(['Assistance']);
+        expect(toolsSection![0].items[0].badge).toBe(7);
+    });
+
+    it('falls back to zero badges when shared counts are missing', () => {
+        setMockUser({
+            role: 'group_leader',
+            can_manage_users: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
+            can_manage_landing_page_templates: false,
+            can_access_assistance: true,
+        });
+        setMockSharedProps({
+            dataResourceCount: undefined,
+            igsnCount: undefined,
+            pendingAssistanceTotalCount: undefined,
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
+
+        expect(sectionCalls[1][0].items[1].badge).toBe(0);
+        expect(sectionCalls[2][0].items[0].badge).toBe(0);
+        expect(toolsSection).toBeDefined();
+        expect(toolsSection![0].items[0].badge).toBe(0);
     });
 });

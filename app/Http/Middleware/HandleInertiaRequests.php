@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
-use App\Models\ResourceType;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
@@ -53,11 +52,11 @@ class HandleInertiaRequests extends Middleware
             $author = 'Steve Jobs';
         }
 
-        $physicalObjectTypeId = $request->user() !== null
-            ? ResourceType::query()->where('slug', 'physical-object')->value('id')
-            : null;
-
         $resourceCache = app(ResourceCacheService::class);
+
+        $physicalObjectTypeId = $request->user() !== null
+            ? $resourceCache->getPhysicalObjectTypeId()
+            : null;
 
         $dataResourceCount = $request->user() !== null
             ? $resourceCache->getDataResourceCount($physicalObjectTypeId)
