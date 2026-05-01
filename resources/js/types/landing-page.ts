@@ -1,7 +1,20 @@
 /**
  * Right column section identifiers for landing page templates.
  */
-export type RightColumnSection = 'descriptions' | 'creators' | 'contributors' | 'funders' | 'keywords' | 'metadata_download' | 'location';
+export type RightColumnSection =
+    | 'descriptions'
+    | 'abstract'
+    | 'methods'
+    | 'technical_info'
+    | 'series_information'
+    | 'table_of_contents'
+    | 'other'
+    | 'creators'
+    | 'contributors'
+    | 'funders'
+    | 'keywords'
+    | 'metadata_download'
+    | 'location';
 
 /**
  * Left column section identifiers for landing page templates.

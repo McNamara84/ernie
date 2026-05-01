@@ -19,6 +19,7 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
+import { DESCRIPTION_SECTION_KEYS, LEGACY_DESCRIPTIONS_SECTION_KEY } from '@/pages/LandingPages/lib/metadata-sections';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { LandingPageTemplateConfig, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
 
@@ -27,6 +28,12 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing
 /** Display labels for right column sections */
 const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
     descriptions: 'Abstract & Descriptions',
+    abstract: 'Abstract',
+    methods: 'Methods',
+    technical_info: 'Technical Information',
+    series_information: 'Series Information',
+    table_of_contents: 'Table of Contents',
+    other: 'Other',
     creators: 'Creators / Authors',
     contributors: 'Contributors',
     funders: 'Funding References',
@@ -47,7 +54,7 @@ const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
 
 /** Canonical section orders – mirror of `LandingPageTemplate::*_COLUMN_SECTIONS`. */
 const CANONICAL_RIGHT_ORDER: RightColumnSection[] = [
-    'descriptions',
+    ...DESCRIPTION_SECTION_KEYS,
     'creators',
     'contributors',
     'funders',
@@ -95,6 +102,51 @@ function normalizeOrder<T extends string>(stored: readonly T[], canonical: reado
     return result;
 }
 
+function normalizeRightColumnOrder(stored: readonly RightColumnSection[]): RightColumnSection[] {
+    const locationBeforeMetadata = stored.find((key) => {
+        if (key === 'location') return true;
+        if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) return true;
+
+        return CANONICAL_RIGHT_ORDER.includes(key);
+    }) === 'location';
+
+    const metadataItems: RightColumnSection[] = [];
+    const seen = new Set<RightColumnSection>();
+
+    for (const key of stored) {
+        if (key === 'location') {
+            continue;
+        }
+
+        if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) {
+            for (const descriptionKey of DESCRIPTION_SECTION_KEYS) {
+                if (seen.has(descriptionKey)) continue;
+                seen.add(descriptionKey);
+                metadataItems.push(descriptionKey);
+            }
+            continue;
+        }
+
+        if (!CANONICAL_RIGHT_ORDER.includes(key) || seen.has(key)) {
+            continue;
+        }
+
+        seen.add(key);
+        metadataItems.push(key);
+    }
+
+    for (const key of CANONICAL_RIGHT_ORDER) {
+        if (key === 'location' || seen.has(key)) {
+            continue;
+        }
+
+        seen.add(key);
+        metadataItems.push(key);
+    }
+
+    return locationBeforeMetadata ? ['location', ...metadataItems] : [...metadataItems, 'location'];
+}
+
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];
     [key: string]: unknown;
@@ -138,11 +190,13 @@ function SectionOrderEditor({
     items,
     labels,
     onReorder,
+    description,
 }: {
     title: string;
     items: string[];
     labels: Record<string, string>;
     onReorder: (items: string[]) => void;
+    description?: string;
 }) {
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -164,6 +218,7 @@ function SectionOrderEditor({
     return (
         <div className="space-y-2">
             <Label className="text-sm font-medium">{title}</Label>
+            {description && <p className="text-xs text-muted-foreground">{description}</p>}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={items} strategy={verticalListSortingStrategy}>
                     <div className="space-y-1.5">
@@ -235,7 +290,7 @@ export default function LandingPageTemplatesPage() {
     const openEdit = (tmpl: LandingPageTemplateConfig) => {
         setEditTemplate(tmpl);
         setEditName(tmpl.name);
-        setEditRightOrder(normalizeOrder<RightColumnSection>(tmpl.right_column_order, CANONICAL_RIGHT_ORDER));
+        setEditRightOrder(normalizeRightColumnOrder(tmpl.right_column_order));
         setEditLeftOrder(normalizeOrder<LeftColumnSection>(tmpl.left_column_order, CANONICAL_LEFT_ORDER));
         setEditOpen(true);
     };
@@ -246,7 +301,7 @@ export default function LandingPageTemplatesPage() {
         try {
             await axios.put(`/landing-pages/${editTemplate.id}`, {
                 name: editName.trim(),
-                right_column_order: editRightOrder,
+                right_column_order: normalizeRightColumnOrder(editRightOrder),
                 left_column_order: editLeftOrder,
             });
             toast.success('Template updated successfully');
@@ -420,7 +475,7 @@ export default function LandingPageTemplatesPage() {
                                     <div>
                                         <span className="font-medium text-foreground">Right Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
-                                            {tmpl.right_column_order.map((key) => (
+                                            {normalizeRightColumnOrder(tmpl.right_column_order).map((key) => (
                                                 <li key={key}>{RIGHT_SECTION_LABELS[key] ?? key}</li>
                                             ))}
                                         </ol>
@@ -560,7 +615,8 @@ export default function LandingPageTemplatesPage() {
                                 title="Right Column (main content)"
                                 items={editRightOrder}
                                 labels={RIGHT_SECTION_LABELS}
-                                onReorder={(items) => setEditRightOrder(items as RightColumnSection[])}
+                                description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
+                                onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as RightColumnSection[]))}
                             />
                             <SectionOrderEditor
                                 title="Left Column (sidebar)"

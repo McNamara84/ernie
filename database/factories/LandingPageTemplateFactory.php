@@ -46,8 +46,8 @@ class LandingPageTemplateFactory extends Factory
     public function default(): static
     {
         return $this->state(fn (array $attributes) => [
-            'name' => 'Default GFZ Data Services',
-            'slug' => 'default_gfz',
+            'name' => LandingPageTemplate::DEFAULT_TEMPLATE_NAME,
+            'slug' => LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
             'is_default' => true,
             'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
             'created_by' => null,

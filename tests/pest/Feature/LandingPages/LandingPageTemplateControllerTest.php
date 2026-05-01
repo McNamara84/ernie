@@ -41,6 +41,17 @@ beforeEach(function (): void {
     $this->igsnDefaultTemplate = $systemTemplates[LandingPageTemplate::TEMPLATE_TYPE_IGSN];
 });
 
+function locationFirstRightColumnOrder(): array
+{
+    return [
+        'location',
+        ...array_values(array_filter(
+            LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
+            static fn (string $key): bool => $key !== 'location',
+        )),
+    ];
+}
+
 // ─── Authorization ───────────────────────────────────────────────────────────
 
 describe('Authorization', function (): void {
@@ -279,7 +290,7 @@ describe('Update', function (): void {
     it('updates template name and section order', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        $newRightOrder = ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'];
+        $newRightOrder = locationFirstRightColumnOrder();
         $newLeftOrder = ['contact', 'files', 'general', 'acquisition', 'model_description', 'related_work'];
 
         $response = $this->actingAs($this->admin)
@@ -298,6 +309,33 @@ describe('Update', function (): void {
             ->and($template->left_column_order)->toBe($newLeftOrder);
     });
 
+    it('normalizes location to the end when it is submitted in the middle of the right column order', function (): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $submittedRightOrder = [
+            'abstract',
+            'location',
+            'methods',
+            'technical_info',
+            'series_information',
+            'table_of_contents',
+            'other',
+            'creators',
+            'contributors',
+            'funders',
+            'keywords',
+            'metadata_download',
+        ];
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'right_column_order' => $submittedRightOrder,
+            ])
+            ->assertOk();
+
+        expect($template->fresh()->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS);
+    });
+
     it('prevents updating the default template', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
@@ -310,7 +348,7 @@ describe('Update', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'name' => 'Valid Name',
-                'right_column_order' => ['descriptions', 'invalid_section'],
+                'right_column_order' => ['abstract', 'invalid_section'],
             ])
             ->assertJsonValidationErrors(['right_column_order']);
     });
@@ -322,7 +360,7 @@ describe('Update', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'name' => 'Valid Name',
-                'right_column_order' => ['descriptions', 'creators'],
+                'right_column_order' => ['abstract', 'creators'],
             ])
             ->assertJsonValidationErrors(['right_column_order']);
     });
@@ -621,7 +659,7 @@ describe('Model', function (): void {
 
     it('validates section order with valid input', function (): void {
         $valid = LandingPageTemplate::isValidSectionOrder(
-            ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+            LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
             LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
         );
 
@@ -630,7 +668,7 @@ describe('Model', function (): void {
 
     it('validates section order with reordered input', function (): void {
         $valid = LandingPageTemplate::isValidSectionOrder(
-            ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            locationFirstRightColumnOrder(),
             LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
         );
 
@@ -639,7 +677,7 @@ describe('Model', function (): void {
 
     it('rejects section order with wrong count', function (): void {
         $valid = LandingPageTemplate::isValidSectionOrder(
-            ['descriptions', 'creators'],
+            ['abstract', 'creators'],
             LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
         );
 
@@ -648,7 +686,7 @@ describe('Model', function (): void {
 
     it('rejects section order with invalid keys', function (): void {
         $valid = LandingPageTemplate::isValidSectionOrder(
-            ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'invalid_key'],
+            ['abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'invalid_key'],
             LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
         );
 
@@ -657,7 +695,7 @@ describe('Model', function (): void {
 
     it('rejects section order with duplicate keys', function (): void {
         $valid = LandingPageTemplate::isValidSectionOrder(
-            ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'descriptions'],
+            ['abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'abstract'],
             LandingPageTemplate::RIGHT_COLUMN_SECTIONS,
         );
 
@@ -729,7 +767,7 @@ describe('Factory', function (): void {
     });
 
     it('creates a template with custom section order', function (): void {
-        $rightOrder = ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'];
+        $rightOrder = locationFirstRightColumnOrder();
         $leftOrder = ['contact', 'files', 'model_description', 'related_work'];
 
         $template = LandingPageTemplate::factory()
@@ -816,7 +854,7 @@ describe('Update Edge Cases', function (): void {
         $originalName = $template->name;
         $originalLeftOrder = $template->left_column_order;
 
-        $newRightOrder = ['location', 'descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'];
+        $newRightOrder = locationFirstRightColumnOrder();
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", ['right_column_order' => $newRightOrder])

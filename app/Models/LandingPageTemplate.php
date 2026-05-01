@@ -73,12 +73,26 @@ class LandingPageTemplate extends Model
     ];
 
     /**
+     * Description-type section keys rendered inside the shared metadata card.
+     *
+     * @var list<string>
+     */
+    public const DESCRIPTION_COLUMN_SECTIONS = [
+        'abstract',
+        'methods',
+        'technical_info',
+        'series_information',
+        'table_of_contents',
+        'other',
+    ];
+
+    /**
      * Valid section keys for the right column.
      *
      * @var list<string>
      */
     public const RIGHT_COLUMN_SECTIONS = [
-        'descriptions',
+        ...self::DESCRIPTION_COLUMN_SECTIONS,
         'creators',
         'contributors',
         'funders',
@@ -226,6 +240,40 @@ class LandingPageTemplate extends Model
         sort($validSorted);
 
         return $sorted === $validSorted;
+    }
+
+    /**
+     * Keep `location` as a standalone card before or after the shared metadata card.
+     *
+     * When the editor submits `location` in the middle of the right-column list,
+     * we normalize it to the end. Users can still place it first explicitly.
+     * Duplicate or missing `location` keys are left untouched so validation can
+     * reject the malformed order instead of silently hiding an error.
+     *
+     * @param  array<int, string>  $order
+     * @return array<int, string>
+     */
+    public static function normalizeRightColumnOrder(array $order): array
+    {
+        $locationOccurrences = array_keys($order, 'location', true);
+
+        if (count($locationOccurrences) !== 1) {
+            return $order;
+        }
+
+        $locationIndex = $locationOccurrences[0];
+        if ($locationIndex === 0 || $locationIndex === array_key_last($order)) {
+            return $order;
+        }
+
+        $withoutLocation = array_values(array_filter(
+            $order,
+            static fn (string $key): bool => $key !== 'location',
+        ));
+
+        $withoutLocation[] = 'location';
+
+        return $withoutLocation;
     }
 
     /**

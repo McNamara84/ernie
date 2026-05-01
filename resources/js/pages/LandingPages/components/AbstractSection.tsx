@@ -6,6 +6,7 @@ import type {
     LandingPageSubject,
 } from '@/types/landing-page';
 
+import { expandMetadataOrder, isDescriptionSectionKey, type MetadataSectionKey } from '../lib/metadata-sections';
 import { ContributorsSection } from './ContributorsSection';
 import { CreatorsSection } from './CreatorsSection';
 import { DescriptionSection } from './DescriptionSection';
@@ -23,13 +24,14 @@ interface AbstractSectionProps {
     resourceId: number;
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
+    sectionOrder?: MetadataSectionKey[];
 }
 
 /**
- * Abstract Section — composition root.
+ * Metadata card composition root for the landing page right column.
  *
- * Wraps Description, Creators, Contributors, Funders, Keywords, and
- * Download Metadata sub-components inside a single LandingPageCard.
+ * Wraps description modules, Creators, Contributors, Funders, Keywords,
+ * and Download Metadata inside a single shared LandingPageCard.
  */
 export function AbstractSection({
     descriptions,
@@ -39,21 +41,42 @@ export function AbstractSection({
     subjects,
     resourceId,
     jsonLdExportUrl,
+    sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
 }: AbstractSectionProps) {
-    const hasAbstract = descriptions.some((desc) => desc.description_type?.toLowerCase() === 'abstract');
+    const expandedSectionOrder = expandMetadataOrder(sectionOrder);
 
-    if (!hasAbstract) {
+    const renderedSections = expandedSectionOrder
+        .map((sectionKey) => {
+            if (isDescriptionSectionKey(sectionKey)) {
+                return <DescriptionSection key={sectionKey} descriptions={descriptions} sectionKey={sectionKey} />;
+            }
+
+            switch (sectionKey) {
+                case 'creators':
+                    return <CreatorsSection key="creators" creators={creators} />;
+                case 'contributors':
+                    return <ContributorsSection key="contributors" contributors={contributors} />;
+                case 'funders':
+                    return <FundersSection key="funders" fundingReferences={fundingReferences} />;
+                case 'keywords':
+                    return <KeywordsSection key="keywords" subjects={subjects} />;
+                case 'metadata_download':
+                    return <DownloadMetadataSection key="metadata_download" resourceId={resourceId} jsonLdExportUrl={jsonLdExportUrl} />;
+                default:
+                    return null;
+            }
+        })
+        .filter(Boolean);
+
+    if (renderedSections.length === 0) {
         return null;
     }
 
     return (
-        <LandingPageCard aria-labelledby="heading-abstract" data-testid="abstract-section">
-            <DescriptionSection descriptions={descriptions} />
-            <CreatorsSection creators={creators} />
-            <ContributorsSection contributors={contributors} />
-            <FundersSection fundingReferences={fundingReferences} />
-            <KeywordsSection subjects={subjects} />
-            <DownloadMetadataSection resourceId={resourceId} jsonLdExportUrl={jsonLdExportUrl} />
+        <LandingPageCard data-testid="metadata-section">
+            <div className="[&>*:first-child]:mt-0">
+                {renderedSections}
+            </div>
         </LandingPageCard>
     );
 }

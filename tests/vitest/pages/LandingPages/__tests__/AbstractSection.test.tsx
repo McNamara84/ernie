@@ -100,41 +100,47 @@ const defaultProps = {
 
 describe('AbstractSection', () => {
     describe('rendering conditions', () => {
-        it('renders when abstract description exists', () => {
+        it('renders metadata card when abstract description exists', () => {
             render(<AbstractSection {...defaultProps} />);
             
-            expect(screen.getByTestId('abstract-section')).toBeInTheDocument();
+            expect(screen.getByTestId('metadata-section')).toBeInTheDocument();
             expect(screen.getByText('Abstract')).toBeInTheDocument();
         });
 
-        it('returns null when no abstract description exists', () => {
-            const { container } = render(
+        it('renders methods without requiring abstract', () => {
+            render(
                 <AbstractSection
                     {...defaultProps}
                     descriptions={[createDescription({ description_type: 'Methods' })]}
                 />
             );
             
-            expect(container).toBeEmptyDOMElement();
+            expect(screen.getByTestId('metadata-section')).toBeInTheDocument();
+            expect(screen.getByText('Methods')).toBeInTheDocument();
         });
 
-        it('returns null when descriptions array is empty', () => {
-            const { container } = render(
+        it('still renders metadata download when descriptions array is empty', () => {
+            render(
                 <AbstractSection {...defaultProps} descriptions={[]} />
             );
             
-            expect(container).toBeEmptyDOMElement();
+            expect(screen.getByText('Download Metadata')).toBeInTheDocument();
         });
 
-        it('finds abstract case-insensitively', () => {
-            render(
+        it('returns null when no metadata modules are requested', () => {
+            const { container } = render(
                 <AbstractSection
                     {...defaultProps}
-                    descriptions={[createDescription({ description_type: 'ABSTRACT' })]}
+                    descriptions={[]}
+                    creators={[]}
+                    contributors={[]}
+                    fundingReferences={[]}
+                    subjects={[]}
+                    sectionOrder={[]}
                 />
             );
-            
-            expect(screen.getByTestId('abstract-section')).toBeInTheDocument();
+
+            expect(container).toBeEmptyDOMElement();
         });
 
         it('displays the abstract text', () => {
@@ -181,6 +187,25 @@ describe('AbstractSection', () => {
             );
 
             expect(screen.getByTestId('methods-section')).toBeInTheDocument();
+        });
+
+        it('renders technical information with multiple values in order', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    descriptions={[
+                        createDescription({ id: 1, value: 'Technical block A', description_type: 'TechnicalInfo' }),
+                        createDescription({ id: 2, value: 'Technical block B', description_type: 'Technical Info' }),
+                    ]}
+                    sectionOrder={['technical_info', 'metadata_download']}
+                />
+            );
+
+            expect(screen.getByText('Technical Information')).toBeInTheDocument();
+            const paragraphs = screen.getAllByText(/Technical block/i);
+            expect(paragraphs).toHaveLength(2);
+            expect(paragraphs[0]).toHaveTextContent('Technical block A');
+            expect(paragraphs[1]).toHaveTextContent('Technical block B');
         });
     });
 
