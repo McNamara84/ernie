@@ -52,20 +52,6 @@ class HandleInertiaRequests extends Middleware
             $author = 'Steve Jobs';
         }
 
-        $resourceCache = app(ResourceCacheService::class);
-
-        $physicalObjectTypeId = $request->user() !== null
-            ? $resourceCache->getPhysicalObjectTypeId()
-            : null;
-
-        $dataResourceCount = $request->user() !== null
-            ? $resourceCache->getDataResourceCount($physicalObjectTypeId)
-            : 0;
-
-        $igsnCount = $request->user() !== null
-            ? $resourceCache->getIgsnCount($physicalObjectTypeId)
-            : 0;
-
         return [
             ...parent::share($request),
             'name' => config('app.name', 'ERNIE'),
@@ -94,8 +80,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
-            'dataResourceCount' => $dataResourceCount,
-            'igsnCount' => $igsnCount,
+            'dataResourceCount' => fn (): int => $this->resolveSharedDataResourceCount($request),
+            'igsnCount' => fn (): int => $this->resolveSharedIgsnCount($request),
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
@@ -129,6 +115,30 @@ class HandleInertiaRequests extends Middleware
         } catch (\Exception $e) {
             return $request->getSchemeAndHttpHost();
         }
+    }
+
+    private function resolveSharedDataResourceCount(Request $request): int
+    {
+        if ($request->user() === null) {
+            return 0;
+        }
+
+        $resourceCache = app(ResourceCacheService::class);
+        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+
+        return $resourceCache->getDataResourceCount($physicalObjectTypeId);
+    }
+
+    private function resolveSharedIgsnCount(Request $request): int
+    {
+        if ($request->user() === null) {
+            return 0;
+        }
+
+        $resourceCache = app(ResourceCacheService::class);
+        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+
+        return $resourceCache->getIgsnCount($physicalObjectTypeId);
     }
 
     /**
