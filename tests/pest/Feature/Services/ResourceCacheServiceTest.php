@@ -120,6 +120,22 @@ describe('ResourceCacheService - Resource Count Caching', function () {
         DB::disableQueryLog();
     });
 
+    test('caches missing physical object type lookups until resource types change', function () {
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBeNull();
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBeNull()
+            ->and(DB::getQueryLog())->toBe([]);
+
+        DB::disableQueryLog();
+
+        $physicalObjectType = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
+
+        expect($this->cacheService->getPhysicalObjectTypeId())->toBe($physicalObjectType->id);
+    });
+
     test('invalidates the cached physical object type id when resource types change', function () {
         $physicalObjectType = ResourceType::create(['name' => 'Physical Object', 'slug' => 'physical-object']);
 

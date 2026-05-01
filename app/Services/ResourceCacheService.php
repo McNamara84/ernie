@@ -23,6 +23,8 @@ class ResourceCacheService
 {
     use ChecksCacheTagging;
 
+    private const MISSING_PHYSICAL_OBJECT_TYPE_ID = -1;
+
     private const PHYSICAL_OBJECT_TYPE_ID_CACHE_SUFFIX = 'physical_object_type_id';
 
     private const DATA_RESOURCE_COUNT_CACHE_SUFFIX = 'data_resources';
@@ -96,23 +98,19 @@ class ResourceCacheService
     {
         $cacheKey = CacheKey::RESOURCE_COUNT->key(self::PHYSICAL_OBJECT_TYPE_ID_CACHE_SUFFIX);
         $cache = $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags());
-        $cachedTypeId = $cache->get($cacheKey);
+        $cachedTypeId = (int) $cache->remember(
+            $cacheKey,
+            CacheKey::RESOURCE_COUNT->ttl(),
+            fn (): int => ResourceType::query()
+                ->where('slug', 'physical-object')
+                ->value('id') ?? self::MISSING_PHYSICAL_OBJECT_TYPE_ID
+        );
 
-        if ($cachedTypeId !== null) {
-            return (int) $cachedTypeId;
-        }
-
-        $physicalObjectTypeId = ResourceType::query()
-            ->where('slug', 'physical-object')
-            ->value('id');
-
-        if ($physicalObjectTypeId === null) {
+        if ($cachedTypeId === self::MISSING_PHYSICAL_OBJECT_TYPE_ID) {
             return null;
         }
 
-        $cache->put($cacheKey, $physicalObjectTypeId, CacheKey::RESOURCE_COUNT->ttl());
-
-        return (int) $physicalObjectTypeId;
+        return $cachedTypeId;
     }
 
     /**

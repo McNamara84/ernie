@@ -49,28 +49,28 @@ test('dashboard view receives separate resource counts for data resources and IG
 
     // Create 2 Data Resources
     Resource::create([
-        'year' => 2024,
+        'publication_year' => 2024,
         'resource_type_id' => $datasetType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => $datasetType->id,
     ]);
 
     // Create 3 IGSNs
     Resource::create([
-        'year' => 2024,
+        'publication_year' => 2024,
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
     Resource::create([
-        'year' => 2025,
+        'publication_year' => 2025,
         'resource_type_id' => $physicalObjectType->id,
     ]);
 
