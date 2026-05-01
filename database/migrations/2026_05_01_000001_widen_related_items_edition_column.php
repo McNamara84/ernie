@@ -44,7 +44,12 @@ return new class extends Migration
         $lengthExpression = match ($driver) {
             'sqlite' => 'LENGTH(edition)',
             'mysql', 'mariadb', 'pgsql' => 'CHAR_LENGTH(edition)',
-            'sqlsrv' => 'LEN(edition)',
+            // SQL Server's LEN() strips trailing spaces, which would let a
+            // 65-character value with a trailing space slip past the guard
+            // and be silently truncated. The `+ 'x'` idiom forces the engine
+            // to count trailing spaces correctly for both varchar and
+            // nvarchar columns.
+            'sqlsrv' => "LEN(edition + 'x') - 1",
             default => throw new RuntimeException(
                 "Unsupported database driver for related_items.edition rollback: [{$driver}]."
             ),
