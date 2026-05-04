@@ -31,10 +31,6 @@ function getHydratedLandingPageTemplateId(template: string, config?: LandingPage
         return null;
     }
 
-    if (template !== config.template) {
-        return null;
-    }
-
     if (config.landing_page_template?.template_type === 'resource') {
         return null;
     }

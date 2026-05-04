@@ -328,6 +328,70 @@ describe('SetupIgsnLandingPageModal', () => {
             });
         });
 
+        it('preserves a matching igsn custom template when a legacy default_gfz config is normalized', async () => {
+            const legacyConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                landing_page_template_id: 7,
+                landing_page_template: {
+                    id: 7,
+                    name: 'Legacy Sample Layout',
+                    slug: 'legacy-sample-layout',
+                    is_default: false,
+                    template_type: 'igsn',
+                    logo_path: null,
+                    logo_url: null,
+                    right_column_order: [],
+                    left_column_order: [],
+                },
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [legacyConfig.landing_page_template],
+                        },
+                    });
+                }
+
+                if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: legacyConfig } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...legacyConfig,
+                        template: 'default_gfz_igsn',
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Legacy Sample Layout');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 7,
+                    }),
+                );
+            });
+        });
+
         it('treats a legacy default_gfz config as unsaved for preview generation', async () => {
             const legacyConfig: LandingPageConfig = {
                 ...mockExistingConfig,

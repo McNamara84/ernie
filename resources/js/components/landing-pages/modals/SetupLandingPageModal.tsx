@@ -52,17 +52,10 @@ function getHydratedLandingPageTemplateId(template: string, config?: LandingPage
         return null;
     }
 
-    if (template !== config.template) {
-        return null;
-    }
-
+    const expectedTemplateType = template === 'default_gfz_igsn' ? 'igsn' : 'resource';
     const templateType = config.landing_page_template?.template_type;
 
-    if (template === 'default_gfz' && templateType === 'igsn') {
-        return null;
-    }
-
-    if (template === 'default_gfz_igsn' && templateType === 'resource') {
+    if (templateType && templateType !== expectedTemplateType) {
         return null;
     }
 

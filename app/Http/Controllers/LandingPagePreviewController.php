@@ -103,34 +103,51 @@ class LandingPagePreviewController extends Controller
             abort(404, 'Preview session is invalid. Please open preview again from the setup modal.');
         }
 
-        $template = is_string($previewData['template'] ?? null) ? $previewData['template'] : 'default_gfz';
-        if (! in_array($template, LandingPageController::ALLOWED_TEMPLATES, true)) {
-            $template = 'default_gfz';
+        $rawTemplate = is_string($previewData['template'] ?? null) ? $previewData['template'] : LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+        if (! in_array($rawTemplate, LandingPageController::ALLOWED_TEMPLATES, true)) {
+            $rawTemplate = LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
         }
 
         // Load the same shape used for public landing pages, because the React template expects it.
-        $resource->load($transformer->requiredRelations());
+        $resource->load(array_unique([
+            ...$transformer->requiredRelations(),
+            'resourceType',
+        ]));
+        $resourceTypeSlug = $resource->resourceType?->slug;
+        $template = LandingPageTemplate::normalizeBuiltInTemplateForResource($rawTemplate, $resourceTypeSlug);
 
         // Prepare the same frontend payload as LandingPagePublicController
         $resourceData = $transformer->transform($resource);
 
         $sectionOrder = null;
         $customLogoUrl = null;
-        $landingPageTemplateId = is_int($previewData['landing_page_template_id'] ?? null)
+        $landingPageTemplateId = LandingPageController::templateSupportsCustomTemplateId($template)
+            && is_int($previewData['landing_page_template_id'] ?? null)
             ? $previewData['landing_page_template_id']
             : null;
 
         if ($landingPageTemplateId !== null) {
             $templateConfig = LandingPageTemplate::find($landingPageTemplateId);
 
-            if ($templateConfig !== null) {
+            if ($templateConfig !== null
+                && $templateConfig->template_type === LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug)) {
                 $sectionOrder = [
                     'rightColumn' => $templateConfig->right_column_order,
                     'leftColumn' => $templateConfig->left_column_order,
                 ];
                 $customLogoUrl = $templateConfig->logo_url;
+            } else {
+                $landingPageTemplateId = null;
             }
         }
+
+        $ftpUrl = LandingPageController::templateSupportsFtpUrl($template)
+            ? ($previewData['ftp_url'] ?? null)
+            : null;
+        $links = $template !== LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG
+            && is_array($previewData['links'] ?? null)
+            ? $previewData['links']
+            : [];
 
         // Temporary landing page array for preview rendering.
         // Note: contact_url is not included here because it's computed from the public_url
@@ -141,9 +158,9 @@ class LandingPagePreviewController extends Controller
             'resource_id' => $resource->id,
             'template' => $template,
             'landing_page_template_id' => $landingPageTemplateId,
-            'ftp_url' => $previewData['ftp_url'] ?? null,
+            'ftp_url' => $ftpUrl,
             'files' => [],
-            'links' => is_array($previewData['links'] ?? null) ? $previewData['links'] : [],
+            'links' => $links,
             'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,
