@@ -327,6 +327,44 @@ describe('SetupIgsnLandingPageModal', () => {
                 );
             });
         });
+
+        it('treats a legacy default_gfz config as unsaved for preview generation', async () => {
+            const legacyConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                preview_url: 'http://localhost/legacy-preview',
+            };
+
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: legacyConfig } });
+            mockedAxiosPost.mockResolvedValue({
+                data: { preview_url: '/resources/456/landing-page/preview?session=1' },
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            await waitFor(() => {
+                expect(axios.post).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
+                    expect.objectContaining({ template: 'default_gfz_igsn' }),
+                );
+            });
+
+            expect(mockWindowOpen).toHaveBeenCalledWith('/resources/456/landing-page/preview?session=1', '_blank', 'noopener,noreferrer');
+            expect(mockWindowOpen).not.toHaveBeenCalledWith('http://localhost/legacy-preview', '_blank', 'noopener,noreferrer');
+
+            vi.unstubAllGlobals();
+        });
     });
 
     describe('Preview Functionality', () => {

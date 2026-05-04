@@ -294,6 +294,36 @@ class LandingPageTemplate extends Model
         return null;
     }
 
+    public static function expectedTemplateTypeForResource(?string $resourceTypeSlug): string
+    {
+        return $resourceTypeSlug === 'physical-object'
+            ? self::TEMPLATE_TYPE_IGSN
+            : self::TEMPLATE_TYPE_RESOURCE;
+    }
+
+    public static function customTemplateScopeError(?int $templateId, ?string $resourceTypeSlug): ?string
+    {
+        if ($templateId === null) {
+            return null;
+        }
+
+        $template = self::query()->find($templateId);
+
+        if ($template === null) {
+            return null;
+        }
+
+        $expectedTemplateType = self::expectedTemplateTypeForResource($resourceTypeSlug);
+
+        if ($template->template_type === $expectedTemplateType) {
+            return null;
+        }
+
+        return $expectedTemplateType === self::TEMPLATE_TYPE_IGSN
+            ? 'The selected custom landing page template is only available for IGSN landing pages.'
+            : 'The selected custom landing page template is only available for regular resource landing pages.';
+    }
+
     /**
      * Ensure the immutable default template (resource type) exists and has required defaults.
      */

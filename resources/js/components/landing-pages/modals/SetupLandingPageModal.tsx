@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
+import { getDefaultTemplate, getTemplateOptions, isIgsnLandingPageResourceType, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -92,7 +92,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     // `loadLandingPageConfig` so a freshly opened IGSN modal always points at
     // the correct built-in template.
     const defaultTemplateForResource =
-        resource.resourcetypegeneral === 'PhysicalObject' ? 'default_gfz_igsn' : getDefaultTemplate();
+        isIgsnLandingPageResourceType(resource.resourcetypegeneral) ? 'default_gfz_igsn' : getDefaultTemplate();
 
     const [template, setTemplate] = useState<string>(existingConfig?.template ?? defaultTemplateForResource);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
@@ -131,7 +131,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     //   `external`. Everything else stays on the resource template path.
     // - Custom templates: filtered strictly to the resource's eligible
     //   `template_type` (PhysicalObject → `igsn`, otherwise → `resource`).
-    const isPhysicalObject = resource.resourcetypegeneral === 'PhysicalObject';
+    const isPhysicalObject = isIgsnLandingPageResourceType(resource.resourcetypegeneral);
     const eligibleTemplateType: 'resource' | 'igsn' = isPhysicalObject ? 'igsn' : 'resource';
     const eligibleCustomTemplates = useMemo(
         () => customTemplates.filter(

@@ -489,6 +489,49 @@ describe('Landing Page Template Assignment', function () {
 
         $response->assertJsonValidationErrors(['landing_page_template_id']);
     });
+
+    test('rejects assigning an igsn custom template to a regular resource on create', function () {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
+
+    test('rejects assigning an igsn custom template to a regular resource on update', function () {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'landing_page_template_id' => null,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
 });
 
 describe('Landing Page GET Endpoint', function () {

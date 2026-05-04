@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Http\Controllers\LandingPageController;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
@@ -104,6 +105,30 @@ describe('IGSN Template Restriction on Creation', function () {
 
         expect(LandingPage::where('resource_id', $resource->id)->first())->toBeNull();
     });
+
+    test('cannot assign a regular resource custom template to a PhysicalObject resource on create', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::factory()->create(['created_by' => $user->id]);
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/landing-page", [
+                'template' => 'default_gfz_igsn',
+                'status' => 'draft',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
 });
 
 describe('IGSN Template Restriction on Update', function () {
@@ -182,6 +207,35 @@ describe('IGSN Template Restriction on Update', function () {
             ]);
 
         expect($landingPage->fresh()->template)->toBe('default_gfz_igsn');
+    });
+
+    test('cannot assign a regular resource custom template to a PhysicalObject resource on update', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::factory()->create(['created_by' => $user->id]);
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz_igsn',
+            'is_published' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/landing-page", [
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+
+        expect($landingPage->fresh()->landing_page_template_id)->toBeNull();
     });
 });
 

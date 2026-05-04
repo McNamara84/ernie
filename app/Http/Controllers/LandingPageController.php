@@ -130,6 +130,13 @@ class LandingPageController extends Controller
             ], 422);
         }
 
+        if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'] ?? null, $resource->resourceType?->slug)) {
+            return response()->json([
+                'message' => $customTemplateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
+        }
+
         // Detect conflicting status/is_published values.
         // If both are provided with conflicting values, this may indicate a client bug.
         if (isset($validated['status']) && isset($validated['is_published'])) {
@@ -346,6 +353,17 @@ class LandingPageController extends Controller
             if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
                 return response()->json([
                     'message' => $templateError,
+                    'error' => 'invalid_template_for_resource_type',
+                ], 422);
+            }
+        }
+
+        if (array_key_exists('landing_page_template_id', $validated)) {
+            $resource->loadMissing('resourceType');
+
+            if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'], $resource->resourceType?->slug)) {
+                return response()->json([
+                    'message' => $customTemplateError,
                     'error' => 'invalid_template_for_resource_type',
                 ], 422);
             }

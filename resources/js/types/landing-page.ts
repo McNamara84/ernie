@@ -691,8 +691,16 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
     },
 } as const;
 
+function normalizeLandingPageResourceType(resourceType?: string): string {
+    return (resourceType ?? '').replace(/[\s_-]+/g, '').toLowerCase();
+}
+
+export function isIgsnLandingPageResourceType(resourceType?: string): boolean {
+    return normalizeLandingPageResourceType(resourceType) === 'physicalobject';
+}
+
 function getTemplateScope(resourceType?: string): 'resource' | 'igsn' {
-    return resourceType === 'PhysicalObject' ? 'igsn' : 'resource';
+    return isIgsnLandingPageResourceType(resourceType) ? 'igsn' : 'resource';
 }
 
 /**
@@ -718,7 +726,11 @@ export function getTemplateOptions(resourceType?: string): LandingPageTemplateOp
             // If no resourceType provided, only show unrestricted templates
             if (!resourceType) return !template.resourceTypes;
             // Check if resourceType is in the allowed list
-            return template.resourceTypes.includes(resourceType);
+            const normalizedResourceType = normalizeLandingPageResourceType(resourceType);
+
+            return template.resourceTypes.some(
+                (allowedResourceType) => normalizeLandingPageResourceType(allowedResourceType) === normalizedResourceType,
+            );
         })
         .map((template) => ({
             value: template.key,

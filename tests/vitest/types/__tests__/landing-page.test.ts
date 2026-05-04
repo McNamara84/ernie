@@ -6,6 +6,7 @@ import {
     getIgsnTemplateOptions,
     getTemplateMetadata,
     getTemplateOptions,
+    isIgsnLandingPageResourceType,
     isValidTemplate,
     LANDING_PAGE_TEMPLATES,
 } from '@/types/landing-page';
@@ -146,6 +147,25 @@ describe('Landing Page Template Registry', () => {
             const physicalObjectOptions = getTemplateOptions('PhysicalObject');
 
             expect(igsnOptions).toEqual(physicalObjectOptions);
+        });
+
+        it('should treat the human-readable Physical Object name as IGSN scope', () => {
+            expect(getTemplateOptions('Physical Object').map((option) => option.value)).toEqual(
+                getTemplateOptions('PhysicalObject').map((option) => option.value),
+            );
+        });
+    });
+
+    describe('isIgsnLandingPageResourceType()', () => {
+        it('recognizes Physical Object variants', () => {
+            expect(isIgsnLandingPageResourceType('PhysicalObject')).toBe(true);
+            expect(isIgsnLandingPageResourceType('Physical Object')).toBe(true);
+            expect(isIgsnLandingPageResourceType('physical-object')).toBe(true);
+        });
+
+        it('rejects non-IGSN resource types', () => {
+            expect(isIgsnLandingPageResourceType('Dataset')).toBe(false);
+            expect(isIgsnLandingPageResourceType(undefined)).toBe(false);
         });
     });
 

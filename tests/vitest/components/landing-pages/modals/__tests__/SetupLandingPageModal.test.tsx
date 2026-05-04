@@ -184,6 +184,34 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('treats the human-readable Physical Object name as an IGSN resource', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            await user.click(screen.getByRole('combobox'));
+
+            const optionsList = screen.getByRole('listbox');
+            expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
+            expect(optionsList).toHaveTextContent('External Landing Page');
+            expect(optionsList).not.toHaveTextContent('Default GFZ Data Services');
+        });
+
         it('loads existing configuration', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
