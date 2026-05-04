@@ -73,6 +73,7 @@ export interface User {
     can_manage_landing_page_templates?: boolean;
     // Assistance page permission
     can_access_assistance?: boolean;
+    can_access_assessment?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;

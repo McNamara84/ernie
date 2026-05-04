@@ -44,6 +44,16 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - FUJI_ENABLED=${FUJI_ENABLED:-true}
+      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
+      - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
+      - FUJI_PASSWORD=${FUJI_PASSWORD}
+      - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
+      - FUJI_CONNECT_TIMEOUT=${FUJI_CONNECT_TIMEOUT:-10}
+      - FUJI_USE_DATACITE=${FUJI_USE_DATACITE:-true}
+      - FUJI_USE_GITHUB=${FUJI_USE_GITHUB:-false}
+      - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
+      - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
       - SANCTUM_STATEFUL_DOMAINS=ernie.rz-vm182.gfz.de
       - DB_SUMARIOPMD_HOST=${DB_SUMARIOPMD_HOST}
       - DB_SUMARIOPMD_PORT=${DB_SUMARIOPMD_PORT:-3306}
@@ -110,6 +120,26 @@ services:
       - dockerized-laravel-network
     ports:
       - "6379:6379"
+
+  fuji:
+    image: ghcr.io/pangaea-data-publisher/fuji:latest
+    container_name: ernie-fuji-stage
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/fuji-entrypoint.sh"]
+    environment:
+      - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
+      - FUJI_PASSWORD=${FUJI_PASSWORD}
+      - TIKA_LOG_PATH=/tmp/tika.log
+    volumes:
+      - ./docker/fuji-entrypoint.sh:/usr/local/bin/fuji-entrypoint.sh:ro
+    networks:
+      - dockerized-laravel-network
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:1071/fuji/api/v1/ui/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   cloudbeaver:
     image: dbeaver/cloudbeaver:latest
@@ -199,6 +229,7 @@ services:
     depends_on:
       - db
       - redis
+      - fuji
     environment:
       - APP_KEY=${APP_KEY}
       - APP_URL=https://ernie.rz-vm182.gfz.de
@@ -216,6 +247,16 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - FUJI_ENABLED=${FUJI_ENABLED:-true}
+      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
+      - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
+      - FUJI_PASSWORD=${FUJI_PASSWORD}
+      - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
+      - FUJI_CONNECT_TIMEOUT=${FUJI_CONNECT_TIMEOUT:-10}
+      - FUJI_USE_DATACITE=${FUJI_USE_DATACITE:-true}
+      - FUJI_USE_GITHUB=${FUJI_USE_GITHUB:-false}
+      - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
+      - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}

@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     BookOpen,
+    ClipboardCheck,
     ClipboardEdit,
     Database,
     FileText,
@@ -91,6 +92,14 @@ export function AppSidebar() {
             href: '/assistance',
             icon: Sparkles,
             badge: pendingAssistanceTotalCount ?? 0,
+        });
+    }
+
+    if (auth.user?.can_access_assessment) {
+        toolsItems.push({
+            title: 'Assessment',
+            href: '/assessment',
+            icon: ClipboardCheck,
         });
     }
 

@@ -3,6 +3,7 @@ import {
     BookOpen,
     Braces,
     Calendar,
+    ClipboardCheck,
     Coins,
     Database,
     Edit3,
@@ -482,6 +483,64 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending
                                 suggestions across all assistants.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'assessment',
+                title: 'Assessment',
+                icon: ClipboardCheck,
+                minRole: 'admin',
+                content: (
+                    <>
+                        <h3>FAIR Assessment Dashboard</h3>
+                        <p>
+                            The <strong>Assessment</strong> page (<code>/assessment</code>) is available to administrators in the
+                            <strong> Tools</strong> section of the sidebar. It runs F-UJI checks against publicly reachable landing pages and
+                            stores the latest FAIR result per resource.
+                        </p>
+
+                        <h4>What the Dashboard Shows</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Resources needing your attention</strong> – the 10 lowest-scoring non-IGSN resources
+                            </li>
+                            <li>
+                                <strong>IGSNs needing your attention</strong> – the 10 lowest-scoring Physical Object records
+                            </li>
+                            <li>
+                                Scope summaries for assessed, failed, skipped, and not yet assessed records
+                            </li>
+                        </ul>
+
+                        <h4>Workflow</h4>
+                        <WorkflowSteps>
+                            <WorkflowSteps.Step number={1} title="Start a check">
+                                <p>
+                                    Use <strong>Check Resources</strong>, <strong>Check IGSNs</strong>, or <strong>Check all</strong> to enqueue
+                                    new F-UJI assessments.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={2} title="Monitor progress">
+                                <p>
+                                    The page polls the queue status and shows progress messages while each scope is running.
+                                </p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={3} title="Review the worst scores">
+                                <p>
+                                    After completion, the page refreshes automatically and lists the weakest FAIR scores first so you can
+                                    focus curation work where it has the biggest impact.
+                                </p>
+                            </WorkflowSteps.Step>
+                        </WorkflowSteps>
+
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Important:</strong> A record is skipped when it has no DOI, no landing page, or the landing page is
+                                not published. The Assessment page also requires the internal F-UJI service to be configured in the current
+                                environment.
                             </p>
                         </div>
                     </>

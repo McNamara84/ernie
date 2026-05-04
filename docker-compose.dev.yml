@@ -78,6 +78,16 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - FUJI_ENABLED=${FUJI_ENABLED:-true}
+      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
+      - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
+      - FUJI_PASSWORD=${FUJI_PASSWORD:-change-me}
+      - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
+      - FUJI_CONNECT_TIMEOUT=${FUJI_CONNECT_TIMEOUT:-10}
+      - FUJI_USE_DATACITE=${FUJI_USE_DATACITE:-true}
+      - FUJI_USE_GITHUB=${FUJI_USE_GITHUB:-false}
+      - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
+      - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
       # If you use a subdomain like ernie.localhost, set ERNIE_DEV_STATEFUL_DOMAINS=ernie.localhost:3333
       - SANCTUM_STATEFUL_DOMAINS=${ERNIE_DEV_STATEFUL_DOMAINS:-ernie.localhost:3333,localhost:3333}
 
@@ -189,6 +199,26 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
+  fuji:
+    image: ghcr.io/pangaea-data-publisher/fuji:latest
+    container_name: ernie-fuji-dev
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/fuji-entrypoint.sh"]
+    environment:
+      - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
+      - FUJI_PASSWORD=${FUJI_PASSWORD:-change-me}
+      - TIKA_LOG_PATH=/tmp/tika.log
+    volumes:
+      - ./docker/fuji-entrypoint.sh:/usr/local/bin/fuji-entrypoint.sh:ro
+    networks:
+      - ernie-dev-network
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:1071/fuji/api/v1/ui/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   # CloudBeaver Database Admin
   cloudbeaver:
     image: dbeaver/cloudbeaver:latest
@@ -244,6 +274,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      fuji:
+        condition: service_healthy
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
@@ -256,6 +288,16 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      - FUJI_ENABLED=${FUJI_ENABLED:-true}
+      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
+      - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
+      - FUJI_PASSWORD=${FUJI_PASSWORD:-change-me}
+      - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
+      - FUJI_CONNECT_TIMEOUT=${FUJI_CONNECT_TIMEOUT:-10}
+      - FUJI_USE_DATACITE=${FUJI_USE_DATACITE:-true}
+      - FUJI_USE_GITHUB=${FUJI_USE_GITHUB:-false}
+      - FUJI_TEST_DEBUG=${FUJI_TEST_DEBUG:-false}
+      - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
     command: php artisan queue:work --queue=vocabularies,default,imports --sleep=3 --tries=3
 
 networks:

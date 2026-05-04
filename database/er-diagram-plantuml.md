@@ -519,6 +519,20 @@ entity "formats" as formats {
     updated_at : TIMESTAMP
 }
 
+entity "resource_assessments" as resource_assessments {
+    * **id** : BIGINT <<PK>>
+    --
+    * resource_id : BIGINT <<FK>> <<UK>> //1:1//
+    * status : VARCHAR(32)
+    total_score : DECIMAL(6,2)
+    assessed_identifier : VARCHAR(255)
+    error_message : TEXT
+    payload : JSON
+    assessed_at : TIMESTAMP
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "alternate_identifiers" as alternate_identifiers {
     * **id** : BIGINT <<PK>>
     --
@@ -990,6 +1004,7 @@ resources ||--o{ funding_references
 resources ||--o{ resource_rights
 resources ||--o{ sizes
 resources ||--o{ formats
+resources ||--o| resource_assessments
 resources ||--o| landing_pages
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments

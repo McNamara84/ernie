@@ -469,6 +469,19 @@ erDiagram
         timestamp updated_at
     }
 
+    resource_assessments {
+        bigint id PK
+        bigint resource_id FK "UK, 1:1 with resources"
+        varchar status
+        decimal total_score "6,2 nullable"
+        varchar assessed_identifier "nullable"
+        text error_message "nullable"
+        json payload "nullable"
+        timestamp assessed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     %% =========================================================================
     %% APPLICATION-SPECIFIC TABLES
     %% =========================================================================
@@ -907,6 +920,7 @@ erDiagram
     resources ||--o{ resource_rights : "has"
     resources ||--o{ sizes : "has"
     resources ||--o{ formats : "has"
+    resources ||--o| resource_assessments : "has latest assessment"
     resources ||--o| landing_pages : "has"
     resources ||--o{ alternate_identifiers : "has"
 

@@ -76,6 +76,7 @@ class HandleInertiaRequests extends Middleware
                     'can_manage_landing_page_templates' => $request->user()->can('manage-landing-page-templates'),
                     // Assistance page permission
                     'can_access_assistance' => $request->user()->can('access-assistance'),
+                    'can_access_assessment' => $request->user()->can('access-assessment'),
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
