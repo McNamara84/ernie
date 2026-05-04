@@ -79,4 +79,133 @@ describe('handle', function (): void {
             ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_SKIPPED)
             ->and($assessment?->error_message)->toBe('Resource has no landing page.');
     });
+
+    it('marks resources without a DOI as skipped before contacting F-UJI', function (): void {
+        $resource = Resource::factory()->create(['doi' => null]);
+        Title::factory()->for($resource)->create(['value' => 'Missing DOI resource']);
+
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
+
+        expect($assessment)->not->toBeNull()
+            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_SKIPPED)
+            ->and($assessment?->error_message)->toBe('Resource has no DOI.');
+    });
+
+    it('marks draft landing pages as skipped', function (): void {
+        $resource = Resource::factory()->withDoi('10.5880/test.003')->create();
+        Title::factory()->for($resource)->create(['value' => 'Draft landing page resource']);
+        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.003')->draft()->create();
+
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
+
+        expect($assessment)->not->toBeNull()
+            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_SKIPPED)
+            ->and($assessment?->error_message)->toBe('Landing page is not published.');
+    });
+
+    it('marks the assessment as failed when the F-UJI request throws', function (): void {
+        $resource = Resource::factory()->withDoi('10.5880/test.004')->create();
+        Title::factory()->for($resource)->create(['value' => 'Failing resource']);
+        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.004')->published()->create();
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['error' => 'Boom'], 500),
+        ]);
+
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
+        $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
+
+        expect($assessment)->not->toBeNull()
+            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_FAILED)
+            ->and($assessment?->error_message)->toContain('status 500')
+            ->and($status)->toBeArray()
+            ->and($status['status'])->toBe('completed')
+            ->and($status['assessedResources'])->toBe(0)
+            ->and($status['failedResources'])->toBe(1);
+    });
+
+    it('completes with zero totals when the igsn scope has no physical-object type configured', function (): void {
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId);
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId));
+
+        expect($status)->toBeArray()
+            ->and($status['status'])->toBe('completed')
+            ->and($status['totalResources'])->toBe(0)
+            ->and($status['processedResources'])->toBe(0)
+            ->and($status['assessedResources'])->toBe(0)
+            ->and($status['failedResources'])->toBe(0)
+            ->and($status['skippedResources'])->toBe(0);
+    });
+});
+
+describe('constructor validation', function (): void {
+    it('rejects invalid assessment scopes', function (): void {
+        expect(fn () => new RunResourceAssessmentsJob('invalid', (string) \Illuminate\Support\Str::uuid()))
+            ->toThrow(InvalidArgumentException::class, 'Assessment scope is invalid.');
+    });
+
+    it('rejects invalid job ids', function (): void {
+        expect(fn () => new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, 'not-a-uuid'))
+            ->toThrow(InvalidArgumentException::class, 'Job ID must be a valid UUID');
+    });
+});
+
+describe('failed', function (): void {
+    it('marks the cached job as failed and preserves existing metadata', function (): void {
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $cacheKey = RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+
+        Cache::put($cacheKey, [
+            'startedAt' => now()->subMinute()->toIso8601String(),
+            'status' => 'running',
+        ], now()->addHour());
+
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+        $job->failed(new \RuntimeException('Queue blew up.'));
+
+        $status = Cache::get($cacheKey);
+
+        expect($status)->toBeArray()
+            ->and($status['startedAt'])->toBeString()
+            ->and($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('Queue blew up.')
+            ->and($status['completedAt'])->toBeString();
+    });
+
+    it('releases an existing cache lock when the job fails', function (): void {
+        $lockKey = 'resource_assessment:test-lock';
+        $lock = Cache::lock($lockKey, 7200);
+
+        expect($lock->get())->toBeTrue();
+
+        $job = new RunResourceAssessmentsJob(
+            RunResourceAssessmentsJob::RESOURCE_SCOPE,
+            (string) \Illuminate\Support\Str::uuid(),
+            $lock->owner(),
+            $lockKey,
+        );
+
+        $job->failed(new \RuntimeException('Queue blew up.'));
+
+        expect(Cache::lock($lockKey, 7200)->get())->toBeTrue();
+    });
 });

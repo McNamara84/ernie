@@ -18,8 +18,17 @@ beforeEach(function (): void {
     Config::set('fuji.use_datacite', true);
     Config::set('fuji.use_github', false);
     Config::set('fuji.test_debug', false);
+    Config::set('fuji.metric_version', null);
 
     $this->service = new FujiAssessmentService;
+});
+
+describe('isConfigured', function (): void {
+    it('returns false when a required config value is missing', function (): void {
+        Config::set('fuji.password', null);
+
+        expect($this->service->isConfigured())->toBeFalse();
+    });
 });
 
 describe('assessIdentifier', function (): void {
@@ -62,5 +71,32 @@ describe('assessIdentifier', function (): void {
 
         expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'summary.score_percent.FAIR');
+    });
+
+    it('throws when the F-UJI response is unsuccessful', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['error' => 'Unavailable'], 500),
+        ]);
+
+        expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
+            ->toThrow(RuntimeException::class, 'status 500');
+    });
+
+    it('includes the configured metric version in the request payload', function (): void {
+        Config::set('fuji.metric_version', 'metrics_v0.8');
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
+                'summary' => [
+                    'score_percent' => [
+                        'FAIR' => 55.5,
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->service->assessIdentifier('10.5880/test.001');
+
+        Http::assertSent(fn ($request): bool => $request['metric_version'] === 'metrics_v0.8');
     });
 });

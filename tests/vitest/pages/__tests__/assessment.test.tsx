@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
-import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
+import { fireEvent } from '@testing-library/react';
+import { render, screen } from '@tests/vitest/utils/render';
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AssessmentPageProps } from '@/types/assessment';
@@ -87,6 +88,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
 
 describe('Assessment page', () => {
     beforeEach(() => {
+        vi.useFakeTimers();
         mockAxiosGet.mockReset();
         mockAxiosPost.mockReset();
         mockRouterReload.mockReset();
@@ -97,6 +99,7 @@ describe('Assessment page', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.useRealTimers();
     });
 
     it('renders both assessment tables with DOI, main title, and score', () => {
@@ -112,17 +115,6 @@ describe('Assessment page', () => {
     });
 
     it('starts a resource assessment and reloads the page after the polling job completes', async () => {
-        const user = userEvent.setup();
-        const setTimeoutSpy = vi.spyOn(global, 'setTimeout').mockImplementation(((handler: TimerHandler) => {
-            if (typeof handler === 'function') {
-                queueMicrotask(() => {
-                    handler();
-                });
-            }
-
-            return 1 as ReturnType<typeof setTimeout>;
-        }) as typeof setTimeout);
-
         mockAxiosPost.mockResolvedValueOnce({ data: { jobId: '11111111-1111-4111-8111-111111111111' } });
         mockAxiosGet.mockResolvedValueOnce({
             data: {
@@ -134,22 +126,22 @@ describe('Assessment page', () => {
 
         render(<AssessmentPage {...makeProps()} />);
 
-        await user.click(screen.getByRole('button', { name: 'Check Resources' }));
+        act(() => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check Resources' }));
+        });
 
         expect(mockAxiosPost).toHaveBeenCalledWith('/assessment/check-resources');
 
-        await waitFor(() => {
-            expect(mockAxiosGet).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/status');
+        await act(async () => {
+            await vi.runAllTimersAsync();
         });
 
-        await waitFor(() => {
-            expect(mockRouterReload).toHaveBeenCalledWith({
-                only: ['resourcesNeedingAttention', 'igsnsNeedingAttention', 'resourceAssessmentSummary', 'igsnAssessmentSummary'],
-            });
-            expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
-        });
+        expect(mockAxiosGet).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/status');
 
-        setTimeoutSpy.mockRestore();
+        expect(mockRouterReload).toHaveBeenCalledWith({
+            only: ['resourcesNeedingAttention', 'igsnsNeedingAttention', 'resourceAssessmentSummary', 'igsnAssessmentSummary'],
+        });
+        expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });
 
     it('disables all check buttons when F-UJI is not configured', () => {
