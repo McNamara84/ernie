@@ -155,6 +155,116 @@ describe('handle', function (): void {
             ->and($status['failedResources'])->toBe(0)
             ->and($status['skippedResources'])->toBe(0);
     });
+
+    it('fails immediately without touching existing assessments when F-UJI is not configured', function (): void {
+        $resourceWithAssessment = Resource::factory()->withDoi('10.5880/test.keep')->create();
+        $untouchedResource = Resource::factory()->withDoi('10.5880/test.new')->create();
+
+        ResourceAssessment::query()->create([
+            'resource_id' => $resourceWithAssessment->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 88.75,
+            'assessed_identifier' => $resourceWithAssessment->doi,
+            'payload' => ['summary' => ['score_percent' => ['FAIR' => 88.75]]],
+            'assessed_at' => now()->subDay(),
+        ]);
+
+        Config::set('fuji.enabled', false);
+
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
+        $assessment = ResourceAssessment::query()->where('resource_id', $resourceWithAssessment->id)->sole();
+
+        expect(ResourceAssessment::query()->count())->toBe(1)
+            ->and($assessment->resource_id)->toBe($resourceWithAssessment->id)
+            ->and($assessment->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
+            ->and($assessment->total_score)->toBe('88.75')
+            ->and($status)->toBeArray()
+            ->and($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('F-UJI is not configured.')
+            ->and($status['processedResources'])->toBe(0)
+            ->and($status['assessedResources'])->toBe(0)
+            ->and($status['failedResources'])->toBe(0)
+            ->and($status['skippedResources'])->toBe(0);
+
+        expect(ResourceAssessment::query()->where('resource_id', $untouchedResource->id)->exists())->toBeFalse();
+    });
+
+    it('throttles in-flight status writes to every batch of resources', function (): void {
+        $resources = Resource::factory()->count(26)->create();
+
+        foreach ($resources as $resource) {
+            \App\Models\LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->published()->create();
+        }
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
+                'summary' => [
+                    'score_percent' => [
+                        'FAIR' => 41.25,
+                    ],
+                ],
+            ]),
+        ]);
+
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new class(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId) extends RunResourceAssessmentsJob
+        {
+            /** @var list<array{status: string, processedResources: int}> */
+            public array $statusWrites = [];
+
+            protected function writeStatus(
+                string $cacheKey,
+                string $status,
+                string $progress,
+                string $startedAt,
+                int $totalResources,
+                int $processedResources,
+                int $assessedResources,
+                int $failedResources,
+                int $skippedResources,
+                ?string $completedAt = null,
+            ): void {
+                $this->statusWrites[] = [
+                    'status' => $status,
+                    'processedResources' => $processedResources,
+                ];
+
+                parent::writeStatus(
+                    cacheKey: $cacheKey,
+                    status: $status,
+                    progress: $progress,
+                    startedAt: $startedAt,
+                    totalResources: $totalResources,
+                    processedResources: $processedResources,
+                    assessedResources: $assessedResources,
+                    failedResources: $failedResources,
+                    skippedResources: $skippedResources,
+                    completedAt: $completedAt,
+                );
+            }
+        };
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        expect($job->statusWrites)->toHaveCount(3)
+            ->and($job->statusWrites[0])->toBe([
+                'status' => 'running',
+                'processedResources' => 0,
+            ])
+            ->and($job->statusWrites[1])->toBe([
+                'status' => 'running',
+                'processedResources' => 25,
+            ])
+            ->and($job->statusWrites[2])->toBe([
+                'status' => 'completed',
+                'processedResources' => 26,
+            ]);
+    });
 });
 
 describe('constructor validation', function (): void {

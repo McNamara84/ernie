@@ -22,6 +22,8 @@ class RunResourceAssessmentsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    private const STATUS_WRITE_BATCH_SIZE = 25;
+
     public const RESOURCE_SCOPE = 'resource';
 
     public const IGSN_SCOPE = 'igsn';
@@ -62,29 +64,35 @@ class RunResourceAssessmentsJob implements ShouldQueue
     {
         $cacheKey = self::getCacheKey($this->scope, $this->jobId);
         $startedAt = now()->toIso8601String();
-        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
-
-        $query = $this->buildScopeQuery($physicalObjectTypeId)->with('landingPage');
-        $totalResources = (clone $query)->count();
-
-        $processedResources = 0;
-        $assessedResources = 0;
-        $failedResources = 0;
-        $skippedResources = 0;
-
-        $this->writeStatus(
-            cacheKey: $cacheKey,
-            status: 'running',
-            progress: $this->progressMessage($processedResources, $totalResources),
-            startedAt: $startedAt,
-            totalResources: $totalResources,
-            processedResources: $processedResources,
-            assessedResources: $assessedResources,
-            failedResources: $failedResources,
-            skippedResources: $skippedResources,
-        );
 
         try {
+            if (! $fujiService->isConfigured()) {
+                $this->writeConfigurationFailureStatus($cacheKey, $startedAt);
+
+                return;
+            }
+
+            $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+            $query = $this->buildScopeQuery($physicalObjectTypeId)->with('landingPage');
+            $totalResources = (clone $query)->count();
+
+            $processedResources = 0;
+            $assessedResources = 0;
+            $failedResources = 0;
+            $skippedResources = 0;
+
+            $this->writeStatus(
+                cacheKey: $cacheKey,
+                status: 'running',
+                progress: $this->progressMessage($processedResources, $totalResources),
+                startedAt: $startedAt,
+                totalResources: $totalResources,
+                processedResources: $processedResources,
+                assessedResources: $assessedResources,
+                failedResources: $failedResources,
+                skippedResources: $skippedResources,
+            );
+
             foreach ($query->lazyById(100) as $resource) {
                 $processedResources++;
 
@@ -145,17 +153,19 @@ class RunResourceAssessmentsJob implements ShouldQueue
                     ]);
                 }
 
-                $this->writeStatus(
-                    cacheKey: $cacheKey,
-                    status: 'running',
-                    progress: $this->progressMessage($processedResources, $totalResources),
-                    startedAt: $startedAt,
-                    totalResources: $totalResources,
-                    processedResources: $processedResources,
-                    assessedResources: $assessedResources,
-                    failedResources: $failedResources,
-                    skippedResources: $skippedResources,
-                );
+                if ($this->shouldWriteProgressStatus($processedResources)) {
+                    $this->writeStatus(
+                        cacheKey: $cacheKey,
+                        status: 'running',
+                        progress: $this->progressMessage($processedResources, $totalResources),
+                        startedAt: $startedAt,
+                        totalResources: $totalResources,
+                        processedResources: $processedResources,
+                        assessedResources: $assessedResources,
+                        failedResources: $failedResources,
+                        skippedResources: $skippedResources,
+                    );
+                }
             }
 
             $this->writeStatus(
@@ -254,7 +264,7 @@ class RunResourceAssessmentsJob implements ShouldQueue
         }
     }
 
-    private function writeStatus(
+    protected function writeStatus(
         string $cacheKey,
         string $status,
         string $progress,
@@ -277,5 +287,26 @@ class RunResourceAssessmentsJob implements ShouldQueue
             'startedAt' => $startedAt,
             'completedAt' => $completedAt,
         ], static fn (mixed $value): bool => $value !== null), now()->addHours(2));
+    }
+
+    protected function shouldWriteProgressStatus(int $processedResources): bool
+    {
+        return $processedResources % self::STATUS_WRITE_BATCH_SIZE === 0;
+    }
+
+    private function writeConfigurationFailureStatus(string $cacheKey, string $startedAt): void
+    {
+        Cache::put($cacheKey, [
+            'status' => 'failed',
+            'progress' => sprintf('%s assessment could not start because F-UJI is not configured.', $this->scopeLabel()),
+            'error' => 'F-UJI is not configured.',
+            'totalResources' => 0,
+            'processedResources' => 0,
+            'assessedResources' => 0,
+            'failedResources' => 0,
+            'skippedResources' => 0,
+            'startedAt' => $startedAt,
+            'completedAt' => now()->toIso8601String(),
+        ], now()->addHours(2));
     }
 }
