@@ -62,6 +62,10 @@ function summaryText(summary: AssessmentSummary): string {
     return `${summary.assessed} assessed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.unassessed} remaining.`;
 }
 
+function assessmentLabel(scope: AssessmentScope): string {
+    return scope === 'resource' ? 'resource assessments' : 'IGSN assessments';
+}
+
 function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope): string {
     if (summary.total === 0) {
         return `No ${scopeLabel(scope).toLowerCase()} are available.`;
@@ -72,7 +76,7 @@ function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope): 
     }
 
     if (summary.assessed === 0) {
-        return `No completed ${scopeLabel(scope).toLowerCase()} assessments are available yet.`;
+        return `No completed ${assessmentLabel(scope)} are available yet.`;
     }
 
     return `No ${scopeLabel(scope).toLowerCase()} currently require attention.`;

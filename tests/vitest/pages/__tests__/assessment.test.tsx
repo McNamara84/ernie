@@ -153,7 +153,7 @@ describe('Assessment page', () => {
                 skipped: 1,
                 unassessed: 3,
             },
-            'No completed resources assessments are available yet.',
+            'No completed resource assessments are available yet.',
         ],
         [
             {

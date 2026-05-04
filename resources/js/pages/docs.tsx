@@ -498,7 +498,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>FAIR Assessment Dashboard</h3>
                         <p>
                             The <strong>Assessment</strong> page (<code>/assessment</code>) is available to administrators in the
-                            <strong> Tools</strong> section of the sidebar. It runs F-UJI checks against publicly reachable landing pages and
+                            <strong>Tools</strong> section of the sidebar. It runs F-UJI checks against publicly reachable landing pages and
                             stores the latest FAIR result per resource.
                         </p>
 
