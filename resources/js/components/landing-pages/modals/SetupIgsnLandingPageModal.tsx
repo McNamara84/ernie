@@ -12,6 +12,33 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig } from '@/types/landing-page';
 
+const IGSN_TEMPLATE_KEYS = new Set(getIgsnTemplateOptions().map((option) => option.value));
+
+function normalizeIgsnTemplate(template?: string | null): string {
+    if (template && IGSN_TEMPLATE_KEYS.has(template)) {
+        return template;
+    }
+
+    return getDefaultIgsnTemplate();
+}
+
+function normalizeIgsnConfig(config?: LandingPageConfig | null): LandingPageConfig | null {
+    if (!config) {
+        return null;
+    }
+
+    const template = normalizeIgsnTemplate(config.template);
+
+    if (template === config.template) {
+        return config;
+    }
+
+    return {
+        ...config,
+        template,
+    };
+}
+
 interface IgsnResource {
     id: number;
     doi?: string | null;
@@ -36,22 +63,25 @@ interface SetupIgsnLandingPageModalProps {
  * - Uses FlaskConical icon instead of Globe
  */
 export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupIgsnLandingPageModalProps) {
-    const [template, setTemplate] = useState<string>(existingConfig?.template ?? getDefaultIgsnTemplate());
-    const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
-    const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
+    const normalizedExistingConfig = normalizeIgsnConfig(existingConfig);
+
+    const [template, setTemplate] = useState<string>(normalizedExistingConfig?.template ?? getDefaultIgsnTemplate());
+    const [isPublished, setIsPublished] = useState<boolean>((normalizedExistingConfig?.status ?? 'draft') === 'published');
+    const [previewUrl, setPreviewUrl] = useState<string>(normalizedExistingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(existingConfig ?? null);
+    const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(normalizedExistingConfig);
 
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
             if (existingConfig) {
                 // Use existing config passed as prop
-                setCurrentConfig(existingConfig);
-                setTemplate(existingConfig.template);
-                setIsPublished(existingConfig.status === 'published');
-                setPreviewUrl(existingConfig.preview_url ?? '');
+                const config = normalizeIgsnConfig(existingConfig);
+                setCurrentConfig(config);
+                setTemplate(config?.template ?? getDefaultIgsnTemplate());
+                setIsPublished((config?.status ?? 'draft') === 'published');
+                setPreviewUrl(config?.preview_url ?? '');
             } else {
                 // Load from server
                 loadLandingPageConfig();
@@ -70,11 +100,11 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         setIsLoading(true);
         try {
             const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
-            const config = response.data.landing_page;
+            const config = normalizeIgsnConfig(response.data.landing_page);
             setCurrentConfig(config);
-            setTemplate(config.template);
-            setIsPublished(config.status === 'published');
-            setPreviewUrl(config.preview_url);
+            setTemplate(config?.template ?? getDefaultIgsnTemplate());
+            setIsPublished((config?.status ?? 'draft') === 'published');
+            setPreviewUrl(config?.preview_url ?? '');
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults

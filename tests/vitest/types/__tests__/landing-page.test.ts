@@ -29,7 +29,8 @@ describe('Landing Page Template Registry', () => {
                 description: expect.any(String),
                 category: 'official',
                 version: expect.any(String),
-                resourceTypes: null, // Available for all
+                scopes: ['resource'],
+                resourceTypes: null,
             });
         });
 
@@ -42,6 +43,7 @@ describe('Landing Page Template Registry', () => {
                 description: expect.any(String),
                 category: 'official',
                 version: expect.any(String),
+                scopes: ['igsn'],
                 resourceTypes: ['PhysicalObject'], // Only for IGSNs
             });
         });
@@ -97,11 +99,11 @@ describe('Landing Page Template Registry', () => {
             expect(igsnOption?.label).toBe('Default GFZ IGSN Template');
         });
 
-        it('should include both templates when resourceType is PhysicalObject', () => {
+        it('should only include IGSN-compatible built-in templates when resourceType is PhysicalObject', () => {
             const options = getTemplateOptions('PhysicalObject');
 
-            expect(options.length).toBe(3);
-            expect(options.map((o) => o.value)).toContain('default_gfz');
+            expect(options.length).toBe(2);
+            expect(options.map((o) => o.value)).not.toContain('default_gfz');
             expect(options.map((o) => o.value)).toContain('default_gfz_igsn');
             expect(options.map((o) => o.value)).toContain('external');
         });
@@ -132,11 +134,11 @@ describe('Landing Page Template Registry', () => {
             expect(igsnOption?.label).toBe('Default GFZ IGSN Template');
         });
 
-        it('should also include unrestricted templates', () => {
+        it('should exclude resource-only templates', () => {
             const options = getIgsnTemplateOptions();
             const defaultOption = options.find((opt) => opt.value === 'default_gfz');
 
-            expect(defaultOption).toBeDefined();
+            expect(defaultOption).toBeUndefined();
         });
 
         it('should be equivalent to getTemplateOptions with PhysicalObject', () => {

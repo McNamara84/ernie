@@ -125,13 +125,10 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     // custom templates are eligible.
     //
     // - Built-in templates: `getTemplateOptions(resource.resourcetypegeneral)`
-    //   returns every template whose `resourceTypes` either is `null`
-    //   (unrestricted, e.g. `default_gfz` and `external`) or explicitly lists
-    //   the resource type. PhysicalObject resources therefore see the standard
-    //   resource template + the IGSN-only template + external; everything else
-    //   sees the standard template + external. This is intentional so curators
-    //   retain the option to fall back to the resource renderer for unusual
-    //   IGSN configurations.
+    //   returns the built-in templates valid for the current setup flow.
+    //   PhysicalObject resources are treated as IGSN landing pages, so they
+    //   only see IGSN-compatible built-ins plus shared options such as
+    //   `external`. Everything else stays on the resource template path.
     // - Custom templates: filtered strictly to the resource's eligible
     //   `template_type` (PhysicalObject → `igsn`, otherwise → `resource`).
     const isPhysicalObject = resource.resourcetypegeneral === 'PhysicalObject';

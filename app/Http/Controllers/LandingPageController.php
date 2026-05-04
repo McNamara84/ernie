@@ -9,6 +9,7 @@ use App\Exceptions\ResourceAlreadyExistsException;
 use App\Http\Requests\LandingPage\StoreLandingPageRequest;
 use App\Http\Requests\LandingPage\UpdateLandingPageRequest;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
 use App\Support\Traits\ChecksCacheTagging;
@@ -42,14 +43,25 @@ class LandingPageController extends Controller
      *
      * @var list<string>
      */
-    public const ALLOWED_TEMPLATES = ['default_gfz', 'default_gfz_igsn', 'external'];
+    public const ALLOWED_TEMPLATES = [
+        LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+        LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG,
+        'external',
+    ];
 
     /**
      * Templates restricted to PhysicalObject resources (IGSNs).
      *
      * @var list<string>
      */
-    public const IGSN_ONLY_TEMPLATES = ['default_gfz_igsn'];
+    public const IGSN_ONLY_TEMPLATES = [LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG];
+
+    /**
+     * Templates restricted to non-PhysicalObject resources.
+     *
+     * @var list<string>
+     */
+    public const RESOURCE_ONLY_TEMPLATES = [LandingPageTemplate::DEFAULT_TEMPLATE_SLUG];
 
     /**
      * Display the public landing page.
@@ -109,15 +121,13 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        // Validate that IGSN-only templates can only be used with PhysicalObject resources
-        if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
-            $resource->loadMissing('resourceType');
-            if ($resource->resourceType?->slug !== 'physical-object') {
-                return response()->json([
-                    'message' => 'The IGSN template can only be used with Physical Object resources.',
-                    'error' => 'invalid_template_for_resource_type',
-                ], 422);
-            }
+        $resource->loadMissing('resourceType');
+
+        if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
+            return response()->json([
+                'message' => $templateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
         }
 
         // Detect conflicting status/is_published values.
@@ -330,12 +340,12 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        // Validate that IGSN-only templates can only be used with PhysicalObject resources
-        if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
+        if (isset($validated['template'])) {
             $resource->loadMissing('resourceType');
-            if ($resource->resourceType?->slug !== 'physical-object') {
+
+            if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
                 return response()->json([
-                    'message' => 'The IGSN template can only be used with Physical Object resources.',
+                    'message' => $templateError,
                     'error' => 'invalid_template_for_resource_type',
                 ], 422);
             }

@@ -186,6 +186,28 @@ describe('SetupIgsnLandingPageModal', () => {
                 expect(screen.getByText(/Default GFZ IGSN Template/i)).toBeInTheDocument();
             });
         });
+
+        it('does not offer the resource-only default_gfz template', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByRole('combobox'));
+
+            const optionsList = screen.getByRole('listbox');
+
+            expect(screen.queryByText('Default GFZ Data Services')).not.toBeInTheDocument();
+            expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
+        });
     });
 
     describe('API Integration', () => {
@@ -258,6 +280,43 @@ describe('SetupIgsnLandingPageModal', () => {
             // Click update button
             const updateButton = screen.getByRole('button', { name: /Update/i });
             await user.click(updateButton);
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                    }),
+                );
+            });
+        });
+
+        it('normalizes a legacy default_gfz config to the IGSN template before updating', async () => {
+            const legacyConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+            };
+
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: legacyConfig } });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...legacyConfig,
+                        template: 'default_gfz_igsn',
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
 
             await waitFor(() => {
                 expect(axios.put).toHaveBeenCalledWith(
@@ -405,9 +464,8 @@ describe('SetupIgsnLandingPageModal', () => {
             const templateSelect = screen.getByRole('combobox');
             await user.click(templateSelect);
 
-            // Select the default_gfz template (which should also be available for PhysicalObjects)
-            const defaultOption = screen.getByText('Default GFZ Data Services');
-            await user.click(defaultOption);
+            const externalOption = screen.getByText('External Landing Page');
+            await user.click(externalOption);
 
             await waitFor(() => {
                 expect(screen.getByText(/You have unsaved changes/i)).toBeInTheDocument();

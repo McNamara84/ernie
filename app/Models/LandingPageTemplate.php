@@ -277,6 +277,24 @@ class LandingPageTemplate extends Model
     }
 
     /**
+     * Return a validation error when a built-in template is used with the wrong resource scope.
+     */
+    public static function builtInTemplateScopeError(string $template, ?string $resourceTypeSlug): ?string
+    {
+        $isPhysicalObject = $resourceTypeSlug === 'physical-object';
+
+        if ($template === self::IGSN_DEFAULT_TEMPLATE_SLUG && ! $isPhysicalObject) {
+            return 'The IGSN template can only be used with Physical Object resources.';
+        }
+
+        if ($template === self::DEFAULT_TEMPLATE_SLUG && $isPhysicalObject) {
+            return 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.';
+        }
+
+        return null;
+    }
+
+    /**
      * Ensure the immutable default template (resource type) exists and has required defaults.
      */
     public static function ensureDefaultTemplateExists(): self

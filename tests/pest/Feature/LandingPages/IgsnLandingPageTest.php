@@ -31,6 +31,10 @@ describe('IGSN Template Configuration', function () {
     test('default_gfz is not in igsn only templates', function () {
         expect(LandingPageController::IGSN_ONLY_TEMPLATES)->not->toContain('default_gfz');
     });
+
+    test('resource only templates contains default_gfz', function () {
+        expect(LandingPageController::RESOURCE_ONLY_TEMPLATES)->toContain('default_gfz');
+    });
 });
 
 describe('IGSN Template Restriction on Creation', function () {
@@ -77,7 +81,7 @@ describe('IGSN Template Restriction on Creation', function () {
         expect(LandingPage::where('resource_id', $resource->id)->first()->template)->toBe('default_gfz_igsn');
     });
 
-    test('can use default_gfz template for PhysicalObject resource', function () {
+    test('cannot use default_gfz template for PhysicalObject resource', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
@@ -92,8 +96,13 @@ describe('IGSN Template Restriction on Creation', function () {
                 'status' => 'draft',
             ]);
 
-        $response->assertCreated();
-        expect(LandingPage::where('resource_id', $resource->id)->first()->template)->toBe('default_gfz');
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+
+        expect(LandingPage::where('resource_id', $resource->id)->first())->toBeNull();
     });
 });
 
@@ -146,6 +155,34 @@ describe('IGSN Template Restriction on Update', function () {
         $response->assertOk();
         expect($landingPage->fresh()->template)->toBe('default_gfz_igsn');
     });
+
+    test('cannot change template to default_gfz for PhysicalObject resource', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz_igsn',
+            'is_published' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/landing-page", [
+                'template' => 'default_gfz',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+
+        expect($landingPage->fresh()->template)->toBe('default_gfz_igsn');
+    });
 });
 
 describe('IGSN Template Preview Session', function () {
@@ -186,6 +223,27 @@ describe('IGSN Template Preview Session', function () {
 
         $response->assertCreated()
             ->assertJsonStructure(['preview_url']);
+    });
+
+    test('cannot create default_gfz preview for PhysicalObject resource', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/landing-page/preview", [
+                'template' => 'default_gfz',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The Default GFZ Data Services template cannot be used with Physical Object resources. Use the IGSN template instead.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
     });
 });
 
