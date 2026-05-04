@@ -28,6 +28,11 @@ class LandingPageController extends Controller
     use AuthorizesRequests;
     use ChecksCacheTagging;
 
+    private static function templateSupportsCustomTemplateId(string $template): bool
+    {
+        return $template === LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+    }
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
     ) {}
@@ -130,7 +135,8 @@ class LandingPageController extends Controller
             ], 422);
         }
 
-        if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'] ?? null, $resource->resourceType?->slug)) {
+        if (self::templateSupportsCustomTemplateId($validated['template'])
+            && ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'] ?? null, $resource->resourceType?->slug))) {
             return response()->json([
                 'message' => $customTemplateError,
                 'error' => 'invalid_template_for_resource_type',
@@ -358,7 +364,10 @@ class LandingPageController extends Controller
             }
         }
 
-        if (array_key_exists('landing_page_template_id', $validated)) {
+        $effectiveTemplate = $validated['template'] ?? $landingPage->template;
+
+        if (array_key_exists('landing_page_template_id', $validated)
+            && self::templateSupportsCustomTemplateId($effectiveTemplate)) {
             $resource->loadMissing('resourceType');
 
             if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'], $resource->resourceType?->slug)) {
@@ -393,8 +402,6 @@ class LandingPageController extends Controller
 
         // Wrap all mutations in a transaction for atomicity.
         // This ensures the landing page + links are updated together.
-        $effectiveTemplate = $validated['template'] ?? $landingPage->template;
-
         DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate): void {
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field

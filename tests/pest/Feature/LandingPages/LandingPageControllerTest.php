@@ -367,6 +367,26 @@ describe('External Landing Page Creation', function () {
         $response->assertStatus(201);
         expect($this->resource->fresh()->landingPage->ftp_url)->toBeNull();
     });
+
+    test('ignores stale custom template id when creating an external landing page', function () {
+        $domain = LandingPageDomain::factory()->create();
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'some/path',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
+    });
 });
 
 describe('External Landing Page Update', function () {
@@ -411,6 +431,33 @@ describe('External Landing Page Update', function () {
             ->template->toBe('default_gfz')
             ->external_domain_id->toBeNull()
             ->external_path->toBeNull();
+    });
+
+    test('ignores stale custom template id when switching to external', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => null,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
     });
 });
 

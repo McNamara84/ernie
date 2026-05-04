@@ -32,6 +32,21 @@ interface SetupLandingPageModalProps {
     existingConfig?: LandingPageConfig | null;
 }
 
+function getPreferredTemplateForResource(resourceType?: string, template?: string | null): string {
+    const defaultTemplate = isIgsnLandingPageResourceType(resourceType) ? 'default_gfz_igsn' : getDefaultTemplate();
+    const validTemplates = new Set(getTemplateOptions(resourceType).map((option) => option.value));
+
+    if (template && validTemplates.has(template)) {
+        return template;
+    }
+
+    return defaultTemplate;
+}
+
+function getPreferredLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
+    return template === 'default_gfz' ? (landingPageTemplateId ?? null) : null;
+}
+
 function SortableLinkItem({
     link,
     index,
@@ -91,10 +106,10 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     // initial state, the reset-on-close branch, and the 404 fallback inside
     // `loadLandingPageConfig` so a freshly opened IGSN modal always points at
     // the correct built-in template.
-    const defaultTemplateForResource =
-        isIgsnLandingPageResourceType(resource.resourcetypegeneral) ? 'default_gfz_igsn' : getDefaultTemplate();
+    const defaultTemplateForResource = getPreferredTemplateForResource(resource.resourcetypegeneral);
+    const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
 
-    const [template, setTemplate] = useState<string>(existingConfig?.template ?? defaultTemplateForResource);
+    const [template, setTemplate] = useState<string>(initialTemplate);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
@@ -111,7 +126,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
 
     // Landing page template ID (for custom templates)
-    const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(existingConfig?.landing_page_template_id ?? null);
+    const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
+        getPreferredLandingPageTemplateId(initialTemplate, existingConfig?.landing_page_template_id),
+    );
 
     // Additional links state
     const [links, setLinks] = useState<LandingPageLink[]>(existingConfig?.links ?? []);
@@ -145,30 +162,31 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         [resource.resourcetypegeneral],
     );
 
+    const applyConfigState = useCallback((config: LandingPageConfig) => {
+        const preferredTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, config.template);
+
+        setCurrentConfig(config);
+        setTemplate(preferredTemplate);
+        setFtpUrl(config.ftp_url ?? '');
+        setIsPublished(config.status === 'published');
+        setPreviewUrl(config.preview_url ?? '');
+        setExternalDomainId(String(config.external_domain_id ?? ''));
+        setExternalPath(config.external_path ?? '');
+        setLinks(config.links ?? []);
+        setLandingPageTemplateId(getPreferredLandingPageTemplateId(preferredTemplate, config.landing_page_template_id));
+    }, [resource.resourcetypegeneral]);
+
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
             if (existingConfig) {
-                // Use existing config passed as prop
-                setCurrentConfig(existingConfig);
-                setTemplate(existingConfig.template);
-                setFtpUrl(existingConfig.ftp_url ?? '');
-                setIsPublished(existingConfig.status === 'published');
-                setPreviewUrl(existingConfig.preview_url ?? '');
-                setExternalDomainId(String(existingConfig.external_domain_id ?? ''));
-                setExternalPath(existingConfig.external_path ?? '');
-                setLinks(existingConfig.links ?? []);
-                setLandingPageTemplateId(existingConfig.landing_page_template_id ?? null);
+                applyConfigState(existingConfig);
             } else {
-                // Load from server
                 loadLandingPageConfig();
             }
-            // Load available domains for external landing pages
             loadAvailableDomains();
-            // Load custom templates for the dropdown
             loadCustomTemplates();
         } else if (!isOpen) {
-            // Reset state when modal closes
             setCurrentConfig(null);
             setTemplate(defaultTemplateForResource);
             setFtpUrl('');
@@ -180,7 +198,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setLandingPageTemplateId(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, resource.id]);
+    }, [applyConfigState, defaultTemplateForResource, existingConfig, isOpen, resource.id]);
 
     const loadAvailableDomains = async () => {
         try {
@@ -205,19 +223,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setIsLoading(true);
         try {
             const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
-            const config = response.data.landing_page;
-            setCurrentConfig(config);
-            setTemplate(config.template);
-            setFtpUrl(config.ftp_url ?? '');
-            setIsPublished(config.status === 'published');
-            setPreviewUrl(config.preview_url);
-            setExternalDomainId(String(config.external_domain_id ?? ''));
-            setExternalPath(config.external_path ?? '');
-            setLinks(config.links ?? []);
-            setLandingPageTemplateId(config.landing_page_template_id ?? null);
+            applyConfigState(response.data.landing_page);
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
-                // No landing page exists yet, use defaults
                 setCurrentConfig(null);
                 setTemplate(defaultTemplateForResource);
                 setFtpUrl('');
@@ -249,16 +257,14 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 template,
                 ftp_url: supportsFtpUrl ? ftpUrl || null : null,
                 status: isPublished ? 'published' : 'draft',
-                landing_page_template_id: landingPageTemplateId,
+                landing_page_template_id: getPreferredLandingPageTemplateId(template, landingPageTemplateId),
             };
 
-            // Add external fields when template is 'external'
             if (isExternal) {
                 payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
                 payload.external_path = externalPath || null;
             }
 
-            // Add additional links when template supports them (filter out incomplete rows)
             if (supportsLinks) {
                 payload.links = links
                     .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
@@ -270,8 +276,6 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             }
 
             const url = `/resources/${resource.id}/landing-page`;
-
-            // Determine if we should update or create
             const shouldUpdate = currentConfig !== null;
 
             const response = shouldUpdate
@@ -287,28 +291,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
             toast.success(response.data.message);
 
-            // Update local state with response data
             if (response.data.landing_page) {
-                const updatedConfig = response.data.landing_page;
-                setCurrentConfig(updatedConfig);
-                setTemplate(updatedConfig.template ?? getDefaultTemplate());
-                setFtpUrl(updatedConfig.ftp_url ?? '');
-                setPreviewUrl(updatedConfig.preview_url ?? '');
-                setIsPublished(updatedConfig.status === 'published');
-                setExternalDomainId(String(updatedConfig.external_domain_id ?? ''));
-                setExternalPath(updatedConfig.external_path ?? '');
-                setLinks(updatedConfig.links ?? []);
-                setLandingPageTemplateId(updatedConfig.landing_page_template_id ?? null);
+                applyConfigState(response.data.landing_page);
             }
 
-            // Clear session-based preview if it exists
             try {
                 await axios.delete(`/resources/${resource.id}/landing-page/preview`);
             } catch {
                 // Ignore errors from clearing preview session
             }
 
-            // Call success callback to notify parent component
             onSuccess?.();
         } catch (error) {
             console.error('Failed to save landing page:', error);

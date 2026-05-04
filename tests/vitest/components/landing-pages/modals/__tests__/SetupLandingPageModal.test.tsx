@@ -229,6 +229,53 @@ describe('SetupLandingPageModal', () => {
                 expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
             });
         });
+
+        it('normalizes a legacy Physical Object config passed via props to the IGSN template', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    existingConfig={{ ...mockExistingConfig, template: 'default_gfz', landing_page_template_id: 7 }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            expect(screen.queryByLabelText(/Download URL \(FTP\)/i)).not.toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
     });
 
     describe('API Integration', () => {
@@ -246,6 +293,63 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 expect(axios.get).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                );
+            });
+        });
+
+        it('normalizes a legacy Physical Object config loaded from the server before update', async () => {
+            const legacyConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                landing_page_template_id: 9,
+                status: 'draft' as const,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: legacyConfig } });
+                }
+
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 404 },
+                });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...legacyConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        landing_page_template_id: null,
+                    }),
                 );
             });
         });
