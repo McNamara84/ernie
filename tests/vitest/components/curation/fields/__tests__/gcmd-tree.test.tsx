@@ -190,6 +190,14 @@ describe('gcmd-tree', () => {
             expect(mark.tagName).toBe('MARK');
         });
 
+        it('treats regex metacharacters in the search query literally', () => {
+            const node = createMockKeyword({ text: 'C++ Science Data' });
+            render(<GCMDTreeNode node={node} selectedIds={new Set()} onToggle={vi.fn()} searchQuery="C++" />);
+
+            const mark = screen.getByText('C++');
+            expect(mark.tagName).toBe('MARK');
+        });
+
         it('does not highlight when search query is too short', () => {
             const node = createMockKeyword({ text: 'Earth Science Data' });
             render(<GCMDTreeNode node={node} selectedIds={new Set()} onToggle={vi.fn()} searchQuery="Ea" />);

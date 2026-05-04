@@ -10,6 +10,8 @@
  * @see Issue #605 – Helpful error messages
  */
 
+import { mapGetOrInsertComputed } from '@/lib/map-utils';
+
 export interface MappedError {
     /** The original backend validation key, e.g. "authors.0.lastName" */
     backendKey: string;
@@ -263,16 +265,13 @@ export function groupErrorsBySection(errors: MappedError[]): Map<string, { secti
     const groups = new Map<string, { sectionName: string; sectionId: string; errors: MappedError[] }>();
 
     for (const error of errors) {
-        const existing = groups.get(error.sectionId);
-        if (existing) {
-            existing.errors.push(error);
-        } else {
-            groups.set(error.sectionId, {
-                sectionName: error.sectionName,
-                sectionId: error.sectionId,
-                errors: [error],
-            });
-        }
+        const group = mapGetOrInsertComputed(groups, error.sectionId, () => ({
+            sectionName: error.sectionName,
+            sectionId: error.sectionId,
+            errors: [],
+        }));
+
+        group.errors.push(error);
     }
 
     return groups;

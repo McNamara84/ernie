@@ -1,3 +1,4 @@
+import { escapeForRegExp } from '@/lib/regexp';
 import type { FilterState } from '@/types/old-datasets';
 import type { ResourceFilterState } from '@/types/resources';
 
@@ -15,7 +16,7 @@ function parseArrayParam(params: URLSearchParams, paramName: string): string[] |
     // Then try indexed array notation: param[0], param[1], etc.
     // Collect all parameters that match the pattern param[number]
     const indexedValues: string[] = [];
-    const indexedPattern = new RegExp(`^${paramName}\\[(\\d+)\\]$`);
+    const indexedPattern = new RegExp(`^${escapeForRegExp(paramName)}\\[(\\d+)\\]$`);
     for (const [key, value] of params.entries()) {
         // Match patterns like "resource_type[0]", "resource_type[1]", etc.
         const match = key.match(indexedPattern);

@@ -3,6 +3,7 @@ import { memo, useState } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { escapeForRegExp } from '@/lib/regexp';
 import { cn } from '@/lib/utils';
 import type { VocabularyKeyword } from '@/types/vocabulary';
 
@@ -23,7 +24,7 @@ function highlightText(text: string, query?: string): React.ReactNode {
         return text;
     }
 
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    const parts = text.split(new RegExp(`(${escapeForRegExp(query)})`, 'gi'));
     return parts.map((part, index) =>
         part.toLowerCase() === query.toLowerCase() ? (
             <mark key={index} className="bg-yellow-200 font-medium dark:bg-yellow-900/50">

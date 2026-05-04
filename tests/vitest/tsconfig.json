@@ -1,0 +1,12 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "types": ["vite/client", "vitest/globals", "node", "@testing-library/jest-dom", "google.maps"]
+    },
+    "include": [
+        "../../tests/vitest/**/*.ts",
+        "../../tests/vitest/**/*.tsx",
+        "../../resources/js/**/*.d.ts",
+        "../../vitest.setup.ts"
+    ]
+}

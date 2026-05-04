@@ -85,13 +85,16 @@ const MockRectangle = vi.fn(function MockRectangle() {
     };
 });
 
-global.google = {
-    maps: {
-        Rectangle: MockRectangle,
-        Geocoder: MockGeocoder,
-    },
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any;
+Object.defineProperty(globalThis, 'google', {
+    value: {
+        maps: {
+            Rectangle: MockRectangle,
+            Geocoder: MockGeocoder,
+        },
+    } as unknown as typeof google,
+    writable: true,
+    configurable: true,
+});
 
 import MapPicker from '@/components/curation/fields/spatial-temporal-coverage/MapPicker';
 
