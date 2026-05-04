@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $resource_id
  * @property string $status
- * @property float|null $total_score
+ * @property string|null $total_score Decimal string returned by the decimal:2 cast.
  * @property string|null $assessed_identifier
  * @property string|null $error_message
  * @property array<string, mixed>|null $payload

@@ -127,6 +127,7 @@ services:
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/usr/local/bin/fuji-entrypoint.sh"]
     environment:
+      - FUJI_ENABLED=${FUJI_ENABLED:-true}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
       - TIKA_LOG_PATH=/tmp/tika.log
