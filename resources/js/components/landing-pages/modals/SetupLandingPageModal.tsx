@@ -118,6 +118,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const isExternal = template === 'external';
     const isIgsn = template === 'default_gfz_igsn';
+    const supportsFtpUrl = !isExternal && !isIgsn;
     const supportsLinks = !isExternal && !isIgsn;
     const MAX_LINKS = 10;
 
@@ -246,7 +247,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         try {
             const payload: Record<string, unknown> = {
                 template,
-                ftp_url: isExternal ? null : ftpUrl || null,
+                ftp_url: supportsFtpUrl ? ftpUrl || null : null,
                 status: isPublished ? 'published' : 'draft',
                 landing_page_template_id: landingPageTemplateId,
             };
@@ -371,8 +372,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         const isExternalTemplate = template === 'external';
         const baseChanges =
             template !== currentConfig.template ||
-            // ftpUrl is irrelevant for external templates (backend forces it to null)
-            (!isExternalTemplate && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
+            // ftpUrl is irrelevant for external and IGSN templates.
+            (supportsFtpUrl && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
             isPublished !== (currentConfig.status === 'published') ||
             landingPageTemplateId !== (currentConfig.landing_page_template_id ?? null);
 
@@ -393,7 +394,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             );
         }
         return baseChanges || linksChanged;
-    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links, landingPageTemplateId]);
+    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links, landingPageTemplateId, supportsFtpUrl]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -448,10 +449,11 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             }
 
             try {
-                const payload: Record<string, unknown> = {
-                    template,
-                    ftp_url: ftpUrl || null,
-                };
+                const payload: Record<string, unknown> = { template };
+
+                if (supportsFtpUrl) {
+                    payload.ftp_url = ftpUrl || null;
+                }
 
                 // Include complete links for templates that support them (filter out incomplete rows)
                 if (supportsLinks) {
@@ -705,7 +707,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                         )}
 
                         {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
-                        {!isExternal && (
+                        {supportsFtpUrl && (
                             <div className="space-y-2">
                                 <Label htmlFor="ftp-url">Download URL (FTP)</Label>
                                 <Input

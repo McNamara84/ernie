@@ -504,7 +504,7 @@ describe('Landing Page Template Assignment', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
+                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
     });
@@ -528,7 +528,7 @@ describe('Landing Page Template Assignment', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
+                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
     });

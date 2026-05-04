@@ -210,6 +210,7 @@ describe('SetupLandingPageModal', () => {
             expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
             expect(optionsList).toHaveTextContent('External Landing Page');
             expect(optionsList).not.toHaveTextContent('Default GFZ Data Services');
+            expect(screen.queryByLabelText(/Download URL \(FTP\)/i)).not.toBeInTheDocument();
         });
 
         it('loads existing configuration', async () => {
@@ -294,6 +295,49 @@ describe('SetupLandingPageModal', () => {
                         template: 'default_gfz',
                         ftp_url: 'https://datapub.gfz-potsdam.de/download/new-data',
                         status: 'draft',
+                    }),
+                );
+            });
+        });
+
+        it('clears ftp_url when a Physical Object is saved through the shared modal', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        status: 'draft',
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(axios.post).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
                     }),
                 );
             });

@@ -319,7 +319,7 @@ class LandingPageTemplate extends Model
             return null;
         }
 
-        return $expectedTemplateType === self::TEMPLATE_TYPE_IGSN
+        return $template->template_type === self::TEMPLATE_TYPE_IGSN
             ? 'The selected custom landing page template is only available for IGSN landing pages.'
             : 'The selected custom landing page template is only available for regular resource landing pages.';
     }

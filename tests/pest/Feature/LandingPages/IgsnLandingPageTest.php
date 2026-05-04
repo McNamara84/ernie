@@ -125,7 +125,7 @@ describe('IGSN Template Restriction on Creation', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
+                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
     });
@@ -231,7 +231,7 @@ describe('IGSN Template Restriction on Update', function () {
 
         $response->assertStatus(422)
             ->assertJson([
-                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
+                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
                 'error' => 'invalid_template_for_resource_type',
             ]);
 
