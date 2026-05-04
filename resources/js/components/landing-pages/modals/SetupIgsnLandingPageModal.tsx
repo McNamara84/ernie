@@ -1,16 +1,16 @@
 import axios, { isAxiosError } from 'axios';
 import { Copy, Eye, FlaskConical } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig } from '@/types/landing-page';
+import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 const IGSN_TEMPLATE_KEYS = new Set(getIgsnTemplateOptions().map((option) => option.value));
 
@@ -20,6 +20,30 @@ function getPreferredIgsnTemplate(template?: string | null): string {
     }
 
     return getDefaultIgsnTemplate();
+}
+
+function templateSupportsCustomTemplateId(template: string): boolean {
+    return template === getDefaultIgsnTemplate();
+}
+
+function getHydratedLandingPageTemplateId(template: string, config?: LandingPageConfig | null): number | null {
+    if (!config || !templateSupportsCustomTemplateId(template)) {
+        return null;
+    }
+
+    if (template !== config.template) {
+        return null;
+    }
+
+    if (config.landing_page_template?.template_type === 'resource') {
+        return null;
+    }
+
+    return config.landing_page_template_id ?? null;
+}
+
+function getPayloadLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
+    return templateSupportsCustomTemplateId(template) ? (landingPageTemplateId ?? null) : null;
 }
 
 interface IgsnResource {
@@ -46,45 +70,75 @@ interface SetupIgsnLandingPageModalProps {
  * - Uses FlaskConical icon instead of Globe
  */
 export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupIgsnLandingPageModalProps) {
-    const [template, setTemplate] = useState<string>(getPreferredIgsnTemplate(existingConfig?.template));
+    const initialTemplate = getPreferredIgsnTemplate(existingConfig?.template);
+
+    const [template, setTemplate] = useState<string>(initialTemplate);
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(existingConfig ?? null);
+    const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
+    const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
+        getHydratedLandingPageTemplateId(initialTemplate, existingConfig),
+    );
+
+    const eligibleCustomTemplates = useMemo(
+        () => customTemplates.filter((customTemplate) => !customTemplate.is_default && customTemplate.template_type === 'igsn'),
+        [customTemplates],
+    );
+
+    const applyConfigState = useCallback((config: LandingPageConfig) => {
+        const preferredTemplate = getPreferredIgsnTemplate(config.template);
+
+        setCurrentConfig(config);
+        setTemplate(preferredTemplate);
+        setIsPublished(config.status === 'published');
+        setPreviewUrl(config.preview_url ?? '');
+        setLandingPageTemplateId(getHydratedLandingPageTemplateId(preferredTemplate, config));
+    }, []);
 
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
             if (existingConfig) {
                 // Use existing config passed as prop
-                setCurrentConfig(existingConfig);
-                setTemplate(getPreferredIgsnTemplate(existingConfig.template));
-                setIsPublished(existingConfig.status === 'published');
-                setPreviewUrl(existingConfig.preview_url ?? '');
+                applyConfigState(existingConfig);
             } else {
                 // Load from server
                 loadLandingPageConfig();
             }
+            loadCustomTemplates();
         } else if (!isOpen) {
             // Reset state when modal closes
             setCurrentConfig(null);
             setTemplate(getDefaultIgsnTemplate());
             setIsPublished(false);
             setPreviewUrl('');
+            setLandingPageTemplateId(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, resource.id]);
+    }, [applyConfigState, existingConfig, isOpen, resource.id]);
+
+    const loadCustomTemplates = async () => {
+        try {
+            const response = await axios.get<{ templates: LandingPageTemplateSummary[] }>('/api/landing-page-templates');
+            setCustomTemplates(response.data.templates ?? []);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.status === 404) {
+                setCustomTemplates([]);
+                return;
+            }
+
+            console.error('Failed to load custom templates:', error);
+        }
+    };
 
     const loadLandingPageConfig = async () => {
         setIsLoading(true);
         try {
             const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
-            const config = response.data.landing_page;
-            setCurrentConfig(config);
-            setTemplate(getPreferredIgsnTemplate(config.template));
-            setIsPublished(config.status === 'published');
-            setPreviewUrl(config.preview_url ?? '');
+            applyConfigState(response.data.landing_page);
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
@@ -92,6 +146,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 setTemplate(getDefaultIgsnTemplate());
                 setIsPublished(false);
                 setPreviewUrl('');
+                setLandingPageTemplateId(null);
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
@@ -113,6 +168,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
             // Note: No ftp_url for IGSN landing pages
             const payload = {
                 template,
+                landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
                 status: isPublished ? 'published' : 'draft',
             };
 
@@ -136,11 +192,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
             // Update local state with response data
             if (response.data.landing_page) {
-                const updatedConfig = response.data.landing_page;
-                setCurrentConfig(updatedConfig);
-                setTemplate(getPreferredIgsnTemplate(updatedConfig.template));
-                setPreviewUrl(updatedConfig.preview_url ?? '');
-                setIsPublished(updatedConfig.status === 'published');
+                applyConfigState(response.data.landing_page);
             }
 
             // Clear session-based preview if it exists
@@ -210,8 +262,10 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
-        return template !== currentConfig.template || isPublished !== (currentConfig.status === 'published');
-    }, [currentConfig, template, isPublished]);
+        return template !== currentConfig.template
+            || isPublished !== (currentConfig.status === 'published')
+            || landingPageTemplateId !== (currentConfig.landing_page_template_id ?? null);
+    }, [currentConfig, landingPageTemplateId, template, isPublished]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -239,6 +293,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 // Note: No ftp_url for IGSN landing pages
                 const payload = {
                     template,
+                    landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
                 };
 
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
@@ -332,19 +387,56 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                         {/* Template Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="template">Landing Page Template</Label>
-                            <Select value={template} onValueChange={setTemplate}>
+                            <Select
+                                value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
+                                onValueChange={(value) => {
+                                    if (value.startsWith('custom:')) {
+                                        const id = Number.parseInt(value.replace('custom:', ''), 10);
+
+                                        if (!Number.isNaN(id)) {
+                                            setTemplate(getDefaultIgsnTemplate());
+                                            setLandingPageTemplateId(id);
+                                        }
+
+                                        return;
+                                    }
+
+                                    setTemplate(value);
+                                    setLandingPageTemplateId(null);
+                                }}
+                            >
                                 <SelectTrigger id="template">
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {templateOptions.map((tmpl) => (
-                                        <SelectItem key={tmpl.value} value={tmpl.value}>
-                                            <div className="flex flex-col">
-                                                <span>{tmpl.label}</span>
-                                                <span className="text-xs text-muted-foreground">{tmpl.description}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
+                                    <SelectGroup>
+                                        <SelectLabel>Built-in Templates</SelectLabel>
+                                        {templateOptions.map((tmpl) => (
+                                            <SelectItem key={tmpl.value} value={tmpl.value}>
+                                                <div className="flex flex-col">
+                                                    <span>{tmpl.label}</span>
+                                                    <span className="text-xs text-muted-foreground">{tmpl.description}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+
+                                    {eligibleCustomTemplates.length > 0 && (
+                                        <>
+                                            <SelectSeparator />
+                                            <SelectGroup>
+                                                <SelectLabel>Custom Templates</SelectLabel>
+                                                {eligibleCustomTemplates.map((customTemplate) => (
+                                                    <SelectItem key={customTemplate.id} value={`custom:${customTemplate.id}`}>
+                                                        <div className="flex flex-col">
+                                                            <span>{customTemplate.name}</span>
+                                                            <span className="text-xs text-muted-foreground">Custom IGSN template</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </>
+                                    )}
                                 </SelectContent>
                             </Select>
                             <p className="text-sm text-muted-foreground">Choose the design template for your IGSN landing page</p>

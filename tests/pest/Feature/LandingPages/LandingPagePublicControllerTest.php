@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use Illuminate\Support\Facades\Cache;
 
 covers(LandingPagePublicController::class);
@@ -503,6 +505,49 @@ describe('Landing Page with Custom Template', function () {
                 ->component('LandingPages/default_gfz')
                 ->where('sectionOrder', null)
                 ->where('customLogoUrl', null)
+            );
+    });
+
+    test('normalizes legacy Physical Object landing pages to the igsn renderer and keeps matching igsn custom templates', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.igsn.001',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/igsn-logo.png',
+        ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.igsn.001',
+                'slug' => 'legacy-igsn-template-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->has('sectionOrder', fn ($order) => $order
+                    ->has('rightColumn')
+                    ->has('leftColumn')
+                )
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
             );
     });
 });

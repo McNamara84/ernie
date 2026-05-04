@@ -345,6 +345,40 @@ describe('IGSN Template Restriction on Update', function () {
         expect($landingPage->fresh()->ftp_url)->toBeNull();
     });
 
+    test('publishing a legacy PhysicalObject page normalizes the built-in template and clears a stale resource custom template id when the field is omitted', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::factory()->create(['created_by' => $user->id]);
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+            'is_published' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/landing-page", [
+                'status' => 'published',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'default_gfz_igsn')
+            ->assertJsonPath('landing_page.landing_page_template_id', null)
+            ->assertJsonPath('landing_page.ftp_url', null)
+            ->assertJsonPath('landing_page.is_published', true);
+
+        expect($landingPage->fresh()->template)->toBe('default_gfz_igsn');
+        expect($landingPage->fresh()->landing_page_template_id)->toBeNull();
+        expect($landingPage->fresh()->ftp_url)->toBeNull();
+        expect($landingPage->fresh()->is_published)->toBeTrue();
+    });
+
     test('clears ftp_url when updating an igsn landing page', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 

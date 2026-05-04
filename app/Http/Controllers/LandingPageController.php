@@ -363,9 +363,9 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        if (isset($validated['template'])) {
-            $resource->loadMissing('resourceType');
+        $resource->loadMissing('resourceType');
 
+        if (isset($validated['template'])) {
             if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
                 return response()->json([
                     'message' => $templateError,
@@ -374,19 +374,27 @@ class LandingPageController extends Controller
             }
         }
 
-        $effectiveTemplate = $validated['template'] ?? $landingPage->template;
-        $templateChanged = array_key_exists('template', $validated)
-            && $validated['template'] !== $landingPage->template;
+        $effectiveTemplate = array_key_exists('template', $validated)
+            ? $validated['template']
+            : LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resource->resourceType?->slug);
+        $templateChanged = $effectiveTemplate !== $landingPage->template;
 
-        if (array_key_exists('landing_page_template_id', $validated)
-            && self::templateSupportsCustomTemplateId($effectiveTemplate)) {
-            $resource->loadMissing('resourceType');
+        $effectiveLandingPageTemplateId = null;
 
-            if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'], $resource->resourceType?->slug)) {
-                return response()->json([
-                    'message' => $customTemplateError,
-                    'error' => 'invalid_template_for_resource_type',
-                ], 422);
+        if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
+            $effectiveLandingPageTemplateId = array_key_exists('landing_page_template_id', $validated)
+                ? $validated['landing_page_template_id']
+                : $landingPage->landing_page_template_id;
+
+            if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($effectiveLandingPageTemplateId, $resource->resourceType?->slug)) {
+                if (array_key_exists('landing_page_template_id', $validated)) {
+                    return response()->json([
+                        'message' => $customTemplateError,
+                        'error' => 'invalid_template_for_resource_type',
+                    ], 422);
+                }
+
+                $effectiveLandingPageTemplateId = null;
             }
         }
 
@@ -414,17 +422,16 @@ class LandingPageController extends Controller
 
         // Wrap all mutations in a transaction for atomicity.
         // This ensures the landing page + links are updated together.
-        DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate, $templateChanged): void {
+        DB::transaction(function () use ($landingPage, $validated, $effectiveLandingPageTemplateId, $effectiveTemplate, $templateChanged): void {
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
-            if (isset($validated['template'])) {
-                $landingPage->template = $validated['template'];
+            if ($templateChanged) {
+                $landingPage->template = $effectiveTemplate;
             }
-            if (array_key_exists('landing_page_template_id', $validated)) {
-                $landingPage->landing_page_template_id = self::templateSupportsCustomTemplateId($effectiveTemplate)
-                    ? $validated['landing_page_template_id']
-                    : null;
-            } elseif ($templateChanged) {
+
+            if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
+                $landingPage->landing_page_template_id = $effectiveLandingPageTemplateId;
+            } elseif ($templateChanged || array_key_exists('landing_page_template_id', $validated)) {
                 $landingPage->landing_page_template_id = null;
             }
 

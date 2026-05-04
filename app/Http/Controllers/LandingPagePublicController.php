@@ -275,6 +275,8 @@ class LandingPagePublicController extends Controller
         // Load resource with all necessary relationships
         $resource = Resource::with($transformer->requiredRelations())
             ->findOrFail($landingPage->resource_id);
+        $resourceTypeSlug = $resource->resourceType?->slug;
+        $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
 
         // Eager-load file and link entries for download URL display
         $landingPage->loadMissing(['files', 'links', 'landingPageTemplate']);
@@ -284,9 +286,13 @@ class LandingPagePublicController extends Controller
         // Build section order and logo from custom template (if set)
         $sectionOrder = null;
         $customLogoUrl = null;
+        $effectiveLandingPageTemplate = null;
 
-        if ($landingPage->landing_page_template_id !== null && $landingPage->landingPageTemplate !== null) {
-            $tmpl = $landingPage->landingPageTemplate;
+        if (LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
+            && $landingPage->landingPageTemplate !== null
+            && $landingPage->landingPageTemplate->template_type === LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug)) {
+            $effectiveLandingPageTemplate = $landingPage->landingPageTemplate;
+            $tmpl = $effectiveLandingPageTemplate;
             $sectionOrder = [
                 'rightColumn' => $tmpl->right_column_order,
                 'leftColumn' => $tmpl->left_column_order,
@@ -303,19 +309,21 @@ class LandingPagePublicController extends Controller
                 return $exporter->export($resource);
             });
 
+        $landingPageData = $landingPage->toArray();
+        $landingPageData['template'] = $effectiveTemplate;
+        $landingPageData['landing_page_template_id'] = $effectiveLandingPageTemplate?->id;
+        $landingPageData['landing_page_template'] = $effectiveLandingPageTemplate?->toArray();
+
         $data = [
             'resource' => $resourceData,
-            'landingPage' => $landingPage->toArray(),
+            'landingPage' => $landingPageData,
             'isPreview' => (bool) $previewToken,
             'schemaOrgJsonLd' => $schemaOrgJsonLd,
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,
         ];
 
-        // Use the template specified in landing page configuration
-        $template = $landingPage->template ?? 'default_gfz';
-
-        return Inertia::render("LandingPages/{$template}", $data);
+        return Inertia::render("LandingPages/{$effectiveTemplate}", $data);
     }
 
     /**

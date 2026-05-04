@@ -410,6 +410,195 @@ describe('SetupIgsnLandingPageModal', () => {
         });
     });
 
+    describe('Custom Templates', () => {
+        const mockIgsnCustomTemplate = {
+            id: 7,
+            name: 'Custom Sample Layout',
+            slug: 'custom-sample-layout',
+            is_default: false,
+            template_type: 'igsn' as const,
+            logo_path: null,
+            logo_url: null,
+            right_column_order: [],
+            left_column_order: [],
+        };
+
+        const mockResourceCustomTemplate = {
+            id: 8,
+            name: 'Regular Resource Layout',
+            slug: 'regular-resource-layout',
+            is_default: false,
+            template_type: 'resource' as const,
+            logo_path: null,
+            logo_url: null,
+            right_column_order: [],
+            left_column_order: [],
+        };
+
+        it('shows only igsn custom templates in the dropdown', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [mockIgsnCustomTemplate, mockResourceCustomTemplate],
+                        },
+                    });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Custom Templates')).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('Custom Sample Layout')).toBeInTheDocument();
+            expect(screen.queryByText('Regular Resource Layout')).not.toBeInTheDocument();
+        });
+
+        it('keeps an igsn custom template id in the save payload', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [mockIgsnCustomTemplate],
+                        },
+                    });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: mockIgsnCustomTemplate.id,
+                        landing_page_template: mockIgsnCustomTemplate,
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Custom Sample Layout')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Custom Sample Layout'));
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: mockIgsnCustomTemplate.id,
+                    }),
+                );
+            });
+        });
+
+        it('restores a saved igsn custom template selection when loading config from the server', async () => {
+            const configWithCustomTemplate: LandingPageConfig = {
+                ...mockExistingConfig,
+                landing_page_template_id: mockIgsnCustomTemplate.id,
+                landing_page_template: mockIgsnCustomTemplate,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [mockIgsnCustomTemplate],
+                        },
+                    });
+                }
+
+                if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: configWithCustomTemplate } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Custom Sample Layout');
+            });
+        });
+
+        it('keeps an igsn custom template id in the preview payload', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [mockIgsnCustomTemplate],
+                        },
+                    });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: { preview_url: '/resources/456/landing-page/preview?session=igsn-custom' },
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Custom Sample Layout')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Custom Sample Layout'));
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: mockIgsnCustomTemplate.id,
+                    }),
+                );
+            });
+
+            vi.unstubAllGlobals();
+        });
+    });
+
     describe('Draft Removal', () => {
         it('shows remove preview button for draft landing pages', async () => {
             mockedAxiosGet.mockResolvedValue({

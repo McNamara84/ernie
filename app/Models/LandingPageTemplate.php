@@ -294,6 +294,19 @@ class LandingPageTemplate extends Model
         return null;
     }
 
+    public static function normalizeBuiltInTemplateForResource(?string $template, ?string $resourceTypeSlug): string
+    {
+        $effectiveTemplate = $template ?? self::DEFAULT_TEMPLATE_SLUG;
+
+        if (self::builtInTemplateScopeError($effectiveTemplate, $resourceTypeSlug) === null) {
+            return $effectiveTemplate;
+        }
+
+        return self::expectedTemplateTypeForResource($resourceTypeSlug) === self::TEMPLATE_TYPE_IGSN
+            ? self::IGSN_DEFAULT_TEMPLATE_SLUG
+            : self::DEFAULT_TEMPLATE_SLUG;
+    }
+
     public static function expectedTemplateTypeForResource(?string $resourceTypeSlug): string
     {
         return $resourceTypeSlug === 'physical-object'
