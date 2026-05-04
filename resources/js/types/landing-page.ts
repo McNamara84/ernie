@@ -173,6 +173,9 @@ export interface LandingPageConfig {
     /** FK to landing_page_templates table (null = use built-in default) */
     landing_page_template_id?: number | null;
 
+    /** Loaded custom template relation for hydrating dropdown state */
+    landing_page_template?: LandingPageTemplateSummary | null;
+
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
 

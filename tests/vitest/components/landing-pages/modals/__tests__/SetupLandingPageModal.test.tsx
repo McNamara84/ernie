@@ -1112,6 +1112,177 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('keeps an igsn custom template id in the save payload for Physical Object resources', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 7,
+                                    name: 'Custom Sample Layout',
+                                    slug: 'custom-sample-layout',
+                                    is_default: false,
+                                    template_type: 'igsn',
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 7,
+                        landing_page_template: {
+                            id: 7,
+                            name: 'Custom Sample Layout',
+                            slug: 'custom-sample-layout',
+                            is_default: false,
+                            template_type: 'igsn',
+                            logo_path: null,
+                            logo_url: null,
+                            right_column_order: [],
+                            left_column_order: [],
+                        },
+                        ftp_url: null,
+                        status: 'draft',
+                    },
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Custom Sample Layout')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Custom Sample Layout'));
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 7,
+                        ftp_url: null,
+                    }),
+                );
+            });
+        });
+
+        it('keeps an igsn custom template id in the preview payload for Physical Object resources', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 8,
+                                    name: 'Preview Sample Layout',
+                                    slug: 'preview-sample-layout',
+                                    is_default: false,
+                                    template_type: 'igsn',
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockImplementation((url: string) => {
+                if (url.includes('/landing-page/preview')) {
+                    return Promise.resolve({ data: { preview_url: '/resources/123/landing-page/preview' } });
+                }
+
+                return Promise.resolve({
+                    data: {
+                        message: 'Landing page created',
+                        landing_page: { ...mockExistingConfig, status: 'draft' },
+                        preview_url: '/preview',
+                    },
+                });
+            });
+
+            const mockOpen = vi.fn();
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Preview Sample Layout')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Preview Sample Layout'));
+
+            const previewButtons = screen.getAllByRole('button', { name: /Preview/i });
+            const previewButton = previewButtons.find(
+                (btn) => btn.className.includes('outline') || btn.textContent?.trim() === 'Preview'
+            );
+
+            expect(previewButton).toBeDefined();
+            await user.click(previewButton!);
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 8,
+                    }),
+                );
+            });
+
+            vi.unstubAllGlobals();
+        });
+
         it('resets landing_page_template_id when switching to built-in template', async () => {
             const configWithCustomTemplate: LandingPageConfig = {
                 ...mockExistingConfig,

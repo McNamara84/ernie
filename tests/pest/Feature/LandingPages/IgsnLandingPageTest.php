@@ -106,7 +106,7 @@ describe('IGSN Template Restriction on Creation', function () {
         expect(LandingPage::where('resource_id', $resource->id)->first())->toBeNull();
     });
 
-    test('ignores stale regular resource custom template id when creating the igsn template', function () {
+    test('rejects assigning a regular resource custom template to a PhysicalObject resource on create', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
@@ -123,11 +123,57 @@ describe('IGSN Template Restriction on Creation', function () {
                 'landing_page_template_id' => $template->id,
             ]);
 
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
+
+    test('can assign an igsn custom template on create', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $user->id]);
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/landing-page", [
+                'template' => 'default_gfz_igsn',
+                'status' => 'draft',
+                'landing_page_template_id' => $template->id,
+            ]);
+
         $response->assertCreated()
             ->assertJsonPath('landing_page.template', 'default_gfz_igsn')
-            ->assertJsonPath('landing_page.landing_page_template_id', null);
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id);
 
-        expect(LandingPage::where('resource_id', $resource->id)->first()->landing_page_template_id)->toBeNull();
+        expect(LandingPage::where('resource_id', $resource->id)->first()->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('clears ftp_url when creating an igsn landing page', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/landing-page", [
+                'template' => 'default_gfz_igsn',
+                'status' => 'draft',
+                'ftp_url' => 'https://datapub.gfz-potsdam.de/download/sample.zip',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('landing_page.ftp_url', null);
+
+        expect(LandingPage::where('resource_id', $resource->id)->first()->ftp_url)->toBeNull();
     });
 });
 
@@ -209,7 +255,7 @@ describe('IGSN Template Restriction on Update', function () {
         expect($landingPage->fresh()->template)->toBe('default_gfz_igsn');
     });
 
-    test('ignores stale regular resource custom template id when switching a PhysicalObject resource to the igsn template', function () {
+    test('rejects assigning a regular resource custom template to a PhysicalObject resource on update', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
@@ -231,11 +277,98 @@ describe('IGSN Template Restriction on Update', function () {
                 'landing_page_template_id' => $template->id,
             ]);
 
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for regular resource landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+
+        expect($landingPage->fresh()->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('can assign an igsn custom template on update', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $user->id]);
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz_igsn',
+            'landing_page_template_id' => null,
+            'is_published' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/landing-page", [
+                'landing_page_template_id' => $template->id,
+            ]);
+
         $response->assertOk()
             ->assertJsonPath('landing_page.template', 'default_gfz_igsn')
-            ->assertJsonPath('landing_page.landing_page_template_id', null);
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id);
+
+        expect($landingPage->fresh()->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('switching a legacy PhysicalObject page to the igsn template clears a stale custom template id when the field is omitted', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::factory()->create(['created_by' => $user->id]);
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+            'is_published' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/landing-page", [
+                'template' => 'default_gfz_igsn',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'default_gfz_igsn')
+            ->assertJsonPath('landing_page.landing_page_template_id', null)
+            ->assertJsonPath('landing_page.ftp_url', null);
 
         expect($landingPage->fresh()->landing_page_template_id)->toBeNull();
+        expect($landingPage->fresh()->ftp_url)->toBeNull();
+    });
+
+    test('clears ftp_url when updating an igsn landing page', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz_igsn',
+            'ftp_url' => null,
+            'is_published' => false,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson("/resources/{$resource->id}/landing-page", [
+                'ftp_url' => 'https://datapub.gfz-potsdam.de/download/new.zip',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.ftp_url', null);
+
+        expect($landingPage->fresh()->ftp_url)->toBeNull();
     });
 });
 

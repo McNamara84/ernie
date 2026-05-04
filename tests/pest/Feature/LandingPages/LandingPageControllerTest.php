@@ -459,6 +459,32 @@ describe('External Landing Page Update', function () {
 
         expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
     });
+
+    test('switching to external clears an existing custom template id even when the field is omitted', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'status' => 'draft',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
+    });
 });
 
 describe('Landing Page Template Assignment', function () {

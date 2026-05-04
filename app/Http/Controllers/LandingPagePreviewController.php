@@ -55,6 +55,14 @@ class LandingPagePreviewController extends Controller
             ], 422);
         }
 
+        if (LandingPageController::templateSupportsCustomTemplateId($validated['template'])
+            && ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'] ?? null, $resource->resourceType?->slug))) {
+            return response()->json([
+                'message' => $customTemplateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
+        }
+
         // Store preview data in session
         $sessionKey = "landing_page_preview.{$resource->id}";
 
@@ -64,7 +72,12 @@ class LandingPagePreviewController extends Controller
 
         Session::put($sessionKey, [
             'template' => $validated['template'],
-            'ftp_url' => $validated['ftp_url'] ?? null,
+            'landing_page_template_id' => LandingPageController::templateSupportsCustomTemplateId($validated['template'])
+                ? ($validated['landing_page_template_id'] ?? null)
+                : null,
+            'ftp_url' => LandingPageController::templateSupportsFtpUrl($validated['template'])
+                ? ($validated['ftp_url'] ?? null)
+                : null,
             'links' => $isLinksTemplate ? ($validated['links'] ?? []) : [],
             'resource_id' => $resource->id,
         ]);
@@ -101,6 +114,24 @@ class LandingPagePreviewController extends Controller
         // Prepare the same frontend payload as LandingPagePublicController
         $resourceData = $transformer->transform($resource);
 
+        $sectionOrder = null;
+        $customLogoUrl = null;
+        $landingPageTemplateId = is_int($previewData['landing_page_template_id'] ?? null)
+            ? $previewData['landing_page_template_id']
+            : null;
+
+        if ($landingPageTemplateId !== null) {
+            $templateConfig = LandingPageTemplate::find($landingPageTemplateId);
+
+            if ($templateConfig !== null) {
+                $sectionOrder = [
+                    'rightColumn' => $templateConfig->right_column_order,
+                    'leftColumn' => $templateConfig->left_column_order,
+                ];
+                $customLogoUrl = $templateConfig->logo_url;
+            }
+        }
+
         // Temporary landing page array for preview rendering.
         // Note: contact_url is not included here because it's computed from the public_url
         // in the LandingPage model. For previews, the ContactSection uses the resource's
@@ -109,6 +140,7 @@ class LandingPagePreviewController extends Controller
             'id' => null,
             'resource_id' => $resource->id,
             'template' => $template,
+            'landing_page_template_id' => $landingPageTemplateId,
             'ftp_url' => $previewData['ftp_url'] ?? null,
             'files' => [],
             'links' => is_array($previewData['links'] ?? null) ? $previewData['links'] : [],
@@ -122,6 +154,8 @@ class LandingPagePreviewController extends Controller
             'resource' => $resourceData,
             'landingPage' => $tempLandingPage,
             'isPreview' => true,
+            'sectionOrder' => $sectionOrder,
+            'customLogoUrl' => $customLogoUrl,
         ]);
     }
 

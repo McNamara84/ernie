@@ -28,7 +28,15 @@ class LandingPageController extends Controller
     use AuthorizesRequests;
     use ChecksCacheTagging;
 
-    private static function templateSupportsCustomTemplateId(string $template): bool
+    public static function templateSupportsCustomTemplateId(string $template): bool
+    {
+        return in_array($template, [
+            LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+            LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG,
+        ], true);
+    }
+
+    public static function templateSupportsFtpUrl(string $template): bool
     {
         return $template === LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
     }
@@ -197,10 +205,12 @@ class LandingPageController extends Controller
                 // We don't set them here to avoid redundancy and ensure single source of truth.
                 $createData = [
                     'template' => $validated['template'],
-                    'landing_page_template_id' => $validated['template'] === 'default_gfz'
+                    'landing_page_template_id' => self::templateSupportsCustomTemplateId($validated['template'])
                         ? ($validated['landing_page_template_id'] ?? null)
                         : null,
-                    'ftp_url' => $validated['ftp_url'] ?? null,
+                    'ftp_url' => self::templateSupportsFtpUrl($validated['template'])
+                        ? ($validated['ftp_url'] ?? null)
+                        : null,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
                 ];
@@ -365,6 +375,8 @@ class LandingPageController extends Controller
         }
 
         $effectiveTemplate = $validated['template'] ?? $landingPage->template;
+        $templateChanged = array_key_exists('template', $validated)
+            && $validated['template'] !== $landingPage->template;
 
         if (array_key_exists('landing_page_template_id', $validated)
             && self::templateSupportsCustomTemplateId($effectiveTemplate)) {
@@ -402,19 +414,24 @@ class LandingPageController extends Controller
 
         // Wrap all mutations in a transaction for atomicity.
         // This ensures the landing page + links are updated together.
-        DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate): void {
+        DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate, $templateChanged): void {
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
             if (isset($validated['template'])) {
                 $landingPage->template = $validated['template'];
             }
             if (array_key_exists('landing_page_template_id', $validated)) {
-                $landingPage->landing_page_template_id = $effectiveTemplate === 'default_gfz'
+                $landingPage->landing_page_template_id = self::templateSupportsCustomTemplateId($effectiveTemplate)
                     ? $validated['landing_page_template_id']
                     : null;
+            } elseif ($templateChanged) {
+                $landingPage->landing_page_template_id = null;
             }
-            if (array_key_exists('ftp_url', $validated)) {
+
+            if (self::templateSupportsFtpUrl($effectiveTemplate) && array_key_exists('ftp_url', $validated)) {
                 $landingPage->ftp_url = $validated['ftp_url'];
+            } elseif (! self::templateSupportsFtpUrl($effectiveTemplate)) {
+                $landingPage->ftp_url = null;
             }
 
             // Update external landing page fields

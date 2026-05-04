@@ -43,8 +43,34 @@ function getPreferredTemplateForResource(resourceType?: string, template?: strin
     return defaultTemplate;
 }
 
-function getPreferredLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
-    return template === 'default_gfz' ? (landingPageTemplateId ?? null) : null;
+function templateSupportsCustomTemplateId(template: string): boolean {
+    return template === 'default_gfz' || template === 'default_gfz_igsn';
+}
+
+function getHydratedLandingPageTemplateId(template: string, config?: LandingPageConfig | null): number | null {
+    if (!config || !templateSupportsCustomTemplateId(template)) {
+        return null;
+    }
+
+    if (template !== config.template) {
+        return null;
+    }
+
+    const templateType = config.landing_page_template?.template_type;
+
+    if (template === 'default_gfz' && templateType === 'igsn') {
+        return null;
+    }
+
+    if (template === 'default_gfz_igsn' && templateType === 'resource') {
+        return null;
+    }
+
+    return config.landing_page_template_id ?? null;
+}
+
+function getPayloadLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
+    return templateSupportsCustomTemplateId(template) ? (landingPageTemplateId ?? null) : null;
 }
 
 function SortableLinkItem({
@@ -127,7 +153,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     // Landing page template ID (for custom templates)
     const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
-        getPreferredLandingPageTemplateId(initialTemplate, existingConfig?.landing_page_template_id),
+        getHydratedLandingPageTemplateId(initialTemplate, existingConfig),
     );
 
     // Additional links state
@@ -173,7 +199,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setExternalDomainId(String(config.external_domain_id ?? ''));
         setExternalPath(config.external_path ?? '');
         setLinks(config.links ?? []);
-        setLandingPageTemplateId(getPreferredLandingPageTemplateId(preferredTemplate, config.landing_page_template_id));
+        setLandingPageTemplateId(getHydratedLandingPageTemplateId(preferredTemplate, config));
     }, [resource.resourcetypegeneral]);
 
     // Load existing config when modal opens
@@ -257,7 +283,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 template,
                 ftp_url: supportsFtpUrl ? ftpUrl || null : null,
                 status: isPublished ? 'published' : 'draft',
-                landing_page_template_id: getPreferredLandingPageTemplateId(template, landingPageTemplateId),
+                landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
             };
 
             if (isExternal) {
@@ -446,6 +472,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 if (supportsFtpUrl) {
                     payload.ftp_url = ftpUrl || null;
                 }
+
+                payload.landing_page_template_id = getPayloadLandingPageTemplateId(template, landingPageTemplateId);
 
                 // Include complete links for templates that support them (filter out incomplete rows)
                 if (supportsLinks) {
