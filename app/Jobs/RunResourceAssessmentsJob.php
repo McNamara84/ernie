@@ -22,6 +22,10 @@ class RunResourceAssessmentsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public const LOCK_TTL_SECONDS = 14400;
+
+    public const STATUS_TTL_SECONDS = self::LOCK_TTL_SECONDS + 3600;
+
     private const STATUS_WRITE_BATCH_SIZE = 25;
 
     public const RESOURCE_SCOPE = 'resource';
@@ -196,7 +200,7 @@ class RunResourceAssessmentsJob implements ShouldQueue
             'progress' => sprintf('%s assessment failed.', $this->scopeLabel()),
             'error' => $exception?->getMessage() ?? 'Unknown error',
             'completedAt' => now()->toIso8601String(),
-        ], now()->addHours(2));
+        ], now()->addSeconds(self::STATUS_TTL_SECONDS));
 
         $this->releaseLock();
     }
@@ -286,7 +290,7 @@ class RunResourceAssessmentsJob implements ShouldQueue
             'skippedResources' => $skippedResources,
             'startedAt' => $startedAt,
             'completedAt' => $completedAt,
-        ], static fn (mixed $value): bool => $value !== null), now()->addHours(2));
+        ], static fn (mixed $value): bool => $value !== null), now()->addSeconds(self::STATUS_TTL_SECONDS));
     }
 
     protected function shouldWriteProgressStatus(int $processedResources): bool
@@ -307,6 +311,6 @@ class RunResourceAssessmentsJob implements ShouldQueue
             'skippedResources' => 0,
             'startedAt' => $startedAt,
             'completedAt' => now()->toIso8601String(),
-        ], now()->addHours(2));
+        ], now()->addSeconds(self::STATUS_TTL_SECONDS));
     }
 }

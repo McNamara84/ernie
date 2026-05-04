@@ -20,6 +20,7 @@ let mockUser = {
     can_access_editor_settings: true,
     can_manage_landing_page_templates: false,
     can_access_assistance: false,
+    can_access_assessment: false,
 };
 
 let mockSharedProps = {
@@ -40,6 +41,7 @@ const setMockUser = (
         can_access_editor_settings: boolean;
         can_manage_landing_page_templates: boolean;
         can_access_assistance: boolean;
+        can_access_assessment: boolean;
     }> = {}
 ) => {
     mockUser = {
@@ -56,6 +58,7 @@ const setMockUser = (
         can_access_editor_settings: true,
         can_manage_landing_page_templates: false,
         can_access_assistance: false,
+        can_access_assessment: false,
         ...overrides,
     };
 };
@@ -159,6 +162,11 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
 
 vi.mock('@/components/app-logo', () => ({
     default: () => <span>Logo</span>,
+}));
+
+vi.mock('@/routes', () => ({
+    dashboard: () => ({ url: '/dashboard' }),
+    settings: () => ({ url: '/settings' }),
 }));
 
 // Import component once - mocks are already set up
@@ -341,6 +349,24 @@ describe('AppSidebar', () => {
         const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
         expect(footerTitles).not.toContain('Editor Settings');
         expect(footerTitles).toEqual(['Changelog', 'Documentation']);
+    });
+
+    it('renders the Assessment tool when the permission is present', () => {
+        setMockUser({
+            can_access_assistance: true,
+            can_access_assessment: true,
+        });
+        setMockSharedProps({ pendingAssistanceTotalCount: 7 });
+
+        render(<AppSidebar />);
+
+        expect(NavSectionMock).toHaveBeenCalledTimes(5);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        expect(sectionCalls[3][0].label).toBe('Tools');
+        expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
+        expect(sectionCalls[3][0].items[0].badge).toBe(7);
+        expect(sectionCalls[3][0].items[1].href).toBe('/assessment');
     });
 
     it('passes visible zero badges for Resources and IGSNs List', () => {

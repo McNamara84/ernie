@@ -18,10 +18,6 @@ use Inertia\Response;
 
 class AssessmentController extends Controller
 {
-    private const LOCK_TTL_SECONDS = 14400;
-
-    private const STATUS_TTL_HOURS = 2;
-
     public function __construct(
         private readonly FujiAssessmentService $fujiService,
         private readonly ResourceCacheService $resourceCache,
@@ -113,7 +109,7 @@ class AssessmentController extends Controller
     private function attemptScopeDispatch(string $scope): array
     {
         $lockKey = $this->lockKey($scope);
-        $lock = Cache::lock($lockKey, self::LOCK_TTL_SECONDS);
+        $lock = Cache::lock($lockKey, RunResourceAssessmentsJob::LOCK_TTL_SECONDS);
 
         if (! $lock->get()) {
             return [
@@ -129,7 +125,7 @@ class AssessmentController extends Controller
                 'progress' => sprintf('%s assessment is waiting to start.', $this->scopeLabel($scope)),
                 'startedAt' => now()->toIso8601String(),
                 'lockOwner' => $lock->owner(),
-            ], now()->addHours(self::STATUS_TTL_HOURS));
+            ], now()->addSeconds(RunResourceAssessmentsJob::STATUS_TTL_SECONDS));
 
             RunResourceAssessmentsJob::dispatch(
                 scope: $scope,

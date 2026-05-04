@@ -32,6 +32,13 @@ describe('isConfigured', function (): void {
 });
 
 describe('assessIdentifier', function (): void {
+    it('throws immediately when F-UJI is not configured', function (): void {
+        Config::set('fuji.enabled', false);
+
+        expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
+            ->toThrow(RuntimeException::class, 'F-UJI is not configured.');
+    });
+
     it('posts the identifier to the F-UJI evaluate endpoint and returns the FAIR percentage score', function (): void {
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response([

@@ -24,6 +24,11 @@ beforeEach(function (): void {
 
 describe('handle', function (): void {
     it('stores a completed assessment for eligible non-IGSN resources', function (): void {
+        ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+
         $resource = Resource::factory()->withDoi('10.5880/test.001')->create();
         Title::factory()->for($resource)->create(['value' => 'Example dataset']);
         \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.001')->published()->create();

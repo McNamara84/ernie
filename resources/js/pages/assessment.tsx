@@ -4,8 +4,8 @@ import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
@@ -282,19 +282,16 @@ export default function Assessment({
                         <p className="text-sm text-muted-foreground">Admin-only FAIR assessment dashboard for resources and IGSNs.</p>
                     </div>
 
-                    <Button onClick={handleCheckAll} disabled={!fujiConfigured || isAnyChecking}>
+                    <LoadingButton onClick={handleCheckAll} disabled={!fujiConfigured} loading={isAnyChecking}>
                         {isAnyChecking ? (
-                            <>
-                                <Spinner size="sm" className="mr-2" />
-                                Checking...
-                            </>
+                            'Checking...'
                         ) : (
                             <>
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 Check all
                             </>
                         )}
-                    </Button>
+                    </LoadingButton>
                 </div>
 
                 {!fujiConfigured && (
@@ -327,16 +324,9 @@ export default function Assessment({
                                     {summaryText(resourceAssessmentSummary)}
                                 </CardDescription>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => handleCheck('resource')} disabled={!fujiConfigured || states.resource.isChecking}>
-                                {states.resource.isChecking ? (
-                                    <>
-                                        <Spinner size="sm" className="mr-2" />
-                                        Checking...
-                                    </>
-                                ) : (
-                                    'Check Resources'
-                                )}
-                            </Button>
+                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('resource')} disabled={!fujiConfigured} loading={states.resource.isChecking}>
+                                {states.resource.isChecking ? 'Checking...' : 'Check Resources'}
+                            </LoadingButton>
                         </CardHeader>
                         <CardContent>
                             <AssessmentTable entries={resourcesNeedingAttention} summary={resourceAssessmentSummary} scope="resource" />
@@ -351,16 +341,9 @@ export default function Assessment({
                                     {summaryText(igsnAssessmentSummary)}
                                 </CardDescription>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => handleCheck('igsn')} disabled={!fujiConfigured || states.igsn.isChecking}>
-                                {states.igsn.isChecking ? (
-                                    <>
-                                        <Spinner size="sm" className="mr-2" />
-                                        Checking...
-                                    </>
-                                ) : (
-                                    'Check IGSNs'
-                                )}
-                            </Button>
+                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('igsn')} disabled={!fujiConfigured} loading={states.igsn.isChecking}>
+                                {states.igsn.isChecking ? 'Checking...' : 'Check IGSNs'}
+                            </LoadingButton>
                         </CardHeader>
                         <CardContent>
                             <AssessmentTable entries={igsnsNeedingAttention} summary={igsnAssessmentSummary} scope="igsn" />
