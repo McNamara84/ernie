@@ -31,8 +31,31 @@ const ENDPOINTS: Record<AssessmentScope, string> = {
     igsn: '/assessment/check-igsns',
 };
 
+type AssessmentErrorPayload = {
+    error?: string;
+    progress?: string;
+};
+
 function scopeLabel(scope: AssessmentScope): string {
     return scope === 'igsn' ? 'IGSNs' : 'Resources';
+}
+
+function getAssessmentErrorMessage(error: unknown, fallback: string): string {
+    if (!axios.isAxiosError(error)) {
+        return fallback;
+    }
+
+    const payload = error.response?.data as AssessmentErrorPayload | undefined;
+
+    if (typeof payload?.progress === 'string' && payload.progress.trim() !== '') {
+        return payload.progress;
+    }
+
+    if (typeof payload?.error === 'string' && payload.error.trim() !== '') {
+        return payload.error;
+    }
+
+    return fallback;
 }
 
 function summaryText(summary: AssessmentSummary): string {
@@ -157,10 +180,17 @@ export default function Assessment({
                 });
 
                 pollingRefs.current[scope] = setTimeout(pollStatus, 3000);
-            } catch {
+            } catch (error) {
                 stopPolling(scope);
                 patchState(scope, { isChecking: false, progress: '' });
-                toast.error(`Failed to check ${scopeLabel(scope)} assessment status.`);
+
+                if (axios.isAxiosError(error) && error.response?.status === 404) {
+                    toast.warning(getAssessmentErrorMessage(error, 'Job not found.'));
+
+                    return;
+                }
+
+                toast.error(getAssessmentErrorMessage(error, `Failed to check ${scopeLabel(scope)} assessment status.`));
             }
         };
 

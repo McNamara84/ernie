@@ -144,6 +144,35 @@ describe('Assessment page', () => {
         expect(mockToast.success).toHaveBeenCalledWith('Resources assessment completed.');
     });
 
+    it('stops polling cleanly and shows the backend message when the job is no longer found', async () => {
+        mockAxiosPost.mockResolvedValueOnce({ data: { jobId: '11111111-1111-4111-8111-111111111111' } });
+        mockAxiosGet.mockRejectedValueOnce(Object.assign(new Error('Not found'), {
+            isAxiosError: true,
+            response: {
+                status: 404,
+                data: {
+                    status: 'unknown',
+                    progress: 'Job not found.',
+                },
+            },
+        }));
+
+        render(<AssessmentPage {...makeProps()} />);
+
+        act(() => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check Resources' }));
+        });
+
+        await act(async () => {
+            await vi.runAllTimersAsync();
+        });
+
+        expect(mockAxiosGet).toHaveBeenCalledWith('/assessment/check/resource/11111111-1111-4111-8111-111111111111/status');
+        expect(mockToast.warning).toHaveBeenCalledWith('Job not found.');
+        expect(mockToast.error).not.toHaveBeenCalled();
+        expect(mockRouterReload).not.toHaveBeenCalled();
+    });
+
     it('disables all check buttons when F-UJI is not configured', () => {
         render(<AssessmentPage {...makeProps({ fujiConfigured: false })} />);
 

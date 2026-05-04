@@ -18,7 +18,7 @@ use Inertia\Response;
 
 class AssessmentController extends Controller
 {
-    private const LOCK_TTL_SECONDS = 7200;
+    private const LOCK_TTL_SECONDS = 14400;
 
     private const STATUS_TTL_HOURS = 2;
 
