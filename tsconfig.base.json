@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "allowJs": true,
+        "noEmit": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "noImplicitAny": true,
+        "noUncheckedSideEffectImports": true,
+        "skipLibCheck": true,
+        "paths": {
+            "@/*": ["./resources/js/*"],
+            "@/routes": ["./resources/js/routes.ts"],
+            "@/routes/*": ["./resources/js/routes/*"],
+            "@data/*": ["./resources/data/*"],
+            "@tests/*": ["./tests/*"],
+            "@test-helpers": ["./tests/vitest/test-helpers/index.ts"],
+            "@test-helpers/*": ["./tests/vitest/test-helpers/*"],
+            "@assistants/*": ["./modules/assistants/*"]
+        },
+        "jsx": "react-jsx"
+    }
+}
