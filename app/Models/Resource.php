@@ -35,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read User|null $createdBy
  * @property-read User|null $updatedBy
  * @property-read LandingPage|null $landingPage
+ * @property-read ResourceAssessment|null $resourceAssessment
  * @property-read IgsnMetadata|null $igsnMetadata
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Title> $titles
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceCreator> $creators
@@ -364,6 +365,15 @@ class Resource extends Model
     {
         /** @var HasOne<LandingPage, static> $relation */
         $relation = $this->hasOne(LandingPage::class);
+
+        return $relation;
+    }
+
+    /** @return HasOne<ResourceAssessment, static> */
+    public function resourceAssessment(): HasOne
+    {
+        /** @var HasOne<ResourceAssessment, static> $relation */
+        $relation = $this->hasOne(ResourceAssessment::class);
 
         return $relation;
     }

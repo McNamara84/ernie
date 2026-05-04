@@ -181,5 +181,10 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === UserRole::ADMIN
                 || $user->role === UserRole::GROUP_LEADER;
         });
+
+        // Access to Assessment page (Admin only)
+        Gate::define('access-assessment', function (User $user): bool {
+            return $user->role === UserRole::ADMIN;
+        });
     }
 }

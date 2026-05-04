@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CitationLookupController;
+use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\BatchIgsnController;
 use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
@@ -191,6 +192,25 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 Route::middleware(['auth', 'verified'])->group(function () {
     // Assistance routes are registered dynamically by AssistantServiceProvider.
     // @see \App\Providers\AssistantServiceProvider::registerRoutes()
+
+    Route::middleware(['can:access-assessment'])->group(function () {
+        Route::get('assessment', [AssessmentController::class, 'index'])
+            ->name('assessment');
+
+        Route::post('assessment/check-all', [AssessmentController::class, 'checkAll'])
+            ->name('assessment.check-all');
+
+        Route::post('assessment/check-resources', [AssessmentController::class, 'checkResources'])
+            ->name('assessment.check-resources');
+
+        Route::post('assessment/check-igsns', [AssessmentController::class, 'checkIgsns'])
+            ->name('assessment.check-igsns');
+
+        Route::get('assessment/check/{scope}/{jobId}/status', [AssessmentController::class, 'status'])
+            ->where('scope', 'resource|igsn')
+            ->where('jobId', '[a-f0-9-]{36}')
+            ->name('assessment.status');
+    });
 
     // Old Datasets routes (Admin only - Issue #379)
     Route::middleware(['can:access-old-datasets'])->group(function () {

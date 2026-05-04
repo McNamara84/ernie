@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-05-01",
+        "date": "2026-05-04",
         "features": [
+            {
+                "title": "Admin FAIR Assessment Dashboard",
+                "description": "A new admin-only Assessment page is now available in the Tools section of the main navigation. It runs F-UJI FAIR checks for both regular resources and IGSNs, shows the 10 lowest-scoring records in separate cards, and lets administrators trigger either scope individually or both together via Check all. Each card displays DOI, main title, and latest FAIR score, while the dashboard also summarizes assessed, failed, skipped, and remaining records. The F-UJI service is integrated into the Docker stack as an internal container so assessment traffic stays inside the ERNIE application network."
+            },
             {
                 "title": "Separate Description-Type Modules on Default Landing Pages",
                 "description": "Default GFZ landing pages for both regular resources and IGSNs now render every supported DataCite description type as its own module inside the shared metadata card. Abstract, Methods, Technical Information, Series Information, Table of Contents, and Other are displayed independently when present, including multiple entries of the same type in their original order. In Landing Page Template Management, these description modules can now be reordered individually instead of being grouped under a single 'Abstract & Descriptions' block, while the Location / Map card remains a separate module before or after the shared metadata card."
