@@ -726,7 +726,9 @@ export function getTemplateOptions(resourceType?: string): LandingPageTemplateOp
 
             // If no resourceTypes restriction, template is available for all
             if (!template.resourceTypes) return true;
-            // If no resourceType provided, only show unrestricted templates
+            // If no resourceType is provided, we still keep the current scope filter
+            // (defaulting to the regular resource flow) and only skip templates that
+            // require an explicit resource type match.
             if (!resourceType) return !template.resourceTypes;
             // Check if resourceType is in the allowed list
             const normalizedResourceType = normalizeLandingPageResourceType(resourceType);
