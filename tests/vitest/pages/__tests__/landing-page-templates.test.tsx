@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import type { Mock } from 'vitest';
@@ -205,6 +205,7 @@ const defaultIgsnTemplate: LandingPageTemplateConfig = {
     name: 'Default GFZ IGSN',
     slug: 'default_gfz_igsn',
     template_type: 'igsn',
+    left_column_order: ['general', 'acquisition', 'contact', 'model_description', 'related_work'],
 };
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
@@ -509,6 +510,43 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getByText('Right Column (main content)')).toBeInTheDocument();
             expect(screen.getByText('Left Column (sidebar)')).toBeInTheDocument();
             expect(screen.getByText(/Description modules render inside one shared metadata card/i)).toBeInTheDocument();
+        });
+
+        it('normalizes IGSN left-column sections before saving and does not expose files in the dialog', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [
+                {
+                    ...defaultIgsnTemplate,
+                    id: 5,
+                    is_default: false,
+                    name: 'Legacy IGSN Template',
+                    created_by: 1,
+                    creator: { id: 1, name: 'Admin User' },
+                    landing_pages_count: 0,
+                    left_column_order: ['contact', 'files', 'model_description', 'related_work'] as LandingPageTemplateConfig['left_column_order'],
+                },
+            ];
+
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Edit/i }));
+
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).queryByText('Files & Downloads')).not.toBeInTheDocument();
+            expect(within(dialog).getByText('General')).toBeInTheDocument();
+            expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    '/landing-pages/5',
+                    expect.objectContaining({
+                        left_column_order: ['contact', 'model_description', 'related_work', 'general', 'acquisition'],
+                    }),
+                );
+            });
         });
 
         it('normalizes middle location to the end before saving', async () => {

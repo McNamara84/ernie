@@ -286,16 +286,15 @@ class LandingPagePublicController extends Controller
         // Build section order and logo from custom template (if set)
         $sectionOrder = null;
         $customLogoUrl = null;
-        $effectiveLandingPageTemplate = null;
+        $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
+            ? LandingPageTemplate::resolveCustomTemplate($landingPage->landing_page_template_id, $resourceTypeSlug)
+            : null;
 
-        if (LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
-            && $landingPage->landingPageTemplate !== null
-            && $landingPage->landingPageTemplate->template_type === LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug)) {
-            $effectiveLandingPageTemplate = $landingPage->landingPageTemplate;
+        if ($effectiveLandingPageTemplate !== null) {
             $tmpl = $effectiveLandingPageTemplate;
             $sectionOrder = [
                 'rightColumn' => $tmpl->right_column_order,
-                'leftColumn' => $tmpl->left_column_order,
+                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($tmpl->left_column_order, $tmpl->template_type),
             ];
             $customLogoUrl = $tmpl->logo_url;
         }

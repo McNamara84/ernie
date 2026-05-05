@@ -63,14 +63,24 @@ const CANONICAL_RIGHT_ORDER: RightColumnSection[] = [
     'location',
 ];
 
-const CANONICAL_LEFT_ORDER: LeftColumnSection[] = [
+const RESOURCE_LEFT_ORDER: LeftColumnSection[] = [
     'files',
+    'contact',
+    'model_description',
+    'related_work',
+];
+
+const IGSN_LEFT_ORDER: LeftColumnSection[] = [
     'general',
     'acquisition',
     'contact',
     'model_description',
     'related_work',
 ];
+
+function getCanonicalLeftOrder(templateType: LandingPageTemplateConfig['template_type']): LeftColumnSection[] {
+    return templateType === 'igsn' ? IGSN_LEFT_ORDER : RESOURCE_LEFT_ORDER;
+}
 
 /**
  * Merge a stored section order with the canonical list:
@@ -145,6 +155,13 @@ function normalizeRightColumnOrder(stored: readonly RightColumnSection[]): Right
     }
 
     return locationBeforeMetadata ? ['location', ...metadataItems] : [...metadataItems, 'location'];
+}
+
+function normalizeLeftColumnOrder(
+    stored: readonly LeftColumnSection[],
+    templateType: LandingPageTemplateConfig['template_type'],
+): LeftColumnSection[] {
+    return normalizeOrder<LeftColumnSection>(stored, getCanonicalLeftOrder(templateType));
 }
 
 interface PageProps extends SharedData {
@@ -291,7 +308,7 @@ export default function LandingPageTemplatesPage() {
         setEditTemplate(tmpl);
         setEditName(tmpl.name);
         setEditRightOrder(normalizeRightColumnOrder(tmpl.right_column_order));
-        setEditLeftOrder(normalizeOrder<LeftColumnSection>(tmpl.left_column_order, CANONICAL_LEFT_ORDER));
+        setEditLeftOrder(normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type));
         setEditOpen(true);
     };
 
@@ -302,7 +319,7 @@ export default function LandingPageTemplatesPage() {
             await axios.put(`/landing-pages/${editTemplate.id}`, {
                 name: editName.trim(),
                 right_column_order: normalizeRightColumnOrder(editRightOrder),
-                left_column_order: editLeftOrder,
+                left_column_order: normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
             });
             toast.success('Template updated successfully');
             setEditOpen(false);
@@ -483,7 +500,7 @@ export default function LandingPageTemplatesPage() {
                                     <div>
                                         <span className="font-medium text-foreground">Left Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
-                                            {tmpl.left_column_order.map((key) => (
+                                            {normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type).map((key) => (
                                                 <li key={key}>{LEFT_SECTION_LABELS[key] ?? key}</li>
                                             ))}
                                         </ol>
@@ -622,6 +639,11 @@ export default function LandingPageTemplatesPage() {
                                 title="Left Column (sidebar)"
                                 items={editLeftOrder}
                                 labels={LEFT_SECTION_LABELS}
+                                description={
+                                    editTemplate?.template_type === 'igsn'
+                                        ? 'IGSN templates use the General and Acquisition modules instead of Files & Downloads.'
+                                        : 'Resource templates render files, contact details, and related material in the sidebar.'
+                                }
                                 onReorder={(items) => setEditLeftOrder(items as LeftColumnSection[])}
                             />
                         </div>

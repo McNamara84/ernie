@@ -102,6 +102,31 @@ class LandingPageTemplate extends Model
     ];
 
     /**
+     * Valid left-column sections for regular resource landing pages.
+     *
+     * @var list<string>
+     */
+    public const RESOURCE_LEFT_COLUMN_SECTIONS = [
+        'files',
+        'contact',
+        'model_description',
+        'related_work',
+    ];
+
+    /**
+     * Valid left-column sections for IGSN landing pages.
+     *
+     * @var list<string>
+     */
+    public const IGSN_LEFT_COLUMN_SECTIONS = [
+        'general',
+        'acquisition',
+        'contact',
+        'model_description',
+        'related_work',
+    ];
+
+    /**
      * Valid section keys for the left column.
      *
      * @var list<string>
@@ -314,6 +339,69 @@ class LandingPageTemplate extends Model
             : self::TEMPLATE_TYPE_RESOURCE;
     }
 
+    /**
+     * Return the allowed left-column sections for a given template type.
+     *
+     * @return list<string>
+     */
+    public static function leftColumnSectionsForTemplateType(string $templateType): array
+    {
+        return $templateType === self::TEMPLATE_TYPE_IGSN
+            ? self::IGSN_LEFT_COLUMN_SECTIONS
+            : self::RESOURCE_LEFT_COLUMN_SECTIONS;
+    }
+
+    /**
+     * Normalize a stored left-column order against the canonical sections for its template type.
+     *
+     * Unknown keys are dropped, duplicates are removed, and missing canonical
+     * sections are appended while preserving the existing relative order.
+     *
+     * @param  array<int, string>  $order
+     * @return list<string>
+     */
+    public static function normalizeLeftColumnOrder(array $order, string $templateType): array
+    {
+        $canonical = self::leftColumnSectionsForTemplateType($templateType);
+        $canonicalSet = array_fill_keys($canonical, true);
+        $seen = [];
+        $normalized = [];
+
+        foreach ($order as $key) {
+            if (! isset($canonicalSet[$key]) || isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $normalized[] = $key;
+        }
+
+        foreach ($canonical as $key) {
+            if (! isset($seen[$key])) {
+                $normalized[] = $key;
+            }
+        }
+
+        return $normalized;
+    }
+
+    public static function resolveCustomTemplate(?int $templateId, ?string $resourceTypeSlug): ?self
+    {
+        if ($templateId === null) {
+            return null;
+        }
+
+        $template = self::query()->find($templateId);
+
+        if ($template === null || $template->isDefault()) {
+            return null;
+        }
+
+        return $template->template_type === self::expectedTemplateTypeForResource($resourceTypeSlug)
+            ? $template
+            : null;
+    }
+
     public static function customTemplateScopeError(?int $templateId, ?string $resourceTypeSlug): ?string
     {
         if ($templateId === null) {
@@ -324,6 +412,10 @@ class LandingPageTemplate extends Model
 
         if ($template === null) {
             return null;
+        }
+
+        if ($template->isDefault()) {
+            return 'The selected landing page template is a built-in default and cannot be used as a custom override.';
         }
 
         $expectedTemplateType = self::expectedTemplateTypeForResource($resourceTypeSlug);
@@ -405,7 +497,7 @@ class LandingPageTemplate extends Model
                             'logo_path' => null,
                             'logo_filename' => null,
                             'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
-                            'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                            'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
                             'created_by' => null,
                         ]
                     );
@@ -442,7 +534,7 @@ class LandingPageTemplate extends Model
                 'is_default' => true,
                 'template_type' => $templateType,
                 'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
-                'left_column_order' => self::LEFT_COLUMN_SECTIONS,
+                'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
                 'created_by' => null,           // System-owned, not created by a user
                 'logo_path' => null,            // No custom logo
                 'logo_filename' => null,        // No custom logo

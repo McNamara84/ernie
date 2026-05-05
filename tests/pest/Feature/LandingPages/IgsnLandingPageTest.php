@@ -154,6 +154,30 @@ describe('IGSN Template Restriction on Creation', function () {
         expect(LandingPage::where('resource_id', $resource->id)->first()->landing_page_template_id)->toBe($template->id);
     });
 
+    test('rejects assigning the built-in igsn default template id as a custom override on create', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $template = LandingPageTemplate::ensureIgsnDefaultTemplateExists();
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/landing-page", [
+                'template' => 'default_gfz_igsn',
+                'status' => 'draft',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected landing page template is a built-in default and cannot be used as a custom override.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
+
     test('clears ftp_url when creating an igsn landing page', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 

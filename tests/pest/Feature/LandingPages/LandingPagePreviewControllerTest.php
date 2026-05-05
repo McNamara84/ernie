@@ -265,6 +265,27 @@ describe('Session Preview Display', function () {
                 ->where('sectionOrder', null)
             );
     });
+
+    test('preview display ignores built-in default template ids passed as custom overrides', function () {
+        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $defaultTemplate->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('customLogoUrl', null)
+                ->where('sectionOrder', null)
+            );
+    });
 });
 
 describe('Session Preview Deletion', function () {

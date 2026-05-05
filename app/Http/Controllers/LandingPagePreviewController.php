@@ -126,19 +126,17 @@ class LandingPagePreviewController extends Controller
             ? $previewData['landing_page_template_id']
             : null;
 
-        if ($landingPageTemplateId !== null) {
-            $templateConfig = LandingPageTemplate::find($landingPageTemplateId);
+        $templateConfig = LandingPageTemplate::resolveCustomTemplate($landingPageTemplateId, $resourceTypeSlug);
 
-            if ($templateConfig !== null
-                && $templateConfig->template_type === LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug)) {
-                $sectionOrder = [
-                    'rightColumn' => $templateConfig->right_column_order,
-                    'leftColumn' => $templateConfig->left_column_order,
-                ];
-                $customLogoUrl = $templateConfig->logo_url;
-            } else {
-                $landingPageTemplateId = null;
-            }
+        if ($templateConfig !== null) {
+            $landingPageTemplateId = $templateConfig->id;
+            $sectionOrder = [
+                'rightColumn' => $templateConfig->right_column_order,
+                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($templateConfig->left_column_order, $templateConfig->template_type),
+            ];
+            $customLogoUrl = $templateConfig->logo_url;
+        } else {
+            $landingPageTemplateId = null;
         }
 
         $ftpUrl = LandingPageController::templateSupportsFtpUrl($template)

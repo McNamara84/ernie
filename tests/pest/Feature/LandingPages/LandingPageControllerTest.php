@@ -605,6 +605,23 @@ describe('Landing Page Template Assignment', function () {
                 'error' => 'invalid_template_for_resource_type',
             ]);
     });
+
+    test('rejects assigning the built-in resource default template id as a custom override on create', function () {
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected landing page template is a built-in default and cannot be used as a custom override.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
 });
 
 describe('Landing Page GET Endpoint', function () {
