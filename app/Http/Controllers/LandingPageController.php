@@ -605,7 +605,7 @@ class LandingPageController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function serializeLandingPagePayload(Resource $resource, LandingPage $landingPage): array
+    public static function serializeLandingPagePayload(Resource $resource, LandingPage $landingPage): array
     {
         $resource->loadMissing('resourceType');
 

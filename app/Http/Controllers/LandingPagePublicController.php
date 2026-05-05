@@ -308,18 +308,7 @@ class LandingPagePublicController extends Controller
                 return $exporter->export($resource);
             });
 
-        $landingPageData = $landingPage->toArray();
-        $landingPageData['template'] = $effectiveTemplate;
-        $landingPageData['ftp_url'] = LandingPageController::templateSupportsFtpUrl($effectiveTemplate)
-            ? ($landingPageData['ftp_url'] ?? null)
-            : null;
-        $landingPageData['links'] = $effectiveTemplate !== 'external'
-            && ! in_array($effectiveTemplate, LandingPageController::IGSN_ONLY_TEMPLATES, true)
-            && is_array($landingPageData['links'] ?? null)
-            ? $landingPageData['links']
-            : [];
-        $landingPageData['landing_page_template_id'] = $effectiveLandingPageTemplate?->id;
-        $landingPageData['landing_page_template'] = $effectiveLandingPageTemplate?->toArray();
+        $landingPageData = LandingPageController::serializeLandingPagePayload($resource, $landingPage);
 
         $data = [
             'resource' => $resourceData,

@@ -112,6 +112,35 @@ describe('Session Preview Creation', function () {
             ->toHaveKey('landing_page_template_id', $template->id)
             ->toHaveKey('ftp_url', null);
     });
+
+    test('allows a deleted custom template id in the preview payload and renders without a custom override', function () {
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+        $deletedTemplateId = $template->id;
+        $template->delete();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $deletedTemplateId,
+        ]);
+
+        $response->assertCreated();
+
+        $sessionKey = "landing_page_preview.{$this->resource->id}";
+        expect(Session::get($sessionKey))
+            ->toHaveKey('landing_page_template_id', $deletedTemplateId);
+
+        $previewResponse = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $previewResponse->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('sectionOrder', null)
+                ->where('customLogoUrl', null)
+            );
+    });
 });
 
 describe('Session Preview Display', function () {

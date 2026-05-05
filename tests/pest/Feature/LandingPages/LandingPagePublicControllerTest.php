@@ -525,6 +525,7 @@ describe('Landing Page with Custom Template', function () {
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/igsn-logo.png',
         ]);
+        $domain = LandingPageDomain::factory()->withDomain('https://legacy.example.org/')->create();
 
         $landingPage = LandingPage::factory()
             ->published()
@@ -535,6 +536,8 @@ describe('Landing Page with Custom Template', function () {
                 'template' => 'default_gfz',
                 'landing_page_template_id' => $template->id,
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'stale/external/path',
             ]);
         $landingPage->links()->create([
             'url' => 'https://example.org/file.zip',
@@ -550,6 +553,10 @@ describe('Landing Page with Custom Template', function () {
                 ->where('landingPage.template', 'default_gfz_igsn')
                 ->where('landingPage.ftp_url', null)
                 ->where('landingPage.links', [])
+                ->where('landingPage.external_domain_id', null)
+                ->where('landingPage.external_path', null)
+                ->where('landingPage.external_domain', null)
+                ->where('landingPage.external_url', null)
                 ->where('landingPage.landing_page_template_id', $template->id)
                 ->has('sectionOrder', fn ($order) => $order
                     ->has('rightColumn')

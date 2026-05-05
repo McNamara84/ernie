@@ -28,7 +28,7 @@ class StoreLandingPagePreviewRequest extends FormRequest
     {
         $rules = [
             'template' => ['required', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
-            'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
+            'landing_page_template_id' => ['nullable', 'integer'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
         ];
 
