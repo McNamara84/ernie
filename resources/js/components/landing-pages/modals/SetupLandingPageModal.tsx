@@ -7,6 +7,11 @@ import { Copy, ExternalLink, Eye, Globe, GripVertical, Plus, X } from 'lucide-re
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+    getHydratedLandingPageTemplateId,
+    getPayloadLandingPageTemplateId,
+    getPreferredTemplateForResource,
+} from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -14,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getDefaultTemplate, getTemplateOptions, isIgsnLandingPageResourceType, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
+import { getTemplateOptions, isIgsnLandingPageResourceType, type LandingPageConfig, type LandingPageDomain, type LandingPageLink, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -30,44 +35,6 @@ interface SetupLandingPageModalProps {
     onClose: () => void;
     onSuccess?: () => void;
     existingConfig?: LandingPageConfig | null;
-}
-
-function getPreferredTemplateForResource(resourceType?: string, template?: string | null): string {
-    const defaultTemplate = isIgsnLandingPageResourceType(resourceType) ? 'default_gfz_igsn' : getDefaultTemplate();
-    const validTemplates = new Set(getTemplateOptions(resourceType).map((option) => option.value));
-
-    if (template && validTemplates.has(template)) {
-        return template;
-    }
-
-    return defaultTemplate;
-}
-
-function templateSupportsCustomTemplateId(template: string): boolean {
-    return template === 'default_gfz' || template === 'default_gfz_igsn';
-}
-
-function getHydratedLandingPageTemplateId(template: string, config?: LandingPageConfig | null): number | null {
-    if (!config || !templateSupportsCustomTemplateId(template)) {
-        return null;
-    }
-
-    if (config.landing_page_template?.is_default) {
-        return null;
-    }
-
-    const expectedTemplateType = template === 'default_gfz_igsn' ? 'igsn' : 'resource';
-    const templateType = config.landing_page_template?.template_type;
-
-    if (templateType && templateType !== expectedTemplateType) {
-        return null;
-    }
-
-    return config.landing_page_template_id ?? null;
-}
-
-function getPayloadLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
-    return templateSupportsCustomTemplateId(template) ? (landingPageTemplateId ?? null) : null;
 }
 
 function SortableLinkItem({

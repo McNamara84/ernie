@@ -3,6 +3,11 @@ import { Copy, ExternalLink, Eye, FlaskConical } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+    getHydratedLandingPageTemplateId,
+    getPayloadLandingPageTemplateId,
+    getPreferredIgsnTemplate,
+} from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -11,40 +16,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageTemplateSummary } from '@/types/landing-page';
-
-const IGSN_TEMPLATE_KEYS = new Set(getIgsnTemplateOptions().map((option) => option.value));
-
-function getPreferredIgsnTemplate(template?: string | null): string {
-    if (template && IGSN_TEMPLATE_KEYS.has(template)) {
-        return template;
-    }
-
-    return getDefaultIgsnTemplate();
-}
-
-function templateSupportsCustomTemplateId(template: string): boolean {
-    return template === getDefaultIgsnTemplate();
-}
-
-function getHydratedLandingPageTemplateId(template: string, config?: LandingPageConfig | null): number | null {
-    if (!config || !templateSupportsCustomTemplateId(template)) {
-        return null;
-    }
-
-    if (config.landing_page_template?.is_default) {
-        return null;
-    }
-
-    if (config.landing_page_template?.template_type === 'resource') {
-        return null;
-    }
-
-    return config.landing_page_template_id ?? null;
-}
-
-function getPayloadLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
-    return templateSupportsCustomTemplateId(template) ? (landingPageTemplateId ?? null) : null;
-}
 
 interface IgsnResource {
     id: number;

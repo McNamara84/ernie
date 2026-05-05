@@ -534,7 +534,13 @@ describe('Landing Page with Custom Template', function () {
                 'slug' => 'legacy-igsn-template-test',
                 'template' => 'default_gfz',
                 'landing_page_template_id' => $template->id,
+                'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
             ]);
+        $landingPage->links()->create([
+            'url' => 'https://example.org/file.zip',
+            'label' => 'Legacy link',
+            'position' => 0,
+        ]);
 
         $response = $this->get(landingPageUrl($landingPage));
 
@@ -542,6 +548,8 @@ describe('Landing Page with Custom Template', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.links', [])
                 ->where('landingPage.landing_page_template_id', $template->id)
                 ->has('sectionOrder', fn ($order) => $order
                     ->has('rightColumn')

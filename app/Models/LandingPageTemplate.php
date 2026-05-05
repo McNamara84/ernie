@@ -385,13 +385,15 @@ class LandingPageTemplate extends Model
         return $normalized;
     }
 
-    public static function resolveCustomTemplate(?int $templateId, ?string $resourceTypeSlug): ?self
+    public static function resolveCustomTemplate(int|self|null $templateOrId, ?string $resourceTypeSlug): ?self
     {
-        if ($templateId === null) {
+        if ($templateOrId === null) {
             return null;
         }
 
-        $template = self::query()->find($templateId);
+        $template = $templateOrId instanceof self
+            ? $templateOrId
+            : self::query()->find($templateOrId);
 
         if ($template === null || $template->isDefault()) {
             return null;

@@ -287,7 +287,7 @@ class LandingPagePublicController extends Controller
         $sectionOrder = null;
         $customLogoUrl = null;
         $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
-            ? LandingPageTemplate::resolveCustomTemplate($landingPage->landing_page_template_id, $resourceTypeSlug)
+            ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
             : null;
 
         if ($effectiveLandingPageTemplate !== null) {
@@ -310,6 +310,14 @@ class LandingPagePublicController extends Controller
 
         $landingPageData = $landingPage->toArray();
         $landingPageData['template'] = $effectiveTemplate;
+        $landingPageData['ftp_url'] = LandingPageController::templateSupportsFtpUrl($effectiveTemplate)
+            ? ($landingPageData['ftp_url'] ?? null)
+            : null;
+        $landingPageData['links'] = $effectiveTemplate !== 'external'
+            && ! in_array($effectiveTemplate, LandingPageController::IGSN_ONLY_TEMPLATES, true)
+            && is_array($landingPageData['links'] ?? null)
+            ? $landingPageData['links']
+            : [];
         $landingPageData['landing_page_template_id'] = $effectiveLandingPageTemplate?->id;
         $landingPageData['landing_page_template'] = $effectiveLandingPageTemplate?->toArray();
 
