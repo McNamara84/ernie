@@ -31,6 +31,10 @@ function getHydratedLandingPageTemplateId(template: string, config?: LandingPage
         return null;
     }
 
+    if (config.landing_page_template?.is_default) {
+        return null;
+    }
+
     if (config.landing_page_template?.template_type === 'resource') {
         return null;
     }
@@ -289,9 +293,11 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
+        const currentTemplate = getPreferredIgsnTemplate(currentConfig.template);
+        const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
         const baseChanges = template !== currentConfig.template
             || isPublished !== (currentConfig.status === 'published')
-            || landingPageTemplateId !== (currentConfig.landing_page_template_id ?? null);
+            || landingPageTemplateId !== currentLandingPageTemplateId;
 
         if (isExternal) {
             return baseChanges

@@ -1828,6 +1828,71 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('drops a persisted built-in default template id when the loaded relation is the default template', async () => {
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: 1,
+                landing_page_template: {
+                    id: 1,
+                    name: 'Default GFZ Data Services',
+                    slug: 'default_gfz',
+                    is_default: true,
+                    template_type: 'resource',
+                    logo_path: null,
+                    logo_url: null,
+                    right_column_order: [],
+                    left_column_order: [],
+                },
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...serverConfig,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Default GFZ Data Services');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+
         it('resets landing_page_template_id to null on 404 (no landing page exists)', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
                 if (url.includes('/api/landing-page-templates')) {

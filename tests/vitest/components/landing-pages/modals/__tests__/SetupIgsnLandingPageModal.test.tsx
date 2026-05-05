@@ -780,6 +780,74 @@ describe('SetupIgsnLandingPageModal', () => {
             });
         });
 
+        it('drops a persisted built-in igsn default template id when the loaded relation is the default template', async () => {
+            const configWithBuiltInDefault: LandingPageConfig = {
+                ...mockExistingConfig,
+                landing_page_template_id: 1,
+                landing_page_template: {
+                    id: 1,
+                    name: 'Default GFZ IGSN',
+                    slug: 'default_gfz_igsn',
+                    is_default: true,
+                    template_type: 'igsn',
+                    logo_path: null,
+                    logo_url: null,
+                    right_column_order: [],
+                    left_column_order: [],
+                },
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                configWithBuiltInDefault.landing_page_template,
+                                mockIgsnCustomTemplate,
+                            ],
+                        },
+                    });
+                }
+
+                if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: configWithBuiltInDefault } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...configWithBuiltInDefault,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+
         it('keeps an igsn custom template id in the preview payload', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
                 if (url.includes('/api/landing-page-templates')) {

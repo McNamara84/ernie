@@ -52,6 +52,10 @@ function getHydratedLandingPageTemplateId(template: string, config?: LandingPage
         return null;
     }
 
+    if (config.landing_page_template?.is_default) {
+        return null;
+    }
+
     const expectedTemplateType = template === 'default_gfz_igsn' ? 'igsn' : 'resource';
     const templateType = config.landing_page_template?.template_type;
 
@@ -381,12 +385,14 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
         const isExternalTemplate = template === 'external';
+        const currentTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, currentConfig.template);
+        const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
         const baseChanges =
             template !== currentConfig.template ||
             // ftpUrl is irrelevant for external and IGSN templates.
             (supportsFtpUrl && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
             isPublished !== (currentConfig.status === 'published') ||
-            landingPageTemplateId !== (currentConfig.landing_page_template_id ?? null);
+            landingPageTemplateId !== currentLandingPageTemplateId;
 
         // Check if links have changed
         const currentLinks = currentConfig.links ?? [];
@@ -405,7 +411,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             );
         }
         return baseChanges || linksChanged;
-    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links, landingPageTemplateId, supportsFtpUrl]);
+    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links, landingPageTemplateId, resource.resourcetypegeneral, supportsFtpUrl]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
