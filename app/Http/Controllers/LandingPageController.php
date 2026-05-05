@@ -379,6 +379,32 @@ class LandingPageController extends Controller
             : LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resource->resourceType?->slug);
         $templateChanged = $effectiveTemplate !== $landingPage->template;
 
+        if (! array_key_exists('template', $validated) && $templateChanged) {
+            $unsupportedFields = [];
+
+            if (array_key_exists('ftp_url', $validated) && ! self::templateSupportsFtpUrl($effectiveTemplate)) {
+                $unsupportedFields['ftp_url'] = [
+                    'The ftp_url field is not supported when this landing page is normalized to the IGSN template.',
+                ];
+            }
+
+            $supportsLinks = $effectiveTemplate !== 'external'
+                && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
+
+            if (array_key_exists('links', $validated) && ! $supportsLinks) {
+                $unsupportedFields['links'] = [
+                    'The links field is not supported when this landing page is normalized to the IGSN template.',
+                ];
+            }
+
+            if ($unsupportedFields !== []) {
+                return response()->json([
+                    'message' => 'The request includes fields that are not supported for the normalized landing page template.',
+                    'errors' => $unsupportedFields,
+                ], 422);
+            }
+        }
+
         $effectiveLandingPageTemplateId = null;
 
         if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {

@@ -550,4 +550,44 @@ describe('Landing Page with Custom Template', function () {
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
             );
     });
+
+    test('normalizes legacy Physical Object landing pages and clears mismatched resource custom templates', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.igsn.002',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/resource-logo.png',
+        ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.igsn.002',
+                'slug' => 'legacy-igsn-mismatch-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('sectionOrder', null)
+                ->where('customLogoUrl', null)
+            );
+    });
 });

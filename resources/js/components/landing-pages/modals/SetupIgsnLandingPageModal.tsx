@@ -330,7 +330,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         if (isExternal) {
             if (computedExternalUrl) {
                 window.open(computedExternalUrl, '_blank', 'noopener,noreferrer');
-            } else if (currentConfig?.external_url) {
+            } else if (!hasUnsavedChanges && currentConfig?.external_url) {
                 window.open(currentConfig.external_url, '_blank', 'noopener,noreferrer');
             } else {
                 toast.error('Please select a domain and enter a path to preview the external URL.');

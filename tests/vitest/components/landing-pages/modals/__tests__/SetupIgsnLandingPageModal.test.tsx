@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+import { toast } from 'sonner';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,6 +34,7 @@ const mockedAxiosGet = axios.get as Mock;
 const mockedAxiosPost = axios.post as Mock;
 const mockedAxiosPut = axios.put as Mock;
 const mockedAxiosDelete = axios.delete as Mock;
+const mockedToastError = toast.error as Mock;
 
 vi.mock('@inertiajs/react', () => ({
     router: {
@@ -326,6 +328,50 @@ describe('SetupIgsnLandingPageModal', () => {
 
             expect(mockWindowOpen).toHaveBeenCalledWith('https://example.org/sample/preview', '_blank', 'noopener,noreferrer');
             expect(mockedAxiosPost).not.toHaveBeenCalled();
+
+            vi.unstubAllGlobals();
+        });
+
+        it('does not fall back to the saved external URL when unsaved edits make the current external preview invalid', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+            const existingExternalConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'external',
+                external_domain_id: 99,
+                external_path: '/saved-sample',
+                external_url: 'https://saved.example.org/saved-sample',
+            };
+
+            render(
+                <SetupIgsnLandingPageModal
+                    resource={mockResource}
+                    existingConfig={existingExternalConfig}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Path/i)).toHaveValue('/saved-sample');
+            });
+
+            await user.clear(screen.getByLabelText(/Path/i));
+            await user.type(screen.getByLabelText(/Path/i), '/changed-sample');
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockWindowOpen).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith('Please select a domain and enter a path to preview the external URL.');
 
             vi.unstubAllGlobals();
         });
