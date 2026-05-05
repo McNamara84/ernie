@@ -41,6 +41,17 @@ class LandingPageController extends Controller
         return $template === LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
     }
 
+    private static function templateSupportsLinks(string $template): bool
+    {
+        return $template !== 'external'
+            && ! in_array($template, self::IGSN_ONLY_TEMPLATES, true);
+    }
+
+    private static function templateSupportsExternalFields(string $template): bool
+    {
+        return $template === 'external';
+    }
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
     ) {}
@@ -388,12 +399,21 @@ class LandingPageController extends Controller
                 ];
             }
 
-            $supportsLinks = $effectiveTemplate !== 'external'
-                && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
-
-            if (array_key_exists('links', $validated) && ! $supportsLinks) {
+            if (array_key_exists('links', $validated) && ! self::templateSupportsLinks($effectiveTemplate)) {
                 $unsupportedFields['links'] = [
                     'The links field is not supported when this landing page is normalized to the IGSN template.',
+                ];
+            }
+
+            if (array_key_exists('external_domain_id', $validated) && ! self::templateSupportsExternalFields($effectiveTemplate)) {
+                $unsupportedFields['external_domain_id'] = [
+                    'The external_domain_id field is not supported when this landing page is normalized to the IGSN template.',
+                ];
+            }
+
+            if (array_key_exists('external_path', $validated) && ! self::templateSupportsExternalFields($effectiveTemplate)) {
+                $unsupportedFields['external_path'] = [
+                    'The external_path field is not supported when this landing page is normalized to the IGSN template.',
                 ];
             }
 
@@ -468,7 +488,7 @@ class LandingPageController extends Controller
             }
 
             // Update external landing page fields
-            if ($effectiveTemplate === 'external') {
+            if (self::templateSupportsExternalFields($effectiveTemplate)) {
                 if (array_key_exists('external_domain_id', $validated)) {
                     $landingPage->external_domain_id = $validated['external_domain_id'];
                 }
@@ -486,10 +506,7 @@ class LandingPageController extends Controller
             $landingPage->save();
 
             // Sync additional links: determine once whether this template supports links
-            $isLinksTemplate = $effectiveTemplate !== 'external'
-                && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
-
-            if (! $isLinksTemplate) {
+            if (! self::templateSupportsLinks($effectiveTemplate)) {
                 // Template does not support links – clear any existing ones
                 $landingPage->links()->delete();
             } elseif (array_key_exists('links', $validated)) {
@@ -573,8 +590,55 @@ class LandingPageController extends Controller
         $landingPage->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         return response()->json([
-            'landing_page' => $landingPage,
+            'landing_page' => $this->serializeLandingPagePayload($resource, $landingPage),
         ]);
+    }
+
+    /**
+     * Return the normalized landing page contract exposed to API consumers.
+     *
+     * Legacy Physical Object pages may still be stored with the old default
+     * resource renderer and stale field combinations. The GET endpoint exposes
+     * the same effective contract that update()/preview/public rendering use,
+     * so clients can safely round-trip the payload without reimplementing the
+     * normalization logic on their side.
+     *
+     * @return array<string, mixed>
+     */
+    private function serializeLandingPagePayload(Resource $resource, LandingPage $landingPage): array
+    {
+        $resource->loadMissing('resourceType');
+
+        $resourceTypeSlug = $resource->resourceType?->slug;
+        $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
+        $effectiveLandingPageTemplate = self::templateSupportsCustomTemplateId($effectiveTemplate)
+            ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
+            : null;
+
+        $payload = $landingPage->toArray();
+        $payload['template'] = $effectiveTemplate;
+        $payload['landing_page_template_id'] = $effectiveLandingPageTemplate?->id;
+        $payload['landing_page_template'] = $effectiveLandingPageTemplate?->toArray();
+        $payload['ftp_url'] = self::templateSupportsFtpUrl($effectiveTemplate)
+            ? $landingPage->ftp_url
+            : null;
+        $payload['links'] = self::templateSupportsLinks($effectiveTemplate)
+            ? $landingPage->links->values()->toArray()
+            : [];
+
+        if (self::templateSupportsExternalFields($effectiveTemplate)) {
+            $payload['external_domain_id'] = $landingPage->external_domain_id;
+            $payload['external_path'] = $landingPage->external_path;
+            $payload['external_domain'] = $landingPage->externalDomain?->toArray();
+            $payload['external_url'] = $landingPage->external_url;
+        } else {
+            $payload['external_domain_id'] = null;
+            $payload['external_path'] = null;
+            $payload['external_domain'] = null;
+            $payload['external_url'] = null;
+        }
+
+        return $payload;
     }
 
     /**

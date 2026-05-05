@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Http\Controllers\LandingPageController;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -403,7 +404,7 @@ describe('IGSN Template Restriction on Update', function () {
         expect($landingPage->fresh()->is_published)->toBeTrue();
     });
 
-    test('rejects ftp_url and links when a legacy PhysicalObject page would be normalized without an explicit template', function () {
+    test('rejects ftp_url, links, and external-only fields when a legacy PhysicalObject page would be normalized without an explicit template', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $physicalObjectType = ResourceType::firstOrCreate(
@@ -411,6 +412,7 @@ describe('IGSN Template Restriction on Update', function () {
             ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
         );
         $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $domain = LandingPageDomain::factory()->create();
         $landingPage = LandingPage::factory()->draft()->create([
             'resource_id' => $resource->id,
             'template' => 'default_gfz',
@@ -421,6 +423,8 @@ describe('IGSN Template Restriction on Update', function () {
         $response = $this->actingAs($user)
             ->putJson("/resources/{$resource->id}/landing-page", [
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/new.zip',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'samples/legacy-igsn',
                 'links' => [[
                     'url' => 'https://example.org/file.zip',
                     'label' => 'Supporting file',
@@ -429,11 +433,51 @@ describe('IGSN Template Restriction on Update', function () {
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['ftp_url', 'links']);
+            ->assertJsonValidationErrors(['ftp_url', 'links', 'external_domain_id', 'external_path']);
 
         expect($landingPage->fresh()->template)->toBe('default_gfz');
         expect($landingPage->fresh()->ftp_url)->toBe('https://datapub.gfz-potsdam.de/download/legacy.zip');
         expect($landingPage->fresh()->links)->toHaveCount(0);
+    });
+
+    test('get endpoint returns the normalized contract for a legacy PhysicalObject landing page', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create(['resource_type_id' => $physicalObjectType->id]);
+        $domain = LandingPageDomain::factory()->create();
+        $staleTemplate = LandingPageTemplate::factory()->create(['created_by' => $user->id]);
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $staleTemplate->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'samples/legacy-igsn',
+            'is_published' => false,
+        ]);
+        $landingPage->links()->create([
+            'url' => 'https://example.org/file.zip',
+            'label' => 'Supporting file',
+            'position' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson("/resources/{$resource->id}/landing-page");
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'default_gfz_igsn')
+            ->assertJsonPath('landing_page.landing_page_template_id', null)
+            ->assertJsonPath('landing_page.landing_page_template', null)
+            ->assertJsonPath('landing_page.ftp_url', null)
+            ->assertJsonPath('landing_page.external_domain_id', null)
+            ->assertJsonPath('landing_page.external_path', null)
+            ->assertJsonPath('landing_page.external_domain', null)
+            ->assertJsonPath('landing_page.external_url', null)
+            ->assertJsonPath('landing_page.links', []);
     });
 
     test('clears ftp_url when updating an igsn landing page', function () {
