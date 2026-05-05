@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+import { toast } from 'sonner';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,6 +38,7 @@ const mockedAxiosGet = axios.get as Mock;
 const mockedAxiosPost = axios.post as Mock;
 const mockedAxiosPut = axios.put as Mock;
 const mockedAxiosDelete = axios.delete as Mock;
+const mockedToastError = toast.error as Mock;
 
 vi.mock('@inertiajs/react', () => ({
     router: {
@@ -52,6 +54,11 @@ vi.mock('sonner', () => ({
 }));
 
 describe('SetupLandingPageModal', () => {
+    const mockDomains = [
+        { id: 1, domain: 'https://example.org/' },
+        { id: 2, domain: 'https://resources.example.org/' },
+    ];
+
     const mockResource = {
         id: 123,
         doi: '10.5880/GFZ.TEST.2025.001',
@@ -799,6 +806,54 @@ describe('SetupLandingPageModal', () => {
                 '_blank',
                 'noopener,noreferrer',
             );
+
+            vi.unstubAllGlobals();
+        });
+
+        it('does not fall back to the saved external URL when unsaved edits clear the external path', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+            const existingExternalConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'external',
+                ftp_url: null,
+                external_domain_id: 1,
+                external_path: '/saved-resource',
+                external_url: 'https://example.org/saved-resource',
+            };
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    existingConfig={existingExternalConfig}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Path/i)).toHaveValue('/saved-resource');
+            });
+
+            await user.clear(screen.getByLabelText(/Path/i));
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockWindowOpen).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith('Please select a domain and enter a path to preview the external URL.');
 
             vi.unstubAllGlobals();
         });

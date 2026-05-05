@@ -11,6 +11,8 @@ import {
     getHydratedLandingPageTemplateId,
     getPayloadLandingPageTemplateId,
     getPreferredTemplateForResource,
+    getPreviewableExternalUrl,
+    normalizeExternalPath,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -243,6 +245,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setIsSaving(true);
 
         try {
+            const normalizedExternalPath = normalizeExternalPath(externalPath);
             const payload: Record<string, unknown> = {
                 template,
                 ftp_url: supportsFtpUrl ? ftpUrl || null : null,
@@ -252,7 +255,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
             if (isExternal) {
                 payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
-                payload.external_path = externalPath || null;
+                payload.external_path = normalizedExternalPath;
             }
 
             if (supportsLinks) {
@@ -405,10 +408,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
      * Compute the external URL from the current domain selection and path.
      */
     const computedExternalUrl = useMemo(() => {
-        if (!isExternal || !externalDomainId) return null;
-        const domain = availableDomains.find((d) => d.id === Number(externalDomainId));
-        if (!domain) return null;
-        return domain.domain + (externalPath || '').replace(/^\/+/, '');
+        return getPreviewableExternalUrl({
+            availableDomains,
+            externalDomainId,
+            externalPath,
+            isExternal,
+        });
     }, [isExternal, externalDomainId, externalPath, availableDomains]);
 
     const openPreview = async () => {
@@ -416,7 +421,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         if (isExternal) {
             if (computedExternalUrl) {
                 window.open(computedExternalUrl, '_blank', 'noopener,noreferrer');
-            } else if (currentConfig?.external_url) {
+            } else if (!hasUnsavedChanges && currentConfig?.external_url) {
                 window.open(currentConfig.external_url, '_blank', 'noopener,noreferrer');
             } else {
                 toast.error('Please select a domain and enter a path to preview the external URL.');

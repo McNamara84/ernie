@@ -5,6 +5,7 @@ import {
     getTemplateOptions,
     isIgsnLandingPageResourceType,
     type LandingPageConfig,
+    type LandingPageDomain,
 } from '@/types/landing-page';
 
 type BuiltInTemplateType = 'resource' | 'igsn';
@@ -67,4 +68,40 @@ export function getHydratedLandingPageTemplateId(template: string, config?: Land
 
 export function getPayloadLandingPageTemplateId(template: string, landingPageTemplateId?: number | null): number | null {
     return templateSupportsCustomTemplateId(template) ? (landingPageTemplateId ?? null) : null;
+}
+
+export function normalizeExternalPath(externalPath?: string | null): string | null {
+    const normalizedExternalPath = externalPath?.trim() ?? '';
+
+    return normalizedExternalPath === '' ? null : normalizedExternalPath;
+}
+
+export function getPreviewableExternalUrl({
+    availableDomains,
+    externalDomainId,
+    externalPath,
+    isExternal,
+}: {
+    availableDomains: LandingPageDomain[];
+    externalDomainId: string;
+    externalPath: string;
+    isExternal: boolean;
+}): string | null {
+    if (!isExternal || !externalDomainId) {
+        return null;
+    }
+
+    const normalizedExternalPath = normalizeExternalPath(externalPath);
+
+    if (!normalizedExternalPath) {
+        return null;
+    }
+
+    const domain = availableDomains.find((availableDomain) => availableDomain.id === Number(externalDomainId));
+
+    if (!domain) {
+        return null;
+    }
+
+    return domain.domain + normalizedExternalPath.replace(/^\/+/, '');
 }

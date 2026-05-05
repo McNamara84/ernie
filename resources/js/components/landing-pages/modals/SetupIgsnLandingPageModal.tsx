@@ -7,6 +7,8 @@ import {
     getHydratedLandingPageTemplateId,
     getPayloadLandingPageTemplateId,
     getPreferredIgsnTemplate,
+    getPreviewableExternalUrl,
+    normalizeExternalPath,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -162,6 +164,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         setIsSaving(true);
 
         try {
+            const normalizedExternalPath = normalizeExternalPath(externalPath);
             // Note: No ftp_url for IGSN landing pages
             const payload: Record<string, string | number | null> = {
                 template,
@@ -171,7 +174,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
             if (isExternal) {
                 payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
-                payload.external_path = externalPath || null;
+                payload.external_path = normalizedExternalPath;
             }
 
             const url = `/resources/${resource.id}/landing-page`;
@@ -291,13 +294,12 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
     };
 
     const computedExternalUrl = useMemo(() => {
-        if (!isExternal || !externalDomainId) return null;
-
-        const domain = availableDomains.find((availableDomain) => availableDomain.id === Number(externalDomainId));
-
-        if (!domain) return null;
-
-        return domain.domain + (externalPath || '').replace(/^\/+/, '');
+        return getPreviewableExternalUrl({
+            availableDomains,
+            externalDomainId,
+            externalPath,
+            isExternal,
+        });
     }, [availableDomains, externalDomainId, externalPath, isExternal]);
 
     /**

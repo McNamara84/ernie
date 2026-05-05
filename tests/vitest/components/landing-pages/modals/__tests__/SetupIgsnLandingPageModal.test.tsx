@@ -332,6 +332,40 @@ describe('SetupIgsnLandingPageModal', () => {
             vi.unstubAllGlobals();
         });
 
+        it('does not preview the bare external domain when the path is empty', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+            await user.click(screen.getByText('External Landing Page'));
+
+            await user.click(screen.getByLabelText(/Domain/i));
+            await user.click(screen.getByText('https://example.org/'));
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockWindowOpen).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith('Please select a domain and enter a path to preview the external URL.');
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+
+            vi.unstubAllGlobals();
+        });
+
         it('does not fall back to the saved external URL when unsaved edits make the current external preview invalid', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
                 if (url.includes('/api/landing-page-domains')) {
