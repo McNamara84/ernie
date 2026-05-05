@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from 'axios';
-import { Copy, Eye, FlaskConical } from 'lucide-react';
+import { Copy, ExternalLink, Eye, FlaskConical } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageTemplateSummary } from '@/types/landing-page';
+import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 const IGSN_TEMPLATE_KEYS = new Set(getIgsnTemplateOptions().map((option) => option.value));
 
@@ -62,7 +62,7 @@ interface SetupIgsnLandingPageModalProps {
  *
  * This is a simplified version of SetupLandingPageModal, specifically designed for IGSNs:
  * - No FTP URL field (not applicable to physical samples)
- * - Only IGSN-specific templates available
+ * - Supports IGSN renderers plus the shared external redirect template
  * - Uses FlaskConical icon instead of Globe
  */
 export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupIgsnLandingPageModalProps) {
@@ -74,10 +74,15 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(existingConfig ?? null);
+    const [externalDomainId, setExternalDomainId] = useState<string>(String(existingConfig?.external_domain_id ?? ''));
+    const [externalPath, setExternalPath] = useState<string>(existingConfig?.external_path ?? '');
+    const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
     const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
     const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
         getHydratedLandingPageTemplateId(initialTemplate, existingConfig),
     );
+
+    const isExternal = template === 'external';
 
     const eligibleCustomTemplates = useMemo(
         () => customTemplates.filter((customTemplate) => !customTemplate.is_default && customTemplate.template_type === 'igsn'),
@@ -91,6 +96,8 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         setTemplate(preferredTemplate);
         setIsPublished(config.status === 'published');
         setPreviewUrl(config.preview_url ?? '');
+        setExternalDomainId(String(config.external_domain_id ?? ''));
+        setExternalPath(config.external_path ?? '');
         setLandingPageTemplateId(getHydratedLandingPageTemplateId(preferredTemplate, config));
     }, []);
 
@@ -104,6 +111,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 // Load from server
                 loadLandingPageConfig();
             }
+            loadAvailableDomains();
             loadCustomTemplates();
         } else if (!isOpen) {
             // Reset state when modal closes
@@ -111,10 +119,26 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
             setTemplate(getDefaultIgsnTemplate());
             setIsPublished(false);
             setPreviewUrl('');
+            setExternalDomainId('');
+            setExternalPath('');
             setLandingPageTemplateId(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [applyConfigState, existingConfig, isOpen, resource.id]);
+
+    const loadAvailableDomains = async () => {
+        try {
+            const response = await axios.get<{ domains: LandingPageDomain[] }>('/api/landing-page-domains/list');
+            setAvailableDomains(response.data.domains ?? []);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.status === 404) {
+                setAvailableDomains([]);
+                return;
+            }
+
+            console.error('Failed to load landing page domains:', error);
+        }
+    };
 
     const loadCustomTemplates = async () => {
         try {
@@ -142,6 +166,8 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 setTemplate(getDefaultIgsnTemplate());
                 setIsPublished(false);
                 setPreviewUrl('');
+                setExternalDomainId('');
+                setExternalPath('');
                 setLandingPageTemplateId(null);
             } else {
                 console.error('Failed to load landing page config:', error);
@@ -162,11 +188,16 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
         try {
             // Note: No ftp_url for IGSN landing pages
-            const payload = {
+            const payload: Record<string, string | number | null> = {
                 template,
                 landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
                 status: isPublished ? 'published' : 'draft',
             };
+
+            if (isExternal) {
+                payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
+                payload.external_path = externalPath || null;
+            }
 
             const url = `/resources/${resource.id}/landing-page`;
 
@@ -258,10 +289,18 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
-        return template !== currentConfig.template
+        const baseChanges = template !== currentConfig.template
             || isPublished !== (currentConfig.status === 'published')
             || landingPageTemplateId !== (currentConfig.landing_page_template_id ?? null);
-    }, [currentConfig, landingPageTemplateId, template, isPublished]);
+
+        if (isExternal) {
+            return baseChanges
+                || externalDomainId !== String(currentConfig.external_domain_id ?? '')
+                || externalPath !== (currentConfig.external_path ?? '');
+        }
+
+        return baseChanges;
+    }, [currentConfig, externalDomainId, externalPath, isExternal, landingPageTemplateId, template, isPublished]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -274,10 +313,32 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         }
     };
 
+    const computedExternalUrl = useMemo(() => {
+        if (!isExternal || !externalDomainId) return null;
+
+        const domain = availableDomains.find((availableDomain) => availableDomain.id === Number(externalDomainId));
+
+        if (!domain) return null;
+
+        return domain.domain + (externalPath || '').replace(/^\/+/, '');
+    }, [availableDomains, externalDomainId, externalPath, isExternal]);
+
     /**
      * Open a preview of the landing page.
      */
     const openPreview = async () => {
+        if (isExternal) {
+            if (computedExternalUrl) {
+                window.open(computedExternalUrl, '_blank', 'noopener,noreferrer');
+            } else if (currentConfig?.external_url) {
+                window.open(currentConfig.external_url, '_blank', 'noopener,noreferrer');
+            } else {
+                toast.error('Please select a domain and enter a path to preview the external URL.');
+            }
+
+            return;
+        }
+
         // If there are unsaved changes or no saved config, use session-based preview
         if (hasUnsavedChanges || !currentConfig) {
             if (!resource.id) {
@@ -437,6 +498,58 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                             </Select>
                             <p className="text-sm text-muted-foreground">Choose the design template for your IGSN landing page</p>
                         </div>
+
+                        {isExternal && (
+                            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+                                <div className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+                                    <ExternalLink className="size-4" />
+                                    External URL Configuration
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="external-domain">Domain</Label>
+                                    <Select value={externalDomainId} onValueChange={setExternalDomainId}>
+                                        <SelectTrigger id="external-domain">
+                                            <SelectValue placeholder="Select a domain" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableDomains.map((domain) => (
+                                                <SelectItem key={domain.id} value={String(domain.id)}>
+                                                    {domain.domain}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {availableDomains.length === 0 && (
+                                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                                            No domains configured. An administrator can add domains in Editor Settings.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="external-path">Path</Label>
+                                    <Input
+                                        id="external-path"
+                                        type="text"
+                                        placeholder="/path/to/landing-page"
+                                        value={externalPath}
+                                        onChange={(event) => setExternalPath(event.target.value)}
+                                    />
+                                    <p className="text-sm text-muted-foreground">Path appended to the domain (e.g. /sample/12345)</p>
+                                </div>
+
+                                {externalDomainId && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Resulting URL</Label>
+                                        <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
+                                            {(availableDomains.find((domain) => domain.id === Number(externalDomainId))?.domain ?? '') +
+                                                (externalPath || '').replace(/^\/+/, '')}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* No FTP URL field for IGSN landing pages */}
 

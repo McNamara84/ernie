@@ -48,6 +48,11 @@ vi.mock('sonner', () => ({
 }));
 
 describe('SetupIgsnLandingPageModal', () => {
+    const mockDomains = [
+        { id: 1, domain: 'https://example.org/' },
+        { id: 2, domain: 'https://samples.example.org/' },
+    ];
+
     const mockResource = {
         id: 456,
         doi: 'IEFGZ0001',
@@ -207,6 +212,122 @@ describe('SetupIgsnLandingPageModal', () => {
 
             expect(screen.queryByText('Default GFZ Data Services')).not.toBeInTheDocument();
             expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
+            expect(optionsList).toHaveTextContent('External Landing Page');
+        });
+    });
+
+    describe('External Landing Pages', () => {
+        it('renders external configuration fields when the external template is selected', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+            await user.click(screen.getByText('External Landing Page'));
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Domain/i)).toBeInTheDocument();
+                expect(screen.getByLabelText(/Path/i)).toBeInTheDocument();
+            });
+        });
+
+        it('saves an external landing page with domain and path', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'external',
+                        external_domain_id: 1,
+                        external_path: '/sample/123',
+                        external_url: 'https://example.org/sample/123',
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({ data: {} });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+            await user.click(screen.getByText('External Landing Page'));
+
+            await user.click(screen.getByLabelText(/Domain/i));
+            await user.click(screen.getByText('https://example.org/'));
+            await user.type(screen.getByLabelText(/Path/i), '/sample/123');
+
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'external',
+                        external_domain_id: 1,
+                        external_path: '/sample/123',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+
+        it('opens the computed external URL directly for preview', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+            await user.click(screen.getByText('External Landing Page'));
+
+            await user.click(screen.getByLabelText(/Domain/i));
+            await user.click(screen.getByText('https://example.org/'));
+            await user.type(screen.getByLabelText(/Path/i), '/sample/preview');
+
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockWindowOpen).toHaveBeenCalledWith('https://example.org/sample/preview', '_blank', 'noopener,noreferrer');
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+
+            vi.unstubAllGlobals();
         });
     });
 
