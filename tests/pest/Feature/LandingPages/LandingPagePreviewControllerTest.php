@@ -155,6 +155,17 @@ describe('Session Preview Display', function () {
         );
     });
 
+    test('returns 404 when a stale preview session contains the external template', function () {
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'external',
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertStatus(404);
+    });
+
     test('preview display passes custom section order and logo for igsn custom templates', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],

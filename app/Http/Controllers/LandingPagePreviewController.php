@@ -104,6 +104,10 @@ class LandingPagePreviewController extends Controller
         }
 
         $rawTemplate = is_string($previewData['template'] ?? null) ? $previewData['template'] : LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+        if ($rawTemplate === 'external') {
+            abort(404, 'External landing pages do not support session-based previews. Please open the external URL directly from the setup modal.');
+        }
+
         if (! in_array($rawTemplate, LandingPageController::ALLOWED_TEMPLATES, true)) {
             $rawTemplate = LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
         }
