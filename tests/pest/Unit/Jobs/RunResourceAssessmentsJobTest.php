@@ -63,7 +63,7 @@ describe('handle', function (): void {
             ->and($status['skippedResources'])->toBe(0);
     });
 
-    it('marks resources without a published landing page as skipped', function (): void {
+    it('assesses resources with a DOI even when no landing page exists locally', function (): void {
         $physicalObjectType = ResourceType::factory()->create([
             'name' => 'Physical Object',
             'slug' => 'physical-object',
@@ -76,13 +76,24 @@ describe('handle', function (): void {
         $jobId = (string) \Illuminate\Support\Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId);
 
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
+                'summary' => [
+                    'score_percent' => [
+                        'FAIR' => 64.5,
+                    ],
+                ],
+            ]),
+        ]);
+
         $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
 
         expect($assessment)->not->toBeNull()
-            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_SKIPPED)
-            ->and($assessment?->error_message)->toBe('Resource has no landing page.');
+            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
+            ->and((float) $assessment?->total_score)->toBe(64.5)
+            ->and($assessment?->error_message)->toBeNull();
     });
 
     it('marks resources without a DOI as skipped before contacting F-UJI', function (): void {
@@ -101,10 +112,20 @@ describe('handle', function (): void {
             ->and($assessment?->error_message)->toBe('Resource has no DOI.');
     });
 
-    it('marks draft landing pages as skipped', function (): void {
+    it('assesses resources with a DOI even when the landing page is still draft', function (): void {
         $resource = Resource::factory()->withDoi('10.5880/test.003')->create();
         Title::factory()->for($resource)->create(['value' => 'Draft landing page resource']);
         \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.003')->draft()->create();
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
+                'summary' => [
+                    'score_percent' => [
+                        'FAIR' => 52.75,
+                    ],
+                ],
+            ]),
+        ]);
 
         $jobId = (string) \Illuminate\Support\Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
@@ -114,8 +135,9 @@ describe('handle', function (): void {
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
 
         expect($assessment)->not->toBeNull()
-            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_SKIPPED)
-            ->and($assessment?->error_message)->toBe('Landing page is not published.');
+            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
+            ->and((float) $assessment?->total_score)->toBe(52.75)
+            ->and($assessment?->error_message)->toBeNull();
     });
 
     it('marks the assessment as failed when the F-UJI request throws', function (): void {

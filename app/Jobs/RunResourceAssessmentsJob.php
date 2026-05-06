@@ -236,14 +236,6 @@ class RunResourceAssessmentsJob implements ShouldQueue
             return 'Resource has no DOI.';
         }
 
-        if ($resource->landingPage === null) {
-            return 'Resource has no landing page.';
-        }
-
-        if (! $resource->landingPage->isPublished()) {
-            return 'Landing page is not published.';
-        }
-
         return null;
     }
 
