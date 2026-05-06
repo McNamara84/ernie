@@ -36,6 +36,10 @@ if [ -z "${FUJI_USERNAME:-}" ] || [ -z "${FUJI_PASSWORD:-}" ]; then
     exit 1
 fi
 
+tika_log_path="${TIKA_LOG_PATH:-/tmp/tika}"
+mkdir -p "$tika_log_path"
+export TIKA_LOG_PATH="$tika_log_path"
+
 python3 <<'PY'
 import json
 import os

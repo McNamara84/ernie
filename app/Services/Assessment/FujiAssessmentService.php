@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Assessment;
 
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class FujiAssessmentService
@@ -19,6 +22,41 @@ class FujiAssessmentService
     }
 
     /**
+     * @return array{healthy: bool, message: string|null}
+     */
+    public function healthStatus(): array
+    {
+        if (! $this->isConfigured()) {
+            return [
+                'healthy' => false,
+                'message' => 'F-UJI is not configured.',
+            ];
+        }
+
+        try {
+            $response = $this->baseRequest()
+                ->get($this->healthEndpoint());
+        } catch (\Throwable $exception) {
+            return [
+                'healthy' => false,
+                'message' => sprintf('F-UJI health check failed: %s', $exception->getMessage()),
+            ];
+        }
+
+        if (! $response->successful()) {
+            return [
+                'healthy' => false,
+                'message' => $this->unsuccessfulResponseMessage('F-UJI health check failed', $response),
+            ];
+        }
+
+        return [
+            'healthy' => true,
+            'message' => null,
+        ];
+    }
+
+    /**
      * @return array{score: float, payload: array<string, mixed>, resolvedUrl: string|null, normalizedIdentifier: string|null}
      */
     public function assessIdentifier(string $identifier): array
@@ -27,18 +65,13 @@ class FujiAssessmentService
             throw new RuntimeException('F-UJI is not configured.');
         }
 
-        $response = Http::withBasicAuth(
-            $this->username() ?? '',
-            $this->password() ?? '',
-        )
+        $response = $this->baseRequest()
             ->acceptJson()
             ->asJson()
-            ->connectTimeout($this->connectTimeout())
-            ->timeout($this->timeout())
             ->post($this->endpoint(), $this->buildPayload($identifier));
 
         if (! $response->successful()) {
-            throw new RuntimeException(sprintf('F-UJI assessment failed with status %d.', $response->status()));
+            throw new RuntimeException($this->unsuccessfulResponseMessage('F-UJI assessment failed', $response));
         }
 
         /** @var array<string, mixed> $payload */
@@ -86,6 +119,11 @@ class FujiAssessmentService
         return rtrim($this->baseUrl() ?? '', '/') . '/fuji/api/v1/evaluate';
     }
 
+    private function healthEndpoint(): string
+    {
+        return rtrim($this->baseUrl() ?? '', '/') . '/fuji/api/v1/ui/';
+    }
+
     private function baseUrl(): ?string
     {
         $value = Config::get('fuji.base_url');
@@ -121,5 +159,27 @@ class FujiAssessmentService
     private function connectTimeout(): int
     {
         return max(1, (int) Config::get('fuji.connect_timeout', 10));
+    }
+
+    private function baseRequest(): PendingRequest
+    {
+        return Http::withBasicAuth(
+            $this->username() ?? '',
+            $this->password() ?? '',
+        )
+            ->connectTimeout($this->connectTimeout())
+            ->timeout($this->timeout());
+    }
+
+    private function unsuccessfulResponseMessage(string $prefix, Response $response): string
+    {
+        $message = sprintf('%s with status %d.', $prefix, $response->status());
+        $body = trim(preg_replace('/\s+/', ' ', $response->body()) ?? '');
+
+        if ($body === '') {
+            return $message;
+        }
+
+        return sprintf('%s Response: %s', $message, Str::limit($body, 200, '...'));
     }
 }
