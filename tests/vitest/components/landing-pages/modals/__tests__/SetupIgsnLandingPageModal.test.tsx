@@ -332,6 +332,39 @@ describe('SetupIgsnLandingPageModal', () => {
             vi.unstubAllGlobals();
         });
 
+        it('shows the resulting external URL using the normalized previewable path', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const user = userEvent.setup();
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+            await user.click(screen.getByText('External Landing Page'));
+            await user.click(screen.getByLabelText(/Domain/i));
+            await user.click(screen.getByText('https://example.org/'));
+            await user.type(screen.getByLabelText(/Path/i), '  /sample/preview  ');
+
+            expect(screen.getByText('Resulting URL')).toBeInTheDocument();
+            expect(screen.getByText('https://example.org/sample/preview')).toBeInTheDocument();
+
+            await user.clear(screen.getByLabelText(/Path/i));
+            await user.type(screen.getByLabelText(/Path/i), '   ');
+
+            expect(screen.queryByText('Resulting URL')).not.toBeInTheDocument();
+            expect(screen.queryByText('https://example.org/sample/preview')).not.toBeInTheDocument();
+        });
+
         it('does not preview the bare external domain when the path is empty', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
                 if (url.includes('/api/landing-page-domains')) {

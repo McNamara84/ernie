@@ -518,12 +518,11 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                                     <p className="text-sm text-muted-foreground">Path appended to the domain (e.g. /sample/12345)</p>
                                 </div>
 
-                                {externalDomainId && (
+                                {computedExternalUrl && (
                                     <div className="space-y-1">
                                         <Label className="text-xs text-muted-foreground">Resulting URL</Label>
                                         <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
-                                            {(availableDomains.find((domain) => domain.id === Number(externalDomainId))?.domain ?? '') +
-                                                (externalPath || '').replace(/^\/+/, '')}
+                                            {computedExternalUrl}
                                         </p>
                                     </div>
                                 )}

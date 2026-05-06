@@ -590,7 +590,7 @@ class LandingPageController extends Controller
         $landingPage->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         return response()->json([
-            'landing_page' => $this->serializeLandingPagePayload($resource, $landingPage),
+            'landing_page' => self::serializeLandingPagePayload($resource, $landingPage),
         ]);
     }
 
