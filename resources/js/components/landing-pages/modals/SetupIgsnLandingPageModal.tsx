@@ -269,7 +269,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         if (!currentConfig) return false;
         const currentTemplate = getPreferredIgsnTemplate(currentConfig.template);
         const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
-        const baseChanges = template !== currentConfig.template
+        const baseChanges = template !== currentTemplate
             || isPublished !== (currentConfig.status === 'published')
             || landingPageTemplateId !== currentLandingPageTemplateId;
 

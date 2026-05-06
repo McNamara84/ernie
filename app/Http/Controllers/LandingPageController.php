@@ -405,13 +405,15 @@ class LandingPageController extends Controller
             : LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resource->resourceType?->slug);
         $templateChanged = $effectiveTemplate !== $landingPage->template;
 
-        $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
+        if (array_key_exists('template', $validated) || $templateChanged) {
+            $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
 
-        if ($unsupportedFields !== []) {
-            return response()->json([
-                'message' => 'The request includes fields that are not supported for this landing page template.',
-                'errors' => $unsupportedFields,
-            ], 422);
+            if ($unsupportedFields !== []) {
+                return response()->json([
+                    'message' => 'The request includes fields that are not supported for this landing page template.',
+                    'errors' => $unsupportedFields,
+                ], 422);
+            }
         }
 
         $effectiveLandingPageTemplateId = null;

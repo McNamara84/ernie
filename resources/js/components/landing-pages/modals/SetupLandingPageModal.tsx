@@ -358,7 +358,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         const currentTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, currentConfig.template);
         const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
         const baseChanges =
-            template !== currentConfig.template ||
+            template !== currentTemplate ||
             // ftpUrl is irrelevant for external and IGSN templates.
             (supportsFtpUrl && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
             isPublished !== (currentConfig.status === 'published') ||

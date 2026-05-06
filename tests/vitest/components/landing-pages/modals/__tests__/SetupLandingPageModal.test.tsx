@@ -810,6 +810,60 @@ describe('SetupLandingPageModal', () => {
             vi.unstubAllGlobals();
         });
 
+        it('does not treat a normalized legacy Physical Object config as unsaved for preview generation', async () => {
+            const legacyConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                status: 'draft',
+                preview_url: 'http://localhost/legacy-preview',
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    existingConfig={legacyConfig}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
+
+            const previewButtons = screen.getAllByRole('button', { name: /Preview/i });
+            const previewButton = previewButtons.find(
+                (button) => button.className.includes('outline') || button.textContent?.trim() === 'Preview'
+            );
+
+            expect(previewButton).toBeDefined();
+            await user.click(previewButton!);
+
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+            expect(mockedToastError).not.toHaveBeenCalled();
+
+            vi.unstubAllGlobals();
+        });
+
         it('shows the resulting external URL using the normalized previewable path', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
                 if (url.includes('/api/landing-page-domains')) {

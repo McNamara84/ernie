@@ -626,7 +626,7 @@ describe('SetupIgsnLandingPageModal', () => {
             });
         });
 
-        it('treats a legacy default_gfz config as unsaved for preview generation', async () => {
+        it('does not treat a legacy default_gfz config as unsaved for preview generation', async () => {
             const legacyConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 template: 'default_gfz',
@@ -634,9 +634,6 @@ describe('SetupIgsnLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: legacyConfig } });
-            mockedAxiosPost.mockResolvedValue({
-                data: { preview_url: '/resources/456/landing-page/preview?session=1' },
-            });
 
             const mockWindowOpen = vi.fn();
             vi.stubGlobal('open', mockWindowOpen);
@@ -649,17 +646,12 @@ describe('SetupIgsnLandingPageModal', () => {
                 expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
             });
 
+            expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
+
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
-            await waitFor(() => {
-                expect(axios.post).toHaveBeenCalledWith(
-                    expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
-                    expect.objectContaining({ template: 'default_gfz_igsn' }),
-                );
-            });
-
-            expect(mockWindowOpen).toHaveBeenCalledWith('/resources/456/landing-page/preview?session=1', '_blank', 'noopener,noreferrer');
-            expect(mockWindowOpen).not.toHaveBeenCalledWith('http://localhost/legacy-preview', '_blank', 'noopener,noreferrer');
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+            expect(mockWindowOpen).toHaveBeenCalledWith('http://localhost/legacy-preview', '_blank', 'noopener,noreferrer');
 
             vi.unstubAllGlobals();
         });
