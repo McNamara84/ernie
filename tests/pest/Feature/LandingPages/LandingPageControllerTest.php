@@ -367,6 +367,26 @@ describe('External Landing Page Creation', function () {
         $response->assertStatus(201);
         expect($this->resource->fresh()->landingPage->ftp_url)->toBeNull();
     });
+
+    test('ignores stale custom template id when creating an external landing page', function () {
+        $domain = LandingPageDomain::factory()->create();
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'some/path',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
+    });
 });
 
 describe('External Landing Page Update', function () {
@@ -412,6 +432,88 @@ describe('External Landing Page Update', function () {
             ->external_domain_id->toBeNull()
             ->external_path->toBeNull();
     });
+
+    test('ignores stale custom template id when switching to external', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => null,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
+    });
+
+    test('switching to external clears an existing custom template id even when the field is omitted', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'status' => 'draft',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        expect($this->resource->fresh()->landingPage->landing_page_template_id)->toBeNull();
+    });
+
+    test('updating an existing external landing page clears a stale custom template id even when template is omitted', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->external()->create([
+            'resource_id' => $this->resource->id,
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/original',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'external_path' => 'dataset/updated',
+            'status' => 'draft',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('landing_page.template', 'external')
+            ->assertJsonPath('landing_page.external_path', 'dataset/updated')
+            ->assertJsonPath('landing_page.landing_page_template_id', null);
+
+        $updated = $this->resource->fresh()->landingPage;
+        expect($updated)
+            ->external_path->toBe('dataset/updated')
+            ->landing_page_template_id->toBeNull();
+    });
 });
 
 describe('Landing Page Template Assignment', function () {
@@ -427,7 +529,10 @@ describe('Landing Page Template Assignment', function () {
             'landing_page_template_id' => $template->id,
         ]);
 
-        $response->assertStatus(201);
+        $response->assertStatus(201)
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.name', $template->name);
 
         $landingPage = $this->resource->fresh()->landingPage;
         expect($landingPage->landing_page_template_id)->toBe($template->id);
@@ -450,10 +555,50 @@ describe('Landing Page Template Assignment', function () {
             'landing_page_template_id' => $template->id,
         ]);
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.name', $template->name);
 
         $landingPage = $this->resource->fresh()->landingPage;
         expect($landingPage->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('rejects unsupported fields when explicitly switching to an external template', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/original.zip',
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
+            'links' => [
+                [
+                    'url' => 'https://example.org/details',
+                    'label' => 'Details',
+                    'position' => 0,
+                ],
+            ],
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJson([
+                'message' => 'The request includes fields that are not supported for this landing page template.',
+            ])
+            ->assertJsonValidationErrors(['ftp_url', 'links']);
+
+        expect($this->resource->fresh()->landingPage)
+            ->template->toBe('default_gfz')
+            ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/original.zip')
+            ->external_domain_id->toBeNull()
+            ->external_path->toBeNull();
     });
 
     test('can clear template assignment by setting null', function () {
@@ -488,6 +633,66 @@ describe('Landing Page Template Assignment', function () {
         ]);
 
         $response->assertJsonValidationErrors(['landing_page_template_id']);
+    });
+
+    test('rejects assigning an igsn custom template to a regular resource on create', function () {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
+
+    test('rejects assigning an igsn custom template to a regular resource on update', function () {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'landing_page_template_id' => null,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected custom landing page template is only available for IGSN landing pages.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
+    });
+
+    test('rejects assigning the built-in resource default template id as a custom override on create', function () {
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'The selected landing page template is a built-in default and cannot be used as a custom override.',
+                'error' => 'invalid_template_for_resource_type',
+            ]);
     });
 });
 

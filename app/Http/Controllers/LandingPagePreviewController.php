@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LandingPage\StoreLandingPagePreviewRequest;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -45,15 +46,21 @@ class LandingPagePreviewController extends Controller
             ], 422);
         }
 
-        // Validate that IGSN-only templates can only be used with PhysicalObject resources
-        if (in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true)) {
-            $resource->loadMissing('resourceType');
-            if ($resource->resourceType?->slug !== 'physical-object') {
-                return response()->json([
-                    'message' => 'The IGSN template can only be used with Physical Object resources.',
-                    'error' => 'invalid_template_for_resource_type',
-                ], 422);
-            }
+        $resource->loadMissing('resourceType');
+
+        if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
+            return response()->json([
+                'message' => $templateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
+        }
+
+        if (LandingPageController::templateSupportsCustomTemplateId($validated['template'])
+            && ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'] ?? null, $resource->resourceType?->slug))) {
+            return response()->json([
+                'message' => $customTemplateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
         }
 
         // Store preview data in session
@@ -65,7 +72,12 @@ class LandingPagePreviewController extends Controller
 
         Session::put($sessionKey, [
             'template' => $validated['template'],
-            'ftp_url' => $validated['ftp_url'] ?? null,
+            'landing_page_template_id' => LandingPageController::templateSupportsCustomTemplateId($validated['template'])
+                ? ($validated['landing_page_template_id'] ?? null)
+                : null,
+            'ftp_url' => LandingPageController::templateSupportsFtpUrl($validated['template'])
+                ? ($validated['ftp_url'] ?? null)
+                : null,
             'links' => $isLinksTemplate ? ($validated['links'] ?? []) : [],
             'resource_id' => $resource->id,
         ]);
@@ -91,16 +103,53 @@ class LandingPagePreviewController extends Controller
             abort(404, 'Preview session is invalid. Please open preview again from the setup modal.');
         }
 
-        $template = is_string($previewData['template'] ?? null) ? $previewData['template'] : 'default_gfz';
-        if (! in_array($template, LandingPageController::ALLOWED_TEMPLATES, true)) {
-            $template = 'default_gfz';
+        $rawTemplate = is_string($previewData['template'] ?? null) ? $previewData['template'] : LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+        if ($rawTemplate === 'external') {
+            abort(404, 'External landing pages do not support session-based previews. Please open the external URL directly from the setup modal.');
+        }
+
+        if (! in_array($rawTemplate, LandingPageController::ALLOWED_TEMPLATES, true)) {
+            $rawTemplate = LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
         }
 
         // Load the same shape used for public landing pages, because the React template expects it.
-        $resource->load($transformer->requiredRelations());
+        $resource->load(array_unique([
+            ...$transformer->requiredRelations(),
+            'resourceType',
+        ]));
+        $resourceTypeSlug = $resource->resourceType?->slug;
+        $template = LandingPageTemplate::normalizeBuiltInTemplateForResource($rawTemplate, $resourceTypeSlug);
 
         // Prepare the same frontend payload as LandingPagePublicController
         $resourceData = $transformer->transform($resource);
+
+        $sectionOrder = null;
+        $customLogoUrl = null;
+        $landingPageTemplateId = LandingPageController::templateSupportsCustomTemplateId($template)
+            && is_int($previewData['landing_page_template_id'] ?? null)
+            ? $previewData['landing_page_template_id']
+            : null;
+
+        $templateConfig = LandingPageTemplate::resolveCustomTemplate($landingPageTemplateId, $resourceTypeSlug);
+
+        if ($templateConfig !== null) {
+            $landingPageTemplateId = $templateConfig->id;
+            $sectionOrder = [
+                'rightColumn' => $templateConfig->right_column_order,
+                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($templateConfig->left_column_order, $templateConfig->template_type),
+            ];
+            $customLogoUrl = $templateConfig->logo_url;
+        } else {
+            $landingPageTemplateId = null;
+        }
+
+        $ftpUrl = LandingPageController::templateSupportsFtpUrl($template)
+            ? ($previewData['ftp_url'] ?? null)
+            : null;
+        $links = $template !== LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG
+            && is_array($previewData['links'] ?? null)
+            ? $previewData['links']
+            : [];
 
         // Temporary landing page array for preview rendering.
         // Note: contact_url is not included here because it's computed from the public_url
@@ -110,9 +159,10 @@ class LandingPagePreviewController extends Controller
             'id' => null,
             'resource_id' => $resource->id,
             'template' => $template,
-            'ftp_url' => $previewData['ftp_url'] ?? null,
+            'landing_page_template_id' => $landingPageTemplateId,
+            'ftp_url' => $ftpUrl,
             'files' => [],
-            'links' => is_array($previewData['links'] ?? null) ? $previewData['links'] : [],
+            'links' => $links,
             'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,
@@ -123,6 +173,8 @@ class LandingPagePreviewController extends Controller
             'resource' => $resourceData,
             'landingPage' => $tempLandingPage,
             'isPreview' => true,
+            'sectionOrder' => $sectionOrder,
+            'customLogoUrl' => $customLogoUrl,
         ]);
     }
 

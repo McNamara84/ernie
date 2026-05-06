@@ -173,6 +173,9 @@ export interface LandingPageConfig {
     /** FK to landing_page_templates table (null = use built-in default) */
     landing_page_template_id?: number | null;
 
+    /** Loaded custom template relation for hydrating dropdown state */
+    landing_page_template?: LandingPageTemplateSummary | null;
+
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
 
@@ -640,6 +643,9 @@ export interface TemplateMetadata {
     /** Template version (for migration tracking) */
     version?: string;
 
+    /** Restrict template to resource or IGSN setup flows */
+    scopes?: Array<'resource' | 'igsn'>;
+
     /** Restrict template to specific resource types. null/undefined = all types allowed */
     resourceTypes?: string[] | null;
 }
@@ -665,7 +671,8 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
         description: 'Standard template with all features',
         category: 'official',
         version: '1.0',
-        resourceTypes: null, // Available for all resource types
+        scopes: ['resource'],
+        resourceTypes: null,
     },
     default_gfz_igsn: {
         key: 'default_gfz_igsn',
@@ -673,6 +680,7 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
         description: 'Simplified template for physical samples (IGSN)',
         category: 'official',
         version: '1.0',
+        scopes: ['igsn'],
         resourceTypes: ['PhysicalObject'], // Only for IGSNs
     },
     external: {
@@ -681,9 +689,22 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
         description: 'Redirect to an external URL instead of generating a landing page',
         category: 'official',
         version: '1.0',
-        resourceTypes: null, // Available for all resource types (null = no restrictions)
+        scopes: ['resource', 'igsn'],
+        resourceTypes: null,
     },
 } as const;
+
+function normalizeLandingPageResourceType(resourceType?: string): string {
+    return (resourceType ?? '').replace(/[\s_-]+/g, '').toLowerCase();
+}
+
+export function isIgsnLandingPageResourceType(resourceType?: string): boolean {
+    return normalizeLandingPageResourceType(resourceType) === 'physicalobject';
+}
+
+function getTemplateScope(resourceType?: string): 'resource' | 'igsn' {
+    return isIgsnLandingPageResourceType(resourceType) ? 'igsn' : 'resource';
+}
 
 /**
  * Template Options for Select Dropdown
@@ -695,14 +716,26 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
  * @returns Array of template options with value, label, and description
  */
 export function getTemplateOptions(resourceType?: string): LandingPageTemplateOption[] {
+    const scope = getTemplateScope(resourceType);
+
     return Object.values(LANDING_PAGE_TEMPLATES)
         .filter((template) => {
+            if (template.scopes && !template.scopes.includes(scope)) {
+                return false;
+            }
+
             // If no resourceTypes restriction, template is available for all
             if (!template.resourceTypes) return true;
-            // If no resourceType provided, only show unrestricted templates
+            // If no resourceType is provided, we still keep the current scope filter
+            // (defaulting to the regular resource flow) and only skip templates that
+            // require an explicit resource type match.
             if (!resourceType) return !template.resourceTypes;
             // Check if resourceType is in the allowed list
-            return template.resourceTypes.includes(resourceType);
+            const normalizedResourceType = normalizeLandingPageResourceType(resourceType);
+
+            return template.resourceTypes.some(
+                (allowedResourceType) => normalizeLandingPageResourceType(allowedResourceType) === normalizedResourceType,
+            );
         })
         .map((template) => ({
             value: template.key,

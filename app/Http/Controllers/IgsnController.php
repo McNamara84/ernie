@@ -702,9 +702,11 @@ class IgsnController extends Controller
      */
     private function applySorting(\Illuminate\Database\Eloquent\Builder $query, string $sortKey, string $sortDirection): void
     {
+        $direction = $sortDirection === 'asc' ? 'asc' : 'desc';
+
         switch ($sortKey) {
             case 'igsn':
-                $query->orderBy('doi', $sortDirection);
+                $query->orderBy('doi', $direction);
                 break;
 
             case 'title':
@@ -716,7 +718,7 @@ class IgsnController extends Controller
                         ->whereColumn('titles.resource_id', 'resources.id')
                         ->orderBy('title_type_id')
                         ->limit(1);
-                }, $sortDirection);
+                }, $direction);
                 break;
 
             case 'sample_type':
@@ -727,7 +729,7 @@ class IgsnController extends Controller
                         ->from('igsn_metadata')
                         ->whereColumn('igsn_metadata.resource_id', 'resources.id')
                         ->limit(1);
-                }, $sortDirection);
+                }, $direction);
                 break;
 
             case 'collection_date':
@@ -740,11 +742,11 @@ class IgsnController extends Controller
                         ->whereColumn('dates.resource_id', 'resources.id')
                         ->where('date_types.slug', 'Collected')
                         ->limit(1);
-                }, $sortDirection);
+                }, $direction);
                 break;
 
             default:
-                $query->orderBy($sortKey, $sortDirection);
+                $query->orderBy($sortKey, $direction);
                 break;
         }
     }

@@ -1,16 +1,23 @@
 import axios, { isAxiosError } from 'axios';
-import { Copy, Eye, FlaskConical } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Copy, ExternalLink, Eye, FlaskConical } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+    getHydratedLandingPageTemplateId,
+    getPayloadLandingPageTemplateId,
+    getPreferredIgsnTemplate,
+    getPreviewableExternalUrl,
+    normalizeExternalPath,
+} from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig } from '@/types/landing-page';
+import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 interface IgsnResource {
     id: number;
@@ -32,49 +39,103 @@ interface SetupIgsnLandingPageModalProps {
  *
  * This is a simplified version of SetupLandingPageModal, specifically designed for IGSNs:
  * - No FTP URL field (not applicable to physical samples)
- * - Only IGSN-specific templates available
+ * - Supports IGSN renderers plus the shared external redirect template
  * - Uses FlaskConical icon instead of Globe
  */
 export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupIgsnLandingPageModalProps) {
-    const [template, setTemplate] = useState<string>(existingConfig?.template ?? getDefaultIgsnTemplate());
+    const initialTemplate = getPreferredIgsnTemplate(existingConfig?.template);
+
+    const [template, setTemplate] = useState<string>(initialTemplate);
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(existingConfig ?? null);
+    const [externalDomainId, setExternalDomainId] = useState<string>(String(existingConfig?.external_domain_id ?? ''));
+    const [externalPath, setExternalPath] = useState<string>(existingConfig?.external_path ?? '');
+    const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
+    const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
+    const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
+        getHydratedLandingPageTemplateId(initialTemplate, existingConfig),
+    );
+
+    const isExternal = template === 'external';
+
+    const eligibleCustomTemplates = useMemo(
+        () => customTemplates.filter((customTemplate) => !customTemplate.is_default && customTemplate.template_type === 'igsn'),
+        [customTemplates],
+    );
+
+    const applyConfigState = useCallback((config: LandingPageConfig) => {
+        const preferredTemplate = getPreferredIgsnTemplate(config.template);
+
+        setCurrentConfig(config);
+        setTemplate(preferredTemplate);
+        setIsPublished(config.status === 'published');
+        setPreviewUrl(config.preview_url ?? '');
+        setExternalDomainId(String(config.external_domain_id ?? ''));
+        setExternalPath(config.external_path ?? '');
+        setLandingPageTemplateId(getHydratedLandingPageTemplateId(preferredTemplate, config));
+    }, []);
 
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
             if (existingConfig) {
                 // Use existing config passed as prop
-                setCurrentConfig(existingConfig);
-                setTemplate(existingConfig.template);
-                setIsPublished(existingConfig.status === 'published');
-                setPreviewUrl(existingConfig.preview_url ?? '');
+                applyConfigState(existingConfig);
             } else {
                 // Load from server
                 loadLandingPageConfig();
             }
+            loadAvailableDomains();
+            loadCustomTemplates();
         } else if (!isOpen) {
             // Reset state when modal closes
             setCurrentConfig(null);
             setTemplate(getDefaultIgsnTemplate());
             setIsPublished(false);
             setPreviewUrl('');
+            setExternalDomainId('');
+            setExternalPath('');
+            setLandingPageTemplateId(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, resource.id]);
+    }, [applyConfigState, existingConfig, isOpen, resource.id]);
+
+    const loadAvailableDomains = async () => {
+        try {
+            const response = await axios.get<{ domains: LandingPageDomain[] }>('/api/landing-page-domains/list');
+            setAvailableDomains(response.data.domains ?? []);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.status === 404) {
+                setAvailableDomains([]);
+                return;
+            }
+
+            console.error('Failed to load landing page domains:', error);
+        }
+    };
+
+    const loadCustomTemplates = async () => {
+        try {
+            const response = await axios.get<{ templates: LandingPageTemplateSummary[] }>('/api/landing-page-templates');
+            setCustomTemplates(response.data.templates ?? []);
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.status === 404) {
+                setCustomTemplates([]);
+                return;
+            }
+
+            console.error('Failed to load custom templates:', error);
+        }
+    };
 
     const loadLandingPageConfig = async () => {
         setIsLoading(true);
         try {
             const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
-            const config = response.data.landing_page;
-            setCurrentConfig(config);
-            setTemplate(config.template);
-            setIsPublished(config.status === 'published');
-            setPreviewUrl(config.preview_url);
+            applyConfigState(response.data.landing_page);
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
@@ -82,6 +143,9 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 setTemplate(getDefaultIgsnTemplate());
                 setIsPublished(false);
                 setPreviewUrl('');
+                setExternalDomainId('');
+                setExternalPath('');
+                setLandingPageTemplateId(null);
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
@@ -100,11 +164,18 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         setIsSaving(true);
 
         try {
+            const normalizedExternalPath = normalizeExternalPath(externalPath);
             // Note: No ftp_url for IGSN landing pages
-            const payload = {
+            const payload: Record<string, string | number | null> = {
                 template,
+                landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
                 status: isPublished ? 'published' : 'draft',
             };
+
+            if (isExternal) {
+                payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
+                payload.external_path = normalizedExternalPath;
+            }
 
             const url = `/resources/${resource.id}/landing-page`;
 
@@ -126,10 +197,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
             // Update local state with response data
             if (response.data.landing_page) {
-                const updatedConfig = response.data.landing_page;
-                setCurrentConfig(updatedConfig);
-                setPreviewUrl(updatedConfig.preview_url ?? '');
-                setIsPublished(updatedConfig.status === 'published');
+                applyConfigState(response.data.landing_page);
             }
 
             // Clear session-based preview if it exists
@@ -199,8 +267,20 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
-        return template !== currentConfig.template || isPublished !== (currentConfig.status === 'published');
-    }, [currentConfig, template, isPublished]);
+        const currentTemplate = getPreferredIgsnTemplate(currentConfig.template);
+        const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
+        const baseChanges = template !== currentTemplate
+            || isPublished !== (currentConfig.status === 'published')
+            || landingPageTemplateId !== currentLandingPageTemplateId;
+
+        if (isExternal) {
+            return baseChanges
+                || externalDomainId !== String(currentConfig.external_domain_id ?? '')
+                || externalPath !== (currentConfig.external_path ?? '');
+        }
+
+        return baseChanges;
+    }, [currentConfig, externalDomainId, externalPath, isExternal, landingPageTemplateId, template, isPublished]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -213,10 +293,31 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         }
     };
 
+    const computedExternalUrl = useMemo(() => {
+        return getPreviewableExternalUrl({
+            availableDomains,
+            externalDomainId,
+            externalPath,
+            isExternal,
+        });
+    }, [availableDomains, externalDomainId, externalPath, isExternal]);
+
     /**
      * Open a preview of the landing page.
      */
     const openPreview = async () => {
+        if (isExternal) {
+            if (computedExternalUrl) {
+                window.open(computedExternalUrl, '_blank', 'noopener,noreferrer');
+            } else if (!hasUnsavedChanges && currentConfig?.external_url) {
+                window.open(currentConfig.external_url, '_blank', 'noopener,noreferrer');
+            } else {
+                toast.error('Please select a domain and enter a path to preview the external URL.');
+            }
+
+            return;
+        }
+
         // If there are unsaved changes or no saved config, use session-based preview
         if (hasUnsavedChanges || !currentConfig) {
             if (!resource.id) {
@@ -228,6 +329,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 // Note: No ftp_url for IGSN landing pages
                 const payload = {
                     template,
+                    landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
                 };
 
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
@@ -321,23 +423,111 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                         {/* Template Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="template">Landing Page Template</Label>
-                            <Select value={template} onValueChange={setTemplate}>
+                            <Select
+                                value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
+                                onValueChange={(value) => {
+                                    if (value.startsWith('custom:')) {
+                                        const id = Number.parseInt(value.replace('custom:', ''), 10);
+
+                                        if (!Number.isNaN(id)) {
+                                            setTemplate(getDefaultIgsnTemplate());
+                                            setLandingPageTemplateId(id);
+                                        }
+
+                                        return;
+                                    }
+
+                                    setTemplate(value);
+                                    setLandingPageTemplateId(null);
+                                }}
+                            >
                                 <SelectTrigger id="template">
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {templateOptions.map((tmpl) => (
-                                        <SelectItem key={tmpl.value} value={tmpl.value}>
-                                            <div className="flex flex-col">
-                                                <span>{tmpl.label}</span>
-                                                <span className="text-xs text-muted-foreground">{tmpl.description}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
+                                    <SelectGroup>
+                                        <SelectLabel>Built-in Templates</SelectLabel>
+                                        {templateOptions.map((tmpl) => (
+                                            <SelectItem key={tmpl.value} value={tmpl.value}>
+                                                <div className="flex flex-col">
+                                                    <span>{tmpl.label}</span>
+                                                    <span className="text-xs text-muted-foreground">{tmpl.description}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+
+                                    {eligibleCustomTemplates.length > 0 && (
+                                        <>
+                                            <SelectSeparator />
+                                            <SelectGroup>
+                                                <SelectLabel>Custom Templates</SelectLabel>
+                                                {eligibleCustomTemplates.map((customTemplate) => (
+                                                    <SelectItem key={customTemplate.id} value={`custom:${customTemplate.id}`}>
+                                                        <div className="flex flex-col">
+                                                            <span>{customTemplate.name}</span>
+                                                            <span className="text-xs text-muted-foreground">Custom IGSN template</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </>
+                                    )}
                                 </SelectContent>
                             </Select>
                             <p className="text-sm text-muted-foreground">Choose the design template for your IGSN landing page</p>
                         </div>
+
+                        {isExternal && (
+                            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+                                <div className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+                                    <ExternalLink className="size-4" />
+                                    External URL Configuration
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="external-domain">Domain</Label>
+                                    <Select value={externalDomainId} onValueChange={setExternalDomainId}>
+                                        <SelectTrigger id="external-domain">
+                                            <SelectValue placeholder="Select a domain" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableDomains.map((domain) => (
+                                                <SelectItem key={domain.id} value={String(domain.id)}>
+                                                    {domain.domain}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {availableDomains.length === 0 && (
+                                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                                            No domains configured. An administrator can add domains in Editor Settings.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="external-path">Path</Label>
+                                    <Input
+                                        id="external-path"
+                                        type="text"
+                                        placeholder="/path/to/landing-page"
+                                        value={externalPath}
+                                        onChange={(event) => setExternalPath(event.target.value)}
+                                    />
+                                    <p className="text-sm text-muted-foreground">Path appended to the domain (e.g. /sample/12345)</p>
+                                </div>
+
+                                {computedExternalUrl && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Resulting URL</Label>
+                                        <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
+                                            {computedExternalUrl}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* No FTP URL field for IGSN landing pages */}
 

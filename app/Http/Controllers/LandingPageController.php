@@ -9,6 +9,7 @@ use App\Exceptions\ResourceAlreadyExistsException;
 use App\Http\Requests\LandingPage\StoreLandingPageRequest;
 use App\Http\Requests\LandingPage\UpdateLandingPageRequest;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
 use App\Support\Traits\ChecksCacheTagging;
@@ -27,6 +28,65 @@ class LandingPageController extends Controller
     use AuthorizesRequests;
     use ChecksCacheTagging;
 
+    public static function templateSupportsCustomTemplateId(string $template): bool
+    {
+        return in_array($template, [
+            LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+            LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG,
+        ], true);
+    }
+
+    public static function templateSupportsFtpUrl(string $template): bool
+    {
+        return $template === LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+    }
+
+    private static function templateSupportsLinks(string $template): bool
+    {
+        return $template !== 'external'
+            && ! in_array($template, self::IGSN_ONLY_TEMPLATES, true);
+    }
+
+    private static function templateSupportsExternalFields(string $template): bool
+    {
+        return $template === 'external';
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, list<string>>
+     */
+    private static function unsupportedFieldErrorsForTemplate(array $validated, string $template): array
+    {
+        $unsupportedFields = [];
+
+        if (array_key_exists('ftp_url', $validated) && ! self::templateSupportsFtpUrl($template)) {
+            $unsupportedFields['ftp_url'] = [
+                'The ftp_url field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('links', $validated) && ! self::templateSupportsLinks($template)) {
+            $unsupportedFields['links'] = [
+                'The links field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('external_domain_id', $validated) && ! self::templateSupportsExternalFields($template)) {
+            $unsupportedFields['external_domain_id'] = [
+                'The external_domain_id field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('external_path', $validated) && ! self::templateSupportsExternalFields($template)) {
+            $unsupportedFields['external_path'] = [
+                'The external_path field is not supported for this landing page template.',
+            ];
+        }
+
+        return $unsupportedFields;
+    }
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
     ) {}
@@ -42,14 +102,25 @@ class LandingPageController extends Controller
      *
      * @var list<string>
      */
-    public const ALLOWED_TEMPLATES = ['default_gfz', 'default_gfz_igsn', 'external'];
+    public const ALLOWED_TEMPLATES = [
+        LandingPageTemplate::DEFAULT_TEMPLATE_SLUG,
+        LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG,
+        'external',
+    ];
 
     /**
      * Templates restricted to PhysicalObject resources (IGSNs).
      *
      * @var list<string>
      */
-    public const IGSN_ONLY_TEMPLATES = ['default_gfz_igsn'];
+    public const IGSN_ONLY_TEMPLATES = [LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG];
+
+    /**
+     * Templates restricted to non-PhysicalObject resources.
+     *
+     * @var list<string>
+     */
+    public const RESOURCE_ONLY_TEMPLATES = [LandingPageTemplate::DEFAULT_TEMPLATE_SLUG];
 
     /**
      * Display the public landing page.
@@ -109,15 +180,21 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        // Validate that IGSN-only templates can only be used with PhysicalObject resources
-        if (in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
-            $resource->loadMissing('resourceType');
-            if ($resource->resourceType?->slug !== 'physical-object') {
-                return response()->json([
-                    'message' => 'The IGSN template can only be used with Physical Object resources.',
-                    'error' => 'invalid_template_for_resource_type',
-                ], 422);
-            }
+        $resource->loadMissing('resourceType');
+
+        if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
+            return response()->json([
+                'message' => $templateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
+        }
+
+        if (self::templateSupportsCustomTemplateId($validated['template'])
+            && ($customTemplateError = LandingPageTemplate::customTemplateScopeError($validated['landing_page_template_id'] ?? null, $resource->resourceType?->slug))) {
+            return response()->json([
+                'message' => $customTemplateError,
+                'error' => 'invalid_template_for_resource_type',
+            ], 422);
         }
 
         // Detect conflicting status/is_published values.
@@ -174,10 +251,12 @@ class LandingPageController extends Controller
                 // We don't set them here to avoid redundancy and ensure single source of truth.
                 $createData = [
                     'template' => $validated['template'],
-                    'landing_page_template_id' => $validated['template'] === 'default_gfz'
+                    'landing_page_template_id' => self::templateSupportsCustomTemplateId($validated['template'])
                         ? ($validated['landing_page_template_id'] ?? null)
                         : null,
-                    'ftp_url' => $validated['ftp_url'] ?? null,
+                    'ftp_url' => self::templateSupportsFtpUrl($validated['template'])
+                        ? ($validated['ftp_url'] ?? null)
+                        : null,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
                 ];
@@ -280,36 +359,16 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load(['externalDomain', 'links', 'landingPageTemplate']);
+        $landingPage->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
             $this->keywordService->invalidateCache();
         }
 
-        // Determine status string for API response
-        $status = $landingPage->is_published ? 'published' : 'draft';
-
         return response()->json([
             'message' => 'Landing page created successfully',
-            'landing_page' => [
-                'id' => $landingPage->id,
-                'resource_id' => $landingPage->resource_id,
-                'doi_prefix' => $landingPage->doi_prefix,
-                'slug' => $landingPage->slug,
-                'template' => $landingPage->template,
-                'landing_page_template_id' => $landingPage->landing_page_template_id,
-                'ftp_url' => $landingPage->ftp_url,
-                'external_domain_id' => $landingPage->external_domain_id,
-                'external_path' => $landingPage->external_path,
-                'external_url' => $landingPage->external_url,
-                'external_domain' => $landingPage->externalDomain,
-                'links' => $landingPage->links,
-                'status' => $status,
-                'preview_token' => $landingPage->preview_token,
-                'preview_url' => $landingPage->preview_url,
-                'public_url' => $landingPage->public_url,
-            ],
+            'landing_page' => self::serializeLandingPagePayload($resource, $landingPage),
         ], 201);
     }
 
@@ -330,14 +389,49 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        // Validate that IGSN-only templates can only be used with PhysicalObject resources
-        if (isset($validated['template']) && in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
-            $resource->loadMissing('resourceType');
-            if ($resource->resourceType?->slug !== 'physical-object') {
+        $resource->loadMissing('resourceType');
+
+        if (isset($validated['template'])) {
+            if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
                 return response()->json([
-                    'message' => 'The IGSN template can only be used with Physical Object resources.',
+                    'message' => $templateError,
                     'error' => 'invalid_template_for_resource_type',
                 ], 422);
+            }
+        }
+
+        $effectiveTemplate = array_key_exists('template', $validated)
+            ? $validated['template']
+            : LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resource->resourceType?->slug);
+        $templateChanged = $effectiveTemplate !== $landingPage->template;
+
+        if (array_key_exists('template', $validated) || $templateChanged) {
+            $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
+
+            if ($unsupportedFields !== []) {
+                return response()->json([
+                    'message' => 'The request includes fields that are not supported for this landing page template.',
+                    'errors' => $unsupportedFields,
+                ], 422);
+            }
+        }
+
+        $effectiveLandingPageTemplateId = null;
+
+        if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
+            $effectiveLandingPageTemplateId = array_key_exists('landing_page_template_id', $validated)
+                ? $validated['landing_page_template_id']
+                : $landingPage->landing_page_template_id;
+
+            if ($customTemplateError = LandingPageTemplate::customTemplateScopeError($effectiveLandingPageTemplateId, $resource->resourceType?->slug)) {
+                if (array_key_exists('landing_page_template_id', $validated)) {
+                    return response()->json([
+                        'message' => $customTemplateError,
+                        'error' => 'invalid_template_for_resource_type',
+                    ], 422);
+                }
+
+                $effectiveLandingPageTemplateId = null;
             }
         }
 
@@ -365,25 +459,27 @@ class LandingPageController extends Controller
 
         // Wrap all mutations in a transaction for atomicity.
         // This ensures the landing page + links are updated together.
-        $effectiveTemplate = $validated['template'] ?? $landingPage->template;
-
-        DB::transaction(function () use ($landingPage, $validated, $effectiveTemplate): void {
+        DB::transaction(function () use ($landingPage, $validated, $effectiveLandingPageTemplateId, $effectiveTemplate, $templateChanged): void {
             // Update template and ftp_url if provided
             // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
-            if (isset($validated['template'])) {
-                $landingPage->template = $validated['template'];
+            if ($templateChanged) {
+                $landingPage->template = $effectiveTemplate;
             }
-            if (array_key_exists('landing_page_template_id', $validated)) {
-                $landingPage->landing_page_template_id = $effectiveTemplate === 'default_gfz'
-                    ? $validated['landing_page_template_id']
-                    : null;
+
+            if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
+                $landingPage->landing_page_template_id = $effectiveLandingPageTemplateId;
+            } else {
+                $landingPage->landing_page_template_id = null;
             }
-            if (array_key_exists('ftp_url', $validated)) {
+
+            if (self::templateSupportsFtpUrl($effectiveTemplate) && array_key_exists('ftp_url', $validated)) {
                 $landingPage->ftp_url = $validated['ftp_url'];
+            } elseif (! self::templateSupportsFtpUrl($effectiveTemplate)) {
+                $landingPage->ftp_url = null;
             }
 
             // Update external landing page fields
-            if ($effectiveTemplate === 'external') {
+            if (self::templateSupportsExternalFields($effectiveTemplate)) {
                 if (array_key_exists('external_domain_id', $validated)) {
                     $landingPage->external_domain_id = $validated['external_domain_id'];
                 }
@@ -401,10 +497,7 @@ class LandingPageController extends Controller
             $landingPage->save();
 
             // Sync additional links: determine once whether this template supports links
-            $isLinksTemplate = $effectiveTemplate !== 'external'
-                && ! in_array($effectiveTemplate, self::IGSN_ONLY_TEMPLATES, true);
-
-            if (! $isLinksTemplate) {
+            if (! self::templateSupportsLinks($effectiveTemplate)) {
                 // Template does not support links – clear any existing ones
                 $landingPage->links()->delete();
             } elseif (array_key_exists('links', $validated)) {
@@ -426,12 +519,13 @@ class LandingPageController extends Controller
         // Invalidate cache
         $this->invalidateCache($resource->id);
 
-        $freshLandingPage = $landingPage->fresh();
-        $freshLandingPage?->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
+        $freshLandingPage = LandingPage::query()
+            ->with(['externalDomain', 'files', 'links', 'landingPageTemplate'])
+            ->findOrFail($landingPage->id);
 
         return response()->json([
             'message' => 'Landing page updated successfully',
-            'landing_page' => $freshLandingPage,
+            'landing_page' => self::serializeLandingPagePayload($resource, $freshLandingPage),
         ]);
     }
 
@@ -488,8 +582,55 @@ class LandingPageController extends Controller
         $landingPage->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         return response()->json([
-            'landing_page' => $landingPage,
+            'landing_page' => self::serializeLandingPagePayload($resource, $landingPage),
         ]);
+    }
+
+    /**
+     * Return the normalized landing page contract exposed to API consumers.
+     *
+     * Legacy Physical Object pages may still be stored with the old default
+     * resource renderer and stale field combinations. The GET endpoint exposes
+     * the same effective contract that update()/preview/public rendering use,
+     * so clients can safely round-trip the payload without reimplementing the
+     * normalization logic on their side.
+     *
+     * @return array<string, mixed>
+     */
+    public static function serializeLandingPagePayload(Resource $resource, LandingPage $landingPage): array
+    {
+        $resource->loadMissing('resourceType');
+
+        $resourceTypeSlug = $resource->resourceType?->slug;
+        $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
+        $effectiveLandingPageTemplate = self::templateSupportsCustomTemplateId($effectiveTemplate)
+            ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
+            : null;
+
+        $payload = $landingPage->toArray();
+        $payload['template'] = $effectiveTemplate;
+        $payload['landing_page_template_id'] = $effectiveLandingPageTemplate?->id;
+        $payload['landing_page_template'] = $effectiveLandingPageTemplate?->toArray();
+        $payload['ftp_url'] = self::templateSupportsFtpUrl($effectiveTemplate)
+            ? $landingPage->ftp_url
+            : null;
+        $payload['links'] = self::templateSupportsLinks($effectiveTemplate)
+            ? $landingPage->links->values()->toArray()
+            : [];
+
+        if (self::templateSupportsExternalFields($effectiveTemplate)) {
+            $payload['external_domain_id'] = $landingPage->external_domain_id;
+            $payload['external_path'] = $landingPage->external_path;
+            $payload['external_domain'] = $landingPage->externalDomain?->toArray();
+            $payload['external_url'] = $landingPage->external_url;
+        } else {
+            $payload['external_domain_id'] = null;
+            $payload['external_path'] = null;
+            $payload['external_domain'] = null;
+            $payload['external_url'] = null;
+        }
+
+        return $payload;
     }
 
     /**

@@ -184,6 +184,10 @@
         ],
         "fixes": [
             {
+                "title": "IGSN Landing Page Setup Now Hides Resource-Only Template",
+                "description": "The 'Setup IGSN Landing Page' modal on /igsns no longer offers the built-in 'Default GFZ Data Services' template, which is intended for regular resources only. Physical samples now consistently default to the IGSN-specific template in the UI, legacy invalid selections are remapped to the IGSN template when the modal loads, and the backend rejects create, update, and preview requests that try to assign the resource-only template to Physical Object records."
+            },
+            {
                 "title": "DataCite import no longer fails on long edition values",
                 "description": "Widened the related_items.edition column from VARCHAR(64) to VARCHAR(255). Previously, importing DOIs from the DataCite API could fail with 'SQLSTATE[22001]: Data too long for column edition' when a related item carried a long conference or edition description, causing the entire import job to abort and roll back the resource."
             },

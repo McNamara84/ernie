@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\LandingPagePreviewController;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Models\User;
 use Illuminate\Support\Facades\Session;
 
@@ -80,6 +82,65 @@ describe('Session Preview Creation', function () {
         $sessionKey = "landing_page_preview.{$this->resource->id}";
         expect(Session::has($sessionKey))->toBeFalse();
     });
+
+    test('stores igsn custom template preview data and clears ftp_url for Physical Object resources', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create([
+            'created_by_user_id' => $this->user->id,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+            'logo_path' => 'landing-page-logos/test/igsn-logo.png',
+        ]);
+
+        $response = $this->postJson("/resources/{$resource->id}/landing-page/preview", [
+            'template' => 'default_gfz_igsn',
+            'landing_page_template_id' => $template->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/should-clear.zip',
+        ]);
+
+        $response->assertCreated();
+
+        $sessionKey = "landing_page_preview.{$resource->id}";
+        $sessionData = Session::get($sessionKey);
+
+        expect($sessionData)
+            ->toHaveKey('landing_page_template_id', $template->id)
+            ->toHaveKey('ftp_url', null);
+    });
+
+    test('allows a deleted custom template id in the preview payload and renders without a custom override', function () {
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+        ]);
+        $deletedTemplateId = $template->id;
+        $template->delete();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $deletedTemplateId,
+        ]);
+
+        $response->assertCreated();
+
+        $sessionKey = "landing_page_preview.{$this->resource->id}";
+        expect(Session::get($sessionKey))
+            ->toHaveKey('landing_page_template_id', $deletedTemplateId);
+
+        $previewResponse = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $previewResponse->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('sectionOrder', null)
+                ->where('customLogoUrl', null)
+            );
+    });
 });
 
 describe('Session Preview Display', function () {
@@ -121,6 +182,149 @@ describe('Session Preview Display', function () {
             ->where('landingPage.template', 'default_gfz')
             ->where('landingPage.ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
         );
+    });
+
+    test('returns 404 when a stale preview session contains the external template', function () {
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'external',
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertStatus(404);
+    });
+
+    test('preview display passes custom section order and logo for igsn custom templates', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create([
+            'created_by_user_id' => $this->user->id,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/custom-igsn-logo.png',
+        ]);
+
+        Session::put("landing_page_preview.{$resource->id}", [
+            'template' => 'default_gfz_igsn',
+            'landing_page_template_id' => $template->id,
+            'ftp_url' => null,
+            'resource_id' => $resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$resource->id}/landing-page/preview");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->has('sectionOrder', fn ($order) => $order
+                    ->has('rightColumn')
+                    ->has('leftColumn')
+                )
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-igsn-logo.png'))
+            );
+    });
+
+    test('preview display normalizes a legacy Physical Object session to the igsn renderer and keeps a matching igsn custom template', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create([
+            'created_by_user_id' => $this->user->id,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->user->id,
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/normalized-igsn-logo.png',
+        ]);
+
+        Session::put("landing_page_preview.{$resource->id}", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+            'links' => [['url' => 'https://example.org/file.zip', 'label' => 'Legacy link', 'position' => 0]],
+            'resource_id' => $resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$resource->id}/landing-page/preview");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.links', [])
+                ->has('sectionOrder', fn ($order) => $order
+                    ->has('rightColumn')
+                    ->has('leftColumn')
+                )
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/normalized-igsn-logo.png'))
+            );
+    });
+
+    test('preview display clears a mismatched custom template when the session renderer is normalized', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+        $resource = Resource::factory()->create([
+            'created_by_user_id' => $this->user->id,
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+            'logo_path' => 'landing-page-logos/test/resource-logo.png',
+        ]);
+
+        Session::put("landing_page_preview.{$resource->id}", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+            'resource_id' => $resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$resource->id}/landing-page/preview");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('customLogoUrl', null)
+                ->where('sectionOrder', null)
+            );
+    });
+
+    test('preview display ignores built-in default template ids passed as custom overrides', function () {
+        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $defaultTemplate->id,
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertStatus(200)
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('customLogoUrl', null)
+                ->where('sectionOrder', null)
+            );
     });
 });
 

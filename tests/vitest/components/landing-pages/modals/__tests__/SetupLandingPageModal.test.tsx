@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+import { toast } from 'sonner';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,6 +38,7 @@ const mockedAxiosGet = axios.get as Mock;
 const mockedAxiosPost = axios.post as Mock;
 const mockedAxiosPut = axios.put as Mock;
 const mockedAxiosDelete = axios.delete as Mock;
+const mockedToastError = toast.error as Mock;
 
 vi.mock('@inertiajs/react', () => ({
     router: {
@@ -52,6 +54,11 @@ vi.mock('sonner', () => ({
 }));
 
 describe('SetupLandingPageModal', () => {
+    const mockDomains = [
+        { id: 1, domain: 'https://example.org/' },
+        { id: 2, domain: 'https://resources.example.org/' },
+    ];
+
     const mockResource = {
         id: 123,
         doi: '10.5880/GFZ.TEST.2025.001',
@@ -184,6 +191,35 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('treats the human-readable Physical Object name as an IGSN resource', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            await user.click(screen.getByRole('combobox'));
+
+            const optionsList = screen.getByRole('listbox');
+            expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
+            expect(optionsList).toHaveTextContent('External Landing Page');
+            expect(optionsList).not.toHaveTextContent('Default GFZ Data Services');
+            expect(screen.queryByLabelText(/Download URL \(FTP\)/i)).not.toBeInTheDocument();
+        });
+
         it('loads existing configuration', async () => {
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
@@ -199,6 +235,54 @@ describe('SetupLandingPageModal', () => {
                 const ftpInput = screen.getByLabelText(/Download URL \(FTP\)/i) as HTMLInputElement;
                 expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
             });
+        });
+
+        it('normalizes a legacy Physical Object config passed via props to the IGSN template', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    existingConfig={{ ...mockExistingConfig, template: 'default_gfz', landing_page_template_id: null }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            expect(screen.queryByLabelText(/Download URL \(FTP\)/i)).not.toBeInTheDocument();
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+
+            expect(mockedAxiosPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
         });
     });
 
@@ -217,6 +301,138 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 expect(axios.get).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                );
+            });
+        });
+
+        it('normalizes a legacy Physical Object config loaded from the server before update', async () => {
+            const legacyConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                landing_page_template_id: null,
+                status: 'draft' as const,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: legacyConfig } });
+                }
+
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 404 },
+                });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...legacyConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+
+            expect(mockedAxiosPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
+        });
+
+        it('preserves a matching igsn custom template when a legacy Physical Object config is normalized', async () => {
+            const legacyConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                landing_page_template_id: 9,
+                landing_page_template: {
+                    id: 9,
+                    name: 'Legacy Sample Layout',
+                    slug: 'legacy-sample-layout',
+                    is_default: false,
+                    template_type: 'igsn' as const,
+                    logo_path: null,
+                    logo_url: null,
+                    right_column_order: [],
+                    left_column_order: [],
+                },
+                status: 'draft' as const,
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [legacyConfig.landing_page_template],
+                        },
+                    });
+                }
+
+                if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: legacyConfig } });
+                }
+
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 404 },
+                });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...legacyConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Legacy Sample Layout');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
+
+            await waitFor(() => {
+                expect(axios.put).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 9,
+                    }),
                 );
             });
         });
@@ -269,6 +485,50 @@ describe('SetupLandingPageModal', () => {
                     }),
                 );
             });
+        });
+
+        it('clears ftp_url when a Physical Object is saved through the shared modal', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        ftp_url: null,
+                        status: 'draft',
+                    },
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(axios.post).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                    }),
+                );
+            });
+
+            expect(mockedAxiosPost.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
         });
 
         it('updates existing landing page config', async () => {
@@ -549,6 +809,151 @@ describe('SetupLandingPageModal', () => {
                 '_blank',
                 'noopener,noreferrer',
             );
+
+            vi.unstubAllGlobals();
+        });
+
+        it('does not treat a normalized legacy Physical Object config as unsaved for preview generation', async () => {
+            const legacyConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'default_gfz',
+                status: 'draft',
+                preview_url: 'http://localhost/legacy-preview',
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    existingConfig={legacyConfig}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+            });
+
+            expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();
+
+            const previewButtons = screen.getAllByRole('button', { name: /Preview/i });
+            const previewButton = previewButtons.find(
+                (button) => button.className.includes('outline') || button.textContent?.trim() === 'Preview'
+            );
+
+            expect(previewButton).toBeDefined();
+            await user.click(previewButton!);
+
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+            expect(mockedToastError).not.toHaveBeenCalled();
+
+            vi.unstubAllGlobals();
+        });
+
+        it('shows the resulting external URL using the normalized previewable path', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+            await user.click(screen.getByText('External Landing Page'));
+            await user.click(screen.getByLabelText(/Domain/i));
+            await user.click(screen.getByText('https://example.org/'));
+            await user.type(screen.getByLabelText(/Path/i), '  /dataset/preview  ');
+
+            expect(screen.getByText('Resulting URL')).toBeInTheDocument();
+            expect(screen.getByText('https://example.org/dataset/preview')).toBeInTheDocument();
+
+            await user.clear(screen.getByLabelText(/Path/i));
+            await user.type(screen.getByLabelText(/Path/i), '   ');
+
+            expect(screen.queryByText('Resulting URL')).not.toBeInTheDocument();
+            expect(screen.queryByText('https://example.org/dataset/preview')).not.toBeInTheDocument();
+        });
+
+        it('does not fall back to the saved external URL when unsaved edits clear the external path', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: mockDomains } });
+                }
+
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+
+            const mockWindowOpen = vi.fn();
+            vi.stubGlobal('open', mockWindowOpen);
+
+            const user = userEvent.setup();
+            const existingExternalConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                template: 'external',
+                ftp_url: null,
+                external_domain_id: 1,
+                external_path: '/saved-resource',
+                external_url: 'https://example.org/saved-resource',
+            };
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    existingConfig={existingExternalConfig}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Path/i)).toHaveValue('/saved-resource');
+            });
+
+            await user.clear(screen.getByLabelText(/Path/i));
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockWindowOpen).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith('Please select a domain and enter a path to preview the external URL.');
 
             vi.unstubAllGlobals();
         });
@@ -934,6 +1339,178 @@ describe('SetupLandingPageModal', () => {
                     }),
                 );
             });
+        });
+
+        it('keeps an igsn custom template id in the save payload for Physical Object resources', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 7,
+                                    name: 'Custom Sample Layout',
+                                    slug: 'custom-sample-layout',
+                                    is_default: false,
+                                    template_type: 'igsn',
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: {
+                        ...mockExistingConfig,
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 7,
+                        landing_page_template: {
+                            id: 7,
+                            name: 'Custom Sample Layout',
+                            slug: 'custom-sample-layout',
+                            is_default: false,
+                            template_type: 'igsn',
+                            logo_path: null,
+                            logo_url: null,
+                            right_column_order: [],
+                            left_column_order: [],
+                        },
+                        ftp_url: null,
+                        status: 'draft',
+                    },
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Custom Sample Layout')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Custom Sample Layout'));
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 7,
+                    }),
+                );
+            });
+
+            expect(mockedAxiosPost.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
+        });
+
+        it('keeps an igsn custom template id in the preview payload for Physical Object resources', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [
+                                {
+                                    id: 8,
+                                    name: 'Preview Sample Layout',
+                                    slug: 'preview-sample-layout',
+                                    is_default: false,
+                                    template_type: 'igsn',
+                                    logo_url: null,
+                                    right_column_order: [],
+                                    left_column_order: [],
+                                },
+                            ],
+                        },
+                    });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockImplementation((url: string) => {
+                if (url.includes('/landing-page/preview')) {
+                    return Promise.resolve({ data: { preview_url: '/resources/123/landing-page/preview' } });
+                }
+
+                return Promise.resolve({
+                    data: {
+                        message: 'Landing page created',
+                        landing_page: { ...mockExistingConfig, status: 'draft' },
+                        preview_url: '/preview',
+                    },
+                });
+            });
+
+            const mockOpen = vi.fn();
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={{ ...mockResource, resourcetypegeneral: 'Physical Object' }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByLabelText(/Landing Page Template/i));
+
+            await waitFor(() => {
+                expect(screen.getByText('Preview Sample Layout')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByText('Preview Sample Layout'));
+
+            const previewButtons = screen.getAllByRole('button', { name: /Preview/i });
+            const previewButton = previewButtons.find(
+                (btn) => btn.className.includes('outline') || btn.textContent?.trim() === 'Preview'
+            );
+
+            expect(previewButton).toBeDefined();
+            await user.click(previewButton!);
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
+                    expect.objectContaining({
+                        template: 'default_gfz_igsn',
+                        landing_page_template_id: 8,
+                    }),
+                );
+            });
+
+            vi.unstubAllGlobals();
         });
 
         it('resets landing_page_template_id when switching to built-in template', async () => {
@@ -1395,6 +1972,71 @@ describe('SetupLandingPageModal', () => {
 
             const updateButton = screen.getByRole('button', { name: /Update/i });
             await user.click(updateButton);
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({
+                        template: 'default_gfz',
+                        landing_page_template_id: null,
+                    }),
+                );
+            });
+        });
+
+        it('drops a persisted built-in default template id when the loaded relation is the default template', async () => {
+            const serverConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+                template: 'default_gfz',
+                landing_page_template_id: 1,
+                landing_page_template: {
+                    id: 1,
+                    name: 'Default GFZ Data Services',
+                    slug: 'default_gfz',
+                    is_default: true,
+                    template_type: 'resource',
+                    logo_path: null,
+                    logo_url: null,
+                    right_column_order: [],
+                    left_column_order: [],
+                },
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve(customTemplatesResponse);
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.resolve({ data: { landing_page: serverConfig } });
+            });
+            mockedAxiosPut.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...serverConfig,
+                        landing_page_template_id: null,
+                    },
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/Landing Page Template/i)).toHaveTextContent('Default GFZ Data Services');
+            });
+
+            await user.click(screen.getByRole('button', { name: /Update/i }));
 
             await waitFor(() => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(

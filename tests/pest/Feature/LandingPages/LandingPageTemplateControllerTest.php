@@ -133,7 +133,7 @@ describe('Clone', function (): void {
             ->and($template->is_default)->toBeFalse()
             ->and($template->created_by)->toBe($this->admin->id)
             ->and($template->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
-            ->and($template->left_column_order)->toBe(LandingPageTemplate::LEFT_COLUMN_SECTIONS);
+            ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS);
     });
 
     it('rejects duplicate names', function (): void {
@@ -256,7 +256,8 @@ describe('Clone', function (): void {
 
         expect($template)->not->toBeNull()
             ->and($template?->is_default)->toBeFalse()
-            ->and($template?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN);
+            ->and($template?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
+            ->and($template?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
     });
 
     it('rejects invalid template_type values', function (): void {
@@ -291,7 +292,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = locationFirstRightColumnOrder();
-        $newLeftOrder = ['contact', 'files', 'general', 'acquisition', 'model_description', 'related_work'];
+        $newLeftOrder = ['contact', 'files', 'related_work', 'model_description'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -372,6 +373,17 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$template->id}", [
                 'name' => 'Valid Name',
                 'left_column_order' => ['files', 'nonexistent'],
+            ])
+            ->assertJsonValidationErrors(['left_column_order']);
+    });
+
+    it('rejects files in the left column for igsn templates', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'name' => 'Valid Name',
+                'left_column_order' => ['files', 'contact', 'model_description', 'related_work', 'general'],
             ])
             ->assertJsonValidationErrors(['left_column_order']);
     });
@@ -531,6 +543,29 @@ describe('API List', function (): void {
                         'left_column_order',
                     ],
                 ],
+            ]);
+    });
+
+    it('normalizes legacy igsn left-column orders in the API list response', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->admin->id,
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+        ]);
+
+        $response = $this->actingAs($this->curator)
+            ->getJson('/api/landing-page-templates');
+
+        $serializedTemplate = collect($response->json('templates'))
+            ->firstWhere('id', $template->id);
+
+        expect($serializedTemplate)
+            ->not->toBeNull()
+            ->and($serializedTemplate['left_column_order'])->toBe([
+                'contact',
+                'model_description',
+                'related_work',
+                'general',
+                'acquisition',
             ]);
     });
 
@@ -754,7 +789,14 @@ describe('Factory', function (): void {
             ->and($template->logo_path)->toBeNull()
             ->and($template->logo_filename)->toBeNull()
             ->and($template->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
-            ->and($template->left_column_order)->toBe(LandingPageTemplate::LEFT_COLUMN_SECTIONS);
+            ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS);
+    });
+
+    it('creates an igsn template with igsn left-column defaults', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create(['created_by' => $this->admin->id]);
+
+        expect($template->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
+            ->and($template->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
     });
 
     it('creates a default template via state', function (): void {
@@ -800,7 +842,7 @@ describe('Seeder', function (): void {
             ->and($default->name)->toBe('Default GFZ Data Services')
             ->and($default->is_default)->toBeTrue()
             ->and($default->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
-            ->and($default->left_column_order)->toBe(LandingPageTemplate::LEFT_COLUMN_SECTIONS);
+            ->and($default->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS);
     });
 
     it('does not duplicate default template when seeder runs again', function (): void {
@@ -818,7 +860,8 @@ describe('Seeder', function (): void {
         expect($igsn)->not->toBeNull()
             ->and($igsn?->name)->toBe(LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME)
             ->and($igsn?->is_default)->toBeTrue()
-            ->and($igsn?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN);
+            ->and($igsn?->template_type)->toBe(LandingPageTemplate::TEMPLATE_TYPE_IGSN)
+            ->and($igsn?->left_column_order)->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
     });
 
     it('does not duplicate the IGSN default when seeder runs again', function (): void {
@@ -906,7 +949,7 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 6 required left column sections
+        // Only 2 of 4 required left column sections
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],

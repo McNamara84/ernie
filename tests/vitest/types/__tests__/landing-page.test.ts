@@ -6,6 +6,7 @@ import {
     getIgsnTemplateOptions,
     getTemplateMetadata,
     getTemplateOptions,
+    isIgsnLandingPageResourceType,
     isValidTemplate,
     LANDING_PAGE_TEMPLATES,
 } from '@/types/landing-page';
@@ -29,7 +30,8 @@ describe('Landing Page Template Registry', () => {
                 description: expect.any(String),
                 category: 'official',
                 version: expect.any(String),
-                resourceTypes: null, // Available for all
+                scopes: ['resource'],
+                resourceTypes: null,
             });
         });
 
@@ -42,6 +44,7 @@ describe('Landing Page Template Registry', () => {
                 description: expect.any(String),
                 category: 'official',
                 version: expect.any(String),
+                scopes: ['igsn'],
                 resourceTypes: ['PhysicalObject'], // Only for IGSNs
             });
         });
@@ -97,11 +100,11 @@ describe('Landing Page Template Registry', () => {
             expect(igsnOption?.label).toBe('Default GFZ IGSN Template');
         });
 
-        it('should include both templates when resourceType is PhysicalObject', () => {
+        it('should only include IGSN-compatible built-in templates when resourceType is PhysicalObject', () => {
             const options = getTemplateOptions('PhysicalObject');
 
-            expect(options.length).toBe(3);
-            expect(options.map((o) => o.value)).toContain('default_gfz');
+            expect(options.length).toBe(2);
+            expect(options.map((o) => o.value)).not.toContain('default_gfz');
             expect(options.map((o) => o.value)).toContain('default_gfz_igsn');
             expect(options.map((o) => o.value)).toContain('external');
         });
@@ -132,11 +135,11 @@ describe('Landing Page Template Registry', () => {
             expect(igsnOption?.label).toBe('Default GFZ IGSN Template');
         });
 
-        it('should also include unrestricted templates', () => {
+        it('should exclude resource-only templates', () => {
             const options = getIgsnTemplateOptions();
             const defaultOption = options.find((opt) => opt.value === 'default_gfz');
 
-            expect(defaultOption).toBeDefined();
+            expect(defaultOption).toBeUndefined();
         });
 
         it('should be equivalent to getTemplateOptions with PhysicalObject', () => {
@@ -144,6 +147,25 @@ describe('Landing Page Template Registry', () => {
             const physicalObjectOptions = getTemplateOptions('PhysicalObject');
 
             expect(igsnOptions).toEqual(physicalObjectOptions);
+        });
+
+        it('should treat the human-readable Physical Object name as IGSN scope', () => {
+            expect(getTemplateOptions('Physical Object').map((option) => option.value)).toEqual(
+                getTemplateOptions('PhysicalObject').map((option) => option.value),
+            );
+        });
+    });
+
+    describe('isIgsnLandingPageResourceType()', () => {
+        it('recognizes Physical Object variants', () => {
+            expect(isIgsnLandingPageResourceType('PhysicalObject')).toBe(true);
+            expect(isIgsnLandingPageResourceType('Physical Object')).toBe(true);
+            expect(isIgsnLandingPageResourceType('physical-object')).toBe(true);
+        });
+
+        it('rejects non-IGSN resource types', () => {
+            expect(isIgsnLandingPageResourceType('Dataset')).toBe(false);
+            expect(isIgsnLandingPageResourceType(undefined)).toBe(false);
         });
     });
 

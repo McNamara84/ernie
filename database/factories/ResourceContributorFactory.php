@@ -20,10 +20,12 @@ class ResourceContributorFactory extends Factory
 
     /**
      * Configure the model factory.
+     *
+     * @return $this
      */
-    public function configure(): static
+    public function configure()
     {
-        return $this->afterCreating(function (ResourceContributor $contributor): void {
+        $this->afterCreating = $this->afterCreating->concat([function (ResourceContributor $contributor): void {
             // Assign default "Other" contributor type via pivot table if none assigned yet
             if (! $contributor->relationLoaded('contributorTypes') || $contributor->contributorTypes->isEmpty()) {
                 $otherType = ContributorType::where('slug', 'Other')->first()
@@ -33,7 +35,9 @@ class ResourceContributorFactory extends Factory
                     ]);
                 $contributor->contributorTypes()->sync([$otherType->id]);
             }
-        });
+        }]);
+
+        return $this;
     }
 
     /**

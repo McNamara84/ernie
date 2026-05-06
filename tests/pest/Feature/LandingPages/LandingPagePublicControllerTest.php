@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use Illuminate\Support\Facades\Cache;
 
 covers(LandingPagePublicController::class);
@@ -501,6 +503,164 @@ describe('Landing Page with Custom Template', function () {
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz')
+                ->where('sectionOrder', null)
+                ->where('customLogoUrl', null)
+            );
+    });
+
+    test('normalizes legacy Physical Object landing pages to the igsn renderer and keeps matching igsn custom templates', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.igsn.001',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/igsn-logo.png',
+        ]);
+        $domain = LandingPageDomain::factory()->withDomain('https://legacy.example.org/')->create();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.igsn.001',
+                'slug' => 'legacy-igsn-template-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => $template->id,
+                'ftp_url' => 'https://datapub.gfz-potsdam.de/download/legacy.zip',
+                'external_domain_id' => $domain->id,
+                'external_path' => 'stale/external/path',
+            ]);
+        $landingPage->links()->create([
+            'url' => 'https://example.org/file.zip',
+            'label' => 'Legacy link',
+            'position' => 0,
+        ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.links', [])
+                ->where('landingPage.external_domain_id', null)
+                ->where('landingPage.external_path', null)
+                ->where('landingPage.external_domain', null)
+                ->where('landingPage.external_url', null)
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->has('sectionOrder', fn ($order) => $order
+                    ->has('rightColumn')
+                    ->has('leftColumn')
+                )
+                ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
+            );
+    });
+
+    test('normalizes legacy igsn custom template left-column order before rendering', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.igsn.001a',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+        ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.igsn.001a',
+                'slug' => 'legacy-igsn-left-order-test',
+                'template' => 'default_gfz_igsn',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition'])
+            );
+    });
+
+    test('normalizes legacy Physical Object landing pages and clears mismatched resource custom templates', function () {
+        $physicalObjectType = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/test.public.igsn.002',
+            'resource_type_id' => $physicalObjectType->id,
+        ]);
+
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+            'logo_path' => 'landing-page-logos/test/resource-logo.png',
+        ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/test.public.igsn.002',
+                'slug' => 'legacy-igsn-mismatch-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => $template->id,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz_igsn')
+                ->where('landingPage.template', 'default_gfz_igsn')
+                ->where('landingPage.landing_page_template_id', null)
+                ->where('sectionOrder', null)
+                ->where('customLogoUrl', null)
+            );
+    });
+
+    test('ignores built-in default template ids in the public payload', function () {
+        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.003',
+                'slug' => 'default-template-id-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => $defaultTemplate->id,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', null)
                 ->where('sectionOrder', null)
                 ->where('customLogoUrl', null)
             );
