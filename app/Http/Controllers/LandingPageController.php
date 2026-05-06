@@ -477,7 +477,7 @@ class LandingPageController extends Controller
 
             if (self::templateSupportsCustomTemplateId($effectiveTemplate)) {
                 $landingPage->landing_page_template_id = $effectiveLandingPageTemplateId;
-            } elseif ($templateChanged || array_key_exists('landing_page_template_id', $validated)) {
+            } else {
                 $landingPage->landing_page_template_id = null;
             }
 

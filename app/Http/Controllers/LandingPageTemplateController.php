@@ -38,7 +38,7 @@ class LandingPageTemplateController extends Controller
             ->get();
 
         return Inertia::render('landing-page-templates', [
-            'templates' => $templates,
+            'templates' => $this->serializeTemplates($templates),
         ]);
     }
 
@@ -70,7 +70,7 @@ class LandingPageTemplateController extends Controller
 
         return response()->json([
             'message' => 'Template created successfully',
-            'template' => $template,
+            'template' => $this->serializeTemplate($template),
         ], 201);
     }
 
@@ -109,7 +109,7 @@ class LandingPageTemplateController extends Controller
 
         return response()->json([
             'message' => 'Template updated successfully',
-            'template' => $landingPageTemplate,
+            'template' => $this->serializeTemplate($landingPageTemplate),
         ]);
     }
 
@@ -191,7 +191,7 @@ class LandingPageTemplateController extends Controller
 
         return response()->json([
             'message' => 'Logo uploaded successfully',
-            'template' => $landingPageTemplate,
+            'template' => $this->serializeTemplate($landingPageTemplate),
         ]);
     }
 
@@ -220,7 +220,7 @@ class LandingPageTemplateController extends Controller
 
         return response()->json([
             'message' => 'Logo removed successfully',
-            'template' => $landingPageTemplate,
+            'template' => $this->serializeTemplate($landingPageTemplate),
         ]);
     }
 
@@ -251,7 +251,36 @@ class LandingPageTemplateController extends Controller
             ]);
 
         return response()->json([
-            'templates' => $templates,
+            'templates' => $this->serializeTemplates($templates),
         ]);
+    }
+
+    /**
+     * @param  iterable<LandingPageTemplate>  $templates
+     * @return list<array<string, mixed>>
+     */
+    private function serializeTemplates(iterable $templates): array
+    {
+        $serialized = [];
+
+        foreach ($templates as $template) {
+            $serialized[] = $this->serializeTemplate($template);
+        }
+
+        return $serialized;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeTemplate(LandingPageTemplate $template): array
+    {
+        $payload = $template->toArray();
+        $payload['left_column_order'] = LandingPageTemplate::normalizeLeftColumnOrder(
+            $template->left_column_order,
+            $template->template_type,
+        );
+
+        return $payload;
     }
 }

@@ -546,6 +546,29 @@ describe('API List', function (): void {
             ]);
     });
 
+    it('normalizes legacy igsn left-column orders in the API list response', function (): void {
+        $template = LandingPageTemplate::factory()->igsn()->create([
+            'created_by' => $this->admin->id,
+            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+        ]);
+
+        $response = $this->actingAs($this->curator)
+            ->getJson('/api/landing-page-templates');
+
+        $serializedTemplate = collect($response->json('templates'))
+            ->firstWhere('id', $template->id);
+
+        expect($serializedTemplate)
+            ->not->toBeNull()
+            ->and($serializedTemplate['left_column_order'])->toBe([
+                'contact',
+                'model_description',
+                'related_work',
+                'general',
+                'acquisition',
+            ]);
+    });
+
     it('ensures both system default templates exist when listing', function (): void {
         // Remove all templates to simulate a fresh environment.
         LandingPageTemplate::query()->delete();
