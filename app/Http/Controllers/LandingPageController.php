@@ -52,6 +52,41 @@ class LandingPageController extends Controller
         return $template === 'external';
     }
 
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, list<string>>
+     */
+    private static function unsupportedFieldErrorsForTemplate(array $validated, string $template): array
+    {
+        $unsupportedFields = [];
+
+        if (array_key_exists('ftp_url', $validated) && ! self::templateSupportsFtpUrl($template)) {
+            $unsupportedFields['ftp_url'] = [
+                'The ftp_url field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('links', $validated) && ! self::templateSupportsLinks($template)) {
+            $unsupportedFields['links'] = [
+                'The links field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('external_domain_id', $validated) && ! self::templateSupportsExternalFields($template)) {
+            $unsupportedFields['external_domain_id'] = [
+                'The external_domain_id field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('external_path', $validated) && ! self::templateSupportsExternalFields($template)) {
+            $unsupportedFields['external_path'] = [
+                'The external_path field is not supported for this landing page template.',
+            ];
+        }
+
+        return $unsupportedFields;
+    }
+
     public function __construct(
         private readonly KeywordSuggestionService $keywordService,
     ) {}
@@ -324,36 +359,16 @@ class LandingPageController extends Controller
         // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
-        $landingPage->load(['externalDomain', 'links', 'landingPageTemplate']);
+        $landingPage->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
 
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
             $this->keywordService->invalidateCache();
         }
 
-        // Determine status string for API response
-        $status = $landingPage->is_published ? 'published' : 'draft';
-
         return response()->json([
             'message' => 'Landing page created successfully',
-            'landing_page' => [
-                'id' => $landingPage->id,
-                'resource_id' => $landingPage->resource_id,
-                'doi_prefix' => $landingPage->doi_prefix,
-                'slug' => $landingPage->slug,
-                'template' => $landingPage->template,
-                'landing_page_template_id' => $landingPage->landing_page_template_id,
-                'ftp_url' => $landingPage->ftp_url,
-                'external_domain_id' => $landingPage->external_domain_id,
-                'external_path' => $landingPage->external_path,
-                'external_url' => $landingPage->external_url,
-                'external_domain' => $landingPage->externalDomain,
-                'links' => $landingPage->links,
-                'status' => $status,
-                'preview_token' => $landingPage->preview_token,
-                'preview_url' => $landingPage->preview_url,
-                'public_url' => $landingPage->public_url,
-            ],
+            'landing_page' => self::serializeLandingPagePayload($resource, $landingPage),
         ], 201);
     }
 
@@ -390,39 +405,13 @@ class LandingPageController extends Controller
             : LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resource->resourceType?->slug);
         $templateChanged = $effectiveTemplate !== $landingPage->template;
 
-        if (! array_key_exists('template', $validated) && $templateChanged) {
-            $unsupportedFields = [];
+        $unsupportedFields = self::unsupportedFieldErrorsForTemplate($validated, $effectiveTemplate);
 
-            if (array_key_exists('ftp_url', $validated) && ! self::templateSupportsFtpUrl($effectiveTemplate)) {
-                $unsupportedFields['ftp_url'] = [
-                    'The ftp_url field is not supported when this landing page is normalized to the IGSN template.',
-                ];
-            }
-
-            if (array_key_exists('links', $validated) && ! self::templateSupportsLinks($effectiveTemplate)) {
-                $unsupportedFields['links'] = [
-                    'The links field is not supported when this landing page is normalized to the IGSN template.',
-                ];
-            }
-
-            if (array_key_exists('external_domain_id', $validated) && ! self::templateSupportsExternalFields($effectiveTemplate)) {
-                $unsupportedFields['external_domain_id'] = [
-                    'The external_domain_id field is not supported when this landing page is normalized to the IGSN template.',
-                ];
-            }
-
-            if (array_key_exists('external_path', $validated) && ! self::templateSupportsExternalFields($effectiveTemplate)) {
-                $unsupportedFields['external_path'] = [
-                    'The external_path field is not supported when this landing page is normalized to the IGSN template.',
-                ];
-            }
-
-            if ($unsupportedFields !== []) {
-                return response()->json([
-                    'message' => 'The request includes fields that are not supported for the normalized landing page template.',
-                    'errors' => $unsupportedFields,
-                ], 422);
-            }
+        if ($unsupportedFields !== []) {
+            return response()->json([
+                'message' => 'The request includes fields that are not supported for this landing page template.',
+                'errors' => $unsupportedFields,
+            ], 422);
         }
 
         $effectiveLandingPageTemplateId = null;

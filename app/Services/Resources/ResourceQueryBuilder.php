@@ -271,6 +271,8 @@ final readonly class ResourceQueryBuilder
      */
     public function applySorting(Builder $query, string $sortKey, string $sortDirection): void
     {
+        $direction = $sortDirection === 'asc' ? 'asc' : 'desc';
+
         switch ($sortKey) {
             case 'title':
                 // Sort by the MainTitle so the displayed title (see
@@ -292,13 +294,13 @@ final readonly class ResourceQueryBuilder
                             ['MainTitle']
                         );
                 })
-                    ->orderBy('titles.value', $sortDirection)
+                    ->orderBy('titles.value', $direction)
                     ->select('resources.*');
                 break;
 
             case 'resourcetypegeneral':
                 $query->leftJoin('resource_types', 'resources.resource_type_id', '=', 'resource_types.id')
-                    ->orderBy('resource_types.name', $sortDirection)
+                    ->orderBy('resource_types.name', $direction)
                     ->select('resources.*');
                 break;
 
@@ -338,11 +340,11 @@ final readonly class ResourceQueryBuilder
             case 'publicstatus':
                 // Status (draft/curation/review/published) is computed at serialization time,
                 // not stored in the DB, so we fall back to sorting by id.
-                $query->orderBy('id', $sortDirection);
+                $query->orderBy('id', $direction);
                 break;
 
             case 'year':
-                $query->orderBy('publication_year', $sortDirection);
+                $query->orderBy('publication_year', $direction);
                 break;
 
             case 'created_at':
@@ -393,7 +395,7 @@ final readonly class ResourceQueryBuilder
                 break;
 
             default:
-                $query->orderBy($sortKey, $sortDirection);
+                $query->orderBy($sortKey, $direction);
                 break;
         }
     }

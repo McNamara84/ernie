@@ -529,7 +529,10 @@ describe('Landing Page Template Assignment', function () {
             'landing_page_template_id' => $template->id,
         ]);
 
-        $response->assertStatus(201);
+        $response->assertStatus(201)
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.name', $template->name);
 
         $landingPage = $this->resource->fresh()->landingPage;
         expect($landingPage->landing_page_template_id)->toBe($template->id);
@@ -556,6 +559,43 @@ describe('Landing Page Template Assignment', function () {
 
         $landingPage = $this->resource->fresh()->landingPage;
         expect($landingPage->landing_page_template_id)->toBe($template->id);
+    });
+
+    test('rejects unsupported fields when explicitly switching to an external template', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/original.zip',
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
+            'links' => [
+                [
+                    'url' => 'https://example.org/details',
+                    'label' => 'Details',
+                    'position' => 0,
+                ],
+            ],
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJson([
+                'message' => 'The request includes fields that are not supported for this landing page template.',
+            ])
+            ->assertJsonValidationErrors(['ftp_url', 'links']);
+
+        expect($this->resource->fresh()->landingPage)
+            ->template->toBe('default_gfz')
+            ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/original.zip')
+            ->external_domain_id->toBeNull()
+            ->external_path->toBeNull();
     });
 
     test('can clear template assignment by setting null', function () {
