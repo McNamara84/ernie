@@ -31,6 +31,51 @@ describe('isConfigured', function (): void {
     });
 });
 
+describe('healthStatus', function (): void {
+    it('returns healthy when the F-UJI ui endpoint responds successfully', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/ui/' => Http::response('OK', 200),
+        ]);
+
+        expect($this->service->healthStatus())->toBe([
+            'healthy' => true,
+            'message' => null,
+        ]);
+    });
+
+    it('returns the configuration error when F-UJI is not configured', function (): void {
+        Config::set('fuji.enabled', false);
+
+        expect($this->service->healthStatus())->toBe([
+            'healthy' => false,
+            'message' => 'F-UJI is not configured.',
+        ]);
+    });
+
+    it('returns a failure message when the health endpoint is unsuccessful', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/ui/' => Http::response('Internal Server Error', 500),
+        ]);
+
+        $status = $this->service->healthStatus();
+
+        expect($status['healthy'])->toBeFalse()
+            ->and($status['message'])->toContain('status 500')
+            ->and($status['message'])->toContain('Internal Server Error');
+    });
+
+    it('returns a failure message when the health request cannot connect', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/ui/' => Http::failedConnection(),
+        ]);
+
+        $status = $this->service->healthStatus();
+
+        expect($status['healthy'])->toBeFalse()
+            ->and($status['message'])->toContain('F-UJI health check failed');
+    });
+});
+
 describe('assessIdentifier', function (): void {
     it('throws immediately when F-UJI is not configured', function (): void {
         Config::set('fuji.enabled', false);
@@ -86,7 +131,8 @@ describe('assessIdentifier', function (): void {
         ]);
 
         expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
-            ->toThrow(RuntimeException::class, 'status 500');
+            ->toThrow(RuntimeException::class, 'status 500')
+            ->toThrow(RuntimeException::class, 'Unavailable');
     });
 
     it('includes the configured metric version in the request payload', function (): void {

@@ -26,9 +26,12 @@ class AssessmentController extends Controller
     public function index(): Response
     {
         $physicalObjectTypeId = $this->resourceCache->getPhysicalObjectTypeId();
+        $fujiHealth = $this->fujiService->healthStatus();
 
         return Inertia::render('assessment', [
             'fujiConfigured' => $this->fujiService->isConfigured(),
+            'fujiHealthy' => $fujiHealth['healthy'],
+            'fujiStatusMessage' => $fujiHealth['message'],
             'resourcesNeedingAttention' => $this->buildAttentionList(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
             'igsnsNeedingAttention' => $this->buildAttentionList(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId),
             'resourceAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
@@ -48,10 +51,10 @@ class AssessmentController extends Controller
 
     public function checkAll(): JsonResponse
     {
-        if (! $this->fujiService->isConfigured()) {
-            return response()->json([
-                'error' => 'F-UJI is not configured.',
-            ], 503);
+        $fujiUnavailableResponse = $this->fujiUnavailableResponse();
+
+        if ($fujiUnavailableResponse !== null) {
+            return $fujiUnavailableResponse;
         }
 
         $result = [];
@@ -236,10 +239,10 @@ class AssessmentController extends Controller
 
     private function startScopeJob(string $scope): JsonResponse
     {
-        if (! $this->fujiService->isConfigured()) {
-            return response()->json([
-                'error' => 'F-UJI is not configured.',
-            ], 503);
+        $fujiUnavailableResponse = $this->fujiUnavailableResponse();
+
+        if ($fujiUnavailableResponse !== null) {
+            return $fujiUnavailableResponse;
         }
 
         $started = $this->attemptScopeDispatch($scope);
@@ -253,5 +256,18 @@ class AssessmentController extends Controller
         return response()->json([
             'jobId' => $started['jobId'],
         ]);
+    }
+
+    private function fujiUnavailableResponse(): ?JsonResponse
+    {
+        $fujiHealth = $this->fujiService->healthStatus();
+
+        if ($fujiHealth['healthy']) {
+            return null;
+        }
+
+        return response()->json([
+            'error' => $fujiHealth['message'] ?? 'F-UJI is configured but unhealthy.',
+        ], 503);
     }
 }

@@ -130,7 +130,7 @@ services:
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
-      - TIKA_LOG_PATH=/tmp/tika.log
+      - TIKA_LOG_PATH=/tmp/tika
     volumes:
       - ./docker/fuji-entrypoint.sh:/usr/local/bin/fuji-entrypoint.sh:ro
     networks:

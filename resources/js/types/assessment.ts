@@ -29,6 +29,8 @@ export interface AssessmentJobStatus {
 
 export interface AssessmentPageProps {
     fujiConfigured: boolean;
+    fujiHealthy: boolean;
+    fujiStatusMessage: string | null;
     resourcesNeedingAttention: AssessmentEntry[];
     igsnsNeedingAttention: AssessmentEntry[];
     resourceAssessmentSummary: AssessmentSummary;

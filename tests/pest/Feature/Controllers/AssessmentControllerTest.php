@@ -9,9 +9,12 @@ use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\Assessment\FujiAssessmentService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Mockery\MockInterface;
 
 covers(AssessmentController::class);
 
@@ -22,6 +25,9 @@ beforeEach(function (): void {
     Config::set('fuji.password', 'secret');
     Config::set('cache.default', 'array');
     Cache::flush();
+    Http::fake([
+        'https://fuji.test/fuji/api/v1/ui*' => Http::response('OK', 200),
+    ]);
 });
 
 describe('index', function () {
@@ -34,6 +40,9 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('assessment')
                 ->where('auth.user.can_access_assessment', true)
+                ->where('fujiConfigured', true)
+                ->where('fujiHealthy', true)
+                ->where('fujiStatusMessage', null)
                 ->has('resourcesNeedingAttention')
                 ->has('igsnsNeedingAttention')
             );
@@ -188,6 +197,23 @@ describe('checkResources', function () {
             ->assertStatus(503)
             ->assertJson(['error' => 'F-UJI is not configured.']);
     });
+
+    it('returns 503 when F-UJI is configured but unhealthy', function () {
+        $this->mock(FujiAssessmentService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('healthStatus')
+                ->once()
+                ->andReturn([
+                    'healthy' => false,
+                    'message' => 'F-UJI health check failed with status 500. Response: Internal Server Error',
+                ]);
+        });
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->post('/assessment/check-resources')
+            ->assertStatus(503)
+            ->assertJsonPath('error', fn (string $error): bool => str_contains($error, 'F-UJI health check failed with status 500.'));
+    });
 });
 
 describe('checkIgsns', function () {
@@ -201,6 +227,23 @@ describe('checkIgsns', function () {
 
         expect($response->json('jobId'))->toBeString()->toMatch('/^[a-f0-9-]{36}$/');
         Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
+    });
+
+    it('returns 503 when F-UJI is configured but unhealthy', function () {
+        $this->mock(FujiAssessmentService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('healthStatus')
+                ->once()
+                ->andReturn([
+                    'healthy' => false,
+                    'message' => 'F-UJI health check failed with status 500. Response: Internal Server Error',
+                ]);
+        });
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->post('/assessment/check-igsns')
+            ->assertStatus(503)
+            ->assertJsonPath('error', fn (string $error): bool => str_contains($error, 'F-UJI health check failed with status 500.'));
     });
 });
 
@@ -266,6 +309,23 @@ describe('checkAll', function () {
             ->post('/assessment/check-all')
             ->assertStatus(503)
             ->assertJson(['error' => 'F-UJI is not configured.']);
+    });
+
+    it('returns 503 when F-UJI is configured but unhealthy', function () {
+        $this->mock(FujiAssessmentService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('healthStatus')
+                ->once()
+                ->andReturn([
+                    'healthy' => false,
+                    'message' => 'F-UJI health check failed with status 500. Response: Internal Server Error',
+                ]);
+        });
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->post('/assessment/check-all')
+            ->assertStatus(503)
+            ->assertJsonPath('error', fn (string $error): bool => str_contains($error, 'F-UJI health check failed with status 500.'));
     });
 
     it('returns 409 when all assessment jobs are already running', function () {

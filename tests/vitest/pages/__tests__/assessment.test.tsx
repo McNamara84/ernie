@@ -60,6 +60,8 @@ function createAxiosError(status: number, data: Record<string, unknown> = {}) {
 function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPageProps {
     return {
         fujiConfigured: true,
+        fujiHealthy: true,
+        fujiStatusMessage: null,
         resourcesNeedingAttention: [
             {
                 id: 1,
@@ -482,11 +484,20 @@ describe('Assessment page', () => {
     });
 
     it('disables all check buttons when F-UJI is not configured', () => {
-        render(<AssessmentPage {...makeProps({ fujiConfigured: false })} />);
+        render(<AssessmentPage {...makeProps({ fujiConfigured: false, fujiHealthy: false, fujiStatusMessage: 'F-UJI is not configured.' })} />);
 
         expect(screen.getByRole('button', { name: 'Check all' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Check Resources' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeDisabled();
         expect(screen.getByText('F-UJI is not configured for this environment.')).toBeInTheDocument();
+    });
+
+    it('disables all check buttons and shows the health message when F-UJI is unhealthy', () => {
+        render(<AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI health check failed with status 500.' })} />);
+
+        expect(screen.getByRole('button', { name: 'Check all' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Check Resources' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeDisabled();
+        expect(screen.getByText('F-UJI health check failed with status 500.')).toBeInTheDocument();
     });
 });
