@@ -1,4 +1,4 @@
-import { validate as doiValidate } from '@/routes/api/doi';
+import { validate as doiValidate } from '@/routes/api/doi/index';
 
 /**
  * Centralised QueryKey factory for TanStack Query.

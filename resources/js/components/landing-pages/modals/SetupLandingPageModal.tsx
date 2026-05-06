@@ -248,10 +248,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             const normalizedExternalPath = normalizeExternalPath(externalPath);
             const payload: Record<string, unknown> = {
                 template,
-                ftp_url: supportsFtpUrl ? ftpUrl || null : null,
                 status: isPublished ? 'published' : 'draft',
                 landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
             };
+
+            if (supportsFtpUrl) {
+                payload.ftp_url = ftpUrl || null;
+            }
 
             if (isExternal) {
                 payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;

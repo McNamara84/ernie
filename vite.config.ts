@@ -19,6 +19,7 @@ export default defineConfig(({ command }) => {
             react(),
             tailwindcss(),
             wayfinder({
+                command: 'php artisan ernie:wayfinder-generate',
                 formVariants: true,
             }),
         ],

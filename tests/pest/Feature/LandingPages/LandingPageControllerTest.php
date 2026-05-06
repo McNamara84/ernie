@@ -555,7 +555,10 @@ describe('Landing Page Template Assignment', function () {
             'landing_page_template_id' => $template->id,
         ]);
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.id', $template->id)
+            ->assertJsonPath('landing_page.landing_page_template.name', $template->name);
 
         $landingPage = $this->resource->fresh()->landingPage;
         expect($landingPage->landing_page_template_id)->toBe($template->id);

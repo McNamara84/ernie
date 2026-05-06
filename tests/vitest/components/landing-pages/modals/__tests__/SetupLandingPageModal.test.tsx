@@ -277,11 +277,12 @@ describe('SetupLandingPageModal', () => {
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                     expect.objectContaining({
                         template: 'default_gfz_igsn',
-                        ftp_url: null,
                         landing_page_template_id: null,
                     }),
                 );
             });
+
+            expect(mockedAxiosPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
         });
     });
 
@@ -354,11 +355,12 @@ describe('SetupLandingPageModal', () => {
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                     expect.objectContaining({
                         template: 'default_gfz_igsn',
-                        ftp_url: null,
                         landing_page_template_id: null,
                     }),
                 );
             });
+
+            expect(mockedAxiosPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
         });
 
         it('preserves a matching igsn custom template when a legacy Physical Object config is normalized', async () => {
@@ -522,10 +524,11 @@ describe('SetupLandingPageModal', () => {
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                     expect.objectContaining({
                         template: 'default_gfz_igsn',
-                        ftp_url: null,
                     }),
                 );
             });
+
+            expect(mockedAxiosPost.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
         });
 
         it('updates existing landing page config', async () => {
@@ -1418,10 +1421,11 @@ describe('SetupLandingPageModal', () => {
                     expect.objectContaining({
                         template: 'default_gfz_igsn',
                         landing_page_template_id: 7,
-                        ftp_url: null,
                     }),
                 );
             });
+
+            expect(mockedAxiosPost.mock.calls.at(-1)?.[1]).not.toHaveProperty('ftp_url');
         });
 
         it('keeps an igsn custom template id in the preview payload for Physical Object resources', async () => {

@@ -519,12 +519,13 @@ class LandingPageController extends Controller
         // Invalidate cache
         $this->invalidateCache($resource->id);
 
-        $freshLandingPage = $landingPage->fresh();
-        $freshLandingPage?->load(['externalDomain', 'files', 'links', 'landingPageTemplate']);
+        $freshLandingPage = LandingPage::query()
+            ->with(['externalDomain', 'files', 'links', 'landingPageTemplate'])
+            ->findOrFail($landingPage->id);
 
         return response()->json([
             'message' => 'Landing page updated successfully',
-            'landing_page' => $freshLandingPage,
+            'landing_page' => self::serializeLandingPagePayload($resource, $freshLandingPage),
         ]);
     }
 
