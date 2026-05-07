@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AddUserDialog } from '@/components/add-user-dialog';
+import { AssignGuidedToursDialog } from '@/components/assign-guided-tours-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,13 @@ interface UserData {
     created_at: string;
     last_seen_at: string | null;
     is_online: boolean;
+    guided_tour_assignments?: Array<{
+        guided_tour_id: number;
+        status: string;
+        assignment_source: string;
+        assigned_at: string | null;
+        completed_at: string | null;
+    }>;
 }
 
 interface RoleOption {
@@ -42,9 +50,18 @@ interface UsersIndexProps {
     available_roles: RoleOption[];
     can_promote_to_group_leader: boolean;
     can_create_users: boolean;
+    available_guided_tours: Array<{
+        id: number;
+        key: string;
+        version: number;
+        name: string;
+        description: string;
+        start_route: string;
+        target_roles: string[];
+    }>;
 }
 
-export default function Index({ users, available_roles, can_promote_to_group_leader, can_create_users }: UsersIndexProps) {
+export default function Index({ users, available_roles, can_promote_to_group_leader, can_create_users, available_guided_tours }: UsersIndexProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [processingUserId, setProcessingUserId] = useState<number | null>(null);
     const [isMounted, setIsMounted] = useState(false);
@@ -235,6 +252,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                             const availableRoles = getAvailableRolesForUser(user.id);
                                             const canChangeRole = user.id !== auth.user.id && availableRoles.length > 1;
                                             const lastSeenStatus = formatLastSeen(user);
+                                            const canAssignGuidedTours = ['curator', 'beginner'].includes(user.role);
 
                                             return (
                                                 <TableRow key={user.id}>
@@ -346,6 +364,13 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                 >
                                                                     <KeyRound className="h-4 w-4" />
                                                                 </Button>
+                                                            )}
+                                                            {canAssignGuidedTours && (
+                                                                <AssignGuidedToursDialog
+                                                                    user={user}
+                                                                    tours={available_guided_tours}
+                                                                    disabled={isProcessing}
+                                                                />
                                                             )}
                                                         </div>
                                                     </TableCell>

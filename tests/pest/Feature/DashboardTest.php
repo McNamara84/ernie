@@ -2,10 +2,12 @@
 
 use App\Enums\CacheKey;
 use App\Models\Affiliation;
+use App\Models\GuidedTour;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\UserGuidedTourAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
@@ -30,6 +32,72 @@ test('authenticated users can visit the dashboard', function () {
     $this->actingAs($user = User::factory()->create());
 
     $this->get(route('dashboard'))->assertOk();
+});
+
+test('dashboard provides pending guided tour autostart payload for eligible users', function () {
+    $user = User::factory()->beginner()->create();
+
+    $tour = GuidedTour::query()->create([
+        'key' => 'beginner-dashboard-main-menu',
+        'version' => 1,
+        'name' => 'Beginner Dashboard Tour',
+        'description' => 'Introduces the main dashboard and navigation entry points for beginner users.',
+        'start_route' => 'dashboard',
+        'target_roles' => ['beginner'],
+        'is_active' => true,
+        'auto_assign' => true,
+    ]);
+
+    UserGuidedTourAssignment::query()->create([
+        'user_id' => $user->id,
+        'guided_tour_id' => $tour->id,
+        'status' => 'pending',
+        'assignment_source' => 'automatic',
+        'assigned_at' => now(),
+    ]);
+
+    $this->withSession(['guided_tours.autostart_after_login' => true])
+        ->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->where('guidedTour.assignmentId', fn ($value) => is_int($value) && $value > 0)
+            ->where('guidedTour.key', 'beginner-dashboard-main-menu')
+            ->where('guidedTour.version', 1)
+            ->where('guidedTour.startRoute', 'dashboard')
+            ->where('guidedTour.autostart', true)
+            ->where('guidedTour.status', 'pending')
+        );
+});
+
+test('dashboard does not provide guided tour payload when autostart session flag is absent', function () {
+    $user = User::factory()->beginner()->create();
+
+    $tour = GuidedTour::query()->create([
+        'key' => 'beginner-dashboard-main-menu',
+        'version' => 1,
+        'name' => 'Beginner Dashboard Tour',
+        'description' => 'Introduces the main dashboard and navigation entry points for beginner users.',
+        'start_route' => 'dashboard',
+        'target_roles' => ['beginner'],
+        'is_active' => true,
+        'auto_assign' => true,
+    ]);
+
+    UserGuidedTourAssignment::query()->create([
+        'user_id' => $user->id,
+        'guided_tour_id' => $tour->id,
+        'status' => 'pending',
+        'assignment_source' => 'automatic',
+        'assigned_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->where('guidedTour', null)
+        );
 });
 
 test('dashboard view receives separate resource counts for data resources and IGSNs', function () {

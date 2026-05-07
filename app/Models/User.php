@@ -109,6 +109,28 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasMany<UserGuidedTourAssignment, static>
+     */
+    public function guidedTourAssignments(): HasMany
+    {
+        /** @var HasMany<UserGuidedTourAssignment, static> $relation */
+        $relation = $this->hasMany(UserGuidedTourAssignment::class);
+
+        return $relation;
+    }
+
+    /**
+     * @return HasMany<UserGuidedTourAssignment, static>
+     */
+    public function assignedGuidedTourAssignments(): HasMany
+    {
+        /** @var HasMany<UserGuidedTourAssignment, static> $relation */
+        $relation = $this->hasMany(UserGuidedTourAssignment::class, 'assigned_by');
+
+        return $relation;
+    }
+
+    /**
      * Scope a query to only include active users.
      *
      * @param  \Illuminate\Database\Eloquent\Builder<User>  $query

@@ -24,7 +24,7 @@ export function NavFooter({
                                     asChild
                                     className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
                                 >
-                                    <Link href={href} prefetch>
+                                    <Link href={href} prefetch data-tour={item.tourId}>
                                         {item.icon && <Icon iconNode={item.icon} className="h-5 w-5" />}
                                         <span>{item.title}</span>
                                     </Link>

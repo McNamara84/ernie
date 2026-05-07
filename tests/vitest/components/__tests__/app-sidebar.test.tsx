@@ -202,16 +202,21 @@ describe('AppSidebar', () => {
         // Section 1: Dashboard (no label)
         expect(sectionCalls[0][0].items.map((i: NavItem) => i.title)).toEqual(['Dashboard']);
         expect(sectionCalls[0][0].label).toBeUndefined();
+        expect(sectionCalls[0][0].items[0].tourId).toBe('sidebar-dashboard');
 
         // Section 2: Data Curation
         expect(sectionCalls[1][0].items.map((i: NavItem) => i.title)).toEqual(['Data Editor', 'Resources']);
         expect(sectionCalls[1][0].label).toBe('Data Curation');
+        expect(sectionCalls[1][0].items[0].tourId).toBe('sidebar-data-editor');
+        expect(sectionCalls[1][0].items[1].tourId).toBe('sidebar-resources');
         expect(sectionCalls[1][0].items[1].badge).toBe(12);
         expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
 
         // Section 3: IGSN Curation
         expect(sectionCalls[2][0].items.map((i: NavItem) => i.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
         expect(sectionCalls[2][0].label).toBe('IGSN Curation');
+        expect(sectionCalls[2][0].items[0].tourId).toBe('sidebar-igsns-list');
+        expect(sectionCalls[2][0].items[1].tourId).toBe('sidebar-igsns-map');
         expect(sectionCalls[2][0].items[0].badge).toBe(5);
         expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
 
@@ -229,6 +234,7 @@ describe('AppSidebar', () => {
         expect(NavFooterMock).toHaveBeenCalled();
         const footerArgs = NavFooterMock.mock.calls[0][0];
         expect(footerArgs.items.map((i: NavItem) => i.title)).toEqual(['Changelog', 'Documentation']);
+        expect(footerArgs.items[1].tourId).toBe('sidebar-documentation');
         expect(footerArgs.className).toBe('mt-auto');
 
         // Check nav sections render links

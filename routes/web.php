@@ -12,6 +12,7 @@ use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DoiValidationController;
 use App\Http\Controllers\EditorController;
+use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
 use App\Http\Controllers\IgsnMapController;
@@ -42,6 +43,9 @@ use App\Http\Controllers\VocabularyController;
 use App\Models\Affiliation;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\User;
+use App\Services\GuidedTours\GuidedTourAssignmentService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -470,7 +474,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('igsns/{resource}', [IgsnController::class, 'destroy'])
         ->name('igsns.destroy');
 
-    Route::get('dashboard', function () {
+    Route::get('/dashboard', function (Request $request, GuidedTourAssignmentService $guidedTourAssignmentService) {
+        /** @var User $user */
+        $user = $request->user();
+
+        $guidedTour = $guidedTourAssignmentService->buildAutostartPayloadForRoute(
+            user: $user,
+            routeName: 'dashboard',
+            shouldAutostart: (bool) $request->session()->pull('guided_tours.autostart_after_login', false),
+        );
+
         $physicalObjectTypeId = app(\App\Services\ResourceCacheService::class)->getPhysicalObjectTypeId();
 
         $applyNonIgsnResourceFilter = static function ($query) use ($physicalObjectTypeId): void {
@@ -560,6 +573,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'recentDrafts' => $recentDrafts,
             'phpVersion' => PHP_VERSION,
             'laravelVersion' => app()->version(),
+            'guidedTour' => $guidedTour,
         ]);
     })->name('dashboard');
 
@@ -614,6 +628,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('users.reactivate');
         Route::post('{user}/reset-password', [UserController::class, 'resetPassword'])
             ->name('users.reset-password');
+        Route::post('{user}/guided-tours', [UserController::class, 'assignGuidedTours'])
+            ->name('users.assign-guided-tours');
+    });
+
+    Route::prefix('guided-tours/assignments')->group(function () {
+        Route::post('{assignment}/start', [GuidedTourAssignmentController::class, 'start'])
+            ->name('guided-tours.assignments.start');
+        Route::post('{assignment}/close', [GuidedTourAssignmentController::class, 'close'])
+            ->name('guided-tours.assignments.close');
+        Route::post('{assignment}/complete', [GuidedTourAssignmentController::class, 'complete'])
+            ->name('guided-tours.assignments.complete');
     });
 });
 

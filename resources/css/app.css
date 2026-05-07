@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'driver.js/dist/driver.css';
 @import '@yaireo/tagify/dist/tagify.css';
 @import 'nprogress/nprogress.css';
 
@@ -283,6 +284,75 @@
             opacity: 0;
             transform: translateX(calc(100px * (var(--random, 0.5) - 0.5) * 2)) rotateZ(360deg);
         }
+    }
+
+    .ernie-guided-tour {
+        border: 1px solid color-mix(in oklch, var(--color-border) 90%, transparent);
+        border-radius: 1rem;
+        box-shadow: 0 24px 60px color-mix(in oklch, var(--color-foreground) 12%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in oklch, white 88%, var(--color-secondary) 12%), white),
+            white;
+        color: var(--color-foreground);
+        min-width: 20rem;
+    }
+
+    .ernie-guided-tour .driver-popover-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-foreground);
+    }
+
+    .ernie-guided-tour .driver-popover-description {
+        color: var(--color-muted-foreground);
+        line-height: 1.55;
+    }
+
+    .ernie-guided-tour .driver-popover-progress-text {
+        color: var(--color-muted-foreground);
+        font-size: 0.75rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .ernie-guided-tour .driver-popover-navigation-btns {
+        gap: 0.5rem;
+    }
+
+    .ernie-guided-tour .driver-popover-next-btn,
+    .ernie-guided-tour .driver-popover-prev-btn,
+    .ernie-guided-tour .driver-popover-close-btn {
+        border-radius: 0.6rem;
+        border: 1px solid transparent;
+        box-shadow: none;
+        font-weight: 600;
+        text-shadow: none;
+        transition:
+            background-color 0.2s ease,
+            border-color 0.2s ease,
+            color 0.2s ease;
+    }
+
+    .ernie-guided-tour .driver-popover-next-btn {
+        background: var(--color-gfz-primary);
+        color: var(--color-gfz-primary-foreground);
+    }
+
+    .ernie-guided-tour .driver-popover-next-btn:hover {
+        background: color-mix(in oklch, var(--color-gfz-primary) 88%, white);
+    }
+
+    .ernie-guided-tour .driver-popover-prev-btn,
+    .ernie-guided-tour .driver-popover-close-btn {
+        background: var(--color-secondary);
+        border-color: var(--color-border);
+        color: var(--color-secondary-foreground);
+    }
+
+    .ernie-guided-tour .driver-popover-prev-btn:hover,
+    .ernie-guided-tour .driver-popover-close-btn:hover {
+        background: var(--color-accent);
+        color: var(--color-accent-foreground);
     }
 }
 

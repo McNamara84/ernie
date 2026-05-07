@@ -35,6 +35,12 @@ vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
+vi.mock('@/components/tours/guided-tour-autostart', () => ({
+    GuidedTourAutostart: ({ guidedTour }: { guidedTour?: { assignmentId?: number } | null }) => (
+        <div data-testid="guided-tour-autostart" data-assignment-id={guidedTour?.assignmentId ?? ''} />
+    ),
+}));
+
 vi.mock('@/routes', () => {
     const makeRoute = (path: string, queryParams?: Record<string, string | number>) => {
         let url = path;
@@ -86,6 +92,32 @@ describe('Dashboard', () => {
     it('greets the user by name', () => {
         render(<Dashboard />);
         expect(screen.getByText(/hello jane!/i)).toBeInTheDocument();
+    });
+
+    it('passes the guided tour payload to the autostart component and renders stable tour anchors', () => {
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
+                guidedTour: {
+                    assignmentId: 99,
+                    key: 'beginner-dashboard-main-menu',
+                    version: 1,
+                    startRoute: 'dashboard',
+                    status: 'pending',
+                    autostart: true,
+                },
+            },
+        });
+
+        render(<Dashboard />);
+
+        expect(screen.getByTestId('guided-tour-autostart')).toHaveAttribute('data-assignment-id', '99');
+        expect(screen.getByText(/hello jane!/i).closest('[data-tour="dashboard-welcome"]')).toBeInTheDocument();
+        expect(screen.getByText(/upload files/i).closest('[data-tour="dashboard-upload"]')).toBeInTheDocument();
     });
 
     it('displays the data resource count and institution count in the statistics card', () => {

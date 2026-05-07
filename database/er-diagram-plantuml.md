@@ -201,6 +201,38 @@ entity "users" as users {
     updated_at : TIMESTAMP
 }
 
+entity "guided_tours" as guided_tours {
+    * **id** : BIGINT <<PK>>
+    --
+    * key : VARCHAR(150)
+    * version : INT
+    * name : VARCHAR(255)
+    description : TEXT <<nullable>>
+    * start_route : VARCHAR(120)
+    * target_roles : JSON
+    * is_active : BOOLEAN = true
+    * auto_assign : BOOLEAN = true
+    created_by : BIGINT <<FK>> <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "user_guided_tour_assignments" as user_guided_tour_assignments {
+    * **id** : BIGINT <<PK>>
+    --
+    * user_id : BIGINT <<FK>>
+    * guided_tour_id : BIGINT <<FK>>
+    * status : VARCHAR(32)
+    * assignment_source : VARCHAR(32)
+    assigned_by : BIGINT <<FK>> <<nullable>>
+    assigned_at : TIMESTAMP <<nullable>>
+    started_at : TIMESTAMP <<nullable>>
+    completed_at : TIMESTAMP <<nullable>>
+    last_triggered_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "password_reset_tokens" as password_reset_tokens {
     * **email** : VARCHAR <<PK>>
     --
@@ -989,6 +1021,12 @@ entity assistant_dismissed {
 ' Assistant module relationships
 resources ||--o{ assistant_suggestions
 users ||--o{ assistant_dismissed
+
+' Guided tour relationships
+users ||--o{ guided_tours : "created_by"
+users ||--o{ user_guided_tour_assignments : "user_id"
+users ||--o{ user_guided_tour_assignments : "assigned_by"
+guided_tours ||--o{ user_guided_tour_assignments
 
 ' Resource core relationships
 resources ||--o{ titles

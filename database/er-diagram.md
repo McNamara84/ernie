@@ -175,6 +175,36 @@ erDiagram
         timestamp updated_at
     }
 
+    guided_tours {
+        bigint id PK
+        varchar key
+        integer version
+        varchar name
+        text description "nullable"
+        varchar start_route
+        json target_roles
+        boolean is_active
+        boolean auto_assign
+        bigint created_by FK "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    user_guided_tour_assignments {
+        bigint id PK
+        bigint user_id FK
+        bigint guided_tour_id FK
+        varchar status
+        varchar assignment_source
+        bigint assigned_by FK "nullable"
+        timestamp assigned_at "nullable"
+        timestamp started_at "nullable"
+        timestamp completed_at "nullable"
+        timestamp last_triggered_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     password_reset_tokens {
         varchar email PK
         varchar token
@@ -905,6 +935,12 @@ erDiagram
     %% Assistant module relationships
     resources ||--o{ assistant_suggestions : "has"
     users ||--o{ assistant_dismissed : "dismissed by"
+
+    %% Guided tour relationships
+    users ||--o{ guided_tours : "creates"
+    users ||--o{ user_guided_tour_assignments : "owns"
+    users ||--o{ user_guided_tour_assignments : "assigned by"
+    guided_tours ||--o{ user_guided_tour_assignments : "has"
 
     %% Resource core relationships
     resources ||--o{ titles : "has"

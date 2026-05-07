@@ -28,6 +28,7 @@ export interface NavItem {
     separator?: boolean;
     badge?: number;
     showZeroBadge?: boolean;
+    tourId?: string;
     /**
      * Optional callback invoked on hover/focus of the navigation item.
      * Used to prefetch query data (e.g. vocabularies for the editor) before
