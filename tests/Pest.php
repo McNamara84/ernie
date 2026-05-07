@@ -14,11 +14,15 @@
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->beforeEach(function () {
-        // Disable Vite globally to prevent "Vite manifest not found" errors
-        // This is needed because tests run without the Vite dev server or build artifacts
+        // Non-browser tests do not need the frontend bundle and should not depend
+        // on a Vite dev server or built assets being present.
         $this->withoutVite();
     })
-    ->in('pest/Feature', 'pest/Unit', 'pest/Arch', 'pest/Debug', 'pest/Browser');
+    ->in('pest/Feature', 'pest/Unit', 'pest/Arch', 'pest/Debug');
+
+pest()->extend(Tests\TestCase::class)
+    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->in('pest/Browser');
 
 /*
 |--------------------------------------------------------------------------
