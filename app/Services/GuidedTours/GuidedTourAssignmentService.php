@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 class GuidedTourAssignmentService
 {
     public function __construct(
-        private readonly GuidedTourCatalog $catalog,
+        private readonly GuidedTourCatalogService $catalog,
     ) {}
 
     public function syncCatalogTours(): void
