@@ -328,6 +328,41 @@ describe('resetPassword', function () {
 });
 
 // =========================================================================
+// assignGuidedTours
+// =========================================================================
+
+describe('assignGuidedTours', function () {
+    it('allows managers to assign tours to curator and beginner users', function () {
+        $this->actingAs($this->admin);
+
+        $curatorResponse = $this->policy->assignGuidedTours($this->admin, $this->curator);
+        $beginnerResponse = $this->policy->assignGuidedTours($this->admin, $this->beginner);
+
+        expect($curatorResponse->allowed())->toBeTrue()
+            ->and($beginnerResponse->allowed())->toBeTrue();
+    });
+
+    it('denies non-managers from assigning tours', function () {
+        $this->actingAs($this->curator);
+
+        $response = $this->policy->assignGuidedTours($this->curator, $this->beginner);
+
+        expect($response->denied())->toBeTrue()
+            ->and($response->message())->toContain('permission to assign guided tours');
+    });
+
+    it('denies assigning tours to unsupported target roles', function () {
+        $this->actingAs($this->admin);
+        $target = User::factory()->groupLeader()->create();
+
+        $response = $this->policy->assignGuidedTours($this->admin, $target);
+
+        expect($response->denied())->toBeTrue()
+            ->and($response->message())->toContain('Curator or Beginner');
+    });
+});
+
+// =========================================================================
 // delete / restore / forceDelete
 // =========================================================================
 
