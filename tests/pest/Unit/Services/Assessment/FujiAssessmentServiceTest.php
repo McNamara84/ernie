@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Http;
 
 covers(FujiAssessmentService::class);
 
+function makeFujiAssessmentService(): FujiAssessmentService
+{
+    return new FujiAssessmentService;
+}
+
 beforeEach(function (): void {
     Config::set('fuji.enabled', true);
     Config::set('fuji.base_url', 'https://fuji.test');
@@ -19,15 +24,13 @@ beforeEach(function (): void {
     Config::set('fuji.use_github', false);
     Config::set('fuji.test_debug', false);
     Config::set('fuji.metric_version', null);
-
-    $this->service = new FujiAssessmentService;
 });
 
 describe('isConfigured', function (): void {
     it('returns false when a required config value is missing', function (): void {
         Config::set('fuji.password', null);
 
-        expect($this->service->isConfigured())->toBeFalse();
+        expect(makeFujiAssessmentService()->isConfigured())->toBeFalse();
     });
 });
 
@@ -37,7 +40,7 @@ describe('healthStatus', function (): void {
             'https://fuji.test/fuji/api/v1/ui/' => Http::response('OK', 200),
         ]);
 
-        expect($this->service->healthStatus())->toBe([
+        expect(makeFujiAssessmentService()->healthStatus())->toBe([
             'healthy' => true,
             'message' => null,
         ]);
@@ -46,7 +49,7 @@ describe('healthStatus', function (): void {
     it('returns the configuration error when F-UJI is not configured', function (): void {
         Config::set('fuji.enabled', false);
 
-        expect($this->service->healthStatus())->toBe([
+        expect(makeFujiAssessmentService()->healthStatus())->toBe([
             'healthy' => false,
             'message' => 'F-UJI is not configured.',
         ]);
@@ -57,22 +60,22 @@ describe('healthStatus', function (): void {
             'https://fuji.test/fuji/api/v1/ui/' => Http::response('Internal Server Error', 500),
         ]);
 
-        $status = $this->service->healthStatus();
+        $status = makeFujiAssessmentService()->healthStatus();
 
         expect($status['healthy'])->toBeFalse()
             ->and($status['message'])->toContain('status 500')
-            ->and($status['message'])->toContain('Internal Server Error');
+            ->and($status['message'])->not->toContain('Internal Server Error');
     });
 
-    it('returns a failure message when the health request cannot connect', function (): void {
+    it('returns a generic availability message when the health request cannot connect', function (): void {
         Http::fake([
             'https://fuji.test/fuji/api/v1/ui/' => Http::failedConnection(),
         ]);
 
-        $status = $this->service->healthStatus();
+        $status = makeFujiAssessmentService()->healthStatus();
 
         expect($status['healthy'])->toBeFalse()
-            ->and($status['message'])->toContain('F-UJI health check failed');
+            ->and($status['message'])->toBe('F-UJI is currently unavailable. Please try again shortly.');
     });
 });
 
@@ -80,7 +83,7 @@ describe('assessIdentifier', function (): void {
     it('throws immediately when F-UJI is not configured', function (): void {
         Config::set('fuji.enabled', false);
 
-        expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
+        expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'F-UJI is not configured.');
     });
 
@@ -99,7 +102,7 @@ describe('assessIdentifier', function (): void {
             ]),
         ]);
 
-        $result = $this->service->assessIdentifier('10.5880/test.001');
+        $result = makeFujiAssessmentService()->assessIdentifier('10.5880/test.001');
 
         expect($result['score'])->toBe(72.5)
             ->and($result['resolvedUrl'])->toBe('https://ernie.example.test/10.5880/test.001/example-dataset')
@@ -121,7 +124,7 @@ describe('assessIdentifier', function (): void {
             ]),
         ]);
 
-        expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
+        expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'summary.score_percent.FAIR');
     });
 
@@ -130,9 +133,18 @@ describe('assessIdentifier', function (): void {
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['error' => 'Unavailable'], 500),
         ]);
 
-        expect(fn () => $this->service->assessIdentifier('10.5880/test.001'))
+        expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'status 500')
             ->toThrow(RuntimeException::class, 'Unavailable');
+    });
+
+    it('throws a generic availability message when the F-UJI request cannot connect', function (): void {
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::failedConnection(),
+        ]);
+
+        expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
+            ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
     });
 
     it('includes the configured metric version in the request payload', function (): void {
@@ -148,7 +160,7 @@ describe('assessIdentifier', function (): void {
             ]),
         ]);
 
-        $this->service->assessIdentifier('10.5880/test.001');
+        makeFujiAssessmentService()->assessIdentifier('10.5880/test.001');
 
         Http::assertSent(fn ($request): bool => $request['metric_version'] === 'metrics_v0.8');
     });

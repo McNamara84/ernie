@@ -48,6 +48,32 @@ describe('index', function () {
             );
     });
 
+    it('renders the page with an unhealthy F-UJI warning when the service is temporarily unavailable', function () {
+        $this->mock(FujiAssessmentService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('healthStatus')
+                ->once()
+                ->andReturn([
+                    'healthy' => false,
+                    'message' => 'F-UJI is currently unavailable. Please try again shortly.',
+                ]);
+            $mock->shouldReceive('isConfigured')
+                ->once()
+                ->andReturn(true);
+        });
+
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('assessment')
+                ->where('fujiConfigured', true)
+                ->where('fujiHealthy', false)
+                ->where('fujiStatusMessage', 'F-UJI is currently unavailable. Please try again shortly.')
+            );
+    });
+
     it('rejects unauthenticated users', function () {
         $this->get('/assessment')
             ->assertRedirect('/login');
@@ -204,7 +230,7 @@ describe('checkResources', function () {
                 ->once()
                 ->andReturn([
                     'healthy' => false,
-                    'message' => 'F-UJI health check failed with status 500. Response: Internal Server Error',
+                    'message' => 'F-UJI is currently unavailable. Please try again shortly.',
                 ]);
         });
         $user = User::factory()->create(['role' => 'admin']);
@@ -212,7 +238,7 @@ describe('checkResources', function () {
         $this->actingAs($user)
             ->post('/assessment/check-resources')
             ->assertStatus(503)
-            ->assertJsonPath('error', fn (string $error): bool => str_contains($error, 'F-UJI health check failed with status 500.'));
+            ->assertJson(['error' => 'F-UJI is currently unavailable. Please try again shortly.']);
     });
 });
 
@@ -235,7 +261,7 @@ describe('checkIgsns', function () {
                 ->once()
                 ->andReturn([
                     'healthy' => false,
-                    'message' => 'F-UJI health check failed with status 500. Response: Internal Server Error',
+                    'message' => 'F-UJI is currently unavailable. Please try again shortly.',
                 ]);
         });
         $user = User::factory()->create(['role' => 'admin']);
@@ -243,7 +269,7 @@ describe('checkIgsns', function () {
         $this->actingAs($user)
             ->post('/assessment/check-igsns')
             ->assertStatus(503)
-            ->assertJsonPath('error', fn (string $error): bool => str_contains($error, 'F-UJI health check failed with status 500.'));
+            ->assertJson(['error' => 'F-UJI is currently unavailable. Please try again shortly.']);
     });
 });
 
@@ -317,7 +343,7 @@ describe('checkAll', function () {
                 ->once()
                 ->andReturn([
                     'healthy' => false,
-                    'message' => 'F-UJI health check failed with status 500. Response: Internal Server Error',
+                    'message' => 'F-UJI is currently unavailable. Please try again shortly.',
                 ]);
         });
         $user = User::factory()->create(['role' => 'admin']);
@@ -325,7 +351,7 @@ describe('checkAll', function () {
         $this->actingAs($user)
             ->post('/assessment/check-all')
             ->assertStatus(503)
-            ->assertJsonPath('error', fn (string $error): bool => str_contains($error, 'F-UJI health check failed with status 500.'));
+            ->assertJson(['error' => 'F-UJI is currently unavailable. Please try again shortly.']);
     });
 
     it('returns 409 when all assessment jobs are already running', function () {

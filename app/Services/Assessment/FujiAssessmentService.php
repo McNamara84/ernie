@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services\Assessment;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class FujiAssessmentService
 {
+    private const UNAVAILABLE_MESSAGE = 'F-UJI is currently unavailable. Please try again shortly.';
+
     public function isConfigured(): bool
     {
         return (bool) Config::get('fuji.enabled', false)
@@ -36,17 +40,28 @@ class FujiAssessmentService
         try {
             $response = $this->baseRequest()
                 ->get($this->healthEndpoint());
-        } catch (\Throwable $exception) {
+        } catch (ConnectionException $exception) {
+            $this->logTransportFailure('health check', $exception);
+
             return [
                 'healthy' => false,
-                'message' => sprintf('F-UJI health check failed: %s', $exception->getMessage()),
+                'message' => self::UNAVAILABLE_MESSAGE,
+            ];
+        } catch (\Throwable $exception) {
+            $this->logTransportFailure('health check', $exception);
+
+            return [
+                'healthy' => false,
+                'message' => self::UNAVAILABLE_MESSAGE,
             ];
         }
 
         if (! $response->successful()) {
+            $this->logUnsuccessfulResponse('health check', $response);
+
             return [
                 'healthy' => false,
-                'message' => $this->unsuccessfulResponseMessage('F-UJI health check failed', $response),
+                'message' => $this->healthFailureMessage($response),
             ];
         }
 
@@ -65,12 +80,30 @@ class FujiAssessmentService
             throw new RuntimeException('F-UJI is not configured.');
         }
 
-        $response = $this->baseRequest()
-            ->acceptJson()
-            ->asJson()
-            ->post($this->endpoint(), $this->buildPayload($identifier));
+        try {
+            $response = $this->baseRequest()
+                ->acceptJson()
+                ->asJson()
+                ->post($this->endpoint(), $this->buildPayload($identifier));
+        } catch (ConnectionException $exception) {
+            $this->logTransportFailure('assessment', $exception, [
+                'identifier' => $identifier,
+            ]);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+        } catch (\Throwable $exception) {
+            $this->logTransportFailure('assessment', $exception, [
+                'identifier' => $identifier,
+            ]);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+        }
 
         if (! $response->successful()) {
+            $this->logUnsuccessfulResponse('assessment', $response, [
+                'identifier' => $identifier,
+            ]);
+
             throw new RuntimeException($this->unsuccessfulResponseMessage('F-UJI assessment failed', $response));
         }
 
@@ -171,15 +204,59 @@ class FujiAssessmentService
             ->timeout($this->timeout());
     }
 
+    private function healthFailureMessage(Response $response): string
+    {
+        return sprintf('F-UJI health check failed with status %d.', $response->status());
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function logTransportFailure(string $operation, \Throwable $exception, array $context = []): void
+    {
+        Log::warning('F-UJI request failed', [
+            ...$context,
+            'operation' => $operation,
+            'base_url' => $this->baseUrl(),
+            'exception_class' => $exception::class,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function logUnsuccessfulResponse(string $operation, Response $response, array $context = []): void
+    {
+        Log::warning('F-UJI returned unsuccessful response', [
+            ...$context,
+            'operation' => $operation,
+            'base_url' => $this->baseUrl(),
+            'status' => $response->status(),
+            'body' => $this->responseBodyExcerpt($response),
+        ]);
+    }
+
     private function unsuccessfulResponseMessage(string $prefix, Response $response): string
     {
         $message = sprintf('%s with status %d.', $prefix, $response->status());
-        $body = trim(preg_replace('/\s+/', ' ', $response->body()) ?? '');
+        $body = $this->responseBodyExcerpt($response);
 
-        if ($body === '') {
+        if ($body === null) {
             return $message;
         }
 
-        return sprintf('%s Response: %s', $message, Str::limit($body, 200, '...'));
+        return sprintf('%s Response: %s', $message, $body);
+    }
+
+    private function responseBodyExcerpt(Response $response): ?string
+    {
+        $body = trim(preg_replace('/\s+/', ' ', $response->body()) ?? '');
+
+        if ($body === '') {
+            return null;
+        }
+
+        return Str::limit($body, 200, '...');
     }
 }

@@ -122,7 +122,7 @@ export default function Assessment({
         resource: { isChecking: false, progress: '' },
         igsn: { isChecking: false, progress: '' },
     });
-    const fujiAvailable = fujiConfigured && fujiHealthy;
+    const fujiConfiguredForActions = fujiConfigured;
     const pollingRefs = useRef<Record<AssessmentScope, ReturnType<typeof setTimeout> | null>>({
         resource: null,
         igsn: null,
@@ -294,7 +294,7 @@ export default function Assessment({
                         <p className="text-sm text-muted-foreground">Admin-only FAIR assessment dashboard for resources and IGSNs.</p>
                     </div>
 
-                    <LoadingButton onClick={handleCheckAll} disabled={!fujiAvailable} loading={isAnyChecking}>
+                    <LoadingButton onClick={handleCheckAll} disabled={!fujiConfiguredForActions} loading={isAnyChecking}>
                         {isAnyChecking ? (
                             'Checking...'
                         ) : (
@@ -336,7 +336,7 @@ export default function Assessment({
                                     {summaryText(resourceAssessmentSummary)}
                                 </CardDescription>
                             </div>
-                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('resource')} disabled={!fujiAvailable} loading={states.resource.isChecking}>
+                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('resource')} disabled={!fujiConfiguredForActions} loading={states.resource.isChecking}>
                                 {states.resource.isChecking ? 'Checking...' : 'Check Resources'}
                             </LoadingButton>
                         </CardHeader>
@@ -353,7 +353,7 @@ export default function Assessment({
                                     {summaryText(igsnAssessmentSummary)}
                                 </CardDescription>
                             </div>
-                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('igsn')} disabled={!fujiAvailable} loading={states.igsn.isChecking}>
+                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('igsn')} disabled={!fujiConfiguredForActions} loading={states.igsn.isChecking}>
                                 {states.igsn.isChecking ? 'Checking...' : 'Check IGSNs'}
                             </LoadingButton>
                         </CardHeader>

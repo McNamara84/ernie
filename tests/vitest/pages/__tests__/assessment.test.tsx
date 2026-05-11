@@ -492,12 +492,34 @@ describe('Assessment page', () => {
         expect(screen.getByText('F-UJI is not configured for this environment.')).toBeInTheDocument();
     });
 
-    it('disables all check buttons and shows the health message when F-UJI is unhealthy', () => {
+    it('keeps all check buttons enabled and shows the health message when F-UJI is unhealthy', () => {
         render(<AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI health check failed with status 500.' })} />);
 
-        expect(screen.getByRole('button', { name: 'Check all' })).toBeDisabled();
-        expect(screen.getByRole('button', { name: 'Check Resources' })).toBeDisabled();
-        expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Check all' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Check Resources' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeEnabled();
         expect(screen.getByText('F-UJI health check failed with status 500.')).toBeInTheDocument();
+    });
+
+    it('still allows starting a check when F-UJI is unhealthy and surfaces the server-side 503 response', async () => {
+        mockAxiosPost.mockRejectedValueOnce(createAxiosError(503, {
+            error: 'F-UJI is currently unavailable. Please try again shortly.',
+        }));
+
+        render(
+            <AssessmentPage
+                {...makeProps({
+                    fujiHealthy: false,
+                    fujiStatusMessage: 'F-UJI health check failed with status 500.',
+                })}
+            />
+        );
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check Resources' }));
+        });
+
+        expect(mockAxiosPost).toHaveBeenCalledWith('/assessment/check-resources');
+        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is currently unavailable. Please try again shortly.');
     });
 });

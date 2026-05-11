@@ -13,6 +13,7 @@ services:
       - dockerized-laravel-network
     depends_on:
       - db
+      - fuji
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
       interval: 5s
@@ -45,7 +46,7 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
-      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
+      - FUJI_BASE_URL=${FUJI_BASE_URL}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
       - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
@@ -249,7 +250,7 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
-      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
+      - FUJI_BASE_URL=${FUJI_BASE_URL}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
       - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
