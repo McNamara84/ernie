@@ -268,4 +268,27 @@ describe('AssignGuidedToursDialog', () => {
             expect(toast.error).toHaveBeenCalledWith('Failed to assign guided tours');
         });
     });
+
+    it('falls back to a generic error toast when the first error value is not a string', async () => {
+        const user = userEvent.setup();
+
+        vi.mocked(router.post).mockImplementation((_url, _data, options) => {
+            const postOptions = options as Record<string, unknown> | undefined;
+            const onError = postOptions?.onError as ((errors: Record<string, unknown>) => void) | undefined;
+            const onFinish = postOptions?.onFinish as (() => void) | undefined;
+
+            onError?.({ tour_ids: ['Not a string'] });
+            onFinish?.();
+        });
+
+        render(<AssignGuidedToursDialog user={defaultUser} tours={eligibleTours} />);
+
+        await user.click(screen.getByRole('button', { name: /assign tours to curator user/i }));
+        await user.click(screen.getByRole('checkbox', { name: /curator help tour/i }));
+        await user.click(screen.getByRole('button', { name: /assign selected tours/i }));
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith('Failed to assign guided tours');
+        });
+    });
 });

@@ -1,5 +1,3 @@
-import 'driver.js/dist/driver.css';
-
 import { driver } from 'driver.js';
 
 import { type GuidedTourDefinition } from '@/lib/tours/definitions';
@@ -9,6 +7,10 @@ type GuidedTourLifecycleHandlers = {
     onClose: () => void | Promise<void>;
     onComplete: () => void | Promise<void>;
 };
+
+function invokeLifecycleHandler(handler: () => void | Promise<void>): void {
+    void Promise.resolve(handler()).catch(() => undefined);
+}
 
 export async function runGuidedTour({ definition, onClose, onComplete }: GuidedTourLifecycleHandlers): Promise<{ destroy: () => void }> {
     let exitState: 'idle' | 'closing' | 'completing' = 'idle';
@@ -41,7 +43,7 @@ export async function runGuidedTour({ definition, onClose, onComplete }: GuidedT
 
             if (activeIndex >= definition.steps.length - 1) {
                 exitState = 'completing';
-                void onComplete();
+                invokeLifecycleHandler(onComplete);
                 activeDriver.destroy();
                 return;
             }
@@ -53,13 +55,13 @@ export async function runGuidedTour({ definition, onClose, onComplete }: GuidedT
         },
         onCloseClick: (_element, _step, { driver: activeDriver }) => {
             exitState = 'closing';
-            void onClose();
+            invokeLifecycleHandler(onClose);
             activeDriver.destroy();
         },
         onDestroyed: () => {
             if (exitState === 'idle') {
                 exitState = 'closing';
-                void onClose();
+                invokeLifecycleHandler(onClose);
             }
         },
     });

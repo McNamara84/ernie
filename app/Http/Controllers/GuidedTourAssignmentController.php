@@ -16,6 +16,7 @@ class GuidedTourAssignmentController extends Controller
         $this->authorizeAssignment($request, $assignment);
 
         $updatedAssignment = $guidedTourAssignmentService->markStarted($assignment);
+        $request->session()->forget('guided_tours.autostart_after_login');
 
         return response()->json([
             'status' => $updatedAssignment->status,

@@ -481,7 +481,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $guidedTour = $guidedTourAssignmentService->buildAutostartPayloadForRoute(
             user: $user,
             routeName: 'dashboard',
-            shouldAutostart: (bool) $request->session()->pull('guided_tours.autostart_after_login', false),
+            shouldAutostart: (bool) $request->session()->get('guided_tours.autostart_after_login', false),
         );
 
         $physicalObjectTypeId = app(\App\Services\ResourceCacheService::class)->getPhysicalObjectTypeId();

@@ -9,11 +9,15 @@ interface GuidedTourAutostartProps {
 }
 
 async function postGuidedTourLifecycle(assignmentId: number, action: 'start' | 'close' | 'complete'): Promise<void> {
-    await fetch(`/guided-tours/assignments/${assignmentId}/${action}`, {
+    const response = await fetch(`/guided-tours/assignments/${assignmentId}/${action}`, {
         method: 'POST',
         headers: buildCsrfHeaders(),
         credentials: 'same-origin',
     });
+
+    if (!response.ok) {
+        throw new Error(`Failed to ${action} guided tour assignment ${assignmentId}.`);
+    }
 }
 
 export function GuidedTourAutostart({ guidedTour }: GuidedTourAutostartProps) {
@@ -40,12 +44,25 @@ export function GuidedTourAutostart({ guidedTour }: GuidedTourAutostartProps) {
 
         startedAssignmentsRef.current.add(guidedTour.assignmentId);
 
+        const resetStartedAssignment = () => {
+            startedAssignmentsRef.current.delete(guidedTour.assignmentId);
+        };
+
+        const handleLifecycleAction = async (action: 'start' | 'close' | 'complete') => {
+            try {
+                await postGuidedTourLifecycle(guidedTour.assignmentId, action);
+            } catch (error) {
+                resetStartedAssignment();
+                throw error;
+            }
+        };
+
         let isCancelled = false;
         let cleanupHandle: { destroy: () => void } | null = null;
 
         const startTour = async () => {
             try {
-                await postGuidedTourLifecycle(guidedTour.assignmentId, 'start');
+                await handleLifecycleAction('start');
 
                 if (isCancelled) {
                     return;
@@ -56,11 +73,11 @@ export function GuidedTourAutostart({ guidedTour }: GuidedTourAutostartProps) {
                         ...definition,
                         steps: availableSteps,
                     },
-                    onClose: () => postGuidedTourLifecycle(guidedTour.assignmentId, 'close'),
-                    onComplete: () => postGuidedTourLifecycle(guidedTour.assignmentId, 'complete'),
+                    onClose: () => handleLifecycleAction('close'),
+                    onComplete: () => handleLifecycleAction('complete'),
                 });
             } catch {
-                startedAssignmentsRef.current.delete(guidedTour.assignmentId);
+                resetStartedAssignment();
             }
         };
 

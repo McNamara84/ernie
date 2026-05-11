@@ -41,6 +41,18 @@ describe('GuidedTourAssignmentService', function (): void {
         expect($this->service->buildAutostartPayloadForRoute($user, 'dashboard', false))->toBeNull();
     });
 
+    it('does not sync automatic assignments when autostart is disabled for the current request', function (): void {
+        $user = User::factory()->beginner()->create();
+
+        expect(GuidedTour::query()->count())->toBe(0)
+            ->and(UserGuidedTourAssignment::query()->count())->toBe(0);
+
+        expect($this->service->buildAutostartPayloadForRoute($user, 'dashboard', false))->toBeNull();
+
+        expect(GuidedTour::query()->count())->toBe(0)
+            ->and(UserGuidedTourAssignment::query()->count())->toBe(0);
+    });
+
     it('keeps completed assignments unchanged when start or close is reported again', function (): void {
         $user = User::factory()->beginner()->create();
         $tour = GuidedTour::query()->create([

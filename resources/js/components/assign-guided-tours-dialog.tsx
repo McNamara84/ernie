@@ -108,8 +108,9 @@ export function AssignGuidedToursDialog({ user, tours, disabled = false }: Assig
                     setIsSubmitting(false);
                 },
                 onError: (errors) => {
-                    const errorMessage = Object.values(errors)[0] as string;
-                    toast.error(errorMessage || 'Failed to assign guided tours');
+                    const firstErrorValue: unknown = Object.values(errors)[0];
+                    const errorMessage = typeof firstErrorValue === 'string' && firstErrorValue.length > 0 ? firstErrorValue : 'Failed to assign guided tours';
+                    toast.error(errorMessage);
                     setIsSubmitting(false);
                 },
                 onFinish: () => {

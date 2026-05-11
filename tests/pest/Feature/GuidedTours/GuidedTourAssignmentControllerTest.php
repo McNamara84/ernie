@@ -30,12 +30,14 @@ test('users can mark their guided tour assignment as started', function () {
         'assigned_at' => now(),
     ]);
 
-    $this->actingAs($user)
+    $this->withSession(['guided_tours.autostart_after_login' => true])
+        ->actingAs($user)
         ->postJson(route('guided-tours.assignments.start', $assignment))
         ->assertOk()
         ->assertJson([
             'status' => UserGuidedTourAssignment::STATUS_IN_PROGRESS,
-        ]);
+        ])
+        ->assertSessionMissing('guided_tours.autostart_after_login');
 
     $assignment->refresh();
 

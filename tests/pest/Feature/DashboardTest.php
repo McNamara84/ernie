@@ -67,7 +67,21 @@ test('dashboard provides pending guided tour autostart payload for eligible user
             ->where('guidedTour.startRoute', 'dashboard')
             ->where('guidedTour.autostart', true)
             ->where('guidedTour.status', 'pending')
-        );
+        )
+        ->assertSessionHas('guided_tours.autostart_after_login', true);
+});
+
+test('dashboard keeps the autostart session flag when no matching guided tour payload is available', function () {
+    $user = User::factory()->admin()->create();
+
+    $this->withSession(['guided_tours.autostart_after_login' => true])
+        ->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->where('guidedTour', null)
+        )
+        ->assertSessionHas('guided_tours.autostart_after_login', true);
 });
 
 test('dashboard does not provide guided tour payload when autostart session flag is absent', function () {

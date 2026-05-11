@@ -349,4 +349,41 @@ describe('GuidedTourAutostart', () => {
             expect(runGuidedTourMock).toHaveBeenCalledTimes(1);
         });
     });
+
+    it('retries the same assignment after a non-ok start response', async () => {
+        document.body.innerHTML = `
+            <div data-tour="dashboard-welcome"></div>
+            <div data-tour="sidebar-root"></div>
+        `;
+
+        vi.mocked(global.fetch)
+            .mockResolvedValueOnce({ ok: false } as Response)
+            .mockResolvedValue({ ok: true } as Response);
+
+        runGuidedTourMock.mockResolvedValue({ destroy: vi.fn() });
+
+        const guidedTour = {
+            assignmentId: 61,
+            key: 'beginner-dashboard-main-menu',
+            version: 1,
+            startRoute: 'dashboard',
+            status: 'pending',
+            autostart: true,
+        };
+
+        const { rerender } = render(<GuidedTourAutostart guidedTour={guidedTour} />);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+        });
+
+        expect(runGuidedTourMock).not.toHaveBeenCalled();
+
+        rerender(<GuidedTourAutostart guidedTour={{ ...guidedTour }} />);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+            expect(runGuidedTourMock).toHaveBeenCalledTimes(1);
+        });
+    });
 });

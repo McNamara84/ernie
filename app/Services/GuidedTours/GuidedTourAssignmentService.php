@@ -179,11 +179,11 @@ class GuidedTourAssignmentService
 
     private function resolveAutostartAssignmentForRoute(User $user, string $routeName, bool $shouldAutostart): ?UserGuidedTourAssignment
     {
-        $this->syncAutomaticAssignmentsForUser($user);
-
         if (! $shouldAutostart) {
             return null;
         }
+
+        $this->syncAutomaticAssignmentsForUser($user);
 
         /** @var Collection<int, UserGuidedTourAssignment> $assignments */
         $assignments = UserGuidedTourAssignment::query()
