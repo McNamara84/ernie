@@ -194,6 +194,16 @@ describe('OldDatasetsFilters Component', () => {
                 expect(applyButton).toBeDisabled();
             }, 15000);
 
+            it('does not emit changes when Apply is triggered with only invalid year edits', async () => {
+                const user = userEvent.setup();
+                render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'] }} />);
+
+                fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).not.toHaveBeenCalled();
+            }, 15000);
+
             it('disables year range controls when filter options are unavailable', () => {
                 render(<OldDatasetsFilters {...defaultProps} filterOptions={null} />);
 

@@ -197,6 +197,16 @@ describe('ResourcesFilters Component', () => {
                 expect(applyButton).toBeDisabled();
             }, 15000);
 
+            it('does not emit changes when Apply is triggered with only invalid year edits', async () => {
+                const user = userEvent.setup();
+                render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'] }} />);
+
+                fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).not.toHaveBeenCalled();
+            }, 15000);
+
             it('renders resource type badges with the display name instead of the slug', () => {
                 render(<ResourcesFilters {...defaultProps} filters={{ resource_type: ['dataset'] }} />);
 

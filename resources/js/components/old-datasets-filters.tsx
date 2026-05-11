@@ -202,6 +202,10 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
         const yearFrom = parseYearInput(yearFromInput, yearRangeBounds);
         const yearTo = parseYearInput(yearToInput, yearRangeBounds);
 
+        if (yearFrom === filters.year_from && yearTo === filters.year_to) {
+            return;
+        }
+
         if (yearFrom !== undefined) {
             newFilters.year_from = yearFrom;
         } else {
@@ -311,7 +315,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
             {/* Filter Controls */}
             <div className="flex flex-wrap items-center gap-2">
                 {/* Search Input */}
-                <div className="relative w-full sm:w-auto sm:min-w-70">
+                <div className="relative w-full sm:w-auto sm:min-w-[280px]">
                     <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         ref={searchInputRef}
@@ -327,7 +331,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
                 {/* Resource Type Select */}
                 <Select value={resourceTypeValue} onValueChange={handleResourceTypeChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger size="sm" className="w-full sm:w-45" aria-label="Filter by resource type">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by resource type">
                         <SelectValue placeholder="Resource Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -342,7 +346,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
                 {/* Status Select */}
                 <Select value={statusValue} onValueChange={handleStatusChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger size="sm" className="w-full sm:w-45" aria-label="Filter by publication status">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by publication status">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -357,7 +361,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
                 {/* Curator Select */}
                 <Select value={curatorValue} onValueChange={handleCuratorChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger size="sm" className="w-full sm:w-45" aria-label="Filter by curator">
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by curator">
                         <SelectValue placeholder="Curator" />
                     </SelectTrigger>
                     <SelectContent>
@@ -376,7 +380,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                         <Button
                             variant="outline"
                             size="default"
-                            className={`w-full justify-start font-normal sm:w-45 ${
+                            className={`w-full justify-start font-normal sm:w-[180px] ${
                                 filters.year_from || filters.year_to ? 'border-primary' : ''
                             }`}
                             disabled={isLoading || !filterOptions}
