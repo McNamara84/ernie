@@ -139,7 +139,7 @@ describe('assessIdentifier', function (): void {
             ->toThrow(RuntimeException::class, 'summary.score_percent.FAIR');
     });
 
-    it('throws a generic availability message when the F-UJI response is unsuccessful without emitting an extra warning log', function (): void {
+    it('throws a generic availability message when the F-UJI response is unsuccessful and logs the response details once', function (): void {
         Log::spy();
 
         Http::fake([
@@ -149,16 +149,62 @@ describe('assessIdentifier', function (): void {
         expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
 
-        Log::shouldNotHaveReceived('warning');
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned unsuccessful response'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+                && $context['base_url'] === 'https://fuji.test'
+                && $context['status'] === 500
+                && is_string($context['body'])
+                && str_contains($context['body'], 'Unavailable')
+            );
     });
 
-    it('throws a generic availability message when the F-UJI request cannot connect', function (): void {
+    it('throws a generic availability message when the F-UJI request cannot connect and logs the transport details once', function (): void {
+        Log::spy();
+
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::failedConnection(),
         ]);
 
         expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI request failed'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+                && $context['base_url'] === 'https://fuji.test'
+                && $context['exception_class'] === Illuminate\Http\Client\ConnectionException::class
+                && is_string($context['error'])
+            );
+    });
+
+    it('deduplicates identical transport failures within the same service instance', function (): void {
+        Log::spy();
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::failedConnection(),
+        ]);
+
+        $service = makeFujiAssessmentService();
+
+        foreach (['10.5880/test.001', '10.5880/test.002'] as $identifier) {
+            try {
+                $service->assessIdentifier($identifier);
+            } catch (RuntimeException) {
+                // Expected for repeated availability failures.
+            }
+        }
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI request failed'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+            );
     });
 
     it('includes the configured metric version in the request payload', function (): void {

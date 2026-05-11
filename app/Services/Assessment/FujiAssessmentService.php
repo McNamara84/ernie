@@ -17,6 +17,11 @@ class FujiAssessmentService
 {
     private const UNAVAILABLE_MESSAGE = 'F-UJI is currently unavailable. Please try again shortly.';
 
+    /**
+     * @var array<string, true>
+     */
+    private array $loggedAssessmentFailureFingerprints = [];
+
     public function isConfigured(): bool
     {
         return (bool) Config::get('fuji.enabled', false)
@@ -86,12 +91,18 @@ class FujiAssessmentService
                 ->asJson()
                 ->post($this->endpoint(), $this->buildPayload($identifier));
         } catch (ConnectionException $exception) {
+            $this->logAssessmentTransportFailureOnce($exception, $identifier);
+
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
         } catch (\Throwable $exception) {
+            $this->logAssessmentTransportFailureOnce($exception, $identifier);
+
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
         }
 
         if (! $response->successful()) {
+            $this->logAssessmentUnsuccessfulResponseOnce($response, $identifier);
+
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE);
         }
 
@@ -218,6 +229,43 @@ class FujiAssessmentService
             'status' => $response->status(),
             'body' => $this->responseBodyExcerpt($response),
         ]);
+    }
+
+    private function logAssessmentTransportFailureOnce(\Throwable $exception, string $identifier): void
+    {
+        $fingerprint = sprintf('transport:%s:%s', $exception::class, $exception->getMessage());
+
+        if (! $this->shouldLogAssessmentFailure($fingerprint)) {
+            return;
+        }
+
+        $this->logTransportFailure('assessment', $exception, [
+            'identifier' => $identifier,
+        ]);
+    }
+
+    private function logAssessmentUnsuccessfulResponseOnce(Response $response, string $identifier): void
+    {
+        $fingerprint = sprintf('response:%d:%s', $response->status(), sha1($this->responseBodyExcerpt($response) ?? ''));
+
+        if (! $this->shouldLogAssessmentFailure($fingerprint)) {
+            return;
+        }
+
+        $this->logUnsuccessfulResponse('assessment', $response, [
+            'identifier' => $identifier,
+        ]);
+    }
+
+    private function shouldLogAssessmentFailure(string $fingerprint): bool
+    {
+        if (isset($this->loggedAssessmentFailureFingerprints[$fingerprint])) {
+            return false;
+        }
+
+        $this->loggedAssessmentFailureFingerprints[$fingerprint] = true;
+
+        return true;
     }
 
     private function responseBodyExcerpt(Response $response): ?string
