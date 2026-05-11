@@ -212,19 +212,11 @@ describe('ResourcesFilters Component', () => {
                 expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
             });
 
-            it('omits year placeholders when the backend has no year bounds', () => {
-                render(
-                    <ResourcesFilters
-                        {...defaultProps}
-                        filterOptions={{
-                            ...defaultProps.filterOptions,
-                            year_range: { min: null, max: null },
-                        }}
-                    />,
-                );
+            it('shows year placeholders from the backend bounds', () => {
+                render(<ResourcesFilters {...defaultProps} />);
 
-                expect(screen.getByLabelText('From Year')).not.toHaveAttribute('placeholder');
-                expect(screen.getByLabelText('To Year')).not.toHaveAttribute('placeholder');
+                expect(screen.getByLabelText('From Year')).toHaveAttribute('placeholder', '2000');
+                expect(screen.getByLabelText('To Year')).toHaveAttribute('placeholder', '2025');
             });
 
             it('removes year_from on Apply when the draft value is cleared', async () => {

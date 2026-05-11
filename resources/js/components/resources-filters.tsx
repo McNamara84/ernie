@@ -431,11 +431,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                     <Input
                                         id="year-from"
                                         type="number"
-                                        placeholder={
-                                            filterOptions?.year_range?.min === null || filterOptions?.year_range?.min === undefined
-                                                ? undefined
-                                                : String(filterOptions.year_range.min)
-                                        }
+                                        placeholder={filterOptions ? String(filterOptions.year_range.min) : undefined}
                                         value={yearFromInput}
                                         onChange={(e) => handleYearFromChange(e.target.value)}
                                         min={filterOptions?.year_range?.min ?? undefined}
@@ -451,11 +447,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                     <Input
                                         id="year-to"
                                         type="number"
-                                        placeholder={
-                                            filterOptions?.year_range?.max === null || filterOptions?.year_range?.max === undefined
-                                                ? undefined
-                                                : String(filterOptions.year_range.max)
-                                        }
+                                        placeholder={filterOptions ? String(filterOptions.year_range.max) : undefined}
                                         value={yearToInput}
                                         onChange={(e) => handleYearToChange(e.target.value)}
                                         min={filterOptions?.year_range?.min ?? undefined}
