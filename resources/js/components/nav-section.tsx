@@ -34,7 +34,7 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                     return (
                         <SidebarMenuItem key={item.title}>
                             {item.disabled ? (
-                                <SidebarMenuButton disabled tooltip={{ children: item.title }} className="cursor-not-allowed opacity-50">
+                                <SidebarMenuButton disabled tooltip={{ children: item.title }} className="cursor-not-allowed opacity-50" data-tour={item.tourId}>
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </SidebarMenuButton>
@@ -51,7 +51,7 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                     }
                                     tooltip={{ children: item.title }}
                                 >
-                                    <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch}>
+                                    <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch} data-tour={item.tourId}>
                                         {item.icon && <item.icon />}
                                         <span>{item.title}</span>
                                     </Link>

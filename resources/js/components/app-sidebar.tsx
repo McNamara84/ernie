@@ -38,6 +38,7 @@ export function AppSidebar() {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
+            tourId: 'sidebar-dashboard',
         },
     ];
 
@@ -48,6 +49,7 @@ export function AppSidebar() {
             href: '/editor',
             icon: FileText,
             onPrefetch: prefetchEditor,
+            tourId: 'sidebar-data-editor',
         },
         {
             title: 'Resources',
@@ -55,6 +57,7 @@ export function AppSidebar() {
             icon: Layers,
             badge: dataResourceCount ?? 0,
             showZeroBadge: true,
+            tourId: 'sidebar-resources',
         },
     ];
 
@@ -66,11 +69,13 @@ export function AppSidebar() {
             icon: FlaskConical,
             badge: igsnCount ?? 0,
             showZeroBadge: true,
+            tourId: 'sidebar-igsns-list',
         },
         {
             title: 'IGSNs Map',
             href: '/igsns-map',
             icon: MapPin,
+            tourId: 'sidebar-igsns-map',
         },
         {
             title: 'IGSN Editor',
@@ -164,11 +169,12 @@ export function AppSidebar() {
             title: 'Documentation',
             href: '/docs',
             icon: BookOpen,
+            tourId: 'sidebar-documentation',
         },
     );
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" data-tour="sidebar-root">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

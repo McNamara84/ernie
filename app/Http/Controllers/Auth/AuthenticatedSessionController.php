@@ -35,6 +35,7 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        $request->session()->put('guided_tours.autostart_after_login', true);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

@@ -58,6 +58,7 @@ describe('Users/Index', () => {
             created_at: '2024-01-01T00:00:00Z',
             last_seen_at: '2026-04-01T12:00:00Z',
             is_online: true,
+            guided_tour_assignments: [],
         },
         {
             id: 2,
@@ -71,6 +72,15 @@ describe('Users/Index', () => {
             created_at: '2024-06-15T00:00:00Z',
             last_seen_at: '2024-06-15T00:00:00Z',
             is_online: false,
+            guided_tour_assignments: [
+                {
+                    guided_tour_id: 2,
+                    status: 'completed',
+                    assignment_source: 'automatic',
+                    assigned_at: '2024-06-16T00:00:00Z',
+                    completed_at: '2024-06-16T01:00:00Z',
+                },
+            ],
         },
         {
             id: 3,
@@ -87,6 +97,15 @@ describe('Users/Index', () => {
             created_at: '2024-05-01T00:00:00Z',
             last_seen_at: null,
             is_online: false,
+            guided_tour_assignments: [
+                {
+                    guided_tour_id: 1,
+                    status: 'pending',
+                    assignment_source: 'manual',
+                    assigned_at: '2024-10-02T00:00:00Z',
+                    completed_at: null,
+                },
+            ],
         },
     ];
 
@@ -97,11 +116,33 @@ describe('Users/Index', () => {
         { value: 'beginner', label: 'Beginner' },
     ];
 
+    const defaultAvailableGuidedTours = [
+        {
+            id: 1,
+            key: 'beginner-dashboard-main-menu',
+            version: 1,
+            name: 'Beginner Dashboard Tour',
+            description: 'Introduces the main dashboard and navigation.',
+            start_route: 'dashboard',
+            target_roles: ['beginner'],
+        },
+        {
+            id: 2,
+            key: 'curator-review-tour',
+            version: 1,
+            name: 'Curator Review Tour',
+            description: 'Explains curator review points.',
+            start_route: 'dashboard',
+            target_roles: ['curator'],
+        },
+    ];
+
     const defaultProps = {
         users: defaultUsers,
         available_roles: defaultAvailableRoles,
         can_promote_to_group_leader: true,
         can_create_users: true,
+        available_guided_tours: defaultAvailableGuidedTours,
     };
 
     beforeEach(() => {
@@ -182,7 +223,7 @@ describe('Users/Index', () => {
         render(<Index {...defaultProps} />);
 
         // Should have Deactivate button for user 2 (Regular User who is active)
-        expect(screen.getByRole('button', { name: /Deactivate/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Deactivate$/i })).toBeInTheDocument();
     });
 
     it('shows Reactivate button for deactivated users', () => {
@@ -197,6 +238,48 @@ describe('Users/Index', () => {
         // Password reset buttons should be present for users other than ID 1
         const passwordButtons = screen.getAllByTitle('Send password reset email');
         expect(passwordButtons.length).toBeGreaterThan(0);
+    });
+
+    it('shows assign tours button only for curator and beginner users', () => {
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getByRole('button', { name: /assign tours to regular user/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /assign tours to deactivated user/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /assign tours to admin user/i })).not.toBeInTheDocument();
+    });
+
+    it('shows only tours eligible for the selected user role in the assign dialog', async () => {
+        const user = userEvent.setup();
+
+        render(<Index {...defaultProps} />);
+
+        await user.click(screen.getByRole('button', { name: /assign tours to regular user/i }));
+
+        expect(screen.getByText('Assign Guided Tours')).toBeInTheDocument();
+        expect(screen.getByText('Curator Review Tour')).toBeInTheDocument();
+        expect(screen.queryByText('Beginner Dashboard Tour')).not.toBeInTheDocument();
+        expect(screen.getByText('Completed')).toBeInTheDocument();
+    });
+
+    it('submits selected guided tours for the chosen user', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+
+        render(<Index {...defaultProps} />);
+
+        await user.click(screen.getByRole('button', { name: /assign tours to deactivated user/i }));
+        await user.click(screen.getByRole('checkbox', { name: /beginner dashboard tour/i }));
+        await user.click(screen.getByRole('button', { name: /assign selected tours/i }));
+
+        await waitFor(() => {
+            expect(router.post).toHaveBeenCalledWith(
+                '/users/3/guided-tours',
+                { tour_ids: [1] },
+                expect.objectContaining({
+                    preserveScroll: true,
+                }),
+            );
+        });
     });
 
     it('displays formatted registration dates', () => {
@@ -231,7 +314,7 @@ describe('Users/Index', () => {
         const user = userEvent.setup();
         render(<Index {...defaultProps} />);
 
-        const deactivateButton = screen.getByRole('button', { name: /Deactivate/i });
+        const deactivateButton = screen.getByRole('button', { name: /^Deactivate$/i });
         await user.click(deactivateButton);
 
         await waitFor(() => {
@@ -311,7 +394,7 @@ describe('Users/Index', () => {
 
         // The current user (id=1) should not have a deactivate button
         // Count deactivate buttons - should be 1 for user 2 (user 3 is already deactivated)
-        const deactivateButtons = screen.getAllByRole('button', { name: /Deactivate/i });
+        const deactivateButtons = screen.getAllByRole('button', { name: /^Deactivate$/i });
         expect(deactivateButtons.length).toBe(1);
     });
 

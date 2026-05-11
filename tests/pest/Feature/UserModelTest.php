@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\GuidedTour;
 use App\Models\User;
+use App\Models\UserGuidedTourAssignment;
 
 describe('User Model', function (): void {
     describe('Relationships', function (): void {
@@ -27,6 +29,58 @@ describe('User Model', function (): void {
 
             expect($admin->deactivatedUsers)->toHaveCount(1)
                 ->and($admin->deactivatedUsers->first()->id)->toBe($deactivatedUser->id);
+        });
+
+        it('has guidedTourAssignments relationship', function (): void {
+            $user = User::factory()->beginner()->create();
+            $tour = GuidedTour::query()->create([
+                'key' => 'user-tour-' . uniqid(),
+                'version' => 1,
+                'name' => 'User Tour',
+                'description' => 'Attached to a user.',
+                'start_route' => 'dashboard',
+                'target_roles' => ['beginner'],
+                'is_active' => true,
+                'auto_assign' => true,
+            ]);
+
+            $assignment = UserGuidedTourAssignment::query()->create([
+                'user_id' => $user->id,
+                'guided_tour_id' => $tour->id,
+                'status' => UserGuidedTourAssignment::STATUS_PENDING,
+                'assignment_source' => UserGuidedTourAssignment::SOURCE_AUTOMATIC,
+                'assigned_at' => now(),
+            ]);
+
+            expect($user->guidedTourAssignments)->toHaveCount(1)
+                ->and($user->guidedTourAssignments->first()?->is($assignment))->toBeTrue();
+        });
+
+        it('has assignedGuidedTourAssignments relationship', function (): void {
+            $actor = User::factory()->admin()->create();
+            $user = User::factory()->beginner()->create();
+            $tour = GuidedTour::query()->create([
+                'key' => 'assigned-tour-' . uniqid(),
+                'version' => 1,
+                'name' => 'Assigned Tour',
+                'description' => 'Assigned by another user.',
+                'start_route' => 'dashboard',
+                'target_roles' => ['beginner'],
+                'is_active' => true,
+                'auto_assign' => true,
+            ]);
+
+            $assignment = UserGuidedTourAssignment::query()->create([
+                'user_id' => $user->id,
+                'guided_tour_id' => $tour->id,
+                'status' => UserGuidedTourAssignment::STATUS_PENDING,
+                'assignment_source' => UserGuidedTourAssignment::SOURCE_MANUAL,
+                'assigned_by' => $actor->id,
+                'assigned_at' => now(),
+            ]);
+
+            expect($actor->assignedGuidedTourAssignments)->toHaveCount(1)
+                ->and($actor->assignedGuidedTourAssignments->first()?->is($assignment))->toBeTrue();
         });
     });
 

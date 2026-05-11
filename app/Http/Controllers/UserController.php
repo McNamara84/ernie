@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Http\Requests\AssignGuidedToursRequest;
 use App\Http\Requests\DeactivateUserRequest;
 use App\Http\Requests\ReactivateUserRequest;
 use App\Http\Requests\ResetUserPasswordRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
 use App\Mail\WelcomeNewUser;
+use App\Models\GuidedTour;
 use App\Models\User;
+use App\Services\GuidedTours\GuidedTourAssignmentService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -30,12 +33,14 @@ class UserController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index(): Response
+    public function index(GuidedTourAssignmentService $guidedTourAssignmentService): Response
     {
         $this->authorize('viewAny', User::class);
 
+        $guidedTourAssignmentService->syncCatalogTours();
+
         $users = User::query()
-            ->with(['deactivatedBy:id,name'])
+            ->with(['deactivatedBy:id,name', 'guidedTourAssignments.guidedTour:id,key,version,name'])
             ->orderBy('id')
             ->get()
             ->map(function (User $user) {
@@ -54,8 +59,37 @@ class UserController extends Controller
                     'created_at' => $user->created_at->toISOString(),
                     'last_seen_at' => $user->last_seen_at?->toISOString(),
                     'is_online' => $user->isOnline(),
+                    'guided_tour_assignments' => $user->guidedTourAssignments
+                        ->map(fn ($assignment) => [
+                            'guided_tour_id' => $assignment->guided_tour_id,
+                            'status' => $assignment->status,
+                            'assignment_source' => $assignment->assignment_source,
+                            'assigned_at' => $assignment->assigned_at?->toISOString(),
+                            'completed_at' => $assignment->completed_at?->toISOString(),
+                            'key' => $assignment->guidedTour?->key,
+                            'version' => $assignment->guidedTour?->version,
+                        ])
+                        ->values()
+                        ->all(),
                 ];
             });
+
+        $availableGuidedTours = GuidedTour::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->orderBy('version')
+            ->get()
+            ->map(fn (GuidedTour $tour) => [
+                'id' => $tour->id,
+                'key' => $tour->key,
+                'version' => $tour->version,
+                'name' => $tour->name,
+                'description' => $tour->description,
+                'start_route' => $tour->start_route,
+                'target_roles' => $tour->target_roles,
+            ])
+            ->values()
+            ->all();
 
         /** @var User $authUser */
         $authUser = auth()->user();
@@ -68,6 +102,7 @@ class UserController extends Controller
             ])->toArray(),
             'can_promote_to_group_leader' => $authUser->role->canPromoteToGroupLeader(),
             'can_create_users' => Gate::allows('manage-users'),
+            'available_guided_tours' => $availableGuidedTours,
         ]);
     }
 
@@ -198,5 +233,25 @@ class UserController extends Controller
 
             return redirect()->back()->with('error', 'Could not send password reset email. Please try again later.');
         }
+    }
+
+    /**
+     * Assign one or more guided tours to a user for replay on their next login.
+     */
+    public function assignGuidedTours(AssignGuidedToursRequest $request, User $user, GuidedTourAssignmentService $guidedTourAssignmentService): RedirectResponse
+    {
+        $this->authorize('assignGuidedTours', $user);
+
+        /** @var User $authUser */
+        $authUser = $request->user();
+
+        /** @var array{tour_ids: array<int, int>} $validated */
+        $validated = $request->validated();
+
+        $assignedCount = $guidedTourAssignmentService->assignToursToUser($user, $validated['tour_ids'], $authUser);
+
+        $tourLabel = $assignedCount === 1 ? 'tour has' : 'tours have';
+
+        return redirect()->back()->with('success', "{$assignedCount} guided {$tourLabel} been assigned to {$user->name}.");
     }
 }

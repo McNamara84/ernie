@@ -99,6 +99,14 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>Quick access to recent resources</li>
                         </ul>
 
+                        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                            <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                                <strong>Guided Tours:</strong> Beginners now receive a role-specific product tour the first time they return to the
+                                Dashboard after logging in. The tour highlights the dashboard, the main navigation, the upload area, the resources
+                                list, and the IGSN tools. Closing the tour does not mark it as completed, so it can be assigned again later.
+                            </p>
+                        </div>
+
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources</strong> and{' '}
@@ -239,6 +247,17 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <p className="text-sm text-muted-foreground">Limited curation, test DOI only (forced)</p>
                             </div>
                         </div>
+
+                        <h4>Reassign Guided Tours</h4>
+                        <p>
+                            On <code>/users</code>, admins and group leaders can reopen guided tours for <strong>Curator</strong> and{' '}
+                            <strong>Beginner</strong> users. Use <strong>Assign Tours</strong> in the Actions column to choose one or more tours for a
+                            user. Reassigned tours start automatically on the next login when the user reaches the Dashboard.
+                        </p>
+                        <p>
+                            The dialog shows only tours that match the selected user role and also displays whether a tour is currently pending,
+                            already in progress, or completed.
+                        </p>
 
                         {userRole === 'group_leader' && (
                             <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">

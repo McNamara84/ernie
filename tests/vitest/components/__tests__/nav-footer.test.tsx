@@ -16,7 +16,15 @@ vi.mock('@/components/ui/sidebar', () => ({
 }));
 
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+    Link: ({ children, href, prefetch, ...props }: { children?: React.ReactNode; href: string; prefetch?: boolean } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        void prefetch;
+
+        return (
+            <a href={href} {...props}>
+                {children}
+            </a>
+        );
+    },
 }));
 
 vi.mock('@/components/icon', () => ({
@@ -47,6 +55,12 @@ describe('NavFooter', () => {
         expect(links[0]).toHaveAttribute('href', '/docs');
         expect(screen.getByTestId('icon')).toBeInTheDocument();
         expect(links[1]).toHaveAttribute('href', '/github');
+    });
+
+    it('passes data-tour attributes to footer links', () => {
+        render(<NavFooter items={[{ title: 'Docs', href: '/docs', icon: Book, tourId: 'sidebar-documentation' }]} />);
+
+        expect(screen.getByRole('link', { name: /docs/i })).toHaveAttribute('data-tour', 'sidebar-documentation');
     });
 });
 

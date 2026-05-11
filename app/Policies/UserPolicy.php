@@ -151,6 +151,23 @@ class UserPolicy
     }
 
     /**
+     * Determine whether the user can assign guided tours to another user.
+     * Only admins and group leaders may assign tours, and only to curator/beginner users.
+     */
+    public function assignGuidedTours(User $user, User $targetUser): Response
+    {
+        if (Gate::denies('manage-users')) {
+            return Response::deny('You do not have permission to assign guided tours.');
+        }
+
+        if (! in_array($targetUser->role, [UserRole::CURATOR, UserRole::BEGINNER], true)) {
+            return Response::deny('Guided tours can only be assigned to Curator or Beginner users.');
+        }
+
+        return Response::allow();
+    }
+
+    /**
      * Determine whether the user can delete the model.
      * Users cannot be deleted to preserve data integrity (resources linkage).
      */

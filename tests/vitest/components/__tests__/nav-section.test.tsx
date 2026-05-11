@@ -142,6 +142,14 @@ describe('NavSection', () => {
         expect(link).toHaveAttribute('href', '/dashboard');
     });
 
+    it('renders data-tour attributes for guided tour anchors', () => {
+        const items: NavItem[] = [{ title: 'Dashboard', href: '/dashboard', icon: Home, tourId: 'sidebar-dashboard' }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('data-tour', 'sidebar-dashboard');
+    });
+
     it('handles href as route object with url property', () => {
         const items: NavItem[] = [
             { title: 'Resources', href: { url: '/resources', method: 'get' }, icon: Database },

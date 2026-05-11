@@ -1,12 +1,14 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { GuidedTourAutostart } from '@/components/tours/guided-tour-autostart';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
 import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/routes/dashboard';
@@ -100,6 +102,7 @@ type DashboardPageProps = SharedData & {
         title: string;
         updated_at: string | null;
     }>;
+    guidedTour?: GuidedTourAutostartPayload | null;
     phpVersion?: string;
     laravelVersion?: string;
 };
@@ -114,6 +117,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         draftCount,
         recentDrafts,
         pendingAssistanceTotalCount,
+        guidedTour = null,
         phpVersion = '8.4.12',
         laravelVersion = '12.28.1',
     } = usePage<DashboardPageProps>().props;
@@ -261,9 +265,10 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
+            <GuidedTourAutostart guidedTour={guidedTour} />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="grid gap-4 md:grid-cols-3">
-                    <Card onMouseEnter={() => handleCardHover('welcome')}>
+                    <Card onMouseEnter={() => handleCardHover('welcome')} data-tour="dashboard-welcome">
                         <CardHeader>
                             <CardTitle>Hello {auth.user.name}!</CardTitle>
                         </CardHeader>
@@ -363,7 +368,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                         </CardContent>
                     </Card>
                 </div>
-                <Card className="flex flex-col items-center justify-center">
+                <Card className="flex flex-col items-center justify-center" data-tour="dashboard-upload">
                     <CardHeader className="items-center text-center">
                         <CardTitle>Upload Files</CardTitle>
                         <CardDescription>Upload DataCite files (XML, JSON, JSON-LD) or IGSN CSV files for sample metadata.</CardDescription>

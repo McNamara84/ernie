@@ -4,6 +4,10 @@
         "date": "2026-05-04",
         "features": [
             {
+                "title": "Role-Based Guided Tours",
+                "description": "Beginners now receive a guided product tour on the Dashboard after login, covering the main dashboard cards, the sidebar navigation, the upload area, the Resources list, and the IGSN tools. The tour starts only once by default, is tracked per user, and can be reassigned later. Admins and Group Leaders can reopen eligible tours for Beginner and Curator accounts directly on the /users page via a new Assign Tours dialog. Newly added built-in tours can also be rolled out automatically to eligible users without manual data seeding."
+            },
+            {
                 "title": "Admin FAIR Assessment Dashboard",
                 "description": "A new admin-only Assessment page is now available in the Tools section of the main navigation. It runs F-UJI FAIR checks for both regular resources and IGSNs, shows the 10 lowest-scoring records in separate cards, and lets administrators trigger either scope individually or both together via Check all. Each card displays DOI, main title, and latest FAIR score, while the dashboard also summarizes assessed, failed, skipped, and remaining records. The F-UJI service is integrated into the Docker stack as an internal container so assessment traffic stays inside the ERNIE application network."
             },

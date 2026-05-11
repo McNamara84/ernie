@@ -20,6 +20,7 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertSessionHas('guided_tours.autostart_after_login', true);
 });
 
 test('users can not authenticate with invalid password', function () {
