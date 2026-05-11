@@ -46,7 +46,7 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
-      - FUJI_BASE_URL=${FUJI_BASE_URL:?FUJI_BASE_URL is required}
+      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
       - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
@@ -178,7 +178,7 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - FUJI_ENABLED=${FUJI_ENABLED:-false}
-      - FUJI_BASE_URL=${FUJI_BASE_URL:?FUJI_BASE_URL is required}
+      - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
       - FUJI_TIMEOUT=${FUJI_TIMEOUT:-120}
