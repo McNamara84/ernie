@@ -212,10 +212,6 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
     }, []);
 
     const applyYearRange = useCallback(() => {
-        if (!hasPendingYearRangeChanges) {
-            return;
-        }
-
         const newFilters = { ...filters };
         const yearFrom = parseYearInput(yearFromInput);
         const yearTo = parseYearInput(yearToInput);
@@ -233,7 +229,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
         }
 
         onFilterChange(newFilters);
-    }, [filters, hasPendingYearRangeChanges, onFilterChange, yearFromInput, yearToInput]);
+    }, [filters, onFilterChange, yearFromInput, yearToInput]);
 
     const clearYearRange = useCallback(() => {
         setYearFromInput('');

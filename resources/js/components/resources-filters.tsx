@@ -212,10 +212,6 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
     }, []);
 
     const applyYearRange = useCallback(() => {
-        if (!hasPendingYearRangeChanges) {
-            return;
-        }
-
         const newFilters = { ...filters };
         const yearFrom = parseYearInput(yearFromInput);
         const yearTo = parseYearInput(yearToInput);
@@ -233,7 +229,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
         }
 
         onFilterChange(newFilters);
-    }, [filters, hasPendingYearRangeChanges, onFilterChange, yearFromInput, yearToInput]);
+    }, [filters, onFilterChange, yearFromInput, yearToInput]);
 
     const clearYearRange = useCallback(() => {
         setYearFromInput('');
