@@ -826,6 +826,12 @@ class OldDatasetController extends Controller
                 ->whereNotNull('publicationyear')
                 ->max('publicationyear');
 
+            if ($yearMin === null || $yearMax === null) {
+                $currentYear = (int) now()->year;
+                $yearMin = $currentYear;
+                $yearMax = $currentYear;
+            }
+
             // Define available statuses (based on actual database values in metaworks.resource.publicstatus)
             // Confirmed via tinker query: only 'pending' and 'released' exist
             $statuses = ['pending', 'released'];
@@ -834,8 +840,8 @@ class OldDatasetController extends Controller
                 'resource_types' => $resourceTypes,
                 'curators' => $curators,
                 'year_range' => [
-                    'min' => $yearMin,
-                    'max' => $yearMax,
+                    'min' => (int) $yearMin,
+                    'max' => (int) $yearMax,
                 ],
                 'statuses' => $statuses,
             ]);

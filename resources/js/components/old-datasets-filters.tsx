@@ -90,6 +90,8 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
     const committedYearTo = formatYearInput(filters.year_to);
     const hasPendingYearRangeChanges = yearFromInput !== committedYearFrom || yearToInput !== committedYearTo;
     const hasYearRangeInput = yearFromInput !== '' || yearToInput !== '';
+    const yearRangeMin = filterOptions?.year_range?.min;
+    const yearRangeMax = filterOptions?.year_range?.max;
 
     // Sync Select values when filters change externally
     useEffect(() => {
@@ -420,11 +422,11 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                                     <Input
                                         id="year-from"
                                         type="number"
-                                        placeholder={filterOptions?.year_range?.min.toString()}
+                                        placeholder={yearRangeMin == null ? undefined : String(yearRangeMin)}
                                         value={yearFromInput}
                                         onChange={(e) => handleYearFromChange(e.target.value)}
-                                        min={filterOptions?.year_range?.min}
-                                        max={filterOptions?.year_range?.max}
+                                        min={yearRangeMin ?? undefined}
+                                        max={yearRangeMax ?? undefined}
                                         className="h-9"
                                         disabled={isLoading || !filterOptions}
                                     />
@@ -436,11 +438,11 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                                     <Input
                                         id="year-to"
                                         type="number"
-                                        placeholder={filterOptions?.year_range?.max.toString()}
+                                        placeholder={yearRangeMax == null ? undefined : String(yearRangeMax)}
                                         value={yearToInput}
                                         onChange={(e) => handleYearToChange(e.target.value)}
-                                        min={filterOptions?.year_range?.min}
-                                        max={filterOptions?.year_range?.max}
+                                        min={yearRangeMin ?? undefined}
+                                        max={yearRangeMax ?? undefined}
                                         className="h-9"
                                         disabled={isLoading || !filterOptions}
                                     />
