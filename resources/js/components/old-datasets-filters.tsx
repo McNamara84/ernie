@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatYearInput, parseYearInput } from '@/lib/year-range-input';
 import type { FilterOptions, FilterState } from '@/types/old-datasets';
 
 /**
@@ -21,24 +22,6 @@ const MIN_SEARCH_LENGTH = 3;
  * Increased to allow users to finish typing before search is triggered.
  */
 const SEARCH_DEBOUNCE_MS = 1000;
-
-const parseYearInput = (value: string): number | undefined => {
-    const trimmed = value.trim();
-
-    if (trimmed.length === 0) {
-        return undefined;
-    }
-
-    const year = Number.parseInt(trimmed, 10);
-
-    if (Number.isNaN(year) || year <= 0) {
-        return undefined;
-    }
-
-    return year;
-};
-
-const formatYearInput = (value?: number): string => (value === undefined ? '' : String(value));
 
 interface OldDatasetsFiltersProps {
     filters: FilterState;
@@ -90,8 +73,9 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
     const committedYearTo = formatYearInput(filters.year_to);
     const hasPendingYearRangeChanges = yearFromInput !== committedYearFrom || yearToInput !== committedYearTo;
     const hasYearRangeInput = yearFromInput !== '' || yearToInput !== '';
-    const yearRangeMin = filterOptions?.year_range?.min;
-    const yearRangeMax = filterOptions?.year_range?.max;
+    const yearRangeBounds = filterOptions?.year_range;
+    const yearRangeMin = yearRangeBounds?.min;
+    const yearRangeMax = yearRangeBounds?.max;
 
     // Sync Select values when filters change externally
     useEffect(() => {
@@ -215,8 +199,8 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
 
     const applyYearRange = useCallback(() => {
         const newFilters = { ...filters };
-        const yearFrom = parseYearInput(yearFromInput);
-        const yearTo = parseYearInput(yearToInput);
+        const yearFrom = parseYearInput(yearFromInput, yearRangeBounds);
+        const yearTo = parseYearInput(yearToInput, yearRangeBounds);
 
         if (yearFrom !== undefined) {
             newFilters.year_from = yearFrom;
@@ -231,7 +215,7 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
         }
 
         onFilterChange(newFilters);
-    }, [filters, onFilterChange, yearFromInput, yearToInput]);
+    }, [filters, onFilterChange, yearFromInput, yearRangeBounds, yearToInput]);
 
     const clearYearRange = useCallback(() => {
         setYearFromInput('');

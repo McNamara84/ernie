@@ -239,6 +239,26 @@ describe('ResourcesFilters Component', () => {
                 expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_from: 2021 });
             }, 15000);
 
+            it('removes decimal year values on Apply instead of truncating them', async () => {
+                const user = userEvent.setup();
+                render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+                fireEvent.change(screen.getByLabelText('To Year'), { target: { value: '2021.9' } });
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_from: 2021 });
+            }, 15000);
+
+            it('removes out-of-range year values on Apply', async () => {
+                const user = userEvent.setup();
+                render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+                fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_to: 2024 });
+            }, 15000);
+
             it('clears local year draft values without triggering a reload when nothing is committed', async () => {
                 const user = userEvent.setup();
                 render(<ResourcesFilters {...defaultProps} />);

@@ -223,6 +223,26 @@ describe('OldDatasetsFilters Component', () => {
                 expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_from: 2018 });
             }, 15000);
 
+            it('removes decimal year values on Apply instead of truncating them', async () => {
+                const user = userEvent.setup();
+                render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+                fireEvent.change(screen.getByLabelText('To Year'), { target: { value: '2021.9' } });
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_from: 2018 });
+            }, 15000);
+
+            it('removes out-of-range year values on Apply', async () => {
+                const user = userEvent.setup();
+                render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+                fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_to: 2022 });
+            }, 15000);
+
             it('clears local year draft values without triggering a reload when nothing is committed', async () => {
                 const user = userEvent.setup();
                 render(<OldDatasetsFilters {...defaultProps} />);
