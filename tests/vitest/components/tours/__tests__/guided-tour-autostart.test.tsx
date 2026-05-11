@@ -284,7 +284,7 @@ describe('GuidedTourAutostart', () => {
             <div data-tour="sidebar-root"></div>
         `;
 
-        let resolveFetch: ((value: Response) => void) | undefined;
+        let resolveFetch: ((value: null) => void) | undefined;
         const startRequest = new Promise<null>((resolve) => {
             resolveFetch = resolve;
         });
