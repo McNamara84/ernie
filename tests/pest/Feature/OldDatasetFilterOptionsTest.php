@@ -25,10 +25,12 @@ function mockOldDatasetFilterOptionsConnection(?int $yearMin, ?int $yearMax): vo
 
     $yearMinQuery = Mockery::mock(Builder::class);
     $yearMinQuery->shouldReceive('whereNotNull')->once()->with('publicationyear')->andReturnSelf();
+    $yearMinQuery->shouldReceive('where')->once()->with('publicationyear', '>', 0)->andReturnSelf();
     $yearMinQuery->shouldReceive('min')->once()->with('publicationyear')->andReturn($yearMin);
 
     $yearMaxQuery = Mockery::mock(Builder::class);
     $yearMaxQuery->shouldReceive('whereNotNull')->once()->with('publicationyear')->andReturnSelf();
+    $yearMaxQuery->shouldReceive('where')->once()->with('publicationyear', '>', 0)->andReturnSelf();
     $yearMaxQuery->shouldReceive('max')->once()->with('publicationyear')->andReturn($yearMax);
 
     $connection = Mockery::mock(Connection::class);
@@ -72,6 +74,23 @@ it('falls back to the current year when legacy datasets have no publication year
             'year_range' => [
                 'min' => $currentYear,
                 'max' => $currentYear,
+            ],
+            'statuses' => ['pending', 'released'],
+        ]);
+});
+
+it('returns only positive publication year bounds for legacy datasets', function (): void {
+    mockOldDatasetFilterOptionsConnection(yearMin: 2001, yearMax: 2024);
+
+    $this->actingAs($this->admin)
+        ->get('/old-datasets/filter-options')
+        ->assertOk()
+        ->assertJson([
+            'resource_types' => ['Dataset'],
+            'curators' => ['Alice'],
+            'year_range' => [
+                'min' => 2001,
+                'max' => 2024,
             ],
             'statuses' => ['pending', 'released'],
         ]);

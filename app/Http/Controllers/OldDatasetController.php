@@ -819,11 +819,13 @@ class OldDatasetController extends Controller
             $yearMin = DB::connection(self::DATASET_CONNECTION)
                 ->table('resource')
                 ->whereNotNull('publicationyear')
+                ->where('publicationyear', '>', 0)
                 ->min('publicationyear');
 
             $yearMax = DB::connection(self::DATASET_CONNECTION)
                 ->table('resource')
                 ->whereNotNull('publicationyear')
+                ->where('publicationyear', '>', 0)
                 ->max('publicationyear');
 
             if ($yearMin === null || $yearMax === null) {
