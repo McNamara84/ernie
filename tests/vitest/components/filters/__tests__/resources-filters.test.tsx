@@ -197,13 +197,21 @@ describe('ResourcesFilters Component', () => {
         expect(applyButton).toBeDisabled();
     }, 15000);
 
-    it('does not emit changes when Apply is triggered with only invalid year edits', async () => {
+    it('disables Apply when only invalid year edits would be a no-op and still allows clearing', async () => {
         const user = userEvent.setup();
         render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'] }} />);
 
         fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
-        await user.click(screen.getByRole('button', { name: 'Apply' }));
 
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        const clearButton = screen.getByRole('button', { name: 'Clear' });
+
+        expect(applyButton).toBeDisabled();
+        expect(clearButton).toBeEnabled();
+
+        await user.click(clearButton);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(null);
         expect(mockOnFilterChange).not.toHaveBeenCalled();
     }, 15000);
 

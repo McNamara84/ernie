@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatYearInput, parseYearInput } from '@/lib/year-range-input';
+import { useBufferedYearRangeFilter } from '@/hooks/use-buffered-year-range-filter';
 import type { ResourceFilterOptions, ResourceFilterState } from '@/types/resources';
 
 /**
@@ -66,16 +66,22 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
     const [resourceTypeValue, setResourceTypeValue] = useState(filters.resource_type?.[0] || 'all');
     const [statusValue, setStatusValue] = useState(filters.status?.[0] || 'all');
     const [curatorValue, setCuratorValue] = useState(filters.curator?.[0] || 'all');
-    const [yearFromInput, setYearFromInput] = useState(() => formatYearInput(filters.year_from));
-    const [yearToInput, setYearToInput] = useState(() => formatYearInput(filters.year_to));
-
-    const committedYearFrom = formatYearInput(filters.year_from);
-    const committedYearTo = formatYearInput(filters.year_to);
-    const hasPendingYearRangeChanges = yearFromInput !== committedYearFrom || yearToInput !== committedYearTo;
-    const hasYearRangeInput = yearFromInput !== '' || yearToInput !== '';
-    const yearRangeBounds = filterOptions?.year_range;
-    const yearRangeMin = yearRangeBounds?.min;
-    const yearRangeMax = yearRangeBounds?.max;
+    const {
+        yearFromInput,
+        yearToInput,
+        hasYearRangeInput,
+        hasEffectiveYearRangeChange,
+        yearRangeMin,
+        yearRangeMax,
+        handleYearFromChange,
+        handleYearToChange,
+        applyYearRange,
+        clearYearRange,
+    } = useBufferedYearRangeFilter({
+        filters,
+        onFilterChange,
+        bounds: filterOptions?.year_range,
+    });
 
     // Sync Select values when filters change externally
     useEffect(() => {
@@ -83,11 +89,6 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
         setStatusValue(filters.status?.[0] || 'all');
         setCuratorValue(filters.curator?.[0] || 'all');
     }, [filters.resource_type, filters.status, filters.curator]);
-
-    useEffect(() => {
-        setYearFromInput(committedYearFrom);
-        setYearToInput(committedYearTo);
-    }, [committedYearFrom, committedYearTo]);
 
     // Debounced search handler
     const handleSearchChange = useCallback(
@@ -188,52 +189,6 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
         },
         [filters, onFilterChange],
     );
-
-    const handleYearFromChange = useCallback((value: string) => {
-        setYearFromInput(value);
-    }, []);
-
-    const handleYearToChange = useCallback((value: string) => {
-        setYearToInput(value);
-    }, []);
-
-    const applyYearRange = useCallback(() => {
-        const newFilters = { ...filters };
-        const yearFrom = parseYearInput(yearFromInput, yearRangeBounds);
-        const yearTo = parseYearInput(yearToInput, yearRangeBounds);
-
-        if (yearFrom === filters.year_from && yearTo === filters.year_to) {
-            return;
-        }
-
-        if (yearFrom !== undefined) {
-            newFilters.year_from = yearFrom;
-        } else {
-            delete newFilters.year_from;
-        }
-
-        if (yearTo !== undefined) {
-            newFilters.year_to = yearTo;
-        } else {
-            delete newFilters.year_to;
-        }
-
-        onFilterChange(newFilters);
-    }, [filters, onFilterChange, yearFromInput, yearRangeBounds, yearToInput]);
-
-    const clearYearRange = useCallback(() => {
-        setYearFromInput('');
-        setYearToInput('');
-
-        if (filters.year_from === undefined && filters.year_to === undefined) {
-            return;
-        }
-
-        const newFilters = { ...filters };
-        delete newFilters.year_from;
-        delete newFilters.year_to;
-        onFilterChange(newFilters);
-    }, [filters, onFilterChange]);
 
     const handleCreatedFromChange = useCallback(
         (value: string) => {
@@ -453,7 +408,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                     size="sm"
                                     className="flex-1"
                                     onClick={applyYearRange}
-                                    disabled={!hasPendingYearRangeChanges || isLoading || !filterOptions}
+                                    disabled={!hasEffectiveYearRangeChange || isLoading || !filterOptions}
                                 >
                                     Apply
                                 </Button>
