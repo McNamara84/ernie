@@ -86,24 +86,12 @@ class FujiAssessmentService
                 ->asJson()
                 ->post($this->endpoint(), $this->buildPayload($identifier));
         } catch (ConnectionException $exception) {
-            $this->logTransportFailure('assessment', $exception, [
-                'identifier' => $identifier,
-            ]);
-
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
         } catch (\Throwable $exception) {
-            $this->logTransportFailure('assessment', $exception, [
-                'identifier' => $identifier,
-            ]);
-
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
         }
 
         if (! $response->successful()) {
-            $this->logUnsuccessfulResponse('assessment', $response, [
-                'identifier' => $identifier,
-            ]);
-
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE);
         }
 

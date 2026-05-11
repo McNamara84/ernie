@@ -139,7 +139,7 @@ describe('assessIdentifier', function (): void {
             ->toThrow(RuntimeException::class, 'summary.score_percent.FAIR');
     });
 
-    it('throws a generic availability message when the F-UJI response is unsuccessful and logs the response details', function (): void {
+    it('throws a generic availability message when the F-UJI response is unsuccessful without emitting an extra warning log', function (): void {
         Log::spy();
 
         Http::fake([
@@ -149,16 +149,7 @@ describe('assessIdentifier', function (): void {
         expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
             ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
 
-        Log::shouldHaveReceived('warning')
-            ->once()
-            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned unsuccessful response'
-                && $context['operation'] === 'assessment'
-                && $context['identifier'] === '10.5880/test.001'
-                && $context['base_url'] === 'https://fuji.test'
-                && $context['status'] === 500
-                && is_string($context['body'])
-                && str_contains($context['body'], 'Unavailable')
-            );
+        Log::shouldNotHaveReceived('warning');
     });
 
     it('throws a generic availability message when the F-UJI request cannot connect', function (): void {
