@@ -159,7 +159,7 @@ describe('handle', function (): void {
 
         expect($assessment)->not->toBeNull()
             ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_FAILED)
-            ->and($assessment?->error_message)->toContain('status 500')
+            ->and($assessment?->error_message)->toBe('F-UJI is currently unavailable. Please try again shortly.')
             ->and($status)->toBeArray()
             ->and($status['status'])->toBe('completed')
             ->and($status['assessedResources'])->toBe(0)

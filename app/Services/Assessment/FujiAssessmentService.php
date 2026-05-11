@@ -61,7 +61,7 @@ class FujiAssessmentService
 
             return [
                 'healthy' => false,
-                'message' => $this->healthFailureMessage($response),
+                'message' => self::UNAVAILABLE_MESSAGE,
             ];
         }
 
@@ -104,7 +104,7 @@ class FujiAssessmentService
                 'identifier' => $identifier,
             ]);
 
-            throw new RuntimeException($this->unsuccessfulResponseMessage('F-UJI assessment failed', $response));
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE);
         }
 
         /** @var array<string, mixed> $payload */
@@ -204,11 +204,6 @@ class FujiAssessmentService
             ->timeout($this->timeout());
     }
 
-    private function healthFailureMessage(Response $response): string
-    {
-        return sprintf('F-UJI health check failed with status %d.', $response->status());
-    }
-
     /**
      * @param array<string, mixed> $context
      */
@@ -235,18 +230,6 @@ class FujiAssessmentService
             'status' => $response->status(),
             'body' => $this->responseBodyExcerpt($response),
         ]);
-    }
-
-    private function unsuccessfulResponseMessage(string $prefix, Response $response): string
-    {
-        $message = sprintf('%s with status %d.', $prefix, $response->status());
-        $body = $this->responseBodyExcerpt($response);
-
-        if ($body === null) {
-            return $message;
-        }
-
-        return sprintf('%s Response: %s', $message, $body);
     }
 
     private function responseBodyExcerpt(Response $response): ?string

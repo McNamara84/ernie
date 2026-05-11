@@ -493,12 +493,12 @@ describe('Assessment page', () => {
     });
 
     it('keeps all check buttons enabled and shows the health message when F-UJI is unhealthy', () => {
-        render(<AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI health check failed with status 500.' })} />);
+        render(<AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI is currently unavailable. Please try again shortly.' })} />);
 
         expect(screen.getByRole('button', { name: 'Check all' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Check Resources' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Check IGSNs' })).toBeEnabled();
-        expect(screen.getByText('F-UJI health check failed with status 500.')).toBeInTheDocument();
+        expect(screen.getByText('F-UJI is currently unavailable. Please try again shortly.')).toBeInTheDocument();
     });
 
     it('still allows starting a check when F-UJI is unhealthy and surfaces the server-side 503 response', async () => {
@@ -510,7 +510,7 @@ describe('Assessment page', () => {
             <AssessmentPage
                 {...makeProps({
                     fujiHealthy: false,
-                    fujiStatusMessage: 'F-UJI health check failed with status 500.',
+                    fujiStatusMessage: 'F-UJI is currently unavailable. Please try again shortly.',
                 })}
             />
         );

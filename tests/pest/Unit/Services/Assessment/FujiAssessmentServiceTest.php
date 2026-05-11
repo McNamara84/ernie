@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Services\Assessment\FujiAssessmentService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 covers(FujiAssessmentService::class);
 
@@ -55,7 +56,9 @@ describe('healthStatus', function (): void {
         ]);
     });
 
-    it('returns a failure message when the health endpoint is unsuccessful', function (): void {
+    it('returns a generic availability message when the health endpoint is unsuccessful and logs the response details', function (): void {
+        Log::spy();
+
         Http::fake([
             'https://fuji.test/fuji/api/v1/ui/' => Http::response('Internal Server Error', 500),
         ]);
@@ -63,8 +66,16 @@ describe('healthStatus', function (): void {
         $status = makeFujiAssessmentService()->healthStatus();
 
         expect($status['healthy'])->toBeFalse()
-            ->and($status['message'])->toContain('status 500')
-            ->and($status['message'])->not->toContain('Internal Server Error');
+            ->and($status['message'])->toBe('F-UJI is currently unavailable. Please try again shortly.');
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned unsuccessful response'
+                && $context['operation'] === 'health check'
+                && $context['base_url'] === 'https://fuji.test'
+                && $context['status'] === 500
+                && $context['body'] === 'Internal Server Error'
+            );
     });
 
     it('returns a generic availability message when the health request cannot connect', function (): void {
@@ -128,14 +139,26 @@ describe('assessIdentifier', function (): void {
             ->toThrow(RuntimeException::class, 'summary.score_percent.FAIR');
     });
 
-    it('throws when the F-UJI response is unsuccessful', function (): void {
+    it('throws a generic availability message when the F-UJI response is unsuccessful and logs the response details', function (): void {
+        Log::spy();
+
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['error' => 'Unavailable'], 500),
         ]);
 
         expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
-            ->toThrow(RuntimeException::class, 'status 500')
-            ->toThrow(RuntimeException::class, 'Unavailable');
+            ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned unsuccessful response'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+                && $context['base_url'] === 'https://fuji.test'
+                && $context['status'] === 500
+                && is_string($context['body'])
+                && str_contains($context['body'], 'Unavailable')
+            );
     });
 
     it('throws a generic availability message when the F-UJI request cannot connect', function (): void {
