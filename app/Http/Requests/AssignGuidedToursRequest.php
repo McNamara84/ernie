@@ -20,7 +20,7 @@ class AssignGuidedToursRequest extends FormRequest
     {
         return [
             'tour_ids' => ['required', 'array', 'min:1'],
-            'tour_ids.*' => ['required', 'integer', 'distinct'],
+            'tour_ids.*' => ['required', 'integer', 'min:1', 'distinct', 'exists:guided_tours,id'],
         ];
     }
 }

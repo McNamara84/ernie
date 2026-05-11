@@ -25,6 +25,7 @@ return new class extends Migration
 
             $table->unique(['key', 'version']);
             $table->index(['is_active', 'auto_assign']);
+            $table->index(['start_route', 'is_active']);
         });
 
         Schema::create('user_guided_tour_assignments', function (Blueprint $table) {

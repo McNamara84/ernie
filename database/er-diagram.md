@@ -189,6 +189,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+    %% guided_tours indexes: unique(key, version), index(is_active, auto_assign), index(start_route, is_active)
 
     user_guided_tour_assignments {
         bigint id PK

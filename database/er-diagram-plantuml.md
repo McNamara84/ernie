@@ -216,6 +216,7 @@ entity "guided_tours" as guided_tours {
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
+' guided_tours indexes: unique(key, version), index(is_active, auto_assign), index(start_route, is_active)
 
 entity "user_guided_tour_assignments" as user_guided_tour_assignments {
     * **id** : BIGINT <<PK>>

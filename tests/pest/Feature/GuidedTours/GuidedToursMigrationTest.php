@@ -8,7 +8,8 @@ it('drops and recreates the guided tour tables through the migration lifecycle',
     $migration = require database_path('migrations/2026_05_07_000001_create_guided_tours_tables.php');
 
     expect(Schema::hasTable('guided_tours'))->toBeTrue()
-        ->and(Schema::hasTable('user_guided_tour_assignments'))->toBeTrue();
+        ->and(Schema::hasTable('user_guided_tour_assignments'))->toBeTrue()
+        ->and(Schema::hasIndex('guided_tours', ['start_route', 'is_active']))->toBeTrue();
 
     $migration->down();
 
@@ -18,5 +19,6 @@ it('drops and recreates the guided tour tables through the migration lifecycle',
     $migration->up();
 
     expect(Schema::hasTable('guided_tours'))->toBeTrue()
-        ->and(Schema::hasTable('user_guided_tour_assignments'))->toBeTrue();
+        ->and(Schema::hasTable('user_guided_tour_assignments'))->toBeTrue()
+        ->and(Schema::hasIndex('guided_tours', ['start_route', 'is_active']))->toBeTrue();
 });

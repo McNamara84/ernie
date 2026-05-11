@@ -19,20 +19,23 @@ class GuidedTourAssignmentService
     public function syncCatalogTours(): void
     {
         foreach ($this->catalog->all() as $tourDefinition) {
-            GuidedTour::query()->updateOrCreate(
-                [
-                    'key' => $tourDefinition['key'],
-                    'version' => $tourDefinition['version'],
-                ],
-                [
-                    'name' => $tourDefinition['name'],
-                    'description' => $tourDefinition['description'],
-                    'start_route' => $tourDefinition['start_route'],
-                    'target_roles' => $tourDefinition['target_roles'],
-                    'is_active' => $tourDefinition['is_active'],
-                    'auto_assign' => $tourDefinition['auto_assign'],
-                ],
-            );
+            $tour = GuidedTour::query()->firstOrNew([
+                'key' => $tourDefinition['key'],
+                'version' => $tourDefinition['version'],
+            ]);
+
+            $tour->fill([
+                'name' => $tourDefinition['name'],
+                'description' => $tourDefinition['description'],
+                'start_route' => $tourDefinition['start_route'],
+                'target_roles' => $tourDefinition['target_roles'],
+                'is_active' => $tourDefinition['is_active'],
+                'auto_assign' => $tourDefinition['auto_assign'],
+            ]);
+
+            if ($tour->isDirty()) {
+                $tour->save();
+            }
         }
     }
 
@@ -43,9 +46,9 @@ class GuidedTourAssignmentService
         $eligibleTours = GuidedTour::query()
             ->where('is_active', true)
             ->where('auto_assign', true)
+            ->whereJsonContains('target_roles', $user->role->value)
             ->orderBy('id')
-            ->get()
-            ->filter(fn (GuidedTour $tour): bool => $tour->targetsRole($user->role));
+            ->get();
 
         foreach ($eligibleTours as $tour) {
             UserGuidedTourAssignment::query()->firstOrCreate(
@@ -74,9 +77,9 @@ class GuidedTourAssignmentService
         $eligibleTours = GuidedTour::query()
             ->where('is_active', true)
             ->whereIn('id', $requestedTourIds)
+            ->whereJsonContains('target_roles', $targetUser->role->value)
             ->orderBy('id')
             ->get()
-            ->filter(fn (GuidedTour $tour): bool => $tour->targetsRole($targetUser->role))
             ->values();
 
         if ($eligibleTours->count() !== count($requestedTourIds)) {

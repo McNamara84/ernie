@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserGuidedTourAssignment;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -51,6 +52,56 @@ describe('GuidedTourAssignmentService', function (): void {
 
         expect(GuidedTour::query()->count())->toBe(0)
             ->and(UserGuidedTourAssignment::query()->count())->toBe(0);
+    });
+
+    it('does not rewrite unchanged catalog tours', function (): void {
+        $this->service->syncCatalogTours();
+
+        $tour = GuidedTour::query()
+            ->where('key', 'beginner-dashboard-main-menu')
+            ->where('version', 1)
+            ->firstOrFail();
+
+        $expectedUpdatedAt = Carbon::parse('2026-05-11 08:00:00');
+
+        GuidedTour::withoutTimestamps(function () use ($tour, $expectedUpdatedAt): void {
+            $tour->forceFill(['updated_at' => $expectedUpdatedAt])->save();
+        });
+
+        $this->service->syncCatalogTours();
+
+        expect($tour->fresh()->updated_at?->toDateTimeString())->toBe($expectedUpdatedAt->toDateTimeString());
+    });
+
+    it('only creates automatic assignments for tours matching the user role', function (): void {
+        $user = User::factory()->beginner()->create();
+
+        $eligibleTour = GuidedTour::query()->create([
+            'key' => 'beginner-extra-tour-' . uniqid(),
+            'version' => 1,
+            'name' => 'Beginner Extra Tour',
+            'description' => 'Extra onboarding for beginners.',
+            'start_route' => 'dashboard',
+            'target_roles' => ['beginner'],
+            'is_active' => true,
+            'auto_assign' => true,
+        ]);
+
+        $ineligibleTour = GuidedTour::query()->create([
+            'key' => 'curator-extra-tour-' . uniqid(),
+            'version' => 1,
+            'name' => 'Curator Extra Tour',
+            'description' => 'Not available for beginners.',
+            'start_route' => 'dashboard',
+            'target_roles' => ['curator'],
+            'is_active' => true,
+            'auto_assign' => true,
+        ]);
+
+        $this->service->syncAutomaticAssignmentsForUser($user);
+
+        expect(UserGuidedTourAssignment::query()->where('user_id', $user->id)->where('guided_tour_id', $eligibleTour->id)->exists())->toBeTrue()
+            ->and(UserGuidedTourAssignment::query()->where('user_id', $user->id)->where('guided_tour_id', $ineligibleTour->id)->exists())->toBeFalse();
     });
 
     it('keeps completed assignments unchanged when start or close is reported again', function (): void {

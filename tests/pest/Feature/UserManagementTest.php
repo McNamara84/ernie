@@ -477,5 +477,31 @@ describe('User Management', function (): void {
 
             expect(UserGuidedTourAssignment::query()->count())->toBe(0);
         });
+
+        it('rejects non-positive guided tour identifiers during request validation', function (): void {
+            $admin = User::factory()->admin()->create();
+            $user = User::factory()->beginner()->create();
+
+            $this->actingAs($admin)
+                ->post(route('users.assign-guided-tours', $user), [
+                    'tour_ids' => [0, -5],
+                ])
+                ->assertSessionHasErrors(['tour_ids.0', 'tour_ids.1']);
+
+            expect(UserGuidedTourAssignment::query()->count())->toBe(0);
+        });
+
+        it('rejects non-existent guided tour identifiers during request validation', function (): void {
+            $admin = User::factory()->admin()->create();
+            $user = User::factory()->beginner()->create();
+
+            $this->actingAs($admin)
+                ->post(route('users.assign-guided-tours', $user), [
+                    'tour_ids' => [999999],
+                ])
+                ->assertSessionHasErrors(['tour_ids.0']);
+
+            expect(UserGuidedTourAssignment::query()->count())->toBe(0);
+        });
     });
 });
