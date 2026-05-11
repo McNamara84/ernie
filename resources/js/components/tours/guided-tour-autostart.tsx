@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { apiRequest } from '@/lib/api-client';
 import { getGuidedTourDefinition, type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
 import { runGuidedTour } from '@/lib/tours/run-guided-tour';
 
@@ -9,15 +9,10 @@ interface GuidedTourAutostartProps {
 }
 
 async function postGuidedTourLifecycle(assignmentId: number, action: 'start' | 'close' | 'complete'): Promise<void> {
-    const response = await fetch(`/guided-tours/assignments/${assignmentId}/${action}`, {
+    await apiRequest(`/guided-tours/assignments/${assignmentId}/${action}`, {
         method: 'POST',
-        headers: buildCsrfHeaders(),
         credentials: 'same-origin',
     });
-
-    if (!response.ok) {
-        throw new Error(`Failed to ${action} guided tour assignment ${assignmentId}.`);
-    }
 }
 
 export function GuidedTourAutostart({ guidedTour }: GuidedTourAutostartProps) {

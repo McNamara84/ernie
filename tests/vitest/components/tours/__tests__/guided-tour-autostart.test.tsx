@@ -5,23 +5,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GuidedTourAutostart } from '@/components/tours/guided-tour-autostart';
 
-const { runGuidedTourMock } = vi.hoisted(() => ({
+const { apiRequestMock, runGuidedTourMock } = vi.hoisted(() => ({
+    apiRequestMock: vi.fn(),
     runGuidedTourMock: vi.fn(),
+}));
+
+vi.mock('@/lib/api-client', () => ({
+    apiRequest: apiRequestMock,
 }));
 
 vi.mock('@/lib/tours/run-guided-tour', () => ({
     runGuidedTour: runGuidedTourMock,
 }));
 
-vi.mock('@/lib/csrf-token', () => ({
-    buildCsrfHeaders: () => ({ 'X-CSRF-TOKEN': 'test-token' }),
-}));
-
 describe('GuidedTourAutostart', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         document.body.innerHTML = '';
-        vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
+        apiRequestMock.mockResolvedValue(null);
     });
 
     afterEach(() => {
@@ -59,10 +60,10 @@ describe('GuidedTourAutostart', () => {
         );
 
         await waitFor(() => {
-            expect(fetch).toHaveBeenNthCalledWith(
+            expect(apiRequestMock).toHaveBeenNthCalledWith(
                 1,
                 '/guided-tours/assignments/42/start',
-                expect.objectContaining({ method: 'POST' }),
+                expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
             );
         });
 
@@ -71,10 +72,10 @@ describe('GuidedTourAutostart', () => {
         });
 
         await waitFor(() => {
-            expect(fetch).toHaveBeenNthCalledWith(
+            expect(apiRequestMock).toHaveBeenNthCalledWith(
                 2,
                 '/guided-tours/assignments/42/complete',
-                expect.objectContaining({ method: 'POST' }),
+                expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
             );
         });
     });
@@ -104,18 +105,18 @@ describe('GuidedTourAutostart', () => {
         );
 
         await waitFor(() => {
-            expect(fetch).toHaveBeenNthCalledWith(
+            expect(apiRequestMock).toHaveBeenNthCalledWith(
                 1,
                 '/guided-tours/assignments/43/start',
-                expect.objectContaining({ method: 'POST' }),
+                expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
             );
         });
 
         await waitFor(() => {
-            expect(fetch).toHaveBeenNthCalledWith(
+            expect(apiRequestMock).toHaveBeenNthCalledWith(
                 2,
                 '/guided-tours/assignments/43/close',
-                expect.objectContaining({ method: 'POST' }),
+                expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
             );
         });
     });
@@ -124,7 +125,7 @@ describe('GuidedTourAutostart', () => {
         render(<GuidedTourAutostart guidedTour={null} />);
 
         expect(runGuidedTourMock).not.toHaveBeenCalled();
-        expect(fetch).not.toHaveBeenCalled();
+        expect(apiRequestMock).not.toHaveBeenCalled();
     });
 
     it('does not run when autostart is disabled', () => {
@@ -142,7 +143,7 @@ describe('GuidedTourAutostart', () => {
         );
 
         expect(runGuidedTourMock).not.toHaveBeenCalled();
-        expect(fetch).not.toHaveBeenCalled();
+        expect(apiRequestMock).not.toHaveBeenCalled();
     });
 
     it('does not run when the guided tour definition is missing', () => {
@@ -160,7 +161,7 @@ describe('GuidedTourAutostart', () => {
         );
 
         expect(runGuidedTourMock).not.toHaveBeenCalled();
-        expect(fetch).not.toHaveBeenCalled();
+        expect(apiRequestMock).not.toHaveBeenCalled();
     });
 
     it('does not run when no configured step is present in the DOM', () => {
@@ -178,7 +179,7 @@ describe('GuidedTourAutostart', () => {
         );
 
         expect(runGuidedTourMock).not.toHaveBeenCalled();
-        expect(fetch).not.toHaveBeenCalled();
+        expect(apiRequestMock).not.toHaveBeenCalled();
     });
 
     it('filters out tour steps that are not mounted in the DOM', async () => {
@@ -284,11 +285,11 @@ describe('GuidedTourAutostart', () => {
         `;
 
         let resolveFetch: ((value: Response) => void) | undefined;
-        const startRequest = new Promise<Response>((resolve) => {
+        const startRequest = new Promise<null>((resolve) => {
             resolveFetch = resolve;
         });
 
-        vi.mocked(global.fetch).mockReturnValueOnce(startRequest);
+        apiRequestMock.mockReturnValueOnce(startRequest);
 
         const { unmount } = render(
             <GuidedTourAutostart
@@ -306,7 +307,7 @@ describe('GuidedTourAutostart', () => {
         unmount();
 
         await act(async () => {
-            resolveFetch?.({ ok: true } as Response);
+            resolveFetch?.(null);
             await startRequest;
         });
 
@@ -319,9 +320,9 @@ describe('GuidedTourAutostart', () => {
             <div data-tour="sidebar-root"></div>
         `;
 
-        vi.mocked(global.fetch)
+        apiRequestMock
             .mockRejectedValueOnce(new Error('network failed'))
-            .mockResolvedValue({ ok: true } as Response);
+            .mockResolvedValue(null);
 
         runGuidedTourMock.mockResolvedValue({ destroy: vi.fn() });
 
@@ -337,7 +338,7 @@ describe('GuidedTourAutostart', () => {
         const { rerender } = render(<GuidedTourAutostart guidedTour={guidedTour} />);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(apiRequestMock).toHaveBeenCalledTimes(1);
         });
 
         expect(runGuidedTourMock).not.toHaveBeenCalled();
@@ -345,7 +346,7 @@ describe('GuidedTourAutostart', () => {
         rerender(<GuidedTourAutostart guidedTour={{ ...guidedTour }} />);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledTimes(2);
+            expect(apiRequestMock).toHaveBeenCalledTimes(2);
             expect(runGuidedTourMock).toHaveBeenCalledTimes(1);
         });
     });
@@ -356,9 +357,9 @@ describe('GuidedTourAutostart', () => {
             <div data-tour="sidebar-root"></div>
         `;
 
-        vi.mocked(global.fetch)
-            .mockResolvedValueOnce({ ok: false } as Response)
-            .mockResolvedValue({ ok: true } as Response);
+        apiRequestMock
+            .mockRejectedValueOnce(new Error('unauthenticated'))
+            .mockResolvedValue(null);
 
         runGuidedTourMock.mockResolvedValue({ destroy: vi.fn() });
 
@@ -374,7 +375,7 @@ describe('GuidedTourAutostart', () => {
         const { rerender } = render(<GuidedTourAutostart guidedTour={guidedTour} />);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(apiRequestMock).toHaveBeenCalledTimes(1);
         });
 
         expect(runGuidedTourMock).not.toHaveBeenCalled();
@@ -382,7 +383,7 @@ describe('GuidedTourAutostart', () => {
         rerender(<GuidedTourAutostart guidedTour={{ ...guidedTour }} />);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledTimes(2);
+            expect(apiRequestMock).toHaveBeenCalledTimes(2);
             expect(runGuidedTourMock).toHaveBeenCalledTimes(1);
         });
     });
