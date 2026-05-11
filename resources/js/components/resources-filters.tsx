@@ -22,6 +22,24 @@ const MIN_SEARCH_LENGTH = 3;
  */
 const SEARCH_DEBOUNCE_MS = 1000;
 
+const parseYearInput = (value: string): number | undefined => {
+    const trimmed = value.trim();
+
+    if (trimmed.length === 0) {
+        return undefined;
+    }
+
+    const year = Number.parseInt(trimmed, 10);
+
+    if (Number.isNaN(year) || year <= 0) {
+        return undefined;
+    }
+
+    return year;
+};
+
+const formatYearInput = (value?: number): string => (value === undefined ? '' : String(value));
+
 interface ResourcesFiltersProps {
     filters: ResourceFilterState;
     onFilterChange: (filters: ResourceFilterState) => void;
@@ -65,6 +83,13 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
     const [resourceTypeValue, setResourceTypeValue] = useState(filters.resource_type?.[0] || 'all');
     const [statusValue, setStatusValue] = useState(filters.status?.[0] || 'all');
     const [curatorValue, setCuratorValue] = useState(filters.curator?.[0] || 'all');
+    const [yearFromInput, setYearFromInput] = useState(() => formatYearInput(filters.year_from));
+    const [yearToInput, setYearToInput] = useState(() => formatYearInput(filters.year_to));
+
+    const committedYearFrom = formatYearInput(filters.year_from);
+    const committedYearTo = formatYearInput(filters.year_to);
+    const hasPendingYearRangeChanges = yearFromInput !== committedYearFrom || yearToInput !== committedYearTo;
+    const hasYearRangeInput = yearFromInput !== '' || yearToInput !== '';
 
     // Sync Select values when filters change externally
     useEffect(() => {
@@ -72,6 +97,11 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
         setStatusValue(filters.status?.[0] || 'all');
         setCuratorValue(filters.curator?.[0] || 'all');
     }, [filters.resource_type, filters.status, filters.curator]);
+
+    useEffect(() => {
+        setYearFromInput(committedYearFrom);
+        setYearToInput(committedYearTo);
+    }, [committedYearFrom, committedYearTo]);
 
     // Debounced search handler
     const handleSearchChange = useCallback(
@@ -173,33 +203,51 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
         [filters, onFilterChange],
     );
 
-    const handleYearFromChange = useCallback(
-        (value: string) => {
-            const newFilters = { ...filters };
-            const year = parseInt(value, 10);
-            if (!Number.isNaN(year) && year > 0) {
-                newFilters.year_from = year;
-            } else {
-                delete newFilters.year_from;
-            }
-            onFilterChange(newFilters);
-        },
-        [filters, onFilterChange],
-    );
+    const handleYearFromChange = useCallback((value: string) => {
+        setYearFromInput(value);
+    }, []);
 
-    const handleYearToChange = useCallback(
-        (value: string) => {
-            const newFilters = { ...filters };
-            const year = parseInt(value, 10);
-            if (!Number.isNaN(year) && year > 0) {
-                newFilters.year_to = year;
-            } else {
-                delete newFilters.year_to;
-            }
-            onFilterChange(newFilters);
-        },
-        [filters, onFilterChange],
-    );
+    const handleYearToChange = useCallback((value: string) => {
+        setYearToInput(value);
+    }, []);
+
+    const applyYearRange = useCallback(() => {
+        if (!hasPendingYearRangeChanges) {
+            return;
+        }
+
+        const newFilters = { ...filters };
+        const yearFrom = parseYearInput(yearFromInput);
+        const yearTo = parseYearInput(yearToInput);
+
+        if (yearFrom !== undefined) {
+            newFilters.year_from = yearFrom;
+        } else {
+            delete newFilters.year_from;
+        }
+
+        if (yearTo !== undefined) {
+            newFilters.year_to = yearTo;
+        } else {
+            delete newFilters.year_to;
+        }
+
+        onFilterChange(newFilters);
+    }, [filters, hasPendingYearRangeChanges, onFilterChange, yearFromInput, yearToInput]);
+
+    const clearYearRange = useCallback(() => {
+        setYearFromInput('');
+        setYearToInput('');
+
+        if (filters.year_from === undefined && filters.year_to === undefined) {
+            return;
+        }
+
+        const newFilters = { ...filters };
+        delete newFilters.year_from;
+        delete newFilters.year_to;
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
 
     const handleCreatedFromChange = useCallback(
         (value: string) => {
@@ -292,7 +340,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
             {/* Filter Controls */}
             <div className="flex flex-wrap items-center gap-2">
                 {/* Search Input */}
-                <div className="relative w-full sm:w-auto sm:min-w-[280px]">
+                <div className="relative w-full sm:w-auto sm:min-w-70">
                     <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         ref={searchInputRef}
@@ -308,7 +356,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
 
                 {/* Resource Type Select */}
                 <Select value={resourceTypeValue} onValueChange={handleResourceTypeChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by resource type">
+                    <SelectTrigger size="sm" className="w-full sm:w-45" aria-label="Filter by resource type">
                         <SelectValue placeholder="Resource Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -323,7 +371,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
 
                 {/* Status Select */}
                 <Select value={statusValue} onValueChange={handleStatusChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by publication status">
+                    <SelectTrigger size="sm" className="w-full sm:w-45" aria-label="Filter by publication status">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -338,7 +386,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
 
                 {/* Curator Select */}
                 <Select value={curatorValue} onValueChange={handleCuratorChange} disabled={isLoading || !filterOptions}>
-                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by curator">
+                    <SelectTrigger size="sm" className="w-full sm:w-45" aria-label="Filter by curator">
                         <SelectValue placeholder="Curator" />
                     </SelectTrigger>
                     <SelectContent>
@@ -357,7 +405,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                         <Button
                             variant="outline"
                             size="default"
-                            className={`w-full justify-start font-normal sm:w-[180px] ${
+                            className={`w-full justify-start font-normal sm:w-45 ${
                                 filters.year_from || filters.year_to ? 'border-primary' : ''
                             }`}
                             disabled={isLoading || !filterOptions}
@@ -392,11 +440,12 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                                 ? undefined
                                                 : String(filterOptions.year_range.min)
                                         }
-                                        value={filters.year_from || ''}
+                                        value={yearFromInput}
                                         onChange={(e) => handleYearFromChange(e.target.value)}
                                         min={filterOptions?.year_range?.min ?? undefined}
                                         max={filterOptions?.year_range?.max ?? undefined}
                                         className="h-9"
+                                        disabled={isLoading || !filterOptions}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -411,29 +460,38 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                                 ? undefined
                                                 : String(filterOptions.year_range.max)
                                         }
-                                        value={filters.year_to || ''}
+                                        value={yearToInput}
                                         onChange={(e) => handleYearToChange(e.target.value)}
                                         min={filterOptions?.year_range?.min ?? undefined}
                                         max={filterOptions?.year_range?.max ?? undefined}
                                         className="h-9"
+                                        disabled={isLoading || !filterOptions}
                                     />
                                 </div>
                             </div>
-                            {(filters.year_from || filters.year_to) && (
+                            <div className="flex gap-2 pt-1">
                                 <Button
-                                    variant="outline"
+                                    type="button"
                                     size="sm"
-                                    onClick={() => {
-                                        const newFilters = { ...filters };
-                                        delete newFilters.year_from;
-                                        delete newFilters.year_to;
-                                        onFilterChange(newFilters);
-                                    }}
-                                    className="w-full"
+                                    className="flex-1"
+                                    onClick={applyYearRange}
+                                    disabled={!hasPendingYearRangeChanges || isLoading || !filterOptions}
                                 >
-                                    Clear Year Range
+                                    Apply
                                 </Button>
-                            )}
+                                {hasYearRangeInput && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={clearYearRange}
+                                        disabled={isLoading}
+                                    >
+                                        <X className="mr-1 h-3 w-3" />
+                                        Clear
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </PopoverContent>
                 </Popover>

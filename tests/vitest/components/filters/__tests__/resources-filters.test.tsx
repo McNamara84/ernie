@@ -176,6 +176,55 @@ describe('ResourcesFilters Component', () => {
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
 
+            it('buffers year range changes until Apply is clicked', async () => {
+                const user = userEvent.setup();
+                render(<ResourcesFilters {...defaultProps} />);
+
+                await user.type(screen.getByLabelText('From Year'), '2021');
+                await user.type(screen.getByLabelText('To Year'), '2024');
+
+                expect(mockOnFilterChange).not.toHaveBeenCalled();
+
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ year_from: 2021, year_to: 2024 });
+            }, 15000);
+
+            it('clears local year draft values without triggering a reload when nothing is committed', async () => {
+                const user = userEvent.setup();
+                render(<ResourcesFilters {...defaultProps} />);
+
+                const fromYearInput = screen.getByLabelText('From Year');
+
+                await user.type(fromYearInput, '2021');
+                await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+                expect(mockOnFilterChange).not.toHaveBeenCalled();
+                expect(fromYearInput).toHaveValue(null);
+                expect(screen.getByLabelText('To Year')).toHaveValue(null);
+            }, 15000);
+
+            it('clears committed year range values while preserving other filters', async () => {
+                const user = userEvent.setup();
+                render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+                await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'] });
+            }, 15000);
+
+            it('syncs local year inputs when the parent filters change', () => {
+                const { rerender } = render(<ResourcesFilters {...defaultProps} filters={{ year_from: 2021 }} />);
+
+                expect(screen.getByLabelText('From Year')).toHaveValue(2021);
+                expect(screen.getByLabelText('To Year')).toHaveValue(null);
+
+                rerender(<ResourcesFilters {...defaultProps} filters={{ year_from: 2022, year_to: 2025 }} />);
+
+                expect(screen.getByLabelText('From Year')).toHaveValue(2022);
+                expect(screen.getByLabelText('To Year')).toHaveValue(2025);
+            });
+
     it('disables filters when loading', () => {
         render(<ResourcesFilters {...defaultProps} isLoading={true} />);
         

@@ -173,6 +173,55 @@ describe('OldDatasetsFilters Component', () => {
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
 
+            it('buffers year range changes until Apply is clicked', async () => {
+                const user = userEvent.setup();
+                render(<OldDatasetsFilters {...defaultProps} />);
+
+                await user.type(screen.getByLabelText('From Year'), '2018');
+                await user.type(screen.getByLabelText('To Year'), '2022');
+
+                expect(mockOnFilterChange).not.toHaveBeenCalled();
+
+                await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ year_from: 2018, year_to: 2022 });
+            }, 15000);
+
+            it('clears local year draft values without triggering a reload when nothing is committed', async () => {
+                const user = userEvent.setup();
+                render(<OldDatasetsFilters {...defaultProps} />);
+
+                const fromYearInput = screen.getByLabelText('From Year');
+
+                await user.type(fromYearInput, '2018');
+                await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+                expect(mockOnFilterChange).not.toHaveBeenCalled();
+                expect(fromYearInput).toHaveValue(null);
+                expect(screen.getByLabelText('To Year')).toHaveValue(null);
+            }, 15000);
+
+            it('clears committed year range values while preserving other filters', async () => {
+                const user = userEvent.setup();
+                render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+                await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+                expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'] });
+            }, 15000);
+
+            it('syncs local year inputs when the parent filters change', () => {
+                const { rerender } = render(<OldDatasetsFilters {...defaultProps} filters={{ year_from: 2018 }} />);
+
+                expect(screen.getByLabelText('From Year')).toHaveValue(2018);
+                expect(screen.getByLabelText('To Year')).toHaveValue(null);
+
+                rerender(<OldDatasetsFilters {...defaultProps} filters={{ year_from: 2019, year_to: 2024 }} />);
+
+                expect(screen.getByLabelText('From Year')).toHaveValue(2019);
+                expect(screen.getByLabelText('To Year')).toHaveValue(2024);
+            });
+
     it('disables filters when loading', () => {
         render(<OldDatasetsFilters {...defaultProps} isLoading={true} />);
         
