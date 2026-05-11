@@ -192,6 +192,32 @@ describe('handle', function (): void {
             ->and($status['failedResources'])->toBe(1);
     });
 
+    it('stores a generic availability message when the F-UJI response payload is invalid', function (): void {
+        $resource = Resource::factory()->withDoi('10.5880/test.004b')->create();
+        Title::factory()->for($resource)->create(['value' => 'Invalid payload resource']);
+        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.004b')->published()->create();
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['summary' => []], 200),
+        ]);
+
+        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
+
+        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+
+        $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
+        $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
+
+        expect($assessment)->not->toBeNull()
+            ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_FAILED)
+            ->and($assessment?->error_message)->toBe('F-UJI is currently unavailable. Please try again shortly.')
+            ->and($status)->toBeArray()
+            ->and($status['status'])->toBe('completed')
+            ->and($status['assessedResources'])->toBe(0)
+            ->and($status['failedResources'])->toBe(1);
+    });
+
     it('completes with zero totals when the igsn scope has no physical-object type configured', function (): void {
         $jobId = (string) \Illuminate\Support\Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId);

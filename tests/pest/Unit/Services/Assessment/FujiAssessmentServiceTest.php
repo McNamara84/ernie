@@ -128,7 +128,9 @@ describe('assessIdentifier', function (): void {
         });
     });
 
-    it('throws when the FAIR score is missing from the response', function (): void {
+    it('throws a generic availability message when the FAIR score is missing and logs the invalid payload details once', function (): void {
+        Log::spy();
+
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
                 'summary' => [],
@@ -136,7 +138,38 @@ describe('assessIdentifier', function (): void {
         ]);
 
         expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
-            ->toThrow(RuntimeException::class, 'summary.score_percent.FAIR');
+            ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned invalid assessment payload'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+                && $context['base_url'] === 'https://fuji.test'
+                && $context['status'] === 200
+                && $context['error'] === 'F-UJI response does not contain summary.score_percent.FAIR.'
+            );
+    });
+
+    it('throws a generic availability message when the F-UJI response body is not a JSON object and logs the invalid payload once', function (): void {
+        Log::spy();
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response('not-json', 200, ['Content-Type' => 'text/plain']),
+        ]);
+
+        expect(fn () => makeFujiAssessmentService()->assessIdentifier('10.5880/test.001'))
+            ->toThrow(RuntimeException::class, 'F-UJI is currently unavailable. Please try again shortly.');
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned invalid assessment payload'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+                && $context['status'] === 200
+                && $context['body'] === 'not-json'
+                && $context['error'] === 'F-UJI response is not a JSON object.'
+            );
     });
 
     it('throws a generic availability message when the F-UJI response is unsuccessful and logs the response details once', function (): void {
@@ -202,6 +235,31 @@ describe('assessIdentifier', function (): void {
         Log::shouldHaveReceived('warning')
             ->once()
             ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI request failed'
+                && $context['operation'] === 'assessment'
+                && $context['identifier'] === '10.5880/test.001'
+            );
+    });
+
+    it('deduplicates identical invalid payload failures within the same service instance', function (): void {
+        Log::spy();
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['summary' => []], 200),
+        ]);
+
+        $service = makeFujiAssessmentService();
+
+        foreach (['10.5880/test.001', '10.5880/test.002'] as $identifier) {
+            try {
+                $service->assessIdentifier($identifier);
+            } catch (RuntimeException) {
+                // Expected for repeated invalid payload failures.
+            }
+        }
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned invalid assessment payload'
                 && $context['operation'] === 'assessment'
                 && $context['identifier'] === '10.5880/test.001'
             );

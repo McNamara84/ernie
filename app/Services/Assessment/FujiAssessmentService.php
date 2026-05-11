@@ -106,16 +106,26 @@ class FujiAssessmentService
             throw new RuntimeException(self::UNAVAILABLE_MESSAGE);
         }
 
-        /** @var array<string, mixed> $payload */
-        $payload = $response->json();
-        $score = data_get($payload, 'summary.score_percent.FAIR');
+        try {
+            $payload = $response->json();
 
-        if (! is_numeric($score)) {
-            throw new RuntimeException('F-UJI response does not contain summary.score_percent.FAIR.');
+            if (! is_array($payload)) {
+                throw new RuntimeException('F-UJI response is not a JSON object.');
+            }
+
+            $score = data_get($payload, 'summary.score_percent.FAIR');
+
+            if (! is_numeric($score)) {
+                throw new RuntimeException('F-UJI response does not contain summary.score_percent.FAIR.');
+            }
+
+            $resolvedUrl = data_get($payload, 'resolved_url');
+            $normalizedIdentifier = data_get($payload, 'request.normalized_object_identifier');
+        } catch (\Throwable $exception) {
+            $this->logAssessmentInvalidPayloadOnce($response, $identifier, $exception);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
         }
-
-        $resolvedUrl = data_get($payload, 'resolved_url');
-        $normalizedIdentifier = data_get($payload, 'request.normalized_object_identifier');
 
         return [
             'score' => round((float) $score, 2),
@@ -254,6 +264,30 @@ class FujiAssessmentService
 
         $this->logUnsuccessfulResponse('assessment', $response, [
             'identifier' => $identifier,
+        ]);
+    }
+
+    private function logAssessmentInvalidPayloadOnce(Response $response, string $identifier, \Throwable $exception): void
+    {
+        $fingerprint = sprintf(
+            'payload:%d:%s:%s',
+            $response->status(),
+            sha1($this->responseBodyExcerpt($response) ?? ''),
+            $exception->getMessage(),
+        );
+
+        if (! $this->shouldLogAssessmentFailure($fingerprint)) {
+            return;
+        }
+
+        Log::warning('F-UJI returned invalid assessment payload', [
+            'identifier' => $identifier,
+            'operation' => 'assessment',
+            'base_url' => $this->baseUrl(),
+            'status' => $response->status(),
+            'body' => $this->responseBodyExcerpt($response),
+            'error' => $exception->getMessage(),
+            'exception_class' => $exception::class,
         ]);
     }
 
