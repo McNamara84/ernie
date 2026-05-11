@@ -12,8 +12,10 @@ services:
     networks:
       - dockerized-laravel-network
     depends_on:
-      - db
-      - fuji
+      db:
+        condition: service_started
+      fuji:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
       interval: 5s
@@ -229,9 +231,12 @@ services:
     networks:
       - dockerized-laravel-network
     depends_on:
-      - db
-      - redis
-      - fuji
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+      fuji:
+        condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
       - APP_URL=https://ernie.rz-vm182.gfz.de
