@@ -47,6 +47,7 @@ function createRoute(path: string) {
 vi.mock('@/routes', () => ({
     dashboard: createRoute('/dashboard'),
     changelog: createRoute('/changelog'),
+    editor: createRoute('/editor'),
 }));
 
 describe('Dashboard integration', () => {

@@ -25,6 +25,7 @@ const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
 const clearBoundsMock = vi.fn();
 const setTemporalMock = vi.fn();
+const useNavigationStatusMock = vi.fn();
 
 vi.mock('@/hooks/use-portal-filters', () => ({
     usePortalFilters: () => ({
@@ -40,6 +41,10 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         clearFilters: clearFiltersMock,
         hasActiveFilters: false,
     }),
+}));
+
+vi.mock('@/hooks/use-navigation-status', () => ({
+    useNavigationStatus: () => useNavigationStatusMock(),
 }));
 
 vi.mock('@/components/portal/PortalFilters', () => ({
@@ -143,14 +148,17 @@ vi.mock('@/components/portal/PortalResultList', () => ({
         resources,
         pagination,
         onPageChange,
+        isLoading,
     }: {
         resources: unknown[];
         pagination: { current_page: number; last_page: number };
         onPageChange: (page: number) => void;
+        isLoading?: boolean;
     }) => (
         <div data-testid="portal-result-list">
             <span data-testid="result-count">{(resources as unknown[]).length}</span>
             <span data-testid="current-page">{pagination.current_page}</span>
+            <span data-testid="result-loading">{String(isLoading ?? false)}</span>
             <button data-testid="next-page" onClick={() => onPageChange(pagination.current_page + 1)}>
                 Next
             </button>
@@ -214,6 +222,7 @@ describe('Portal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+        useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
     });
 
     it('renders the portal layout', () => {
@@ -225,6 +234,15 @@ describe('Portal', () => {
         render(<Portal {...defaultProps} />);
         const resultCounts = screen.getAllByTestId('result-count');
         expect(resultCounts.some((el) => el.textContent === '2')).toBe(true);
+    });
+
+    it('shows refresh feedback when portal navigation is pending', () => {
+        useNavigationStatusMock.mockReturnValueOnce({ isNavigating: true, statusText: 'Refreshing results...' });
+
+        render(<Portal {...defaultProps} />);
+
+        expect(screen.getByTestId('portal-refresh-badge')).toHaveTextContent(/refreshing results/i);
+        expect(screen.getAllByTestId('result-loading')[0]).toHaveTextContent('true');
     });
 
     it('passes map data to map component', () => {

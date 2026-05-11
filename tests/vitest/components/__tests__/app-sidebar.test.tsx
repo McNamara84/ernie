@@ -211,6 +211,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls[1][0].items[1].tourId).toBe('sidebar-resources');
         expect(sectionCalls[1][0].items[1].badge).toBe(12);
         expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
+        expect(sectionCalls[1][0].items[1].badgeTone).toBe('primary');
 
         // Section 3: IGSN Curation
         expect(sectionCalls[2][0].items.map((i: NavItem) => i.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
@@ -219,6 +220,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls[2][0].items[1].tourId).toBe('sidebar-igsns-map');
         expect(sectionCalls[2][0].items[0].badge).toBe(5);
         expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
+        expect(sectionCalls[2][0].items[0].badgeTone).toBe('primary');
 
         // Section 4: Administration (only for admins)
         expect(sectionCalls[3][0].items.map((i: NavItem) => i.title)).toEqual([
@@ -288,6 +290,20 @@ describe('AppSidebar', () => {
         expect(footerTitles).not.toContain('Editor Settings');
         expect(footerTitles).toContain('Changelog');
         expect(footerTitles).toContain('Documentation');
+    });
+
+    it('marks assistance badges as warning when pending suggestions exist', () => {
+        setMockUser({ can_access_assistance: true });
+        setMockSharedProps({ pendingAssistanceTotalCount: 7 });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
+        expect(toolsSection).toBeDefined();
+        expect(toolsSection?.[0].items[0].title).toBe('Assistance');
+        expect(toolsSection?.[0].items[0].badge).toBe(7);
+        expect(toolsSection?.[0].items[0].badgeTone).toBe('warning');
     });
 
     it('does not render Administration section for curator users', () => {

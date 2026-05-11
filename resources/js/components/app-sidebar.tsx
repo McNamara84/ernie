@@ -57,6 +57,7 @@ export function AppSidebar() {
             icon: Layers,
             badge: dataResourceCount ?? 0,
             showZeroBadge: true,
+            badgeTone: 'primary',
             tourId: 'sidebar-resources',
         },
     ];
@@ -69,6 +70,7 @@ export function AppSidebar() {
             icon: FlaskConical,
             badge: igsnCount ?? 0,
             showZeroBadge: true,
+            badgeTone: 'primary',
             tourId: 'sidebar-igsns-list',
         },
         {
@@ -97,6 +99,7 @@ export function AppSidebar() {
             href: '/assistance',
             icon: Sparkles,
             badge: pendingAssistanceTotalCount ?? 0,
+            badgeTone: (pendingAssistanceTotalCount ?? 0) > 0 ? 'warning' : 'default',
         });
     }
 

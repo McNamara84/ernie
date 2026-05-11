@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "features": [
             {
                 "title": "Role-Based Guided Tours",
@@ -89,6 +89,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Dashboard Action Hub and Refresh-Aware Feedback",
+                "description": "The authenticated workspace now feels more task-driven and easier to read. The Dashboard was redesigned into an action hub with role-aware quick actions, a stronger resume-work area for recent drafts, compact overview cards, and a more prominent import hub. The authenticated header now shows the current workspace plus live navigation feedback, while sidebar badges use clearer emphasis for key counts and pending assistance. Core feedback states were also upgraded: the editor bootstrap now uses skeleton placeholders with a retryable error state, the dashboard dropzone shows richer upload progress/success/failure messaging, and the Data Portal keeps current results visible while filters or pagination refresh in the background, including explicit refresh feedback and a one-click clear-filters recovery action when no matches remain."
+            },
             {
                 "title": "Main Menu Counts and Administration Ordering",
                 "description": "The authenticated sidebar now shows total counters on Resources and IGSNs List. Resources counts all non-Physical Object records, IGSNs List counts all Physical Object records, and both counters remain visible even when the total is 0. Editor Settings was moved from the footer into the Administration section between Logs and Landing Pages, while Changelog and Documentation remain in the footer."

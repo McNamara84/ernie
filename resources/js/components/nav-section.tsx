@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import { type NavItem } from '@/types';
 
 interface NavSectionProps {
@@ -11,6 +12,12 @@ interface NavSectionProps {
 
 export function NavSection({ label, items, showSeparator = false }: NavSectionProps) {
     const page = usePage();
+
+    const badgeToneClasses: Record<NonNullable<NavItem['badgeTone']>, string> = {
+        default: 'bg-sidebar-accent/70 text-sidebar-accent-foreground',
+        primary: 'bg-gfz-primary text-gfz-primary-foreground',
+        warning: 'bg-amber-500/15 text-amber-700 dark:text-amber-200',
+    };
 
     const shouldRenderBadge = (item: NavItem) => {
         if (item.badge === undefined) {
@@ -31,6 +38,11 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
             <SidebarMenu>
                 {items.map((item) => {
                     const href = typeof item.href === 'string' ? item.href : item.href.url;
+                    const isActive =
+                        page.url === href ||
+                        page.url.startsWith(href + '/') ||
+                        page.url.startsWith(href + '?') ||
+                        page.url.startsWith(href + '#');
                     return (
                         <SidebarMenuItem key={item.title}>
                             {item.disabled ? (
@@ -43,22 +55,19 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                 // This prevents '/user' from matching when on '/users' (path boundary check)
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={
-                                        page.url === href ||
-                                        page.url.startsWith(href + '/') ||
-                                        page.url.startsWith(href + '?') ||
-                                        page.url.startsWith(href + '#')
-                                    }
+                                    isActive={isActive}
                                     tooltip={{ children: item.title }}
                                 >
-                                    <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch} data-tour={item.tourId}>
+                                    <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch} data-tour={item.tourId} aria-current={isActive ? 'page' : undefined}>
                                         {item.icon && <item.icon />}
                                         <span>{item.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
                             )}
                             {shouldRenderBadge(item) && (
-                                <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
+                                <SidebarMenuBadge className={cn('right-2 rounded-full px-1.5', badgeToneClasses[item.badgeTone ?? 'default'])}>
+                                    {item.badge}
+                                </SidebarMenuBadge>
                             )}
                         </SidebarMenuItem>
                     );

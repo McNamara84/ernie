@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 import { PortalResultCard } from '@/components/portal/PortalResultCard';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,6 +13,8 @@ interface PortalResultListProps {
     pagination: PortalPagination;
     onPageChange: (page: number) => void;
     isLoading?: boolean;
+    hasActiveFilters?: boolean;
+    onClearFilters?: () => void;
 }
 
 /**
@@ -22,12 +25,21 @@ export function PortalResultList({
     pagination,
     onPageChange,
     isLoading = false,
+    hasActiveFilters = false,
+    onClearFilters,
 }: PortalResultListProps) {
-    if (isLoading) {
+    if (isLoading && resources.length === 0) {
         return (
-            <div className="flex-1 space-y-2 p-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full rounded-md" />
+            <div className="flex-1 space-y-3 p-4" data-testid="portal-results-loading">
+                <div className="flex items-center justify-between rounded-xl border bg-background/80 px-4 py-3">
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-4 w-48" />
+                    </div>
+                    <Badge variant="secondary">Refreshing results...</Badge>
+                </div>
+                {Array.from({ length: 8 }).map((_, i) => (
+                    <Skeleton key={i} className="h-28 w-full rounded-xl" />
                 ))}
             </div>
         );
@@ -39,7 +51,19 @@ export function PortalResultList({
                 <EmptyState
                     icon={<Search className="h-8 w-8" />}
                     title="No results found"
-                    description="Try adjusting your search or filters to find what you're looking for."
+                    description={
+                        hasActiveFilters
+                            ? 'Try clearing one or more filters to widen the result set.'
+                            : 'Try adjusting your search or filters to find what you\'re looking for.'
+                    }
+                    action={
+                        hasActiveFilters && onClearFilters
+                            ? {
+                                  label: 'Clear filters',
+                                  onClick: onClearFilters,
+                              }
+                            : undefined
+                    }
                 />
             </div>
         );
@@ -48,17 +72,22 @@ export function PortalResultList({
     const { current_page, last_page, from, to, total } = pagination;
 
     return (
-        <div className="flex flex-1 flex-col" data-testid="portal-results-list">
+        <div className="flex flex-1 flex-col" data-testid="portal-results-list" aria-busy={isLoading}>
             {/* Results Header */}
-            <div className="border-b px-4 py-2">
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                <p className="text-sm text-muted-foreground" aria-live="polite">
                     Showing {from}-{to} of {total.toLocaleString()} results
                 </p>
+                {isLoading && (
+                    <Badge variant="secondary" data-testid="portal-results-refreshing">
+                        Refreshing results...
+                    </Badge>
+                )}
             </div>
 
             {/* Results List */}
             <ScrollArea className="flex-1">
-                <div className="flex flex-col gap-2 p-4">
+                <div className={`flex flex-col gap-2 p-4 transition-opacity ${isLoading ? 'opacity-70' : 'opacity-100'}`}>
                     {resources.map((resource) => (
                         <PortalResultCard key={resource.id} resource={resource} />
                     ))}
@@ -72,7 +101,7 @@ export function PortalResultList({
                         variant="outline"
                         size="sm"
                         onClick={() => onPageChange(current_page - 1)}
-                        disabled={current_page === 1}
+                        disabled={current_page === 1 || isLoading}
                     >
                         <ChevronLeft className="mr-1 h-4 w-4" />
                         Previous
@@ -90,6 +119,7 @@ export function PortalResultList({
                                     variant={page === current_page ? 'default' : 'outline'}
                                     size="sm"
                                     onClick={() => onPageChange(page as number)}
+                                    disabled={isLoading}
                                     className="min-w-[2.5rem]"
                                 >
                                     {page}
@@ -102,7 +132,7 @@ export function PortalResultList({
                         variant="outline"
                         size="sm"
                         onClick={() => onPageChange(current_page + 1)}
-                        disabled={current_page === last_page}
+                        disabled={current_page === last_page || isLoading}
                     >
                         Next
                         <ChevronRight className="ml-1 h-4 w-4" />
