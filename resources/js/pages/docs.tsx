@@ -93,10 +93,11 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             After logging in at <code>/login</code>, you will be redirected to the Dashboard. The Dashboard is your central hub for:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
+                            <li>Using role-aware quick actions for common workflows</li>
                             <li>Uploading XML files from ELMO or DataCite JSON/JSON-LD files</li>
                             <li>Uploading IGSN CSV files for physical samples</li>
-                            <li>Viewing resource statistics</li>
-                            <li>Quick access to recent resources</li>
+                            <li>Resuming the latest drafts directly from the start screen</li>
+                            <li>Viewing compact operational statistics for datasets, IGSNs, drafts, and assistance</li>
                         </ul>
 
                         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
@@ -112,6 +113,12 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources</strong> and{' '}
                                 <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
                                 suggestions.
+                            </p>
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                            <p className="text-sm text-slate-900 dark:text-slate-100">
+                                <strong>Header Status:</strong> The authenticated page header now shows the current workspace and indicates when ERNIE is actively opening the next page, so navigation changes remain visible even during short transitions.
                             </p>
                         </div>
                     </>
@@ -636,7 +643,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Uploading DataCite Files</h3>
                         <p>
-                            The Dashboard (<code>/dashboard</code>) features a unified dropzone for file uploads.
+                            The Dashboard (<code>/dashboard</code>) features a unified import hub for file uploads. The dropzone now keeps you informed with dedicated progress, success, and error states while routing each file type into the appropriate workflow.
                         </p>
 
                         <h4>Supported Formats</h4>
@@ -659,6 +666,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Drag and drop your XML, JSON, or JSON-LD file or click the dropzone to select a file.
                                     The system routes files by extension (XML vs JSON) and then detects the JSON
                                     sub-format (standard JSON vs JSON-LD) based on the file content.
+                                </p>
+                                <p>
+                                    During upload, the import hub shows a dedicated in-progress state. If something fails, ERNIE keeps the file name and the failure reason visible so you can retry immediately.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Automatic Redirect">

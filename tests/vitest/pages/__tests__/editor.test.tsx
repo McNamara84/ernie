@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Editor from '@/pages/editor';
@@ -89,6 +90,7 @@ describe('Editor page', () => {
             () => new Promise(() => {}),
         );
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
+        expect(screen.getByTestId('editor-loading-state')).toBeInTheDocument();
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
@@ -105,6 +107,42 @@ describe('Editor page', () => {
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource types, title types, description types, date types, licenses, languages, and role options/i,
         );
+    });
+
+    it('shows a retryable error state when bootstrap data loading fails', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('network down'))
+            .mockImplementation((url: RequestInfo) =>
+                Promise.resolve({
+                    ok: true,
+                    json: () =>
+                        Promise.resolve(
+                            url.toString().includes('resource-types')
+                                ? resourceTypes
+                                : url.toString().includes('title-types')
+                                  ? titleTypes
+                                  : url.toString().includes('date-types')
+                                    ? dateTypes
+                                    : url.toString().includes('licenses')
+                                      ? licenses
+                                      : languages,
+                        ),
+                }),
+            );
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
+
+        expect(await screen.findByTestId('editor-error-state')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /retry loading editor data/i }));
+
+        await waitFor(() => {
+            expect(renderForm).toHaveBeenCalledWith(
+                expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }),
+            );
+        });
     });
 
     it('passes limits to DataCiteForm', async () => {

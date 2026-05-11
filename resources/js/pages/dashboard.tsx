@@ -1,9 +1,22 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    ArrowRight,
+    ClipboardCheck,
+    FilePlus2,
+    FlaskConical,
+    FolderClock,
+    type LucideIcon,
+    Settings,
+    Sparkles,
+    Upload,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { GuidedTourAutostart } from '@/components/tours/guided-tour-autostart';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
@@ -107,6 +120,58 @@ type DashboardPageProps = SharedData & {
     laravelVersion?: string;
 };
 
+type DashboardQuickAction = {
+    title: string;
+    description: string;
+    icon: LucideIcon;
+    href?: string;
+    variant?: 'default' | 'outline' | 'secondary';
+    onClick?: () => void;
+};
+
+function QuickActionCard({ title, description, icon: Icon, href, variant = 'outline', onClick }: DashboardQuickAction) {
+    const content = (
+        <>
+            <div className="flex items-start gap-3">
+                <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+                    <Icon className="h-4 w-4" />
+                </span>
+                <div className="space-y-1">
+                    <p className="font-medium text-foreground">{title}</p>
+                    <p className="text-sm text-muted-foreground">{description}</p>
+                </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </>
+    );
+
+    if (href) {
+        return (
+            <Button asChild variant={variant} className="group h-auto w-full justify-between rounded-xl border px-4 py-4 text-left shadow-sm">
+                <Link href={href}>
+                    {content}
+                </Link>
+            </Button>
+        );
+    }
+
+    return (
+        <Button variant={variant} className="group h-auto w-full justify-between rounded-xl border px-4 py-4 text-left shadow-sm" onClick={onClick}>
+            {content}
+        </Button>
+    );
+}
+
+function OverviewMetric({ label, value, description }: { label: string; value: string | number; description: string }) {
+    return (
+        <div className="rounded-xl border bg-background/70 p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+            <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+    );
+}
+
 export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = handleJsonFiles }: DashboardProps = {}) {
     const {
         auth,
@@ -128,6 +193,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     const [unicorns, setUnicorns] = useState<Array<{ id: number; x: number; y: number; size: number; rotation: number }>>([]);
     const [showConfetti, setShowConfetti] = useState(false);
     const easterEggTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const uploadSectionRef = useRef<HTMLDivElement | null>(null);
     const hoverCountRef = useRef(0);
     const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
     const unicornIdCounterRef = useRef(0);
@@ -136,6 +202,75 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     const igsnCountDisplay = typeof igsnCount === 'number' ? igsnCount : 0;
     const dataInstitutions = typeof dataInstitutionCount === 'number' ? dataInstitutionCount : 0;
     const igsnInstitutions = typeof igsnInstitutionCount === 'number' ? igsnInstitutionCount : 0;
+
+    const handleJumpToUpload = useCallback(() => {
+        uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, []);
+
+    const recentDraftHref = recentDrafts?.[0] ? editorRoute({ query: { resourceId: recentDrafts[0].id } }).url : '/resources';
+
+    const quickActions = useMemo<DashboardQuickAction[]>(() => {
+        const actions: DashboardQuickAction[] = [
+            {
+                title: 'Create resource',
+                description: 'Start a new metadata record from scratch.',
+                href: editorRoute().url,
+                icon: FilePlus2,
+                variant: 'default',
+            },
+            {
+                title: draftCount && draftCount > 0 ? 'Resume latest draft' : 'Browse resources',
+                description:
+                    draftCount && draftCount > 0
+                        ? `Jump back into your most recent draft and keep the momentum.`
+                        : 'Open the resource list to review published and draft records.',
+                href: recentDraftHref,
+                icon: FolderClock,
+            },
+            {
+                title: 'Upload metadata',
+                description: 'Import XML, JSON, JSON-LD, or IGSN CSV from one place.',
+                icon: Upload,
+                onClick: handleJumpToUpload,
+            },
+            {
+                title: 'Open IGSNs',
+                description: 'Review sample records and jump into IGSN curation.',
+                href: '/igsns',
+                icon: FlaskConical,
+            },
+        ];
+
+        if (auth.user?.can_access_assistance) {
+            actions.push({
+                title: 'Review assistance',
+                description: 'Inspect pending suggestions and resolve open assistance items.',
+                href: '/assistance',
+                icon: Sparkles,
+            });
+        }
+
+        if (auth.user?.can_access_assessment) {
+            actions.push({
+                title: 'Open assessment',
+                description: 'Check repository assessment progress and current findings.',
+                href: '/assessment',
+                icon: ClipboardCheck,
+            });
+        }
+
+        if (auth.user?.can_access_editor_settings) {
+            actions.push({
+                title: 'Adjust settings',
+                description: 'Manage editor defaults and shared curation configuration.',
+                href: '/settings',
+                icon: Settings,
+                variant: 'secondary',
+            });
+        }
+
+        return actions;
+    }, [auth.user, draftCount, handleJumpToUpload, recentDraftHref]);
 
     // Easter Egg: Reset everything
     const resetEasterEgg = useCallback(() => {
@@ -267,111 +402,161 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
             <Head title="Dashboard" />
             <GuidedTourAutostart guidedTour={guidedTour} />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                    <Card onMouseEnter={() => handleCardHover('welcome')} data-tour="dashboard-welcome">
-                        <CardHeader>
-                            <CardTitle>Hello {auth.user.name}!</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                            <p>
-                                Nice to see you today! You still have{' '}
-                                <strong className="font-semibold text-foreground">{draftCount ?? 0}</strong> draft
-                                {(draftCount ?? 0) !== 1 ? 's' : ''} to complete. Have fun, your ERNIE!
-                            </p>
-                            {recentDrafts && recentDrafts.length > 0 && (
-                                <div className="mt-3 space-y-1">
-                                    <p className="text-xs font-medium text-foreground">Recent drafts:</p>
-                                    <ul className="space-y-0.5">
-                                        {recentDrafts.map((draft) => (
-                                            <li key={draft.id}>
-                                                <Link
-                                                    href={editorRoute({ query: { resourceId: draft.id } }).url}
-                                                    className="text-xs text-primary underline-offset-4 hover:underline"
-                                                >
-                                                    {draft.title}
-                                                </Link>
-                                            </li>
-                                        ))}
-                                    </ul>
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)]">
+                    <Card
+                        onMouseEnter={() => handleCardHover('welcome')}
+                        data-tour="dashboard-welcome"
+                        className="overflow-hidden border-primary/10 bg-gradient-to-br from-gfz-primary/5 via-background to-background"
+                    >
+                        <CardHeader className="gap-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-2">
+                                    <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
+                                        Today
+                                    </Badge>
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-2xl">Hello {auth.user.name}!</CardTitle>
+                                        <CardDescription className="max-w-2xl text-sm leading-6">
+                                            Keep ERNIE moving with a tighter start screen: jump back into drafts, create fresh records, or import metadata without hunting through navigation.
+                                        </CardDescription>
+                                    </div>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Statistics</CardTitle>
+                                <div className="rounded-xl border bg-background/80 px-4 py-3 text-right shadow-sm">
+                                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Open drafts</p>
+                                    <p className="mt-2 text-3xl font-semibold text-foreground">{draftCount ?? 0}</p>
+                                </div>
+                            </div>
                         </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                            <p>
-                                <strong className="font-semibold text-foreground">{datasetCount}</strong> datasets from{' '}
-                                <strong className="font-semibold text-foreground">{dataInstitutions}</strong> institutions
-                            </p>
-                            <p>
-                                <strong className="font-semibold text-foreground">{igsnCountDisplay}</strong> IGSNs from{' '}
-                                <strong className="font-semibold text-foreground">{igsnInstitutions}</strong> institutions
-                            </p>
-                            {auth.user?.can_access_assistance && (pendingAssistanceTotalCount ?? 0) > 0 && (
-                                <p>
-                                    <strong className="font-semibold text-foreground">{pendingAssistanceTotalCount}</strong> pending
-                                    suggestions
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-                    <Card onMouseEnter={() => handleCardHover('environment')}>
-                        <CardHeader>
-                            <CardTitle>Environment</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                            <Table>
-                                <TableBody>
-                                    <TableRow>
-                                        <TableCell className="py-1">ERNIE Version</TableCell>
-                                        <TableCell className="py-1 text-right">
-                                            <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`}>
-                                                <Badge className="w-16 bg-[#003da6] text-white">{latestVersion}</Badge>
+                        <CardContent className="space-y-5">
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                {quickActions.map((action) => (
+                                    <QuickActionCard key={action.title} {...action} />
+                                ))}
+                            </div>
+                            <div className="rounded-2xl border bg-background/80 p-4 shadow-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-medium text-foreground">Continue where you left off</p>
+                                        <p className="text-sm text-muted-foreground">Your most recent work stays one click away.</p>
+                                    </div>
+                                    {(draftCount ?? 0) > 0 && (
+                                        <Button asChild variant="ghost" className="px-0 text-sm">
+                                            <Link href={recentDraftHref}>Open latest draft</Link>
+                                        </Button>
+                                    )}
+                                </div>
+                                {recentDrafts && recentDrafts.length > 0 ? (
+                                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                        {recentDrafts.slice(0, 4).map((draft) => (
+                                            <Link
+                                                key={draft.id}
+                                                href={editorRoute({ query: { resourceId: draft.id } }).url}
+                                                className="group rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-accent/30"
+                                            >
+                                                <p className="font-medium text-foreground transition-colors group-hover:text-primary">{draft.title}</p>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    {draft.updated_at ? `Updated ${new Date(draft.updated_at).toLocaleDateString()}` : 'Draft available to resume'}
+                                                </p>
                                             </Link>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell className="py-1">PHP Version</TableCell>
-                                        <TableCell className="py-1 text-right">
-                                            <a
-                                                href={`https://www.php.net/releases/${phpVersion.split('.').slice(0, 2).join('.')}/en.php`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                aria-label={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
-                                            >
-                                                <Badge className="w-16 bg-[#777BB4] text-white transition-colors hover:bg-[#666BA0]">
-                                                    {phpVersion}
-                                                </Badge>
-                                            </a>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell className="py-1">Laravel Version</TableCell>
-                                        <TableCell className="py-1 text-right">
-                                            <a
-                                                href={`https://laravel.com/docs/${laravelVersion.split('.')[0]}.x/releases`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                aria-label={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
-                                            >
-                                                <Badge className="w-16 bg-[#FF2D20] text-white transition-colors hover:bg-[#E6291C]">
-                                                    {laravelVersion}
-                                                </Badge>
-                                            </a>
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="mt-4 rounded-xl border border-dashed bg-muted/30 p-2">
+                                        <EmptyState
+                                            icon={<FolderClock className="h-8 w-8" />}
+                                            title="No drafts waiting"
+                                            description="Start a fresh metadata record or import an existing file to create your next working draft."
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
+
+                    <div className="grid gap-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Operational overview</CardTitle>
+                                <CardDescription>Fast health check for your curation workload and repository inventory.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                <OverviewMetric label="Datasets" value={datasetCount} description={`${dataInstitutions} institutions with registered data resources`} />
+                                <OverviewMetric label="IGSNs" value={igsnCountDisplay} description={`${igsnInstitutions} institutions with sample records`} />
+                                <OverviewMetric label="Drafts" value={draftCount ?? 0} description="Records that still need review or publication work" />
+                                {auth.user?.can_access_assistance && (
+                                    <OverviewMetric
+                                        label="Assistance"
+                                        value={pendingAssistanceTotalCount ?? 0}
+                                        description="Pending suggestions currently waiting for review"
+                                    />
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card onMouseEnter={() => handleCardHover('environment')}>
+                            <CardHeader>
+                                <CardTitle>Environment</CardTitle>
+                                <CardDescription>Key runtime versions and release notes for the current stack.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="text-sm text-muted-foreground">
+                                <Table>
+                                    <TableBody>
+                                        <TableRow>
+                                            <TableCell className="py-1">ERNIE Version</TableCell>
+                                            <TableCell className="py-1 text-right">
+                                                <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`}>
+                                                    <Badge className="w-16 bg-[#003da6] text-white">{latestVersion}</Badge>
+                                                </Link>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell className="py-1">PHP Version</TableCell>
+                                            <TableCell className="py-1 text-right">
+                                                <a
+                                                    href={`https://www.php.net/releases/${phpVersion.split('.').slice(0, 2).join('.')}/en.php`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
+                                                >
+                                                    <Badge className="w-16 bg-[#777BB4] text-white transition-colors hover:bg-[#666BA0]">
+                                                        {phpVersion}
+                                                    </Badge>
+                                                </a>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell className="py-1">Laravel Version</TableCell>
+                                            <TableCell className="py-1 text-right">
+                                                <a
+                                                    href={`https://laravel.com/docs/${laravelVersion.split('.')[0]}.x/releases`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
+                                                >
+                                                    <Badge className="w-16 bg-[#FF2D20] text-white transition-colors hover:bg-[#E6291C]">
+                                                        {laravelVersion}
+                                                    </Badge>
+                                                </a>
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
-                <Card className="flex flex-col items-center justify-center" data-tour="dashboard-upload">
+
+                <Card ref={uploadSectionRef} id="dashboard-upload-panel" className="flex flex-col items-center justify-center" data-tour="dashboard-upload">
                     <CardHeader className="items-center text-center">
-                        <CardTitle>Upload Files</CardTitle>
-                        <CardDescription>Upload DataCite files (XML, JSON, JSON-LD) or IGSN CSV files for sample metadata.</CardDescription>
+                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
+                            Import hub
+                        </Badge>
+                        <div className="space-y-2">
+                            <CardTitle>Upload Files</CardTitle>
+                            <CardDescription>
+                                Upload DataCite files (XML, JSON, JSON-LD) or IGSN CSV files for sample metadata.
+                            </CardDescription>
+                        </div>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
                         <UnifiedDropzone onXmlUpload={onXmlFiles} onJsonUpload={onJsonFiles} />

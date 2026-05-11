@@ -77,13 +77,19 @@ describe('Dashboard', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({ 
             props: { 
-                auth: { user: { name: 'Jane' } }, 
+                auth: { user: { name: 'Jane', can_access_assistance: true, can_access_editor_settings: true } }, 
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
+                pendingAssistanceTotalCount: 4,
                 phpVersion: '8.4.12',
-                laravelVersion: '12.28.1'
+                laravelVersion: '12.28.1',
+                draftCount: 2,
+                recentDrafts: [
+                    { id: 12, title: 'Arctic campaign dataset', updated_at: '2026-05-11T10:00:00Z' },
+                    { id: 15, title: 'Rock core collection', updated_at: null },
+                ],
             } 
         });
         handleXmlFilesSpy.mockClear();
@@ -122,23 +128,54 @@ describe('Dashboard', () => {
 
     it('displays the data resource count and institution count in the statistics card', () => {
         render(<Dashboard />);
-        const statsCard = screen.getByText(/datasets from/i).closest('p');
-        expect(statsCard).toHaveTextContent('17 datasets from 3 institutions');
+        expect(screen.getByText('Datasets')).toBeInTheDocument();
+        expect(screen.getByText('17')).toBeInTheDocument();
+        expect(screen.getByText('3 institutions with registered data resources')).toBeInTheDocument();
     });
 
     it('displays the IGSN count and institution count in the statistics card', () => {
         render(<Dashboard />);
-        const igsnStats = screen.getByText(/IGSNs from/i).closest('p');
-        expect(igsnStats).toHaveTextContent('5 IGSNs from 2 institutions');
+        expect(screen.getByText('IGSNs')).toBeInTheDocument();
+        expect(screen.getByText('5')).toBeInTheDocument();
+        expect(screen.getByText('2 institutions with sample records')).toBeInTheDocument();
     });
 
     it('falls back to zero for all counts when props are unavailable', () => {
         usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
         render(<Dashboard />);
-        const dataStats = screen.getByText(/datasets from/i).closest('p');
-        const igsnStats = screen.getByText(/IGSNs from/i).closest('p');
-        expect(dataStats).toHaveTextContent('0 datasets from 0 institutions');
-        expect(igsnStats).toHaveTextContent('0 IGSNs from 0 institutions');
+        expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(3);
+        expect(screen.getByText('0 institutions with registered data resources')).toBeInTheDocument();
+        expect(screen.getByText('0 institutions with sample records')).toBeInTheDocument();
+    });
+
+    it('renders role-aware quick actions and recent drafts', () => {
+        render(<Dashboard />);
+
+        expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('href', '/editor');
+        expect(screen.getByRole('link', { name: /resume latest draft/i })).toHaveAttribute('href', '/editor?resourceId=12');
+        expect(screen.getByRole('link', { name: /review assistance/i })).toHaveAttribute('href', '/assistance');
+        expect(screen.getByRole('link', { name: /adjust settings/i })).toHaveAttribute('href', '/settings');
+        expect(screen.getByRole('link', { name: /arctic campaign dataset/i })).toHaveAttribute('href', '/editor?resourceId=12');
+        expect(screen.getByText(/updated/i)).toBeInTheDocument();
+    });
+
+    it('renders an actionable empty state when there are no drafts', () => {
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
+                draftCount: 0,
+                recentDrafts: [],
+            },
+        });
+
+        render(<Dashboard />);
+
+        expect(screen.getByText('No drafts waiting')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /browse resources/i })).toHaveAttribute('href', '/resources');
     });
 
     it('links the ERNIE version to the changelog', () => {
@@ -235,11 +272,11 @@ describe('Dashboard', () => {
     it('toggles dropzone highlight on drag events', () => {
         render(<Dashboard />);
         const dropzone = screen.getByTestId('unified-dropzone');
-        expect(dropzone).toHaveClass('bg-muted');
+        expect(dropzone).toHaveClass('bg-muted/60');
         fireEvent.dragOver(dropzone);
-        expect(dropzone).toHaveClass('bg-accent');
+        expect(dropzone).toHaveClass('bg-accent/60');
         fireEvent.dragLeave(dropzone);
-        expect(dropzone).toHaveClass('bg-muted');
+        expect(dropzone).toHaveClass('bg-muted/60');
     });
 
     it('triggers file input when clicking upload button', () => {

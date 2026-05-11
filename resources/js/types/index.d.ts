@@ -28,6 +28,7 @@ export interface NavItem {
     separator?: boolean;
     badge?: number;
     showZeroBadge?: boolean;
+    badgeTone?: 'default' | 'primary' | 'warning';
     tourId?: string;
     /**
      * Optional callback invoked on hover/focus of the navigation item.

@@ -82,18 +82,20 @@ describe('PortalResultList', () => {
     });
 
     describe('Loading State', () => {
-        it('shows skeleton loaders when loading', () => {
-            render(<PortalResultList {...defaultProps} isLoading={true} />);
+        it('shows skeleton loaders when loading without any results yet', () => {
+            render(<PortalResultList {...defaultProps} resources={[]} pagination={createMockPagination({ total: 0, from: 0, to: 0 })} isLoading={true} />);
 
             // Skeletons should be rendered
             const skeletons = document.querySelectorAll('[class*="animate-pulse"]');
             expect(skeletons.length).toBeGreaterThan(0);
+            expect(screen.getByTestId('portal-results-loading')).toBeInTheDocument();
         });
 
-        it('does not show resource cards when loading', () => {
+        it('keeps current resource cards visible and shows a refresh badge when reloading', () => {
             render(<PortalResultList {...defaultProps} isLoading={true} />);
 
-            expect(screen.queryByText('Resource 1')).not.toBeInTheDocument();
+            expect(screen.getByText('Resource 1')).toBeInTheDocument();
+            expect(screen.getByTestId('portal-results-refreshing')).toHaveTextContent(/refreshing results/i);
         });
     });
 
@@ -103,6 +105,25 @@ describe('PortalResultList', () => {
 
             expect(screen.getByText(/no results found/i)).toBeInTheDocument();
             expect(screen.getByText(/try adjusting your search/i)).toBeInTheDocument();
+        });
+
+        it('offers a clear-filters action when filters are active', async () => {
+            const user = userEvent.setup();
+            const onClearFilters = vi.fn();
+
+            render(
+                <PortalResultList
+                    {...defaultProps}
+                    resources={[]}
+                    pagination={createMockPagination({ total: 0, from: 0, to: 0 })}
+                    hasActiveFilters={true}
+                    onClearFilters={onClearFilters}
+                />,
+            );
+
+            await user.click(screen.getByRole('button', { name: /clear filters/i }));
+
+            expect(onClearFilters).toHaveBeenCalledTimes(1);
         });
 
         it('does not show pagination in empty state', () => {

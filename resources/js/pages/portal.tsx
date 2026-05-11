@@ -8,6 +8,7 @@ import { PortalResultList } from '@/components/portal/PortalResultList';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
@@ -19,6 +20,7 @@ const DEFAULT_MAP_SIZE = 45;
 
 export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+    const { isNavigating: isRefreshing } = useNavigationStatus('results');
 
     // Initialize map collapsed state from localStorage
     const [isMapCollapsed, setIsMapCollapsed] = useState(() => {
@@ -234,6 +236,24 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
             <Head title="Data Portal" />
 
             <div className="flex min-h-0 flex-1 flex-col">
+                <div className="border-b bg-background/80 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-semibold text-foreground">Explore published records</h2>
+                            <p className="text-sm text-muted-foreground">Search datasets and sample metadata by text, location, resource type, and time.</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">{pagination.total.toLocaleString()} results</Badge>
+                            {hasActiveFilters && <Badge variant="secondary">Filters active</Badge>}
+                            {isRefreshing && (
+                                <Badge variant="secondary" data-testid="portal-refresh-badge">
+                                    Refreshing results...
+                                </Badge>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Main Content */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Filter Sidebar */}
@@ -264,7 +284,14 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                     <div className="flex flex-1 flex-col overflow-hidden 2xl:hidden">
                         {/* Results List */}
                         <div className="flex flex-1 flex-col overflow-hidden">
-                            <PortalResultList resources={resources} pagination={pagination} onPageChange={handlePageChange} />
+                            <PortalResultList
+                                resources={resources}
+                                pagination={pagination}
+                                onPageChange={handlePageChange}
+                                isLoading={isRefreshing}
+                                hasActiveFilters={hasActiveFilters}
+                                onClearFilters={handleClearAllFilters}
+                            />
                         </div>
 
                         {/* Map - collapsible on smaller screens */}
@@ -284,7 +311,14 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                             {/* Results Panel */}
                             <ResizablePanel id="results" defaultSize={isMapCollapsed ? 100 : panelSizes.results} minSize={30}>
                                 <div className="flex h-full flex-col overflow-hidden">
-                                    <PortalResultList resources={resources} pagination={pagination} onPageChange={handlePageChange} />
+                                    <PortalResultList
+                                        resources={resources}
+                                        pagination={pagination}
+                                        onPageChange={handlePageChange}
+                                        isLoading={isRefreshing}
+                                        hasActiveFilters={hasActiveFilters}
+                                        onClearFilters={handleClearAllFilters}
+                                    />
                                 </div>
                             </ResizablePanel>
 
