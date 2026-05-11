@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useBufferedYearRangeFilter } from '@/hooks/use-buffered-year-range-filter';
 import type { FilterOptions, FilterState } from '@/types/old-datasets';
 
 /**
@@ -65,6 +66,22 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
     const [resourceTypeValue, setResourceTypeValue] = useState(filters.resource_type?.[0] || 'all');
     const [statusValue, setStatusValue] = useState(filters.status?.[0] || 'all');
     const [curatorValue, setCuratorValue] = useState(filters.curator?.[0] || 'all');
+    const {
+        yearFromInput,
+        yearToInput,
+        hasYearRangeInput,
+        hasEffectiveYearRangeChange,
+        yearRangeMin,
+        yearRangeMax,
+        handleYearFromChange,
+        handleYearToChange,
+        applyYearRange,
+        clearYearRange,
+    } = useBufferedYearRangeFilter({
+        filters,
+        onFilterChange,
+        bounds: filterOptions?.year_range,
+    });
 
     // Sync Select values when filters change externally
     useEffect(() => {
@@ -167,34 +184,6 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                 newFilters.curator = [value];
             } else {
                 delete newFilters.curator;
-            }
-            onFilterChange(newFilters);
-        },
-        [filters, onFilterChange],
-    );
-
-    const handleYearFromChange = useCallback(
-        (value: string) => {
-            const newFilters = { ...filters };
-            const year = parseInt(value, 10);
-            if (!Number.isNaN(year) && year > 0) {
-                newFilters.year_from = year;
-            } else {
-                delete newFilters.year_from;
-            }
-            onFilterChange(newFilters);
-        },
-        [filters, onFilterChange],
-    );
-
-    const handleYearToChange = useCallback(
-        (value: string) => {
-            const newFilters = { ...filters };
-            const year = parseInt(value, 10);
-            if (!Number.isNaN(year) && year > 0) {
-                newFilters.year_to = year;
-            } else {
-                delete newFilters.year_to;
             }
             onFilterChange(newFilters);
         },
@@ -376,12 +365,13 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                                     <Input
                                         id="year-from"
                                         type="number"
-                                        placeholder={filterOptions?.year_range?.min.toString()}
-                                        value={filters.year_from || ''}
+                                        placeholder={yearRangeMin == null ? undefined : String(yearRangeMin)}
+                                        value={yearFromInput}
                                         onChange={(e) => handleYearFromChange(e.target.value)}
-                                        min={filterOptions?.year_range?.min}
-                                        max={filterOptions?.year_range?.max}
+                                        min={yearRangeMin ?? undefined}
+                                        max={yearRangeMax ?? undefined}
                                         className="h-9"
+                                        disabled={isLoading || !filterOptions}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -391,30 +381,39 @@ export function OldDatasetsFilters({ filters, onFilterChange, filterOptions, res
                                     <Input
                                         id="year-to"
                                         type="number"
-                                        placeholder={filterOptions?.year_range?.max.toString()}
-                                        value={filters.year_to || ''}
+                                        placeholder={yearRangeMax == null ? undefined : String(yearRangeMax)}
+                                        value={yearToInput}
                                         onChange={(e) => handleYearToChange(e.target.value)}
-                                        min={filterOptions?.year_range?.min}
-                                        max={filterOptions?.year_range?.max}
+                                        min={yearRangeMin ?? undefined}
+                                        max={yearRangeMax ?? undefined}
                                         className="h-9"
+                                        disabled={isLoading || !filterOptions}
                                     />
                                 </div>
                             </div>
-                            {(filters.year_from || filters.year_to) && (
+                            <div className="flex gap-2 pt-1">
                                 <Button
-                                    variant="outline"
+                                    type="button"
                                     size="sm"
-                                    onClick={() => {
-                                        const newFilters = { ...filters };
-                                        delete newFilters.year_from;
-                                        delete newFilters.year_to;
-                                        onFilterChange(newFilters);
-                                    }}
-                                    className="w-full"
+                                    className="flex-1"
+                                    onClick={applyYearRange}
+                                    disabled={!hasEffectiveYearRangeChange || isLoading || !filterOptions}
                                 >
-                                    Clear Year Range
+                                    Apply
                                 </Button>
-                            )}
+                                {hasYearRangeInput && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={clearYearRange}
+                                        disabled={isLoading}
+                                    >
+                                        <X className="mr-1 h-3 w-3" />
+                                        Clear
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </PopoverContent>
                 </Popover>

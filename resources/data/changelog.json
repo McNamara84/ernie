@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-05-04",
+        "date": "2026-05-11",
         "features": [
             {
                 "title": "Role-Based Guided Tours",
@@ -187,6 +187,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Publication Year Range Filters No Longer Reload Mid-Entry",
+                "description": "The Publication Year range filters on both /resources and /old-datasets now wait for an explicit Apply action instead of refreshing the list on every keystroke. Users can enter both year boundaries first, review the draft range inside the popover, and clear draft values without triggering a premature reload."
+            },
             {
                 "title": "IGSN Landing Page Setup Now Hides Resource-Only Template",
                 "description": "The 'Setup IGSN Landing Page' modal on /igsns no longer offers the built-in 'Default GFZ Data Services' template, which is intended for regular resources only. Physical samples now consistently default to the IGSN-specific template in the UI, legacy invalid selections are remapped to the IGSN template when the modal loads, and the backend rejects create, update, and preview requests that try to assign the resource-only template to Physical Object records."

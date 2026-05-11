@@ -819,12 +819,20 @@ class OldDatasetController extends Controller
             $yearMin = DB::connection(self::DATASET_CONNECTION)
                 ->table('resource')
                 ->whereNotNull('publicationyear')
+                ->where('publicationyear', '>', 0)
                 ->min('publicationyear');
 
             $yearMax = DB::connection(self::DATASET_CONNECTION)
                 ->table('resource')
                 ->whereNotNull('publicationyear')
+                ->where('publicationyear', '>', 0)
                 ->max('publicationyear');
+
+            if ($yearMin === null || $yearMax === null) {
+                $currentYear = (int) now()->year;
+                $yearMin = $currentYear;
+                $yearMax = $currentYear;
+            }
 
             // Define available statuses (based on actual database values in metaworks.resource.publicstatus)
             // Confirmed via tinker query: only 'pending' and 'released' exist
@@ -834,8 +842,8 @@ class OldDatasetController extends Controller
                 'resource_types' => $resourceTypes,
                 'curators' => $curators,
                 'year_range' => [
-                    'min' => $yearMin,
-                    'max' => $yearMax,
+                    'min' => (int) $yearMin,
+                    'max' => (int) $yearMax,
                 ],
                 'statuses' => $statuses,
             ]);

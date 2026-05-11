@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -172,6 +172,129 @@ describe('OldDatasetsFilters Component', () => {
         
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
+
+    it('buffers year range changes until Apply is clicked', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} />);
+
+        await user.type(screen.getByLabelText('From Year'), '2018');
+        await user.type(screen.getByLabelText('To Year'), '2022');
+
+        expect(mockOnFilterChange).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ year_from: 2018, year_to: 2022 });
+    }, 15000);
+
+    it('does not emit changes when Apply is triggered without pending year edits', async () => {
+        render(<OldDatasetsFilters {...defaultProps} filters={{ year_from: 2018, year_to: 2022 }} />);
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        expect(applyButton).toBeDisabled();
+    }, 15000);
+
+    it('disables Apply when only invalid year edits would be a no-op and still allows clearing', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'] }} />);
+
+        fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        const clearButton = screen.getByRole('button', { name: 'Clear' });
+
+        expect(applyButton).toBeDisabled();
+        expect(clearButton).toBeEnabled();
+
+        await user.click(clearButton);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(null);
+        expect(mockOnFilterChange).not.toHaveBeenCalled();
+    }, 15000);
+
+    it('disables year range controls when filter options are unavailable', () => {
+        render(<OldDatasetsFilters {...defaultProps} filterOptions={null} />);
+
+        expect(screen.getByLabelText('Filter by publication year range')).toBeDisabled();
+        expect(screen.getByLabelText('From Year')).toBeDisabled();
+        expect(screen.getByLabelText('To Year')).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    });
+
+    it('removes year_from on Apply when the draft value is cleared', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+        await user.clear(screen.getByLabelText('From Year'));
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_to: 2022 });
+    }, 15000);
+
+    it('removes year_to on Apply when the draft value is invalid', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+        fireEvent.change(screen.getByLabelText('To Year'), { target: { value: '0' } });
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_from: 2018 });
+    }, 15000);
+
+    it('removes decimal year values on Apply instead of truncating them', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+        fireEvent.change(screen.getByLabelText('To Year'), { target: { value: '2021.9' } });
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_from: 2018 });
+    }, 15000);
+
+    it('removes out-of-range year values on Apply', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+        fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'], year_to: 2022 });
+    }, 15000);
+
+    it('clears local year draft values without triggering a reload when nothing is committed', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} />);
+
+        const fromYearInput = screen.getByLabelText('From Year');
+
+        await user.type(fromYearInput, '2018');
+        await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+        expect(mockOnFilterChange).not.toHaveBeenCalled();
+        expect(fromYearInput).toHaveValue(null);
+        expect(screen.getByLabelText('To Year')).toHaveValue(null);
+    }, 15000);
+
+    it('clears committed year range values while preserving other filters', async () => {
+        const user = userEvent.setup();
+        render(<OldDatasetsFilters {...defaultProps} filters={{ curator: ['Alice'], year_from: 2018, year_to: 2022 }} />);
+
+        await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ curator: ['Alice'] });
+    }, 15000);
+
+    it('syncs local year inputs when the parent filters change', () => {
+        const { rerender } = render(<OldDatasetsFilters {...defaultProps} filters={{ year_from: 2018 }} />);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(2018);
+        expect(screen.getByLabelText('To Year')).toHaveValue(null);
+
+        rerender(<OldDatasetsFilters {...defaultProps} filters={{ year_from: 2019, year_to: 2024 }} />);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(2019);
+        expect(screen.getByLabelText('To Year')).toHaveValue(2024);
+    });
 
     it('disables filters when loading', () => {
         render(<OldDatasetsFilters {...defaultProps} isLoading={true} />);

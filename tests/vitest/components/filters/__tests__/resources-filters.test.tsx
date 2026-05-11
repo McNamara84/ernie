@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -175,6 +175,142 @@ describe('ResourcesFilters Component', () => {
         
         expect(mockOnFilterChange).toHaveBeenCalled();
     }, 15000);
+
+    it('buffers year range changes until Apply is clicked', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} />);
+
+        await user.type(screen.getByLabelText('From Year'), '2021');
+        await user.type(screen.getByLabelText('To Year'), '2024');
+
+        expect(mockOnFilterChange).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ year_from: 2021, year_to: 2024 });
+    }, 15000);
+
+    it('does not emit changes when Apply is triggered without pending year edits', async () => {
+        render(<ResourcesFilters {...defaultProps} filters={{ year_from: 2021, year_to: 2024 }} />);
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        expect(applyButton).toBeDisabled();
+    }, 15000);
+
+    it('disables Apply when only invalid year edits would be a no-op and still allows clearing', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'] }} />);
+
+        fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+
+        const applyButton = screen.getByRole('button', { name: 'Apply' });
+        const clearButton = screen.getByRole('button', { name: 'Clear' });
+
+        expect(applyButton).toBeDisabled();
+        expect(clearButton).toBeEnabled();
+
+        await user.click(clearButton);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(null);
+        expect(mockOnFilterChange).not.toHaveBeenCalled();
+    }, 15000);
+
+    it('renders resource type badges with the display name instead of the slug', () => {
+        render(<ResourcesFilters {...defaultProps} filters={{ resource_type: ['dataset'] }} />);
+
+        expect(screen.getByText('Type: Dataset')).toBeInTheDocument();
+    });
+
+    it('disables year range controls when filter options are unavailable', () => {
+        render(<ResourcesFilters {...defaultProps} filterOptions={null} />);
+
+        expect(screen.getByLabelText('Filter by publication year range')).toBeDisabled();
+        expect(screen.getByLabelText('From Year')).toBeDisabled();
+        expect(screen.getByLabelText('To Year')).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    });
+
+    it('shows year placeholders from the backend bounds', () => {
+        render(<ResourcesFilters {...defaultProps} />);
+
+        expect(screen.getByLabelText('From Year')).toHaveAttribute('placeholder', '2000');
+        expect(screen.getByLabelText('To Year')).toHaveAttribute('placeholder', '2025');
+    });
+
+    it('removes year_from on Apply when the draft value is cleared', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+        await user.clear(screen.getByLabelText('From Year'));
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_to: 2024 });
+    }, 15000);
+
+    it('removes year_to on Apply when the draft value is invalid', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+        fireEvent.change(screen.getByLabelText('To Year'), { target: { value: '0' } });
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_from: 2021 });
+    }, 15000);
+
+    it('removes decimal year values on Apply instead of truncating them', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+        fireEvent.change(screen.getByLabelText('To Year'), { target: { value: '2021.9' } });
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_from: 2021 });
+    }, 15000);
+
+    it('removes out-of-range year values on Apply', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+        fireEvent.change(screen.getByLabelText('From Year'), { target: { value: '1999' } });
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'], year_to: 2024 });
+    }, 15000);
+
+    it('clears local year draft values without triggering a reload when nothing is committed', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} />);
+
+        const fromYearInput = screen.getByLabelText('From Year');
+
+        await user.type(fromYearInput, '2021');
+        await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+        expect(mockOnFilterChange).not.toHaveBeenCalled();
+        expect(fromYearInput).toHaveValue(null);
+        expect(screen.getByLabelText('To Year')).toHaveValue(null);
+    }, 15000);
+
+    it('clears committed year range values while preserving other filters', async () => {
+        const user = userEvent.setup();
+        render(<ResourcesFilters {...defaultProps} filters={{ status: ['published'], year_from: 2021, year_to: 2024 }} />);
+
+        await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+        expect(mockOnFilterChange).toHaveBeenCalledWith({ status: ['published'] });
+    }, 15000);
+
+    it('syncs local year inputs when the parent filters change', () => {
+        const { rerender } = render(<ResourcesFilters {...defaultProps} filters={{ year_from: 2021 }} />);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(2021);
+        expect(screen.getByLabelText('To Year')).toHaveValue(null);
+
+        rerender(<ResourcesFilters {...defaultProps} filters={{ year_from: 2022, year_to: 2025 }} />);
+
+        expect(screen.getByLabelText('From Year')).toHaveValue(2022);
+        expect(screen.getByLabelText('To Year')).toHaveValue(2025);
+    });
 
     it('disables filters when loading', () => {
         render(<ResourcesFilters {...defaultProps} isLoading={true} />);
