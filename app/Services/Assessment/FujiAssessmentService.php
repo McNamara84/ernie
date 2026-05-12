@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\Assessment;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class FujiAssessmentService
 {
+    private const UNAVAILABLE_MESSAGE = 'F-UJI is currently unavailable. Please try again shortly.';
+
+    /**
+     * @var array<string, true>
+     */
+    private array $loggedAssessmentFailureFingerprints = [];
+
     public function isConfigured(): bool
     {
         return (bool) Config::get('fuji.enabled', false)
@@ -36,17 +45,28 @@ class FujiAssessmentService
         try {
             $response = $this->baseRequest()
                 ->get($this->healthEndpoint());
-        } catch (\Throwable $exception) {
+        } catch (ConnectionException $exception) {
+            $this->logTransportFailure('health check', $exception);
+
             return [
                 'healthy' => false,
-                'message' => sprintf('F-UJI health check failed: %s', $exception->getMessage()),
+                'message' => self::UNAVAILABLE_MESSAGE,
+            ];
+        } catch (\Throwable $exception) {
+            $this->logTransportFailure('health check', $exception);
+
+            return [
+                'healthy' => false,
+                'message' => self::UNAVAILABLE_MESSAGE,
             ];
         }
 
         if (! $response->successful()) {
+            $this->logUnsuccessfulResponse('health check', $response);
+
             return [
                 'healthy' => false,
-                'message' => $this->unsuccessfulResponseMessage('F-UJI health check failed', $response),
+                'message' => self::UNAVAILABLE_MESSAGE,
             ];
         }
 
@@ -65,25 +85,47 @@ class FujiAssessmentService
             throw new RuntimeException('F-UJI is not configured.');
         }
 
-        $response = $this->baseRequest()
-            ->acceptJson()
-            ->asJson()
-            ->post($this->endpoint(), $this->buildPayload($identifier));
+        try {
+            $response = $this->baseRequest()
+                ->acceptJson()
+                ->asJson()
+                ->post($this->endpoint(), $this->buildPayload($identifier));
+        } catch (ConnectionException $exception) {
+            $this->logAssessmentTransportFailureOnce($exception, $identifier);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+        } catch (\Throwable $exception) {
+            $this->logAssessmentTransportFailureOnce($exception, $identifier);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
+        }
 
         if (! $response->successful()) {
-            throw new RuntimeException($this->unsuccessfulResponseMessage('F-UJI assessment failed', $response));
+            $this->logAssessmentUnsuccessfulResponseOnce($response, $identifier);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE);
         }
 
-        /** @var array<string, mixed> $payload */
-        $payload = $response->json();
-        $score = data_get($payload, 'summary.score_percent.FAIR');
+        try {
+            $payload = $response->json();
 
-        if (! is_numeric($score)) {
-            throw new RuntimeException('F-UJI response does not contain summary.score_percent.FAIR.');
+            if (! is_array($payload)) {
+                throw new RuntimeException('F-UJI response is not a JSON object.');
+            }
+
+            $score = data_get($payload, 'summary.score_percent.FAIR');
+
+            if (! is_numeric($score)) {
+                throw new RuntimeException('F-UJI response does not contain summary.score_percent.FAIR.');
+            }
+
+            $resolvedUrl = data_get($payload, 'resolved_url');
+            $normalizedIdentifier = data_get($payload, 'request.normalized_object_identifier');
+        } catch (\Throwable $exception) {
+            $this->logAssessmentInvalidPayloadOnce($response, $identifier, $exception);
+
+            throw new RuntimeException(self::UNAVAILABLE_MESSAGE, previous: $exception);
         }
-
-        $resolvedUrl = data_get($payload, 'resolved_url');
-        $normalizedIdentifier = data_get($payload, 'request.normalized_object_identifier');
 
         return [
             'score' => round((float) $score, 2),
@@ -171,15 +213,108 @@ class FujiAssessmentService
             ->timeout($this->timeout());
     }
 
-    private function unsuccessfulResponseMessage(string $prefix, Response $response): string
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function logTransportFailure(string $operation, \Throwable $exception, array $context = []): void
     {
-        $message = sprintf('%s with status %d.', $prefix, $response->status());
+        Log::warning('F-UJI request failed', [
+            ...$context,
+            'operation' => $operation,
+            'base_url' => $this->baseUrl(),
+            'exception_class' => $exception::class,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function logUnsuccessfulResponse(string $operation, Response $response, array $context = []): void
+    {
+        Log::warning('F-UJI returned unsuccessful response', [
+            ...$context,
+            'operation' => $operation,
+            'base_url' => $this->baseUrl(),
+            'status' => $response->status(),
+            'body' => $this->responseBodyExcerpt($response),
+        ]);
+    }
+
+    private function logAssessmentTransportFailureOnce(\Throwable $exception, string $identifier): void
+    {
+        $fingerprint = sprintf('transport:%s:%s', $exception::class, $exception->getMessage());
+
+        if (! $this->shouldLogAssessmentFailure($fingerprint)) {
+            return;
+        }
+
+        $this->logTransportFailure('assessment', $exception, [
+            'identifier' => $identifier,
+        ]);
+    }
+
+    private function logAssessmentUnsuccessfulResponseOnce(Response $response, string $identifier): void
+    {
+        $fingerprint = sprintf('response:%d:%s', $response->status(), $this->responseBodyFingerprint($response));
+
+        if (! $this->shouldLogAssessmentFailure($fingerprint)) {
+            return;
+        }
+
+        $this->logUnsuccessfulResponse('assessment', $response, [
+            'identifier' => $identifier,
+        ]);
+    }
+
+    private function logAssessmentInvalidPayloadOnce(Response $response, string $identifier, \Throwable $exception): void
+    {
+        $fingerprint = sprintf(
+            'payload:%d:%s:%s',
+            $response->status(),
+            $this->responseBodyFingerprint($response),
+            $exception->getMessage(),
+        );
+
+        if (! $this->shouldLogAssessmentFailure($fingerprint)) {
+            return;
+        }
+
+        Log::warning('F-UJI returned invalid assessment payload', [
+            'identifier' => $identifier,
+            'operation' => 'assessment',
+            'base_url' => $this->baseUrl(),
+            'status' => $response->status(),
+            'body' => $this->responseBodyExcerpt($response),
+            'error' => $exception->getMessage(),
+            'exception_class' => $exception::class,
+        ]);
+    }
+
+    private function shouldLogAssessmentFailure(string $fingerprint): bool
+    {
+        if (isset($this->loggedAssessmentFailureFingerprints[$fingerprint])) {
+            return false;
+        }
+
+        $this->loggedAssessmentFailureFingerprints[$fingerprint] = true;
+
+        return true;
+    }
+
+    private function responseBodyExcerpt(Response $response): ?string
+    {
         $body = trim(preg_replace('/\s+/', ' ', $response->body()) ?? '');
 
         if ($body === '') {
-            return $message;
+            return null;
         }
 
-        return sprintf('%s Response: %s', $message, Str::limit($body, 200, '...'));
+        return Str::limit($body, 200, '...');
+    }
+
+    private function responseBodyFingerprint(Response $response): string
+    {
+        return sha1($response->body());
     }
 }

@@ -564,9 +564,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Important:</strong> A record is skipped when it has no DOI, no landing page, or the landing page is
-                                not published. The Assessment page also requires the internal F-UJI service to be configured in the current
-                                environment.
+                                <strong>Important:</strong> A record is skipped when it has no DOI. Missing or draft local landing pages do
+                                not prevent an assessment run. If the dashboard shows a temporary F-UJI warning, you can still start a
+                                check and the server will validate F-UJI availability again before queueing the job.
                             </p>
                         </div>
                     </>
