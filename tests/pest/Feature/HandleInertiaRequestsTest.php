@@ -10,8 +10,13 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ResourceCacheService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function (): void {
+    Cache::flush();
+});
 
 test('non-inertia web responses do not resolve lazy shared resource counts', function () {
     $resourceCache = Mockery::mock(ResourceCacheService::class);

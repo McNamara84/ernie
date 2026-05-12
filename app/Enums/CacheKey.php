@@ -193,7 +193,7 @@ enum CacheKey: string
 
             self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
 
-            self::ASSESSMENT_AVERAGE_SUMMARY => ['resources', 'assessments'],
+            self::ASSESSMENT_AVERAGE_SUMMARY => ['assessments'],
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],
         };

@@ -6,8 +6,13 @@ use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Services\Assessment\AssessmentAverageSummaryService;
+use Illuminate\Support\Facades\Cache;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function (): void {
+    Cache::flush();
+});
 
 it('calculates separate averages for resources and igsns', function (): void {
     $physicalObjectType = ResourceType::factory()->create([

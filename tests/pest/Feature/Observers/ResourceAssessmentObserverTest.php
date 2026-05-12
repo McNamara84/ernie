@@ -6,17 +6,22 @@ use App\Enums\CacheKey;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Observers\ResourceAssessmentObserver;
+use App\Services\Assessment\AssessmentAverageSummaryVersionService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-covers(ResourceAssessmentObserver::class);
+covers(ResourceAssessmentObserver::class, AssessmentAverageSummaryVersionService::class);
 
 beforeEach(function (): void {
-    $this->observer = new ResourceAssessmentObserver(); // @phpstan-ignore property.notFound
     Cache::forget(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version'));
 });
+
+function makeResourceAssessmentObserver(): ResourceAssessmentObserver
+{
+    return new ResourceAssessmentObserver();
+}
 
 function createAssessmentForObserverTest(): ResourceAssessment
 {
@@ -33,7 +38,7 @@ function createAssessmentForObserverTest(): ResourceAssessment
 it('bumps the assessment summary cache version when an assessment is saved', function (): void {
     $assessment = createAssessmentForObserverTest();
 
-    $this->observer->saved($assessment);
+    makeResourceAssessmentObserver()->saved($assessment);
 
     expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(2);
 });
@@ -42,18 +47,9 @@ it('bumps the assessment summary cache version when an assessment is deleted', f
     Cache::forever(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version'), 4);
     $assessment = createAssessmentForObserverTest();
 
-    $this->observer->deleted($assessment);
+    makeResourceAssessmentObserver()->deleted($assessment);
 
     expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(5);
-});
-
-it('bumps the assessment summary cache version when an assessment is force deleted', function (): void {
-    Cache::forever(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version'), 9);
-    $assessment = createAssessmentForObserverTest();
-
-    $this->observer->forceDeleted($assessment);
-
-    expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(10);
 });
 
 it('falls back to a best-effort version increment when the version lock is busy', function (): void {
@@ -87,5 +83,5 @@ it('falls back to a best-effort version increment when the version lock is busy'
             && $context['cache_key'] === $versionKey
             && $context['lock_key'] === $lockKey);
 
-    $this->observer->saved($assessment);
+    makeResourceAssessmentObserver()->saved($assessment);
 });

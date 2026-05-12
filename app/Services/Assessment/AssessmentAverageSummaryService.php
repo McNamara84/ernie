@@ -8,15 +8,12 @@ use App\Enums\CacheKey;
 use App\Models\ResourceAssessment;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Facades\Cache;
 
 class AssessmentAverageSummaryService
 {
     use ChecksCacheTagging;
 
     private const NO_PHYSICAL_OBJECT_TYPE_CACHE_SUFFIX = 'none';
-
-    private const VERSION_CACHE_SUFFIX = 'version';
 
     /**
      * @return array{resources: float|null, igsns: float|null, formatted: string|null}
@@ -113,7 +110,7 @@ class AssessmentAverageSummaryService
 
     private function currentCacheVersion(): int
     {
-        return max(1, (int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key(self::VERSION_CACHE_SUFFIX), 1));
+        return app(AssessmentAverageSummaryVersionService::class)->current();
     }
 
     private function baseCompletedAssessmentsQuery(): Builder

@@ -73,6 +73,10 @@ it('returns correct tags for system', function () {
     expect(CacheKey::CACHE_STATS->tags())->toBe(['system']);
 });
 
+it('returns correct tags for assessment summary metrics', function () {
+    expect(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->tags())->toBe(['assessments']);
+});
+
 it('all cache keys have unique values', function () {
     $cases = CacheKey::cases();
     $values = array_map(fn (CacheKey $key) => $key->value, $cases);
