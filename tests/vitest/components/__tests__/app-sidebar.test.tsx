@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { NavItem } from '@/types';
+import type { AssessmentAverageSummary, NavItem } from '@/types';
 
 // Configurable mock user - can be changed per test
 let mockUser = {
@@ -23,7 +23,14 @@ let mockUser = {
     can_access_assessment: false,
 };
 
-let mockSharedProps = {
+type MockSharedProps = {
+    dataResourceCount: number | undefined;
+    igsnCount: number | undefined;
+    pendingAssistanceTotalCount: number | undefined;
+    assessmentAverageSummary: AssessmentAverageSummary | null;
+};
+
+let mockSharedProps: MockSharedProps = {
     dataResourceCount: 12,
     igsnCount: 5,
     pendingAssistanceTotalCount: 0,
@@ -65,12 +72,7 @@ const setMockUser = (
 };
 
 const setMockSharedProps = (
-    overrides: Partial<{
-        dataResourceCount: number | undefined;
-        igsnCount: number | undefined;
-        pendingAssistanceTotalCount: number | undefined;
-        assessmentAverageSummary: { resources: number | null; igsns: number | null; formatted: string | null } | null;
-    }> = {}
+    overrides: Partial<MockSharedProps> = {}
 ) => {
     mockSharedProps = {
         dataResourceCount: 12,
