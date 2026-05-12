@@ -3,7 +3,7 @@
 ## Project Overview
 ERNIE is a **metadata curation system** for research datasets at GFZ Helmholtz Centre. It implements the **DataCite Metadata Schema v4.7** for DOI registration of scientific publications and **IGSN** (International Generic Sample Number) registration for physical samples. The project also provides **landing pages** for registered DOIs and a **portal** for searching published datasets.
 
-**Version:** 1.0.0rc3
+**Version:** 1.0.0
 
 **Stack:** Laravel 13 (PHP 8.5) + Inertia.js + React 19 + shadcn/ui v4 + TailwindCSS 4 + Pest 4 + Playwright + Vitest
 
