@@ -13,7 +13,7 @@ services:
       - dockerized-laravel-network
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
       interval: 5s
@@ -112,6 +112,12 @@ services:
       - dockerized-laravel-network
     ports:
       - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   redis:
     image: redis:alpine
@@ -121,6 +127,12 @@ services:
       - dockerized-laravel-network
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   fuji:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:ce91f8c5998655c34f570d68f52254cb5dfa29d659808c571c8e6f9249948a0e
@@ -158,9 +170,9 @@ services:
       - dockerized-laravel-network
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       - APP_KEY=${APP_KEY}
       - APP_URL=https://ernie.rz-vm499.gfz.de
