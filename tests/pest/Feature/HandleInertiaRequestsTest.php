@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
@@ -7,6 +9,7 @@ use App\Models\ResourceType;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ResourceCacheService;
+use Illuminate\Http\Request;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -80,4 +83,43 @@ test('assessment average summary is not shared for users without assessment acce
     $shared = (new HandleInertiaRequests)->share($request);
 
     expect($shared['assessmentAverageSummary'])->toBeNull();
+});
+
+test('assessment average summary resolver returns an empty summary for guests', function () {
+    $request = Request::create('/dashboard');
+
+    $resolver = \Closure::bind(
+        fn (Request $request): array => $this->resolveSharedAssessmentAverageSummary($request),
+        new HandleInertiaRequests(),
+        HandleInertiaRequests::class,
+    );
+
+    expect($resolver)->not->toBeNull();
+    expect($resolver?->__invoke($request))->toBe([
+        'resources' => null,
+        'igsns' => null,
+        'formatted' => null,
+    ]);
+});
+
+test('assessment average summary resolver returns an empty summary for unauthorized users', function () {
+    $user = User::factory()->create([
+        'role' => UserRole::GROUP_LEADER,
+    ]);
+
+    $request = Request::create('/dashboard');
+    $request->setUserResolver(fn () => $user);
+
+    $resolver = \Closure::bind(
+        fn (Request $request): array => $this->resolveSharedAssessmentAverageSummary($request),
+        new HandleInertiaRequests(),
+        HandleInertiaRequests::class,
+    );
+
+    expect($resolver)->not->toBeNull();
+    expect($resolver?->__invoke($request))->toBe([
+        'resources' => null,
+        'igsns' => null,
+        'formatted' => null,
+    ]);
 });

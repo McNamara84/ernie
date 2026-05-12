@@ -6,13 +6,10 @@ namespace App\Observers;
 
 use App\Enums\CacheKey;
 use App\Models\ResourceAssessment;
-use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 
 class ResourceAssessmentObserver
 {
-    use ChecksCacheTagging;
-
     public function saved(ResourceAssessment $resourceAssessment): void
     {
         $this->invalidateAssessmentCaches();
@@ -30,12 +27,9 @@ class ResourceAssessmentObserver
 
     private function invalidateAssessmentCaches(): void
     {
-        if ($this->supportsTagging()) {
-            Cache::tags(['assessments'])->flush();
+        $versionKey = CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version');
+        $currentVersion = max(1, (int) Cache::get($versionKey, 1));
 
-            return;
-        }
-
-        CacheKey::ASSESSMENT_AVERAGE_SUMMARY->forget();
+        Cache::forever($versionKey, $currentVersion + 1);
     }
 }

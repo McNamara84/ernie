@@ -5,7 +5,7 @@ import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { latestVersion } from '@/lib/version';
-import Dashboard, { handleXmlFiles } from '@/pages/dashboard';
+import Dashboard, { handleJsonFiles, handleXmlFiles } from '@/pages/dashboard';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
@@ -66,6 +66,7 @@ vi.mock('@/routes', () => {
 
 vi.mock('@/routes/dashboard', () => ({
     uploadXml: { url: () => '/dashboard/upload-xml' },
+    uploadJson: { url: () => '/dashboard/upload-json' },
     uploadIgsnCsv: { url: () => '/dashboard/upload-igsn-csv' },
 }));
 
@@ -454,6 +455,43 @@ describe('handleXmlFiles', () => {
 
         fetchMock.mockRestore();
         consoleErrorMock.mockRestore();
+    });
+
+    afterEach(() => {
+        document.head.innerHTML = '';
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    });
+});
+
+describe('handleJsonFiles', () => {
+    beforeEach(() => {
+        routerMock.get.mockReset();
+        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    });
+
+    it('posts json file with csrf token and redirects to editor with session key', async () => {
+        const file = new File(['{"title":"Test"}'], 'metadata.json', { type: 'application/json' });
+        const sessionKey = 'json_upload_test123';
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+            {
+                ok: true,
+                json: async () => ({
+                    sessionKey,
+                }),
+            } as Response,
+        );
+
+        await handleJsonFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        const [url, options] = fetchMock.mock.calls[0];
+        expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-json');
+        expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
+        expect(routerMock.get).toHaveBeenCalledWith(`/editor?jsonSession=${sessionKey}`);
+
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
     });
 
     afterEach(() => {

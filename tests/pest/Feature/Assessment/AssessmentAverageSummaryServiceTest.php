@@ -119,6 +119,45 @@ it('returns no formatted summary when no completed scored assessments exist', fu
     ]);
 });
 
+it('caches summaries separately for each physical object scope', function (): void {
+    $physicalObjectType = ResourceType::factory()->create([
+        'name' => 'Physical Object',
+        'slug' => 'physical-object',
+    ]);
+
+    $dataset = Resource::factory()->create();
+    $igsn = Resource::factory()->create([
+        'resource_type_id' => $physicalObjectType->id,
+    ]);
+
+    ResourceAssessment::query()->create([
+        'resource_id' => $dataset->id,
+        'status' => ResourceAssessment::STATUS_COMPLETED,
+        'total_score' => 8.0,
+        'assessed_at' => now(),
+    ]);
+    ResourceAssessment::query()->create([
+        'resource_id' => $igsn->id,
+        'status' => ResourceAssessment::STATUS_COMPLETED,
+        'total_score' => 2.0,
+        'assessed_at' => now(),
+    ]);
+
+    $service = app(AssessmentAverageSummaryService::class);
+
+    expect($service->getSidebarSummary(null))->toBe([
+        'resources' => 5.0,
+        'igsns' => null,
+        'formatted' => '5.0 / -',
+    ]);
+
+    expect($service->getSidebarSummary($physicalObjectType->id))->toBe([
+        'resources' => 8.0,
+        'igsns' => 2.0,
+        'formatted' => '8.0 / 2.0',
+    ]);
+});
+
 it('invalidates the cached summary when an assessment changes', function (): void {
     $physicalObjectType = ResourceType::factory()->create([
         'name' => 'Physical Object',

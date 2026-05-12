@@ -8,10 +8,15 @@ use App\Enums\CacheKey;
 use App\Models\ResourceAssessment;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Cache;
 
 class AssessmentAverageSummaryService
 {
     use ChecksCacheTagging;
+
+    private const NO_PHYSICAL_OBJECT_TYPE_CACHE_SUFFIX = 'none';
+
+    private const VERSION_CACHE_SUFFIX = 'version';
 
     /**
      * @return array{resources: float|null, igsns: float|null, formatted: string|null}
@@ -21,7 +26,7 @@ class AssessmentAverageSummaryService
         /** @var array{resources: float|null, igsns: float|null, formatted: string|null} $summary */
         $summary = $this->getCacheInstance(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->tags())
             ->remember(
-                CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key(),
+                CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key($this->resolveCacheSuffix($physicalObjectTypeId)),
                 CacheKey::ASSESSMENT_AVERAGE_SUMMARY->ttl(),
                 fn (): array => $this->buildSidebarSummary($physicalObjectTypeId),
             );
@@ -95,6 +100,20 @@ class AssessmentAverageSummaryService
         }
 
         return round((float) $value, 1);
+    }
+
+    private function resolveCacheSuffix(?int $physicalObjectTypeId): string
+    {
+        $scopeSuffix = $physicalObjectTypeId === null
+            ? self::NO_PHYSICAL_OBJECT_TYPE_CACHE_SUFFIX
+            : (string) $physicalObjectTypeId;
+
+        return sprintf('%s:v%d', $scopeSuffix, $this->currentCacheVersion());
+    }
+
+    private function currentCacheVersion(): int
+    {
+        return max(1, (int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key(self::VERSION_CACHE_SUFFIX), 1));
     }
 
     private function baseCompletedAssessmentsQuery(): Builder
