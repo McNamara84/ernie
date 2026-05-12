@@ -140,7 +140,7 @@ services:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:ce91f8c5998655c34f570d68f52254cb5dfa29d659808c571c8e6f9249948a0e
     container_name: ernie-fuji-stage
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "/usr/local/bin/fuji-entrypoint.sh"]
+    entrypoint: ["/bin/sh", "-c", "echo '=== ENTRYPOINT CONTENT ===' && cat /usr/local/bin/fuji-entrypoint.sh && echo '=== ENV ===' && env | grep -E 'FUJI|TIKA' && echo '=== WAITING ===' && sleep 300"]
     logging:
       driver: "json-file"
       options:
