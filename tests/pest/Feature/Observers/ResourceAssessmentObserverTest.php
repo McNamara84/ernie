@@ -7,6 +7,7 @@ use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Observers\ResourceAssessmentObserver;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -53,4 +54,38 @@ it('bumps the assessment summary cache version when an assessment is force delet
     $this->observer->forceDeleted($assessment);
 
     expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(10);
+});
+
+it('falls back to a best-effort version increment when the version lock is busy', function (): void {
+    $assessment = createAssessmentForObserverTest();
+    $versionKey = CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version');
+    $lockKey = CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version-lock');
+    $lock = Mockery::mock();
+
+    Cache::shouldReceive('lock')
+        ->once()
+        ->with($lockKey, 5)
+        ->andReturn($lock);
+
+    $lock->shouldReceive('get')
+        ->once()
+        ->andReturnFalse();
+
+    Cache::shouldReceive('add')
+        ->once()
+        ->withArgs(fn (string $key, int $value, mixed $ttl): bool => $key === $versionKey && $value === 1 && $ttl instanceof \DateTimeInterface)
+        ->andReturn(true);
+
+    Cache::shouldReceive('increment')
+        ->once()
+        ->with($versionKey)
+        ->andReturn(2);
+
+    Log::shouldReceive('warning')
+        ->once()
+        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'Assessment summary cache version lock could not be acquired immediately')
+            && $context['cache_key'] === $versionKey
+            && $context['lock_key'] === $lockKey);
+
+    $this->observer->saved($assessment);
 });

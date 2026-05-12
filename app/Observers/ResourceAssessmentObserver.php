@@ -7,6 +7,7 @@ namespace App\Observers;
 use App\Enums\CacheKey;
 use App\Models\ResourceAssessment;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ResourceAssessmentObserver
 {
@@ -35,12 +36,43 @@ class ResourceAssessmentObserver
     {
         $versionKey = CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key(self::VERSION_CACHE_SUFFIX);
         $lockKey = CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key(self::VERSION_LOCK_SUFFIX);
+        $lock = Cache::lock($lockKey, self::VERSION_LOCK_TTL_SECONDS);
 
-        Cache::lock($lockKey, self::VERSION_LOCK_TTL_SECONDS)
-            ->block(self::VERSION_LOCK_TTL_SECONDS, function () use ($versionKey): void {
-                $currentVersion = max(1, (int) Cache::get($versionKey, 1));
+        if ($lock->get()) {
+            try {
+                $this->storeNextVersion($versionKey);
 
-                Cache::forever($versionKey, $currentVersion + 1);
-            });
+                return;
+            } finally {
+                $lock->release();
+            }
+        }
+
+        Log::warning('Assessment summary cache version lock could not be acquired immediately, falling back to best-effort increment.', [
+            'cache_key' => $versionKey,
+            'lock_key' => $lockKey,
+        ]);
+
+        $this->bestEffortBumpVersion($versionKey);
+    }
+
+    private function storeNextVersion(string $versionKey): void
+    {
+        $currentVersion = max(1, (int) Cache::get($versionKey, 1));
+
+        Cache::forever($versionKey, $currentVersion + 1);
+    }
+
+    private function bestEffortBumpVersion(string $versionKey): void
+    {
+        Cache::add($versionKey, 1, now()->addDay());
+
+        $incrementedVersion = Cache::increment($versionKey);
+
+        if ($incrementedVersion !== false) {
+            return;
+        }
+
+        $this->storeNextVersion($versionKey);
     }
 }
