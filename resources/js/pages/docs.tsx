@@ -98,6 +98,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>Uploading IGSN CSV files for physical samples</li>
                             <li>Resuming the latest drafts directly from the start screen</li>
                             <li>Viewing compact operational statistics for datasets, IGSNs, drafts, and assistance</li>
+                            <li>Reaching the import hub immediately from the first screen area instead of scrolling past large cards</li>
                         </ul>
 
                         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
@@ -112,7 +113,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Counters:</strong> The main menu shows total counts on <strong>Resources</strong> and{' '}
                                 <strong>IGSNs List</strong>. The <strong>Assistance</strong> entry continues to show the number of pending
-                                suggestions.
+                                suggestions. For administrators, the <strong>Assessment</strong> entry also shows the current average FAIR score
+                                summary in the format <strong>Resources / IGSNs</strong>.
                             </p>
                         </div>
 
@@ -526,6 +528,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             The <strong>Assessment</strong> page (<code>/assessment</code>) is available to administrators in the
                             <strong>Tools</strong> section of the sidebar. It runs F-UJI checks against publicly reachable landing pages and
                             stores the latest FAIR result per resource.
+                        </p>
+
+                        <p>
+                            The sidebar entry itself also shows a compact FAIR average summary in the format <strong>Resources / IGSNs</strong>,
+                            for example <strong>6.9 / 3.2</strong>. The numbers reflect the latest completed assessments with a stored FAIR score
+                            in each scope.
                         </p>
 
                         <h4>What the Dashboard Shows</h4>

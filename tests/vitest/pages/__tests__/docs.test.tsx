@@ -91,6 +91,22 @@ describe('Docs page', () => {
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
     });
 
+    it('mentions the assessment FAIR sidebar summary for administrators', () => {
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Assessment entry also shows the current average FAIR score summary in the format Resources / IGSNs');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('displays beginner role indicator in header', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
         // The header shows the user's role (may appear multiple times)

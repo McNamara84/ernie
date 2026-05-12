@@ -159,6 +159,33 @@ describe('Dashboard', () => {
         expect(screen.getByText(/updated/i)).toBeInTheDocument();
     });
 
+    it('keeps the page container overflow-safe and surfaces the import hub in the side column', () => {
+        render(<Dashboard />);
+
+        expect(screen.getByTestId('dashboard-page')).toHaveClass('overflow-x-hidden');
+        expect(screen.getByTestId('dashboard-side-column')).toBeInTheDocument();
+        expect(screen.getByTestId('dashboard-upload-card')).toBeInTheDocument();
+    });
+
+    it('marks create resource as the primary quick action', () => {
+        render(<Dashboard />);
+
+        expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('data-variant', 'default');
+    });
+
+    it('scrolls to the import hub when the upload metadata action is clicked', () => {
+        const originalScrollIntoView = Element.prototype.scrollIntoView;
+        const scrollSpy = vi.fn();
+        Element.prototype.scrollIntoView = scrollSpy;
+
+        render(<Dashboard />);
+        fireEvent.click(screen.getByRole('button', { name: /upload metadata/i }));
+
+        expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+
+        Element.prototype.scrollIntoView = originalScrollIntoView;
+    });
+
     it('renders an actionable empty state when there are no drafts', () => {
         usePageMock.mockReturnValueOnce({
             props: {

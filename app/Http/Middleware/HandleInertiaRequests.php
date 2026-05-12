@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Enums\CacheKey;
+use App\Services\Assessment\AssessmentAverageSummaryService;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
@@ -94,6 +95,9 @@ class HandleInertiaRequests extends Middleware
                         fn () => app(AssistantRegistrar::class)->totalPendingCount(),
                     )
                 : 0,
+            'assessmentAverageSummary' => $request->user()?->can('access-assessment')
+                ? fn (): array => $this->resolveSharedAssessmentAverageSummary($request)
+                : null,
         ];
     }
 
@@ -140,6 +144,25 @@ class HandleInertiaRequests extends Middleware
         $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
 
         return $resourceCache->getIgsnCount($physicalObjectTypeId);
+    }
+
+    /**
+     * @return array{resources: float|null, igsns: float|null, formatted: string|null}
+     */
+    private function resolveSharedAssessmentAverageSummary(Request $request): array
+    {
+        if ($request->user() === null || ! $request->user()->can('access-assessment')) {
+            return [
+                'resources' => null,
+                'igsns' => null,
+                'formatted' => null,
+            ];
+        }
+
+        $resourceCache = app(ResourceCacheService::class);
+        $physicalObjectTypeId = $resourceCache->getPhysicalObjectTypeId();
+
+        return app(AssessmentAverageSummaryService::class)->getSidebarSummary($physicalObjectTypeId);
     }
 
     /**

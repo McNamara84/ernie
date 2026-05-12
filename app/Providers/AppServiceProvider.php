@@ -11,9 +11,11 @@ use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Observers\LandingPageObserver;
+use App\Observers\ResourceAssessmentObserver;
 use App\Observers\ResourceObserver;
 use App\Observers\ResourceTypeObserver;
 use App\Services\DataCiteRegistrationService;
@@ -48,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register model observers
         Resource::observe(ResourceObserver::class);
+        ResourceAssessment::observe(ResourceAssessmentObserver::class);
         ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);
 

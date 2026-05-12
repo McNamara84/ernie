@@ -255,4 +255,20 @@ describe('NavSection', () => {
 
         expect(screen.queryByTestId('sidebar-badge')).not.toBeInTheDocument();
     });
+
+    it('renders formatted string badges for sidebar summary metrics', () => {
+        const items: NavItem[] = [{ title: 'Assessment', href: '/assessment', icon: Settings, badge: '6.9 / 3.2' }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.getByTestId('sidebar-badge')).toHaveTextContent('6.9 / 3.2');
+    });
+
+    it('does not render empty string badges', () => {
+        const items: NavItem[] = [{ title: 'Assessment', href: '/assessment', icon: Settings, badge: '   ' }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.queryByTestId('sidebar-badge')).not.toBeInTheDocument();
+    });
 });

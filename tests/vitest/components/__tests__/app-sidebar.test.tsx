@@ -27,6 +27,7 @@ let mockSharedProps = {
     dataResourceCount: 12,
     igsnCount: 5,
     pendingAssistanceTotalCount: 0,
+    assessmentAverageSummary: null,
 };
 
 // Helper to set mock user for each test
@@ -68,12 +69,14 @@ const setMockSharedProps = (
         dataResourceCount: number | undefined;
         igsnCount: number | undefined;
         pendingAssistanceTotalCount: number | undefined;
+        assessmentAverageSummary: { resources: number | null; igsns: number | null; formatted: string | null } | null;
     }> = {}
 ) => {
     mockSharedProps = {
         dataResourceCount: 12,
         igsnCount: 5,
         pendingAssistanceTotalCount: 0,
+        assessmentAverageSummary: null,
         ...overrides,
     };
 };
@@ -389,6 +392,29 @@ describe('AppSidebar', () => {
         expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
         expect(sectionCalls[3][0].items[0].badge).toBe(7);
         expect(sectionCalls[3][0].items[1].href).toBe('/assessment');
+        expect(sectionCalls[3][0].items[1].badge).toBeUndefined();
+    });
+
+    it('passes formatted FAIR averages to the Assessment sidebar item', () => {
+        setMockUser({
+            can_access_assessment: true,
+        });
+        setMockSharedProps({
+            assessmentAverageSummary: {
+                resources: 6.9,
+                igsns: 3.2,
+                formatted: '6.9 / 3.2',
+            },
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
+
+        expect(toolsSection).toBeDefined();
+        expect(toolsSection?.[0].items[0].title).toBe('Assessment');
+        expect(toolsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
     });
 
     it('passes visible zero badges for Resources and IGSNs List', () => {
