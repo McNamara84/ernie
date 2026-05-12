@@ -5,10 +5,13 @@ declare(strict_types=1);
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
+use App\Models\ResourceAssessment;
+use App\Models\ResourceType;
 use App\Observers\ResourceObserver;
 use App\Services\KeywordSuggestionService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\ResourceCacheService;
+use App\Enums\CacheKey;
 use Illuminate\Support\Facades\Cache;
 
 covers(ResourceObserver::class);
@@ -52,6 +55,38 @@ describe('updated', function () {
             ->once();
 
         $this->observer->updated($resource);
+    });
+
+    it('bumps the assessment summary version when an assessed resource changes type', function () {
+        $resource = Resource::factory()->create(['resource_type_id' => null]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'Physical Object',
+            'slug' => 'physical-object',
+        ]);
+
+        ResourceAssessment::withoutEvents(fn (): ResourceAssessment => ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 6.0,
+            'assessed_at' => now(),
+        ]));
+
+        Cache::forever(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version'), 4);
+
+        Resource::withoutEvents(function () use ($resource, $physicalObjectType): void {
+            $resource->resource_type_id = $physicalObjectType->id;
+            $resource->save();
+        });
+
+        $this->cacheService->shouldReceive('invalidateResourceCache')
+            ->once()
+            ->with($resource->id);
+        $this->keywordService->shouldReceive('invalidateCache')
+            ->once();
+
+        $this->observer->updated($resource);
+
+        expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(5);
     });
 
     it('syncs DOI to landing page when DOI changes', function () {
@@ -105,6 +140,31 @@ describe('deleted', function () {
             ->andReturn([]);
 
         $this->observer->deleted($resource);
+    });
+
+    it('bumps the assessment summary version when deleting a resource with an assessment', function () {
+        $resource = Resource::factory()->create(['doi' => null]);
+
+        ResourceAssessment::withoutEvents(fn (): ResourceAssessment => ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 6.0,
+            'assessed_at' => now(),
+        ]));
+
+        Cache::forever(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version'), 7);
+
+        $this->observer->deleting($resource);
+
+        $this->cacheService->shouldReceive('invalidateAllResourceCaches')
+            ->once();
+        $this->keywordService->shouldReceive('invalidateCache')
+            ->once();
+        $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
+
+        $this->observer->deleted($resource);
+
+        expect((int) Cache::get(CacheKey::ASSESSMENT_AVERAGE_SUMMARY->key('version')))->toBe(8);
     });
 
     it('does not track OAI-PMH deletion for resources without DOI', function () {

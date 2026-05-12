@@ -17,11 +17,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
+import { cn } from '@/lib/utils';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
 import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/routes/dashboard';
@@ -130,24 +130,36 @@ type DashboardQuickAction = {
 };
 
 function QuickActionCard({ title, description, icon: Icon, href, variant = 'outline', onClick }: DashboardQuickAction) {
+    const isPrimaryAction = variant === 'default';
+
     const content = (
-        <>
-            <div className="flex items-start gap-3">
-                <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+        <div className="flex w-full min-w-0 items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+                <span
+                    className={cn(
+                        'mt-0.5 rounded-xl p-2',
+                        isPrimaryAction ? 'bg-primary-foreground/12 text-primary-foreground' : 'bg-primary/10 text-primary',
+                    )}
+                >
                     <Icon className="h-4 w-4" />
                 </span>
-                <div className="space-y-1">
-                    <p className="font-medium text-foreground">{title}</p>
-                    <p className="text-sm text-muted-foreground">{description}</p>
+                <div className="min-w-0 space-y-1">
+                    <p className={cn('text-sm font-semibold leading-5 break-words', isPrimaryAction ? 'text-primary-foreground' : 'text-foreground')}>{title}</p>
+                    <p className={cn('text-xs leading-5 break-words', isPrimaryAction ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{description}</p>
                 </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-        </>
+            <ArrowRight
+                className={cn(
+                    'mt-1 h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5',
+                    isPrimaryAction ? 'text-primary-foreground/85' : 'text-muted-foreground',
+                )}
+            />
+        </div>
     );
 
     if (href) {
         return (
-            <Button asChild variant={variant} className="group h-auto w-full justify-between rounded-xl border px-4 py-4 text-left shadow-sm">
+            <Button asChild variant={variant} className="group h-auto w-full justify-start rounded-2xl border px-4 py-4 text-left whitespace-normal shadow-sm">
                 <Link href={href}>
                     {content}
                 </Link>
@@ -156,7 +168,7 @@ function QuickActionCard({ title, description, icon: Icon, href, variant = 'outl
     }
 
     return (
-        <Button variant={variant} className="group h-auto w-full justify-between rounded-xl border px-4 py-4 text-left shadow-sm" onClick={onClick}>
+        <Button variant={variant} className="group h-auto w-full justify-start rounded-2xl border px-4 py-4 text-left whitespace-normal shadow-sm" onClick={onClick}>
             {content}
         </Button>
     );
@@ -164,10 +176,33 @@ function QuickActionCard({ title, description, icon: Icon, href, variant = 'outl
 
 function OverviewMetric({ label, value, description }: { label: string; value: string | number; description: string }) {
     return (
-        <div className="rounded-xl border bg-background/70 p-4">
+        <div className="min-w-0 rounded-xl border bg-background/70 p-4">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-            <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+            <p className="mt-1 text-xs leading-5 break-words text-muted-foreground">{description}</p>
+        </div>
+    );
+}
+
+function EnvironmentVersionRow({
+    label,
+    href,
+    ariaLabel,
+    badgeClassName,
+    value,
+}: {
+    label: string;
+    href: string;
+    ariaLabel: string;
+    badgeClassName: string;
+    value: string;
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 px-3 py-2.5">
+            <span className="text-sm text-muted-foreground">{label}</span>
+            <a href={href} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} className="shrink-0">
+                <Badge className={cn('min-w-[4.5rem] justify-center text-white', badgeClassName)}>{value}</Badge>
+            </a>
         </div>
     );
 }
@@ -401,59 +436,68 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <GuidedTourAutostart guidedTour={guidedTour} />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)]">
-                    <Card
-                        onMouseEnter={() => handleCardHover('welcome')}
-                        data-tour="dashboard-welcome"
-                        className="overflow-hidden border-primary/10 bg-gradient-to-br from-gfz-primary/5 via-background to-background"
-                    >
-                        <CardHeader className="gap-4">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="space-y-2">
-                                    <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
-                                        Today
-                                    </Badge>
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-2xl">Hello {auth.user.name}!</CardTitle>
-                                        <CardDescription className="max-w-2xl text-sm leading-6">
-                                            Keep ERNIE moving with a tighter start screen: jump back into drafts, create fresh records, or import metadata without hunting through navigation.
-                                        </CardDescription>
+            <div data-testid="dashboard-page" className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4 lg:p-6">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.95fr)]">
+                    <div className="grid gap-4">
+                        <Card
+                            onMouseEnter={() => handleCardHover('welcome')}
+                            data-tour="dashboard-welcome"
+                            data-testid="dashboard-welcome-card"
+                            className="overflow-hidden border-primary/10 bg-linear-to-br from-gfz-primary/5 via-background to-background"
+                        >
+                            <CardHeader className="gap-4 pb-2">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0 space-y-3">
+                                        <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
+                                            Today
+                                        </Badge>
+                                        <div className="space-y-1.5">
+                                            <CardTitle className="text-2xl leading-tight break-words">Hello {auth.user.name}!</CardTitle>
+                                            <CardDescription className="max-w-2xl text-sm leading-6">
+                                                Start from the task you actually need right now: resume a draft, create a new record, or jump into import without hunting through the navigation.
+                                            </CardDescription>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 rounded-2xl border bg-background/85 px-4 py-3 shadow-sm">
+                                        <div className="min-w-0 text-right">
+                                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Open drafts</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">Ready to resume</p>
+                                        </div>
+                                        <p className="text-3xl font-semibold tracking-tight text-foreground">{draftCount ?? 0}</p>
                                     </div>
                                 </div>
-                                <div className="rounded-xl border bg-background/80 px-4 py-3 text-right shadow-sm">
-                                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Open drafts</p>
-                                    <p className="mt-2 text-3xl font-semibold text-foreground">{draftCount ?? 0}</p>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                                    {quickActions.map((action) => (
+                                        <QuickActionCard key={action.title} {...action} />
+                                    ))}
                                 </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-5">
-                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                {quickActions.map((action) => (
-                                    <QuickActionCard key={action.title} {...action} />
-                                ))}
-                            </div>
-                            <div className="rounded-2xl border bg-background/80 p-4 shadow-sm">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-medium text-foreground">Continue where you left off</p>
-                                        <p className="text-sm text-muted-foreground">Your most recent work stays one click away.</p>
-                                    </div>
-                                    {(draftCount ?? 0) > 0 && (
-                                        <Button asChild variant="ghost" className="px-0 text-sm">
-                                            <Link href={recentDraftHref}>Open latest draft</Link>
-                                        </Button>
-                                    )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-1">
+                                    <CardTitle className="text-lg">Continue where you left off</CardTitle>
+                                    <CardDescription>Your current drafts stay close at hand so you can jump back into work immediately.</CardDescription>
                                 </div>
+                                {(draftCount ?? 0) > 0 && (
+                                    <Button asChild variant="ghost" className="px-0 text-sm">
+                                        <Link href={recentDraftHref}>Open latest draft</Link>
+                                    </Button>
+                                )}
+                            </CardHeader>
+                            <CardContent className="pt-0">
                                 {recentDrafts && recentDrafts.length > 0 ? (
-                                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    <div className="grid gap-3 md:grid-cols-2">
                                         {recentDrafts.slice(0, 4).map((draft) => (
                                             <Link
                                                 key={draft.id}
                                                 href={editorRoute({ query: { resourceId: draft.id } }).url}
                                                 className="group rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-accent/30"
                                             >
-                                                <p className="font-medium text-foreground transition-colors group-hover:text-primary">{draft.title}</p>
+                                                <p className="line-clamp-2 font-medium leading-6 text-foreground transition-colors group-hover:text-primary">{draft.title}</p>
                                                 <p className="mt-1 text-sm text-muted-foreground">
                                                     {draft.updated_at ? `Updated ${new Date(draft.updated_at).toLocaleDateString()}` : 'Draft available to resume'}
                                                 </p>
@@ -461,7 +505,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="mt-4 rounded-xl border border-dashed bg-muted/30 p-2">
+                                    <div className="rounded-xl border border-dashed bg-muted/30 p-2">
                                         <EmptyState
                                             icon={<FolderClock className="h-8 w-8" />}
                                             title="No drafts waiting"
@@ -469,11 +513,28 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                         />
                                     </div>
                                 )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </div>
 
-                    <div className="grid gap-4">
+                    <div className="grid gap-4" data-testid="dashboard-side-column">
+                        <Card ref={uploadSectionRef} id="dashboard-upload-panel" data-testid="dashboard-upload-card" className="border-primary/10" data-tour="dashboard-upload">
+                            <CardHeader className="items-center text-center">
+                                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
+                                    Import hub
+                                </Badge>
+                                <div className="space-y-2">
+                                    <CardTitle>Upload Files</CardTitle>
+                                    <CardDescription>
+                                        Upload DataCite files or IGSN CSV files from one place and let ERNIE route them into the right curation flow.
+                                    </CardDescription>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex w-full justify-center pt-0">
+                                <UnifiedDropzone onXmlUpload={onXmlFiles} onJsonUpload={onJsonFiles} />
+                            </CardContent>
+                        </Card>
+
                         <Card>
                             <CardHeader>
                                 <CardTitle>Operational overview</CardTitle>
@@ -498,70 +559,31 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                 <CardTitle>Environment</CardTitle>
                                 <CardDescription>Key runtime versions and release notes for the current stack.</CardDescription>
                             </CardHeader>
-                            <CardContent className="text-sm text-muted-foreground">
-                                <Table>
-                                    <TableBody>
-                                        <TableRow>
-                                            <TableCell className="py-1">ERNIE Version</TableCell>
-                                            <TableCell className="py-1 text-right">
-                                                <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`}>
-                                                    <Badge className="w-16 bg-[#003da6] text-white">{latestVersion}</Badge>
-                                                </Link>
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="py-1">PHP Version</TableCell>
-                                            <TableCell className="py-1 text-right">
-                                                <a
-                                                    href={`https://www.php.net/releases/${phpVersion.split('.').slice(0, 2).join('.')}/en.php`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    aria-label={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
-                                                >
-                                                    <Badge className="w-16 bg-[#777BB4] text-white transition-colors hover:bg-[#666BA0]">
-                                                        {phpVersion}
-                                                    </Badge>
-                                                </a>
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell className="py-1">Laravel Version</TableCell>
-                                            <TableCell className="py-1 text-right">
-                                                <a
-                                                    href={`https://laravel.com/docs/${laravelVersion.split('.')[0]}.x/releases`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    aria-label={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
-                                                >
-                                                    <Badge className="w-16 bg-[#FF2D20] text-white transition-colors hover:bg-[#E6291C]">
-                                                        {laravelVersion}
-                                                    </Badge>
-                                                </a>
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
+                            <CardContent className="space-y-2 text-sm text-muted-foreground">
+                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/70 px-3 py-2.5">
+                                    <span className="text-sm text-muted-foreground">ERNIE Version</span>
+                                    <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`} className="shrink-0">
+                                        <Badge className="min-w-[4.5rem] justify-center bg-[#003da6] text-white">{latestVersion}</Badge>
+                                    </Link>
+                                </div>
+                                <EnvironmentVersionRow
+                                    label="PHP Version"
+                                    href={`https://www.php.net/releases/${phpVersion.split('.').slice(0, 2).join('.')}/en.php`}
+                                    ariaLabel={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
+                                    badgeClassName="bg-[#777BB4] transition-colors hover:bg-[#666BA0]"
+                                    value={phpVersion}
+                                />
+                                <EnvironmentVersionRow
+                                    label="Laravel Version"
+                                    href={`https://laravel.com/docs/${laravelVersion.split('.')[0]}.x/releases`}
+                                    ariaLabel={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
+                                    badgeClassName="bg-[#FF2D20] transition-colors hover:bg-[#E6291C]"
+                                    value={laravelVersion}
+                                />
                             </CardContent>
                         </Card>
                     </div>
                 </div>
-
-                <Card ref={uploadSectionRef} id="dashboard-upload-panel" className="flex flex-col items-center justify-center" data-tour="dashboard-upload">
-                    <CardHeader className="items-center text-center">
-                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
-                            Import hub
-                        </Badge>
-                        <div className="space-y-2">
-                            <CardTitle>Upload Files</CardTitle>
-                            <CardDescription>
-                                Upload DataCite files (XML, JSON, JSON-LD) or IGSN CSV files for sample metadata.
-                            </CardDescription>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex w-full justify-center">
-                        <UnifiedDropzone onXmlUpload={onXmlFiles} onJsonUpload={onJsonFiles} />
-                    </CardContent>
-                </Card>
             </div>
 
             {/* Easter Egg: Unicorn overlay */}

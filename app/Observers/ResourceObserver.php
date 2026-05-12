@@ -6,6 +6,7 @@ namespace App\Observers;
 
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
+use App\Services\Assessment\AssessmentAverageSummaryVersionService;
 use App\Services\KeywordSuggestionService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\ResourceCacheService;
@@ -69,6 +70,10 @@ class ResourceObserver
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->keywordService->invalidateCache();
         $this->invalidatePortalFacets();
+
+        if ($resource->wasChanged('resource_type_id') && $resource->resourceAssessment()->exists()) {
+            app(AssessmentAverageSummaryVersionService::class)->bump();
+        }
 
         // Sync DOI to landing page if DOI was changed during this save.
         // Use wasChanged() instead of isDirty() because observers run AFTER the model
@@ -180,6 +185,8 @@ class ResourceObserver
      */
     public function deleting(Resource $resource): void
     {
+        $resource->loadMissing('resourceAssessment');
+
         if ($resource->doi !== null && $resource->doi !== '') {
             $resource->loadMissing(['resourceType', 'landingPage']);
         }
@@ -197,6 +204,11 @@ class ResourceObserver
         $this->cacheService->invalidateAllResourceCaches();
         $this->keywordService->invalidateCache();
         $this->invalidatePortalFacets();
+
+        if ($resource->relationLoaded('resourceAssessment') && $resource->resourceAssessment !== null) {
+            app(AssessmentAverageSummaryVersionService::class)->bump();
+        }
+
         $this->trackOaiPmhDeletion($resource);
     }
 

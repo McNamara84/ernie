@@ -416,27 +416,26 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 text-center transition-colors ${
+                className={`flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-colors sm:p-10 ${
                     isDragging ? 'border-primary bg-accent/60 shadow-sm' : 'border-muted-foreground/25 bg-muted/60'
                 }`}
             >
-                <div className="mb-4 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="mb-3 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Start from a file
                 </div>
-                <Upload className="mb-4 h-10 w-10 text-muted-foreground" />
+                <Upload className="mb-3 h-9 w-9 text-muted-foreground" />
                 <p className="mb-2 text-base font-medium text-foreground">Drag &amp; drop files here</p>
-                <p className="mb-4 max-w-xl text-sm text-muted-foreground">
-                    Import DataCite metadata or IGSN sample files without leaving the dashboard. ERNIE routes each file type into the right curation flow.
+                <p className="mb-4 max-w-lg text-sm leading-6 text-muted-foreground">
+                    Import DataCite metadata or IGSN sample files without leaving the dashboard.
                 </p>
-                <p className="mb-5 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
+                <div className="mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-background/70 px-2.5 py-1">
                         <FileText className="h-3 w-3" /> DataCite (XML/JSON/JSON-LD)
                     </span>
-                    {' or '}
-                    <span className="inline-flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-background/70 px-2.5 py-1">
                         <FileSpreadsheet className="h-3 w-3" /> CSV (IGSN)
                     </span>
-                </p>
+                </div>
                 <input
                     ref={fileInputRef}
                     data-testid="unified-file-input"

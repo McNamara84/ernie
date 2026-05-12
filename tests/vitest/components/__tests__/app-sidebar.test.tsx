@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { NavItem } from '@/types';
+import type { AssessmentAverageSummary, NavItem } from '@/types';
 
 // Configurable mock user - can be changed per test
 let mockUser = {
@@ -23,10 +23,18 @@ let mockUser = {
     can_access_assessment: false,
 };
 
-let mockSharedProps = {
+type MockSharedProps = {
+    dataResourceCount: number | undefined;
+    igsnCount: number | undefined;
+    pendingAssistanceTotalCount: number | undefined;
+    assessmentAverageSummary: AssessmentAverageSummary | null;
+};
+
+let mockSharedProps: MockSharedProps = {
     dataResourceCount: 12,
     igsnCount: 5,
     pendingAssistanceTotalCount: 0,
+    assessmentAverageSummary: null,
 };
 
 // Helper to set mock user for each test
@@ -64,16 +72,13 @@ const setMockUser = (
 };
 
 const setMockSharedProps = (
-    overrides: Partial<{
-        dataResourceCount: number | undefined;
-        igsnCount: number | undefined;
-        pendingAssistanceTotalCount: number | undefined;
-    }> = {}
+    overrides: Partial<MockSharedProps> = {}
 ) => {
     mockSharedProps = {
         dataResourceCount: 12,
         igsnCount: 5,
         pendingAssistanceTotalCount: 0,
+        assessmentAverageSummary: null,
         ...overrides,
     };
 };
@@ -389,6 +394,29 @@ describe('AppSidebar', () => {
         expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
         expect(sectionCalls[3][0].items[0].badge).toBe(7);
         expect(sectionCalls[3][0].items[1].href).toBe('/assessment');
+        expect(sectionCalls[3][0].items[1].badge).toBeUndefined();
+    });
+
+    it('passes formatted FAIR averages to the Assessment sidebar item', () => {
+        setMockUser({
+            can_access_assessment: true,
+        });
+        setMockSharedProps({
+            assessmentAverageSummary: {
+                resources: 6.9,
+                igsns: 3.2,
+                formatted: '6.9 / 3.2',
+            },
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
+
+        expect(toolsSection).toBeDefined();
+        expect(toolsSection?.[0].items[0].title).toBe('Assessment');
+        expect(toolsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
     });
 
     it('passes visible zero badges for Resources and IGSNs List', () => {

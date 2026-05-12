@@ -29,7 +29,11 @@ vi.mock('@/components/ui/sidebar', () => ({
     ),
     SidebarGroupLabel: ({ children }: { children: React.ReactNode }) => <h3 data-testid="sidebar-label">{children}</h3>,
     SidebarMenu: ({ children }: { children: React.ReactNode }) => <ul data-testid="sidebar-menu">{children}</ul>,
-    SidebarMenuBadge: ({ children }: { children: React.ReactNode }) => <span data-testid="sidebar-badge">{children}</span>,
+    SidebarMenuBadge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+        <span data-testid="sidebar-badge" className={className}>
+            {children}
+        </span>
+    ),
     SidebarMenuButton: ({
         children,
         isActive,
@@ -250,6 +254,32 @@ describe('NavSection', () => {
 
     it('does not render a zero badge without explicit opt-in', () => {
         const items: NavItem[] = [{ title: 'Assistance', href: '/assistance', icon: Settings, badge: 0 }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.queryByTestId('sidebar-badge')).not.toBeInTheDocument();
+    });
+
+    it('renders formatted string badges for sidebar summary metrics', () => {
+        const items: NavItem[] = [{ title: 'Assessment', href: '/assessment', icon: Settings, badge: '6.9 / 3.2' }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.getByTestId('sidebar-badge')).toHaveTextContent('6.9 / 3.2');
+    });
+
+    it('truncates formatted string badges inside the badge container', () => {
+        const items: NavItem[] = [{ title: 'Assessment', href: '/assessment', icon: Settings, badge: '6.9 / 3.2' }];
+
+        render(<NavSection items={items} />);
+
+        const badge = screen.getByTestId('sidebar-badge');
+        expect(badge.className).toContain('max-w-[5.75rem]');
+        expect(badge).toHaveClass('truncate');
+    });
+
+    it('does not render empty string badges', () => {
+        const items: NavItem[] = [{ title: 'Assessment', href: '/assessment', icon: Settings, badge: '   ' }];
 
         render(<NavSection items={items} />);
 

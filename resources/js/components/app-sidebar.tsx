@@ -29,7 +29,7 @@ import { type NavItem, type SharedData, type User as AuthUser } from '@/types';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth, dataResourceCount, igsnCount, pendingAssistanceTotalCount } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
+    const { auth, dataResourceCount, igsnCount, pendingAssistanceTotalCount, assessmentAverageSummary } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
     const prefetchEditor = useEditorPrefetch();
 
     // Dashboard - always visible
@@ -108,6 +108,7 @@ export function AppSidebar() {
             title: 'Assessment',
             href: '/assessment',
             icon: ClipboardCheck,
+            badge: assessmentAverageSummary?.formatted ?? undefined,
         });
     }
 

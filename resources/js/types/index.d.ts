@@ -26,7 +26,7 @@ export interface NavItem {
     isActive?: boolean;
     disabled?: boolean;
     separator?: boolean;
-    badge?: number;
+    badge?: number | string;
     showZeroBadge?: boolean;
     badgeTone?: 'default' | 'primary' | 'warning';
     tourId?: string;
@@ -36,6 +36,12 @@ export interface NavItem {
      * the user actually clicks the link.
      */
     onPrefetch?: () => void;
+}
+
+export interface AssessmentAverageSummary {
+    resources: number | null;
+    igsns: number | null;
+    formatted: string | null;
 }
 
 export interface SharedData {
@@ -49,6 +55,7 @@ export interface SharedData {
     dataInstitutionCount?: number;
     igsnInstitutionCount?: number;
     pendingAssistanceTotalCount?: number;
+    assessmentAverageSummary?: AssessmentAverageSummary | null;
     [key: string]: unknown;
 }
 

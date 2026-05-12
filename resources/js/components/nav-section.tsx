@@ -24,6 +24,10 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
             return false;
         }
 
+        if (typeof item.badge === 'string') {
+            return item.badge.trim().length > 0;
+        }
+
         return item.badge > 0 || (item.showZeroBadge === true && item.badge === 0);
     };
 
@@ -65,7 +69,13 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                 </SidebarMenuButton>
                             )}
                             {shouldRenderBadge(item) && (
-                                <SidebarMenuBadge className={cn('right-2 rounded-full px-1.5', badgeToneClasses[item.badgeTone ?? 'default'])}>
+                                <SidebarMenuBadge
+                                    className={cn(
+                                        'right-2 rounded-full px-1.5',
+                                        typeof item.badge === 'string' && 'max-w-[5.75rem] truncate rounded-md px-2 text-[11px]',
+                                        badgeToneClasses[item.badgeTone ?? 'default'],
+                                    )}
+                                >
                                     {item.badge}
                                 </SidebarMenuBadge>
                             )}
