@@ -31,6 +31,8 @@ const ENDPOINTS: Record<AssessmentScope, string> = {
     igsn: '/assessment/check-igsns',
 };
 
+const FUJI_UNAVAILABLE_MESSAGE = 'F-UJI is currently unavailable. Please try again shortly.';
+
 type AssessmentErrorPayload = {
     error?: string;
     progress?: string;
@@ -221,7 +223,7 @@ export default function Assessment({
             }
 
             if (axios.isAxiosError(error) && error.response?.status === 503) {
-                toast.error(error.response.data?.error ?? 'F-UJI is not configured.');
+                toast.error(getAssessmentErrorMessage(error, FUJI_UNAVAILABLE_MESSAGE));
 
                 return;
             }
@@ -267,7 +269,7 @@ export default function Assessment({
             }
 
             if (axios.isAxiosError(error) && error.response?.status === 503) {
-                toast.error(error.response.data?.error ?? 'F-UJI is not configured.');
+                toast.error(getAssessmentErrorMessage(error, FUJI_UNAVAILABLE_MESSAGE));
 
                 return;
             }

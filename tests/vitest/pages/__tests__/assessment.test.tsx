@@ -425,6 +425,18 @@ describe('Assessment page', () => {
         expect(mockToast.error).toHaveBeenCalledWith('Failed to start Resources assessment.');
     });
 
+    it('uses the standardized unavailable message when a resource start 503 has no error payload', async () => {
+        mockAxiosPost.mockRejectedValueOnce(createAxiosError(503, {}));
+
+        render(<AssessmentPage {...makeProps()} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check Resources' }));
+        });
+
+        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is currently unavailable. Please try again shortly.');
+    });
+
     it('starts all assessments, warns for partial errors, and polls the started scope', async () => {
         mockAxiosPost.mockResolvedValueOnce({
             data: {
@@ -481,6 +493,18 @@ describe('Assessment page', () => {
         });
 
         expect(mockToast.error).toHaveBeenCalledWith('Failed to start the assessment jobs.');
+    });
+
+    it('uses the standardized unavailable message when a check-all 503 has no error payload', async () => {
+        mockAxiosPost.mockRejectedValueOnce(createAxiosError(503, {}));
+
+        render(<AssessmentPage {...makeProps()} />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Check all' }));
+        });
+
+        expect(mockToast.error).toHaveBeenCalledWith('F-UJI is currently unavailable. Please try again shortly.');
     });
 
     it('disables all check buttons when F-UJI is not configured', () => {
