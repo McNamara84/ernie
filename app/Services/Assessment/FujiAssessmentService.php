@@ -256,7 +256,7 @@ class FujiAssessmentService
 
     private function logAssessmentUnsuccessfulResponseOnce(Response $response, string $identifier): void
     {
-        $fingerprint = sprintf('response:%d:%s', $response->status(), sha1($this->responseBodyExcerpt($response) ?? ''));
+        $fingerprint = sprintf('response:%d:%s', $response->status(), $this->responseBodyFingerprint($response));
 
         if (! $this->shouldLogAssessmentFailure($fingerprint)) {
             return;
@@ -272,7 +272,7 @@ class FujiAssessmentService
         $fingerprint = sprintf(
             'payload:%d:%s:%s',
             $response->status(),
-            sha1($this->responseBodyExcerpt($response) ?? ''),
+            $this->responseBodyFingerprint($response),
             $exception->getMessage(),
         );
 
@@ -311,5 +311,10 @@ class FujiAssessmentService
         }
 
         return Str::limit($body, 200, '...');
+    }
+
+    private function responseBodyFingerprint(Response $response): string
+    {
+        return sha1($response->body());
     }
 }

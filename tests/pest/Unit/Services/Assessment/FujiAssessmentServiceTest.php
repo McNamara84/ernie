@@ -265,6 +265,37 @@ describe('assessIdentifier', function (): void {
             );
     });
 
+    it('does not deduplicate distinct unsuccessful responses that share the same excerpt prefix', function (): void {
+        Log::spy();
+
+        $sharedPrefix = str_repeat('same-prefix-', 19);
+        $firstBody = $sharedPrefix.'first-distinct-suffix';
+        $secondBody = $sharedPrefix.'second-distinct-suffix';
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::sequence()
+                ->push($firstBody, 500)
+                ->push($secondBody, 500),
+        ]);
+
+        $service = makeFujiAssessmentService();
+
+        foreach (['10.5880/test.001', '10.5880/test.002'] as $identifier) {
+            try {
+                $service->assessIdentifier($identifier);
+            } catch (RuntimeException) {
+                // Expected for repeated availability failures.
+            }
+        }
+
+        Log::shouldHaveReceived('warning')
+            ->twice()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'F-UJI returned unsuccessful response'
+                && $context['operation'] === 'assessment'
+                && in_array($context['identifier'], ['10.5880/test.001', '10.5880/test.002'], true)
+            );
+    });
+
     it('includes the configured metric version in the request payload', function (): void {
         Config::set('fuji.metric_version', 'metrics_v0.8');
 
