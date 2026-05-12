@@ -115,6 +115,7 @@ export default function Assessment({
     fujiConfigured,
     fujiHealthy,
     fujiStatusMessage,
+    fujiStatusCode,
     resourcesNeedingAttention,
     igsnsNeedingAttention,
     resourceAssessmentSummary,
@@ -285,6 +286,15 @@ export default function Assessment({
           ? (fujiStatusMessage ?? 'F-UJI is configured but unhealthy.')
           : null;
 
+    const fujiStatusDetail =
+        !fujiConfigured || fujiHealthy
+            ? null
+            : fujiStatusCode === 0
+              ? 'Connection refused or DNS failure — check FUJI_BASE_URL and network connectivity.'
+              : fujiStatusCode !== null
+                ? `HTTP ${fujiStatusCode} — check FUJI_BASE_URL, FUJI_USERNAME, FUJI_PASSWORD and the F-UJI service logs.`
+                : null;
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Assessment" />
@@ -310,7 +320,10 @@ export default function Assessment({
 
                 {fujiAvailabilityMessage !== null && (
                     <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-                        {fujiAvailabilityMessage}
+                        <p>{fujiAvailabilityMessage}</p>
+                        {fujiStatusDetail !== null && (
+                            <p className="mt-1 text-xs opacity-75">{fujiStatusDetail}</p>
+                        )}
                     </div>
                 )}
 

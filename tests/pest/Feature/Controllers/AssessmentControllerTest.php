@@ -55,6 +55,7 @@ describe('index', function () {
                 ->andReturn([
                     'healthy' => false,
                     'message' => 'F-UJI is currently unavailable. Please try again shortly.',
+                    'statusCode' => 503,
                 ]);
             $mock->shouldReceive('isConfigured')
                 ->once()
@@ -71,6 +72,7 @@ describe('index', function () {
                 ->where('fujiConfigured', true)
                 ->where('fujiHealthy', false)
                 ->where('fujiStatusMessage', 'F-UJI is currently unavailable. Please try again shortly.')
+                ->where('fujiStatusCode', 503)
             );
     });
 

@@ -31,7 +31,7 @@ class FujiAssessmentService
     }
 
     /**
-     * @return array{healthy: bool, message: string|null}
+     * @return array{healthy: bool, message: string|null, statusCode: int|null}
      */
     public function healthStatus(): array
     {
@@ -39,6 +39,7 @@ class FujiAssessmentService
             return [
                 'healthy' => false,
                 'message' => 'F-UJI is not configured.',
+                'statusCode' => null,
             ];
         }
 
@@ -51,6 +52,7 @@ class FujiAssessmentService
             return [
                 'healthy' => false,
                 'message' => self::UNAVAILABLE_MESSAGE,
+                'statusCode' => 0,
             ];
         } catch (\Throwable $exception) {
             $this->logTransportFailure('health check', $exception);
@@ -58,6 +60,7 @@ class FujiAssessmentService
             return [
                 'healthy' => false,
                 'message' => self::UNAVAILABLE_MESSAGE,
+                'statusCode' => 0,
             ];
         }
 
@@ -67,12 +70,14 @@ class FujiAssessmentService
             return [
                 'healthy' => false,
                 'message' => self::UNAVAILABLE_MESSAGE,
+                'statusCode' => $response->status(),
             ];
         }
 
         return [
             'healthy' => true,
             'message' => null,
+            'statusCode' => $response->status(),
         ];
     }
 

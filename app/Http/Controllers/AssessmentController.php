@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
 use App\Jobs\RunResourceAssessmentsJob;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
@@ -26,12 +27,13 @@ class AssessmentController extends Controller
     public function index(): Response
     {
         $physicalObjectTypeId = $this->resourceCache->getPhysicalObjectTypeId();
-        $fujiHealth = $this->fujiService->healthStatus();
+        $fujiHealth = $this->cachedHealthStatus();
 
         return Inertia::render('assessment', [
             'fujiConfigured' => $this->fujiService->isConfigured(),
             'fujiHealthy' => $fujiHealth['healthy'],
             'fujiStatusMessage' => $fujiHealth['message'],
+            'fujiStatusCode' => $fujiHealth['statusCode'],
             'resourcesNeedingAttention' => $this->buildAttentionList(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
             'igsnsNeedingAttention' => $this->buildAttentionList(RunResourceAssessmentsJob::IGSN_SCOPE, $physicalObjectTypeId),
             'resourceAssessmentSummary' => $this->buildSummary(RunResourceAssessmentsJob::RESOURCE_SCOPE, $physicalObjectTypeId),
@@ -269,5 +271,21 @@ class AssessmentController extends Controller
         return response()->json([
             'error' => $fujiHealth['message'] ?? 'F-UJI is configured but unhealthy.',
         ], 503);
+    }
+
+    /**
+     * Returns the F-UJI health status, caching the result for 30 seconds to avoid
+     * a blocking HTTP round-trip on every page load.
+     *
+     * @return array{healthy: bool, message: string|null, statusCode: int|null}
+     */
+    private function cachedHealthStatus(): array
+    {
+        /** @var array{healthy: bool, message: string|null, statusCode: int|null} */
+        return Cache::remember(
+            CacheKey::FUJI_HEALTH_STATUS->key(),
+            30,
+            fn (): array => $this->fujiService->healthStatus(),
+        );
     }
 }

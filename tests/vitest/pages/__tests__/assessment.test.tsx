@@ -62,6 +62,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
         fujiConfigured: true,
         fujiHealthy: true,
         fujiStatusMessage: null,
+        fujiStatusCode: null,
         resourcesNeedingAttention: [
             {
                 id: 1,

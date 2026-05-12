@@ -64,6 +64,9 @@ enum CacheKey: string
     // Assessment summary metrics
     case ASSESSMENT_AVERAGE_SUMMARY = 'assessment:average_summary';
 
+    // F-UJI health check result (short-lived)
+    case FUJI_HEALTH_STATUS = 'assessment:fuji_health_status';
+
     // Landing page Schema.org JSON-LD
     case SCHEMA_ORG_JSONLD = 'landing_pages:schema_org_jsonld';
 
@@ -141,6 +144,9 @@ enum CacheKey: string
             // Assessment average summary - 2 minutes (invalidated on assessment save/delete)
             self::ASSESSMENT_AVERAGE_SUMMARY => 120,
 
+            // F-UJI health check result - 30 seconds (short-lived to reflect quick recovery)
+            self::FUJI_HEALTH_STATUS => 30,
+
             // Schema.org JSON-LD - 1 hour (invalidated by ResourceObserver on update)
             self::SCHEMA_ORG_JSONLD => 3600,
         };
@@ -194,6 +200,8 @@ enum CacheKey: string
             self::ASSISTANCE_TOTAL_PENDING_COUNT => ['assistance'],
 
             self::ASSESSMENT_AVERAGE_SUMMARY => ['assessments'],
+
+            self::FUJI_HEALTH_STATUS => ['assessments'],
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],
         };

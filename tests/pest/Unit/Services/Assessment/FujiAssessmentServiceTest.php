@@ -44,6 +44,7 @@ describe('healthStatus', function (): void {
         expect(makeFujiAssessmentService()->healthStatus())->toBe([
             'healthy' => true,
             'message' => null,
+            'statusCode' => 200,
         ]);
     });
 
@@ -53,6 +54,7 @@ describe('healthStatus', function (): void {
         expect(makeFujiAssessmentService()->healthStatus())->toBe([
             'healthy' => false,
             'message' => 'F-UJI is not configured.',
+            'statusCode' => null,
         ]);
     });
 
