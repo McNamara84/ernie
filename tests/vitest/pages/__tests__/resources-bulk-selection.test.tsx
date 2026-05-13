@@ -54,6 +54,17 @@ vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
 }));
 
+vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
+vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
+vi.mock('@/hooks/use-citation-vocabularies', () => ({
+    useCitationVocabularies: () => ({
+        resourceTypes: [],
+        relationTypes: [],
+        contributorTypes: [],
+        isLoading: false,
+    }),
+}));
+
 vi.mock('axios', async () => {
     const actual = await vi.importActual<typeof import('axios')>('axios');
     return {
@@ -112,6 +123,7 @@ describe('ResourcesPage - bulk selection', () => {
         routerMock.reload.mockClear();
         axiosPostMock.mockReset();
         axiosGetMock.mockReset();
+        axiosGetMock.mockResolvedValue({ data: {} });
         toastMock.mockClear();
         toastMock.success.mockClear();
         toastMock.error.mockClear();
@@ -239,7 +251,8 @@ describe('ResourcesPage - bulk selection', () => {
         const props = { ...buildProps(), canImportFromDataCite: true };
         render(<ResourcesPage {...props} />);
 
-        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import from datacite/i })).toBeInTheDocument();
+        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
+        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
     });
 
     it('places the curator/created columns inside hidden responsive containers', () => {

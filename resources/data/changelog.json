@@ -1,6 +1,16 @@
 [
     {
         "version": "1.0.0",
+        "date": "2026-05-13",
+        "features": [
+            {
+                "title": "Single DOI Import for GFZ Legacy Resources",
+                "description": "The Resources page now distinguishes between importing all historical GFZ DataCite records and importing a single old resource. The former action was renamed to 'Import all old Resources'. A new adjacent action, 'Import old single Resource', opens a dialog where admins and group leaders can enter either a bare DOI or a doi.org URL for one dataset. Before the import starts, ERNIE now verifies that the DOI belongs to the GFZ legacy database; already imported resources are detected and skipped without overwriting the existing record."
+            }
+        ]
+    },
+    {
+        "version": "1.0.0",
         "date": "2026-05-12",
         "features": [
             {

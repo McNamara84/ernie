@@ -213,6 +213,63 @@ describe('ImportFromDataCiteJob', function () {
 
         expect($job->getImportId())->toBe(strtolower($uppercaseUuid));
     });
+
+    it('imports a single DOI when requested', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/test.single')
+            ->andReturn([
+                'id' => '10.5880/test.single',
+                'attributes' => [
+                    'doi' => '10.5880/test.single',
+                    'titles' => [['title' => 'Single DOI Test']],
+                    'publicationYear' => 2024,
+                    'types' => ['resourceTypeGeneral' => 'Dataset'],
+                ],
+            ]);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturn(Resource::factory()->make());
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/test.single');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['total'])->toBe(1)
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(1)
+            ->and($status['skipped'])->toBe(0)
+            ->and($status['failed'])->toBe(0);
+    });
+
+    it('marks single import as failed when DOI is missing from DataCite', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/missing.single')
+            ->andReturnNull();
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/missing.single');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['total'])->toBe(1)
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(0)
+            ->and($status['failed'])->toBe(1)
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => '10.5880/missing.single', 'error' => 'The DOI was not found in DataCite.'],
+            ]);
+    });
 });
 
 describe('ImportFromDataCiteJob download URL enrichment', function () {

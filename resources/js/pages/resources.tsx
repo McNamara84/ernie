@@ -14,6 +14,7 @@ import {
     type ResourcesBulkExportFormat,
 } from '@/components/resources/bulk-actions-toolbar';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
+import ImportSingleOldResourceModal from '@/components/resources/modals/ImportSingleOldResourceModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -315,6 +316,7 @@ function ResourcesPage({
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [showSingleImportModal, setShowSingleImportModal] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
     const [isBulkExporting, setIsBulkExporting] = useState(false);
@@ -1310,15 +1312,26 @@ function ResourcesPage({
                                 registerDisabledReason={registerDisabledReason}
                             />
                             {canImportFromDataCite && (
-                                <Button
-                                    variant="outline"
-                                    size="default"
-                                    onClick={() => setShowImportModal(true)}
-                                    className="ml-auto flex items-center gap-2"
-                                >
-                                    <DataCiteIcon className="size-4" aria-hidden="true" />
-                                    Import from DataCite
-                                </Button>
+                                <div className="ml-auto flex flex-wrap items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="default"
+                                        onClick={() => setShowImportModal(true)}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <DataCiteIcon className="size-4" aria-hidden="true" />
+                                        Import all old Resources
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="default"
+                                        onClick={() => setShowSingleImportModal(true)}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <DataCiteIcon className="size-4" aria-hidden="true" />
+                                        Import old single Resource
+                                    </Button>
+                                </div>
                             )}
                         </div>
 
@@ -1601,6 +1614,13 @@ function ResourcesPage({
 
             {/* Import from DataCite Modal */}
             <ImportFromDataCiteModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={handleImportSuccess} />
+
+            {/* Import Single Old Resource Modal */}
+            <ImportSingleOldResourceModal
+                isOpen={showSingleImportModal}
+                onClose={() => setShowSingleImportModal(false)}
+                onSuccess={handleImportSuccess}
+            />
 
             {/* JSON Validation Error Modal */}
             <ValidationErrorModal

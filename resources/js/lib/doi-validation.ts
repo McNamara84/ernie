@@ -23,6 +23,18 @@ export interface DOIResolutionResult {
 }
 
 /**
+ * Normalize a DOI or DOI URL to a bare DOI.
+ */
+export function normalizeDOI(doi: string): string {
+    const trimmed = doi.trim();
+    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
+    const bareDoi = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
+
+    return bareDoi.trim().toLowerCase();
+}
+
+/**
  * Validate DOI format according to DOI syntax
  * DOIs start with "10." followed by a registrant code and a suffix
  * Also accepts DOI URLs (https://doi.org/... or http://dx.doi.org/...)
@@ -36,13 +48,7 @@ export interface DOIResolutionResult {
  * See: https://www.doi.org/doi_handbook/2_Numbering.html
  */
 export function validateDOIFormat(doi: string): ValidationResult {
-    const trimmed = doi.trim();
-
-    // Check if it's a DOI URL and extract the DOI part
-    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    // Also check for doi: prefix
-    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
-    const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
+    const doiToValidate = normalizeDOI(doi);
 
     // Basic DOI pattern: 10.xxxx/yyyy
     const doiPattern = /^10\.\d{4,}(?:\.\d+)*\/\S+$/;
@@ -173,12 +179,7 @@ export function validateIdentifierFormat(identifier: string, type: string): Vali
  * Note: This is a non-blocking validation - failures should only show warnings
  */
 export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<DOIResolutionResult> {
-    const trimmed = doi.trim();
-
-    // Extract bare DOI if URL format or doi: prefix
-    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
-    const bareDOI = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
+    const bareDOI = normalizeDOI(doi);
 
     // First validate format locally
     const formatValidation = validateDOIFormat(bareDOI);

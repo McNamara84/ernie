@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StartSingleOldResourceImportRequest;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Resource;
+use App\Services\LegacyResourceLookupService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Controller for DataCite import operations.
@@ -37,19 +41,7 @@ class DataCiteImportController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        // Initialize progress in cache
-        Cache::put("datacite_import:{$importId}", [
-            'status' => 'pending',
-            'total' => 0,
-            'processed' => 0,
-            'imported' => 0,
-            'skipped' => 0,
-            'failed' => 0,
-            'skipped_dois' => [],
-            'failed_dois' => [],
-            'started_at' => now()->toIso8601String(),
-            'completed_at' => null,
-        ], now()->addHours(24));
+        $this->initializeProgress(importId: $importId, total: 0);
 
         // Dispatch the import job
         ImportFromDataCiteJob::dispatch($user->id, $importId);
@@ -57,6 +49,54 @@ class DataCiteImportController extends Controller
         return response()->json([
             'import_id' => $importId,
             'message' => 'Import started successfully',
+        ]);
+    }
+
+    /**
+     * Start a new single-resource import job.
+     *
+     * Validates that the DOI belongs to a GFZ legacy resource before dispatching
+     * the background job.
+     */
+    public function startSingle(
+        StartSingleOldResourceImportRequest $request,
+        LegacyResourceLookupService $legacyResourceLookupService
+    ): JsonResponse {
+        $this->authorize('importFromDataCite', Resource::class);
+
+        $doi = $request->getDoi();
+
+        try {
+            if (! $legacyResourceLookupService->existsByDoi($doi)) {
+                throw ValidationException::withMessages([
+                    'doi' => 'Only GFZ legacy resources can be imported with this action.',
+                ]);
+            }
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::warning('Legacy DOI lookup failed before single DataCite import', [
+                'doi' => $doi,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'The legacy resource database is currently unavailable. Please try again later.',
+            ], 503);
+        }
+
+        $importId = Str::uuid()->toString();
+
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        $this->initializeProgress(importId: $importId, total: 1);
+
+        ImportFromDataCiteJob::dispatch($user->id, $importId, $doi);
+
+        return response()->json([
+            'import_id' => $importId,
+            'message' => 'Single resource import started successfully',
         ]);
     }
 
@@ -128,5 +168,21 @@ class DataCiteImportController extends Controller
         return response()->json([
             'message' => 'Import cancelled',
         ]);
+    }
+
+    private function initializeProgress(string $importId, int $total): void
+    {
+        Cache::put("datacite_import:{$importId}", [
+            'status' => 'pending',
+            'total' => $total,
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'skipped_dois' => [],
+            'failed_dois' => [],
+            'started_at' => now()->toIso8601String(),
+            'completed_at' => null,
+        ], now()->addHours(24));
     }
 }
