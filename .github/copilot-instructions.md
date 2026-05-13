@@ -29,7 +29,7 @@ The only exception is the conversation with the user, which may be in any langua
 - **Containers:**
   - `ernie-app-dev` – PHP-FPM application server
   - `ernie-webserver-dev` – Nginx web server
-  - `ernie-db-dev` – MySQL 8.0 database
+    - `ernie-db-dev` – MySQL 9.7 database
   - `ernie-redis-dev` – Redis for caching/queues
   - `ernie-queue-dev` – Laravel queue worker
   - `ernie-vite-dev` – Vite dev server for HMR
