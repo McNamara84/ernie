@@ -380,6 +380,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('datacite/import/start', [DataCiteImportController::class, 'start'])
         ->name('datacite.import.start');
 
+    Route::post('datacite/import/start-single', [DataCiteImportController::class, 'startSingle'])
+        ->name('datacite.import.start-single');
+
     Route::get('datacite/import/{importId}/status', [DataCiteImportController::class, 'status'])
         ->name('datacite.import.status');
 

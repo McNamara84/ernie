@@ -8,6 +8,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\DoiSuggestionService;
 use App\Services\MetaworksDownloadUrlService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,7 +53,8 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     public function __construct(
         private int $userId,
-        private string $importId
+        private string $importId,
+        private ?string $singleDoi = null,
     ) {
         // Validate UUID format to prevent cache key collisions or unexpected behavior.
         // The importId is used as part of the cache key and must be unique.
@@ -81,11 +83,18 @@ class ImportFromDataCiteJob implements ShouldQueue
         Log::info('Starting DataCite import job', [
             'import_id' => $this->importId,
             'user_id' => $this->userId,
+            'single_doi' => $this->singleDoi,
         ]);
 
         $startTime = now();
 
         try {
+            if ($this->singleDoi !== null) {
+                $this->handleSingleImport($importService, $transformer, $metaworksService, $startTime->toIso8601String());
+
+                return;
+            }
+
             // Get total count for progress calculation
             $total = $importService->getTotalDoiCount();
 
@@ -152,34 +161,22 @@ class ImportFromDataCiteJob implements ShouldQueue
                     continue;
                 }
 
+                ['doi' => $doi, 'doiRecord' => $doiRecord] = $this->normalizeDoiRecord($doi, $doiRecord);
+
                 try {
-                    // Use database transaction to ensure atomicity of the check-then-insert operation.
-                    //
-                    // Design decision: We use SELECT + INSERT rather than INSERT IGNORE because:
-                    // 1. We need to know which DOIs were skipped for user feedback (skipped_dois list)
-                    // 2. INSERT IGNORE would silently succeed, making it impossible to track skips
-                    // 3. The unique constraint on DOI provides protection against race conditions
-                    // 4. Most imports won't have many duplicates, so the SELECT overhead is minimal
-                    //
-                    // Note: This relies on the database's default isolation level (typically READ COMMITTED).
-                    // The DOI column has a unique constraint as additional protection against duplicates.
-                    $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
-                        // Check inside transaction - unique constraint on DOI provides ultimate protection
-                        if (Resource::where('doi', $doi)->exists()) {
-                            return ['status' => 'skipped', 'resource' => null];
-                        }
-
-                        $resource = $transformer->transform($doiRecord, $this->userId);
-
-                        return ['status' => 'imported', 'resource' => $resource];
-                    });
+                    $result = $this->processDoiRecord(
+                        doi: $doi,
+                        doiRecord: $doiRecord,
+                        transformer: $transformer,
+                        metaworksService: $metaworksService,
+                        shouldLookupMetaworks: ! $metaworksUnavailable,
+                    );
 
                     if ($result['status'] === 'skipped') {
                         $skipped++;
                         if (count($skippedDois) < $maxStoredDois) {
                             $skippedDois[] = $doi;
                         }
-                        Log::debug('Skipping existing DOI', ['doi' => $doi]);
                         $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
 
                         continue;
@@ -187,73 +184,9 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                     $imported++;
 
-                    // Enrich newly imported resource with download URLs from legacy metaworks DB.
-                    // This is non-critical — failures are logged but don't affect the import.
-                    /** @var Resource $importedResource */
-                    $importedResource = $result['resource'];
-
-                    // Skip metaworks lookup if the connection already failed (circuit-breaker)
-                    // or if a landing page already exists for this resource.
-                    if (! $metaworksUnavailable && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
-                        // Step 1: Look up download URLs (separate try/catch for clear error attribution)
-                        /** @var array{urls: array<int, string>, allPublic: bool} $fileResult */
-                        $fileResult = ['urls' => [], 'allPublic' => false];
-                        try {
-                            $fileResult = $metaworksService->lookupFileUrls($doi);
-                        } catch (\Throwable $e) {
-                            Log::warning('Metaworks DB unavailable, disabling lookups for remaining DOIs', [
-                                'doi' => $doi,
-                                'error' => $e->getMessage(),
-                            ]);
-                            $metaworksUnavailable = true;
-                        }
-
-                        // Step 2: Create landing page with files if URLs were found.
-                        // Published status depends on file visibility in the legacy DB:
-                        // all public -> published, any non-public -> draft.
-                        if ($fileResult['urls'] !== []) {
-                            try {
-                                $this->createLandingPageWithFiles($importedResource, $fileResult['urls'], $fileResult['allPublic']);
-                            } catch (\Throwable $e) {
-                                Log::warning('Failed to create landing page with download files', [
-                                    'doi' => $doi,
-                                    'resource_id' => $importedResource->id,
-                                    'error' => $e->getMessage(),
-                                ]);
-                            }
-                        }
+                    if ($result['metaworks_unavailable']) {
+                        $metaworksUnavailable = true;
                     }
-
-                    Log::debug('Imported DOI', ['doi' => $doi]);
-
-                } catch (\Illuminate\Database\QueryException $e) {
-                    // Handle unique constraint violations (race condition: DOI was inserted by another process)
-                    // MySQL/MariaDB error code 1062 = Duplicate entry for unique key
-                    // SQLite error code 19 with "UNIQUE constraint failed" in message
-                    // We must be specific to avoid catching NOT NULL or other integrity constraints
-                    $isDuplicateEntry = false;
-                    if (isset($e->errorInfo[1])) {
-                        // MySQL/MariaDB: error code 1062
-                        $isDuplicateEntry = $e->errorInfo[1] === 1062;
-                    }
-                    // SQLite: check error message for UNIQUE constraint
-                    if (! $isDuplicateEntry && str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
-                        $isDuplicateEntry = true;
-                    }
-
-                    if ($isDuplicateEntry) {
-                        $skipped++;
-                        if (count($skippedDois) < $maxStoredDois) {
-                            $skippedDois[] = $doi;
-                        }
-                        Log::debug('Skipping DOI due to concurrent insert (race condition)', ['doi' => $doi]);
-                        $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
-
-                        continue;
-                    }
-
-                    // Re-throw other database errors to be caught by the generic handler
-                    throw $e;
                 } catch (\Exception $e) {
                     $failed++;
                     if (count($failedDois) < $maxStoredDois) {
@@ -273,10 +206,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             }
 
             // Determine final status - preserve 'cancelled' if user cancelled during processing
-            $currentStatus = Cache::get($this->getCacheKey());
-            $finalStatus = (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled')
-                ? 'cancelled'
-                : 'completed';
+            $finalStatus = $this->determineFinalStatus();
 
             $this->updateProgress([
                 'status' => $finalStatus,
@@ -315,6 +245,200 @@ class ImportFromDataCiteJob implements ShouldQueue
             ]);
 
             throw $e;
+        }
+    }
+
+    private function handleSingleImport(
+        DataCiteImportService $importService,
+        DataCiteToResourceTransformer $transformer,
+        MetaworksDownloadUrlService $metaworksService,
+        string $startedAt
+    ): void {
+        $doi = $this->singleDoi;
+
+        if ($doi === null) {
+            throw new \RuntimeException('Single DOI import requested without a DOI.');
+        }
+
+        $doi = $this->normalizeDoi($doi);
+
+        $this->updateProgress([
+            'status' => 'running',
+            'total' => 1,
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'skipped_dois' => [],
+            'failed_dois' => [],
+            'started_at' => $startedAt,
+            'completed_at' => null,
+            'current_prefix' => null,
+        ]);
+
+        $doiRecord = $importService->fetchSingleDoi($doi);
+
+        if ($doiRecord === null) {
+            $this->markSingleImportAsFailed($doi, 'The DOI was not found in DataCite.', $startedAt);
+
+            return;
+        }
+
+        ['doi' => $doi, 'doiRecord' => $doiRecord] = $this->normalizeDoiRecord($doi, $doiRecord);
+
+        try {
+            $result = $this->processDoiRecord(
+                doi: $doi,
+                doiRecord: $doiRecord,
+                transformer: $transformer,
+                metaworksService: $metaworksService,
+            );
+        } catch (\Exception $exception) {
+            Log::warning('Failed to import single DOI from DataCite', [
+                'doi' => $doi,
+                'error' => $exception->getMessage(),
+            ]);
+
+            $this->markSingleImportAsFailed($doi, $exception->getMessage(), $startedAt);
+
+            return;
+        }
+
+        $wasSkipped = $result['status'] === 'skipped';
+
+        $this->updateProgress([
+            'status' => $this->determineFinalStatus(),
+            'total' => 1,
+            'processed' => 1,
+            'imported' => $wasSkipped ? 0 : 1,
+            'skipped' => $wasSkipped ? 1 : 0,
+            'failed' => 0,
+            'skipped_dois' => $wasSkipped ? [$doi] : [],
+            'failed_dois' => [],
+            'started_at' => $startedAt,
+            'completed_at' => now()->toIso8601String(),
+            'current_prefix' => null,
+        ]);
+    }
+
+    private function markSingleImportAsFailed(string $doi, string $error, string $startedAt): void
+    {
+        $this->updateProgress([
+            'status' => 'failed',
+            'total' => 1,
+            'processed' => 1,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 1,
+            'skipped_dois' => [],
+            'failed_dois' => [
+                [
+                    'doi' => $doi,
+                    'error' => $error,
+                ],
+            ],
+            'error' => $error,
+            'started_at' => $startedAt,
+            'completed_at' => now()->toIso8601String(),
+            'current_prefix' => null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiRecord
+     * @return array{status: 'imported'|'skipped', metaworks_unavailable: bool}
+     */
+    private function processDoiRecord(
+        string $doi,
+        array $doiRecord,
+        DataCiteToResourceTransformer $transformer,
+        MetaworksDownloadUrlService $metaworksService,
+        bool $shouldLookupMetaworks = true,
+    ): array {
+        try {
+            // Use database transaction to ensure atomicity of the check-then-insert operation.
+            //
+            // Design decision: We use SELECT + INSERT rather than INSERT IGNORE because:
+            // 1. We need to know which DOIs were skipped for user feedback (skipped_dois list)
+            // 2. INSERT IGNORE would silently succeed, making it impossible to track skips
+            // 3. The unique constraint on DOI provides protection against race conditions
+            // 4. Most imports won't have many duplicates, so the SELECT overhead is minimal
+            $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
+                if (Resource::where('doi', $doi)->exists()) {
+                    return ['status' => 'skipped', 'resource' => null];
+                }
+
+                $resource = $transformer->transform($doiRecord, $this->userId);
+
+                return ['status' => 'imported', 'resource' => $resource];
+            });
+
+            if ($result['status'] === 'skipped') {
+                Log::debug('Skipping existing DOI', ['doi' => $doi]);
+
+                return [
+                    'status' => 'skipped',
+                    'metaworks_unavailable' => false,
+                ];
+            }
+
+            /** @var Resource $importedResource */
+            $importedResource = $result['resource'];
+
+            $metaworksUnavailable = false;
+
+            if ($shouldLookupMetaworks && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
+                /** @var array{urls: array<int, string>, allPublic: bool} $fileResult */
+                $fileResult = ['urls' => [], 'allPublic' => false];
+
+                try {
+                    $fileResult = $metaworksService->lookupFileUrls($doi);
+                } catch (\Throwable $exception) {
+                    Log::warning('Metaworks DB unavailable, disabling lookups for remaining DOIs', [
+                        'doi' => $doi,
+                        'error' => $exception->getMessage(),
+                    ]);
+                    $metaworksUnavailable = true;
+                }
+
+                if ($fileResult['urls'] !== []) {
+                    try {
+                        $this->createLandingPageWithFiles($importedResource, $fileResult['urls'], $fileResult['allPublic']);
+                    } catch (\Throwable $exception) {
+                        Log::warning('Failed to create landing page with download files', [
+                            'doi' => $doi,
+                            'resource_id' => $importedResource->id,
+                            'error' => $exception->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            Log::debug('Imported DOI', ['doi' => $doi]);
+
+            return [
+                'status' => 'imported',
+                'metaworks_unavailable' => $metaworksUnavailable,
+            ];
+        } catch (\Illuminate\Database\QueryException $exception) {
+            $isDuplicateEntry = false;
+            if (isset($exception->errorInfo[1])) {
+                $isDuplicateEntry = $exception->errorInfo[1] === 1062;
+            }
+            if (! $isDuplicateEntry && str_contains($exception->getMessage(), 'UNIQUE constraint failed')) {
+                $isDuplicateEntry = true;
+            }
+
+            if ($isDuplicateEntry) {
+                Log::debug('Skipping DOI due to concurrent insert (race condition)', ['doi' => $doi]);
+
+                return [
+                    'status' => 'skipped',
+                    'metaworks_unavailable' => false,
+                ];
+            }
+
+            throw $exception;
         }
     }
 
@@ -392,11 +516,50 @@ class ImportFromDataCiteJob implements ShouldQueue
     }
 
     /**
+     * @param  array<string, mixed>  $doiRecord
+     * @return array{doi: string, doiRecord: array<string, mixed>}
+     */
+    private function normalizeDoiRecord(string $doi, array $doiRecord): array
+    {
+        $normalizedDoi = $this->normalizeDoi($doi);
+        $normalizedRecord = $doiRecord;
+
+        if (isset($normalizedRecord['attributes']) && is_array($normalizedRecord['attributes'])) {
+            $normalizedRecord['attributes']['doi'] = $normalizedDoi;
+        } else {
+            $normalizedRecord['doi'] = $normalizedDoi;
+        }
+
+        if (array_key_exists('id', $normalizedRecord)) {
+            $normalizedRecord['id'] = $normalizedDoi;
+        }
+
+        return [
+            'doi' => $normalizedDoi,
+            'doiRecord' => $normalizedRecord,
+        ];
+    }
+
+    private function normalizeDoi(string $doi): string
+    {
+        return app(DoiSuggestionService::class)->normalizeDoi($doi);
+    }
+
+    /**
      * Get the cache key for this import.
      */
     private function getCacheKey(): string
     {
         return "datacite_import:{$this->importId}";
+    }
+
+    private function determineFinalStatus(): string
+    {
+        $currentStatus = Cache::get($this->getCacheKey());
+
+        return (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled')
+            ? 'cancelled'
+            : 'completed';
     }
 
     /**
@@ -473,5 +636,10 @@ class ImportFromDataCiteJob implements ShouldQueue
     public function getImportId(): string
     {
         return $this->importId;
+    }
+
+    public function getSingleDoi(): ?string
+    {
+        return $this->singleDoi;
     }
 }

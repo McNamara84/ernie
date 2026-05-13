@@ -1636,6 +1636,28 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Created/Updated column are hidden so the essential columns (Title, Author/Year,
                             Status, Actions) remain readable without horizontal scrolling.
                         </p>
+
+                        <h4>Import Existing GFZ Legacy Resources</h4>
+                        <p>
+                            Admins and Group Leaders see two import actions to the right of the bulk toolbar on
+                            the <code>/resources</code> page:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Import all old Resources</strong> starts the existing background import of
+                                all GFZ DataCite resources.
+                            </li>
+                            <li>
+                                <strong>Import old single Resource</strong> opens a dialog for one DOI.
+                            </li>
+                        </ul>
+                        <p>
+                            The single-resource dialog accepts either a bare DOI such as{' '}
+                            <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}
+                            <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the
+                            GFZ legacy database before the import starts. Resources that already exist in ERNIE
+                            are detected and skipped without overwriting the current record.
+                        </p>
                     </>
                 ),
             },

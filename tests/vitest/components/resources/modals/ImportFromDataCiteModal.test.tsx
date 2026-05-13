@@ -61,7 +61,7 @@ describe('ImportFromDataCiteModal', () => {
             <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
         );
 
-        expect(screen.getByText('Import from DataCite')).toBeInTheDocument();
+        expect(screen.getByText('Import all old Resources')).toBeInTheDocument();
     });
 
     it('shows confirmation content in initial state', () => {
@@ -70,7 +70,7 @@ describe('ImportFromDataCiteModal', () => {
         );
 
         expect(screen.getByText('What will happen?')).toBeInTheDocument();
-        expect(screen.getByText(/All DOIs registered with your DataCite credentials will be fetched/)).toBeInTheDocument();
+        expect(screen.getByText(/All DOIs registered with your GFZ DataCite credentials will be fetched/)).toBeInTheDocument();
         expect(screen.getByText(/DOIs already in ERNIE will be skipped/)).toBeInTheDocument();
     });
 

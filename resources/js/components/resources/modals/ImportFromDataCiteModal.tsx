@@ -225,10 +225,10 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DataCiteIcon className="size-5" />
-                        Import from DataCite
+                        Import all old Resources
                     </DialogTitle>
                     <DialogDescription>
-                        {modalState === 'confirm' && 'Import all registered DOIs from the DataCite production API into ERNIE.'}
+                        {modalState === 'confirm' && 'Import all registered GFZ legacy resources from the DataCite production API into ERNIE.'}
                         {modalState === 'running' && 'Import is in progress...'}
                         {modalState === 'completed' && 'Import completed successfully.'}
                         {modalState === 'failed' && 'Import failed.'}
@@ -244,9 +244,9 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                 <AlertTitle>What will happen?</AlertTitle>
                                 <AlertDescription>
                                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
-                                        <li>All DOIs registered with your DataCite credentials will be fetched</li>
+                                        <li>All DOIs registered with your GFZ DataCite credentials will be fetched</li>
                                         <li>DOIs already in ERNIE will be skipped (not overwritten)</li>
-                                        <li>New DOIs will be imported as Resources</li>
+                                        <li>New legacy DOIs will be imported as Resources</li>
                                         <li>You will see a summary of skipped DOIs after completion</li>
                                     </ul>
                                 </AlertDescription>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\DataCiteImportController;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\User;
+use App\Services\LegacyResourceLookupService;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 
@@ -29,6 +30,111 @@ describe('POST /datacite/import/start', function (): void {
         $this->actingAs($beginner)
             ->postJson('/datacite/import/start')
             ->assertForbidden();
+    });
+});
+
+describe('POST /datacite/import/start-single', function (): void {
+    test('admin can start single import for a legacy DOI URL', function (): void {
+        Bus::fake();
+        $admin = User::factory()->admin()->create();
+
+        $lookupService = new class extends LegacyResourceLookupService
+        {
+            public array $receivedDois = [];
+
+            #[\Override]
+            public function existsByDoi(string $doi): bool
+            {
+                $this->receivedDois[] = $doi;
+
+                return true;
+            }
+        };
+
+        $this->app->instance(LegacyResourceLookupService::class, $lookupService);
+
+        $response = $this->actingAs($admin)
+            ->postJson('/datacite/import/start-single', [
+                'doi' => 'https://doi.org/10.5880/GFZ.OJSJ.2026.001',
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['import_id', 'message']);
+
+        expect($lookupService->receivedDois)->toBe(['10.5880/gfz.ojsj.2026.001']);
+
+        $importId = $response->json('import_id');
+        $status = Cache::get("datacite_import:{$importId}");
+
+        expect($status['status'])->toBe('pending')
+            ->and($status['total'])->toBe(1);
+
+        Bus::assertDispatched(ImportFromDataCiteJob::class, function (ImportFromDataCiteJob $job): bool {
+            return $job->getSingleDoi() === '10.5880/gfz.ojsj.2026.001';
+        });
+    });
+
+    test('returns validation error for invalid DOI format', function (): void {
+        Bus::fake();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->postJson('/datacite/import/start-single', [
+                'doi' => 'not-a-doi',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['doi']);
+
+        Bus::assertNothingDispatched();
+    });
+
+    test('returns validation error when DOI is not a GFZ legacy resource', function (): void {
+        Bus::fake();
+        $admin = User::factory()->admin()->create();
+
+        $lookupService = new class extends LegacyResourceLookupService
+        {
+            #[\Override]
+            public function existsByDoi(string $doi): bool
+            {
+                return false;
+            }
+        };
+
+        $this->app->instance(LegacyResourceLookupService::class, $lookupService);
+
+        $this->actingAs($admin)
+            ->postJson('/datacite/import/start-single', [
+                'doi' => '10.5880/gfz.ojsj.2026.001',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['doi']);
+
+        Bus::assertNothingDispatched();
+    });
+
+    test('returns service unavailable when legacy lookup fails', function (): void {
+        Bus::fake();
+        $admin = User::factory()->admin()->create();
+
+        $lookupService = new class extends LegacyResourceLookupService
+        {
+            #[\Override]
+            public function existsByDoi(string $doi): bool
+            {
+                throw new RuntimeException('Legacy DB unavailable');
+            }
+        };
+
+        $this->app->instance(LegacyResourceLookupService::class, $lookupService);
+
+        $this->actingAs($admin)
+            ->postJson('/datacite/import/start-single', [
+                'doi' => '10.5880/gfz.ojsj.2026.001',
+            ])
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'The legacy resource database is currently unavailable. Please try again later.');
+
+        Bus::assertNothingDispatched();
     });
 });
 

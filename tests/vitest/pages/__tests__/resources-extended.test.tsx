@@ -53,10 +53,19 @@ vi.mock('@/utils/filter-parser', () => ({
 }));
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
+vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
 vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
 vi.mock('@/components/resources-filters', () => ({
     ResourcesFilters: () => <div data-testid="resources-filters" />,
+}));
+vi.mock('@/hooks/use-citation-vocabularies', () => ({
+    useCitationVocabularies: () => ({
+        resourceTypes: [],
+        relationTypes: [],
+        contributorTypes: [],
+        isLoading: false,
+    }),
 }));
 
 import ResourcesPage, { deriveResourceRowKey } from '@/pages/resources';
@@ -335,16 +344,18 @@ describe('ResourcesPage – extended', () => {
         });
     });
 
-    // ── Import from DataCite ─────────────────────────────────────────
-    describe('Import from DataCite button', () => {
-        it('shows Import button when canImportFromDataCite is true', () => {
+    // ── Import old resources ─────────────────────────────────────────
+    describe('Import old resources buttons', () => {
+        it('shows both import buttons when canImportFromDataCite is true', () => {
             renderPage({ canImportFromDataCite: true });
-            expect(screen.getByRole('button', { name: /import from datacite/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
         });
 
-        it('hides Import button when canImportFromDataCite is false', () => {
+        it('hides both import buttons when canImportFromDataCite is false', () => {
             renderPage({ canImportFromDataCite: false });
-            expect(screen.queryByRole('button', { name: /import from datacite/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
         });
     });
 
