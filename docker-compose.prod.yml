@@ -140,19 +140,29 @@ services:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:ce91f8c5998655c34f570d68f52254cb5dfa29d659808c571c8e6f9249948a0e
     container_name: ernie-fuji-prod
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "/usr/local/bin/fuji-entrypoint.sh"]
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      set -eu &&
+      mkdir -p "${TIKA_LOG_PATH:-/tmp/tika}" &&
+      export TIKA_LOG_PATH="${TIKA_LOG_PATH:-/tmp/tika}" &&
+      python3 -c "
+        import json, os;
+        from pathlib import Path;
+        u = os.environ['FUJI_USERNAME'];
+        p = os.environ['FUJI_PASSWORD'];
+        Path('/usr/src/app/fuji_server/config/users.py').write_text(
+          '# user dictionary: key = username value = password\nfuji_users = ' + json.dumps({u: p}) + '\n',
+          encoding='utf-8')" &&
+      exec python3 -m fuji_server -c /usr/src/app/fuji_server/config/server.ini
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
     environment:
-      - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD}
       - TIKA_LOG_PATH=/tmp/tika
-    volumes:
-      - ./docker/fuji-entrypoint.sh:/usr/local/bin/fuji-entrypoint.sh:ro
     networks:
       - dockerized-laravel-network
     healthcheck:
