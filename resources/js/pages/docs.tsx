@@ -1524,7 +1524,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Note: Opening an existing resource in the editor no longer triggers ORCID
                             validation for stored authors. The network check only runs when you actively edit
                             an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
-                            <strong>Update Metadata</strong>.
+                            <strong>Update metadata</strong>.
                         </p>
 
                         <h4>Test vs Production</h4>

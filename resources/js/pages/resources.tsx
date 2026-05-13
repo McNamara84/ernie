@@ -1482,10 +1482,8 @@ function ResourcesPage({
                                                                             variant="ghost"
                                                                             size="icon"
                                                                             onClick={() => handleRegisterDoi(resource)}
-                                                                            aria-label={`Register DOI for resource ${resourceLabel}`}
-                                                                            title={
-                                                                                resource.doi ? 'Update DOI metadata' : 'Register DOI with DataCite'
-                                                                            }
+                                                                            aria-label={`${resource.publicstatus === 'published' ? 'Update metadata' : 'Register DOI'} for resource ${resourceLabel}`}
+                                                                            title={resource.publicstatus === 'published' ? 'Update metadata' : 'Register DOI'}
                                                                             data-testid="datacite-button"
                                                                         >
                                                                             <DataCiteIcon

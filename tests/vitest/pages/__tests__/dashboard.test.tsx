@@ -174,17 +174,11 @@ describe('Dashboard', () => {
         expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('data-variant', 'default');
     });
 
-    it('scrolls to the import hub when the upload metadata action is clicked', () => {
-        const originalScrollIntoView = Element.prototype.scrollIntoView;
-        const scrollSpy = vi.fn();
-        Element.prototype.scrollIntoView = scrollSpy;
-
+    it('does not render a redundant upload metadata quick action', () => {
         render(<Dashboard />);
-        fireEvent.click(screen.getByRole('button', { name: /upload metadata/i }));
 
-        expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
-
-        Element.prototype.scrollIntoView = originalScrollIntoView;
+        expect(screen.queryByRole('button', { name: /upload metadata/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /upload metadata/i })).not.toBeInTheDocument();
     });
 
     it('renders an actionable empty state when there are no drafts', () => {

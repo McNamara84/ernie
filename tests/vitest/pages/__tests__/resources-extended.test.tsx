@@ -389,6 +389,33 @@ describe('ResourcesPage – extended', () => {
             renderPage({ resources: [makeResource({ landingPage: null })] });
             expect(screen.queryByTestId('datacite-button')).not.toBeInTheDocument();
         });
+
+        it('uses update wording only for published resources', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        publicstatus: 'published',
+                        landingPage: { id: 1, status: 'published', public_url: 'https://example.com' },
+                    }),
+                ],
+            });
+
+            expect(screen.getByRole('button', { name: /update metadata for resource/i })).toHaveAttribute('title', 'Update metadata');
+        });
+
+        it('uses register wording for review resources even when a DOI already exists', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        publicstatus: 'review',
+                        doi: '10.5880/test.2024.001',
+                        landingPage: { id: 1, status: 'draft', public_url: 'https://example.com' },
+                    }),
+                ],
+            });
+
+            expect(screen.getByRole('button', { name: /register doi for resource/i })).toHaveAttribute('title', 'Register DOI');
+        });
     });
 
     // ── Action buttons ───────────────────────────────────────────────
