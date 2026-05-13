@@ -140,20 +140,15 @@ services:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:ce91f8c5998655c34f570d68f52254cb5dfa29d659808c571c8e6f9249948a0e
     container_name: ernie-fuji-stage
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c"]
-    command: >-
-      set -eu &&
-      mkdir -p "${TIKA_LOG_PATH:-/tmp/tika}" &&
-      export TIKA_LOG_PATH="${TIKA_LOG_PATH:-/tmp/tika}" &&
-      python3 -c "
-        import json, os;
-        from pathlib import Path;
-        u = os.environ['FUJI_USERNAME'];
-        p = os.environ['FUJI_PASSWORD'];
-        Path('/usr/src/app/fuji_server/config/users.py').write_text(
-          '# user dictionary: key = username value = password\nfuji_users = ' + json.dumps({u: p}) + '\n',
-          encoding='utf-8')" &&
-      exec python3 -m fuji_server -c /usr/src/app/fuji_server/config/server.ini
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        set -e
+        mkdir -p "${TIKA_LOG_PATH:-/tmp/tika}"
+        export TIKA_LOG_PATH="${TIKA_LOG_PATH:-/tmp/tika}"
+        python3 -c 'import json,os; open("/usr/src/app/fuji_server/config/users.py","w").write("fuji_users = "+json.dumps({os.environ["FUJI_USERNAME"]:os.environ["FUJI_PASSWORD"]})+"\n")'
+        exec python3 -m fuji_server -c /usr/src/app/fuji_server/config/server.ini
     logging:
       driver: "json-file"
       options:
