@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\MetaworksDownloadUrlService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -156,6 +157,46 @@ describe('ImportFromDataCiteJob', function () {
         expect($status['status'])->toBe('completed');
     });
 
+    it('stops the bulk import when cancellation is detected before the first record is processed', function () {
+        $importId = Str::uuid()->toString();
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(2);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () use ($importId) {
+                Cache::put("datacite_import:{$importId}", [
+                    'status' => 'cancelled',
+                ], now()->addHour());
+
+                yield [
+                    'id' => '10.5880/cancelled.bulk.1',
+                    'attributes' => ['doi' => '10.5880/cancelled.bulk.1'],
+                ];
+
+                yield [
+                    'id' => '10.5880/cancelled.bulk.2',
+                    'attributes' => ['doi' => '10.5880/cancelled.bulk.2'],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('cancelled')
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(0)
+            ->and($status['failed'])->toBe(0);
+    });
+
     it('limits stored failed DOIs to prevent memory issues', function () {
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -214,6 +255,151 @@ describe('ImportFromDataCiteJob', function () {
         expect($job->getImportId())->toBe(strtolower($uppercaseUuid));
     });
 
+    it('returns the configured single DOI', function () {
+        $job = new ImportFromDataCiteJob($this->user->id, Str::uuid()->toString(), '10.5880/configured.single');
+
+        expect($job->getSingleDoi())->toBe('10.5880/configured.single');
+    });
+
+    it('marks records without any DOI as failed without calling the transformer', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'attributes' => [],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['failed'])->toBe(1)
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => 'unknown', 'error' => 'No DOI found in record'],
+            ]);
+    });
+
+    it('treats duplicate-entry race conditions as skipped imports', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/race-condition',
+                    'attributes' => ['doi' => '10.5880/race-condition'],
+                ];
+            })());
+
+        $pdoException = new PDOException('Duplicate entry');
+        $pdoException->errorInfo = ['23000', 1062, 'Duplicate entry'];
+        $queryException = new QueryException('mysql', 'insert into `resources`', [], $pdoException);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow($queryException);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['failed'])->toBe(0)
+            ->and($status['skipped_dois'])->toContain('10.5880/race-condition');
+    });
+
+    it('treats sqlite unique constraint race conditions as skipped imports', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/sqlite-race-condition',
+                    'attributes' => ['doi' => '10.5880/sqlite-race-condition'],
+                ];
+            })());
+
+        $queryException = new QueryException(
+            'sqlite',
+            'insert into "resources"',
+            [],
+            new PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: resources.doi'),
+        );
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow($queryException);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['failed'])->toBe(0)
+            ->and($status['skipped_dois'])->toContain('10.5880/sqlite-race-condition');
+    });
+
+    it('records a failed DOI when a non-duplicate query exception bubbles out of the transformer', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/query.fail',
+                    'attributes' => ['doi' => '10.5880/query.fail'],
+                ];
+            })());
+
+        $pdoException = new PDOException('Deadlock found');
+        $pdoException->errorInfo = ['40001', 1213, 'Deadlock found'];
+        $queryException = new QueryException('mysql', 'insert into `resources`', [], $pdoException);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow($queryException);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(0)
+            ->and($status['failed'])->toBe(1)
+            ->and($status['failed_dois'][0]['doi'])->toBe('10.5880/query.fail');
+    });
+
     it('imports a single DOI when requested', function () {
         $this->importService
             ->shouldReceive('fetchSingleDoi')
@@ -269,6 +455,101 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['failed_dois'])->toBe([
                 ['doi' => '10.5880/missing.single', 'error' => 'The DOI was not found in DataCite.'],
             ]);
+    });
+
+    it('marks single import as failed when the DOI transform throws an exception', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/failing.single')
+            ->andReturn([
+                'id' => '10.5880/failing.single',
+                'attributes' => [
+                    'doi' => '10.5880/failing.single',
+                ],
+            ]);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow(new RuntimeException('Transform failed hard'));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/failing.single');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['failed'])->toBe(1)
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => '10.5880/failing.single', 'error' => 'Transform failed hard'],
+            ])
+            ->and($status['error'])->toBe('Transform failed hard');
+    });
+
+    it('preserves a cancelled status when a single import is cancelled during processing', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/cancelled.single')
+            ->andReturn([
+                'id' => '10.5880/cancelled.single',
+                'attributes' => [
+                    'doi' => '10.5880/cancelled.single',
+                    'titles' => [['title' => 'Cancelled Single DOI']],
+                ],
+            ]);
+
+        $importId = Str::uuid()->toString();
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(function () use ($importId) {
+                Cache::put("datacite_import:{$importId}", [
+                    'status' => 'cancelled',
+                ], now()->addHour());
+
+                return Resource::factory()->make();
+            });
+
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/cancelled.single');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('cancelled')
+            ->and($status['imported'])->toBe(1);
+    });
+
+    it('defensively rejects invoking the private single import handler without a DOI', function () {
+        $job = new ImportFromDataCiteJob($this->user->id, Str::uuid()->toString());
+        $method = new ReflectionMethod($job, 'handleSingleImport');
+        $method->setAccessible(true);
+
+        expect(fn () => $method->invoke(
+            $job,
+            $this->importService,
+            $this->transformer,
+            $this->metaworksService,
+            now()->toIso8601String(),
+        ))->toThrow(RuntimeException::class, 'Single DOI import requested without a DOI.');
+    });
+
+    it('marks the import as failed and rethrows when the bulk import bootstrap crashes', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andThrow(new RuntimeException('Count unavailable'));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+
+        expect(fn () => $job->handle($this->importService, $this->transformer, $this->metaworksService))
+            ->toThrow(RuntimeException::class, 'Count unavailable');
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('Count unavailable');
     });
 });
 
@@ -498,6 +779,55 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect(LandingPage::where('resource_id', $resource->id)->exists())->toBeFalse();
     });
 
+    it('disables metaworks lookups for remaining bulk items after the first failure', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(2);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/metaworks.first',
+                    'attributes' => [
+                        'doi' => '10.5880/metaworks.first',
+                        'titles' => [['title' => 'First']],
+                    ],
+                ];
+                yield [
+                    'id' => '10.5880/metaworks.second',
+                    'attributes' => [
+                        'doi' => '10.5880/metaworks.second',
+                        'titles' => [['title' => 'Second']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record) => Resource::factory()->create([
+                'doi' => $record['attributes']['doi'],
+            ]));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileUrls')
+            ->once()
+            ->with('10.5880/metaworks.first')
+            ->andThrow(new RuntimeException('Legacy DB unavailable'));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(2)
+            ->and($status['failed'])->toBe(0);
+    });
+
     it('does not create duplicate landing page if one already exists', function () {
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -545,5 +875,71 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         // No files should have been created on the existing landing page
         $lp = LandingPage::where('resource_id', $resource->id)->first();
         expect(LandingPageFile::where('landing_page_id', $lp->id)->count())->toBe(0);
+    });
+
+    it('continues the import when landing page creation fails after metaworks files were found', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/lp.create.fail',
+                    'attributes' => [
+                        'doi' => '10.5880/lp.create.fail',
+                        'titles' => [['title' => 'Landing Page Failure']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/lp.create.fail']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileUrls')
+            ->once()
+            ->with('10.5880/lp.create.fail')
+            ->andReturn([
+                'urls' => ['https://datapub.gfz.de/download/10.5880/lp.create.fail/file.zip'],
+                'allPublic' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0)
+            ->and(LandingPage::count())->toBe(0);
+    });
+
+    it('writes failed progress when the queue failure hook receives a null exception', function () {
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+
+        $job->failed(null);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('Unknown error');
+    });
+
+    it('writes failed progress when the queue failure hook receives an exception', function () {
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+
+        $job->failed(new RuntimeException('Queue crashed'));
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('Queue crashed');
     });
 });
