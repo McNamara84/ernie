@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: app
+    pull_policy: build
     container_name: dockerized-laravel-app
     restart: unless-stopped
     volumes:
@@ -78,6 +79,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: nginx
+    pull_policy: build
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
     ports:
@@ -244,6 +246,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: app
+    pull_policy: build
     container_name: dockerized-laravel-queue
     restart: unless-stopped
     command: php artisan queue:work --queue=vocabularies,default,imports --verbose --tries=3 --timeout=7200
