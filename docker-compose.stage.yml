@@ -102,7 +102,7 @@ services:
       - "traefik.docker.network=traefik"
 
   db:
-    image: mysql:8.0
+    image: mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
     container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
@@ -124,7 +124,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:alpine
+    image: redis:8.6.3-alpine@sha256:d146f83b1e0f02fc27c26a50cee39338c736674c5959db84363e6ae3cd9e02d2
     container_name: dockerized-laravel-redis
     restart: unless-stopped
     networks:
@@ -170,7 +170,7 @@ services:
       start_period: 60s
 
   cloudbeaver:
-    image: dbeaver/cloudbeaver:latest
+    image: dbeaver/cloudbeaver:26.0.4@sha256:824c5e389155af3674b8e9a837bc4fd4454fcb43ac115c8be4c733e8b7315a4e
     container_name: ernie-cloudbeaver-stage
     restart: unless-stopped
     volumes:

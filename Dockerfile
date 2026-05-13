@@ -1,4 +1,4 @@
-FROM php:8.5-fpm AS app
+FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc478cf999d12861ee1 AS app
 
 WORKDIR /var/www/html
 
@@ -36,7 +36,7 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xs
 # Install Redis extension
 RUN pecl install redis && docker-php-ext-enable redis
 
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.9.7@sha256:02062f7719ec9433a9d4256cfba1c792db96dc9db60a4a92e48264c9e166b877 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -79,7 +79,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:alpine AS nginx
+FROM nginx:1.29.8-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de AS nginx
 
 WORKDIR /var/www/html
 

@@ -5,11 +5,20 @@ declare(strict_types=1);
 use App\Http\Controllers\AssistanceController;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 
 covers(AssistanceController::class);
 
 beforeEach(function (): void {
+    Config::set('cache.default', 'array');
+    Queue::fake();
+
+    foreach (['relation_discovery_running', 'orcid_discovery_running', 'ror_discovery_running'] as $lockKey) {
+        Cache::lock($lockKey, 7200)->forceRelease();
+    }
+
     Cache::flush();
 });
 

@@ -2,9 +2,14 @@
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Notification;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->withoutMiddleware(ThrottleRequests::class);
+});
 
 test('sends verification notification', function () {
     Notification::fake();

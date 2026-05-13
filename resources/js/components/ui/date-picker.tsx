@@ -130,7 +130,7 @@ export function DatePicker({
                         if (maxDate && date > maxDate) return true;
                         return false;
                     }}
-                    initialFocus
+                    autoFocus
                 />
             </PopoverContent>
             {/* Hidden input for form submission */}

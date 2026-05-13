@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 # Stage: PHP-FPM Application (Development)
 # -----------------------------------------------------------------------------
-FROM php:8.5-fpm AS app
+FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc478cf999d12861ee1 AS app
 
 WORKDIR /var/www/html
 
@@ -56,7 +56,7 @@ RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.in
     && echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.9.7@sha256:02062f7719ec9433a9d4256cfba1c792db96dc9db60a4a92e48264c9e166b877 /usr/bin/composer /usr/bin/composer
 
 # Create symlink for php in /bin so it's available in all shells
 RUN ln -s /usr/local/bin/php /bin/php
@@ -83,7 +83,7 @@ CMD ["php-fpm"]
 # -----------------------------------------------------------------------------
 # Stage: Nginx Webserver (Development)
 # -----------------------------------------------------------------------------
-FROM nginx:alpine AS nginx
+FROM nginx:1.29.8-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de AS nginx
 
 WORKDIR /var/www/html
 
@@ -102,7 +102,7 @@ EXPOSE 80
 # because the Wayfinder plugin requires php artisan access. This stage is
 # kept for potential future use with a standalone Vite setup.
 # -----------------------------------------------------------------------------
-FROM node:24-alpine AS vite
+FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS vite
 
 WORKDIR /var/www/html
 
