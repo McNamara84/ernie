@@ -630,7 +630,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Assistance" />
 
-            <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
+            <div className="w-full space-y-6 p-6">
                 {/* Page header with Check All button */}
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold tracking-tight">Assistance</h1>
