@@ -210,6 +210,25 @@ describe('Docs page', () => {
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
     });
 
+    it('documents the update metadata DOI action label in the ORCID pre-flight section', async () => {
+        const user = userEvent.setup();
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+
+        await user.click(screen.getByRole('tab', { name: /Datasets/i }));
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('when you press Register DOI or Update metadata.');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('shows thesaurus update actions for admin in editor settings', () => {
         render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
         expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();

@@ -138,15 +138,16 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
 
     const hasExistingDoi = Boolean(resource.doi);
-        const shouldUseUpdateLabel = hasExistingDoi && (resource.publicstatus === 'published' || resource.landingPage?.status === 'published');
+    const shouldUseUpdateLabel = hasExistingDoi
+        && (resource.publicstatus === 'published' || resource.landingPage?.status === 'published');
     const hasLandingPage = Boolean(resource.landingPage);
     const isBeginner = auth.user?.role === 'beginner';
-        const primaryActionLabel = shouldUseUpdateLabel ? 'Update metadata' : 'Register DOI';
-        const existingDoiDescription = shouldUseUpdateLabel
-                ? `Update metadata for registered DOI: ${resource.doi}`
-                : hasExistingDoi
-                    ? `This resource already has DOI ${resource.doi}. Continue to sync the record with DataCite.`
-                    : 'Register a new DOI for this resource with DataCite.';
+    const primaryActionLabel = shouldUseUpdateLabel ? 'Update metadata' : 'Register DOI';
+    const existingDoiDescription = shouldUseUpdateLabel
+        ? `Update metadata for registered DOI: ${resource.doi}`
+        : hasExistingDoi
+            ? `This resource already has DOI ${resource.doi}. Continue to sync the record with DataCite.`
+            : 'Register a new DOI for this resource with DataCite.';
 
     // Load available prefixes from backend config
     useEffect(() => {

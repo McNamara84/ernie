@@ -514,7 +514,7 @@ describe('DataCiteForm', () => {
         const datacenterBadge = screen.getByText(longDatacenterName).closest('[data-slot="badge"]');
         expect(datacenterBadge).toHaveClass('max-w-full');
         expect(datacenterBadge).toHaveClass('whitespace-normal');
-        expect(datacenterBadge).toHaveClass('break-words');
+        expect(datacenterBadge).toHaveClass('wrap-break-word');
     });
 
     it('announces available author roles for accessible guidance', async () => {

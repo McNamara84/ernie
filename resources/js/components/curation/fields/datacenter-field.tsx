@@ -46,16 +46,18 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
             {selectedOptions.length > 0 && (
                 <div className="flex min-w-0 flex-wrap gap-1">
                     {selectedOptions.map((option) => (
-                        <Badge key={option.id} variant="secondary" className="h-auto max-w-full items-start gap-1 whitespace-normal break-words pr-1 text-left text-xs">
+                        <Badge key={option.id} variant="secondary" className="h-auto max-w-full items-start gap-1 whitespace-normal pr-1 text-left text-xs wrap-break-word">
                             {option.name}
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-xs"
                                 aria-label={`Remove datacenter "${option.name}"`}
-                                className="text-muted-foreground hover:text-foreground shrink-0 rounded-sm"
+                                className="size-4 shrink-0 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                                 onClick={() => onChange(selected.filter((sid) => sid !== option.id))}
                             >
                                 <X className="h-3 w-3" />
-                            </button>
+                            </Button>
                         </Badge>
                     ))}
                 </div>
