@@ -70,9 +70,11 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Build frontend assets
+# Build frontend assets and remove build-time Node artifacts from the runtime image.
 RUN NODE_ENV=production npm run build \
-    && rm -f public/hot
+    && rm -f public/hot \
+    && rm -rf node_modules /root/.npm /root/.cache \
+    && rm -f package.json package-lock.json .npmrc
 
 EXPOSE 9000
 
