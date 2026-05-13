@@ -1,0 +1,100 @@
+name: Security Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install PHP dependencies
+        run: composer install --no-ansi --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Composer audit
+        run: composer audit
+
+      - name: npm audit
+        run: npm audit --audit-level=low
+
+  container-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build application image
+        run: docker build --target app -t ernie-security-scan:${{ github.sha }} .
+
+      - name: Prepare Trivy cache
+        run: mkdir -p .trivy-cache
+
+      - name: Run Trivy vulnerability scanner
+        env:
+          TRIVY_DISABLE_VEX_NOTICE: 'true'
+        run: |
+          docker run --rm \
+            -e TRIVY_DISABLE_VEX_NOTICE \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            --cache-dir /work/.trivy-cache \
+            --scanners vuln \
+            --format sarif \
+            --output /work/trivy-results.sarif \
+            --ignore-unfixed \
+            --pkg-types os,library \
+            --severity CRITICAL,HIGH \
+            ernie-security-scan:${{ github.sha }}
+
+      - name: Upload Trivy scan results
+        if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Fail on high or critical image vulnerabilities
+        env:
+          TRIVY_DISABLE_VEX_NOTICE: 'true'
+        run: |
+          docker run --rm \
+            -e TRIVY_DISABLE_VEX_NOTICE \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            --cache-dir /work/.trivy-cache \
+            --scanners vuln \
+            --format table \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --pkg-types os,library \
+            --severity CRITICAL,HIGH \
+            ernie-security-scan:${{ github.sha }}

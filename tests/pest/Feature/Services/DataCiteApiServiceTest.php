@@ -1,10 +1,19 @@
 <?php
 
 use App\Services\DataCiteApiService;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
+    $this->previousCacheDriver = Config::get('cache.default');
+    Config::set('cache.default', 'array');
+    Cache::flush();
     $this->service = new DataCiteApiService;
+});
+
+afterEach(function (): void {
+    Config::set('cache.default', $this->previousCacheDriver);
 });
 
 describe('DataCiteApiService', function () {
@@ -94,7 +103,7 @@ describe('DataCiteApiService', function () {
                 'doi.org/*' => Http::response(['title' => 'Test'], 200),
             ]);
 
-            $this->service->getMetadata('10.1234/test');
+            $this->service->getMetadata('10.1234/accept-header');
 
             Http::assertSent(fn ($request) => $request->header('Accept')[0] === 'application/vnd.citationstyles.csl+json'
             );

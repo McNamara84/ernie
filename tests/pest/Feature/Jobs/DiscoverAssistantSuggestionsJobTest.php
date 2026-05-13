@@ -296,7 +296,7 @@ describe('handle', function () {
         $job->handle($registrar);
 
         expect(Cache::tags($tags)->has($totalCountKey))->toBeTrue();
-        expect(Cache::tags($tags)->get($totalCountKey))->toBe(10);
+        expect((int) Cache::tags($tags)->get($totalCountKey))->toBe(10);
     });
 });
 

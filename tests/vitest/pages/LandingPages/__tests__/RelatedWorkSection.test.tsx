@@ -1,5 +1,6 @@
-﻿import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
-import { beforeEach,describe, expect, it, vi } from 'vitest';
+﻿import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, waitFor } from '@tests/vitest/utils/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RelatedWorkSection } from '@/pages/LandingPages/components/RelatedWorkSection';
 import type { LandingPageResource } from '@/types/landing-page';
@@ -621,6 +622,8 @@ describe('RelatedWorkSection', () => {
         });
 
         it('opens Relation Browser modal on button click', async () => {
+            const user = userEvent.setup();
+
             const relatedIdentifiers = [
                 {
                     id: 1,
@@ -638,7 +641,7 @@ describe('RelatedWorkSection', () => {
             render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
             const button = screen.getByTestId('relation-browser-button');
-            button.click();
+            await user.click(button);
 
             await waitFor(() => {
                 expect(screen.getByText('Relation Browser')).toBeInTheDocument();
@@ -646,6 +649,8 @@ describe('RelatedWorkSection', () => {
         });
 
         it('passes resource and filtered identifiers to modal', async () => {
+            const user = userEvent.setup();
+
             const relatedIdentifiers = [
                 {
                     id: 1,
@@ -663,7 +668,7 @@ describe('RelatedWorkSection', () => {
             render(<RelatedWorkSection resource={mockResource} relatedIdentifiers={relatedIdentifiers} />);
 
             const button = screen.getByTestId('relation-browser-button');
-            button.click();
+            await user.click(button);
 
             await waitFor(() => {
                 expect(screen.getByTestId('relation-browser-modal')).toBeInTheDocument();
