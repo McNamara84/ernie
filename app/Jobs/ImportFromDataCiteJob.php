@@ -8,6 +8,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\DoiSuggestionService;
 use App\Services\MetaworksDownloadUrlService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -160,6 +161,8 @@ class ImportFromDataCiteJob implements ShouldQueue
                     continue;
                 }
 
+                ['doi' => $doi, 'doiRecord' => $doiRecord] = $this->normalizeDoiRecord($doi, $doiRecord);
+
                 try {
                     $result = $this->processDoiRecord(
                         doi: $doi,
@@ -257,6 +260,8 @@ class ImportFromDataCiteJob implements ShouldQueue
             throw new \RuntimeException('Single DOI import requested without a DOI.');
         }
 
+        $doi = $this->normalizeDoi($doi);
+
         $this->updateProgress([
             'status' => 'running',
             'total' => 1,
@@ -278,6 +283,8 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             return;
         }
+
+        ['doi' => $doi, 'doiRecord' => $doiRecord] = $this->normalizeDoiRecord($doi, $doiRecord);
 
         try {
             $result = $this->processDoiRecord(
@@ -506,6 +513,36 @@ class ImportFromDataCiteJob implements ShouldQueue
             $currentProgress,
             now()->addHours(24)
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiRecord
+     * @return array{doi: string, doiRecord: array<string, mixed>}
+     */
+    private function normalizeDoiRecord(string $doi, array $doiRecord): array
+    {
+        $normalizedDoi = $this->normalizeDoi($doi);
+        $normalizedRecord = $doiRecord;
+
+        if (isset($normalizedRecord['attributes']) && is_array($normalizedRecord['attributes'])) {
+            $normalizedRecord['attributes']['doi'] = $normalizedDoi;
+        } else {
+            $normalizedRecord['doi'] = $normalizedDoi;
+        }
+
+        if (array_key_exists('id', $normalizedRecord)) {
+            $normalizedRecord['id'] = $normalizedDoi;
+        }
+
+        return [
+            'doi' => $normalizedDoi,
+            'doiRecord' => $normalizedRecord,
+        ];
+    }
+
+    private function normalizeDoi(string $doi): string
+    {
+        return app(DoiSuggestionService::class)->normalizeDoi($doi);
     }
 
     /**

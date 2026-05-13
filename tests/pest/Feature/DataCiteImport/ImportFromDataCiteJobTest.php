@@ -115,6 +115,77 @@ describe('ImportFromDataCiteJob', function () {
         expect($status['skipped_dois'])->toContain('10.5880/existing');
     });
 
+    it('normalizes incoming DOIs before checking for duplicates', function () {
+        Resource::factory()->create(['doi' => '10.5880/gfz.ojsj.2026.001']);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/GFZ.OJSJ.2026.001',
+                    'attributes' => [
+                        'doi' => 'https://doi.org/10.5880/GFZ.OJSJ.2026.001',
+                    ],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['skipped'])->toBe(1)
+            ->and($status['skipped_dois'])->toContain('10.5880/gfz.ojsj.2026.001');
+    });
+
+    it('passes a normalized DOI record to the transformer', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/GFZ.OJSJ.2026.002',
+                    'attributes' => [
+                        'doi' => 'https://doi.org/10.5880/GFZ.OJSJ.2026.002',
+                        'titles' => [['title' => 'Normalized DOI Test']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->withArgs(function (array $doiRecord, int $userId): bool {
+                return $userId === $this->user->id
+                    && $doiRecord['id'] === '10.5880/gfz.ojsj.2026.002'
+                    && $doiRecord['attributes']['doi'] === '10.5880/gfz.ojsj.2026.002';
+            })
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/gfz.ojsj.2026.002']));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
+    });
+
     it('tracks status in cache during processing and respects cancellation flag', function () {
         // This test verifies that the job properly writes status to cache during processing
         // and that the cache key structure supports cancellation (by checking 'status' key).

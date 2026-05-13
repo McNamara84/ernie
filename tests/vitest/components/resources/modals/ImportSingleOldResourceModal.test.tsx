@@ -44,7 +44,7 @@ describe('ImportSingleOldResourceModal', () => {
     });
 
     it('renders the modal title when open', () => {
-        render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} />);
+        render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         expect(screen.getByText('Import old single Resource')).toBeInTheDocument();
     });
@@ -52,7 +52,7 @@ describe('ImportSingleOldResourceModal', () => {
     it('shows a client-side validation error for an invalid DOI', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-        render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} />);
+        render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await user.type(screen.getByLabelText('DOI'), 'not-a-doi');
         await user.click(screen.getByRole('button', { name: /start import/i }));
@@ -173,10 +173,10 @@ describe('ImportSingleOldResourceModal', () => {
 
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
 
-    const closeButton = screen.getAllByText('Close')[0].closest('button');
-    expect(closeButton).not.toBeNull();
+        const closeButton = screen.getAllByText('Close')[0].closest('button');
+        expect(closeButton).not.toBeNull();
 
-    await user.click(closeButton!);
+        await user.click(closeButton!);
 
         expect(mockOnSuccess).toHaveBeenCalledOnce();
         expect(mockOnClose).toHaveBeenCalledOnce();
