@@ -40,7 +40,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
   - Database: `pdo`, `pdo_mysql`
   - Additional: `intl`, `simplexml`, `sodium`, `xsl`
 - **Node.js 24** and npm
-- **MySQL 8.0+** or **MariaDB 10.6+**
+- **MySQL 9.7.x** or **MariaDB 10.6+**
 - **Composer 2.x**
 
 ### Basic Setup
@@ -369,7 +369,7 @@ The project includes Docker configuration for production deployment with multi-s
 The production Docker setup includes:
 - **PHP-FPM 8.4+** with all required extensions
 - **Nginx** web server with optimized configuration
-- **MySQL 8.0** database server
+- **MySQL 9.7** database server
 - **Redis** for caching
 - **Traefik** integration via labels (external Traefik required)
 - **Persistent volumes** for storage and database
