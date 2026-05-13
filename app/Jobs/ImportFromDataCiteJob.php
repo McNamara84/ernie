@@ -174,7 +174,6 @@ class ImportFromDataCiteJob implements ShouldQueue
                         if (count($skippedDois) < $maxStoredDois) {
                             $skippedDois[] = $doi;
                         }
-                        Log::debug('Skipping existing DOI', ['doi' => $doi]);
                         $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
 
                         continue;

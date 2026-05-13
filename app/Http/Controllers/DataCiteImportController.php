@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 /**
  * Controller for DataCite import operations.
@@ -67,13 +66,7 @@ class DataCiteImportController extends Controller
         $doi = $request->getDoi();
 
         try {
-            if (! $legacyResourceLookupService->existsByDoi($doi)) {
-                throw ValidationException::withMessages([
-                    'doi' => 'Only GFZ legacy resources can be imported with this action.',
-                ]);
-            }
-        } catch (ValidationException $exception) {
-            throw $exception;
+            $exists = $legacyResourceLookupService->existsByDoi($doi);
         } catch (\Throwable $exception) {
             Log::warning('Legacy DOI lookup failed before single DataCite import', [
                 'doi' => $doi,
@@ -83,6 +76,12 @@ class DataCiteImportController extends Controller
             return response()->json([
                 'message' => 'The legacy resource database is currently unavailable. Please try again later.',
             ], 503);
+        }
+
+        if (! $exists) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'doi' => 'Only GFZ legacy resources can be imported with this action.',
+            ]);
         }
 
         $importId = Str::uuid()->toString();

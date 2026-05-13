@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
@@ -73,7 +74,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
         }
 
         let isCancelled = false;
-        let timeoutId: ReturnType<typeof setTimeout>;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const startTime = Date.now();
 
         const poll = async () => {
@@ -116,7 +117,9 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
 
         return () => {
             isCancelled = true;
-            clearTimeout(timeoutId);
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+            }
         };
     }, [importId, modalState]);
 
@@ -304,19 +307,10 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                             <Button variant="outline" onClick={handleClose}>
                                 Cancel
                             </Button>
-                            <Button onClick={startImport} disabled={isStarting || doiInput.trim().length === 0}>
-                                {isStarting ? (
-                                    <>
-                                        <Spinner size="sm" className="mr-2" />
-                                        Starting...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Download className="mr-2 size-4" />
-                                        Start Import
-                                    </>
-                                )}
-                            </Button>
+                            <LoadingButton onClick={startImport} loading={isStarting} disabled={doiInput.trim().length === 0}>
+                                {!isStarting && <Download className="size-4" />}
+                                {isStarting ? 'Starting...' : 'Start Import'}
+                            </LoadingButton>
                         </>
                     )}
 
