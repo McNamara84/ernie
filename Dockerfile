@@ -1,10 +1,8 @@
-FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc478cf999d12861ee1 AS app
+FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc478cf999d12861ee1 AS app-base
 
 WORKDIR /var/www/html
 
-# Install system dependencies and Node.js in a single layer for efficiency.
-# Node.js 24 is installed from NodeSource with GPG verification for supply chain security.
-# The NodeSource package includes npm, so no separate npm installation is needed.
+# Install system dependencies needed for the PHP runtime and extension builds.
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -21,13 +19,6 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     ca-certificates \
     gnupg \
-    # Install Node.js 24 from NodeSource with GPG key verification.
-    # This approach is more secure than piping remote scripts to bash.
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install -y nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,6 +40,17 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 
 COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
 RUN update-ca-certificates
+
+FROM app-base AS app-build
+
+# Install Node.js only in the build stage so the runtime image contains no Node package manifests.
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files FIRST (this layer is cached unless dependencies change)
 COPY composer.json composer.lock ./
@@ -75,6 +77,10 @@ RUN NODE_ENV=production npm run build \
     && rm -f public/hot \
     && rm -rf node_modules /root/.npm /root/.cache \
     && rm -f package.json package-lock.json .npmrc
+
+FROM app-base AS app
+
+COPY --from=app-build /var/www/html /var/www/html
 
 EXPOSE 9000
 
