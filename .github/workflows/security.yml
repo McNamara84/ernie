@@ -64,7 +64,7 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            aquasec/trivy:0.70.0 image \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
             --cache-dir /work/.trivy-cache \
             --scanners vuln \
             --format sarif \
@@ -75,7 +75,7 @@ jobs:
             ernie-security-scan:${{ github.sha }}
 
       - name: Upload Trivy scan results
-        if: always()
+        if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
@@ -89,7 +89,7 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            aquasec/trivy:0.70.0 image \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
             --cache-dir /work/.trivy-cache \
             --scanners vuln \
             --format table \
