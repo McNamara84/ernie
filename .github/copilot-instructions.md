@@ -24,23 +24,40 @@ The only exception is the conversation with the user, which may be in any langua
 
 ## Local Development Environment
 
-**Docker-based development** using `docker-compose.dev.yml`:
-- **URL:** `https://ernie.localhost:3333` (via Traefik reverse proxy)
-- **Containers:**
-  - `ernie-app-dev` – PHP-FPM application server
-  - `ernie-webserver-dev` – Nginx web server
-    - `ernie-db-dev` – MySQL 9.7 database
-  - `ernie-redis-dev` – Redis for caching/queues
-  - `ernie-queue-dev` – Laravel queue worker
-  - `ernie-vite-dev` – Vite dev server for HMR
-  - `ernie-traefik` – Traefik reverse proxy with TLS
+ERNIE uses a **two-speed local workflow**:
 
-**Important:** Always run artisan commands inside the Docker container:
+- **Fast Mode** is the default local workflow for daily development.
+- **Optional profiles** add auxiliary services only when a workflow actually needs them.
+
+**Recommended on Windows:** keep the active checkout in the **WSL2 filesystem** and use VS Code Remote - WSL. A Windows checkout on `D:\` remains supported, but Docker bind mounts and Node-based tooling are slower there.
+
+**Fast Mode stack** using `docker-compose.dev.yml`:
+- **URL:** `https://ernie.localhost:3333` (via Traefik reverse proxy)
+- **Default services:** `traefik`, `app`, `webserver`, `vite`, `db`, `redis`, `queue`
+- **Optional profiles:**
+    - `assessment` → adds `fuji`
+    - `tools` → adds `cloudbeaver`
+    - `parity` → starts both optional profiles
+
+**Canonical startup commands:**
+
 ```bash
-docker exec ernie-app-dev php artisan migrate
-docker exec ernie-app-dev php artisan db:seed --class=SomeSeeder
-docker exec ernie-app-dev php artisan tinker
+npm run docker:dev:up
+npm run docker:dev:assessment
+npm run docker:dev:tools
+npm run docker:dev:parity
 ```
+
+These wrappers always pass `--env-file .env.docker` to Docker Compose.
+
+**Important:** Keep Laravel and PHP tooling container-first. Always run artisan commands inside the Docker app service:
+```bash
+docker compose -f docker-compose.dev.yml exec app php artisan migrate
+docker compose -f docker-compose.dev.yml exec app php artisan db:seed --class=SomeSeeder
+docker compose -f docker-compose.dev.yml exec app php artisan tinker
+```
+
+**Host-side commands:** Prefer the host shell for `npm run lint:check`, `npm run types`, `npm run test:run`, and `npm run test:e2e:devstack`.
 
 ## Architecture
 
@@ -206,18 +223,30 @@ docker exec ernie-app-dev php artisan tinker
 ## Development Commands
 
 ```bash
-# Start development (Laravel + Queue + Vite)
-composer run dev
+# Start the default Docker development stack
+npm run docker:dev:up
 
-# Tests
-composer test                    # Pest PHP tests
-npm run test                     # Vitest (React components)
-npm run test:e2e                 # Playwright E2E tests
+# Optional Docker profiles
+npm run docker:dev:assessment
+npm run docker:dev:tools
+npm run docker:dev:parity
+
+# PHP / Laravel commands inside the app container
+docker compose -f docker-compose.dev.yml exec app php artisan <command>
+docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
+docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+
+# Frontend and browser checks on the host
+npm run lint:check
+npm run types
+npm run test:run
+npm run test:e2e:devstack
 
 # Code quality
 ./vendor/bin/pint               # PHP formatting (Laravel preset)
-./vendor/bin/phpstan            # Static analysis (level 8)
-npm run lint                    # ESLint + Prettier
+docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+npm run lint:check              # ESLint without mutating files
+npm run lint                    # ESLint with auto-fix
 npm run types                   # TypeScript check
 ```
 
@@ -229,6 +258,9 @@ npm run types                   # TypeScript check
 - Use factories from `database/factories/` for test data
 - Custom helpers in `tests/pest/Helpers.php` (e.g., `getXmlUploadData()` for session-based responses)
 - Example pattern: `$this->actingAs(User::factory()->create())->post(...)`
+- Default local behavior is intentionally fast: `tests/pest/CreatesApplication.php` forces `APP_ENV=testing`, `DB_CONNECTION=sqlite`, and `DB_DATABASE=:memory:`.
+- Keep this SQLite path as the default local loop. Use MySQL-backed verification only for driver-sensitive changes.
+- Preferred local command: `docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage`
 
 ### Pest Browser Tests (Pest v4 + Playwright)
 - **Preferred for E2E tests** – Uses `pestphp/pest-plugin-browser` (Pest v4)
@@ -257,6 +289,7 @@ it('validates DOI on blur', function () {
 - Located in `tests/vitest/` – mirrors component structure with: `components/`, `hooks/`, `layouts/`, `lib/`, `pages/`, `schemas/`, `services/`, `types/`, `utils/`
 - Setup in `vitest.setup.ts` includes ResizeObserver/IntersectionObserver mocks
 - Use `@testing-library/react` for component testing
+- `npm run test` is watch mode. For one-shot local validation, prefer `npm run test:run`.
 
 ### Playwright E2E (Legacy/JavaScript)
 - Located in `tests/playwright/` – organized by feature (critical/, accessibility/, workflows/, stage/)
@@ -749,6 +782,8 @@ composer test                                # All Pest tests (incl. Browser tes
 
 # Frontend (Vitest)
 npm run test                                  # All component tests
+npm run test:run                              # One-shot run (preferred for validation)
+npm run test:coverage                         # Coverage run
 npm run test -- --watch                       # Watch mode
 npm run test -- path/to/file.test.ts         # Specific file
 
@@ -787,7 +822,7 @@ All entries must follow the existing patterns (tags, `$ref` for schemas, `ElmoAp
 ⚠️ **MANDATORY:** Before completing any PHP code changes, always run PHPStan to ensure static analysis passes:
 
 ```bash
-./vendor/bin/phpstan
+docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
 ```
 
 PHPStan is configured at **level 8** (strictest). All errors must be resolved before considering a task complete. This applies to:
@@ -800,7 +835,7 @@ PHPStan is configured at **level 8** (strictest). All errors must be resolved be
 ⚠️ **MANDATORY:** Before completing any frontend code changes in TypeScript, JavaScript, TSX, JSX, or frontend tests, always run ESLint and resolve all reported issues:
 
 ```bash
-npm run lint
+npm run lint:check
 ```
 
 This applies to:

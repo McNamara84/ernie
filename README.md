@@ -173,14 +173,23 @@ php artisan get-ror-ids               # Sync ROR Affiliations
 
 ## Docker Development Environment
 
-The project includes a complete Docker development environment that mirrors the production setup with Traefik reverse proxy and `/ernie/` URL prefix.
+ERNIE uses a two-speed local workflow:
+
+- **Fast Mode** is the default daily workflow. It starts the core application stack only and keeps optional services out of the startup path.
+- **Profile-based add-ons** let you enable assessment-specific or tooling-specific services only when you actually need them.
+
+Detailed guides:
+
+- [docs/local-development.md](docs/local-development.md) – local setup, Windows and WSL2 guidance, Docker profiles, and troubleshooting
+- [docs/testing.md](docs/testing.md) – Pest, PHPStan, Vitest, Playwright, and local validation strategy
 
 ### Prerequisites
 
 - **Docker Desktop** installed and running
 - **OpenSSL** (included with Git for Windows or install separately)
+- **WSL2 is recommended on Windows**. For best filesystem performance, keep your active checkout inside the WSL filesystem and use VS Code Remote - WSL.
 
-### Quick Start (Development)
+### Quick Start (Fast Mode)
 
 1. **Generate SSL certificates** (first time only):
    ```powershell
@@ -197,9 +206,14 @@ The project includes a complete Docker development environment that mirrors the 
    ```
    Edit `.env.docker` as needed (defaults work out of the box).
 
-3. **Start the development environment**:
+3. **Start the default development stack**:
    ```powershell
-   docker-compose -f docker-compose.dev.yml up --build
+   npm run docker:dev:up
+   ```
+
+   Equivalent direct command:
+   ```powershell
+   docker compose --env-file .env.docker -f docker-compose.dev.yml up --build
    ```
 
 4. **Access the application**:
@@ -211,16 +225,17 @@ The project includes a complete Docker development environment that mirrors the 
 
    Note: The dev stack uses `SESSION_DOMAIN=ernie.localhost` by default. If you experience `419 Page Expired` errors on login, this may be due to browser cookie handling for the `.localhost` TLD. Try accessing via `https://localhost:3333/` as a fallback, or adjust `ERNIE_DEV_SESSION_DOMAIN` in your environment.
 
-5. **Run initial setup** (first time or after database reset):
+5. **Run initial setup**:
    ```powershell
-   docker exec ernie-app-dev php artisan migrate
-   docker exec ernie-app-dev php artisan add-user "Admin Name" admin@example.com SecurePassword
-   docker exec ernie-app-dev php artisan spdx:sync-licenses
+   docker compose -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
+   docker compose -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
    ```
+
+   The development entrypoint already installs missing dependencies, runs migrations, and seeds baseline data when the database is empty.
 
 ### Development Stack
 
-The Docker development environment includes:
+The default development stack includes:
 
 | Service | Container | Purpose | Port |
 |---------|-----------|---------|------|
@@ -231,6 +246,12 @@ The Docker development environment includes:
 | MySQL | `ernie-db-dev` | Database | 3306 |
 | Redis | `ernie-redis-dev` | Cache & Sessions | 6379 |
 | Queue | `ernie-queue-dev` | Background jobs | - |
+
+Optional profiles:
+
+- `assessment` adds F-UJI for assessment and FAIRness-specific workflows.
+- `tools` adds CloudBeaver for database inspection.
+- `parity` starts both optional profiles together for broader local verification.
 
 ### URL Routing
 
@@ -262,43 +283,65 @@ Or run as Administrator:
 Import-Certificate -FilePath ".\docker\traefik\certs\localhost.crt" -CertStoreLocation Cert:\LocalMachine\Root
 ```
 
+### Optional Profiles
+
+Start Fast Mode with additional services only when you need them:
+
+```powershell
+# Enable F-UJI locally
+npm run docker:dev:assessment
+
+# Enable CloudBeaver locally
+npm run docker:dev:tools
+
+# Start both optional profiles for broader local verification
+npm run docker:dev:parity
+```
+
 ### Development Commands
 
-#### Playwright E2E (local dev stack)
+Use the npm wrappers when possible so Docker Compose always reads `.env.docker` consistently.
 
-If you run the Docker dev stack via Traefik on `https://ernie.localhost:3333`, use:
+```powershell
+# Start environment in foreground
+npm run docker:dev:up
+
+# Start environment in background
+npm run docker:dev:up:d
+
+# Stop environment
+npm run docker:dev:down
+
+# Reset volumes
+npm run docker:dev:reset
+```
+
+For direct Compose usage:
+
+```powershell
+# View logs (all services)
+docker compose --env-file .env.docker -f docker-compose.dev.yml logs -f
+
+# View logs (specific service)
+docker compose --env-file .env.docker -f docker-compose.dev.yml logs -f app
+
+# Run artisan commands
+docker compose -f docker-compose.dev.yml exec app php artisan <command>
+
+# Run composer commands
+docker compose -f docker-compose.dev.yml exec app composer <command>
+
+# Run npm commands inside the Vite container when needed
+docker compose -f docker-compose.dev.yml exec vite npm <command>
+```
+
+#### Playwright E2E (local dev stack)
 
 ```powershell
 npm run test:e2e:devstack
 ```
 
 This uses [playwright.devstack.config.ts](playwright.devstack.config.ts) and does not affect CI.
-
-```powershell
-# Start environment
-docker-compose -f docker-compose.dev.yml up -d
-
-# View logs (all services)
-docker-compose -f docker-compose.dev.yml logs -f
-
-# View logs (specific service)
-docker-compose -f docker-compose.dev.yml logs -f app
-
-# Run artisan commands
-docker exec ernie-app-dev php artisan <command>
-
-# Run composer commands
-docker exec ernie-app-dev composer <command>
-
-# Run npm commands
-docker exec ernie-vite-dev npm <command>
-
-# Stop environment
-docker-compose -f docker-compose.dev.yml down
-
-# Reset database (removes volumes)
-docker-compose -f docker-compose.dev.yml down -v
-```
 
 ### Xdebug Integration
 
@@ -311,7 +354,7 @@ Xdebug is pre-installed but disabled by default. To enable:
 
 2. Restart the app container:
    ```powershell
-   docker-compose -f docker-compose.dev.yml restart app
+   docker compose --env-file .env.docker -f docker-compose.dev.yml restart app
    ```
 
 3. Configure VS Code with PHP Debug extension (default port: 9003)
@@ -324,20 +367,29 @@ Ensure you've trusted the self-signed certificate (see above).
 **"Connection refused" errors:**
 Wait for all containers to be healthy. Check status with:
 ```powershell
-docker-compose -f docker-compose.dev.yml ps
+docker compose --env-file .env.docker -f docker-compose.dev.yml ps
 ```
 
 **Database migration fails:**
-The database needs time to initialize. Wait 30 seconds and retry:
+The database needs time to initialize. The app entrypoint retries automatically, but you can rerun migrations manually:
 ```powershell
-docker exec ernie-app-dev php artisan migrate
+docker compose -f docker-compose.dev.yml exec app php artisan migrate
 ```
 
 **Hot reload not working:**
-Ensure the Vite container is running and check Traefik routes:
+Ensure the Vite container is running and check its logs:
 ```powershell
-docker-compose -f docker-compose.dev.yml logs vite
+docker compose --env-file .env.docker -f docker-compose.dev.yml logs vite
 ```
+
+If `public/hot` is missing on the Windows host, recreate it from the Vite container:
+
+```powershell
+docker compose -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
+```
+
+**F-UJI or CloudBeaver is unavailable:**
+Those services are now opt-in. Start the matching profile with `npm run docker:dev:assessment`, `npm run docker:dev:tools`, or `npm run docker:dev:parity`.
 
 ---
 
@@ -394,20 +446,28 @@ docker-compose -f docker-compose.prod.yml down -v
 
 ## Testing
 
+See [docs/testing.md](docs/testing.md) for the full local testing strategy.
+
 ```bash
-# PHP Tests (Pest + Laravel)
-composer run test                    # Run all PHP tests
-php artisan test --coverage          # With coverage
+# PHP checks in the app container
+docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
+docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
 
-# JavaScript Tests (Vitest)
-npm test                             # Run all JS tests
-npm test -- --coverage               # With coverage
+# Frontend checks on the host
+npm run lint:check
+npm run types
+npm run test:run
 
-# E2E Tests (Playwright)
-npx playwright install               # Install browsers (first time)
-npm run test:e2e                     # Run all E2E tests
-npm run test:e2e:ui                  # Interactive UI mode
+# Coverage or browser validation when needed
+npm run test:coverage
+npm run test:e2e:devstack
 ```
+
+Notes:
+
+- The default PHP test path is fast because `tests/pest/CreatesApplication.php` forces SQLite in memory.
+- Keep MySQL-backed verification focused on database-sensitive changes instead of moving the full suite to MySQL.
+- Use `npm run lint` only when you want ESLint to apply automatic fixes.
 
 ## API Documentation
 
@@ -428,10 +488,11 @@ The API includes:
 3. Run quality checks before committing:
    ```bash
    ./vendor/bin/pint                    # PHP code style
-   ./vendor/bin/phpstan analyse         # Static analysis (Level 8)
-   npm run lint                         # ESLint + Prettier
+   docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+   npm run lint:check                   # ESLint without mutations
    npm run types                        # TypeScript check
-   composer run test && npm test        # All tests
+   docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
+   npm run test:run                     # Vitest one-shot
    ```
 4. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add feature`)
 5. Open a Pull Request
