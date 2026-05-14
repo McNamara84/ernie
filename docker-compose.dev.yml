@@ -78,7 +78,7 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - FUJI_ENABLED=${FUJI_ENABLED:-true}
+      - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD:-change-me}
@@ -90,6 +90,12 @@ services:
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
       # If you use a subdomain like ernie.localhost, set ERNIE_DEV_STATEFUL_DOMAINS=ernie.localhost:3333
       - SANCTUM_STATEFUL_DOMAINS=${ERNIE_DEV_STATEFUL_DOMAINS:-ernie.localhost:3333,localhost:3333}
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/www/html/vendor/bin/pest && nc -z -w1 127.0.0.1 9000"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 180s
 
   # Nginx Webserver
   webserver:
@@ -203,6 +209,9 @@ services:
     image: ghcr.io/pangaea-data-publisher/fuji@sha256:ce91f8c5998655c34f570d68f52254cb5dfa29d659808c571c8e6f9249948a0e
     container_name: ernie-fuji-dev
     restart: unless-stopped
+    profiles:
+      - assessment
+      - parity
     entrypoint:
       - "/bin/sh"
       - "-c"
@@ -230,6 +239,9 @@ services:
     image: dbeaver/cloudbeaver:26.0.4@sha256:824c5e389155af3674b8e9a837bc4fd4454fcb43ac115c8be4c733e8b7315a4e
     container_name: ernie-cloudbeaver-dev
     restart: unless-stopped
+    profiles:
+      - tools
+      - parity
     volumes:
       - cloudbeaver-workspace-dev:/opt/cloudbeaver/workspace
       - ./docker/cloudbeaver/setup-connections.sh:/opt/cloudbeaver/setup-connections.sh:ro
@@ -280,8 +292,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      fuji:
-        condition: service_healthy
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
@@ -294,7 +304,7 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - FUJI_ENABLED=${FUJI_ENABLED:-true}
+      - FUJI_ENABLED=${FUJI_ENABLED:-false}
       - FUJI_BASE_URL=${FUJI_BASE_URL:-http://fuji:1071}
       - FUJI_USERNAME=${FUJI_USERNAME:-ernie}
       - FUJI_PASSWORD=${FUJI_PASSWORD:-change-me}

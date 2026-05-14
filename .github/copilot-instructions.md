@@ -24,22 +24,21 @@ The only exception is the conversation with the user, which may be in any langua
 
 ## Local Development Environment
 
-**Docker-based development** using `docker-compose.dev.yml`:
-- **URL:** `https://ernie.localhost:3333` (via Traefik reverse proxy)
-- **Containers:**
-  - `ernie-app-dev` – PHP-FPM application server
-  - `ernie-webserver-dev` – Nginx web server
-    - `ernie-db-dev` – MySQL 9.7 database
-  - `ernie-redis-dev` – Redis for caching/queues
-  - `ernie-queue-dev` – Laravel queue worker
-  - `ernie-vite-dev` – Vite dev server for HMR
-  - `ernie-traefik` – Traefik reverse proxy with TLS
+Decision defaults:
 
-**Important:** Always run artisan commands inside the Docker container:
+- Fast Mode is the daily default. Optional Docker profiles are opt-in.
+- On Windows, prefer a WSL2 checkout with VS Code Remote - WSL.
+- Keep PHP, Composer, Artisan, Pest, and PHPStan container-first.
+- Keep ESLint, TypeScript, Vitest, and Playwright on the host.
+- Use [docs/local-development.md](docs/local-development.md) and [docs/testing.md](docs/testing.md) for operational details.
+
+Canonical commands:
+
 ```bash
-docker exec ernie-app-dev php artisan migrate
-docker exec ernie-app-dev php artisan db:seed --class=SomeSeeder
-docker exec ernie-app-dev php artisan tinker
+npm run docker:dev:up
+npm run check:backend
+npm run check:frontend
+npm run check:parity
 ```
 
 ## Architecture
@@ -206,29 +205,33 @@ docker exec ernie-app-dev php artisan tinker
 ## Development Commands
 
 ```bash
-# Start development (Laravel + Queue + Vite)
-composer run dev
+# Start the default Docker development stack
+npm run docker:dev:up
 
-# Tests
-composer test                    # Pest PHP tests
-npm run test                     # Vitest (React components)
-npm run test:e2e                 # Playwright E2E tests
+# Start only the backend services needed for PHP checks
+npm run docker:dev:backend:d
+
+# Canonical validation entry points
+npm run check:backend
+npm run check:frontend
+npm run check:parity
 
 # Code quality
 ./vendor/bin/pint               # PHP formatting (Laravel preset)
-./vendor/bin/phpstan            # Static analysis (level 8)
-npm run lint                    # ESLint + Prettier
-npm run types                   # TypeScript check
+npm run phpstan:check
+npm run lint:check
+npm run lint
+npm run types
 ```
 
 ## Testing Patterns
 
 ### Pest PHP Tests
 - Located in `tests/pest/` with subdirectories: `Feature/`, `Unit/`, `Arch/`, `Browser/`, `Datasets/`, `Helpers/`
-- Use `RefreshDatabase` trait
-- Use factories from `database/factories/` for test data
-- Custom helpers in `tests/pest/Helpers.php` (e.g., `getXmlUploadData()` for session-based responses)
-- Example pattern: `$this->actingAs(User::factory()->create())->post(...)`
+- Default local behavior is intentionally fast: `tests/pest/CreatesApplication.php` defaults to `APP_ENV=testing`, `DB_CONNECTION=sqlite`, and `DB_DATABASE=:memory:` unless the MySQL-sensitive slice opts in via `ERNIE_TEST_DB_*`.
+- Use `npm run test:php` for the fast default loop.
+- Use `npm run test:php:mysql-sensitive` for the explicit MySQL-sensitive migration file slice; this path uses an isolated `ernie_test` schema inside Docker MySQL and resets that schema between files.
+- Keep MySQL-backed verification targeted to driver-sensitive changes.
 
 ### Pest Browser Tests (Pest v4 + Playwright)
 - **Preferred for E2E tests** – Uses `pestphp/pest-plugin-browser` (Pest v4)
@@ -257,6 +260,7 @@ it('validates DOI on blur', function () {
 - Located in `tests/vitest/` – mirrors component structure with: `components/`, `hooks/`, `layouts/`, `lib/`, `pages/`, `schemas/`, `services/`, `types/`, `utils/`
 - Setup in `vitest.setup.ts` includes ResizeObserver/IntersectionObserver mocks
 - Use `@testing-library/react` for component testing
+- `npm run test` is watch mode. For one-shot local validation, prefer `npm run test:run`.
 
 ### Playwright E2E (Legacy/JavaScript)
 - Located in `tests/playwright/` – organized by feature (critical/, accessibility/, workflows/, stage/)
@@ -740,22 +744,17 @@ For regular development, always use Pest Browser tests or the local Playwright c
 
 ```bash
 # Backend (Pest)
-composer test                                # All Pest tests (incl. Browser tests)
-./vendor/bin/pest tests/pest/Feature         # Feature tests only
-./vendor/bin/pest tests/pest/Unit            # Unit tests only
-./vendor/bin/pest tests/pest/Browser/        # Browser E2E tests only
-./vendor/bin/pest tests/pest/Arch/           # Architecture tests only
-./vendor/bin/pest --filter "test name"       # Specific test
+npm run test:php                             # Fast default path
+npm run test:php:mysql-sensitive             # MySQL-backed driver-sensitive slice
+npm run check:backend                        # Pest plus PHPStan
 
 # Frontend (Vitest)
-npm run test                                  # All component tests
-npm run test -- --watch                       # Watch mode
-npm run test -- path/to/file.test.ts         # Specific file
+npm run test:run                              # One-shot run
+npm run check:frontend                        # ESLint plus TS plus Vitest
 
 # E2E (Legacy Playwright - JS)
-npm run test:e2e                              # Local - default choice
-npm run test:e2e -- --project=chromium       # Single browser
 npm run test:e2e:devstack                     # Against Docker devstack
+npm run check:parity                          # Parity profile plus MySQL slice plus Playwright
 npm run test:e2e:stage                        # Stage - only for bug reproduction
 ```
 
@@ -787,7 +786,13 @@ All entries must follow the existing patterns (tags, `$ref` for schemas, `ElmoAp
 ⚠️ **MANDATORY:** Before completing any PHP code changes, always run PHPStan to ensure static analysis passes:
 
 ```bash
-./vendor/bin/phpstan
+npm run phpstan:check
+```
+
+For the standard backend validation loop, prefer:
+
+```bash
+npm run check:backend
 ```
 
 PHPStan is configured at **level 8** (strictest). All errors must be resolved before considering a task complete. This applies to:
@@ -800,7 +805,13 @@ PHPStan is configured at **level 8** (strictest). All errors must be resolved be
 ⚠️ **MANDATORY:** Before completing any frontend code changes in TypeScript, JavaScript, TSX, JSX, or frontend tests, always run ESLint and resolve all reported issues:
 
 ```bash
-npm run lint
+npm run lint:check
+```
+
+For the standard frontend validation loop, prefer:
+
+```bash
+npm run check:frontend
 ```
 
 This applies to:

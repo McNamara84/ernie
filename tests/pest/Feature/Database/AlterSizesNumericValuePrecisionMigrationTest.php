@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
+uses()->group('database', 'mysql-sensitive');
+
 /**
  * Coverage for the anonymous migration in
  * `database/migrations/2026_04_22_000001_alter_sizes_numeric_value_precision.php`.

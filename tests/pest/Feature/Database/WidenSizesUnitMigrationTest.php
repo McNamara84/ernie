@@ -8,6 +8,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+uses()->group('database', 'mysql-sensitive');
+
 /**
  * Coverage for the anonymous migration in
  * `database/migrations/2026_04_29_000002_widen_sizes_unit_column.php`.

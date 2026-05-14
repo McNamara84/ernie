@@ -7,6 +7,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+uses()->group('database', 'mysql-sensitive');
+
 /**
  * Coverage for the anonymous migration in
  * `database/migrations/2026_05_01_000001_widen_related_items_edition_column.php`.
