@@ -485,7 +485,7 @@ npm run check:parity
 Notes:
 
 - The default PHP test path is fast because `tests/pest/CreatesApplication.php` forces SQLite in memory.
-- `npm run test:php:mysql-sensitive` switches Pest to an isolated MySQL database named `ernie_test`, recreates that schema before each schema-mutating file, and runs the tests tagged with `mysql-sensitive`.
+- `npm run test:php:mysql-sensitive` switches Pest to an isolated MySQL database named `ernie_test`, recreates that schema before each schema-mutating file, and runs the current explicit MySQL-sensitive migration file slice.
 - Keep MySQL-backed verification focused on database-sensitive changes instead of moving the full suite to MySQL.
 - Use `npm run lint` only when you want ESLint to apply automatic fixes.
 

@@ -186,6 +186,6 @@ This command:
 
 - starts the backend containers if needed
 - creates an isolated `ernie_test` schema inside the local MySQL container
-- runs the Pest tests tagged with `mysql-sensitive`
+- runs the current explicit MySQL-sensitive migration file slice with a schema reset before each file
 
 It does not reuse the regular development schema.

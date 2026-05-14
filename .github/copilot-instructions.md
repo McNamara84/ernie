@@ -230,7 +230,7 @@ npm run types
 - Located in `tests/pest/` with subdirectories: `Feature/`, `Unit/`, `Arch/`, `Browser/`, `Datasets/`, `Helpers/`
 - Default local behavior is intentionally fast: `tests/pest/CreatesApplication.php` forces `APP_ENV=testing`, `DB_CONNECTION=sqlite`, and `DB_DATABASE=:memory:`.
 - Use `npm run test:php` for the fast default loop.
-- Use `npm run test:php:mysql-sensitive` for the tests tagged with `mysql-sensitive`; this path uses an isolated `ernie_test` schema inside Docker MySQL.
+- Use `npm run test:php:mysql-sensitive` for the explicit MySQL-sensitive migration file slice; this path uses an isolated `ernie_test` schema inside Docker MySQL and resets that schema between files.
 - Keep MySQL-backed verification targeted to driver-sensitive changes.
 
 ### Pest Browser Tests (Pest v4 + Playwright)

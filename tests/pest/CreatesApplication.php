@@ -34,11 +34,11 @@ trait CreatesApplication
             'APP_ENV' => 'testing',
             'APP_URL' => 'http://localhost',
             'DB_CONNECTION' => $driver,
-            'DB_HOST' => (string) (getenv('ERNIE_TEST_DB_HOST') ?: getenv('DB_HOST') ?: 'db'),
-            'DB_PORT' => (string) (getenv('ERNIE_TEST_DB_PORT') ?: getenv('DB_PORT') ?: '3306'),
-            'DB_DATABASE' => (string) (getenv('ERNIE_TEST_DB_DATABASE') ?: getenv('DB_DATABASE') ?: 'ernie_test'),
-            'DB_USERNAME' => (string) (getenv('ERNIE_TEST_DB_USERNAME') ?: getenv('DB_USERNAME') ?: 'ernie'),
-            'DB_PASSWORD' => (string) (getenv('ERNIE_TEST_DB_PASSWORD') ?: getenv('DB_PASSWORD') ?: 'secret'),
+            'DB_HOST' => (string) (getenv('ERNIE_TEST_DB_HOST') ?: 'db'),
+            'DB_PORT' => (string) (getenv('ERNIE_TEST_DB_PORT') ?: '3306'),
+            'DB_DATABASE' => (string) (getenv('ERNIE_TEST_DB_DATABASE') ?: 'ernie_test'),
+            'DB_USERNAME' => (string) (getenv('ERNIE_TEST_DB_USERNAME') ?: 'ernie'),
+            'DB_PASSWORD' => (string) (getenv('ERNIE_TEST_DB_PASSWORD') ?: 'secret'),
         ];
     }
 

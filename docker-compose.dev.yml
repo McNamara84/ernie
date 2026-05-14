@@ -95,7 +95,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 24
-      start_period: 30s
+      start_period: 180s
 
   # Nginx Webserver
   webserver:

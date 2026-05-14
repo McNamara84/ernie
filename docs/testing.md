@@ -49,9 +49,11 @@ Use a MySQL-backed slice only when one of these is true:
 - a query depends on MySQL-specific behavior
 - a failing production or stage bug cannot be reproduced against SQLite
 
-The current `mysql-sensitive` Pest group covers driver-aware migration tests and runs against a dedicated MySQL schema named `ernie_test`.
+The current `mysql-sensitive` Pest group marks driver-aware migration tests.
 
-The npm wrapper recreates that schema before each schema-mutating file so DDL-heavy migration tests do not leak state into the next process.
+The npm wrapper runs the current explicit schema-mutating MySQL-sensitive file slice against a dedicated MySQL schema named `ernie_test`.
+
+The wrapper recreates that schema before each file so DDL-heavy migration tests do not leak state into the next process.
 
 ## Pest And PHPStan
 
