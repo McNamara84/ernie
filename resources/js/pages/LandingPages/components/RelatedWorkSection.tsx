@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, ExternalLink, Network, Quote } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,7 @@ import type { LandingPageRelatedIdentifier, LandingPageRelatedItem, LandingPageR
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 import { LandingPageCard } from './LandingPageCard';
-
-const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then(m => ({ default: m.RelationBrowserModal })));
+import { RelationBrowserModal } from './RelationBrowserModal';
 
 interface RelatedWorkSectionProps {
     relatedIdentifiers: LandingPageRelatedIdentifier[];
@@ -399,15 +398,13 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
             )}
 
             {browserOpen && (
-                <Suspense fallback={null}>
-                    <RelationBrowserModal
-                        open={browserOpen}
-                        onOpenChange={setBrowserOpen}
-                        resource={resource}
-                        relatedIdentifiers={filteredRelations}
-                        citationTexts={citationTexts}
-                    />
-                </Suspense>
+                <RelationBrowserModal
+                    open={browserOpen}
+                    onOpenChange={setBrowserOpen}
+                    resource={resource}
+                    relatedIdentifiers={filteredRelations}
+                    citationTexts={citationTexts}
+                />
             )}
         </LandingPageCard>
     );
