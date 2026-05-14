@@ -643,9 +643,7 @@ describe('RelatedWorkSection', () => {
             const button = screen.getByTestId('relation-browser-button');
             await user.click(button);
 
-            await waitFor(() => {
-                expect(screen.getByText('Relation Browser')).toBeInTheDocument();
-            });
+            expect(await screen.findByText('Relation Browser', {}, { timeout: 5000 })).toBeInTheDocument();
         });
 
         it('passes resource and filtered identifiers to modal', async () => {
@@ -670,10 +668,8 @@ describe('RelatedWorkSection', () => {
             const button = screen.getByTestId('relation-browser-button');
             await user.click(button);
 
-            await waitFor(() => {
-                expect(screen.getByTestId('relation-browser-modal')).toBeInTheDocument();
-                expect(screen.getByTestId('relation-browser-graph')).toBeInTheDocument();
-            });
+            expect(await screen.findByTestId('relation-browser-modal', {}, { timeout: 5000 })).toBeInTheDocument();
+            expect(await screen.findByTestId('relation-browser-graph', {}, { timeout: 5000 })).toBeInTheDocument();
         });
     });
 

@@ -51,9 +51,9 @@ trait CreatesApplication
         // because Docker containers (e.g. ernie-app-dev) inject runtime env vars such as
         // APP_ENV=local and DB_CONNECTION=mysql at the OS level, which take precedence
         // over PHPUnit's <env> declarations in phpunit.xml (those are not applied with
-        // force="true" reliably across Pest/PHPUnit versions). Forcing here guarantees
-        // tests always run against the in-memory SQLite database, regardless of the
-        // shell environment they are invoked from.
+        // force="true" reliably across Pest/PHPUnit versions). Forcing here keeps the
+        // default local loop on in-memory SQLite while still allowing the dedicated
+        // MySQL-sensitive slice to opt in via ERNIE_TEST_DB_* variables.
         $forced = $this->forcedEnvironment();
 
         foreach ($forced as $key => $value) {

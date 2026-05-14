@@ -25,7 +25,7 @@
     "format:check": "prettier --check resources/",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
-    "phpstan:check": "npm run docker:dev:backend:d && docker compose -f docker-compose.dev.yml exec -T app php ./vendor/bin/phpstan",
+    "phpstan:check": "npm run docker:dev:backend:d && docker compose -f docker-compose.dev.yml exec -T app php ./vendor/bin/phpstan analyse --memory-limit=512M",
     "test:php": "npm run docker:dev:backend:d && docker compose -f docker-compose.dev.yml exec -T app php ./vendor/bin/pest --no-coverage",
     "test:php:mysql-sensitive:exec": "docker compose -f docker-compose.dev.yml exec -T -e ERNIE_TEST_DB_CONNECTION=mysql -e ERNIE_TEST_DB_HOST=db -e ERNIE_TEST_DB_PORT=3306 -e ERNIE_TEST_DB_DATABASE=ernie_test -e ERNIE_TEST_DB_USERNAME=ernie -e ERNIE_TEST_DB_PASSWORD=secret app php ./vendor/bin/pest --no-coverage",
     "test:php:mysql-sensitive": "npm run docker:dev:backend:d && npm run db:dev:test:reset && npm run test:php:mysql-sensitive:exec -- tests/pest/Feature/Database/WidenSizesUnitMigrationTest.php && npm run db:dev:test:reset && npm run test:php:mysql-sensitive:exec -- tests/pest/Feature/Database/WidenRelatedItemsEditionMigrationTest.php && npm run db:dev:test:reset && npm run test:php:mysql-sensitive:exec -- tests/pest/Feature/Database/AlterSizesNumericValuePrecisionMigrationTest.php",
