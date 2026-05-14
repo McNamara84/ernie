@@ -30,8 +30,9 @@ test.describe('DOI Registration Workflow', () => {
         // Wait for table body to have at least one row
         await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
-        // Find the Published resource row (has a DOI badge)
-        const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
+        // Target the deterministic Playwright fixture instead of matching the
+        // word "Published" anywhere in the row text.
+        const resourceRow = page.locator('tbody tr').filter({ hasText: /10\.1234\/playwright-published/ }).first();
         await expect(resourceRow).toBeVisible();
 
         // Click DataCite button - use data-testid for reliable selection
@@ -45,7 +46,7 @@ test.describe('DOI Registration Workflow', () => {
         await expect(dialog).toBeVisible({ timeout: 15000 });
         
         // Wait for modal content to be loaded
-        await expect(page.getByText(/update doi metadata/i)).toBeVisible({ timeout: 5000 });
+        await expect(page.getByRole('heading', { name: /update metadata/i })).toBeVisible({ timeout: 5000 });
 
         // Should show existing DOI (use first() to avoid strict mode violation with 2 matches)
         await expect(page.getByText(/existing doi/i).first()).toBeVisible();

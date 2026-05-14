@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -23,6 +23,28 @@ const __dirname = path.dirname(__filename);
 
 function resolveDatasetExample(filename: string): string {
     return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
+}
+
+async function exportIgsnJsonThroughUi(page: Page, exportButton: Locator) {
+    const exportResponsePromise = page.waitForResponse(
+        (response) => {
+            const url = new URL(response.url());
+            return response.request().method() === 'GET' && /\/igsns\/\d+\/export\/json$/.test(url.pathname);
+        },
+        { timeout: 30000 },
+    );
+
+    await exportButton.click();
+
+    const exportResponse = await exportResponsePromise;
+    const responseText = await exportResponse.text();
+
+    expect(exportResponse.ok(), `Expected successful IGSN JSON export, got ${exportResponse.status()}: ${responseText}`).toBeTruthy();
+
+    return {
+        exportResponse,
+        jsonData: JSON.parse(responseText),
+    };
 }
 
 // Test data from the CSV files for verification
@@ -266,31 +288,15 @@ test.describe('IGSN Workflow', () => {
         const exportButton = row.getByRole('button', { name: 'Export as DataCite JSON' });
         await expect(exportButton).toBeVisible();
 
-        // Step 4: Set up download listener BEFORE clicking
-        const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
+        // Step 4: Export through the UI and validate the HTTP response directly.
+        // The page triggers the download via Axios + Blob URL, which is less stable
+        // to observe via Playwright's browser download event in CI.
+        const { exportResponse, jsonData } = await exportIgsnJsonThroughUi(page, exportButton);
 
-        // Click the export button
-        await exportButton.click();
-
-        // Step 5: Wait for download to complete
-        const download = await downloadPromise;
-        
-        // Verify the download was successful
-        expect(download).toBeTruthy();
-        
-        // Verify filename contains the IGSN
-        const filename = download.suggestedFilename();
-        expect(filename).toContain('.json');
-        expect(filename.toLowerCase()).toContain('igsn');
-
-        // Step 6: Read and validate the downloaded JSON content
-        const downloadPath = await download.path();
-        expect(downloadPath).toBeTruthy();
-        
-        // Read the file content
-        const fs = await import('fs/promises');
-        const jsonContent = await fs.readFile(downloadPath!, 'utf-8');
-        const jsonData = JSON.parse(jsonContent);
+        // Verify filename metadata from the response header
+        const contentDisposition = exportResponse.headers()['content-disposition'];
+        expect(contentDisposition).toContain('.json');
+        expect(contentDisposition?.toLowerCase()).toContain('igsn');
 
         // Verify basic DataCite JSON structure
         expect(jsonData).toHaveProperty('data');
@@ -341,14 +347,7 @@ test.describe('IGSN Workflow', () => {
         const row = page.locator('tr').filter({ has: igsnCell }).first();
         const exportButton = row.getByRole('button', { name: 'Export as DataCite JSON' });
 
-        // Set up listeners for both download (success) and dialog (validation error)
-        const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null);
-        
-        // Click export
-        await exportButton.click();
-
-        // Wait a moment for either download or validation modal
-        await page.waitForTimeout(2000);
+        const { jsonData } = await exportIgsnJsonThroughUi(page, exportButton);
 
         // Check if validation error modal appeared (this would indicate our fix didn't work)
         const validationModal = page.locator('[role="dialog"]').filter({ hasText: /JSON Export Failed/i });
@@ -360,32 +359,21 @@ test.describe('IGSN Workflow', () => {
             throw new Error(`DataCite JSON validation failed! Validation errors detected:\n${errorText}`);
         }
 
-        // Download should have succeeded
-        const download = await downloadPromise;
-        expect(download).toBeTruthy();
-        
-        // Additional verification: read the JSON and check specific fields that were fixed
-        if (download) {
-            const downloadPath = await download.path();
-            const fs = await import('fs/promises');
-            const jsonContent = await fs.readFile(downloadPath!, 'utf-8');
-            const jsonData = JSON.parse(jsonContent);
-            const attributes = jsonData.data.attributes;
+        const attributes = jsonData.data.attributes;
 
-            // Verify contributors have correct contributorType format (PascalCase, no spaces)
-            if (attributes.contributors) {
-                for (const contributor of attributes.contributors) {
-                    expect(contributor.contributorType).toMatch(/^[A-Z][a-zA-Z]+$/);
-                    expect(contributor.contributorType).not.toContain(' ');
-                }
+        // Verify contributors have correct contributorType format (PascalCase, no spaces)
+        if (attributes.contributors) {
+            for (const contributor of attributes.contributors) {
+                expect(contributor.contributorType).toMatch(/^[A-Z][a-zA-Z]+$/);
+                expect(contributor.contributorType).not.toContain(' ');
             }
+        }
 
-            // Verify relatedIdentifiers have correct relationType format (PascalCase, no spaces)
-            if (attributes.relatedIdentifiers) {
-                for (const ri of attributes.relatedIdentifiers) {
-                    expect(ri.relationType).toMatch(/^[A-Z][a-zA-Z]+$/);
-                    expect(ri.relationType).not.toContain(' ');
-                }
+        // Verify relatedIdentifiers have correct relationType format (PascalCase, no spaces)
+        if (attributes.relatedIdentifiers) {
+            for (const ri of attributes.relatedIdentifiers) {
+                expect(ri.relationType).toMatch(/^[A-Z][a-zA-Z]+$/);
+                expect(ri.relationType).not.toContain(' ');
             }
 
             // Verify geoLocations have numeric coordinates (not strings)

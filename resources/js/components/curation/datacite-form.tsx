@@ -2239,7 +2239,7 @@ export default function DataCiteForm({
                                     setSelectedDatacenters(ids);
                                     setDatacenterTouched(true);
                                 }}
-                                className="md:col-span-2"
+                                className="min-w-0 md:col-span-3"
                                 required
                                 hasError={datacenterTouched && selectedDatacenters.length === 0}
                             />
@@ -2253,7 +2253,7 @@ export default function DataCiteForm({
                                 touched={getFieldState('version').touched}
                                 placeholder="1.0"
                                 labelTooltip="Semantic versioning (e.g., 1.2.3)"
-                                className="md:col-span-1"
+                                className="min-w-0 md:col-span-1"
                             />
                             <SelectField
                                 id="language"

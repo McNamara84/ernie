@@ -483,6 +483,40 @@ describe('DataCiteForm', () => {
         ).toHaveLength(1);
     });
 
+    it('gives the datacenter field more grid width and keeps long selected datacenter badges wrapped', () => {
+        const longDatacenterName = 'DEKORP - German Continental Seismic Reflection Program';
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                availableDatacenters={[{ id: 1, name: longDatacenterName }]}
+                initialDatacenters={[1]}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const datacenterField = screen.getByTestId('datacenter-select').parentElement;
+        expect(datacenterField).toHaveClass('min-w-0');
+        expect(datacenterField).toHaveClass('md:col-span-3');
+
+        const versionField = screen.getByLabelText('Version').parentElement;
+        expect(versionField).toHaveClass('min-w-0');
+        expect(versionField).toHaveClass('md:col-span-1');
+
+        const datacenterBadge = screen.getByText(longDatacenterName).closest('[data-slot="badge"]');
+        expect(datacenterBadge).toHaveClass('max-w-full');
+        expect(datacenterBadge).toHaveClass('whitespace-normal');
+        expect(datacenterBadge).toHaveClass('wrap-break-word');
+    });
+
     it('announces available author roles for accessible guidance', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         render(

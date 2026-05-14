@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use App\Models\Description;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -211,6 +213,8 @@ class PlaywrightTestSeeder extends Seeder
             ]
         );
 
+        $this->ensureCompleteFixture($publishedResource);
+
         // 2) Review resource (shown with "Review" status)
         // Backend semantics: review requires BOTH DOI + landing page (is_published=false).
         // Prefer upgrading any legacy fixture with title "Playwright: Review Resource" into the canonical review fixture.
@@ -263,23 +267,30 @@ class PlaywrightTestSeeder extends Seeder
             ]
         );
 
+        $this->ensureCompleteFixture($reviewResource);
+
         // 3) Curation resource WITHOUT landing page (for "landing page required" negative cases)
         $noLandingPageTitle = Title::query()->where('value', 'Playwright: Curation Resource (no landing page)')->first();
-        if (! $noLandingPageTitle) {
-            $resource = Resource::factory()->create(array_merge($resourceAttributes, ['doi' => null]));
+        $noLandingPageResource = $noLandingPageTitle?->resource;
+        if (! $noLandingPageResource) {
+            $noLandingPageResource = Resource::factory()->create(array_merge($resourceAttributes, ['doi' => null]));
             Title::factory()->create([
-                'resource_id' => $resource->id,
+                'resource_id' => $noLandingPageResource->id,
                 'value' => 'Playwright: Curation Resource (no landing page)',
             ]);
             ResourceCreator::factory()->create([
-                'resource_id' => $resource->id,
+                'resource_id' => $noLandingPageResource->id,
                 'position' => 1,
             ]);
         }
 
+        $this->ensureCompleteFixture($noLandingPageResource);
+
         // 4) Curation resource WITH landing page but WITHOUT DOI (used for DOI registration modal tests)
         // Keep this last so it appears first in the /resources list (default sort: updated_at desc).
         $curationLandingPage = LandingPage::query()->where('slug', 'playwright-curation')->first();
+        $curationResource = $curationLandingPage?->resource;
+
         if (! $curationLandingPage) {
             $curationResource = Resource::factory()->create(array_merge($resourceAttributes, ['doi' => null]));
 
@@ -305,6 +316,31 @@ class PlaywrightTestSeeder extends Seeder
             ]);
         }
 
+        if ($curationResource instanceof Resource) {
+            $this->ensureCompleteFixture($curationResource);
+        }
+
         $this->command->info('Playwright E2E resources ensured successfully!');
+    }
+
+    private function ensureCompleteFixture(Resource $resource): void
+    {
+        if (! $resource->rights()->exists()) {
+            $license = Right::query()->where('identifier', 'CC-BY-4.0')->first()
+                ?? Right::factory()->ccBy4()->create();
+
+            $resource->rights()->syncWithoutDetaching([$license->id]);
+        }
+
+        $hasAbstract = $resource->descriptions()
+            ->whereHas('descriptionType', fn ($query) => $query->where('slug', 'Abstract'))
+            ->whereRaw("TRIM(COALESCE(value, '')) != ''")
+            ->exists();
+
+        if (! $hasAbstract) {
+            Description::factory()->abstract()->create([
+                'resource_id' => $resource->id,
+            ]);
+        }
     }
 }

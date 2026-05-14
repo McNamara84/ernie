@@ -1,18 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-13",
+        "date": "2026-05-12",
         "features": [
             {
                 "title": "Single DOI Import for GFZ Legacy Resources",
                 "description": "The Resources page now distinguishes between importing all historical GFZ DataCite records and importing a single old resource. The former action was renamed to 'Import all old Resources'. A new adjacent action, 'Import old single Resource', opens a dialog where admins and group leaders can enter either a bare DOI or a doi.org URL for one dataset. Before the import starts, ERNIE now verifies that the DOI belongs to the GFZ legacy database; already imported resources are detected and skipped without overwriting the existing record."
-            }
-        ]
-    },
-    {
-        "version": "1.0.0",
-        "date": "2026-05-12",
-        "features": [
+            },
             {
                 "title": "Role-Based Guided Tours",
                 "description": "Beginners now receive a guided product tour on the Dashboard after login, covering the main dashboard cards, the sidebar navigation, the upload area, the Resources list, and the IGSN tools. The tour starts only once by default, is tracked per user, and can be reassigned later. Admins and Group Leaders can reopen eligible tours for Beginner and Curator accounts directly on the /users page via a new Assign Tours dialog. Newly added built-in tours can also be rolled out automatically to eligible users without manual data seeding."
@@ -99,6 +93,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Clearer DOI Actions and Less Cluttered Metadata Entry",
+                "description": "The Dashboard no longer shows a redundant 'Upload metadata' quick action because the upload dropzone is already available on the same page. On the Resources page, the DataCite action now reads 'Register DOI' for records that are not yet published and only switches to 'Update metadata' for already published DOI records, matching the visible publication state more closely. In the Data Editor, the Datacenter field now takes more horizontal space and selected datacenter badges can wrap cleanly, preventing long names such as 'DEKORP - German Continental Seismic Reflection Program' from overlapping the adjacent Version field."
+            },
             {
                 "title": "Dashboard Action Hub and Refresh-Aware Feedback",
                 "description": "The authenticated workspace now feels more task-driven and easier to read. The Dashboard was redesigned into an action hub with role-aware quick actions, a separate resume-work area for recent drafts, compact overview cards, and an import hub that now stays visible in the first viewport instead of being pushed below large action cards. The authenticated header now shows the current workspace plus live navigation feedback, while sidebar badges use clearer emphasis for key counts and pending assistance. Administrators also get a compact FAIR average summary directly on the Assessment sidebar entry in the format Resources / IGSNs. Core feedback states were also upgraded: the editor bootstrap now uses skeleton placeholders with a retryable error state, the dashboard dropzone shows richer upload progress/success/failure messaging, and the Data Portal keeps current results visible while filters or pagination refresh in the background, including explicit refresh feedback and a one-click clear-filters recovery action when no matches remain."

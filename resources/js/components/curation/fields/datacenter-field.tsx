@@ -38,24 +38,26 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
     };
 
     return (
-        <div className={cn('flex flex-col gap-2', className)}>
+        <div className={cn('flex min-w-0 flex-col gap-2', className)}>
             <Label htmlFor={id}>
                 {label}
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
             {selectedOptions.length > 0 && (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex min-w-0 flex-wrap gap-1">
                     {selectedOptions.map((option) => (
-                        <Badge key={option.id} variant="secondary" className="gap-1 pr-1 text-xs">
+                        <Badge key={option.id} variant="secondary" className="h-auto max-w-full items-start gap-1 whitespace-normal pr-1 text-left text-xs wrap-break-word">
                             {option.name}
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-xs"
                                 aria-label={`Remove datacenter "${option.name}"`}
-                                className="text-muted-foreground hover:text-foreground rounded-sm"
+                                className="size-4 shrink-0 rounded-sm p-0 text-muted-foreground hover:text-foreground"
                                 onClick={() => onChange(selected.filter((sid) => sid !== option.id))}
                             >
                                 <X className="h-3 w-3" />
-                            </button>
+                            </Button>
                         </Badge>
                     ))}
                 </div>
@@ -70,10 +72,10 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         aria-expanded={open}
                         aria-required={required}
                         aria-invalid={hasError}
-                        className={cn('h-auto min-h-9 w-full justify-between font-normal', hasError && 'border-destructive')}
+                        className={cn('h-auto min-h-9 w-full min-w-0 justify-between font-normal', hasError && 'border-destructive')}
                         data-testid="datacenter-select"
                     >
-                        <span className="text-muted-foreground">
+                        <span className="min-w-0 flex-1 text-left text-muted-foreground">
                             {selectedOptions.length > 0
                                 ? `${selectedOptions.length} datacenter${selectedOptions.length > 1 ? 's' : ''} selected`
                                 : 'Select datacenters...'}

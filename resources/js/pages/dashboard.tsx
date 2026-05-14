@@ -8,7 +8,6 @@ import {
     type LucideIcon,
     Settings,
     Sparkles,
-    Upload,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -228,7 +227,6 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     const [unicorns, setUnicorns] = useState<Array<{ id: number; x: number; y: number; size: number; rotation: number }>>([]);
     const [showConfetti, setShowConfetti] = useState(false);
     const easterEggTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const uploadSectionRef = useRef<HTMLDivElement | null>(null);
     const hoverCountRef = useRef(0);
     const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
     const unicornIdCounterRef = useRef(0);
@@ -237,10 +235,6 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     const igsnCountDisplay = typeof igsnCount === 'number' ? igsnCount : 0;
     const dataInstitutions = typeof dataInstitutionCount === 'number' ? dataInstitutionCount : 0;
     const igsnInstitutions = typeof igsnInstitutionCount === 'number' ? igsnInstitutionCount : 0;
-
-    const handleJumpToUpload = useCallback(() => {
-        uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
 
     const recentDraftHref = recentDrafts?.[0] ? editorRoute({ query: { resourceId: recentDrafts[0].id } }).url : '/resources';
 
@@ -261,12 +255,6 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                         : 'Open the resource list to review published and draft records.',
                 href: recentDraftHref,
                 icon: FolderClock,
-            },
-            {
-                title: 'Upload metadata',
-                description: 'Import XML, JSON, JSON-LD, or IGSN CSV from one place.',
-                icon: Upload,
-                onClick: handleJumpToUpload,
             },
             {
                 title: 'Open IGSNs',
@@ -305,7 +293,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         }
 
         return actions;
-    }, [auth.user, draftCount, handleJumpToUpload, recentDraftHref]);
+    }, [auth.user, draftCount, recentDraftHref]);
 
     // Easter Egg: Reset everything
     const resetEasterEgg = useCallback(() => {
@@ -518,7 +506,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                     </div>
 
                     <div className="grid gap-4" data-testid="dashboard-side-column">
-                        <Card ref={uploadSectionRef} id="dashboard-upload-panel" data-testid="dashboard-upload-card" className="border-primary/10" data-tour="dashboard-upload">
+                        <Card id="dashboard-upload-panel" data-testid="dashboard-upload-card" className="border-primary/10" data-tour="dashboard-upload">
                             <CardHeader className="items-center text-center">
                                 <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
                                     Import hub

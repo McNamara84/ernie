@@ -86,7 +86,7 @@ interface TestResource {
     resourcetypegeneral?: string;
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
-    landingPage?: { id: number; status: string; public_url: string } | null;
+    landingPage?: { id: number; is_published: boolean; public_url: string } | null;
 }
 
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
@@ -322,7 +322,7 @@ describe('ResourcesPage – extended', () => {
                 resources: [
                     makeResource({
                         publicstatus: 'review',
-                        landingPage: { id: 1, status: 'active', public_url: 'https://example.com/preview' },
+                        landingPage: { id: 1, is_published: false, public_url: 'https://example.com/preview' },
                     }),
                 ],
             });
@@ -379,7 +379,7 @@ describe('ResourcesPage – extended', () => {
         it('shows DataCite button when resource has a landing page', () => {
             renderPage({
                 resources: [
-                    makeResource({ landingPage: { id: 1, status: 'active', public_url: 'https://example.com' } }),
+                    makeResource({ landingPage: { id: 1, is_published: false, public_url: 'https://example.com' } }),
                 ],
             });
             expect(screen.getByTestId('datacite-button')).toBeInTheDocument();
@@ -388,6 +388,47 @@ describe('ResourcesPage – extended', () => {
         it('does not show DataCite button when resource has no landing page', () => {
             renderPage({ resources: [makeResource({ landingPage: null })] });
             expect(screen.queryByTestId('datacite-button')).not.toBeInTheDocument();
+        });
+
+        it('uses update wording only for published resources', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        publicstatus: 'published',
+                        landingPage: { id: 1, is_published: true, public_url: 'https://example.com' },
+                    }),
+                ],
+            });
+
+            expect(screen.getByRole('button', { name: /update metadata for resource/i })).toHaveAttribute('title', 'Update metadata');
+        });
+
+        it('uses register wording for review resources even when a DOI already exists', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        publicstatus: 'review',
+                        doi: '10.5880/test.2024.001',
+                        landingPage: { id: 1, is_published: false, public_url: 'https://example.com' },
+                    }),
+                ],
+            });
+
+            expect(screen.getByRole('button', { name: /register doi for resource/i })).toHaveAttribute('title', 'Register DOI');
+        });
+
+        it('uses update wording when a published landing page exists for an incomplete resource with DOI', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        publicstatus: 'draft',
+                        doi: '10.5880/test.2024.001',
+                        landingPage: { id: 1, is_published: true, public_url: 'https://example.com' },
+                    }),
+                ],
+            });
+
+            expect(screen.getByRole('button', { name: /update metadata for resource/i })).toHaveAttribute('title', 'Update metadata');
         });
     });
 

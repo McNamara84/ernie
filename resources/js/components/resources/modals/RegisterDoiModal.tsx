@@ -12,18 +12,7 @@ import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type User as AuthUser } from '@/types';
-
-interface Resource {
-    id: number;
-    doi?: string | null;
-    title?: string;
-    landingPage?: {
-        id: number;
-        status: string;
-        public_url: string;
-    } | null;
-    [key: string]: unknown;
-}
+import { type ResourceDoiActionItem as Resource,shouldUseUpdateMetadataLabel } from '@/types/resources';
 
 interface RegisterDoiModalProps {
     resource: Resource;
@@ -137,8 +126,15 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
 
     const hasExistingDoi = Boolean(resource.doi);
+    const shouldUseUpdateLabel = shouldUseUpdateMetadataLabel(resource);
     const hasLandingPage = Boolean(resource.landingPage);
     const isBeginner = auth.user?.role === 'beginner';
+    const primaryActionLabel = shouldUseUpdateLabel ? 'Update metadata' : 'Register DOI';
+    const existingDoiDescription = shouldUseUpdateLabel
+        ? `Update metadata for registered DOI: ${resource.doi}`
+        : hasExistingDoi
+            ? `This resource already has DOI ${resource.doi}. Continue to sync the record with DataCite.`
+            : 'Register a new DOI for this resource with DataCite.';
 
     // Load available prefixes from backend config
     useEffect(() => {
@@ -296,11 +292,9 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DataCiteIcon className="size-5" />
-                        {hasExistingDoi ? 'Update DOI Metadata' : 'Register DOI with DataCite'}
+                        {primaryActionLabel}
                     </DialogTitle>
-                    <DialogDescription>
-                        {hasExistingDoi ? `Update metadata for existing DOI: ${resource.doi}` : 'Register a new DOI for this resource with DataCite.'}
-                    </DialogDescription>
+                    <DialogDescription>{existingDoiDescription}</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
@@ -347,7 +341,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                             <AlertDescription>
                                 This resource already has a DOI: <strong>{resource.doi}</strong>
                                 <br />
-                                Submitting will update the metadata at DataCite.
+                                {shouldUseUpdateLabel ? 'Submitting will update the metadata at DataCite.' : 'Submitting will sync this DOI record with DataCite.'}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -476,7 +470,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                 disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
                                 data-testid="orcid-preflight-override"
                             >
-                                {hasExistingDoi ? 'Update anyway' : 'Register anyway'}
+                                {shouldUseUpdateLabel ? 'Update anyway' : 'Register anyway'}
                             </LoadingButton>
                         </>
                     ) : (
@@ -491,7 +485,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                                 orcidBlockers.length > 0
                             }
                         >
-                            {hasExistingDoi ? 'Update Metadata' : 'Register DOI'}
+                            {primaryActionLabel}
                         </LoadingButton>
                     )}
                 </DialogFooter>

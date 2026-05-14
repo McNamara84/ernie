@@ -50,9 +50,10 @@ describe('RegisterDoiModal', () => {
         id: 1,
         title: 'Test Resource',
         doi: null,
+        publicstatus: 'draft',
         landingPage: {
             id: 1,
-            status: 'draft',
+            is_published: false,
             public_url: 'https://example.com/preview/123',
         },
     };
@@ -60,6 +61,31 @@ describe('RegisterDoiModal', () => {
     const mockResourceWithDoi = {
         ...mockResource,
         doi: '10.83279/existing-doi',
+        publicstatus: 'published',
+        landingPage: {
+            ...mockResource.landingPage,
+            is_published: true,
+        },
+    };
+
+    const mockResourceWithReviewDoi = {
+        ...mockResource,
+        doi: '10.83279/review-doi',
+        publicstatus: 'review',
+        landingPage: {
+            ...mockResource.landingPage,
+            is_published: false,
+        },
+    };
+
+    const mockDraftStatusResourceWithPublishedLandingPage = {
+        ...mockResource,
+        doi: '10.83279/published-landing-page-doi',
+        publicstatus: 'draft',
+        landingPage: {
+            ...mockResource.landingPage,
+            is_published: true,
+        },
     };
 
     const mockPrefixConfig = {
@@ -87,18 +113,36 @@ describe('RegisterDoiModal', () => {
     it('renders modal with correct title for new DOI registration', async () => {
         render(<RegisterDoiModal {...defaultProps} />);
 
-        expect(screen.getByText('Register DOI with DataCite')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Register DOI' })).toBeInTheDocument();
         await waitFor(() => {
             expect(screen.getByText(/register a new doi/i)).toBeInTheDocument();
         });
     });
 
-    it('renders modal with correct title for DOI update', async () => {
+    it('renders modal with update title only for published DOI records', async () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithDoi} />);
 
-        expect(screen.getByText('Update DOI Metadata')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Update metadata' })).toBeInTheDocument();
         await waitFor(() => {
-            expect(screen.getByText(/update metadata for existing doi/i)).toBeInTheDocument();
+            expect(screen.getByText(/update metadata for registered doi/i)).toBeInTheDocument();
+        });
+    });
+
+    it('keeps the register title for review records that already have a DOI', async () => {
+        render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithReviewDoi} />);
+
+        expect(screen.getByRole('heading', { name: 'Register DOI' })).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText(/continue to sync the record with datacite/i)).toBeInTheDocument();
+        });
+    });
+
+    it('uses the published landing page flag when the resource status is not published', async () => {
+        render(<RegisterDoiModal {...defaultProps} resource={mockDraftStatusResourceWithPublishedLandingPage} />);
+
+        expect(screen.getByRole('heading', { name: 'Update metadata' })).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText(/update metadata for registered doi/i)).toBeInTheDocument();
         });
     });
 
@@ -297,11 +341,19 @@ describe('RegisterDoiModal', () => {
         });
     });
 
-    it('changes button text to "Update Metadata" for existing DOI', async () => {
+    it('changes button text to "Update metadata" for published DOI records', async () => {
         render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithDoi} />);
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /update metadata/i })).toBeInTheDocument();
+        });
+    });
+
+    it('keeps the button text at "Register DOI" for review DOI records', async () => {
+        render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithReviewDoi} />);
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /register doi/i })).toBeInTheDocument();
         });
     });
 
@@ -509,7 +561,7 @@ describe('RegisterDoiModal', () => {
             });
         });
 
-        it('labels the override button "Update anyway" when the resource already has a DOI', async () => {
+        it('labels the override button "Update anyway" for published DOI records', async () => {
             const user = userEvent.setup();
 
             mockPost.mockRejectedValueOnce(
@@ -541,6 +593,40 @@ describe('RegisterDoiModal', () => {
             const overrideButton = await screen.findByTestId('orcid-preflight-override');
             expect(overrideButton).toHaveTextContent(/update anyway/i);
             expect(overrideButton).not.toHaveTextContent(/register anyway/i);
+        });
+
+        it('keeps the override button as "Register anyway" for review DOI records', async () => {
+            const user = userEvent.setup();
+
+            mockPost.mockRejectedValueOnce(
+                makeAxiosError(409, {
+                    error: 'orcid_validation_warning',
+                    message: 'ORCID service unavailable',
+                    invalid: [],
+                    warnings: [
+                        {
+                            severity: 'warning',
+                            reason: 'timeout',
+                            role: 'creator',
+                            position: 0,
+                            orcid: '0000-0002-3333-4444',
+                            displayName: 'Alex Creator',
+                        },
+                    ],
+                }),
+            );
+
+            render(<RegisterDoiModal {...defaultProps} resource={mockResourceWithReviewDoi} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /register doi/i })).not.toBeDisabled();
+            });
+
+            await user.click(screen.getByRole('button', { name: /register doi/i }));
+
+            const overrideButton = await screen.findByTestId('orcid-preflight-override');
+            expect(overrideButton).toHaveTextContent(/register anyway/i);
+            expect(overrideButton).not.toHaveTextContent(/update anyway/i);
         });
 
         it('renders plural identifier count when multiple ORCIDs are invalid', async () => {
