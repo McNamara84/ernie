@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -25,7 +25,7 @@ function resolveDatasetExample(filename: string): string {
     return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
 }
 
-async function exportIgsnJsonThroughUi(page: Parameters<typeof test>[0]['page'], exportButton: ReturnType<Parameters<typeof test>[0]['page']['getByRole']>) {
+async function exportIgsnJsonThroughUi(page: Page, exportButton: Locator) {
     const exportResponsePromise = page.waitForResponse(
         (response) => {
             const url = new URL(response.url());
