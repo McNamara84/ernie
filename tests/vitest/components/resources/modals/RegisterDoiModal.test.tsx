@@ -53,7 +53,7 @@ describe('RegisterDoiModal', () => {
         publicstatus: 'draft',
         landingPage: {
             id: 1,
-            status: 'draft',
+            is_published: false,
             public_url: 'https://example.com/preview/123',
         },
     };
@@ -64,7 +64,7 @@ describe('RegisterDoiModal', () => {
         publicstatus: 'published',
         landingPage: {
             ...mockResource.landingPage,
-            status: 'published',
+            is_published: true,
         },
     };
 
@@ -74,7 +74,17 @@ describe('RegisterDoiModal', () => {
         publicstatus: 'review',
         landingPage: {
             ...mockResource.landingPage,
-            status: 'draft',
+            is_published: false,
+        },
+    };
+
+    const mockDraftStatusResourceWithPublishedLandingPage = {
+        ...mockResource,
+        doi: '10.83279/published-landing-page-doi',
+        publicstatus: 'draft',
+        landingPage: {
+            ...mockResource.landingPage,
+            is_published: true,
         },
     };
 
@@ -124,6 +134,15 @@ describe('RegisterDoiModal', () => {
         expect(screen.getByRole('heading', { name: 'Register DOI' })).toBeInTheDocument();
         await waitFor(() => {
             expect(screen.getByText(/continue to sync the record with datacite/i)).toBeInTheDocument();
+        });
+    });
+
+    it('uses the published landing page flag when the resource status is not published', async () => {
+        render(<RegisterDoiModal {...defaultProps} resource={mockDraftStatusResourceWithPublishedLandingPage} />);
+
+        expect(screen.getByRole('heading', { name: 'Update metadata' })).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText(/update metadata for registered doi/i)).toBeInTheDocument();
         });
     });
 

@@ -20,7 +20,7 @@ interface Resource {
     title?: string;
     landingPage?: {
         id: number;
-        status: string;
+        is_published: boolean;
         public_url: string;
     } | null;
     [key: string]: unknown;
@@ -139,7 +139,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
 
     const hasExistingDoi = Boolean(resource.doi);
     const shouldUseUpdateLabel = hasExistingDoi
-        && (resource.publicstatus === 'published' || resource.landingPage?.status === 'published');
+        && (resource.publicstatus === 'published' || resource.landingPage?.is_published === true);
     const hasLandingPage = Boolean(resource.landingPage);
     const isBeginner = auth.user?.role === 'beginner';
     const primaryActionLabel = shouldUseUpdateLabel ? 'Update metadata' : 'Register DOI';

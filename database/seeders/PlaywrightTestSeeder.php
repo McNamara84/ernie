@@ -334,6 +334,7 @@ class PlaywrightTestSeeder extends Seeder
 
         $hasAbstract = $resource->descriptions()
             ->whereHas('descriptionType', fn ($query) => $query->where('slug', 'Abstract'))
+            ->whereRaw("TRIM(COALESCE(value, '')) != ''")
             ->exists();
 
         if (! $hasAbstract) {

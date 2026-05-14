@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -189,4 +191,42 @@ it('repairs legacy and incomplete Playwright fixtures idempotently', function ()
         ])->count())->toBe(3)
         ->and(Resource::query()->where('doi', PLAYWRIGHT_PUBLISHED_DOI)->count())->toBe(1)
         ->and(Resource::query()->where('doi', PLAYWRIGHT_REVIEW_DOI)->count())->toBe(1);
+});
+
+it('replaces blank abstract fixtures with a non-empty abstract', function (): void {
+    $abstractType = DescriptionType::query()->firstOrCreate(
+        ['slug' => 'Abstract'],
+        ['name' => 'Abstract', 'is_active' => true, 'is_elmo_active' => true],
+    );
+
+    $resource = Resource::factory()->withDoi(PLAYWRIGHT_PUBLISHED_DOI)->create();
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Playwright: Published Resource',
+    ]);
+    ResourceCreator::factory()->create([
+        'resource_id' => $resource->id,
+        'position' => 1,
+    ]);
+    LandingPage::create([
+        'resource_id' => $resource->id,
+        'slug' => 'playwright-published',
+        'template' => 'default_gfz',
+        'is_published' => true,
+        'published_at' => now(),
+        'doi_prefix' => 'stale-prefix',
+    ]);
+    Description::query()->create([
+        'resource_id' => $resource->id,
+        'description_type_id' => $abstractType->id,
+        'value' => '   ',
+    ]);
+
+    test()->seed(PlaywrightTestSeeder::class);
+
+    $reloaded = loadPlaywrightResourceByDoi(PLAYWRIGHT_PUBLISHED_DOI);
+
+    expect($reloaded->descriptions->contains(fn ($description) => $description->isAbstract() && trim((string) $description->value) !== ''))
+        ->toBeTrue()
+        ->and($reloaded->isComplete())->toBeTrue();
 });

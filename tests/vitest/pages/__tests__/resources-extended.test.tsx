@@ -86,7 +86,7 @@ interface TestResource {
     resourcetypegeneral?: string;
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
-    landingPage?: { id: number; status: string; public_url: string } | null;
+    landingPage?: { id: number; is_published: boolean; public_url: string } | null;
 }
 
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
@@ -322,7 +322,7 @@ describe('ResourcesPage – extended', () => {
                 resources: [
                     makeResource({
                         publicstatus: 'review',
-                        landingPage: { id: 1, status: 'active', public_url: 'https://example.com/preview' },
+                        landingPage: { id: 1, is_published: false, public_url: 'https://example.com/preview' },
                     }),
                 ],
             });
@@ -379,7 +379,7 @@ describe('ResourcesPage – extended', () => {
         it('shows DataCite button when resource has a landing page', () => {
             renderPage({
                 resources: [
-                    makeResource({ landingPage: { id: 1, status: 'active', public_url: 'https://example.com' } }),
+                    makeResource({ landingPage: { id: 1, is_published: false, public_url: 'https://example.com' } }),
                 ],
             });
             expect(screen.getByTestId('datacite-button')).toBeInTheDocument();
@@ -395,7 +395,7 @@ describe('ResourcesPage – extended', () => {
                 resources: [
                     makeResource({
                         publicstatus: 'published',
-                        landingPage: { id: 1, status: 'published', public_url: 'https://example.com' },
+                        landingPage: { id: 1, is_published: true, public_url: 'https://example.com' },
                     }),
                 ],
             });
@@ -409,7 +409,7 @@ describe('ResourcesPage – extended', () => {
                     makeResource({
                         publicstatus: 'review',
                         doi: '10.5880/test.2024.001',
-                        landingPage: { id: 1, status: 'draft', public_url: 'https://example.com' },
+                        landingPage: { id: 1, is_published: false, public_url: 'https://example.com' },
                     }),
                 ],
             });
