@@ -12,19 +12,7 @@ import { Label } from '@/components/ui/label';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type User as AuthUser } from '@/types';
-
-interface Resource {
-    id: number;
-    doi?: string | null;
-    publicstatus?: string;
-    title?: string;
-    landingPage?: {
-        id: number;
-        is_published: boolean;
-        public_url: string;
-    } | null;
-    [key: string]: unknown;
-}
+import { type ResourceDoiActionItem as Resource,shouldUseUpdateMetadataLabel } from '@/types/resources';
 
 interface RegisterDoiModalProps {
     resource: Resource;
@@ -138,8 +126,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     const [orcidWarnings, setOrcidWarnings] = useState<OrcidPreflightIssue[]>([]);
 
     const hasExistingDoi = Boolean(resource.doi);
-    const shouldUseUpdateLabel = hasExistingDoi
-        && (resource.publicstatus === 'published' || resource.landingPage?.is_published === true);
+    const shouldUseUpdateLabel = shouldUseUpdateMetadataLabel(resource);
     const hasLandingPage = Boolean(resource.landingPage);
     const isBeginner = auth.user?.role === 'beginner';
     const primaryActionLabel = shouldUseUpdateLabel ? 'Update metadata' : 'Register DOI';

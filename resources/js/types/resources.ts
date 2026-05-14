@@ -50,3 +50,41 @@ export interface ResourceFilterOptions {
     };
     statuses: string[];
 }
+
+export interface ResourceListAuthor {
+    givenName?: string | null;
+    familyName?: string | null;
+    name?: string;
+}
+
+export interface ResourceListLandingPage {
+    id: number;
+    is_published: boolean;
+    public_url: string;
+}
+
+export interface ResourceListItem {
+    id: number;
+    doi?: string | null;
+    year: number;
+    version?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    curator?: string;
+    publicstatus?: string;
+    resourcetypegeneral?: string;
+    title?: string;
+    first_author?: ResourceListAuthor | null;
+    landingPage?: ResourceListLandingPage | null;
+    [key: string]: unknown;
+}
+
+export interface ResourceDoiActionItem extends Pick<ResourceListItem, 'id' | 'doi' | 'publicstatus' | 'title' | 'landingPage'> {
+    [key: string]: unknown;
+}
+
+export function shouldUseUpdateMetadataLabel(resource: Pick<ResourceListItem, 'doi' | 'publicstatus' | 'landingPage'>): boolean {
+    const hasExistingDoi = Boolean(resource.doi);
+
+    return hasExistingDoi && (resource.publicstatus === 'published' || resource.landingPage?.is_published === true);
+}

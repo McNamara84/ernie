@@ -28,44 +28,17 @@ import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { editor as editorRoute } from '@/routes';
-import { type BreadcrumbItem,type User as AuthUser } from '@/types';
+import { type BreadcrumbItem, type User as AuthUser } from '@/types';
 import {
     type ResourceFilterOptions,
     type ResourceFilterState,
+    type ResourceListItem as Resource,
     type ResourceSortDirection,
     type ResourceSortKey,
     type ResourceSortState,
+    shouldUseUpdateMetadataLabel,
 } from '@/types/resources';
 import { parseResourceFiltersFromUrl } from '@/utils/filter-parser';
-
-interface Author {
-    givenName?: string | null;
-    familyName?: string | null;
-    name?: string;
-}
-
-interface LandingPage {
-    id: number;
-    status: string;
-    public_url: string;
-}
-
-interface Resource {
-    id: number;
-    doi?: string | null;
-    year: number;
-    version?: string | null;
-    created_at?: string;
-    updated_at?: string;
-    curator?: string;
-    publicstatus?: string;
-    resourcetypegeneral?: string;
-    title?: string;
-    first_author?: Author | null;
-    landingPage?: LandingPage | null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
-}
 
 interface PaginationInfo {
     current_page: number;
@@ -1482,8 +1455,8 @@ function ResourcesPage({
                                                                             variant="ghost"
                                                                             size="icon"
                                                                             onClick={() => handleRegisterDoi(resource)}
-                                                                            aria-label={`${resource.publicstatus === 'published' ? 'Update metadata' : 'Register DOI'} for resource ${resourceLabel}`}
-                                                                            title={resource.publicstatus === 'published' ? 'Update metadata' : 'Register DOI'}
+                                                                            aria-label={`${shouldUseUpdateMetadataLabel(resource) ? 'Update metadata' : 'Register DOI'} for resource ${resourceLabel}`}
+                                                                            title={shouldUseUpdateMetadataLabel(resource) ? 'Update metadata' : 'Register DOI'}
                                                                             data-testid="datacite-button"
                                                                         >
                                                                             <DataCiteIcon

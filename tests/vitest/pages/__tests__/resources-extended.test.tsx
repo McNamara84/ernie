@@ -416,6 +416,20 @@ describe('ResourcesPage – extended', () => {
 
             expect(screen.getByRole('button', { name: /register doi for resource/i })).toHaveAttribute('title', 'Register DOI');
         });
+
+        it('uses update wording when a published landing page exists for an incomplete resource with DOI', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        publicstatus: 'draft',
+                        doi: '10.5880/test.2024.001',
+                        landingPage: { id: 1, is_published: true, public_url: 'https://example.com' },
+                    }),
+                ],
+            });
+
+            expect(screen.getByRole('button', { name: /update metadata for resource/i })).toHaveAttribute('title', 'Update metadata');
+        });
     });
 
     // ── Action buttons ───────────────────────────────────────────────
