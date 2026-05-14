@@ -183,6 +183,12 @@ Detailed guides:
 - [docs/local-development.md](docs/local-development.md) – local setup, Windows and WSL2 guidance, Docker profiles, and troubleshooting
 - [docs/testing.md](docs/testing.md) – Pest, PHPStan, Vitest, Playwright, and local validation strategy
 
+Canonical validation commands:
+
+- `npm run check:backend` – start the required backend containers, run Pest, then run PHPStan
+- `npm run check:frontend` – run ESLint, TypeScript, and one-shot Vitest
+- `npm run check:parity` – boot the parity profile, run the MySQL-sensitive Pest slice, then run Playwright against the local dev stack
+
 ### Prerequisites
 
 - **Docker Desktop** installed and running
@@ -314,6 +320,11 @@ npm run docker:dev:down
 
 # Reset volumes
 npm run docker:dev:reset
+
+# Canonical validation entry points
+npm run check:backend
+npm run check:frontend
+npm run check:parity
 ```
 
 For direct Compose usage:
@@ -450,22 +461,31 @@ See [docs/testing.md](docs/testing.md) for the full local testing strategy.
 
 ```bash
 # PHP checks in the app container
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+npm run test:php
+npm run phpstan:check
 
 # Frontend checks on the host
 npm run lint:check
 npm run types
 npm run test:run
 
+# MySQL-sensitive backend slice
+npm run test:php:mysql-sensitive
+
+# Canonical validation entry points
+npm run check:backend
+npm run check:frontend
+
 # Coverage or browser validation when needed
 npm run test:coverage
 npm run test:e2e:devstack
+npm run check:parity
 ```
 
 Notes:
 
 - The default PHP test path is fast because `tests/pest/CreatesApplication.php` forces SQLite in memory.
+- `npm run test:php:mysql-sensitive` switches Pest to an isolated MySQL database named `ernie_test`, recreates that schema before each schema-mutating file, and runs the tests tagged with `mysql-sensitive`.
 - Keep MySQL-backed verification focused on database-sensitive changes instead of moving the full suite to MySQL.
 - Use `npm run lint` only when you want ESLint to apply automatic fixes.
 
@@ -488,11 +508,8 @@ The API includes:
 3. Run quality checks before committing:
    ```bash
    ./vendor/bin/pint                    # PHP code style
-   docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
-   npm run lint:check                   # ESLint without mutations
-   npm run types                        # TypeScript check
-   docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
-   npm run test:run                     # Vitest one-shot
+   npm run check:backend
+   npm run check:frontend
    ```
 4. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add feature`)
 5. Open a Pull Request

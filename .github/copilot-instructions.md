@@ -24,40 +24,22 @@ The only exception is the conversation with the user, which may be in any langua
 
 ## Local Development Environment
 
-ERNIE uses a **two-speed local workflow**:
+Decision defaults:
 
-- **Fast Mode** is the default local workflow for daily development.
-- **Optional profiles** add auxiliary services only when a workflow actually needs them.
+- Fast Mode is the daily default. Optional Docker profiles are opt-in.
+- On Windows, prefer a WSL2 checkout with VS Code Remote - WSL.
+- Keep PHP, Composer, Artisan, Pest, and PHPStan container-first.
+- Keep ESLint, TypeScript, Vitest, and Playwright on the host.
+- Use [docs/local-development.md](docs/local-development.md) and [docs/testing.md](docs/testing.md) for operational details.
 
-**Recommended on Windows:** keep the active checkout in the **WSL2 filesystem** and use VS Code Remote - WSL. A Windows checkout on `D:\` remains supported, but Docker bind mounts and Node-based tooling are slower there.
-
-**Fast Mode stack** using `docker-compose.dev.yml`:
-- **URL:** `https://ernie.localhost:3333` (via Traefik reverse proxy)
-- **Default services:** `traefik`, `app`, `webserver`, `vite`, `db`, `redis`, `queue`
-- **Optional profiles:**
-    - `assessment` → adds `fuji`
-    - `tools` → adds `cloudbeaver`
-    - `parity` → starts both optional profiles
-
-**Canonical startup commands:**
+Canonical commands:
 
 ```bash
 npm run docker:dev:up
-npm run docker:dev:assessment
-npm run docker:dev:tools
-npm run docker:dev:parity
+npm run check:backend
+npm run check:frontend
+npm run check:parity
 ```
-
-These wrappers always pass `--env-file .env.docker` to Docker Compose.
-
-**Important:** Keep Laravel and PHP tooling container-first. Always run artisan commands inside the Docker app service:
-```bash
-docker compose -f docker-compose.dev.yml exec app php artisan migrate
-docker compose -f docker-compose.dev.yml exec app php artisan db:seed --class=SomeSeeder
-docker compose -f docker-compose.dev.yml exec app php artisan tinker
-```
-
-**Host-side commands:** Prefer the host shell for `npm run lint:check`, `npm run types`, `npm run test:run`, and `npm run test:e2e:devstack`.
 
 ## Architecture
 
@@ -226,41 +208,30 @@ docker compose -f docker-compose.dev.yml exec app php artisan tinker
 # Start the default Docker development stack
 npm run docker:dev:up
 
-# Optional Docker profiles
-npm run docker:dev:assessment
-npm run docker:dev:tools
-npm run docker:dev:parity
+# Start only the backend services needed for PHP checks
+npm run docker:dev:backend:d
 
-# PHP / Laravel commands inside the app container
-docker compose -f docker-compose.dev.yml exec app php artisan <command>
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
-
-# Frontend and browser checks on the host
-npm run lint:check
-npm run types
-npm run test:run
-npm run test:e2e:devstack
+# Canonical validation entry points
+npm run check:backend
+npm run check:frontend
+npm run check:parity
 
 # Code quality
 ./vendor/bin/pint               # PHP formatting (Laravel preset)
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
-npm run lint:check              # ESLint without mutating files
-npm run lint                    # ESLint with auto-fix
-npm run types                   # TypeScript check
+npm run phpstan:check
+npm run lint:check
+npm run lint
+npm run types
 ```
 
 ## Testing Patterns
 
 ### Pest PHP Tests
 - Located in `tests/pest/` with subdirectories: `Feature/`, `Unit/`, `Arch/`, `Browser/`, `Datasets/`, `Helpers/`
-- Use `RefreshDatabase` trait
-- Use factories from `database/factories/` for test data
-- Custom helpers in `tests/pest/Helpers.php` (e.g., `getXmlUploadData()` for session-based responses)
-- Example pattern: `$this->actingAs(User::factory()->create())->post(...)`
 - Default local behavior is intentionally fast: `tests/pest/CreatesApplication.php` forces `APP_ENV=testing`, `DB_CONNECTION=sqlite`, and `DB_DATABASE=:memory:`.
-- Keep this SQLite path as the default local loop. Use MySQL-backed verification only for driver-sensitive changes.
-- Preferred local command: `docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage`
+- Use `npm run test:php` for the fast default loop.
+- Use `npm run test:php:mysql-sensitive` for the tests tagged with `mysql-sensitive`; this path uses an isolated `ernie_test` schema inside Docker MySQL.
+- Keep MySQL-backed verification targeted to driver-sensitive changes.
 
 ### Pest Browser Tests (Pest v4 + Playwright)
 - **Preferred for E2E tests** – Uses `pestphp/pest-plugin-browser` (Pest v4)
@@ -773,24 +744,17 @@ For regular development, always use Pest Browser tests or the local Playwright c
 
 ```bash
 # Backend (Pest)
-composer test                                # All Pest tests (incl. Browser tests)
-./vendor/bin/pest tests/pest/Feature         # Feature tests only
-./vendor/bin/pest tests/pest/Unit            # Unit tests only
-./vendor/bin/pest tests/pest/Browser/        # Browser E2E tests only
-./vendor/bin/pest tests/pest/Arch/           # Architecture tests only
-./vendor/bin/pest --filter "test name"       # Specific test
+npm run test:php                             # Fast default path
+npm run test:php:mysql-sensitive             # MySQL-backed driver-sensitive slice
+npm run check:backend                        # Pest plus PHPStan
 
 # Frontend (Vitest)
-npm run test                                  # All component tests
-npm run test:run                              # One-shot run (preferred for validation)
-npm run test:coverage                         # Coverage run
-npm run test -- --watch                       # Watch mode
-npm run test -- path/to/file.test.ts         # Specific file
+npm run test:run                              # One-shot run
+npm run check:frontend                        # ESLint plus TS plus Vitest
 
 # E2E (Legacy Playwright - JS)
-npm run test:e2e                              # Local - default choice
-npm run test:e2e -- --project=chromium       # Single browser
 npm run test:e2e:devstack                     # Against Docker devstack
+npm run check:parity                          # Parity profile plus MySQL slice plus Playwright
 npm run test:e2e:stage                        # Stage - only for bug reproduction
 ```
 
@@ -822,7 +786,13 @@ All entries must follow the existing patterns (tags, `$ref` for schemas, `ElmoAp
 ⚠️ **MANDATORY:** Before completing any PHP code changes, always run PHPStan to ensure static analysis passes:
 
 ```bash
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+npm run phpstan:check
+```
+
+For the standard backend validation loop, prefer:
+
+```bash
+npm run check:backend
 ```
 
 PHPStan is configured at **level 8** (strictest). All errors must be resolved before considering a task complete. This applies to:
@@ -836,6 +806,12 @@ PHPStan is configured at **level 8** (strictest). All errors must be resolved be
 
 ```bash
 npm run lint:check
+```
+
+For the standard frontend validation loop, prefer:
+
+```bash
+npm run check:frontend
 ```
 
 This applies to:

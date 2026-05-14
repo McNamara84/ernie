@@ -90,6 +90,12 @@ services:
       - FUJI_METRIC_VERSION=${FUJI_METRIC_VERSION:-metrics_v0.8}
       # If you use a subdomain like ernie.localhost, set ERNIE_DEV_STATEFUL_DOMAINS=ernie.localhost:3333
       - SANCTUM_STATEFUL_DOMAINS=${ERNIE_DEV_STATEFUL_DOMAINS:-ernie.localhost:3333,localhost:3333}
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/www/html/vendor/bin/pest && nc -z -w1 127.0.0.1 9000"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
 
   # Nginx Webserver
   webserver:

@@ -9,12 +9,19 @@ ERNIE uses a hybrid local testing workflow:
 - The default PHP test path stays fast by forcing SQLite in memory.
 - MySQL-specific verification should stay targeted and intentional.
 
+Canonical entry points:
+
+- `npm run check:backend`
+- `npm run check:frontend`
+- `npm run check:parity`
+
 ## Recommended Command Matrix
 
 | Check | Where to run it | Command | Notes |
 | --- | --- | --- | --- |
-| Pest fast path | app container | `docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage` | Default backend validation |
-| PHPStan | app container | `docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan` | Required before finishing PHP changes |
+| Pest fast path | Host shell via npm wrapper | `npm run test:php` | Starts backend containers if needed |
+| PHPStan | Host shell via npm wrapper | `npm run phpstan:check` | Required before finishing PHP changes |
+| MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` | Uses isolated `ernie_test` schema |
 | Vitest one-shot | Host shell | `npm run test:run` | Use for focused frontend validation |
 | Vitest coverage | Host shell | `npm run test:coverage` | Use only when coverage details matter |
 | ESLint check | Host shell | `npm run lint:check` | Non-mutating validation |
@@ -22,6 +29,9 @@ ERNIE uses a hybrid local testing workflow:
 | TypeScript | Host shell | `npm run types` | Runs app and test TS checks |
 | Playwright dev stack | Host shell | `npm run test:e2e:devstack` | Requires the Docker dev stack |
 | Playwright stage | Host shell | `npm run test:e2e:stage` | Stage-only bug reproduction |
+| Backend umbrella check | Host shell | `npm run check:backend` | Pest plus PHPStan |
+| Frontend umbrella check | Host shell | `npm run check:frontend` | ESLint plus TS plus one-shot Vitest |
+| Parity umbrella check | Host shell | `npm run check:parity` | Parity profile plus MySQL slice plus Playwright |
 
 ## PHP Test Database Strategy
 
@@ -39,13 +49,18 @@ Use a MySQL-backed slice only when one of these is true:
 - a query depends on MySQL-specific behavior
 - a failing production or stage bug cannot be reproduced against SQLite
 
+The current `mysql-sensitive` Pest group covers driver-aware migration tests and runs against a dedicated MySQL schema named `ernie_test`.
+
+The npm wrapper recreates that schema before each schema-mutating file so DDL-heavy migration tests do not leak state into the next process.
+
 ## Pest And PHPStan
 
 Recommended commands:
 
 ```bash
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+npm run test:php
+npm run phpstan:check
+npm run test:php:mysql-sensitive
 ```
 
 Why this stays in Docker:
@@ -102,23 +117,19 @@ npm run test:e2e:stage
 ### Backend change
 
 ```bash
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan
+npm run check:backend
 ```
 
 ### Frontend change
 
 ```bash
-npm run lint:check
-npm run types
-npm run test:run
+npm run check:frontend
 ```
 
 ### Cross-stack or browser-facing change
 
 ```bash
-npm run docker:dev:up:d
-docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage
-npm run test:run
-npm run test:e2e:devstack
+npm run check:backend
+npm run check:frontend
+npm run check:parity
 ```

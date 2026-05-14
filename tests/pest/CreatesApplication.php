@@ -8,6 +8,41 @@ use Illuminate\Foundation\Application;
 trait CreatesApplication
 {
     /**
+     * Resolve the database connection that Pest should force before Laravel boots.
+     *
+     * The default local loop stays on SQLite in memory for speed. A dedicated
+     * MySQL-compatible slice can opt in via `ERNIE_TEST_DB_*` variables so
+     * driver-sensitive tests run against an isolated Docker database instead of
+     * the regular development schema.
+     *
+     * @return array<string, string>
+     */
+    private function forcedEnvironment(): array
+    {
+        $driver = (string) (getenv('ERNIE_TEST_DB_CONNECTION') ?: 'sqlite');
+
+        if ($driver === 'sqlite') {
+            return [
+                'APP_ENV' => 'testing',
+                'APP_URL' => 'http://localhost',
+                'DB_CONNECTION' => 'sqlite',
+                'DB_DATABASE' => ':memory:',
+            ];
+        }
+
+        return [
+            'APP_ENV' => 'testing',
+            'APP_URL' => 'http://localhost',
+            'DB_CONNECTION' => $driver,
+            'DB_HOST' => (string) (getenv('ERNIE_TEST_DB_HOST') ?: getenv('DB_HOST') ?: 'db'),
+            'DB_PORT' => (string) (getenv('ERNIE_TEST_DB_PORT') ?: getenv('DB_PORT') ?: '3306'),
+            'DB_DATABASE' => (string) (getenv('ERNIE_TEST_DB_DATABASE') ?: getenv('DB_DATABASE') ?: 'ernie_test'),
+            'DB_USERNAME' => (string) (getenv('ERNIE_TEST_DB_USERNAME') ?: getenv('DB_USERNAME') ?: 'ernie'),
+            'DB_PASSWORD' => (string) (getenv('ERNIE_TEST_DB_PASSWORD') ?: getenv('DB_PASSWORD') ?: 'secret'),
+        ];
+    }
+
+    /**
      * Creates the application.
      */
     public function createApplication(): Application
@@ -19,12 +54,7 @@ trait CreatesApplication
         // force="true" reliably across Pest/PHPUnit versions). Forcing here guarantees
         // tests always run against the in-memory SQLite database, regardless of the
         // shell environment they are invoked from.
-        $forced = [
-            'APP_ENV' => 'testing',
-            'APP_URL' => 'http://localhost',
-            'DB_CONNECTION' => 'sqlite',
-            'DB_DATABASE' => ':memory:',
-        ];
+        $forced = $this->forcedEnvironment();
 
         foreach ($forced as $key => $value) {
             putenv("{$key}={$value}");

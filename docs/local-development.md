@@ -11,6 +11,12 @@ ERNIE has two local operating speeds:
 | Tools profile | Enable CloudBeaver only when database inspection is needed | `npm run docker:dev:tools` |
 | Parity profile | Start both optional profiles for broader local verification | `npm run docker:dev:parity` |
 
+Canonical checks:
+
+- `npm run check:backend`
+- `npm run check:frontend`
+- `npm run check:parity`
+
 Fast Mode is the default. Optional services no longer slow down or block the standard local startup path.
 
 ## Recommended Windows Setup
@@ -107,17 +113,22 @@ npm run docker:dev:parity
 | Task | Recommended place | Command |
 | --- | --- | --- |
 | Start the core stack | Host shell | `npm run docker:dev:up` |
+| Start the backend services needed for PHP checks | Host shell | `npm run docker:dev:backend:d` |
 | Stop the stack | Host shell | `npm run docker:dev:down` |
 | Reset Docker volumes | Host shell | `npm run docker:dev:reset` |
 | Laravel Artisan | app container | `docker compose -f docker-compose.dev.yml exec app php artisan <command>` |
 | Composer | app container | `docker compose -f docker-compose.dev.yml exec app composer <command>` |
-| Pest | app container | `docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/pest --no-coverage` |
-| PHPStan | app container | `docker compose -f docker-compose.dev.yml exec app php ./vendor/bin/phpstan` |
+| Pest | Host shell via npm wrapper | `npm run test:php` |
+| MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` |
+| PHPStan | Host shell via npm wrapper | `npm run phpstan:check` |
 | Vitest | Host shell | `npm run test:run` |
 | ESLint check | Host shell | `npm run lint:check` |
 | ESLint auto-fix | Host shell | `npm run lint` |
 | TypeScript | Host shell | `npm run types` |
 | Playwright against dev stack | Host shell | `npm run test:e2e:devstack` |
+| Canonical backend validation | Host shell | `npm run check:backend` |
+| Canonical frontend validation | Host shell | `npm run check:frontend` |
+| Canonical parity validation | Host shell | `npm run check:parity` |
 
 ## Environment Files
 
@@ -160,3 +171,21 @@ The initial boot may still need to:
 - seed baseline data
 
 Subsequent startups should be much faster because Docker volumes keep `vendor`, `node_modules`, and the MySQL data directory.
+
+## MySQL Test Slice
+
+The fast default Pest loop remains SQLite-backed.
+
+When you need driver-sensitive coverage, use:
+
+```powershell
+npm run test:php:mysql-sensitive
+```
+
+This command:
+
+- starts the backend containers if needed
+- creates an isolated `ernie_test` schema inside the local MySQL container
+- runs the Pest tests tagged with `mysql-sensitive`
+
+It does not reuse the regular development schema.
