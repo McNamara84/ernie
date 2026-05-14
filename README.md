@@ -224,17 +224,17 @@ Canonical validation commands:
 
 4. **Access the application**:
    - **Application (recommended / stage-like)**: https://ernie.localhost:3333/
-   - **Application (fallback)**: https://localhost:3333/
+   - **Application (localhost fallback after host/session switch)**: https://localhost:3333/
    - **Traefik Dashboard**: http://localhost:8080
 
    If `ernie.localhost` does not resolve on your system, add it to your hosts file (Windows: `C:\Windows\System32\drivers\etc\hosts`) as `127.0.0.1 ernie.localhost`.
 
-   Note: The dev stack uses `SESSION_DOMAIN=ernie.localhost` by default. If you experience `419 Page Expired` errors on login, this may be due to browser cookie handling for the `.localhost` TLD. Try accessing via `https://localhost:3333/` as a fallback, or adjust `ERNIE_DEV_SESSION_DOMAIN` in your environment.
+   Note: The dev stack uses `ERNIE_DEV_HOST=ernie.localhost` and `SESSION_DOMAIN=ernie.localhost` by default. If you experience `419 Page Expired` errors on login, a plain switch to `https://localhost:3333/` will not help until the cookie domain matches. For a localhost fallback, set `ERNIE_DEV_HOST=localhost` and `ERNIE_DEV_SESSION_DOMAIN=localhost` in `.env.docker`, keep `localhost:3333` in `ERNIE_DEV_STATEFUL_DOMAINS`, then restart the stack.
 
 5. **Run initial setup**:
    ```powershell
-   docker compose -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
-   docker compose -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
+   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
+   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
    ```
 
    The development entrypoint already installs missing dependencies, runs migrations, and seeds baseline data when the database is empty.
@@ -337,13 +337,13 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml logs -f
 docker compose --env-file .env.docker -f docker-compose.dev.yml logs -f app
 
 # Run artisan commands
-docker compose -f docker-compose.dev.yml exec app php artisan <command>
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan <command>
 
 # Run composer commands
-docker compose -f docker-compose.dev.yml exec app composer <command>
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app composer <command>
 
 # Run npm commands inside the Vite container when needed
-docker compose -f docker-compose.dev.yml exec vite npm <command>
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite npm <command>
 ```
 
 #### Playwright E2E (local dev stack)
@@ -384,7 +384,7 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml ps
 **Database migration fails:**
 The database needs time to initialize. The app entrypoint retries automatically, but you can rerun migrations manually:
 ```powershell
-docker compose -f docker-compose.dev.yml exec app php artisan migrate
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan migrate
 ```
 
 **Hot reload not working:**
@@ -396,7 +396,7 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml logs vite
 If `public/hot` is missing on the Windows host, recreate it from the Vite container:
 
 ```powershell
-docker compose -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
 **F-UJI or CloudBeaver is unavailable:**
@@ -484,7 +484,7 @@ npm run check:parity
 
 Notes:
 
-- The default PHP test path is fast because `tests/pest/CreatesApplication.php` forces SQLite in memory.
+- The default PHP test path is fast because `tests/pest/CreatesApplication.php` defaults to SQLite in memory unless `ERNIE_TEST_DB_CONNECTION` opts into the dedicated MySQL slice.
 - `npm run test:php:mysql-sensitive` switches Pest to an isolated MySQL database named `ernie_test`, recreates that schema before each schema-mutating file, and runs the current explicit MySQL-sensitive migration file slice.
 - Keep MySQL-backed verification focused on database-sensitive changes instead of moving the full suite to MySQL.
 - Use `npm run lint` only when you want ESLint to apply automatic fixes.

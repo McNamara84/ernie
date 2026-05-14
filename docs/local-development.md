@@ -64,12 +64,12 @@ If you keep the repository under `D:\` or another NTFS path:
 5. Open the app:
 
    - `https://ernie.localhost:3333`
-   - fallback: `https://localhost:3333`
+   - localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
 6. Create the first admin user:
 
    ```powershell
-   docker compose -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
+   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
    ```
 
 The development entrypoint already installs missing dependencies, runs migrations, and seeds baseline data when the database is empty.
@@ -116,8 +116,8 @@ npm run docker:dev:parity
 | Start the backend services needed for PHP checks | Host shell | `npm run docker:dev:backend:d` |
 | Stop the stack | Host shell | `npm run docker:dev:down` |
 | Reset Docker volumes | Host shell | `npm run docker:dev:reset` |
-| Laravel Artisan | app container | `docker compose -f docker-compose.dev.yml exec app php artisan <command>` |
-| Composer | app container | `docker compose -f docker-compose.dev.yml exec app composer <command>` |
+| Laravel Artisan | app container | `docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan <command>` |
+| Composer | app container | `docker compose --env-file .env.docker -f docker-compose.dev.yml exec app composer <command>` |
 | Pest | Host shell via npm wrapper | `npm run test:php` |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` |
 | PHPStan | Host shell via npm wrapper | `npm run phpstan:check` |
@@ -141,15 +141,15 @@ npm run docker:dev:parity
 
 ### `419 Page Expired`
 
-- Use `https://localhost:3333` as a fallback.
-- Check `ERNIE_DEV_SESSION_DOMAIN` and `ERNIE_DEV_STATEFUL_DOMAINS` in `.env.docker`.
+- A plain URL switch to `https://localhost:3333` is not enough while `ERNIE_DEV_SESSION_DOMAIN=ernie.localhost`.
+- For a localhost fallback, set `ERNIE_DEV_HOST=localhost` and `ERNIE_DEV_SESSION_DOMAIN=localhost` in `.env.docker`, keep `localhost:3333` in `ERNIE_DEV_STATEFUL_DOMAINS`, then restart the stack.
 
 ### `public/hot` is missing on Windows
 
 Docker Desktop can fail to sync the file back to the host even when it exists in the container.
 
 ```powershell
-docker compose -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
+docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
 ### Optional services are not reachable

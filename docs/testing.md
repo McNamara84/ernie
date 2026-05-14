@@ -38,8 +38,8 @@ Canonical entry points:
 The default PHP suite is intentionally optimized for speed.
 
 - `tests/pest/CreatesApplication.php` forces `APP_ENV=testing`.
-- The same bootstrap forces `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:`.
-- This prevents Docker runtime environment variables from accidentally switching tests to MySQL.
+- By default, the same bootstrap forces `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:`.
+- Setting `ERNIE_TEST_DB_CONNECTION` switches the dedicated MySQL-sensitive slice to its isolated Docker test schema instead.
 
 Use the SQLite path for the routine local loop.
 
