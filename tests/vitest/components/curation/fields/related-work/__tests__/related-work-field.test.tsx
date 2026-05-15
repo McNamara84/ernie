@@ -132,19 +132,34 @@ vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
                 </>
             )}
             {items.length > 1 && (
-                <button
-                    data-testid="reorder-items"
-                    onClick={() =>
-                        onReorder(
-                            [...items].reverse().map((item, index) => ({
-                                ...item,
-                                position: index,
-                            })),
-                        )
-                    }
-                >
-                    Reorder
-                </button>
+                <>
+                    <button
+                        data-testid="edit-first-item-to-duplicate"
+                        onClick={() =>
+                            onItemChange(0, {
+                                ...items[0],
+                                identifier: items[1].identifier,
+                                identifier_type: items[1].identifier_type,
+                                relation_type: items[1].relation_type,
+                            })
+                        }
+                    >
+                        Edit first to duplicate
+                    </button>
+                    <button
+                        data-testid="reorder-items"
+                        onClick={() =>
+                            onReorder(
+                                [...items].reverse().map((item, index) => ({
+                                    ...item,
+                                    position: index,
+                                })),
+                            )
+                        }
+                    >
+                        Reorder
+                    </button>
+                </>
             )}
         </div>
     ),
@@ -528,6 +543,34 @@ describe('RelatedWorkField', () => {
             expect.objectContaining({ identifier: '10.1234/updated', citation_label: null, position: 0 }),
             { identifier: '10.1234/untouched', identifier_type: 'DOI', relation_type: 'References', position: 1 },
         ]);
+    });
+
+    it('rejects edits that would duplicate another related work entry', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    {
+                        identifier: '10.1234/original',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        position: 0,
+                    },
+                    {
+                        identifier: '10.1234/duplicate',
+                        identifier_type: 'DOI',
+                        relation_type: 'References',
+                        position: 1,
+                    },
+                ]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByTestId('edit-first-item-to-duplicate'));
+
+        expect(onChange).not.toHaveBeenCalled();
+        expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
     });
 
     it('preserves citation labels when editing an item without changing its identifier', async () => {

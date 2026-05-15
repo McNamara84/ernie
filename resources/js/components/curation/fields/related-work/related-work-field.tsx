@@ -259,6 +259,19 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     };
 
     const handleItemChange = (index: number, updatedItem: RelatedIdentifier) => {
+        const otherItems = relatedWorks.filter((_, itemIndex) => itemIndex !== index);
+
+        if (isDuplicate(updatedItem.identifier, updatedItem.identifier_type, updatedItem.relation_type, otherItems)) {
+            setDuplicateError(
+                `This exact relation already exists in the list (same identifier and relation type). Note: You can add the same identifier with a different relation type.`,
+            );
+            setTimeout(() => setDuplicateError(null), 5000);
+
+            return;
+        }
+
+        setDuplicateError(null);
+
         const previousItem = relatedWorks[index];
         const identifierChanged =
             previousItem.identifier !== updatedItem.identifier || previousItem.identifier_type !== updatedItem.identifier_type;

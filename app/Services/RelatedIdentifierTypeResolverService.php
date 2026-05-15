@@ -89,7 +89,7 @@ class RelatedIdentifierTypeResolverService
     /** @var array<string, string>|null */
     private ?array $relationTypeLookup = null;
 
-    public function resolveIdentifierType(?string $value): ?string
+    public function resolveIdentifierType(mixed $value): ?string
     {
         if (! is_string($value)) {
             return null;
@@ -98,7 +98,7 @@ class RelatedIdentifierTypeResolverService
         return $this->identifierTypeLookup()[$this->normalizeKey($value)] ?? null;
     }
 
-    public function resolveRelationType(?string $value): ?string
+    public function resolveRelationType(mixed $value): ?string
     {
         if (! is_string($value)) {
             return null;
