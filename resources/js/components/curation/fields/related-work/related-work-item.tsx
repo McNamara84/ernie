@@ -277,9 +277,12 @@ export default function RelatedWorkItem({
                     </div>
 
                     <div className="md:col-span-4">
-                        <Label htmlFor={`related-work-${index}-resolved-title`}>Resolved title</Label>
+                        <p id={`related-work-${index}-resolved-title-label`} className="text-sm font-medium leading-none">
+                            Resolved title
+                        </p>
                         <div
                             id={`related-work-${index}-resolved-title`}
+                            aria-labelledby={`related-work-${index}-resolved-title-label`}
                             className="min-h-24 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
                         >
                             {item.related_title?.trim() ? item.related_title : 'No resolved title available yet.'}

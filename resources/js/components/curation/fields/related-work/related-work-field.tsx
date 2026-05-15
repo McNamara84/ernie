@@ -69,6 +69,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     // Shared form state - persisted across mode switches
     const [identifier, setIdentifier] = useState('');
     const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
+    const [identifierTypeWasManuallySelected, setIdentifierTypeWasManuallySelected] = useState(false);
     const [relationType, setRelationType] = useState<RelationType>('Cites');
 
     useEffect(() => {
@@ -145,9 +146,19 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     // Update identifierType when identifier changes in simple mode (auto-detection)
     const handleIdentifierChange = (value: string, autoDetect: boolean = false) => {
         setIdentifier(value);
-        if (autoDetect) {
+
+        if (value.trim() === '') {
+            setIdentifierTypeWasManuallySelected(false);
+        }
+
+        if (autoDetect && !identifierTypeWasManuallySelected) {
             setIdentifierType(detectIdentifierType(value));
         }
+    };
+
+    const handleIdentifierTypeChange = (value: IdentifierType) => {
+        setIdentifierType(value);
+        setIdentifierTypeWasManuallySelected(true);
     };
 
     const handleAdd = (data: RelatedIdentifierFormData) => {
@@ -185,6 +196,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         // Reset form after successful add
         setIdentifier('');
         setIdentifierType('DOI');
+        setIdentifierTypeWasManuallySelected(false);
         setRelationType('Cites');
     };
 
@@ -288,7 +300,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                         identifier={identifier}
                         onIdentifierChange={(value) => handleIdentifierChange(value, true)}
                         identifierType={identifierType}
-                        onIdentifierTypeChange={setIdentifierType}
+                        onIdentifierTypeChange={handleIdentifierTypeChange}
                         relationType={relationType}
                         onRelationTypeChange={setRelationType}
                         activeRelationTypes={activeRelationTypes}

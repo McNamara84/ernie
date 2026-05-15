@@ -214,6 +214,34 @@ describe('RelatedWorkField', () => {
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
     });
 
+    it('preserves a manually overridden identifier type while the field continues to change', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        mockDetectIdentifierType.mockReturnValue('DOI');
+
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await user.click(screen.getByTestId('set-url-type'));
+        await user.type(screen.getByTestId('identifier-input'), 'ambiguous-identifier');
+
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
+    });
+
+    it('re-enables identifier auto-detection after the shared field is reset', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        mockDetectIdentifierType
+            .mockReturnValueOnce('DOI')
+            .mockReturnValue('URL');
+
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await user.click(screen.getByTestId('set-url-type'));
+        await user.type(screen.getByTestId('identifier-input'), 'ambiguous-identifier');
+        await user.clear(screen.getByTestId('identifier-input'));
+        await user.type(screen.getByTestId('identifier-input'), 'https://example.org/resource');
+
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
+    });
+
     it('hydrates a citation label after adding a DOI when lookup succeeds', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         global.fetch = vi.fn().mockResolvedValue({

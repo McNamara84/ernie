@@ -12,6 +12,7 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -28,6 +29,7 @@ class RelationDiscoveryService
         private readonly ScholExplorerService $scholExplorerService,
         private readonly DataCiteEventDataService $dataCiteEventDataService,
         private readonly DataCiteSyncService $dataCiteSyncService,
+        private readonly RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
     ) {}
 
     /**
@@ -241,8 +243,9 @@ class RelationDiscoveryService
     public function acceptRelation(SuggestedRelation $suggestion): array
     {
         $resource = $suggestion->resource;
+        $citationLabel = $this->resolveAcceptedSuggestionCitationLabel($suggestion);
 
-        DB::transaction(function () use ($suggestion, $resource) {
+        DB::transaction(function () use ($suggestion, $resource, $citationLabel) {
             // Lock existing rows to prevent concurrent inserts from reading the same max
             $maxPosition = RelatedIdentifier::where('resource_id', $resource->id)
                 ->lockForUpdate()
@@ -257,6 +260,7 @@ class RelationDiscoveryService
                 ],
                 [
                     'identifier_type_id' => $suggestion->identifier_type_id,
+                    'citation_label' => $citationLabel,
                     'position' => $maxPosition + 1,
                 ],
             );
@@ -292,6 +296,58 @@ class RelationDiscoveryService
             'datacite_synced' => false,
             'message' => 'Relation accepted but DataCite sync failed: ' . ($syncResult->errorMessage ?? 'Unknown error'),
         ];
+    }
+
+    private function resolveAcceptedSuggestionCitationLabel(SuggestedRelation $suggestion): ?string
+    {
+        $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
+            $suggestion->identifier,
+            (string) ($suggestion->identifierType->slug ?? ''),
+            microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS,
+        );
+
+        if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
+            return trim($resolvedCitationLabel);
+        }
+
+        return $this->buildCitationLabelFromSuggestionMetadata($suggestion);
+    }
+
+    private function buildCitationLabelFromSuggestionMetadata(SuggestedRelation $suggestion): ?string
+    {
+        $title = is_string($suggestion->source_title) ? trim($suggestion->source_title) : '';
+
+        if ($title === '') {
+            return null;
+        }
+
+        $label = $title;
+        $year = $this->extractPublicationYear($suggestion->source_publication_date);
+
+        if ($year !== null) {
+            $label .= " ({$year})";
+        }
+
+        $publisher = is_string($suggestion->source_publisher) ? trim($suggestion->source_publisher) : '';
+
+        if ($publisher !== '') {
+            $label .= ". {$publisher}";
+        }
+
+        return rtrim($label, ". ") . '.';
+    }
+
+    private function extractPublicationYear(?string $publicationDate): ?string
+    {
+        if ($publicationDate === null) {
+            return null;
+        }
+
+        if (preg_match('/\b(\d{4})\b/', $publicationDate, $matches) !== 1) {
+            return null;
+        }
+
+        return $matches[1];
     }
 
     /**

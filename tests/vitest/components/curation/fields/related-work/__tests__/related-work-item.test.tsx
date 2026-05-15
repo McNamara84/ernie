@@ -177,6 +177,13 @@ describe('RelatedWorkItem', () => {
         expect(screen.getByText('Related Research Paper Title')).toBeInTheDocument();
     });
 
+    it('associates the resolved title content with its visible heading', () => {
+        render(<RelatedWorkItem {...defaultProps} />);
+
+        expect(screen.getByText('Resolved title')).toBeInTheDocument();
+        expect(screen.getByText('No resolved title available yet.')).toHaveAttribute('aria-labelledby', 'related-work-0-resolved-title-label');
+    });
+
     it('shows the relation type information field for Other', () => {
         render(
             <RelatedWorkItem

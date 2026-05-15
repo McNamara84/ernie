@@ -38,7 +38,7 @@ it('drops and re-adds the citation_label column on related_identifiers', functio
     expect(Schema::hasColumn('related_identifiers', 'citation_label'))->toBeTrue();
 });
 
-it('backfills existing related identifiers with their identifier value when reapplying the migration', function (): void {
+it('leaves legacy related identifiers unresolved when reapplying the migration', function (): void {
     test()->seed(IdentifierTypeSeeder::class);
     test()->seed(RelationTypeSeeder::class);
 
@@ -68,5 +68,5 @@ it('backfills existing related identifiers with their identifier value when reap
     $migration->up();
 
     expect(DB::table('related_identifiers')->where('resource_id', $resource->id)->value('citation_label'))
-        ->toBe('10.5880/legacy.2026.001');
+        ->toBeNull();
 });
