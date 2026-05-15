@@ -1,6 +1,6 @@
 import '../css/app.css';
 
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react';
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
@@ -336,7 +336,11 @@ const queryClient = createQueryClient();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
-    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    resolve: (name) =>
+        resolvePageComponent(
+            `./pages/${name}.tsx`,
+            import.meta.glob<ResolvedComponent>('./pages/**/*.tsx', { import: 'default' }),
+        ),
     setup({ el, App, props }) {
         // Initialize font size before rendering
         const fontSizePreference = props.initialPage.props.fontSizePreference as 'regular' | 'large';
