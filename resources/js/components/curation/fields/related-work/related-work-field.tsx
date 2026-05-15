@@ -63,20 +63,53 @@ function isDuplicate(identifier: string, identifierType: string, relationType: s
     });
 }
 
+function isActiveOption(value: string, activeOptions?: string[]): boolean {
+    return activeOptions === undefined || activeOptions.includes(value);
+}
+
+function getPreferredActiveOption<T extends string>(preferred: T, activeOptions?: string[]): T | null {
+    if (activeOptions === undefined) {
+        return preferred;
+    }
+
+    if (activeOptions.includes(preferred)) {
+        return preferred;
+    }
+
+    const firstActive = activeOptions.find((value) => value.trim() !== '');
+
+    return firstActive ? (firstActive as T) : null;
+}
+
 export default function RelatedWorkField({ relatedWorks, onChange, activeRelationTypes, activeIdentifierTypes }: RelatedWorkFieldProps) {
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
     const relatedWorksRef = useRef(relatedWorks);
+    const defaultIdentifierType = getPreferredActiveOption<IdentifierType>('DOI', activeIdentifierTypes);
+    const defaultRelationType = getPreferredActiveOption<RelationType>('Cites', activeRelationTypes);
 
     // Shared form state - persisted across mode switches
     const [identifier, setIdentifier] = useState('');
-    const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
+    const [identifierType, setIdentifierType] = useState<IdentifierType>(() => defaultIdentifierType ?? 'DOI');
     const [identifierTypeWasManuallySelected, setIdentifierTypeWasManuallySelected] = useState(false);
-    const [relationType, setRelationType] = useState<RelationType>('Cites');
+    const [relationType, setRelationType] = useState<RelationType>(() => defaultRelationType ?? 'Cites');
 
     useEffect(() => {
         relatedWorksRef.current = relatedWorks;
     }, [relatedWorks]);
+
+    useEffect(() => {
+        if (defaultIdentifierType !== null && !isActiveOption(identifierType, activeIdentifierTypes)) {
+            setIdentifierType(defaultIdentifierType);
+            setIdentifierTypeWasManuallySelected(false);
+        }
+    }, [activeIdentifierTypes, defaultIdentifierType, identifierType]);
+
+    useEffect(() => {
+        if (defaultRelationType !== null && !isActiveOption(relationType, activeRelationTypes)) {
+            setRelationType(defaultRelationType);
+        }
+    }, [activeRelationTypes, defaultRelationType, relationType]);
 
     const assignPositions = (items: RelatedIdentifier[]) =>
         items.map((item, index) => ({
@@ -164,7 +197,12 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }
 
         if (autoDetect && !identifierTypeWasManuallySelected) {
-            setIdentifierType(detectIdentifierType(value));
+            const detectedIdentifierType = detectIdentifierType(value);
+            const nextIdentifierType = getPreferredActiveOption<IdentifierType>(detectedIdentifierType, activeIdentifierTypes);
+
+            if (nextIdentifierType !== null) {
+                setIdentifierType(nextIdentifierType);
+            }
         }
     };
 
@@ -174,6 +212,10 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     };
 
     const handleAdd = (data: RelatedIdentifierFormData) => {
+        if (!isActiveOption(data.identifierType, activeIdentifierTypes) || !isActiveOption(data.relationType, activeRelationTypes)) {
+            return;
+        }
+
         // Check for duplicates (same identifier AND same relation type)
         if (isDuplicate(data.identifier, data.identifierType, data.relationType, relatedWorks)) {
             setDuplicateError(
@@ -207,9 +249,9 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
 
         // Reset form after successful add
         setIdentifier('');
-        setIdentifierType('DOI');
+        setIdentifierType(defaultIdentifierType ?? 'DOI');
         setIdentifierTypeWasManuallySelected(false);
-        setRelationType('Cites');
+        setRelationType(defaultRelationType ?? 'Cites');
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {

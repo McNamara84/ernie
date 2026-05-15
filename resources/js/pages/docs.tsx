@@ -443,6 +443,19 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <h4>Update MSL Keywords</h4>
                         <DocsCodeBlock code="php artisan get-msl-keywords" />
 
+                        <h4>Backfill Related Work Citation Labels</h4>
+                        <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels" />
+                        <p className="text-sm text-muted-foreground">
+                            Run this once after deploying the citation-label update to an existing installation. It hydrates missing
+                            citation labels for already stored DOI-based related identifiers without overwriting labels that were curated
+                            manually.
+                        </p>
+                        <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500" />
+                        <p className="text-sm text-muted-foreground">
+                            Use <code>--limit</code> to process large installations in smaller batches during low-traffic maintenance
+                            windows.
+                        </p>
+
                         <h4>DataCite Configuration</h4>
                         <p>
                             Configure DataCite API credentials in your <code>.env</code> file:

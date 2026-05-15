@@ -263,6 +263,48 @@ describe('RelatedWorkField', () => {
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
     });
 
+    it('initializes and resets add-form selections from active options when defaults are inactive', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        render(
+            <RelatedWorkField
+                relatedWorks={[]}
+                onChange={onChange}
+                activeIdentifierTypes={['URL']}
+                activeRelationTypes={['References']}
+            />,
+        );
+
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
+        expect(screen.getByTestId('relation-type')).toHaveTextContent('References');
+
+        await user.type(screen.getByTestId('identifier-input'), 'https://example.org/reference');
+        await user.click(screen.getByTestId('add-button'));
+
+        expect(onChange).toHaveBeenCalledWith([
+            expect.objectContaining({
+                identifier: 'https://example.org/reference',
+                identifier_type: 'URL',
+                relation_type: 'References',
+                position: 0,
+            }),
+        ]);
+        expect(screen.getByTestId('identifier-input')).toHaveValue('');
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
+        expect(screen.getByTestId('relation-type')).toHaveTextContent('References');
+    });
+
+    it('keeps auto-detected identifier types within the active options', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        mockDetectIdentifierType.mockReturnValue('DOI');
+
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} activeIdentifierTypes={['URL']} />);
+
+        await user.type(screen.getByTestId('identifier-input'), '10.5880/inactive-doi');
+
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
+    });
+
     it('hydrates a citation label after adding a DOI when lookup succeeds', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         global.fetch = vi.fn().mockResolvedValue({
