@@ -56,6 +56,8 @@ class ResourceStorageService
     #[\NoDiscard('Stored resource and update flag must be used')]
     public function store(array $data, ?int $userId = null): array
     {
+        $data = $this->prepareDataForStorage($data);
+
         return DB::transaction(function () use ($data, $userId): array {
             $languageId = null;
 
@@ -133,6 +135,64 @@ class ResourceStorageService
                 $isUpdate,
             ];
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function prepareDataForStorage(array $data): array
+    {
+        $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
+
+        if (! is_array($relatedIdentifiers)) {
+            return $data;
+        }
+
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
+            }
+
+            $identifier = isset($relatedIdentifier['identifier'])
+                ? trim((string) $relatedIdentifier['identifier'])
+                : '';
+
+            if ($identifier === '') {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+
+                continue;
+            }
+
+            $relatedIdentifiers[$index]['identifier'] = $identifier;
+
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+
+                continue;
+            }
+
+            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolve(
+                $identifier,
+                (string) ($relatedIdentifier['identifierType'] ?? ''),
+            );
+
+            if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
+
+                continue;
+            }
+
+            unset($relatedIdentifiers[$index]['citationLabel']);
+        }
+
+        $data['relatedIdentifiers'] = $relatedIdentifiers;
+
+        return $data;
     }
 
     /**
@@ -977,10 +1037,7 @@ class ResourceStorageService
             if (! empty(trim($relatedIdentifier['identifier']))) {
                 $citationLabel = isset($relatedIdentifier['citationLabel']) && trim($relatedIdentifier['citationLabel']) !== ''
                     ? trim($relatedIdentifier['citationLabel'])
-                    : $this->relatedIdentifierCitationLabelService->resolve(
-                        trim($relatedIdentifier['identifier']),
-                        (string) ($relatedIdentifier['identifierType'] ?? ''),
-                    );
+                    : null;
 
                 $resource->relatedIdentifiers()->create([
                     'identifier' => trim($relatedIdentifier['identifier']),

@@ -161,7 +161,7 @@ class StoreDraftResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
-            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string'],
+            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:65535'],
             'fundingReferences' => ['nullable', 'array', 'max:99'],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],

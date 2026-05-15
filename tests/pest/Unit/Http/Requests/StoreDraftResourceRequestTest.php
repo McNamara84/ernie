@@ -63,3 +63,9 @@ it('normalizes related identifiers and keeps optional related-work fields only w
         ],
     ]);
 });
+
+it('limits related-work citation labels to the text-safe validation maximum', function (): void {
+    $request = new StoreDraftResourceRequest;
+
+    expect($request->rules()['relatedIdentifiers.*.citationLabel'])->toContain('max:65535');
+});

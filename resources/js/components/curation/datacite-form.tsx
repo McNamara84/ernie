@@ -1714,6 +1714,7 @@ export default function DataCiteForm({
                 identifierType: string;
                 relationType: string;
                 relationTypeInformation?: string;
+                citationLabel?: string;
             }[];
             fundingReferences: {
                 funderName: string;
@@ -1793,6 +1794,7 @@ export default function DataCiteForm({
                 identifierType: rw.identifier_type,
                 relationType: rw.relation_type,
                 ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
+                ...(rw.citation_label ? { citationLabel: rw.citation_label } : {}),
             })),
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based

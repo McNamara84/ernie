@@ -156,7 +156,7 @@ class StoreResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
-            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string'],
+            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:65535'],
 
             // Citation Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],

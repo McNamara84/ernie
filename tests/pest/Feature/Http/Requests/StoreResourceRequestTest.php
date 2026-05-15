@@ -379,6 +379,23 @@ describe('related identifiers validation', function () {
         ]);
     });
 
+    it('rejects related identifier citation labels that exceed the text-safe maximum', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['relatedIdentifiers'] = [
+            [
+                'identifier' => '10.1234/test',
+                'identifierType' => 'DOI',
+                'relationType' => 'Cites',
+                'citationLabel' => str_repeat('a', 65536),
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonValidationErrors(['relatedIdentifiers.0.citationLabel']);
+    });
+
     it('auto-fills a missing citation label during save', function () {
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldReceive('resolve')

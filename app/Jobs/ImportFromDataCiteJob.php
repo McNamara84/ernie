@@ -356,6 +356,17 @@ class ImportFromDataCiteJob implements ShouldQueue
         bool $shouldLookupMetaworks = true,
     ): array {
         try {
+            if (Resource::where('doi', $doi)->exists()) {
+                Log::debug('Skipping existing DOI', ['doi' => $doi]);
+
+                return [
+                    'status' => 'skipped',
+                    'metaworks_unavailable' => false,
+                ];
+            }
+
+            $preparedDoiRecord = $transformer->prepareDoiData($doiRecord);
+
             // Use database transaction to ensure atomicity of the check-then-insert operation.
             //
             // Design decision: We use SELECT + INSERT rather than INSERT IGNORE because:
@@ -363,12 +374,12 @@ class ImportFromDataCiteJob implements ShouldQueue
             // 2. INSERT IGNORE would silently succeed, making it impossible to track skips
             // 3. The unique constraint on DOI provides protection against race conditions
             // 4. Most imports won't have many duplicates, so the SELECT overhead is minimal
-            $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
+            $result = DB::transaction(function () use ($transformer, $preparedDoiRecord, $doi) {
                 if (Resource::where('doi', $doi)->exists()) {
                     return ['status' => 'skipped', 'resource' => null];
                 }
 
-                $resource = $transformer->transform($doiRecord, $this->userId);
+                $resource = $transformer->transform($preparedDoiRecord, $this->userId);
 
                 return ['status' => 'imported', 'resource' => $resource];
             });

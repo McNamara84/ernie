@@ -36,6 +36,7 @@ use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,6 +50,12 @@ use Illuminate\Support\Facades\Log;
  */
 class DataCiteToResourceTransformer
 {
+    private const PREPARED_MARKER = '__citation_labels_prepared';
+
+    public function __construct(
+        private ?RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService = null,
+    ) {}
+
     /**
      * Cached lookup tables for performance.
      *
@@ -67,7 +74,14 @@ class DataCiteToResourceTransformer
      */
     public function transform(array $doiData, int $userId): Resource
     {
-        $attributes = $doiData['attributes'] ?? $doiData;
+        $preparedDoiData = $this->prepareDoiData($doiData);
+
+        /** @var array<string, mixed> $attributes */
+        $attributes = is_array($preparedDoiData['attributes'] ?? null)
+            ? $preparedDoiData['attributes']
+            : $preparedDoiData;
+
+        unset($attributes[self::PREPARED_MARKER]);
 
         return DB::transaction(function () use ($attributes, $userId) {
             // Create the main Resource
@@ -90,6 +104,88 @@ class DataCiteToResourceTransformer
 
             return $resource;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiData
+     * @return array<string, mixed>
+     */
+    public function prepareDoiData(array $doiData): array
+    {
+        if (($doiData[self::PREPARED_MARKER] ?? false) === true) {
+            return $doiData;
+        }
+
+        if (is_array($doiData['attributes'] ?? null)) {
+            $doiData['attributes'] = $this->prepareAttributes($doiData['attributes']);
+            $doiData[self::PREPARED_MARKER] = true;
+
+            return $doiData;
+        }
+
+        $preparedAttributes = $this->prepareAttributes($doiData);
+        $preparedAttributes[self::PREPARED_MARKER] = true;
+
+        return $preparedAttributes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function prepareAttributes(array $attributes): array
+    {
+        $relatedIdentifiers = $attributes['relatedIdentifiers'] ?? null;
+
+        if (! is_array($relatedIdentifiers)) {
+            return $attributes;
+        }
+
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
+            }
+
+            $identifier = isset($relatedIdentifier['relatedIdentifier'])
+                ? trim((string) $relatedIdentifier['relatedIdentifier'])
+                : '';
+
+            if ($identifier === '') {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+
+                continue;
+            }
+
+            $relatedIdentifiers[$index]['relatedIdentifier'] = $identifier;
+
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+
+                continue;
+            }
+
+            $resolvedCitationLabel = $this->citationLabelService()->resolve(
+                $identifier,
+                (string) ($relatedIdentifier['relatedIdentifierType'] ?? ''),
+            );
+
+            if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
+            }
+        }
+
+        $attributes['relatedIdentifiers'] = $relatedIdentifiers;
+
+        return $attributes;
+    }
+
+    private function citationLabelService(): RelatedIdentifierCitationLabelService
+    {
+        return $this->relatedIdentifierCitationLabelService ??= app(RelatedIdentifierCitationLabelService::class);
     }
 
     /**
@@ -996,6 +1092,9 @@ class DataCiteToResourceTransformer
                 'identifier_type_id' => $identifierTypeId,
                 'relation_type_id' => $relationTypeId,
                 'relation_type_information' => $relIdData['relationTypeInformation'] ?? null,
+                'citation_label' => isset($relIdData['citationLabel']) && trim((string) $relIdData['citationLabel']) !== ''
+                    ? trim((string) $relIdData['citationLabel'])
+                    : null,
                 'related_metadata_scheme' => $relIdData['relatedMetadataScheme'] ?? null,
                 'scheme_uri' => $relIdData['schemeUri'] ?? null,
                 'scheme_type' => $relIdData['schemeType'] ?? null,
