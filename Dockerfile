@@ -3,7 +3,8 @@ FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc
 WORKDIR /var/www/html
 
 # Install system dependencies needed for the PHP runtime and extension builds.
-RUN apt-get update && apt-get install -y --only-upgrade libnghttp2-14 && apt-get install -y \
+RUN apt-get update && apt-get install -y \
+    libnghttp2-14 \
     git \
     curl \
     libpng-dev \
