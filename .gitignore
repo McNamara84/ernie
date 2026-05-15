@@ -54,3 +54,6 @@ node_modules/
 # Snapshots are OS-specific (Windows vs Linux) and should not be committed.
 # Each environment generates its own baseline on first run.
 /tests/.pest/snapshots/
+.trivy-cache/db/metadata.json
+.trivy-cache/db/trivy.db
+.trivy-cache/fanal/fanal.db
