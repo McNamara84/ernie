@@ -117,6 +117,40 @@ describe('RelatedWorkQuickAdd', () => {
         });
     });
 
+    it('normalizes dx.doi.org URLs before calling onAdd', async () => {
+        const user = userEvent.setup();
+        mockUseIdentifierValidation.mockReturnValue({
+            status: 'valid',
+            metadata: undefined,
+        });
+
+        render(<RelatedWorkQuickAdd {...defaultProps} identifier="https://dx.doi.org/10.5880/test.2024.002" />);
+
+        await user.click(screen.getByRole('button', { name: /add related work/i }));
+
+        expect(mockOnAdd).toHaveBeenCalledWith({
+            identifier: '10.5880/test.2024.002',
+            identifierType: 'DOI',
+            relationType: 'References',
+        });
+    });
+
+    it('does not submit invalid identifiers when Enter is pressed', async () => {
+        const user = userEvent.setup();
+        mockUseIdentifierValidation.mockReturnValue({
+            status: 'invalid',
+            metadata: undefined,
+        });
+
+        render(<RelatedWorkQuickAdd {...defaultProps} identifier="invalid-doi" />);
+
+        const input = screen.getByPlaceholderText(/10\.5194\/nhess/i);
+        input.focus();
+        await user.keyboard('{Enter}');
+
+        expect(mockOnAdd).not.toHaveBeenCalled();
+    });
+
     it('shows validation messages for invalid, warning, and valid states', () => {
         mockUseIdentifierValidation.mockReturnValueOnce({
             status: 'invalid',
@@ -169,6 +203,72 @@ describe('RelatedWorkQuickAdd', () => {
         await user.click(screen.getByRole('option', { name: 'URL' }));
 
         expect(mockOnIdentifierTypeChange).toHaveBeenCalledWith('URL');
+    });
+
+    it('shows and applies the opposite relation suggestion when available', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<RelatedWorkQuickAdd {...defaultProps} relationType="References" />);
+
+        await user.click(screen.getByRole('combobox', { name: /relation type/i }));
+        await user.click(screen.getByRole('option', { name: /cites/i }));
+
+        expect(mockOnRelationTypeChange).toHaveBeenCalledWith('Cites');
+
+        rerender(<RelatedWorkQuickAdd {...defaultProps} relationType="Cites" />);
+
+        expect(screen.getByText(/did you mean/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /use iscitedby/i }));
+
+        expect(mockOnRelationTypeChange).toHaveBeenLastCalledWith('IsCitedBy');
+    });
+
+    it('suppresses opposite relation suggestions when the opposite type is filtered out', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(
+            <RelatedWorkQuickAdd
+                {...defaultProps}
+                relationType="References"
+                activeRelationTypes={['Cites']}
+            />,
+        );
+
+        await user.click(screen.getByRole('combobox', { name: /relation type/i }));
+        await user.click(screen.getByRole('option', { name: /cites/i }));
+
+        rerender(
+            <RelatedWorkQuickAdd
+                {...defaultProps}
+                relationType="Cites"
+                activeRelationTypes={['Cites']}
+            />,
+        );
+
+        expect(screen.queryByText(/did you mean/i)).not.toBeInTheDocument();
+    });
+
+    it('filters identifier types and relation groups when active options are constrained', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkQuickAdd
+                {...defaultProps}
+                activeIdentifierTypes={['DOI', 'URL']}
+                activeRelationTypes={['Documents']}
+            />,
+        );
+
+        await user.click(screen.getByRole('combobox', { name: /identifier type/i }));
+
+        expect(screen.getByRole('option', { name: 'DOI' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'URL' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'Handle' })).not.toBeInTheDocument();
+
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('combobox', { name: /relation type/i }));
+
+        expect(screen.queryByText('Most Used')).not.toBeInTheDocument();
+        expect(screen.getByText('All relation types')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /documents/i })).toBeInTheDocument();
     });
 
     it('handles Enter to add a valid identifier', async () => {

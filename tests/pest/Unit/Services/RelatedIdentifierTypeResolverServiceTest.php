@@ -37,3 +37,12 @@ it('resolves database-backed display names to canonical slugs', function () {
     expect($service->resolveIdentifierType('my identifier'))->toBe('MyIdentifier')
         ->and($service->resolveRelationType('My Relation Type'))->toBe('MyRelationType');
 });
+
+it('returns null for null, blank, and unresolvable inputs', function () {
+    $service = app(RelatedIdentifierTypeResolverService::class);
+
+    expect($service->resolveIdentifierType(null))->toBeNull()
+        ->and($service->resolveRelationType(null))->toBeNull()
+        ->and($service->resolveIdentifierType('   '))->toBeNull()
+        ->and($service->resolveRelationType('@@@'))->toBeNull();
+});

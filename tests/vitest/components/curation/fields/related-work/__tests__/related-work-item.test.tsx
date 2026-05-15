@@ -100,6 +100,20 @@ describe('RelatedWorkItem', () => {
         );
     });
 
+    it('calls onChange when the identifier type is edited', async () => {
+        const user = userEvent.setup();
+        render(<RelatedWorkItem {...defaultProps} />);
+
+        await user.click(screen.getByRole('combobox', { name: /^type$/i }));
+        await user.click(screen.getByRole('option', { name: 'URL' }));
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                identifier_type: 'URL',
+            }),
+        );
+    });
+
     it('calls onChange when the citation label is edited', async () => {
         render(<RelatedWorkItem {...defaultProps} />);
 
@@ -111,6 +125,12 @@ describe('RelatedWorkItem', () => {
                 citation_label: 'Smith, J. (2024). Test Dataset.',
             }),
         );
+    });
+
+    it('shows a fallback message when no resolved title is available', () => {
+        render(<RelatedWorkItem {...defaultProps} />);
+
+        expect(screen.getByText('No resolved title available yet.')).toBeInTheDocument();
     });
 
     it('renders validation tooltips for valid items', async () => {
@@ -131,6 +151,16 @@ describe('RelatedWorkItem', () => {
         await user.hover(invalidIcon);
 
         expect((await screen.findAllByText('DOI not found')).length).toBeGreaterThan(0);
+    });
+
+    it('renders warning tooltips with the default message when no warning text is provided', async () => {
+        const user = userEvent.setup();
+        render(<RelatedWorkItem {...defaultProps} validationStatus="warning" />);
+
+        const warningIcon = screen.getByLabelText('Warning');
+        await user.hover(warningIcon);
+
+        expect((await screen.findAllByText('Validation warning')).length).toBeGreaterThan(0);
     });
 
     it('shows the resolved title helper when related_title is available', () => {
@@ -160,5 +190,55 @@ describe('RelatedWorkItem', () => {
         );
 
         expect(screen.getByLabelText('Relation type information')).toHaveValue('Custom relation');
+    });
+
+    it('clears relation type information when switching away from Other', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    ...defaultItem,
+                    relation_type: 'Other',
+                    relation_type_information: 'Custom relation',
+                }}
+            />,
+        );
+
+        await user.click(screen.getByRole('combobox', { name: /relation type/i }));
+        await user.click(screen.getByRole('option', { name: /cites/i }));
+
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                relation_type: 'Cites',
+                relation_type_information: null,
+            }),
+        );
+    });
+
+    it('filters identifier and relation type options when active sets are provided', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                activeIdentifierTypes={['DOI', 'URL']}
+                activeRelationTypes={['Cites', 'Documents']}
+            />,
+        );
+
+        await user.click(screen.getByRole('combobox', { name: /^type$/i }));
+
+        expect(screen.getByRole('option', { name: 'DOI' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'URL' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'Handle' })).not.toBeInTheDocument();
+
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('combobox', { name: /relation type/i }));
+
+        expect(screen.getByText('Most Used')).toBeInTheDocument();
+        expect(screen.getByText('All relation types')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /cites/i })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /documents/i })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: /references/i })).not.toBeInTheDocument();
     });
 });

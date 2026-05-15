@@ -6,11 +6,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RelatedWorkList from '@/components/curation/fields/related-work/related-work-list';
 import type { RelatedIdentifier } from '@/types';
 
+const dndState = vi.hoisted(() => ({
+    event: {
+        active: { id: 'related-work-0' },
+        over: { id: 'related-work-1' } as { id: string } | null,
+    },
+}));
+
 vi.mock('@dnd-kit/core', () => ({
     closestCenter: vi.fn(),
-    DndContext: ({ children, onDragEnd }: { children: ReactNode; onDragEnd: (event: { active: { id: string }; over: { id: string } }) => void }) => (
+    DndContext: ({ children, onDragEnd }: { children: ReactNode; onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void }) => (
         <div>
-            <button data-testid="trigger-drag" onClick={() => onDragEnd({ active: { id: 'related-work-0' }, over: { id: 'related-work-1' } })}>
+            <button data-testid="trigger-drag" onClick={() => onDragEnd(dndState.event)}>
                 Trigger drag
             </button>
             {children}
@@ -75,6 +82,10 @@ describe('RelatedWorkList', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        dndState.event = {
+            active: { id: 'related-work-0' },
+            over: { id: 'related-work-1' },
+        };
     });
 
     it('returns null when no items are present', () => {
@@ -99,6 +110,19 @@ describe('RelatedWorkList', () => {
         expect(screen.getByText('Drag cards to reorder them')).toBeInTheDocument();
         expect(screen.getByRole('list', { name: /related works/i })).toBeInTheDocument();
         expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    });
+
+    it('hides the reorder hint when only one item is present', () => {
+        render(
+            <RelatedWorkList
+                items={[createItem()]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        expect(screen.queryByText('Drag cards to reorder them')).not.toBeInTheDocument();
     });
 
     it('passes validation status and messages to items', () => {
@@ -174,5 +198,68 @@ describe('RelatedWorkList', () => {
             expect.objectContaining({ identifier: '10.5880/test.2024.002' }),
             expect.objectContaining({ identifier: '10.5880/test.2024.001' }),
         ]);
+    });
+
+    it('does not call onReorder when the drop target is missing', async () => {
+        const user = userEvent.setup();
+        dndState.event = {
+            active: { id: 'related-work-0' },
+            over: null,
+        };
+
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockOnReorder).not.toHaveBeenCalled();
+    });
+
+    it('does not call onReorder when an item is dropped onto itself', async () => {
+        const user = userEvent.setup();
+        dndState.event = {
+            active: { id: 'related-work-0' },
+            over: { id: 'related-work-0' },
+        };
+
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockOnReorder).not.toHaveBeenCalled();
+    });
+
+    it('does not call onReorder when sortable ids cannot be resolved', async () => {
+        const user = userEvent.setup();
+        dndState.event = {
+            active: { id: 'related-work-99' },
+            over: { id: 'related-work-1' },
+        };
+
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockOnReorder).not.toHaveBeenCalled();
     });
 });

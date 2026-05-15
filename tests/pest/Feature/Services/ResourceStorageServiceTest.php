@@ -1,9 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Models\IdentifierType;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -20,6 +25,12 @@ describe('ResourceStorageService', function () {
         }
         if (ResourceType::count() === 0) {
             $this->artisan('db:seed', ['--class' => 'ResourceTypeSeeder']);
+        }
+        if (IdentifierType::count() === 0) {
+            $this->artisan('db:seed', ['--class' => 'IdentifierTypeSeeder']);
+        }
+        if (RelationType::count() === 0) {
+            $this->artisan('db:seed', ['--class' => 'RelationTypeSeeder']);
         }
         // Seed DescriptionType for descriptions tests
         $this->artisan('db:seed', ['--class' => 'DescriptionTypeSeeder']);
@@ -243,6 +254,125 @@ describe('ResourceStorageService', function () {
         expect($resource->subjects()->count())->toBe(3);
         $keywords = $resource->subjects->pluck('value')->all();
         expect($keywords)->toContain('keyword1', 'keyword2', 'keyword3');
+    });
+
+    it('stores related identifiers with resolved citation labels and trimmed relation details', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldReceive('resolve')
+            ->once()
+            ->with('10.5880/test.related', 'DOI')
+            ->andReturn('Doe, J. (2026): Auto-resolved citation.');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'relatedIdentifiers' => [
+                [
+                    'identifier' => ' 10.5880/test.related ',
+                    'identifierType' => 'DOI',
+                    'relationType' => 'Cites',
+                    'relationTypeInformation' => '  Supplemental context  ',
+                ],
+                [
+                    'identifier' => '   ',
+                    'identifierType' => 'URL',
+                    'relationType' => 'References',
+                ],
+            ],
+        ];
+
+        [$resource] = $service->store($data, $this->user->id);
+
+        $resource->refresh()->load('relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType');
+
+        expect($resource->relatedIdentifiers)->toHaveCount(1);
+
+        $related = $resource->relatedIdentifiers->sole();
+
+        expect($related->identifier)->toBe('10.5880/test.related')
+            ->and($related->identifierType?->slug)->toBe('DOI')
+            ->and($related->relationType?->slug)->toBe('Cites')
+            ->and($related->relation_type_information)->toBe('Supplemental context')
+            ->and($related->citation_label)->toBe('Doe, J. (2026): Auto-resolved citation.')
+            ->and($related->position)->toBe(0);
+    });
+
+    it('preserves manual related identifier citation labels without calling the resolver', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolve');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'relatedIdentifiers' => [
+                [
+                    'identifier' => '10.5880/test.manual',
+                    'identifierType' => 'DOI',
+                    'relationType' => 'References',
+                    'relationTypeInformation' => '   ',
+                    'citationLabel' => '  Manual citation label  ',
+                ],
+            ],
+        ];
+
+        [$resource] = $service->store($data, $this->user->id);
+
+        $related = $resource->fresh()->relatedIdentifiers()->sole();
+
+        expect($related->citation_label)->toBe('Manual citation label')
+            ->and($related->relation_type_information)->toBeNull();
     });
 
     it('stores controlled GCMD keywords', function () {

@@ -2,9 +2,11 @@ import '@testing-library/jest-dom/vitest';
 
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkField from '@/components/curation/fields/related-work/related-work-field';
+import { detectIdentifierType } from '@/lib/identifier-type-detection';
 import type { RelatedIdentifier } from '@/types';
 
 vi.mock('@/actions/App/Http/Controllers/Api/DataCiteController', () => ({
@@ -23,7 +25,7 @@ vi.mock('@/components/curation/fields/related-work/related-work-quick-add', () =
         relationType,
         onRelationTypeChange,
     }: {
-        onAdd: (data: { identifier: string; identifierType: string; relationType: string }) => void;
+        onAdd: (data: { identifier: string; identifierType: string; relationType: string; citationLabel?: string }) => void;
         identifier: string;
         onIdentifierChange: (val: string) => void;
         identifierType: string;
@@ -39,8 +41,17 @@ vi.mock('@/components/curation/fields/related-work/related-work-quick-add', () =
             <button data-testid="set-references" onClick={() => onRelationTypeChange('References')}>
                 Set References
             </button>
+            <button data-testid="set-cites" onClick={() => onRelationTypeChange('Cites')}>
+                Set Cites
+            </button>
             <button data-testid="add-button" onClick={() => onAdd({ identifier, identifierType, relationType })}>
                 Add
+            </button>
+            <button
+                data-testid="add-with-manual-citation"
+                onClick={() => onAdd({ identifier, identifierType, relationType, citationLabel: 'Manual citation from add form' })}
+            >
+                Add with citation
             </button>
             <span data-testid="identifier-type">{identifierType}</span>
             <span data-testid="relation-type">{relationType}</span>
@@ -99,12 +110,20 @@ vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
                 </div>
             ))}
             {items[0] && (
-                <button
-                    data-testid="edit-first-item"
-                    onClick={() => onItemChange(0, { ...items[0], identifier: '10.1234/updated', citation_label: 'Old citation' })}
-                >
-                    Edit first
-                </button>
+                <>
+                    <button
+                        data-testid="edit-first-item"
+                        onClick={() => onItemChange(0, { ...items[0], identifier: '10.1234/updated', citation_label: 'Old citation' })}
+                    >
+                        Edit first
+                    </button>
+                    <button
+                        data-testid="edit-first-item-preserve-label"
+                        onClick={() => onItemChange(0, { ...items[0], citation_label: 'Updated citation without identifier change' })}
+                    >
+                        Edit first label only
+                    </button>
+                </>
             )}
             {items.length > 1 && (
                 <button
@@ -129,11 +148,14 @@ vi.mock('@/lib/identifier-type-detection', () => ({
     detectIdentifierType: vi.fn(() => 'DOI'),
 }));
 
+const mockDetectIdentifierType = vi.mocked(detectIdentifierType);
+
 describe('RelatedWorkField', () => {
     let onChange = vi.fn<(relatedWorks: RelatedIdentifier[]) => void>();
 
     beforeEach(() => {
         onChange = vi.fn<(relatedWorks: RelatedIdentifier[]) => void>();
+        mockDetectIdentifierType.mockReturnValue('DOI');
         vi.useFakeTimers({ shouldAdvanceTime: true });
         global.fetch = vi.fn().mockResolvedValue({
             ok: false,
@@ -181,6 +203,17 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
+    it('auto-detects the identifier type while typing into the shared form', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        mockDetectIdentifierType.mockReturnValue('URL');
+
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await user.type(screen.getByTestId('identifier-input'), 'https://example.org/resource');
+
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
+    });
+
     it('hydrates a citation label after adding a DOI when lookup succeeds', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         global.fetch = vi.fn().mockResolvedValue({
@@ -206,6 +239,59 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
+    it('ignores empty citation payloads from the lookup endpoint', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: vi.fn().mockResolvedValue({ citation: '   ' }),
+        }) as unknown as typeof fetch;
+
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
+        await user.click(screen.getByTestId('add-button'));
+
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('hydrates newly added citations without mutating unrelated existing items', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: vi.fn().mockResolvedValue({ citation: 'Doe, J. (2024). Fetched Citation.' }),
+        }) as unknown as typeof fetch;
+
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/existing', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
+        await user.click(screen.getByTestId('set-references'));
+        await user.click(screen.getByTestId('add-button'));
+
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(onChange).toHaveBeenLastCalledWith([
+            { identifier: '10.1234/existing', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
+            expect.objectContaining({
+                identifier: '10.1234/new',
+                relation_type: 'References',
+                citation_label: 'Doe, J. (2024). Fetched Citation.',
+            }),
+        ]);
+    });
+
     it('prevents duplicates with the same relation type', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(
@@ -220,6 +306,46 @@ describe('RelatedWorkField', () => {
 
         expect(onChange).not.toHaveBeenCalled();
         expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
+    });
+
+    it('treats DOI URLs as duplicates of their normalized bare DOI', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/dup', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.type(screen.getByTestId('identifier-input'), 'https://doi.org/10.1234/dup');
+        await user.click(screen.getByTestId('add-button'));
+
+        expect(onChange).not.toHaveBeenCalled();
+        expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
+    });
+
+    it('allows the same identifier when the relation type differs', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/shared', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/shared');
+        await user.click(screen.getByTestId('set-references'));
+        await user.click(screen.getByTestId('add-button'));
+
+        expect(onChange).toHaveBeenCalledWith([
+            { identifier: '10.1234/shared', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
+            expect.objectContaining({
+                identifier: '10.1234/shared',
+                identifier_type: 'DOI',
+                relation_type: 'References',
+                position: 1,
+            }),
+        ]);
     });
 
     it('clears duplicate errors after five seconds', async () => {
@@ -303,6 +429,65 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
+    it('keeps untouched sibling items unchanged when editing one related work entry', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    {
+                        identifier: '10.1234/original',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: 'Old citation',
+                        position: 0,
+                    },
+                    {
+                        identifier: '10.1234/untouched',
+                        identifier_type: 'DOI',
+                        relation_type: 'References',
+                        position: 1,
+                    },
+                ]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByTestId('edit-first-item'));
+
+        expect(onChange).toHaveBeenCalledWith([
+            expect.objectContaining({ identifier: '10.1234/updated', citation_label: null, position: 0 }),
+            { identifier: '10.1234/untouched', identifier_type: 'DOI', relation_type: 'References', position: 1 },
+        ]);
+    });
+
+    it('preserves citation labels when editing an item without changing its identifier', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    {
+                        identifier: '10.1234/original',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: 'Existing citation',
+                        position: 0,
+                    },
+                ]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByTestId('edit-first-item-preserve-label'));
+
+        expect(onChange).toHaveBeenCalledWith([
+            expect.objectContaining({
+                identifier: '10.1234/original',
+                citation_label: 'Updated citation without identifier change',
+                position: 0,
+            }),
+        ]);
+    });
+
     it('applies reordered items from the list callback', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(
@@ -335,6 +520,33 @@ describe('RelatedWorkField', () => {
         expect(screen.getByTestId('quick-add')).toBeInTheDocument();
     });
 
+    it('skips client-side citation lookups for non-DOI entries', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await user.type(screen.getByTestId('identifier-input'), 'https://example.org/documentation');
+        await user.click(screen.getByTestId('set-url-type'));
+        await user.click(screen.getByTestId('add-button'));
+
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch a citation label when the add form already provides one', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/manual-citation');
+        await user.click(screen.getByTestId('add-with-manual-citation'));
+
+        expect(onChange).toHaveBeenCalledWith([
+            expect.objectContaining({
+                identifier: '10.1234/manual-citation',
+                citation_label: 'Manual citation from add form',
+            }),
+        ]);
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
     it('appends non-duplicate CSV imports and skips duplicates', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(
@@ -356,5 +568,62 @@ describe('RelatedWorkField', () => {
             }),
         ]);
         expect(screen.getByText(/skipped 1 duplicate/i)).toBeInTheDocument();
+    });
+
+    it('clears CSV duplicate warnings after eight seconds', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /import from csv/i }));
+        await user.click(screen.getByTestId('csv-import-submit'));
+
+        expect(screen.getByText(/skipped 1 duplicate/i)).toBeInTheDocument();
+
+        act(() => {
+            vi.advanceTimersByTime(8000);
+        });
+
+        expect(screen.queryByText(/skipped 1 duplicate/i)).not.toBeInTheDocument();
+    });
+
+    it('does not apply a fetched citation label after the related work was removed', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        let resolveCitation: ((value: { citation: string }) => void) | undefined;
+
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: vi.fn(
+                () =>
+                    new Promise<{ citation: string }>((resolve) => {
+                        resolveCitation = resolve;
+                    }),
+            ),
+        }) as unknown as typeof fetch;
+
+        function StatefulField() {
+            const [items, setItems] = useState<RelatedIdentifier[]>([]);
+
+            return <RelatedWorkField relatedWorks={items} onChange={setItems} />;
+        }
+
+        render(<StatefulField />);
+
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/pending');
+        await user.click(screen.getByTestId('add-button'));
+        await user.click(screen.getByTestId('remove-0'));
+
+        await act(async () => {
+            resolveCitation?.({ citation: 'Deferred citation' });
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(screen.queryByTestId('related-work-list')).not.toBeInTheDocument();
+        expect(screen.queryByText('Deferred citation')).not.toBeInTheDocument();
     });
 });
